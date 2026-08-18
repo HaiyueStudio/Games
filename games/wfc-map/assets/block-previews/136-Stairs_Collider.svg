@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="166.3,116.1 53.7,123.2 109.6,89.3" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="53.7,123.2 109.6,18.0 109.6,89.3" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.3,44.8 166.3,116.1 109.6,89.3" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.3,44.8 109.6,89.3 109.6,18.0" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="53.7,123.2 166.3,44.8 109.6,18.0" fill="rgb(215,215,223)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.3,116.1 110.4,150.0 53.7,123.2" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.3,116.1 166.3,44.8 110.4,150.0" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.3,44.8 53.7,123.2 110.4,150.0" fill="rgb(215,215,223)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Stairs Collider</text>
+</svg>

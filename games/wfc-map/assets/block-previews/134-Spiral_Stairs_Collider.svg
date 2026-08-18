@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="113.9,92.4 97.3,58.5 113.9,40.9" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="136.9,39.6 113.9,92.4 113.9,40.9" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="113.9,92.4 82.2,76.5 97.3,58.5" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="136.9,39.6 179.6,123.4 113.9,92.4" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="113.9,92.4 69.8,92.5 82.2,76.5" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="69.8,92.5 113.9,92.4 59.0,108.6" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="113.9,92.4 40.4,137.0 59.0,108.6" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="179.6,123.4 114.4,163.0 113.9,92.4" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="179.6,123.4 136.9,39.6 152.7,38.9" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,163.0 40.4,137.0 113.9,92.4" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.6,36.0 179.6,123.4 152.7,38.9" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,116.8 113.9,40.9 97.3,58.5" fill="rgb(201,201,209)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,126.0 97.3,58.5 82.2,76.5" fill="rgb(205,205,213)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,135.3 82.2,76.5 69.8,92.5" fill="rgb(209,209,217)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="113.9,40.9 114.4,98.3 136.9,39.6" fill="rgb(192,192,200)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,144.5 69.8,92.5 59.0,108.6" fill="rgb(212,212,220)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="179.6,31.0 179.6,123.4 166.6,36.0" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="40.4,137.0 114.4,153.7 59.0,108.6" fill="rgb(217,217,225)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="136.9,39.6 114.4,89.1 152.7,38.9" fill="rgb(190,190,198)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,153.7 40.4,137.0 114.4,163.0" fill="rgb(187,187,195)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,144.5 59.0,108.6 114.4,153.7" fill="rgb(173,173,181)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,135.3 69.8,92.5 114.4,144.5" fill="rgb(164,164,172)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,126.0 82.2,76.5 114.4,135.3" fill="rgb(154,154,162)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="152.7,38.9 114.4,89.1 166.6,36.0" fill="rgb(183,183,191)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="179.6,31.0 114.4,70.6 179.6,123.4" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,70.6 114.4,163.0 179.6,123.4" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,98.3 113.9,40.9 114.4,107.5" fill="rgb(163,163,171)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="166.6,36.0 114.4,79.8 179.6,31.0" fill="rgb(174,174,182)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,89.1 136.9,39.6 114.4,98.3" fill="rgb(173,173,181)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,79.8 166.6,36.0 114.4,89.1" fill="rgb(189,189,197)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="114.4,70.6 179.6,31.0 114.4,79.8" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Spiral Stairs Collider</text>
+</svg>

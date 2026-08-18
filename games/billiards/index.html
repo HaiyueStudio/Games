@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billiards - WebGPU</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111827;
+      color: #f8fafc;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #wrap {
+      position: relative;
+      width: 900px;
+      height: 600px;
+    }
+    canvas {
+      display: block;
+      width: 900px;
+      height: 600px;
+      border-radius: 8px;
+      touch-action: none;
+      background: #10281f;
+    }
+    #hud {
+      position: absolute;
+      top: 18px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+    #title {
+      font-size: 34px;
+      font-weight: 800;
+    }
+    #help {
+      margin-top: 7px;
+      font-size: 13px;
+      color: rgba(248,250,252,0.72);
+      font-weight: 700;
+    }
+    #panel {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .box {
+      min-width: 116px;
+      padding: 11px 13px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 6px;
+      background: rgba(6, 12, 18, 0.72);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+    }
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    #score, #state {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    #aim {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0;
+      height: 3px;
+      transform-origin: 0 50%;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 0 14px rgba(255,255,255,0.62);
+      pointer-events: none;
+      display: none;
+    }
+    #controls {
+      position: absolute;
+      right: 22px;
+      bottom: 20px;
+      pointer-events: all;
+    }
+    button {
+      border: none;
+      border-radius: 6px;
+      background: #dc2626;
+      color: #fff;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button:hover { background: #ef4444; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="canvas" width="900" height="600"></canvas>
+    <div id="aim"></div>
+    <div id="hud">
+      <div>
+        <div id="title">Billiards</div>
+        <div id="help">Drag from the cue ball, release to shoot. Sink all 10 red balls.</div>
+      </div>
+      <div id="panel">
+        <div class="box">
+          <span class="label">Potted</span>
+          <div id="score">0 / 10</div>
+        </div>
+        <div class="box">
+          <span class="label">State</span>
+          <div id="state">Ready</div>
+        </div>
+      </div>
+    </div>
+    <div id="controls">
+      <button id="btn-new">New Game</button>
+    </div>
+  </div>
+  <script src="./bundle.js"></script>
+</body>
+</html>

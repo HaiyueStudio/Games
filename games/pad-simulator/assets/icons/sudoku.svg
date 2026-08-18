@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Sudoku">
+  <rect width="128" height="128" rx="27" fill="#f3efe7"/>
+  <rect x="24" y="24" width="80" height="80" rx="5" fill="#fffdf8" stroke="#243447" stroke-width="5"/>
+  <path d="M50.7 25v78M77.3 25v78M25 50.7h78M25 77.3h78" stroke="#8290a0" stroke-width="2"/>
+  <path d="M64 25v78M25 64h78" stroke="#243447" stroke-width="4"/>
+  <g fill="#2563eb" font-family="Arial, sans-serif" font-size="16" font-weight="800" text-anchor="middle">
+    <text x="38" y="45">8</text>
+    <text x="90" y="61">4</text>
+    <text x="64" y="75">7</text>
+    <text x="38" y="98">3</text>
+    <text x="90" y="98">6</text>
+  </g>
+</svg>

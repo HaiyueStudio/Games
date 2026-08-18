@@ -1,0 +1,6 @@
+{
+  "startingLives": 3,
+  "pacmanSpeed": 5.25,
+  "ghostSpeed": 4.35,
+  "frightenedSeconds": 7
+}

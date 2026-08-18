@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="198.0,61.5 104.5,56.3 104.5,17.3" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="104.5,56.3 22.0,67.5 104.5,17.3" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="173.5,112.0 104.5,56.3 198.0,100.5" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="104.5,56.3 198.0,61.5 198.0,100.5" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="104.5,56.3 49.0,116.2 22.0,106.5" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="22.0,67.5 104.5,56.3 22.0,106.5" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="144.2,119.7 104.5,56.3 173.5,112.0" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="49.0,116.2 104.5,56.3 79.8,121.8" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="104.5,56.3 144.2,119.7 112.3,123.0" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="79.8,121.8 104.5,56.3 112.3,123.0" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="198.0,61.5 104.5,17.3 173.5,73.0" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="49.0,77.2 104.5,17.3 22.0,67.5" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="173.5,73.0 104.5,17.3 144.2,80.7" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="198.0,100.5 173.5,73.0 173.5,112.0" fill="rgb(199,199,207)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="79.8,82.8 104.5,17.3 49.0,77.2" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="173.5,73.0 198.0,100.5 198.0,61.5" fill="rgb(199,199,207)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="49.0,116.2 22.0,67.5 22.0,106.5" fill="rgb(187,187,195)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="104.5,17.3 112.3,84.0 144.2,80.7" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="112.3,84.0 104.5,17.3 79.8,82.8" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="173.5,112.0 144.2,80.7 144.2,119.7" fill="rgb(204,204,212)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="79.8,121.8 49.0,77.2 49.0,116.2" fill="rgb(196,196,204)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="49.0,77.2 22.0,67.5 49.0,116.2" fill="rgb(187,187,195)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="144.2,80.7 173.5,112.0 173.5,73.0" fill="rgb(204,204,212)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="144.2,119.7 112.3,84.0 112.3,123.0" fill="rgb(205,205,213)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="112.3,123.0 79.8,82.8 79.8,121.8" fill="rgb(202,202,210)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="79.8,82.8 49.0,77.2 79.8,121.8" fill="rgb(196,196,204)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="112.3,84.0 144.2,119.7 144.2,80.7" fill="rgb(205,205,213)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="112.3,123.0 112.3,84.0 79.8,82.8" fill="rgb(202,202,210)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Wall Cornrer Fountain Collider</text>
+</svg>

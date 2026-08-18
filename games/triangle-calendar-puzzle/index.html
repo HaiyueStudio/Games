@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三角日历拼图</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      background: #eceff1;
+      color: #23313a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(255,255,255,.98), rgba(238,241,243,.94) 54%, #dde2e5 100%);
+    }
+    #game-shell {
+      position: relative;
+      width: min(100vw, calc(100vh * 30 / 19));
+      height: min(100vh, calc(100vw * 19 / 30));
+      aspect-ratio: 30 / 19;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.96), rgba(241,244,245,.97)),
+        repeating-linear-gradient(45deg, rgba(82,96,104,.018) 0 1px, transparent 1px 5px);
+      box-shadow: 0 28px 90px rgba(39,54,61,.18);
+      user-select: none;
+    }
+    #title-block {
+      position: absolute;
+      z-index: 5;
+      left: 3.5%;
+      top: 3.1%;
+      pointer-events: none;
+    }
+    h1 {
+      margin: 0;
+      color: #2d3438;
+      font-size: clamp(25px, 3.2vw, 47px);
+      line-height: 1;
+      letter-spacing: -.045em;
+      font-weight: 950;
+    }
+    #title-block p {
+      margin: .65em 0 0;
+      color: #718087;
+      font-size: clamp(10px, 1vw, 15px);
+      font-weight: 700;
+      letter-spacing: .025em;
+    }
+    #controls {
+      position: absolute;
+      z-index: 8;
+      right: 3.4%;
+      top: 2.4%;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(72px, 100px));
+      gap: 8px;
+      padding: 9px;
+      border: 1px solid rgba(64,78,85,.13);
+      border-radius: 16px;
+      background: rgba(255,255,255,.86);
+      box-shadow: 0 10px 32px rgba(50,65,72,.12);
+      backdrop-filter: blur(14px);
+    }
+    select, button {
+      height: 34px;
+      min-width: 0;
+      border: 1px solid #d0d7da;
+      border-radius: 9px;
+      background: #f8faf9;
+      color: #33434a;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      outline: none;
+    }
+    select { padding: 0 8px; }
+    button {
+      cursor: pointer;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    button:hover {
+      border-color: #8fb3b0;
+      background: #edf7f5;
+      transform: translateY(-1px);
+    }
+    button:active { transform: translateY(0); }
+    #today-button { color: #08796f; }
+    #reset-button { color: #8c5327; }
+    #rotate-button, #flip-button {
+      background: #30474f;
+      border-color: #30474f;
+      color: white;
+    }
+    #puzzle-board {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .board-backing {
+      fill: #f5ead7;
+      stroke: #c7a576;
+      stroke-width: 15;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 14px 14px rgba(83,65,42,.2));
+    }
+    .board-cell {
+      fill: #fbf6e9;
+      stroke: #b8986d;
+      stroke-width: 1.6;
+      vector-effect: non-scaling-stroke;
+      transition: fill .18s ease, stroke .18s ease;
+    }
+    .board-month { fill: #fcf3e5; }
+    .board-weekday { fill: #edf7f5; }
+    .board-cell.target-cell {
+      fill: #fff2b7;
+      stroke: #d8432f;
+      stroke-width: 3;
+    }
+    .board-label {
+      fill: #7d654b;
+      font-size: 16px;
+      font-weight: 760;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      pointer-events: none;
+    }
+    .label-month, .label-weekday { font-size: 13px; font-weight: 850; }
+    .board-label.target-label { fill: #b72c20; font-weight: 950; }
+    .region-divider {
+      stroke-width: 4;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
+    .month-divider { stroke: #cf4433; }
+    .weekday-divider { stroke: #229b9a; }
+    .puzzle-piece {
+      cursor: grab;
+      filter: drop-shadow(0 8px 7px rgba(31,43,49,.24));
+      transition: filter .12s ease, opacity .12s ease;
+      outline: none;
+    }
+    .puzzle-piece.dragging {
+      cursor: grabbing;
+      filter: drop-shadow(0 16px 11px rgba(31,43,49,.3));
+    }
+    .piece-cell { stroke: none; }
+    .piece-boundary {
+      fill: none;
+      stroke: rgba(24,36,42,.72);
+      stroke-width: 2.2;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+      pointer-events: none;
+    }
+    .puzzle-piece.selected .piece-boundary {
+      stroke: #fff;
+      stroke-width: 5;
+      filter: drop-shadow(0 0 4px rgba(22,96,91,.95));
+    }
+    .puzzle-piece.valid-drop { filter: drop-shadow(0 0 11px rgba(32,173,112,.92)); }
+    .puzzle-piece.invalid-drop { opacity: .68; filter: drop-shadow(0 0 10px rgba(222,67,49,.95)); }
+    #game-status {
+      position: absolute;
+      z-index: 7;
+      left: 50%;
+      bottom: 2.4%;
+      transform: translateX(-50%);
+      min-width: 360px;
+      padding: 9px 18px;
+      border: 1px solid rgba(66,84,91,.12);
+      border-radius: 999px;
+      background: rgba(255,255,255,.82);
+      color: #607178;
+      box-shadow: 0 8px 26px rgba(45,59,65,.09);
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+    #completion {
+      position: absolute;
+      z-index: 12;
+      left: 50%;
+      top: 54%;
+      transform: translate(-50%, -50%) scale(.92);
+      padding: 22px 34px;
+      border: 2px solid #d8ac4e;
+      border-radius: 20px;
+      background: rgba(255,250,226,.95);
+      color: #825013;
+      box-shadow: 0 24px 70px rgba(59,45,25,.3);
+      font-size: 22px;
+      font-weight: 950;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    #completion.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    @media (max-width: 760px) {
+      #controls {
+        grid-template-columns: repeat(4, minmax(48px, 1fr));
+        gap: 4px;
+        padding: 5px;
+      }
+      select, button { height: 27px; font-size: 10px; border-radius: 6px; }
+      #title-block p { display: none; }
+      #game-status { min-width: 0; width: 52%; padding: 5px; font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main id="game-shell">
+    <header id="title-block">
+      <h1>新三角日历拼图</h1>
+      <p>覆盖棋盘，只留下所选月份、日期与星期</p>
+    </header>
+
+    <section id="controls" aria-label="日期与拼图控制">
+      <select id="month-select" aria-label="选择月份"></select>
+      <select id="day-select" aria-label="选择日期"></select>
+      <select id="weekday-select" aria-label="选择星期"></select>
+      <button id="today-button" type="button">今天</button>
+      <button id="reset-button" type="button">重置</button>
+      <button id="rotate-button" type="button" title="快捷键 R">旋转 60°</button>
+      <button id="flip-button" type="button" title="快捷键 F">水平翻转</button>
+      <span aria-hidden="true"></span>
+    </section>
+
+    <svg id="puzzle-board" viewBox="0 0 1200 760" role="application" aria-label="三角日历拼图棋盘"></svg>
+    <div id="game-status" aria-live="polite"></div>
+    <div id="completion" aria-live="assertive"></div>
+  </main>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>

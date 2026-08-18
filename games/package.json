@@ -1,0 +1,32 @@
+{
+  "name": "@haiyue/games",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HaiyueStudio/Games.git",
+    "directory": "games"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-games.mjs",
+    "dev": "rollup -c rollup.config.js --watch",
+    "test": "node --experimental-strip-types --test \"test/**/*.test.mjs\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@haiyue/extensions": ">=0.1.0 <0.2.0",
+    "@haiyue/engine": ">=0.1.0 <0.2.0",
+    "wgpu-matrix": "^3.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@webgpu/types": "^0.1.40",
+    "rollup": "^4.0.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.2.0"
+  }
+}

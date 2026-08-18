@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minesweeper – WebGPU</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      color: #e0e8ff;
+    }
+
+    #wrap {
+      position: relative;
+      width: 900px;
+      height: 600px;
+    }
+
+    canvas {
+      display: block;
+      width: 900px;
+      height: 600px;
+    }
+
+    /* ── HTML overlay (pointer-events:none so clicks pass through to canvas) */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* ── Top HUD strip */
+    #hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      pointer-events: none;
+    }
+
+    .hud-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px currentColor;
+    }
+
+    #mines-display { color: #ff5555; }
+    #timer-display { color: #55ccff; }
+
+    .hud-icon { font-size: 18px; }
+
+    /* ── Cell number labels (absolutely positioned over each grid cell) */
+    #cell-labels {
+      position: absolute;
+      inset: 0;
+    }
+
+    .cell-num {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-size: 19.5px;
+      font-weight: bold;
+      line-height: 1;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* ── Status overlay */
+    #status-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      pointer-events: none;
+    }
+    #status-overlay.visible { display: flex; }
+
+    #status-text {
+      font-size: 52px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+    }
+    #status-text.won  { color: #44ff88; }
+    #status-text.lost { color: #ff4444; }
+
+    #status-sub {
+      font-size: 15px;
+      color: rgba(200,210,255,0.7);
+    }
+
+    /* ── New-game button (pointer-events re-enabled) */
+    #btn-new {
+      position: absolute;
+      bottom: 16px;
+      right: 20px;
+      pointer-events: all;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 8px 20px;
+      border: 1px solid rgba(100,160,255,0.5);
+      border-radius: 6px;
+      background: rgba(10,20,40,0.8);
+      color: rgba(150,200,255,0.85);
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #btn-new:hover {
+      background: rgba(30,60,100,0.85);
+      border-color: rgba(100,160,255,0.9);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="canvas" width="900" height="600"></canvas>
+
+    <div id="overlay">
+
+      <!-- HUD -->
+      <div id="hud">
+        <div class="hud-item" id="mines-display">
+          <span class="hud-icon">⚑</span>
+          <span id="mines-count">10</span>
+        </div>
+        <div class="hud-item" id="timer-display">
+          <span class="hud-icon">◷</span>
+          <span id="timer-count">0</span><span style="font-size:14px;opacity:0.7">s</span>
+        </div>
+      </div>
+
+      <!-- Per-cell number labels -->
+      <div id="cell-labels"></div>
+
+      <!-- Win / lose status -->
+      <div id="status-overlay">
+        <div id="status-text"></div>
+        <div id="status-sub"></div>
+      </div>
+
+    </div>
+
+    <button id="btn-new">↺ New Game</button>
+  </div>
+
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "levels": [
+    {
+      "id": "classic",
+      "name": "Classic Hex",
+      "radius": 4,
+      "start": { "q": 0, "r": 0 },
+      "entry": 4,
+      "hexScreen": 40,
+      "hexWorld": 0.92,
+      "boardOffsetX": 0,
+      "boardOffsetY": 0,
+      "outerWalls": true,
+      "startWall": true,
+      "randomStartExit": true
+    },
+    {
+      "id": "compact",
+      "name": "Compact Ring",
+      "radius": 3,
+      "start": { "q": -3, "r": 0 },
+      "entry": 4,
+      "hexScreen": 46,
+      "hexWorld": 1.05,
+      "boardOffsetX": 0,
+      "boardOffsetY": 0,
+      "outerWalls": true,
+      "startWall": true,
+      "randomStartExit": false
+    },
+    {
+      "id": "broken-spiral",
+      "name": "Broken Spiral",
+      "cells": [
+        { "q": 0, "r": 0 },
+        { "q": 1, "r": 0 },
+        { "q": 2, "r": 0 },
+        { "q": 2, "r": -1 },
+        { "q": 2, "r": -2 },
+        { "q": 1, "r": -2 },
+        { "q": 0, "r": -2 },
+        { "q": -1, "r": -1 },
+        { "q": -2, "r": 0 },
+        { "q": -2, "r": 1 },
+        { "q": -1, "r": 1 },
+        { "q": 0, "r": 1 },
+        { "q": 1, "r": 1 },
+        { "q": 2, "r": 1 },
+        { "q": 3, "r": 0 },
+        { "q": 3, "r": -1 },
+        { "q": 1, "r": -1 },
+        { "q": 0, "r": -1 },
+        { "q": -1, "r": 0 }
+      ],
+      "start": { "q": 0, "r": 0 },
+      "entry": 4,
+      "hexScreen": 46,
+      "hexWorld": 1.05,
+      "boardOffsetX": 0,
+      "boardOffsetY": 0,
+      "walls": [
+        { "q": 3, "r": 0 },
+        { "q": 3, "r": -1 },
+        { "q": -2, "r": 1 }
+      ]
+    }
+  ]
+}

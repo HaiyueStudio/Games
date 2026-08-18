@@ -1,0 +1,757 @@
+[
+  {
+    "index": 0,
+    "name": "Floor",
+    "file": "000-Floor.svg"
+  },
+  {
+    "index": 1,
+    "name": "High Wall",
+    "file": "001-High_Wall.svg"
+  },
+  {
+    "index": 2,
+    "name": "High Wall Clock",
+    "file": "002-High_Wall_Clock.svg"
+  },
+  {
+    "index": 3,
+    "name": "High Wall Clock Hours",
+    "file": "003-High_Wall_Clock_Hours.svg"
+  },
+  {
+    "index": 4,
+    "name": "High Wall Clock Minutes",
+    "file": "004-High_Wall_Clock_Minutes.svg"
+  },
+  {
+    "index": 5,
+    "name": "High Wall Corner",
+    "file": "005-High_Wall_Corner.svg"
+  },
+  {
+    "index": 6,
+    "name": "Wall",
+    "file": "006-Wall.svg"
+  },
+  {
+    "index": 7,
+    "name": "Wall Bench",
+    "file": "007-Wall_Bench.svg"
+  },
+  {
+    "index": 8,
+    "name": "Wall Corner",
+    "file": "008-Wall_Corner.svg"
+  },
+  {
+    "index": 9,
+    "name": "Wall Corner 2",
+    "file": "009-Wall_Corner_2.svg"
+  },
+  {
+    "index": 10,
+    "name": "Wall Corner 2 Tunnel",
+    "file": "010-Wall_Corner_2_Tunnel.svg"
+  },
+  {
+    "index": 11,
+    "name": "Wall Corner 2 Tunnel M",
+    "file": "011-Wall_Corner_2_Tunnel_M.svg"
+  },
+  {
+    "index": 12,
+    "name": "Wall Corner Fountain",
+    "file": "012-Wall_Corner_Fountain.svg"
+  },
+  {
+    "index": 13,
+    "name": "Wall Door",
+    "file": "013-Wall_Door.svg"
+  },
+  {
+    "index": 14,
+    "name": "Wall Window",
+    "file": "014-Wall_Window.svg"
+  },
+  {
+    "index": 15,
+    "name": "Wall with Roof",
+    "file": "015-Wall_with_Roof.svg"
+  },
+  {
+    "index": 16,
+    "name": "Wall with Roof 2",
+    "file": "016-Wall_with_Roof_2.svg"
+  },
+  {
+    "index": 17,
+    "name": "Wall with Roof 3",
+    "file": "017-Wall_with_Roof_3.svg"
+  },
+  {
+    "index": 18,
+    "name": "Wall with Roof Adapter",
+    "file": "018-Wall_with_Roof_Adapter.svg"
+  },
+  {
+    "index": 19,
+    "name": "Wall with Roof Adapter 2",
+    "file": "019-Wall_with_Roof_Adapter_2.svg"
+  },
+  {
+    "index": 20,
+    "name": "Water Fountain",
+    "file": "020-Water_Fountain.svg"
+  },
+  {
+    "index": 21,
+    "name": "Arch Bridge",
+    "file": "021-Arch_Bridge.svg"
+  },
+  {
+    "index": 22,
+    "name": "Arch Bridge End",
+    "file": "022-Arch_Bridge_End.svg"
+  },
+  {
+    "index": 23,
+    "name": "Arch Bridge End M",
+    "file": "023-Arch_Bridge_End_M.svg"
+  },
+  {
+    "index": 24,
+    "name": "Balcony",
+    "file": "024-Balcony.svg"
+  },
+  {
+    "index": 25,
+    "name": "Bridge",
+    "file": "025-Bridge.svg"
+  },
+  {
+    "index": 26,
+    "name": "Bridge Start",
+    "file": "026-Bridge_Start.svg"
+  },
+  {
+    "index": 27,
+    "name": "Bridge Wall",
+    "file": "027-Bridge_Wall.svg"
+  },
+  {
+    "index": 28,
+    "name": "High Wall Window",
+    "file": "028-High_Wall_Window.svg"
+  },
+  {
+    "index": 29,
+    "name": "Interior Ceiling Corner",
+    "file": "029-Interior_Ceiling_Corner.svg"
+  },
+  {
+    "index": 30,
+    "name": "Interior Corner",
+    "file": "030-Interior_Corner.svg"
+  },
+  {
+    "index": 31,
+    "name": "Interior Corner Inverted",
+    "file": "031-Interior_Corner_Inverted.svg"
+  },
+  {
+    "index": 32,
+    "name": "Interior Corner with Door",
+    "file": "032-Interior_Corner_with_Door.svg"
+  },
+  {
+    "index": 33,
+    "name": "Interior Corner with Door M",
+    "file": "033-Interior_Corner_with_Door_M.svg"
+  },
+  {
+    "index": 34,
+    "name": "Interior Door",
+    "file": "034-Interior_Door.svg"
+  },
+  {
+    "index": 35,
+    "name": "Interior Floor",
+    "file": "035-Interior_Floor.svg"
+  },
+  {
+    "index": 36,
+    "name": "Interior Floor High",
+    "file": "036-Interior_Floor_High.svg"
+  },
+  {
+    "index": 37,
+    "name": "Interior Floor High to Low Adapter",
+    "file": "037-Interior_Floor_High_to_Low_Adapter.svg"
+  },
+  {
+    "index": 38,
+    "name": "Interior High Ceiling",
+    "file": "038-Interior_High_Ceiling.svg"
+  },
+  {
+    "index": 39,
+    "name": "Interior High Ceiling Adapter",
+    "file": "039-Interior_High_Ceiling_Adapter.svg"
+  },
+  {
+    "index": 40,
+    "name": "Interior High Ceiling Adapter M",
+    "file": "040-Interior_High_Ceiling_Adapter_M.svg"
+  },
+  {
+    "index": 41,
+    "name": "Interior High Ceiling with Corner Railing",
+    "file": "041-Interior_High_Ceiling_with_Corner_Railing.svg"
+  },
+  {
+    "index": 42,
+    "name": "Interior High Ceiling with Railing",
+    "file": "042-Interior_High_Ceiling_with_Railing.svg"
+  },
+  {
+    "index": 43,
+    "name": "Interior High Corner",
+    "file": "043-Interior_High_Corner.svg"
+  },
+  {
+    "index": 44,
+    "name": "Interior High Door",
+    "file": "044-Interior_High_Door.svg"
+  },
+  {
+    "index": 45,
+    "name": "Interior High Wall Ceiling",
+    "file": "045-Interior_High_Wall_Ceiling.svg"
+  },
+  {
+    "index": 46,
+    "name": "Interior High Window",
+    "file": "046-Interior_High_Window.svg"
+  },
+  {
+    "index": 47,
+    "name": "Interior Wall",
+    "file": "047-Interior_Wall.svg"
+  },
+  {
+    "index": 48,
+    "name": "Interior Wall High",
+    "file": "048-Interior_Wall_High.svg"
+  },
+  {
+    "index": 49,
+    "name": "Interior Wall High to Low Adapter",
+    "file": "049-Interior_Wall_High_to_Low_Adapter.svg"
+  },
+  {
+    "index": 50,
+    "name": "Interior Wall High to Low Adapter M",
+    "file": "050-Interior_Wall_High_to_Low_Adapter_M.svg"
+  },
+  {
+    "index": 51,
+    "name": "Interior Window",
+    "file": "051-Interior_Window.svg"
+  },
+  {
+    "index": 52,
+    "name": "Pillars",
+    "file": "052-Pillars.svg"
+  },
+  {
+    "index": 53,
+    "name": "Pillars Corner",
+    "file": "053-Pillars_Corner.svg"
+  },
+  {
+    "index": 54,
+    "name": "Pillars Corner 2",
+    "file": "054-Pillars_Corner_2.svg"
+  },
+  {
+    "index": 55,
+    "name": "Railing",
+    "file": "055-Railing.svg"
+  },
+  {
+    "index": 56,
+    "name": "Railing Corner",
+    "file": "056-Railing_Corner.svg"
+  },
+  {
+    "index": 57,
+    "name": "Railing Corner 2",
+    "file": "057-Railing_Corner_2.svg"
+  },
+  {
+    "index": 58,
+    "name": "Railing Pillars",
+    "file": "058-Railing_Pillars.svg"
+  },
+  {
+    "index": 59,
+    "name": "Railing Pillars 2",
+    "file": "059-Railing_Pillars_2.svg"
+  },
+  {
+    "index": 60,
+    "name": "Railing Wall",
+    "file": "060-Railing_Wall.svg"
+  },
+  {
+    "index": 61,
+    "name": "Railing Wall 2",
+    "file": "061-Railing_Wall_2.svg"
+  },
+  {
+    "index": 62,
+    "name": "Railing Wall 3",
+    "file": "062-Railing_Wall_3.svg"
+  },
+  {
+    "index": 63,
+    "name": "Railing Wall 4",
+    "file": "063-Railing_Wall_4.svg"
+  },
+  {
+    "index": 64,
+    "name": "Roof Corner",
+    "file": "064-Roof_Corner.svg"
+  },
+  {
+    "index": 65,
+    "name": "Roof Corner 2",
+    "file": "065-Roof_Corner_2.svg"
+  },
+  {
+    "index": 66,
+    "name": "Roof End",
+    "file": "066-Roof_End.svg"
+  },
+  {
+    "index": 67,
+    "name": "Roof Side",
+    "file": "067-Roof_Side.svg"
+  },
+  {
+    "index": 68,
+    "name": "Roof Single",
+    "file": "068-Roof_Single.svg"
+  },
+  {
+    "index": 69,
+    "name": "Roof 2",
+    "file": "069-Roof_2.svg"
+  },
+  {
+    "index": 70,
+    "name": "Roof 2 Corner",
+    "file": "070-Roof_2_Corner.svg"
+  },
+  {
+    "index": 71,
+    "name": "Roof 2 Corner 2",
+    "file": "071-Roof_2_Corner_2.svg"
+  },
+  {
+    "index": 72,
+    "name": "Roof 2 Floor",
+    "file": "072-Roof_2_Floor.svg"
+  },
+  {
+    "index": 73,
+    "name": "Roof 2 Floor Corner",
+    "file": "073-Roof_2_Floor_Corner.svg"
+  },
+  {
+    "index": 74,
+    "name": "Roof 2 Floor Corner 2",
+    "file": "074-Roof_2_Floor_Corner_2.svg"
+  },
+  {
+    "index": 75,
+    "name": "Roof 2 Floor Wall",
+    "file": "075-Roof_2_Floor_Wall.svg"
+  },
+  {
+    "index": 76,
+    "name": "Roof 2 Floor Wall M",
+    "file": "076-Roof_2_Floor_Wall_M.svg"
+  },
+  {
+    "index": 77,
+    "name": "Roof 2 Top",
+    "file": "077-Roof_2_Top.svg"
+  },
+  {
+    "index": 78,
+    "name": "Roof 2 Top 2",
+    "file": "078-Roof_2_Top_2.svg"
+  },
+  {
+    "index": 79,
+    "name": "Roof 2 Top 3",
+    "file": "079-Roof_2_Top_3.svg"
+  },
+  {
+    "index": 80,
+    "name": "Roof 2 Top 4",
+    "file": "080-Roof_2_Top_4.svg"
+  },
+  {
+    "index": 81,
+    "name": "Roof 2 Top Wall",
+    "file": "081-Roof_2_Top_Wall.svg"
+  },
+  {
+    "index": 82,
+    "name": "Roof 2 Upper Corner",
+    "file": "082-Roof_2_Upper_Corner.svg"
+  },
+  {
+    "index": 83,
+    "name": "Roof 2 Upper Corner 2",
+    "file": "083-Roof_2_Upper_Corner_2.svg"
+  },
+  {
+    "index": 84,
+    "name": "Roof 2 Upper Roof",
+    "file": "084-Roof_2_Upper_Roof.svg"
+  },
+  {
+    "index": 85,
+    "name": "Roof 2 Upper Roof Wall",
+    "file": "085-Roof_2_Upper_Roof_Wall.svg"
+  },
+  {
+    "index": 86,
+    "name": "Roof 2 Upper Roof Wall M",
+    "file": "086-Roof_2_Upper_Roof_Wall_M.svg"
+  },
+  {
+    "index": 87,
+    "name": "Roof 2 Wall",
+    "file": "087-Roof_2_Wall.svg"
+  },
+  {
+    "index": 88,
+    "name": "Roof 2 Wall Corner",
+    "file": "088-Roof_2_Wall_Corner.svg"
+  },
+  {
+    "index": 89,
+    "name": "Roof 2 Wall Corner 2",
+    "file": "089-Roof_2_Wall_Corner_2.svg"
+  },
+  {
+    "index": 90,
+    "name": "Roof 2 Wall M",
+    "file": "090-Roof_2_Wall_M.svg"
+  },
+  {
+    "index": 91,
+    "name": "Solid",
+    "file": "091-Solid.svg"
+  },
+  {
+    "index": 92,
+    "name": "Spiral Stairs",
+    "file": "092-Spiral_Stairs.svg"
+  },
+  {
+    "index": 93,
+    "name": "Spiral Stairs Bow",
+    "file": "093-Spiral_Stairs_Bow.svg"
+  },
+  {
+    "index": 94,
+    "name": "Spiral Stairs Bow 2",
+    "file": "094-Spiral_Stairs_Bow_2.svg"
+  },
+  {
+    "index": 95,
+    "name": "Spiral Stairs Bow 2 M",
+    "file": "095-Spiral_Stairs_Bow_2_M.svg"
+  },
+  {
+    "index": 96,
+    "name": "Spiral Stairs Bow M",
+    "file": "096-Spiral_Stairs_Bow_M.svg"
+  },
+  {
+    "index": 97,
+    "name": "Spiral Stairs Entrance",
+    "file": "097-Spiral_Stairs_Entrance.svg"
+  },
+  {
+    "index": 98,
+    "name": "Spiral Stairs Entrance 2",
+    "file": "098-Spiral_Stairs_Entrance_2.svg"
+  },
+  {
+    "index": 99,
+    "name": "Spiral Stairs Entrance 2 M",
+    "file": "099-Spiral_Stairs_Entrance_2_M.svg"
+  },
+  {
+    "index": 100,
+    "name": "Spiral Stairs Entrance M",
+    "file": "100-Spiral_Stairs_Entrance_M.svg"
+  },
+  {
+    "index": 101,
+    "name": "Spiral Stairs M",
+    "file": "101-Spiral_Stairs_M.svg"
+  },
+  {
+    "index": 102,
+    "name": "Spiral Stairs Railing",
+    "file": "102-Spiral_Stairs_Railing.svg"
+  },
+  {
+    "index": 103,
+    "name": "Spiral Stairs Railing M",
+    "file": "103-Spiral_Stairs_Railing_M.svg"
+  },
+  {
+    "index": 104,
+    "name": "Stairs",
+    "file": "104-Stairs.svg"
+  },
+  {
+    "index": 105,
+    "name": "Stairs Bottom",
+    "file": "105-Stairs_Bottom.svg"
+  },
+  {
+    "index": 106,
+    "name": "Stairs Top",
+    "file": "106-Stairs_Top.svg"
+  },
+  {
+    "index": 107,
+    "name": "Wall Stairs",
+    "file": "107-Wall_Stairs.svg"
+  },
+  {
+    "index": 108,
+    "name": "Wall Stairs M",
+    "file": "108-Wall_Stairs_M.svg"
+  },
+  {
+    "index": 109,
+    "name": "Wall Stairs Railing",
+    "file": "109-Wall_Stairs_Railing.svg"
+  },
+  {
+    "index": 110,
+    "name": "Wall Stairs Railing 2",
+    "file": "110-Wall_Stairs_Railing_2.svg"
+  },
+  {
+    "index": 111,
+    "name": "Wall Stairs Railing M",
+    "file": "111-Wall_Stairs_Railing_M.svg"
+  },
+  {
+    "index": 112,
+    "name": "Wall Stairs Railing M 2",
+    "file": "112-Wall_Stairs_Railing_M_2.svg"
+  },
+  {
+    "index": 113,
+    "name": "Wall Stairs Railing Up",
+    "file": "113-Wall_Stairs_Railing_Up.svg"
+  },
+  {
+    "index": 114,
+    "name": "Wall Stairs Railing Up M",
+    "file": "114-Wall_Stairs_Railing_Up_M.svg"
+  },
+  {
+    "index": 115,
+    "name": "Wall Stairs Up",
+    "file": "115-Wall_Stairs_Up.svg"
+  },
+  {
+    "index": 116,
+    "name": "Wall Stairs Up M",
+    "file": "116-Wall_Stairs_Up_M.svg"
+  },
+  {
+    "index": 117,
+    "name": "Enclosed Stairs",
+    "file": "117-Enclosed_Stairs.svg"
+  },
+  {
+    "index": 118,
+    "name": "Enclosed Stairs Ceiling",
+    "file": "118-Enclosed_Stairs_Ceiling.svg"
+  },
+  {
+    "index": 119,
+    "name": "Enclosed Stairs Entrance Upper",
+    "file": "119-Enclosed_Stairs_Entrance_Upper.svg"
+  },
+  {
+    "index": 120,
+    "name": "Enclosed Stairs Entrance Upper 2",
+    "file": "120-Enclosed_Stairs_Entrance_Upper_2.svg"
+  },
+  {
+    "index": 121,
+    "name": "Enclosed Stairs Entrance Upper 2 Steps",
+    "file": "121-Enclosed_Stairs_Entrance_Upper_2_Steps.svg"
+  },
+  {
+    "index": 122,
+    "name": "Enclosed Stairs Entrance Upper 3",
+    "file": "122-Enclosed_Stairs_Entrance_Upper_3.svg"
+  },
+  {
+    "index": 123,
+    "name": "Enclosed Stairs Lower",
+    "file": "123-Enclosed_Stairs_Lower.svg"
+  },
+  {
+    "index": 124,
+    "name": "Tunnel",
+    "file": "124-Tunnel.svg"
+  },
+  {
+    "index": 125,
+    "name": "Tunnel Corner",
+    "file": "125-Tunnel_Corner.svg"
+  },
+  {
+    "index": 126,
+    "name": "Tunnel Window",
+    "file": "126-Tunnel_Window.svg"
+  },
+  {
+    "index": 127,
+    "name": "HH Stairs Corner Collider",
+    "file": "127-HH_Stairs_Corner_Collider.svg"
+  },
+  {
+    "index": 128,
+    "name": "Roof 2 Corner Collider",
+    "file": "128-Roof_2_Corner_Collider.svg"
+  },
+  {
+    "index": 129,
+    "name": "Roof 2 Top 2 Collider",
+    "file": "129-Roof_2_Top_2_Collider.svg"
+  },
+  {
+    "index": 130,
+    "name": "Roof 2 Top 3 Collider",
+    "file": "130-Roof_2_Top_3_Collider.svg"
+  },
+  {
+    "index": 131,
+    "name": "Roof 2 Top 4 Collider",
+    "file": "131-Roof_2_Top_4_Collider.svg"
+  },
+  {
+    "index": 132,
+    "name": "Roof 2 Top Collider",
+    "file": "132-Roof_2_Top_Collider.svg"
+  },
+  {
+    "index": 133,
+    "name": "Roof Single Collider",
+    "file": "133-Roof_Single_Collider.svg"
+  },
+  {
+    "index": 134,
+    "name": "Spiral Stairs Collider",
+    "file": "134-Spiral_Stairs_Collider.svg"
+  },
+  {
+    "index": 135,
+    "name": "Spiral Stairs Collider M",
+    "file": "135-Spiral_Stairs_Collider_M.svg"
+  },
+  {
+    "index": 136,
+    "name": "Stairs Collider",
+    "file": "136-Stairs_Collider.svg"
+  },
+  {
+    "index": 137,
+    "name": "Stairs Railing Collider",
+    "file": "137-Stairs_Railing_Collider.svg"
+  },
+  {
+    "index": 138,
+    "name": "Wall Cornrer Fountain Collider",
+    "file": "138-Wall_Cornrer_Fountain_Collider.svg"
+  },
+  {
+    "index": 139,
+    "name": "Water Fountain Collider",
+    "file": "139-Water_Fountain_Collider.svg"
+  },
+  {
+    "index": 140,
+    "name": "Interior Ceiling Details",
+    "file": "140-Interior_Ceiling_Details.svg"
+  },
+  {
+    "index": 141,
+    "name": "Interior Chandelier",
+    "file": "141-Interior_Chandelier.svg"
+  },
+  {
+    "index": 142,
+    "name": "Interior Pillar",
+    "file": "142-Interior_Pillar.svg"
+  },
+  {
+    "index": 143,
+    "name": "Interior Railings",
+    "file": "143-Interior_Railings.svg"
+  },
+  {
+    "index": 144,
+    "name": "Roof 2 Tiles Prototype.001",
+    "file": "144-Roof_2_Tiles_Prototype_001.svg"
+  },
+  {
+    "index": 145,
+    "name": "Roof 2 Tiles Prototype.002",
+    "file": "145-Roof_2_Tiles_Prototype_002.svg"
+  },
+  {
+    "index": 146,
+    "name": "Table",
+    "file": "146-Table.svg"
+  },
+  {
+    "index": 147,
+    "name": "Wall Corner.001",
+    "file": "147-Wall_Corner_001.svg"
+  },
+  {
+    "index": 148,
+    "name": "Wall Corner.002",
+    "file": "148-Wall_Corner_002.svg"
+  },
+  {
+    "index": 149,
+    "name": "Window Prototypee",
+    "file": "149-Window_Prototypee.svg"
+  },
+  {
+    "index": 150,
+    "name": "Rig",
+    "file": "150-Rig.svg"
+  }
+]

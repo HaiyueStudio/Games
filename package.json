@@ -1,0 +1,17 @@
+{
+  "name": "@haiyue/games-repository",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "repository": "https://github.com/HaiyueStudio/Games.git",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["games"],
+  "scripts": {
+    "deps:local": "node scripts/install-local-dependencies.mjs",
+    "build": "npm run build -w ./games",
+    "typecheck": "npm run typecheck -w ./games",
+    "test": "npm test -w ./games"
+  },
+  "optionalDependencies": { "@rollup/rollup-win32-x64-msvc": "4.60.4" }
+}

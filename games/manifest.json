@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "kind": "games",
+  "entries": [
+    {
+      "id": "2048",
+      "title": "2048",
+      "entry": "2048/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "billiards-3d",
+      "title": "billiards 3d",
+      "entry": "billiards-3d/main.ts",
+      "capabilities": [
+        "3d",
+        "3d-physics",
+        "pbr-workflow",
+        "input"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": {
+        "scenario": "gpu-driven.mega-batch-build.8000",
+        "budget": "review/baselines/benchmark-stage9.json"
+      },
+      "ci": "smoke"
+    },
+    {
+      "id": "billiards",
+      "title": "billiards",
+      "entry": "billiards/main.ts",
+      "capabilities": [
+        "2d",
+        "2d-physics",
+        "input"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "full"
+    },
+    {
+      "id": "calendar-puzzle",
+      "title": "calendar puzzle",
+      "entry": "calendar-puzzle/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "triangle-calendar-puzzle",
+      "title": "triangle calendar puzzle",
+      "entry": "triangle-calendar-puzzle/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow",
+        "input"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "entanglement-path",
+      "title": "entanglement path",
+      "entry": "entanglement-path/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "icosahedron-minesweeper",
+      "title": "icosahedron minesweeper",
+      "entry": "icosahedron-minesweeper/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "match-3",
+      "title": "match 3",
+      "entry": "match-3/main.ts",
+      "capabilities": [
+        "3d",
+        "game-workflow",
+        "input",
+        "geometry-processing"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": true,
+        "baseline": "review/baselines/product-screenshots/complete-game-match-3.json"
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "minesweeper",
+      "title": "minesweeper",
+      "entry": "minesweeper/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "pad-simulator",
+      "title": "pad simulator",
+      "entry": "pad-simulator/main.ts",
+      "capabilities": [
+        "input",
+        "gui"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "full"
+    },
+    {
+      "id": "pacman",
+      "title": "Pac-Man",
+      "entry": "pacman/main.ts",
+      "capabilities": [
+        "3d",
+        "game-workflow",
+        "input"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
+      "id": "piano",
+      "title": "piano",
+      "entry": "piano/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "sokoban-3d",
+      "title": "sokoban 3d",
+      "entry": "sokoban-3d/main.ts",
+      "capabilities": [
+        "3d",
+        "scene-workflow",
+        "input",
+        "device-recovery"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
+      "id": "spider-solitaire",
+      "title": "spider solitaire",
+      "entry": "spider-solitaire/main.ts",
+      "capabilities": [
+        "2d",
+        "gui",
+        "asset-lifecycle"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "full"
+    },
+    {
+      "id": "sudoku",
+      "title": "sudoku",
+      "entry": "sudoku/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "tetris",
+      "title": "tetris",
+      "entry": "tetris/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "manual"
+    },
+    {
+      "id": "wfc-map",
+      "title": "wfc map",
+      "entry": "wfc-map/main.ts",
+      "capabilities": [
+        "tilemap",
+        "2d",
+        "content-generation"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "full"
+    }
+  ]
+}

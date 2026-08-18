@@ -1,0 +1,672 @@
+import { HaiyueEngine } from '@haiyue/engine';
+import { World } from '@haiyue/engine';
+import { Entity } from '@haiyue/engine';
+import { Camera3D } from '@haiyue/engine';
+import { CartesianTransform3D } from '@haiyue/engine';
+import { SphericalTransform3D } from '@haiyue/engine';
+import { Mesh3D } from '@haiyue/engine';
+import { Render3DSystem } from '@haiyue/engine/systems';
+import { BlinnPhongRenderSystem } from '@haiyue/engine/systems';
+import { RenderIntegration } from '@haiyue/engine/experimental';
+import { BasicMaterial } from '@haiyue/engine';
+import { BlinnPhongMaterial } from '@haiyue/engine/material';
+import { ColorSRGB } from '@haiyue/engine';
+import { AmbientLight } from '@haiyue/engine/lighting';
+import { DirectionalLight } from '@haiyue/engine';
+import { createBox3D } from '@haiyue/engine';
+import { mat4 } from 'wgpu-matrix';
+import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+
+type Direction = 'left' | 'right' | 'up' | 'down';
+type GamePhase = 'playing' | 'won' | 'lost';
+
+interface Config {
+  rows: number;
+  cols: number;
+}
+
+interface SavedState {
+  rows: number;
+  cols: number;
+  board: number[][];
+  score: number;
+  best: number;
+  phase: GamePhase;
+}
+
+interface TileVisual {
+  entity: Entity;
+  material: BasicMaterial;
+  label: HTMLElement;
+  animation?: TileAnimation | undefined;
+}
+
+interface TileAnimation {
+  fromRow: number;
+  fromCol: number;
+  toRow: number;
+  toCol: number;
+  start: number;
+  duration: number;
+}
+
+interface LineCoord {
+  row: number;
+  col: number;
+}
+
+interface TileMovement {
+  fromRow: number;
+  fromCol: number;
+  toRow: number;
+  toCol: number;
+}
+
+interface MoveResult {
+  board: number[][];
+  gained: number;
+  movements: TileMovement[];
+}
+
+const CANVAS_W = 900;
+const CANVAS_H = 600;
+const CELL_SIZE = 1.22;
+const CELL_HEIGHT = 0.14;
+const TILE_HEIGHT = 0.28;
+const MOVE_ANIMATION_MS = 130;
+const SWIPE_THRESHOLD = 24;
+const STORAGE_PREFIX = 'haiyue-2048-state';
+
+const geoCell = createBox3D({ width: 1.04, height: CELL_HEIGHT, depth: 1.04 });
+const geoTile = createBox3D({ width: 1.02, height: TILE_HEIGHT, depth: 1.02 });
+
+const TILE_COLORS: Record<number, { bg: string; fg: string }> = {
+  0: { bg: '#cdc1b4', fg: '#776e65' },
+  2: { bg: '#eee4da', fg: '#776e65' },
+  4: { bg: '#ede0c8', fg: '#776e65' },
+  8: { bg: '#f2b179', fg: '#f9f6f2' },
+  16: { bg: '#f59563', fg: '#f9f6f2' },
+  32: { bg: '#f67c5f', fg: '#f9f6f2' },
+  64: { bg: '#f65e3b', fg: '#f9f6f2' },
+  128: { bg: '#edcf72', fg: '#f9f6f2' },
+  256: { bg: '#edcc61', fg: '#f9f6f2' },
+  512: { bg: '#edc850', fg: '#f9f6f2' },
+  1024: { bg: '#edc53f', fg: '#f9f6f2' },
+  2048: { bg: '#edc22e', fg: '#f9f6f2' },
+};
+
+function color(hex: string): ColorSRGB {
+  return ColorSRGB.fromHex(hex);
+}
+
+function project3DToScreen(
+  wx: number,
+  wy: number,
+  wz: number,
+  viewProj: Float32Array,
+): { x: number; y: number; behind: boolean } {
+  const cx = requiredNumberAt(viewProj, 0, '2048 view projection') * wx + requiredNumberAt(viewProj, 4, '2048 view projection') * wy + requiredNumberAt(viewProj, 8, '2048 view projection') * wz + requiredNumberAt(viewProj, 12, '2048 view projection');
+  const cy = requiredNumberAt(viewProj, 1, '2048 view projection') * wx + requiredNumberAt(viewProj, 5, '2048 view projection') * wy + requiredNumberAt(viewProj, 9, '2048 view projection') * wz + requiredNumberAt(viewProj, 13, '2048 view projection');
+  const cw = requiredNumberAt(viewProj, 3, '2048 view projection') * wx + requiredNumberAt(viewProj, 7, '2048 view projection') * wy + requiredNumberAt(viewProj, 11, '2048 view projection') * wz + requiredNumberAt(viewProj, 15, '2048 view projection');
+  const ndcX = cx / cw;
+  const ndcY = cy / cw;
+  return {
+    x: (ndcX + 1) / 2 * CANVAS_W,
+    y: (1 - ndcY) / 2 * CANVAS_H,
+    behind: cw < 0,
+  };
+}
+
+function makeEmptyBoard(rows: number, cols: number): number[][] {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
+function cloneBoard(board: number[][]): number[][] {
+  return board.map(row => row.slice());
+}
+
+function boardRow(board: number[][], row: number): number[] {
+  return requiredItemAt(board, row, '2048 board rows');
+}
+
+function boardValue(board: number[][], row: number, col: number): number {
+  return requiredNumberAt(boardRow(board, row), col, '2048 board cells');
+}
+
+function setBoardValue(board: number[][], row: number, col: number, value: number): void {
+  boardRow(board, row)[col] = value;
+}
+
+function boardsEqual(a: number[][], b: number[][]): boolean {
+  return a.length === b.length && a.every((row, r) => (
+    row.length === boardRow(b, r).length && row.every((value, c) => value === boardValue(b, r, c))
+  ));
+}
+
+class Game2048 {
+  private engine!: HaiyueEngine;
+  private world!: World;
+  private camEntity!: Entity;
+  private cam3D!: Camera3D;
+  private spherical!: SphericalTransform3D;
+  private viewProj = new Float32Array(16);
+
+  private board: number[][];
+  private score = 0;
+  private best = 0;
+  private phase: GamePhase = 'playing';
+  private cells: Entity[] = [];
+  private tiles = new Map<string, TileVisual>();
+
+  private elScore!: HTMLElement;
+  private elBest!: HTMLElement;
+  private elLabels!: HTMLElement;
+  private elStatus!: HTMLElement;
+  private elStatusTitle!: HTMLElement;
+  private elStatusSub!: HTMLElement;
+
+  private touchStartX = 0;
+  private touchStartY = 0;
+  private mouseStartX = 0;
+  private mouseStartY = 0;
+  private mouseDown = false;
+
+  constructor(private config: Config) {
+    this.config.rows = Math.max(2, Math.floor(config.rows || 4));
+    this.config.cols = Math.max(2, Math.floor(config.cols || 4));
+    this.board = makeEmptyBoard(this.config.rows, this.config.cols);
+  }
+
+  async init(canvas: HTMLCanvasElement) {
+    this.engine = new HaiyueEngine({
+      canvas,
+      clearColor: { r: 0.98, g: 0.96, b: 0.90, a: 1 },
+    });
+    await this.engine.init();
+
+    this.world = new World('2048');
+    this._setupCamera();
+    this._setupLights();
+    this._setupDOM();
+    this._setupInput(canvas);
+    this._buildCells();
+    this._loadOrCreateState();
+    this._syncVisuals();
+
+    this.engine.on('update', ({ detail: { time, delta } }) => {
+      this._tick(time, delta);
+    });
+    this.engine.run();
+  }
+
+  private get storageKey(): string {
+    return `${STORAGE_PREFIX}-${this.config.rows}x${this.config.cols}`;
+  }
+
+  private _setupCamera() {
+    const gridW = (this.config.cols - 1) * CELL_SIZE;
+    const gridH = (this.config.rows - 1) * CELL_SIZE;
+    const radius = Math.max(gridW, gridH) * 1.08 + 5.2;
+
+    this.spherical = new SphericalTransform3D({
+      radius,
+      theta: 0,
+      phi: Math.PI / 4.1,
+      target: [gridW / 2, 0, gridH / 2],
+    });
+
+    this.cam3D = new Camera3D({
+      type: 'perspective',
+      fov: Math.PI / 4.4,
+      near: 0.1,
+      far: 200,
+    });
+
+    this.camEntity = new Entity('Camera3D');
+    this.camEntity.addComponent(this.cam3D);
+    this.camEntity.addComponent(this.spherical);
+    this.world.addEntity(this.camEntity);
+
+    const render3DSystem = new Render3DSystem(this.engine, this.camEntity, {
+      priority: 0,
+      loadOp: 'clear',
+    });
+    this.world.addSystem(render3DSystem);
+    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, this.camEntity, {
+      priority: -1,
+      render3DSystem,
+    }));
+    const renderIntegration = new RenderIntegration(this.engine, { label: 'Game2048.render' });
+    this.world.addRuntimeIntegration(renderIntegration);
+    renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
+  }
+
+  private _setupLights() {
+    const ambient = new Entity('AmbientLight');
+    ambient.addComponent(new AmbientLight({ color: [1, 0.97, 0.9], intensity: 0.36 }));
+    this.world.addEntity(ambient);
+
+    const directional = new Entity('DirectionalLight');
+    directional.addComponent(new DirectionalLight({
+      color: [1, 0.95, 0.86],
+      intensity: 1.18,
+      direction: [-0.45, -1, -0.4],
+    }));
+    this.world.addEntity(directional);
+  }
+
+  private _setupDOM() {
+    this.elScore = document.getElementById('score')!;
+    this.elBest = document.getElementById('best')!;
+    this.elLabels = document.getElementById('tile-labels')!;
+    this.elStatus = document.getElementById('status')!;
+    this.elStatusTitle = document.getElementById('status-title')!;
+    this.elStatusSub = document.getElementById('status-sub')!;
+    document.getElementById('btn-new')!.addEventListener('click', () => this._newGame());
+  }
+
+  private _setupInput(canvas: HTMLCanvasElement) {
+    document.addEventListener('keydown', (e) => {
+      const keyMap: Record<string, Direction | undefined> = {
+        ArrowLeft: 'left',
+        a: 'left',
+        A: 'left',
+        ArrowRight: 'right',
+        d: 'right',
+        D: 'right',
+        ArrowUp: 'up',
+        w: 'up',
+        W: 'up',
+        ArrowDown: 'down',
+        s: 'down',
+        S: 'down',
+      };
+      const direction = keyMap[e.key];
+      if (!direction) return;
+      e.preventDefault();
+      this._move(direction);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      this.touchStartX = touch.clientX;
+      this.touchStartY = touch.clientY;
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', (e) => {
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const dx = touch.clientX - this.touchStartX;
+      const dy = touch.clientY - this.touchStartY;
+      this._moveBySwipe(dx, dy);
+    }, { passive: true });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      this.mouseDown = true;
+      this.mouseStartX = e.clientX;
+      this.mouseStartY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (!this.mouseDown) return;
+      this.mouseDown = false;
+      this._moveBySwipe(e.clientX - this.mouseStartX, e.clientY - this.mouseStartY);
+    });
+  }
+
+  private _buildCells() {
+    const mat = new BasicMaterial({ color: color('#cdc1b4') });
+    for (let r = 0; r < this.config.rows; r++) {
+      for (let c = 0; c < this.config.cols; c++) {
+        const cell = new Entity(`cell_${r}_${c}`);
+        cell.addComponent(new CartesianTransform3D({
+          position: [c * CELL_SIZE, -0.02, r * CELL_SIZE],
+        }));
+        cell.addComponent(new Mesh3D(geoCell, mat));
+        this.world.addEntity(cell);
+        this.cells.push(cell);
+      }
+    }
+  }
+
+  private _loadOrCreateState() {
+    const saved = this._readSavedState();
+    if (saved) {
+      this.board = saved.board;
+      this.score = saved.score;
+      this.best = saved.best;
+      this.phase = saved.phase;
+    } else {
+      this.best = this._readBest();
+      this._newGame(false);
+    }
+  }
+
+  private _readSavedState(): SavedState | null {
+    try {
+      const raw = localStorage.getItem(this.storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as SavedState;
+      if (
+        parsed.rows !== this.config.rows ||
+        parsed.cols !== this.config.cols ||
+        !Array.isArray(parsed.board) ||
+        parsed.board.length !== this.config.rows ||
+        parsed.board.some(row => !Array.isArray(row) || row.length !== this.config.cols)
+      ) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private _readBest(): number {
+    const raw = localStorage.getItem(`${STORAGE_PREFIX}-best`);
+    return raw ? Number(raw) || 0 : 0;
+  }
+
+  private _saveState() {
+    const state: SavedState = {
+      rows: this.config.rows,
+      cols: this.config.cols,
+      board: this.board,
+      score: this.score,
+      best: this.best,
+      phase: this.phase,
+    };
+    localStorage.setItem(this.storageKey, JSON.stringify(state));
+    localStorage.setItem(`${STORAGE_PREFIX}-best`, String(this.best));
+  }
+
+  private _newGame(save = true) {
+    this.board = makeEmptyBoard(this.config.rows, this.config.cols);
+    this.score = 0;
+    this.phase = 'playing';
+    this._spawnRandomTile();
+    this._spawnRandomTile();
+    if (save) {
+      this._syncVisuals();
+      this._saveState();
+    }
+  }
+
+  private _spawnRandomTile() {
+    const empty: Array<[number, number]> = [];
+    for (let r = 0; r < this.config.rows; r++) {
+      for (let c = 0; c < this.config.cols; c++) {
+        if (boardValue(this.board, r, c) === 0) empty.push([r, c]);
+      }
+    }
+    if (!empty.length) return;
+    const [r, c] = requiredItemAt(empty, Math.floor(Math.random() * empty.length), 'empty 2048 cells');
+    setBoardValue(this.board, r, c, Math.random() < 0.9 ? 2 : 4);
+  }
+
+  private _move(direction: Direction) {
+    if (this.phase === 'lost') return;
+
+    const before = cloneBoard(this.board);
+    const result = this._calculateMove(direction);
+    if (boardsEqual(before, result.board)) return;
+
+    this.board = result.board;
+    this.score += result.gained;
+    this.best = Math.max(this.best, this.score);
+    this._spawnRandomTile();
+    this._updatePhase();
+    this._syncVisuals(result.movements);
+    this._saveState();
+  }
+
+  private _moveBySwipe(dx: number, dy: number) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
+    this._move(Math.abs(dx) > Math.abs(dy)
+      ? (dx > 0 ? 'right' : 'left')
+      : (dy > 0 ? 'down' : 'up'));
+  }
+
+  private _calculateMove(direction: Direction): MoveResult {
+    const next = makeEmptyBoard(this.config.rows, this.config.cols);
+    const movements: TileMovement[] = [];
+    let gained = 0;
+
+    const lines = this._getMoveLines(direction);
+    for (const line of lines) {
+      const values = line
+        .map(coord => ({ ...coord, value: boardValue(this.board, coord.row, coord.col) }))
+        .filter(item => item.value > 0);
+
+      let targetIndex = 0;
+      for (let i = 0; i < values.length; i++) {
+        const current = requiredItemAt(values, i, '2048 line values');
+        const nextValue = values[i + 1];
+        const target = requiredItemAt(line, targetIndex, '2048 target line');
+
+        if (nextValue && current.value === nextValue.value) {
+          const merged = current.value * 2;
+          setBoardValue(next, target.row, target.col, merged);
+          gained += merged;
+          movements.push({
+            fromRow: nextValue.row,
+            fromCol: nextValue.col,
+            toRow: target.row,
+            toCol: target.col,
+          });
+          i++;
+        } else {
+          setBoardValue(next, target.row, target.col, current.value);
+          movements.push({
+            fromRow: current.row,
+            fromCol: current.col,
+            toRow: target.row,
+            toCol: target.col,
+          });
+        }
+
+        targetIndex++;
+      }
+    }
+
+    return { board: next, gained, movements };
+  }
+
+  private _getMoveLines(direction: Direction): LineCoord[][] {
+    const lines: LineCoord[][] = [];
+    if (direction === 'left' || direction === 'right') {
+      for (let r = 0; r < this.config.rows; r++) {
+        const line: LineCoord[] = [];
+        for (let c = 0; c < this.config.cols; c++) {
+          line.push({ row: r, col: direction === 'left' ? c : this.config.cols - 1 - c });
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+
+    for (let c = 0; c < this.config.cols; c++) {
+      const line: LineCoord[] = [];
+      for (let r = 0; r < this.config.rows; r++) {
+        line.push({ row: direction === 'up' ? r : this.config.rows - 1 - r, col: c });
+      }
+      lines.push(line);
+    }
+    return lines;
+  }
+
+  private _updatePhase() {
+    if (this.board.some(row => row.some(value => value >= 2048))) {
+      this.phase = 'won';
+    }
+    if (!this._canMove()) {
+      this.phase = 'lost';
+    }
+  }
+
+  private _canMove(): boolean {
+    for (let r = 0; r < this.config.rows; r++) {
+      for (let c = 0; c < this.config.cols; c++) {
+        const value = boardValue(this.board, r, c);
+        if (value === 0) return true;
+        if (c + 1 < this.config.cols && value === boardValue(this.board, r, c + 1)) return true;
+        if (r + 1 < this.config.rows && value === boardValue(this.board, r + 1, c)) return true;
+      }
+    }
+    return false;
+  }
+
+  private _syncVisuals(movements: TileMovement[] = []) {
+    const used = new Set<string>();
+    const movementMap = new Map(
+      movements.map(move => [`${move.toRow}_${move.toCol}`, move]),
+    );
+
+    for (let r = 0; r < this.config.rows; r++) {
+      for (let c = 0; c < this.config.cols; c++) {
+        const value = boardValue(this.board, r, c);
+        const key = `${r}_${c}`;
+        if (!value) continue;
+        used.add(key);
+
+        let visual = this.tiles.get(key);
+        if (!visual) {
+          const material = new BasicMaterial({ color: color('#eee4da') });
+          const entity = new Entity(`tile_${key}`);
+          entity.addComponent(new CartesianTransform3D());
+          entity.addComponent(new Mesh3D(geoTile, material));
+          this.world.addEntity(entity);
+
+          const label = document.createElement('div');
+          label.className = 'tile-num';
+          this.elLabels.appendChild(label);
+
+          visual = { entity, material, label };
+          this.tiles.set(key, visual);
+        }
+
+        const palette = TILE_COLORS[value] ?? { bg: '#3c3a32', fg: '#f9f6f2' };
+        const bg = color(palette.bg);
+        visual.material.color.setFromSRGB(bg.r, bg.g, bg.b, 1);
+        visual.label.textContent = String(value);
+        visual.label.style.color = palette.fg;
+        visual.label.style.fontSize = `${this._fontSizeForValue(value)}px`;
+
+        const transform = visual.entity.getComponent(CartesianTransform3D)!;
+        const movement = movementMap.get(key);
+        if (movement && (movement.fromRow !== r || movement.fromCol !== c)) {
+          visual.animation = {
+            fromRow: movement.fromRow,
+            fromCol: movement.fromCol,
+            toRow: r,
+            toCol: c,
+            start: performance.now(),
+            duration: MOVE_ANIMATION_MS,
+          };
+          transform.setPosition(
+            movement.fromCol * CELL_SIZE,
+            TILE_HEIGHT * 0.55,
+            movement.fromRow * CELL_SIZE,
+          );
+        } else {
+          visual.animation = undefined;
+          transform.setPosition(c * CELL_SIZE, TILE_HEIGHT * 0.55, r * CELL_SIZE);
+        }
+      }
+    }
+
+    for (const [key, visual] of this.tiles) {
+      if (used.has(key)) continue;
+      this.world.removeEntity(visual.entity);
+      visual.label.remove();
+      this.tiles.delete(key);
+    }
+
+    this.elScore.textContent = String(this.score);
+    this.elBest.textContent = String(this.best);
+    this._syncStatus();
+  }
+
+  private _fontSizeForValue(value: number): number {
+    if (value < 100) return 34;
+    if (value < 1000) return 28;
+    return 23;
+  }
+
+  private _syncStatus() {
+    if (this.phase === 'playing') {
+      this.elStatus.classList.remove('visible');
+      return;
+    }
+
+    this.elStatusTitle.textContent = this.phase === 'won' ? 'You win!' : 'Game over';
+    this.elStatusSub.textContent = this.phase === 'won'
+      ? 'Keep playing or start a new game.'
+      : 'No more moves. Start a new game.';
+    this.elStatus.classList.add('visible');
+  }
+
+  private _updateLabels() {
+    for (const visual of this.tiles.values()) {
+      const transform = visual.entity.getComponent(CartesianTransform3D)!;
+      const x = requiredNumberAt(transform.position, 0, '2048 tile position');
+      const z = requiredNumberAt(transform.position, 2, '2048 tile position');
+      const sc = project3DToScreen(
+        x,
+        TILE_HEIGHT + 0.18,
+        z,
+        this.viewProj,
+      );
+      visual.label.style.display = sc.behind ? 'none' : 'block';
+      visual.label.style.left = `${sc.x}px`;
+      visual.label.style.top = `${sc.y}px`;
+    }
+  }
+
+  private _updateAnimations(now: number) {
+    for (const visual of this.tiles.values()) {
+      const animation = visual.animation;
+      if (!animation) continue;
+
+      const t = Math.min(1, (now - animation.start) / animation.duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const x = (animation.fromCol + (animation.toCol - animation.fromCol) * eased) * CELL_SIZE;
+      const z = (animation.fromRow + (animation.toRow - animation.fromRow) * eased) * CELL_SIZE;
+      visual.entity
+        .getComponent(CartesianTransform3D)!
+        .setPosition(x, TILE_HEIGHT * 0.55, z);
+
+      if (t >= 1) {
+        visual.animation = undefined;
+      }
+    }
+  }
+
+  private _tick(time: number, delta: number) {
+    const camT = this.camEntity.getComponent(SphericalTransform3D)!;
+    camT.updateWorldMatrix();
+    const view = mat4.inverse(camT.worldMatrix) as Float32Array;
+    this.cam3D.updateAspect(CANVAS_W / CANVAS_H);
+    mat4.multiply(this.cam3D.projectionMatrix, view, this.viewProj);
+    this._updateAnimations(performance.now());
+    this._updateLabels();
+    this.world.update(time, delta);
+  }
+}
+
+async function main() {
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  const cfg = await fetch('./config.json')
+    .then(r => r.json())
+    .catch(() => ({ rows: 4, cols: 4 })) as Partial<Config>;
+
+  const game = new Game2048({
+    rows: cfg.rows ?? 4,
+    cols: cfg.cols ?? 4,
+  });
+  await game.init(canvas);
+}
+
+main();

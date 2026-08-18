@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="31.1,106.7 106.3,71.7 103.9,62.5" fill="rgb(184,184,192)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="106.3,71.7 207.1,111.2 103.9,62.5" fill="rgb(190,190,198)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="106.3,71.7 31.1,106.7 51.7,104.8" fill="rgb(184,184,192)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="207.1,111.2 106.3,71.7 168.3,100.9" fill="rgb(190,190,198)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="106.3,71.7 113.7,134.1 168.3,100.9" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="31.1,45.7 51.7,104.8 31.1,106.7" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="113.7,134.1 106.3,71.7 51.7,104.8" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="51.7,104.8 31.1,45.7 51.7,55.5" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="168.3,100.9 116.1,166.5 207.1,111.2" fill="rgb(224,224,232)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="113.7,134.1 51.7,104.8 33.5,127.5" fill="rgb(218,218,226)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="51.7,104.8 33.5,66.5 33.5,127.5" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="33.5,66.5 51.7,104.8 51.7,55.5" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="116.1,166.5 168.3,100.9 113.7,134.1" fill="rgb(224,224,232)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="33.5,127.5 116.1,166.5 113.7,134.1" fill="rgb(218,218,226)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Roof 2 Wall Corner 2</text>
+</svg>

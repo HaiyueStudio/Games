@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="151.2,45.8 198.0,94.2 104.5,50.0" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="63.2,48.7 104.5,50.0 22.0,100.1" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="110.0,70.8 151.2,45.8 104.5,50.0" fill="rgb(184,184,192)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="63.2,48.7 110.0,70.8 104.5,50.0" fill="rgb(190,190,198)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="198.0,94.2 22.0,100.1 104.5,50.0" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="110.0,70.8 198.0,94.2 151.2,45.8" fill="rgb(224,224,232)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="22.0,100.1 110.0,70.8 63.2,48.7" fill="rgb(218,218,226)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="115.5,144.3 22.0,100.1 198.0,94.2" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="68.8,95.9 110.0,70.8 22.0,100.1" fill="rgb(184,184,192)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="198.0,94.2 110.0,70.8 115.5,144.3" fill="rgb(224,224,232)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="68.8,95.9 22.0,100.1 115.5,144.3" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="115.5,144.3 110.0,70.8 68.8,95.9" fill="rgb(224,224,232)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Roof 2 Top 4 Collider</text>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="161.8,146.0 51.9,87.9 51.9,94.1" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="51.9,87.9 157.5,142.5 47.5,90.6" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="169.4,114.4 59.5,62.5 59.0,74.3" fill="rgb(184,184,192)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="157.5,142.5 47.5,87.6 47.5,90.6" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="169.4,114.4 61.0,50.5 59.5,62.5" fill="rgb(191,191,199)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="47.5,87.6 148.7,144.8 38.8,92.9" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="148.7,138.5 59.0,74.3 38.8,86.6" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="170.9,102.4 63.5,38.3 61.0,50.5" fill="rgb(197,197,205)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="148.7,144.8 38.8,86.6 38.8,92.9" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="173.4,90.2 66.9,26.1 63.5,38.3" fill="rgb(203,203,211)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="176.8,78.0 71.2,14.0 66.9,26.1" fill="rgb(208,208,216)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="161.8,139.9 51.9,87.9 161.8,146.0" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="59.0,74.3 168.9,126.2 169.4,114.4" fill="rgb(184,184,192)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="157.5,142.5 51.9,87.9 161.8,139.9" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="157.5,139.5 47.5,87.6 157.5,142.5" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="168.9,126.2 59.0,74.3 148.7,138.5" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="148.7,144.8 47.5,87.6 157.5,139.5" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="61.0,50.5 169.4,114.4 170.9,102.4" fill="rgb(191,191,199)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="63.5,38.3 170.9,102.4 173.4,90.2" fill="rgb(197,197,205)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="38.8,86.6 148.7,144.8 148.7,138.5" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="66.9,26.1 173.4,90.2 176.8,78.0" fill="rgb(203,203,211)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="71.2,14.0 176.8,78.0 181.2,65.9" fill="rgb(208,208,216)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Roof Side</text>
+</svg>

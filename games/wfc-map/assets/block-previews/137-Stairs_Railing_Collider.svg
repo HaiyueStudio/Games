@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="190" viewBox="0 0 220 190">
+  <rect width="100%" height="100%" fill="#edf1f5"/>
+  <g><polygon points="142.5,47.9 82.7,143.4 135.2,44.4" fill="rgb(215,215,223)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="82.7,143.4 142.5,47.9 90.0,146.8" fill="rgb(215,215,223)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="142.5,21.5 142.5,47.9 135.2,44.4" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="77.5,126.7 135.2,44.4 82.7,143.4" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="90.0,146.8 77.5,146.5 82.7,143.4" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="142.5,21.5 135.2,44.4 135.2,18.0" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="135.2,44.4 77.5,126.7 135.2,18.0" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="90.0,146.8 84.8,150.0 77.5,146.5" fill="rgb(211,211,219)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="77.5,146.5 77.5,126.7 82.7,143.4" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="84.8,130.2 90.0,146.8 142.5,47.9" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="142.5,21.5 84.8,130.2 142.5,47.9" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="84.8,130.2 77.5,146.5 84.8,150.0" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="90.0,146.8 84.8,130.2 84.8,150.0" fill="rgb(195,195,203)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="77.5,126.7 142.5,21.5 135.2,18.0" fill="rgb(215,215,223)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="77.5,146.5 84.8,130.2 77.5,126.7" fill="rgb(181,181,189)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/>
+<polygon points="142.5,21.5 77.5,126.7 84.8,130.2" fill="rgb(215,215,223)" stroke="rgba(34,42,48,0.22)" stroke-width="0.35"/></g>
+  <text x="110" y="172" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#27313a">Stairs Railing Collider</text>
+</svg>

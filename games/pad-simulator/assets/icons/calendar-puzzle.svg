@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Calendar Puzzle">
+  <rect width="128" height="128" rx="27" fill="#eef6f1"/>
+  <rect x="20" y="22" width="88" height="84" rx="12" fill="#c9904f" stroke="#8a5b2b" stroke-width="4"/>
+  <g fill="#fff4d5">
+    <rect x="29" y="34" width="19" height="19" rx="4"/>
+    <rect x="54" y="34" width="19" height="19" rx="4"/>
+    <rect x="79" y="34" width="19" height="19" rx="4"/>
+    <rect x="29" y="59" width="19" height="19" rx="4"/>
+    <rect x="79" y="59" width="19" height="19" rx="4"/>
+    <rect x="29" y="84" width="19" height="13" rx="4"/>
+    <rect x="54" y="84" width="19" height="13" rx="4"/>
+    <rect x="79" y="84" width="19" height="13" rx="4"/>
+  </g>
+  <path d="M53 58h21v21H53z" fill="#3fb8af" stroke="#0f766e" stroke-width="3"/>
+</svg>

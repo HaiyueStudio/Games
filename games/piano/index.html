@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Piano - WebGPU</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #101418;
+      color: #f8fafc;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #wrap {
+      position: relative;
+      width: 900px;
+      height: 600px;
+    }
+    canvas {
+      display: block;
+      width: 900px;
+      height: 600px;
+      border-radius: 8px;
+    }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #hud {
+      position: absolute;
+      top: 18px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    #title {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    #sub {
+      margin-top: 8px;
+      color: rgba(226, 232, 240, 0.72);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    #status {
+      min-width: 210px;
+      padding: 11px 14px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 14px 35px rgba(0,0,0,0.25);
+      text-align: right;
+      font-weight: 800;
+      color: #cbd5e1;
+    }
+    #note {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      min-width: 150px;
+      padding: 10px 18px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      text-align: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/midi.js/0.3.1/MIDI.min.js"></script>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="canvas" width="900" height="600"></canvas>
+    <div id="overlay">
+      <div id="hud">
+        <div>
+          <div id="title">Piano</div>
+          <div id="sub">88 keys built from WebGPU cubes. Click a key to play.</div>
+        </div>
+        <div id="status">Loading MIDI.js...</div>
+      </div>
+      <div id="note">A0 - C8</div>
+    </div>
+  </div>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>
