@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Minecraft Lite · HaiYue</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, "Microsoft YaHei", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #579edb; }
+    button { font: inherit; }
+    #canvas { display: block; width: 100%; height: 100%; outline: none; }
+    .panel {
+      position: fixed; top: 18px; left: 18px; z-index: 4; min-width: 222px;
+      padding: 13px 15px; border: 1px solid rgba(255,255,255,.19); border-radius: 12px;
+      background: rgba(17, 29, 39, .72); box-shadow: 0 12px 30px rgba(0,0,0,.22);
+      backdrop-filter: blur(10px); pointer-events: none;
+    }
+    .brand { margin-bottom: 9px; font-size: 13px; font-weight: 900; letter-spacing: .16em; color: #fff; }
+    .stats { display: grid; grid-template-columns: auto auto; gap: 4px 15px; margin: 0; font-size: 12px; }
+    .stats dt { color: rgba(255,255,255,.58); }
+    .stats dd { margin: 0; text-align: right; color: rgba(255,255,255,.94); font-variant-numeric: tabular-nums; }
+    .crosshair { position: fixed; inset: 50% auto auto 50%; z-index: 5; width: 20px; height: 20px; transform: translate(-50%,-50%); pointer-events: none; filter: drop-shadow(0 1px 2px #000); }
+    .crosshair::before, .crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,.94); border-radius: 1px; }
+    .crosshair::before { left: 9px; top: 2px; width: 2px; height: 16px; }
+    .crosshair::after { left: 2px; top: 9px; width: 16px; height: 2px; }
+    #hotbar { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 6; display: flex; gap: 5px; transform: translateX(-50%); }
+    #hotbar button { position: relative; width: 52px; height: 52px; padding: 5px; border: 2px solid rgba(255,255,255,.3); border-radius: 8px; color: #fff; background: rgba(16,24,31,.76); box-shadow: 0 5px 15px rgba(0,0,0,.25); cursor: pointer; transition: transform .12s, border-color .12s, background .12s; }
+    #hotbar button:hover { transform: translateY(-2px); }
+    #hotbar button.selected { border-color: #fff; background: rgba(255,255,255,.2); transform: translateY(-5px) scale(1.07); }
+    #hotbar span { position: absolute; left: 5px; top: 2px; z-index: 1; font-size: 11px; font-weight: 900; text-shadow: 0 1px 2px #000; }
+    #hotbar i { display: block; width: 100%; height: 100%; border: 1px solid rgba(255,255,255,.35); border-radius: 4px; background: var(--block-color); box-shadow: inset 4px 4px rgba(255,255,255,.12), inset -5px -5px rgba(0,0,0,.12); }
+    #message { position: fixed; left: 50%; bottom: 94px; z-index: 7; padding: 7px 13px; border-radius: 999px; color: #fff; background: rgba(15,23,30,.82); opacity: 0; transform: translate(-50%,8px); transition: .18s; pointer-events: none; }
+    #message.visible { opacity: 1; transform: translate(-50%,0); }
+    #start-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, rgba(20,41,55,.12), rgba(8,16,22,.56)); transition: opacity .18s; }
+    #start-overlay.hidden { opacity: 0; pointer-events: none; }
+    .start-card { width: min(520px, calc(100vw - 32px)); padding: 30px; border: 1px solid rgba(255,255,255,.24); border-radius: 18px; text-align: center; background: rgba(14,25,33,.86); box-shadow: 0 24px 70px rgba(0,0,0,.36); backdrop-filter: blur(14px); }
+    .cube { width: 72px; height: 72px; margin: 0 auto 18px; border: 3px solid rgba(255,255,255,.5); border-radius: 8px; background: #62a95a; box-shadow: inset 12px 12px rgba(255,255,255,.14), inset -13px -13px rgba(0,0,0,.16), 0 10px 24px rgba(0,0,0,.22); transform: rotate(7deg); }
+    h1 { margin: 0; font-size: clamp(28px, 6vw, 46px); letter-spacing: .1em; line-height: 1; }
+    .lead { margin: 12px 0 20px; color: rgba(255,255,255,.65); }
+    .controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0 0 22px; text-align: left; }
+    .controls div { padding: 10px 12px; border-radius: 9px; background: rgba(255,255,255,.06); font-size: 13px; color: rgba(255,255,255,.75); }
+    kbd { display: inline-block; min-width: 23px; margin-right: 5px; padding: 2px 5px; border: 1px solid rgba(255,255,255,.28); border-bottom-width: 2px; border-radius: 4px; color: #fff; background: rgba(255,255,255,.1); font: 700 11px inherit; text-align: center; }
+    .actions { display: flex; justify-content: center; gap: 9px; }
+    .actions button { padding: 11px 18px; border: 1px solid rgba(255,255,255,.2); border-radius: 9px; color: #fff; background: rgba(255,255,255,.1); cursor: pointer; }
+    .actions .primary { color: #102217; border-color: #8ce28e; background: #73ce76; font-weight: 900; }
+    #result { display: none; }
+    @media (max-width: 680px) {
+      .panel { top: 10px; left: 10px; min-width: 190px; }
+      #hotbar { width: calc(100vw - 14px); gap: 2px; }
+      #hotbar button { width: 10%; height: 44px; padding: 4px; }
+      .start-card { padding: 22px 16px; }
+      .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body data-render-status="pending">
+  <canvas id="canvas" tabindex="0" aria-label="Minecraft Lite 体素世界"></canvas>
+  <aside class="panel" aria-label="世界信息">
+    <div class="brand">HAIYUE · VOXEL WORLD</div>
+    <dl class="stats">
+      <dt>地图</dt><dd id="map-size">—</dd>
+      <dt>种子</dt><dd id="seed">—</dd>
+      <dt>方块数</dt><dd id="block-count">—</dd>
+      <dt>跳跃高度</dt><dd id="jump-height">—</dd>
+      <dt>瞄准方块</dt><dd id="target-cell">—</dd>
+    </dl>
+  </aside>
+  <div class="crosshair" aria-hidden="true"></div>
+  <div id="hotbar" role="toolbar" aria-label="方块颜色"></div>
+  <div id="message" role="status" aria-live="polite"></div>
+  <div id="start-overlay">
+    <section class="start-card">
+      <div class="cube" aria-hidden="true"></div>
+      <h1>MINECRAFT LITE</h1>
+      <p class="lead">在 200 × 200 的随机体素世界里探索和建造</p>
+      <div class="controls">
+        <div><kbd>WASD</kbd> 移动，鼠标观察</div>
+        <div><kbd>Shift</kbd> 加速奔跑</div>
+        <div><kbd>Space</kbd> 跳跃 5.5 格</div>
+        <div>1 格高地形自动走上去</div>
+        <div>鼠标左键删除方块</div>
+        <div>鼠标右键添加方块</div>
+        <div><kbd>0–9</kbd> 选择十种颜色</div>
+        <div><kbd>Esc</kbd> 释放鼠标</div>
+      </div>
+      <div class="actions">
+        <button id="start-button" class="primary" type="button">进入世界</button>
+        <button id="new-world" type="button">换一个世界</button>
+      </div>
+    </section>
+  </div>
+  <output id="result" data-status="pending"></output>
+  <script src="./bundle.js"></script>
+</body>
+</html>

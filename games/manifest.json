@@ -156,6 +156,28 @@
       "ci": "manual"
     },
     {
+      "id": "minecraft-lite",
+      "title": "Minecraft Lite",
+      "entry": "minecraft-lite/main.ts",
+      "capabilities": [
+        "3d",
+        "voxel",
+        "gpu-instancing",
+        "first-person-controls",
+        "pointer-lock",
+        "content-generation",
+        "game-workflow",
+        "input"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "pad-simulator",
       "title": "pad simulator",
       "entry": "pad-simulator/main.ts",
