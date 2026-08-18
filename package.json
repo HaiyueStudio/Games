@@ -6,12 +6,27 @@
   "repository": "https://github.com/HaiyueStudio/Games.git",
   "type": "module",
   "engines": { "node": ">=22" },
-  "workspaces": ["games"],
   "scripts": {
     "deps:local": "node scripts/install-local-dependencies.mjs",
-    "build": "npm run build -w ./games",
-    "typecheck": "npm run typecheck -w ./games",
-    "test": "npm test -w ./games"
+    "build": "node scripts/build-games.mjs",
+    "build:target": "node scripts/build-target.mjs",
+    "dev": "rollup -c rollup.config.js --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test \"games/test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@haiyue/extensions": ">=0.1.0 <0.2.0",
+    "@haiyue/engine": ">=0.1.0 <0.2.0",
+    "wgpu-matrix": "^3.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@webgpu/types": "^0.1.40",
+    "rollup": "^4.0.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.2.0"
   },
   "optionalDependencies": { "@rollup/rollup-win32-x64-msvc": "4.60.4" }
 }

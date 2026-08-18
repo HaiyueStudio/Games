@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "games/**/*.ts",
+    "node_modules/@haiyue/engine/src/**/*",
+    "node_modules/@haiyue/extensions/src/**/*"
+  ],
+  "exclude": ["games/test", "**/*.test.ts"]
+}

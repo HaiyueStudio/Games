@@ -1,14 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runRollupOnce } from '../../scripts/shared-rollup-runner.mjs';
+import { runRollupOnce } from './shared-rollup-runner.mjs';
 
-const gamesDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-const manifest = JSON.parse(readFileSync(resolve(gamesDir, 'manifest.json'), 'utf8'));
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const gamesDirectory = resolve(repositoryRoot, 'games');
+const manifest = JSON.parse(readFileSync(resolve(gamesDirectory, 'manifest.json'), 'utf8'));
 const allGames = manifest.entries.map(entry => entry.id);
-const filter = process.env.GAME_FILTER;
-const requestedGames = parseFilter(filter);
+const requestedGames = parseFilter(process.env.GAME_FILTER);
 const games = requestedGames.length > 0
   ? allGames.filter(name => requestedGames.includes(name))
   : allGames;
@@ -19,25 +18,21 @@ if (missingGames.length > 0) {
   process.exit(1);
 }
 
-for (const game of games) {
-  await buildGame(game);
-}
+for (const game of games) await buildGame(game);
 
 async function buildGame(game) {
   console.log(`\n> rollup game ${game}`);
   try {
     await runRollupOnce({
-      cwd: gamesDir,
+      cwd: repositoryRoot,
       config: 'rollup.config.js',
-      expectedOutputs: [`${game}/bundle.js`],
+      expectedOutputs: [`games/${game}/bundle.js`],
       label: `game ${game}`,
       timeoutMs: environmentDuration('GAME_BUILD_TIMEOUT_MS', 60_000),
       exitGraceMs: environmentDuration('GAME_EXIT_GRACE_MS', 1_500, true),
       terminateGraceMs: environmentDuration('GAME_TERM_GRACE_MS', 1_000),
       killGraceMs: environmentDuration('GAME_KILL_GRACE_MS', 1_000),
-      environment: {
-        GAME_FILTER: game,
-      },
+      environment: { GAME_FILTER: game },
     });
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

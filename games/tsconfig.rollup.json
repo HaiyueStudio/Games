@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "include": [
-    "**/*.ts",
-    "../node_modules/@haiyue/engine/src/**/*",
-    "../node_modules/@haiyue/extensions/src/**/*"
-  ],
-  "exclude": ["test", "**/*.test.ts"]
-}

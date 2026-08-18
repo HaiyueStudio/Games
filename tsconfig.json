@@ -1,11 +1,11 @@
 {
-  "extends": "../tsconfig.base.json",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "..",
+    "rootDir": ".",
     "outDir": "dist",
     "declaration": false,
     "types": ["@webgpu/types"]
   },
-  "include": ["**/*.ts"],
+  "include": ["games/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

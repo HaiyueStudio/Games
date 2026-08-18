@@ -17,10 +17,9 @@
 ## Validation
 
 ```bash
-npm run typecheck -w ./games
-npm test -w ./games
+npm run typecheck
+npm test
 npm run build:target -- game:<id>
 ```
 
 - Representative visual/gameplay changes should update or add deterministic browser/screenshot coverage; do not update screenshot baselines without visual review.
-
