@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gravity Maze · HaiYue</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, "Microsoft YaHei", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #07111c; }
+    body { color: #f7fafc; }
+    button { font: inherit; }
+    #canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; cursor: grab; }
+    #canvas.dragging { cursor: grabbing; }
+    .topbar { position: fixed; inset: 18px 20px auto; z-index: 4; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; pointer-events: none; }
+    .brand { max-width: 430px; padding: 15px 17px; border: 1px solid rgba(255,255,255,.13); border-radius: 13px; background: rgba(5,15,25,.72); box-shadow: 0 16px 40px rgba(0,0,0,.26); backdrop-filter: blur(12px); }
+    .eyebrow { margin-bottom: 5px; color: #63e6be; font-size: 11px; font-weight: 900; letter-spacing: .18em; }
+    h1 { margin: 0; font-size: clamp(25px,4vw,39px); line-height: 1; letter-spacing: .04em; }
+    #status { margin-top: 9px; color: rgba(255,255,255,.68); font-size: 13px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(72px,auto)); overflow: hidden; margin: 0; border: 1px solid rgba(255,255,255,.13); border-radius: 13px; background: rgba(5,15,25,.72); box-shadow: 0 16px 40px rgba(0,0,0,.26); backdrop-filter: blur(12px); }
+    .stats div { padding: 12px 14px; border-left: 1px solid rgba(255,255,255,.1); }
+    .stats div:first-child { border-left: 0; }
+    .stats dt { margin-bottom: 4px; color: rgba(255,255,255,.45); font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+    .stats dd { margin: 0; text-align: center; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .bottom { position: fixed; inset: auto 20px 20px; z-index: 5; display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; pointer-events: none; }
+    .help { max-width: 460px; padding: 12px 15px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; color: rgba(255,255,255,.68); background: rgba(5,15,25,.72); font-size: 12px; line-height: 1.65; backdrop-filter: blur(10px); }
+    kbd { display: inline-block; min-width: 24px; margin: 0 2px; padding: 1px 5px; border: 1px solid rgba(255,255,255,.25); border-bottom-width: 2px; border-radius: 4px; color: #fff; background: rgba(255,255,255,.08); font: 800 10px inherit; text-align: center; }
+    .controls { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+    .tilt-card { display: flex; align-items: center; gap: 12px; min-width: 150px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(5,15,25,.76); }
+    .tilt-stage { display: grid; width: 46px; height: 46px; place-items: center; perspective: 120px; }
+    #tilt-indicator { width: 34px; height: 34px; border: 2px solid #63e6be; border-radius: 5px; background: rgba(99,230,190,.18); box-shadow: inset 0 0 10px rgba(99,230,190,.2); transition: transform .05s linear; transform-style: preserve-3d; }
+    .tilt-values { display: grid; grid-template-columns: auto auto; gap: 2px 8px; font-size: 11px; }
+    .tilt-values span:nth-child(odd) { color: rgba(255,255,255,.42); }
+    .tilt-values span:nth-child(even) { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+    button { padding: 11px 15px; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; color: #fff; background: rgba(13,33,48,.92); cursor: pointer; box-shadow: 0 9px 20px rgba(0,0,0,.22); }
+    button:hover { border-color: #63e6be; background: rgba(22,53,70,.96); }
+    #victory { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgba(3,10,17,.52); opacity: 0; pointer-events: none; transition: opacity .2s; backdrop-filter: blur(3px); }
+    #victory.visible { opacity: 1; pointer-events: auto; }
+    .victory-card { width: min(430px,100%); padding: 30px; border: 1px solid rgba(99,230,190,.45); border-radius: 18px; text-align: center; background: rgba(7,23,31,.94); box-shadow: 0 25px 80px rgba(0,0,0,.48); }
+    .trophy { margin-bottom: 12px; color: #63e6be; font-size: 52px; }
+    .victory-card h2 { margin: 0; font-size: 34px; }
+    .victory-card p { margin: 10px 0 22px; color: rgba(255,255,255,.62); }
+    #next-level { border-color: #63e6be; color: #071b17; background: #63e6be; font-weight: 900; }
+    #result { display: none; }
+    @media (max-width: 760px) {
+      .topbar { inset: 10px 10px auto; display: block; }
+      .brand { max-width: none; padding: 12px 13px; }
+      .stats { margin-top: 8px; grid-template-columns: repeat(4,1fr); }
+      .stats div { padding: 8px 5px; }
+      .stats dd { font-size: 13px; }
+      .bottom { inset: auto 10px 10px; }
+      .help { display: none; }
+      .controls { width: 100%; justify-content: space-between; }
+      .tilt-card { min-width: 142px; }
+    }
+  </style>
+</head>
+<body data-render-status="pending" data-game-state="loading">
+  <canvas id="canvas" tabindex="0" aria-label="可拖拽倾斜的物理迷宫"></canvas>
+  <header class="topbar">
+    <section class="brand">
+      <div class="eyebrow">RAPIER 3D PHYSICS</div>
+      <h1>GRAVITY MAZE</h1>
+      <div id="status" role="status" aria-live="polite">正在生成迷宫…</div>
+    </section>
+    <dl class="stats">
+      <div><dt>关卡</dt><dd id="level">1</dd></div>
+      <div><dt>种子</dt><dd id="seed">—</dd></div>
+      <div><dt>洞口</dt><dd id="holes">—</dd></div>
+      <div><dt>目标</dt><dd>绿色</dd></div>
+    </dl>
+  </header>
+  <footer class="bottom">
+    <div class="help">
+      按住并拖拽屏幕倾斜迷宫，让金色小球滚到绿色终点。避开暗红洞口；掉出去会自动回到起点。<br>
+      也可以使用 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键倾斜，按 <kbd>R</kbd> 重置。
+    </div>
+    <div class="controls">
+      <div class="tilt-card" aria-label="当前迷宫倾角">
+        <div class="tilt-stage"><div id="tilt-indicator"></div></div>
+        <div class="tilt-values"><span>前后</span><span id="tilt-x">0.0°</span><span>左右</span><span id="tilt-z">0.0°</span></div>
+      </div>
+      <button id="restart" type="button">回到起点</button>
+    </div>
+  </footer>
+  <div id="victory" role="dialog" aria-modal="true" aria-labelledby="victory-title">
+    <section class="victory-card">
+      <div class="trophy">◆</div>
+      <h2 id="victory-title">迷宫完成</h2>
+      <p>小球已经安全抵达终点。下一关会生成一座全新的随机迷宫。</p>
+      <button id="next-level" type="button">进入下一关</button>
+    </section>
+  </div>
+  <output id="result" data-status="pending"></output>
+  <script src="./bundle.js"></script>
+</body>
+</html>

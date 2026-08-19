@@ -12,6 +12,7 @@ export default games.map(entry => ({
     format: 'iife',
     name: toGlobalName(entry.id, 'Game'),
     sourcemap: true,
+    inlineDynamicImports: true,
   },
   plugins: haiyuePlugins({ declaration: false, tsconfig: './tsconfig.rollup.json' }),
 }));

@@ -122,6 +122,25 @@
       "ci": "manual"
     },
     {
+      "id": "gravity-maze",
+      "title": "Gravity Maze",
+      "entry": "gravity-maze/main.ts",
+      "capabilities": [
+        "3d",
+        "3d-physics",
+        "input",
+        "content-generation",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "match-3",
       "title": "match 3",
       "entry": "match-3/main.ts",
