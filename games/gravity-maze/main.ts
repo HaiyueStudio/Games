@@ -20,6 +20,7 @@ import { BALL_RADIUS } from './MazeConfig';
 import { MazeTiltSystem } from './MazeTiltSystem';
 
 async function main(): Promise<void> {
+  const rayTracingEvidence = new URLSearchParams(location.search).get('rayTracing') === '1';
   const canvas = requiredElement('canvas', HTMLCanvasElement);
   const engine = new HaiyueEngine({
     canvas,
@@ -106,6 +107,22 @@ async function main(): Promise<void> {
   document.body.dataset.mazeSize = '9x9';
 
   engine.switchScene(scene);
+  if (rayTracingEvidence) {
+    const rayContext = Object.freeze({
+      scene,
+      device: engine.device,
+      fixedSceneId: 'gravity-maze-level-1-ray-v1',
+      fixedCameraReplayId: 'gravity-maze-camera-v1',
+      seed: game.seed,
+      mazeSize: [game.layout.columns, game.layout.rows] as const,
+    });
+    try {
+      const module = await import('./rayTracingPreview');
+      await module.startGravityMazeRayTracingPreview(rayContext);
+    } catch {
+      publishRayBootstrapFailure('RAY_GAME_CANDIDATE_MODULE_FAILED');
+    }
+  }
   engine.run();
   let frames = 0;
   engine.on('after-update', () => {
@@ -116,9 +133,10 @@ async function main(): Promise<void> {
     await engine.device.queue.onSubmittedWorkDone();
     const scopedError = await engine.device.popErrorScope();
     if (scopedError) errors.push(scopedError.message);
-    const status = errors.length === 0 ? 'passed' : 'failed';
+    const status = errors.length === 0 ? (rayTracingEvidence ? 'pending' : 'passed') : 'failed';
     document.body.dataset.renderStatus = status;
     const result = requiredElement('result', HTMLElement);
+    if (status === 'pending') return;
     result.dataset.status = status;
     result.textContent = JSON.stringify({
       schemaVersion: 1,
@@ -130,6 +148,7 @@ async function main(): Promise<void> {
       level: game.level,
       seed: game.seed,
       holeCount: game.layout.holes.length,
+      rayTracingEvidence,
     });
   }
 
@@ -140,6 +159,14 @@ async function main(): Promise<void> {
     game.dispose();
     engine.destroy();
   }, { once: true });
+}
+
+function publishRayBootstrapFailure(code: string): void {
+  document.body.dataset.renderStatus = 'failed';
+  const result = document.getElementById('result');
+  if (!result) return;
+  result.dataset.status = 'failed';
+  result.textContent = JSON.stringify({ schemaVersion: 1, suite: 'gravity-maze-ray-tracing-candidate', status: 'failed', diagnostics: [{ code, severity: 'error' }], unclassifiedFailureCount: 0 });
 }
 
 function addLighting(scene: Scene): void {

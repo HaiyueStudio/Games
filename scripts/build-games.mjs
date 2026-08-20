@@ -22,13 +22,14 @@ for (const game of games) await buildGame(game);
 
 async function buildGame(game) {
   console.log(`\n> rollup game ${game}`);
+  const expectedOutputs = [game === 'gravity-maze' ? 'games/gravity-maze/dist' : `games/${game}/bundle.js`];
   try {
     await runRollupOnce({
       cwd: repositoryRoot,
       config: 'rollup.config.js',
-      expectedOutputs: [`games/${game}/bundle.js`],
+      expectedOutputs,
       label: `game ${game}`,
-      timeoutMs: environmentDuration('GAME_BUILD_TIMEOUT_MS', 60_000),
+      timeoutMs: environmentDuration('GAME_BUILD_TIMEOUT_MS', game === 'gravity-maze' ? 120_000 : 60_000),
       exitGraceMs: environmentDuration('GAME_EXIT_GRACE_MS', 1_500, true),
       terminateGraceMs: environmentDuration('GAME_TERM_GRACE_MS', 1_000),
       killGraceMs: environmentDuration('GAME_KILL_GRACE_MS', 1_000),

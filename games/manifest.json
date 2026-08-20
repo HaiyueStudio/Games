@@ -130,7 +130,9 @@
         "3d-physics",
         "input",
         "content-generation",
-        "game-workflow"
+        "game-workflow",
+        "experimental-ray-tracing",
+        "ray-tracing-product-evidence"
       ],
       "assets": [],
       "screenshot": {
