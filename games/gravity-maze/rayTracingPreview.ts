@@ -15,6 +15,7 @@ export interface GravityMazeRayContext {
   readonly fixedCameraReplayId: string;
   readonly seed: number;
   readonly mazeSize: readonly [number, number];
+  readonly renderRasterEvidenceFrame: () => Promise<void>;
 }
 
 let context!: GravityMazeRayContext;
@@ -48,6 +49,7 @@ async function renderCandidate(): Promise<void> {
   if (!materials.packed) throw coded('RAY_GAME_MATERIAL_FAILED', diagnosticsText(materials.diagnostics));
   const facts = rayPathTracing.extractRayPathSceneFacts(context.scene.world);
   if (!facts.facts) throw coded('RAY_GAME_CAMERA_OR_LIGHT_FAILED', diagnosticsText(facts.diagnostics));
+  const rasterFrame = context.renderRasterEvidenceFrame();
   const buildMs = performance.now() - buildStart;
   const traversalCreated = await rayTraversal.RayTraversalRuntime.create(context.device, update.snapshot.packed);
   if (!traversalCreated.runtime) throw coded('RAY_GAME_TRAVERSAL_PIPELINE_FAILED', diagnosticsText(traversalCreated.diagnostics));
@@ -127,6 +129,8 @@ async function renderCandidate(): Promise<void> {
     diagnostics: diagnosticValues,
     unclassifiedFailureCount: 0,
   });
+  await rasterFrame;
+  await context.device.queue.onSubmittedWorkDone();
   publish(report);
   setStatus('Gravity Maze ray tracing 候选已完成');
 }

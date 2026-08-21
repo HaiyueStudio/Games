@@ -115,6 +115,7 @@ async function main(): Promise<void> {
       fixedCameraReplayId: 'gravity-maze-camera-v1',
       seed: game.seed,
       mazeSize: [game.layout.columns, game.layout.rows] as const,
+      renderRasterEvidenceFrame: () => renderSingleEvidenceFrame(engine),
     });
     try {
       const module = await import('./rayTracingPreview');
@@ -123,7 +124,7 @@ async function main(): Promise<void> {
       publishRayBootstrapFailure('RAY_GAME_CANDIDATE_MODULE_FAILED');
     }
   }
-  engine.run();
+  if (!rayTracingEvidence) engine.run();
   let frames = 0;
   engine.on('after-update', () => {
     if (++frames === 8) void finishValidation();
@@ -159,6 +160,16 @@ async function main(): Promise<void> {
     game.dispose();
     engine.destroy();
   }, { once: true });
+}
+
+function renderSingleEvidenceFrame(engine: HaiyueEngine): Promise<void> {
+  return new Promise(resolve => {
+    engine.once('after-update', () => {
+      engine.stop();
+      resolve();
+    });
+    engine.run();
+  });
 }
 
 function publishRayBootstrapFailure(code: string): void {
