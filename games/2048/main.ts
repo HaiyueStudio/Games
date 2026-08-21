@@ -14,8 +14,16 @@ import { ColorSRGB } from '@haiyue/engine';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
+import { GameSaveError, GameSaveService, LocalStorageSaveBackend } from '@haiyue/engine/save';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import {
+  GAME_2048_ID,
+  GAME_2048_SAVE_DATA_VERSION,
+  GAME_2048_SAVE_ID,
+  isGame2048SaveData,
+  type Game2048SaveData,
+} from './saveState';
 
 type Direction = 'left' | 'right' | 'up' | 'down';
 type GamePhase = 'playing' | 'won' | 'lost';
@@ -23,15 +31,6 @@ type GamePhase = 'playing' | 'won' | 'lost';
 interface Config {
   rows: number;
   cols: number;
-}
-
-interface SavedState {
-  rows: number;
-  cols: number;
-  board: number[][];
-  score: number;
-  best: number;
-  phase: GamePhase;
 }
 
 interface TileVisual {
@@ -75,8 +74,6 @@ const CELL_HEIGHT = 0.14;
 const TILE_HEIGHT = 0.28;
 const MOVE_ANIMATION_MS = 130;
 const SWIPE_THRESHOLD = 24;
-const STORAGE_PREFIX = 'haiyue-2048-state';
-
 const geoCell = createBox3D({ width: 1.04, height: CELL_HEIGHT, depth: 1.04 });
 const geoTile = createBox3D({ width: 1.02, height: TILE_HEIGHT, depth: 1.02 });
 
@@ -144,6 +141,7 @@ function boardsEqual(a: number[][], b: number[][]): boolean {
 }
 
 class Game2048 {
+  private readonly saves: GameSaveService<Game2048SaveData>;
   private engine!: HaiyueEngine;
   private world!: World;
   private camEntity!: Entity;
@@ -175,6 +173,13 @@ class Game2048 {
     this.config.rows = Math.max(2, Math.floor(config.rows || 4));
     this.config.cols = Math.max(2, Math.floor(config.cols || 4));
     this.board = makeEmptyBoard(this.config.rows, this.config.cols);
+    this.saves = new GameSaveService<Game2048SaveData>({
+      gameId: GAME_2048_ID,
+      dataVersion: GAME_2048_SAVE_DATA_VERSION,
+      backend: new LocalStorageSaveBackend({ namespace: 'haiyue-games' }),
+      maxSlots: 1,
+      validateData: value => isGame2048SaveData(value, this.config.rows, this.config.cols),
+    });
   }
 
   async init(canvas: HTMLCanvasElement) {
@@ -190,17 +195,13 @@ class Game2048 {
     this._setupDOM();
     this._setupInput(canvas);
     this._buildCells();
-    this._loadOrCreateState();
+    await this._loadOrCreateState();
     this._syncVisuals();
 
     this.engine.on('update', ({ detail: { time, delta } }) => {
       this._tick(time, delta);
     });
     this.engine.run();
-  }
-
-  private get storageKey(): string {
-    return `${STORAGE_PREFIX}-${this.config.rows}x${this.config.cols}`;
   }
 
   private _setupCamera() {
@@ -331,55 +332,64 @@ class Game2048 {
     }
   }
 
-  private _loadOrCreateState() {
-    const saved = this._readSavedState();
-    if (saved) {
-      this.board = saved.board;
-      this.score = saved.score;
-      this.best = saved.best;
-      this.phase = saved.phase;
-    } else {
-      this.best = this._readBest();
-      this._newGame(false);
-    }
-  }
-
-  private _readSavedState(): SavedState | null {
+  private async _loadOrCreateState(): Promise<void> {
     try {
-      const raw = localStorage.getItem(this.storageKey);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as SavedState;
-      if (
-        parsed.rows !== this.config.rows ||
-        parsed.cols !== this.config.cols ||
-        !Array.isArray(parsed.board) ||
-        parsed.board.length !== this.config.rows ||
-        parsed.board.some(row => !Array.isArray(row) || row.length !== this.config.cols)
-      ) {
-        return null;
+      const saved = await this.saves.load(GAME_2048_SAVE_ID);
+      if (saved !== null) {
+        this.board = saved.data.board;
+        this.score = saved.data.score;
+        this.best = saved.data.best;
+        this.phase = saved.data.phase;
+        return;
       }
-      return parsed;
-    } catch {
-      return null;
+      this._newGame(false);
+      await this._writeSaveState();
+    } catch (error) {
+      this._reportSaveError('读取存档失败，已创建新游戏。', error);
+      this.best = 0;
+      this._newGame(false);
+      try {
+        await this.saves.delete(GAME_2048_SAVE_ID);
+        await this._writeSaveState();
+      } catch (replacementError) {
+        this._reportSaveError('新游戏可以继续，但当前环境无法保存进度。', replacementError);
+      }
     }
   }
 
-  private _readBest(): number {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}-best`);
-    return raw ? Number(raw) || 0 : 0;
+  private _saveState(): void {
+    void this._writeSaveState().catch(error => {
+      this._reportSaveError('自动保存失败。', error);
+    });
   }
 
-  private _saveState() {
-    const state: SavedState = {
+  private async _writeSaveState(): Promise<void> {
+    const data: Game2048SaveData = {
       rows: this.config.rows,
       cols: this.config.cols,
-      board: this.board,
+      board: cloneBoard(this.board),
       score: this.score,
       best: this.best,
       phase: this.phase,
     };
-    localStorage.setItem(this.storageKey, JSON.stringify(state));
-    localStorage.setItem(`${STORAGE_PREFIX}-best`, String(this.best));
+    await this.saves.save({
+      saveId: GAME_2048_SAVE_ID,
+      name: '2048 自动存档',
+      kind: 'autosave',
+      data,
+    });
+  }
+
+  private _reportSaveError(message: string, error: unknown): void {
+    if (error instanceof GameSaveError) {
+      console.warn(`[2048 save] ${message}`, {
+        code: error.code,
+        operation: error.operation,
+        issues: error.issues,
+      });
+      return;
+    }
+    console.warn(`[2048 save] ${message}`, error);
   }
 
   private _newGame(save = true) {
