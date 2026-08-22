@@ -58,6 +58,16 @@ test('Pages deployment validates games and uploads the generated site', () => {
       && deployPagesOffset > configurePagesOffset,
     'Pages should be configured inside the permission-scoped deploy job before deployment',
   );
+  assert.match(
+    workflow,
+    /actions\/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5\.0\.0/,
+    'the deployment action should use the verified deploy-pages v5.0.0 commit',
+  );
+  assert.doesNotMatch(
+    workflow,
+    /actions\/deploy-pages@decdde0ac072f6db7b846693aeb66d213a3b5175/,
+    'the unresolved deploy-pages commit must not be restored',
+  );
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /npm run build\n/);
