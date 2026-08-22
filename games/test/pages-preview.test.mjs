@@ -35,6 +35,29 @@ test('Pages deployment validates games and uploads the generated site', () => {
     /repository: HaiyueStudio\/Engine\n\s+ref: main/,
     'the Engine repository does not expose a main branch',
   );
+  const enginePackageCommands = [
+    'npm run build:shader-language',
+    'npm run build:engine',
+    'npm run build:animation-spec',
+    'npm run build:extensions',
+    'npm run pack:candidates',
+  ];
+  const enginePackageCommandOffsets = enginePackageCommands.map(command => workflow.indexOf(command));
+  assert.ok(
+    enginePackageCommandOffsets.every((offset, index) => offset >= 0 && (index === 0 || offset > enginePackageCommandOffsets[index - 1])),
+    'Engine workspaces should be built in dependency order before candidate packages are packed',
+  );
+  const uploadOffset = workflow.indexOf('actions/upload-pages-artifact@');
+  const deployJobOffset = workflow.indexOf('\n  deploy:');
+  const configurePagesOffset = workflow.indexOf('actions/configure-pages@');
+  const deployPagesOffset = workflow.indexOf('actions/deploy-pages@');
+  assert.ok(
+    uploadOffset >= 0
+      && deployJobOffset > uploadOffset
+      && configurePagesOffset > deployJobOffset
+      && deployPagesOffset > configurePagesOffset,
+    'Pages should be configured inside the permission-scoped deploy job before deployment',
+  );
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /npm run build\n/);
