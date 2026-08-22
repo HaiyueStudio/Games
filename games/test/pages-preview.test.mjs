@@ -25,6 +25,16 @@ test('Pages deployment validates games and uploads the generated site', () => {
   const workflow = read('.github', 'workflows', 'deploy-pages.yml');
 
   assert.equal(packageJson.scripts['preview:build'], 'node scripts/build-preview-site.mjs');
+  assert.match(
+    workflow,
+    /repository: HaiyueStudio\/Engine\n\s+ref: master\n\s+path: Engine/,
+    'the Engine checkout should use its default master branch',
+  );
+  assert.doesNotMatch(
+    workflow,
+    /repository: HaiyueStudio\/Engine\n\s+ref: main/,
+    'the Engine repository does not expose a main branch',
+  );
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /npm run build\n/);
