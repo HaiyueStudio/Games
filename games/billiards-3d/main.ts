@@ -8,6 +8,21 @@ import {
 } from '@haiyue/engine/physics';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface Billiards3DSaveData {
+  potted: number;
+  balls: Array<{ x: number; z: number; active: boolean }>;
+}
+
+function isBilliards3DSaveData(value: unknown): value is Billiards3DSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.potted) && value.potted <= 10
+    && Array.isArray(value.balls) && value.balls.length === 11
+    && value.balls.every(ball => isRecord(ball)
+      && isFiniteNumber(ball.x) && isFiniteNumber(ball.z)
+      && typeof ball.active === 'boolean');
+}
 
 interface Ball {
   entity: Entity;
@@ -66,6 +81,11 @@ function projectToScreen(x: number, y: number, z: number, viewProj: Float32Array
 }
 
 class Billiards3DGame {
+  private readonly saves = new SingleSlotGameSave<Billiards3DSaveData>({
+    gameId: 'billiards-3d',
+    name: 'Billiards 3D 自动存档',
+    validateData: isBilliards3DSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private camera!: Camera3D;
@@ -85,6 +105,7 @@ class Billiards3DGame {
   private chargePower = 0;
   private pointerId = -1;
   private readonly velocityScratch = { x: 0, y: 0 };
+  private wasMoving = false;
   private transition: {
     startTime: number;
     duration: number;
@@ -121,7 +142,7 @@ class Billiards3DGame {
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
 
-    this.newGame();
+    await this.loadOrStart();
     this.setupInput(canvas);
     document.getElementById('btn-new')!.addEventListener('click', () => this.newGame());
 
@@ -161,7 +182,7 @@ class Billiards3DGame {
     this.world.addEntity(key);
   }
 
-  private newGame(): void {
+  private newGame(save = true): void {
     for (const ball of this.balls) this.removeBallEntities(ball);
     for (const entity of this.tableEntities) this.world.removeEntity(entity);
     this.balls = [];
@@ -188,6 +209,38 @@ class Billiards3DGame {
     this.syncBallMeshes();
     this.snapToCueCamera();
     this.updateHud();
+    this.wasMoving = false;
+    if (save) this.saveState();
+  }
+
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    this.newGame(false);
+    if (!saved) {
+      this.saveState();
+      return;
+    }
+    this.potted = saved.potted;
+    saved.balls.forEach((data, index) => {
+      const ball = this.balls[index];
+      if (!ball) return;
+      ball.active = data.active;
+      if (!data.active) this.removeBallEntities(ball);
+      else {
+        this.physics.teleportBody(ball.physics, data.x, data.z, 0);
+        ball.t2d.x = data.x;
+        ball.t2d.y = data.z;
+      }
+    });
+    this.syncBallMeshes();
+    this.updateHud();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      potted: this.potted,
+      balls: this.balls.map(ball => ({ x: ball.t2d.x, z: ball.t2d.y, active: ball.active })),
+    });
   }
 
   private buildTable(): void {
@@ -351,6 +404,10 @@ class Billiards3DGame {
     this.syncBallMeshes();
     this.checkPockets();
     this.settleSlowBalls();
+    const moving = this.balls.some(ball => ball.active && this.physics.getLinearVelocity(ball.physics, this.velocityScratch)
+      && Math.hypot(this.velocityScratch.x, this.velocityScratch.y) >= STOP_SPEED);
+    if (this.wasMoving && !moving) this.saveState();
+    this.wasMoving = moving;
     this.updateViewProj();
     if (this.mode === 'aim' && !this.charging) this.followCueTarget();
     if (this.mode === 'top' && this.canShoot() && this.potted < 10) this.transitionToCueView();

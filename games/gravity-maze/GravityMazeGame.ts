@@ -56,6 +56,7 @@ export class GravityMazeGame {
     private readonly _ballTransform: Transform3D,
     private readonly _ballBody: Physics3DBody,
     private readonly _baseSeed: number,
+    private readonly _onLevelChanged: (level: number) => void = () => undefined,
   ) {
     this._restartButton.addEventListener('click', this._onRestart);
     this._nextButton.addEventListener('click', this._onNextLevel);
@@ -84,6 +85,7 @@ export class GravityMazeGame {
     document.body.dataset.level = String(level);
     document.body.dataset.mazeSeed = String(this._seed);
     document.body.dataset.holeCount = String(this._layout.holes.length);
+    this._onLevelChanged(level);
     this.restart('level-start');
   }
 

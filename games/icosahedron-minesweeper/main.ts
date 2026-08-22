@@ -18,6 +18,7 @@ import { DirectionalLight } from '@haiyue/engine';
 import { EnvironmentLight } from '@haiyue/engine';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type CellState = 'hidden' | 'revealed' | 'flagged';
 type GamePhase = 'playing' | 'won' | 'lost';
@@ -40,6 +41,25 @@ interface PointerStart {
   x: number;
   y: number;
   button: number;
+}
+
+interface IcosahedronMinesweeperSaveData {
+  phase: GamePhase;
+  opened: number;
+  flags: number;
+  cells: Array<{ mine: boolean; count: number; state: CellState }>;
+}
+
+function isIcosahedronSaveData(value: unknown): value is IcosahedronMinesweeperSaveData {
+  return isRecord(value)
+    && (value.phase === 'playing' || value.phase === 'won' || value.phase === 'lost')
+    && isNonNegativeInteger(value.opened)
+    && isNonNegativeInteger(value.flags)
+    && Array.isArray(value.cells)
+    && value.cells.every(cell => isRecord(cell)
+      && typeof cell.mine === 'boolean'
+      && isNonNegativeInteger(cell.count)
+      && (cell.state === 'hidden' || cell.state === 'revealed' || cell.state === 'flagged'));
 }
 
 const RADIUS = 2.0;
@@ -258,6 +278,11 @@ function projectToScreen(
 }
 
 class IcosahedronMinesweeper {
+  private readonly saves = new SingleSlotGameSave<IcosahedronMinesweeperSaveData>({
+    gameId: 'icosahedron-minesweeper',
+    name: 'Icosahedron Minesweeper 自动存档',
+    validateData: isIcosahedronSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private camera!: Entity;
@@ -344,7 +369,7 @@ class IcosahedronMinesweeper {
     }
 
     this._setupInput(canvas);
-    this._newGame();
+    await this._loadOrCreateState();
 
     this.engine.on('update', ({ detail: { time, delta } }) => {
       this._updateViewProjection();
@@ -397,7 +422,7 @@ class IcosahedronMinesweeper {
     });
   }
 
-  private _newGame(): void {
+  private _newGame(save = true): void {
     this.phase = 'playing';
     this.opened = 0;
     this.flags = 0;
@@ -426,6 +451,54 @@ class IcosahedronMinesweeper {
     this.elTotal.textContent = String(this.cells.length - MINE_COUNT);
     this.elMessage.textContent = 'Left click opens a cell. Right click toggles a flag or opens neighbors from a revealed number. Drag to orbit, wheel to zoom.';
     this._updateHud();
+    if (save) this._saveState();
+  }
+
+  private async _loadOrCreateState(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.cells.length !== this.cells.length) {
+      this._newGame();
+      return;
+    }
+    this.phase = saved.phase;
+    this.opened = saved.opened;
+    this.flags = saved.flags;
+    saved.cells.forEach((data, index) => {
+      const cell = requiredItemAt(this.cells, index, 'icosahedron cells');
+      cell.mine = data.mine;
+      cell.count = data.count;
+      cell.state = data.state;
+      if (data.state === 'hidden') {
+        setCellLabel(cell, '', 'none');
+        this._setCellSurface(cell, 'hidden');
+      } else if (data.state === 'flagged') {
+        setCellLabel(cell, 'F', 'flag');
+        this._setCellSurface(cell, 'flagged');
+      } else if (data.mine) {
+        setCellLabel(cell, '*', 'mine');
+        this._setCellSurface(cell, 'mine');
+      } else {
+        setCellLabel(cell, data.count > 0 ? String(data.count) : '', data.count > 0 ? 'number' : 'none');
+        this._setCellSurface(cell, 'revealed');
+      }
+    });
+    this.elMines.textContent = String(MINE_COUNT);
+    this.elTotal.textContent = String(this.cells.length - MINE_COUNT);
+    this.elMessage.textContent = this.phase === 'won'
+      ? 'Cleared. Press Restart or R to play again.'
+      : this.phase === 'lost'
+        ? 'Game over. Press Restart or R to start again.'
+        : 'Saved game restored.';
+    this._updateHud();
+  }
+
+  private _saveState(): void {
+    this.saves.save({
+      phase: this.phase,
+      opened: this.opened,
+      flags: this.flags,
+      cells: this.cells.map(cell => ({ mine: cell.mine, count: cell.count, state: cell.state })),
+    });
   }
 
   private _toggleFlag(cell: Cell): void {
@@ -442,6 +515,7 @@ class IcosahedronMinesweeper {
       this._setCellSurface(cell, 'flagged');
     }
     this._updateHud();
+    this._saveState();
   }
 
   private _chordReveal(cell: Cell): void {
@@ -486,6 +560,7 @@ class IcosahedronMinesweeper {
     }
     this._updateHud();
     if (this.opened === this.cells.length - MINE_COUNT) this._win();
+    else this._saveState();
   }
 
   private _ensureFirstRevealSafe(cell: Cell): void {
@@ -514,6 +589,7 @@ class IcosahedronMinesweeper {
     }
     this.elMessage.textContent = 'Game over. Press Restart or R to start again.';
     this._updateHud();
+    this._saveState();
   }
 
   private _win(): void {
@@ -528,6 +604,7 @@ class IcosahedronMinesweeper {
     this.flags = MINE_COUNT;
     this.elMessage.textContent = 'Cleared. Press Restart or R to play again.';
     this._updateHud();
+    this._saveState();
   }
 
   private _updateHud(): void {

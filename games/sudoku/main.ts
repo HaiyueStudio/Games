@@ -13,12 +13,34 @@ import { CssMaterial, type CssMaterialStyle } from '@haiyue/engine/material';
 import { createBox3D } from '@haiyue/engine';
 import { createPlane3D } from '@haiyue/engine';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isRecord } from '../save/SingleSlotGameSave';
 
 export type SudokuDifficulty = 'easy' | 'normal' | 'hard';
 type Board = number[][];
 
 export interface SudokuConfig {
   difficulty: SudokuDifficulty;
+}
+
+interface SudokuSaveData {
+  difficulty: SudokuDifficulty;
+  puzzle: Board;
+  board: Board;
+  solution: Board;
+}
+
+function isBoard(value: unknown): value is Board {
+  return Array.isArray(value) && value.length === SIZE
+    && value.every(row => Array.isArray(row) && row.length === SIZE
+      && row.every(cell => Number.isSafeInteger(cell) && cell >= 0 && cell <= 9));
+}
+
+function isSudokuSaveData(value: unknown): value is SudokuSaveData {
+  return isRecord(value)
+    && (value.difficulty === 'easy' || value.difficulty === 'normal' || value.difficulty === 'hard')
+    && isBoard(value.puzzle)
+    && isBoard(value.board)
+    && isBoard(value.solution);
 }
 
 interface Hint {
@@ -201,6 +223,11 @@ function generatePuzzle(difficulty: SudokuDifficulty): { puzzle: Board; solution
 }
 
 export class SudokuGame {
+  private readonly saves = new SingleSlotGameSave<SudokuSaveData>({
+    gameId: 'sudoku',
+    name: 'Sudoku 自动存档',
+    validateData: isSudokuSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private puzzle: Board = emptyBoard();
@@ -237,7 +264,7 @@ export class SudokuGame {
     this._buildBoardMesh();
     this._buildScreenUI();
     canvas.addEventListener('click', this.canvasClickHandler);
-    this._newPuzzle();
+    await this._loadOrCreateState();
     this.engine.on('update', ({ detail: { time, delta } }) => {
       if (this.renderFramesRemaining <= 0) return;
       this.world.update(time, delta);
@@ -566,6 +593,34 @@ export class SudokuGame {
       this._setStatus(`${this._difficultyLabel()} puzzle ready`);
       this._render();
       this._updatePad();
+      this._saveState();
+    });
+  }
+
+  private async _loadOrCreateState(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved) {
+      this._newPuzzle();
+      return;
+    }
+    this.difficulty = saved.difficulty;
+    this.puzzle = cloneBoard(saved.puzzle);
+    this.board = cloneBoard(saved.board);
+    this.solution = cloneBoard(saved.solution);
+    this.selected = null;
+    this.hint = null;
+    this._hideExplanation();
+    this._setStatus(this._isComplete() ? 'Solved' : `${this._difficultyLabel()} puzzle restored`);
+    this._render();
+    this._updatePad();
+  }
+
+  private _saveState(): void {
+    this.saves.save({
+      difficulty: this.difficulty,
+      puzzle: cloneBoard(this.puzzle),
+      board: cloneBoard(this.board),
+      solution: cloneBoard(this.solution),
     });
   }
 
@@ -669,6 +724,7 @@ export class SudokuGame {
     if (this._isComplete()) {
       this._setStatus('Solved');
     }
+    this._saveState();
   }
 
   private _candidates(row: number, col: number): number[] {
@@ -688,6 +744,7 @@ export class SudokuGame {
     this._setStatus('Solved automatically');
     this._render();
     this._updatePad();
+    this._saveState();
   }
 
   private _isComplete(): boolean {

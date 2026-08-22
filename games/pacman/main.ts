@@ -32,6 +32,7 @@ import {
   type GridPoint,
   type ParsedMaze,
 } from './PacmanRules';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type Rgba = readonly [number, number, number, number];
 type Phase = 'ready' | 'playing' | 'paused' | 'dying' | 'level-clear' | 'game-over';
@@ -80,7 +81,23 @@ const READY_SECONDS = 1.5;
 const DEATH_SECONDS = 1.45;
 const LEVEL_CLEAR_SECONDS = 1.5;
 const GHOST_EAT_SCORE = [200, 400, 800, 1600];
-const STORAGE_KEY = 'haiyue-pacman-high-score';
+interface PacmanSaveData {
+  score: number;
+  highScore: number;
+  lives: number;
+  level: number;
+  remainingPellets: string[];
+}
+
+function isPacmanSaveData(value: unknown): value is PacmanSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.score)
+    && isNonNegativeInteger(value.highScore) && value.highScore >= value.score
+    && isNonNegativeInteger(value.lives)
+    && isNonNegativeInteger(value.level) && value.level >= 1
+    && Array.isArray(value.remainingPellets)
+    && value.remainingPellets.every(key => typeof key === 'string');
+}
 
 const COLORS = {
   floor: [0.008, 0.012, 0.035, 1] as Rgba,
@@ -187,6 +204,11 @@ class ArcadeAudio {
 }
 
 class PacmanGame {
+  private readonly saves = new SingleSlotGameSave<PacmanSaveData>({
+    gameId: 'pacman',
+    name: 'Pac-Man 自动存档',
+    validateData: isPacmanSaveData,
+  });
   private readonly maze: ParsedMaze = parseMaze(PACMAN_MAZE_LAYOUT);
   private readonly audio = new ArcadeAudio();
   private readonly pellets = new Map<string, PelletVisual>();
@@ -213,7 +235,7 @@ class PacmanGame {
   private frightenedUntil = 0;
   private ghostCombo = 0;
   private score = 0;
-  private highScore = readHighScore();
+  private highScore = 0;
   private lives: number;
   private level = 1;
 
@@ -245,7 +267,7 @@ class PacmanGame {
     this.buildMaze();
     this.createActors();
     this.bindInput(canvas);
-    this.newGame();
+    await this.loadOrStart();
 
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
@@ -465,7 +487,7 @@ class PacmanGame {
     });
   }
 
-  private newGame(): void {
+  private newGame(save = true): void {
     this.score = 0;
     this.level = 1;
     this.lives = this.config.startingLives;
@@ -473,6 +495,41 @@ class PacmanGame {
     this.resetActors();
     this.setPhase('ready', READY_SECONDS);
     this.syncHud();
+    if (save) this.saveState();
+  }
+
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved) {
+      this.newGame();
+      return;
+    }
+    this.score = saved.score;
+    this.highScore = saved.highScore;
+    this.lives = Math.min(this.config.startingLives, saved.lives);
+    this.level = saved.remainingPellets.length === 0 ? saved.level + 1 : saved.level;
+    this.rebuildPellets();
+    const remaining = new Set(saved.remainingPellets);
+    if (remaining.size > 0) {
+      for (const [key, pellet] of this.pellets) {
+        if (remaining.has(key)) continue;
+        this.world.removeEntity(pellet.entity);
+        this.pellets.delete(key);
+      }
+    }
+    this.resetActors();
+    this.setPhase(this.lives > 0 ? 'ready' : 'game-over', this.lives > 0 ? READY_SECONDS : 0);
+    this.syncHud();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      score: this.score,
+      highScore: this.highScore,
+      lives: this.lives,
+      level: this.level,
+      remainingPellets: [...this.pellets.keys()],
+    });
   }
 
   private rebuildPellets(): void {
@@ -598,6 +655,7 @@ class PacmanGame {
         this.resetActors();
         this.setPhase('ready', READY_SECONDS);
         this.syncHud();
+        this.saveState();
       }
       return;
     }
@@ -682,6 +740,7 @@ class PacmanGame {
       this.audio.level();
       this.setPhase('level-clear', LEVEL_CLEAR_SECONDS);
     }
+    this.saveState();
   }
 
   private activatePowerMode(): void {
@@ -728,13 +787,13 @@ class PacmanGame {
     this.audio.death();
     this.setPhase('dying', DEATH_SECONDS);
     this.syncHud();
+    this.saveState();
   }
 
   private addScore(points: number): void {
     this.score += points;
     if (this.score <= this.highScore) return;
     this.highScore = this.score;
-    try { localStorage.setItem(STORAGE_KEY, String(this.highScore)); } catch { /* storage is optional */ }
   }
 
   private setPhase(phase: Exclude<Phase, 'paused'>, duration = 0): void {
@@ -1045,15 +1104,6 @@ function requiredElement<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Pac-Man is missing #${id}.`);
   return element as T;
-}
-
-function readHighScore(): number {
-  try {
-    const value = Number(localStorage.getItem(STORAGE_KEY));
-    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-  } catch {
-    return 0;
-  }
 }
 
 async function main(): Promise<void> {

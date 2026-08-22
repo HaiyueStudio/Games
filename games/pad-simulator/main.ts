@@ -5,6 +5,20 @@ import { RenderIntegration } from '@haiyue/engine/experimental';
 import { mat4, vec3 } from 'wgpu-matrix';
 import { PadOSScene } from './scenes/PadOSScene';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface PadSimulatorSaveData {
+  page: number;
+  brightness: number;
+  showFps: boolean;
+}
+
+function isPadSimulatorSaveData(value: unknown): value is PadSimulatorSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.page)
+    && isFiniteNumber(value.brightness) && value.brightness >= 0 && value.brightness <= 1
+    && typeof value.showFps === 'boolean';
+}
 
 type Vec2 = [number, number];
 type Vec3 = [number, number, number];
@@ -162,6 +176,11 @@ function createRoundedRectPrism(width: number, height: number, radius: number, t
 }
 
 class PadSimulator {
+  private readonly saves = new SingleSlotGameSave<PadSimulatorSaveData>({
+    gameId: 'pad-simulator',
+    name: 'Pad Simulator 自动存档',
+    validateData: isPadSimulatorSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private camera!: Camera3D;
@@ -193,6 +212,8 @@ class PadSimulator {
 
     this.screenScene = new PadOSScene();
     await this.screenScene.load();
+    const saved = await this.saves.load();
+    if (saved) this.screenScene.restoreSettings(saved);
     this.screenTexture = this.engine.device.createTexture({
       size: [this.screenScene.canvas.width, this.screenScene.canvas.height],
       format: 'rgba8unorm',
@@ -347,6 +368,7 @@ class PadSimulator {
         this.lastScreenPoint = null;
         this.orbit.enableRotate = true;
         this.orbit.enableZoom = true;
+        this.saveState();
         event.preventDefault();
         event.stopImmediatePropagation();
         return;
@@ -401,6 +423,7 @@ class PadSimulator {
       this.lastScreenPoint = null;
       this.orbit.enableRotate = true;
       this.orbit.enableZoom = true;
+      this.saveState();
       event.preventDefault();
     };
     canvas.addEventListener('pointerup', release);
@@ -418,6 +441,7 @@ class PadSimulator {
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
       });
+      this.saveState();
       event.preventDefault();
       event.stopImmediatePropagation();
     }, { capture: true, passive: false });
@@ -534,6 +558,10 @@ class PadSimulator {
       this.frontCameraMaterial.color.setFromSRGB(0.010, 0.012, 0.015, 1);
       this.frontCameraMaterial.emissiveFactor = [1, 1, 1];
     }
+  }
+
+  private saveState(): void {
+    this.saves.save(this.screenScene.snapshotSettings());
   }
 }
 

@@ -20,11 +20,40 @@ import {
   PLAYER_STEP_HEIGHT,
 } from './MinecraftRules';
 import { MinecraftVoxelRenderer } from './MinecraftVoxelRenderer';
-import { MinecraftWorld } from './MinecraftWorld';
+import { MinecraftWorld, type MinecraftBlockEdit } from './MinecraftWorld';
+import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface MinecraftSaveData {
+  seed: number;
+  edits: MinecraftBlockEdit[];
+  player: number[];
+  rotation: number[];
+  selectedPalette: number;
+}
+
+function isVector3(value: unknown): value is number[] {
+  return Array.isArray(value) && value.length === 3 && value.every(isFiniteNumber);
+}
+
+function isMinecraftSaveData(value: unknown): value is MinecraftSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.seed) && value.seed <= 0xffff_ffff
+    && isVector3(value.player) && isVector3(value.rotation)
+    && isNonNegativeInteger(value.selectedPalette) && value.selectedPalette < 10
+    && Array.isArray(value.edits) && value.edits.every(edit => isRecord(edit)
+      && isNonNegativeInteger(edit.x) && isNonNegativeInteger(edit.y) && isNonNegativeInteger(edit.z)
+      && (edit.paletteIndex === null || (isNonNegativeInteger(edit.paletteIndex) && edit.paletteIndex < 10)));
+}
 
 async function main(): Promise<void> {
+  const saves = new SingleSlotGameSave<MinecraftSaveData>({
+    gameId: 'minecraft-lite',
+    name: 'Minecraft Lite 自动存档',
+    validateData: isMinecraftSaveData,
+  });
+  const saved = await saves.load();
   const canvas = requiredElement('canvas', HTMLCanvasElement);
-  const seed = requestedSeed();
+  const seed = requestedSeed() ?? saved?.seed ?? randomSeed();
   const engine = new HaiyueEngine({
     canvas,
     clearColor: { r: 0.34, g: 0.62, b: 0.86, a: 1 },
@@ -38,13 +67,16 @@ async function main(): Promise<void> {
   engine.device.pushErrorScope('validation');
 
   const voxelWorld = new MinecraftWorld({ size: DEFAULT_WORLD_SIZE, seed });
+  if (saved?.seed === seed) voxelWorld.applyEdits(saved.edits);
   const spawnSurface = voxelWorld.spawnPosition();
   const spawn: [number, number, number] = [
     spawnSurface[0],
     spawnSurface[1] + PLAYER_EYE_HEIGHT,
     spawnSurface[2],
   ];
-  const cameraTransform = new CartesianTransform3D({ position: spawn, rotation: [-0.2, 0, 0] });
+  const restoredPlayer: [number, number, number] = saved?.seed === seed && saved.player.length === 3 ? saved.player as [number, number, number] : spawn;
+  const restoredRotation: [number, number, number] = saved?.seed === seed && saved.rotation.length === 3 ? saved.rotation as [number, number, number] : [-0.2, 0, 0];
+  const cameraTransform = new CartesianTransform3D({ position: restoredPlayer, rotation: restoredRotation });
   const camera = new Entity('Minecraft first-person camera')
     .addComponent(new Camera3D({ type: 'perspective', fov: Math.PI / 2.55, near: 0.05, far: 340 }))
     .addComponent(cameraTransform);
@@ -89,6 +121,14 @@ async function main(): Promise<void> {
   });
   scene.addSystem(controls, false);
 
+  let selectedPalette = saved?.seed === seed ? saved.selectedPalette : 3;
+  const saveState = (): void => saves.save({
+    seed,
+    edits: voxelWorld.snapshotEdits(),
+    player: Array.from(cameraTransform.position),
+    rotation: Array.from(cameraTransform.rotation),
+    selectedPalette,
+  });
   const interaction = new MinecraftInteractionSystem({
     canvas,
     cameraTransform,
@@ -98,6 +138,8 @@ async function main(): Promise<void> {
     target: requiredElement('target-cell', HTMLElement),
     blockCount: requiredElement('block-count', HTMLElement),
     message: requiredElement('message', HTMLElement),
+    initialPalette: selectedPalette,
+    onStateChanged: palette => { selectedPalette = palette; saveState(); },
   });
   scene.addSystem(interaction, false);
   scene.addSystem(new PlayerSafetySystem(controls, cameraTransform, voxelWorld, spawn), false);
@@ -141,6 +183,7 @@ async function main(): Promise<void> {
   engine.on('after-update', () => {
     document.body.dataset.playerGrounded = String(controls.grounded);
     if (++validationFrames === 8) void finishValidation();
+    if (validationFrames % 120 === 0) saveState();
   });
 
   async function finishValidation(): Promise<void> {
@@ -173,6 +216,7 @@ async function main(): Promise<void> {
     requiredElement('start-button', HTMLButtonElement).removeEventListener('click', onStart);
     requiredElement('new-world', HTMLButtonElement).removeEventListener('click', onNewWorld);
     interaction.dispose();
+    saveState();
     controls.dispose();
     engine.destroy();
   }, { once: true });
@@ -200,10 +244,10 @@ class PlayerSafetySystem extends System {
   }
 }
 
-function requestedSeed(): number {
+function requestedSeed(): number | null {
   const raw = new URLSearchParams(location.search).get('seed');
   if (raw !== null && /^\d+$/.test(raw)) return Number(raw) >>> 0;
-  return randomSeed();
+  return null;
 }
 
 function randomSeed(): number {

@@ -569,6 +569,18 @@ export class PadOSScene {
   private fpsLastTime = 0;
   private fpsFrameCount = 0;
 
+  snapshotSettings(): { page: number; brightness: number; showFps: boolean } {
+    return { page: this.page, brightness: this.brightness, showFps: this.showFps };
+  }
+
+  restoreSettings(settings: { page: number; brightness: number; showFps: boolean }): void {
+    this.page = Math.max(0, Math.min(PAGE_COUNT - 1, Math.floor(settings.page)));
+    this.animFrom = this.page;
+    this.animTo = this.page;
+    this.brightness = clamp(settings.brightness, 0, 1);
+    this.showFps = settings.showFps;
+  }
+
   constructor() {
     this.canvas = document.createElement('canvas');
     this.canvas.width = SCREEN_W;

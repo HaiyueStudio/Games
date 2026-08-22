@@ -11,6 +11,7 @@ import {
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type Rank = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
 type Color = [number, number, number, number];
@@ -31,6 +32,22 @@ interface Snapshot {
   stock: Card[];
   completedRuns: number;
   moves: number;
+}
+
+function isCard(value: unknown): value is Card {
+  return isRecord(value)
+    && isNonNegativeInteger(value.id)
+    && isNonNegativeInteger(value.rank) && value.rank >= 1 && value.rank <= 13
+    && typeof value.faceUp === 'boolean';
+}
+
+function isSpiderSaveData(value: unknown): value is Snapshot {
+  return isRecord(value)
+    && Array.isArray(value.columns) && value.columns.length === COLUMN_COUNT
+    && value.columns.every(column => Array.isArray(column) && column.every(isCard))
+    && Array.isArray(value.stock) && value.stock.every(isCard)
+    && isNonNegativeInteger(value.completedRuns) && value.completedRuns <= 8
+    && isNonNegativeInteger(value.moves);
 }
 
 interface DragState {
@@ -169,6 +186,11 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 class SpiderSolitaire {
+  private readonly saves = new SingleSlotGameSave<Snapshot>({
+    gameId: 'spider-solitaire',
+    name: 'Spider Solitaire 自动存档',
+    validateData: isSpiderSaveData,
+  });
   private columns: Card[][] = [];
   private stock: Card[] = [];
   private completedRuns = 0;
@@ -211,7 +233,7 @@ class SpiderSolitaire {
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
     this.bindUi();
-    this.newGame();
+    await this.loadOrStart();
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
   }
@@ -318,7 +340,7 @@ class SpiderSolitaire {
     this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
   }
 
-  private newGame(): void {
+  private newGame(save = true): void {
     this.columns = Array.from({ length: COLUMN_COUNT }, () => []);
     this.stock = this.createDeck();
     this.completedRuns = 0;
@@ -342,6 +364,34 @@ class SpiderSolitaire {
 
     this.toast('Drag a face-up descending stack to a destination column.');
     this.render();
+    if (save) this.saveState();
+  }
+
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved) {
+      this.newGame();
+      return;
+    }
+    this.columns = cloneColumns(saved.columns);
+    this.stock = saved.stock.map(cloneCard);
+    this.completedRuns = saved.completedRuns;
+    this.moves = saved.moves;
+    this.nextId = Math.max(0, ...this.columns.flat().map(card => card.id), ...this.stock.map(card => card.id)) + 1;
+    this.selection = null;
+    this.drag = null;
+    this.history = [];
+    this.toast('Saved game restored.');
+    this.render();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      columns: cloneColumns(this.columns),
+      stock: this.stock.map(cloneCard),
+      completedRuns: this.completedRuns,
+      moves: this.moves,
+    });
   }
 
   private createDeck(): Card[] {
@@ -582,6 +632,7 @@ class SpiderSolitaire {
     this.resumeOrbitControl();
     this.collectCompletedRuns();
     this.render();
+    this.saveState();
     return true;
   }
 
@@ -643,6 +694,7 @@ class SpiderSolitaire {
     this.resumeOrbitControl();
     this.collectCompletedRuns();
     this.render();
+    this.saveState();
   }
 
   private collectCompletedRuns(): void {
@@ -705,6 +757,7 @@ class SpiderSolitaire {
     this.flights = [];
     this.hiddenAnimatedCardIds.clear();
     this.render();
+    this.saveState();
   }
 
   private render(): void {

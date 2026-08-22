@@ -4,6 +4,7 @@ import { BlinnPhongRenderSystem, Render3DSystem } from '@haiyue/engine/systems';
 import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createSphere3D } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { requiredItemAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type Color = [number, number, number, number];
 
@@ -34,6 +35,23 @@ interface Snapshot {
   moves: number;
 }
 
+interface SokobanSaveData extends Snapshot {
+  levelIndex: number;
+}
+
+function isPoint(value: unknown): value is Point {
+  return isRecord(value) && Number.isSafeInteger(value.x) && Number.isSafeInteger(value.y);
+}
+
+function isSokobanSaveData(value: unknown): value is SokobanSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.levelIndex)
+    && isNonNegativeInteger(value.moves)
+    && isPoint(value.player)
+    && Array.isArray(value.boxes)
+    && value.boxes.every(isPoint);
+}
+
 const TILE = 42;
 const FLOOR_H = 4;
 const WALL_H = 34;
@@ -59,6 +77,11 @@ function samePoint(a: Point, b: Point): boolean {
 }
 
 class Sokoban3DGame {
+  private readonly saves = new SingleSlotGameSave<SokobanSaveData>({
+    gameId: 'sokoban-3d',
+    name: 'Sokoban 3D 自动存档',
+    validateData: isSokobanSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private cameraEntity!: Entity;
@@ -97,7 +120,7 @@ class Sokoban3DGame {
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
     this.levels = await this.loadLevels();
     this.bindUi();
-    this.loadLevel(0);
+    await this.restoreOrStart();
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
   }
@@ -153,7 +176,7 @@ class Sokoban3DGame {
     document.getElementById('next')!.addEventListener('click', () => this.changeLevel(1));
   }
 
-  private loadLevel(index: number): void {
+  private loadLevel(index: number, save = true): void {
     this.clearScene();
     this.levelIndex = (index + this.levels.length) % this.levels.length;
     this.moves = 0;
@@ -192,6 +215,37 @@ class Sokoban3DGame {
     this.syncActors();
     this.updateHud();
     this.messageText.textContent = `${level.name}: push every cube onto a gold target.`;
+    if (save) this.saveState();
+  }
+
+  private async restoreOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.levelIndex >= this.levels.length) {
+      this.loadLevel(0);
+      return;
+    }
+    this.loadLevel(saved.levelIndex, false);
+    if (saved.boxes.length !== this.boxes.length) {
+      this.saveState();
+      return;
+    }
+    this.player = { ...saved.player };
+    this.moves = saved.moves;
+    saved.boxes.forEach((position, index) => {
+      const box = this.boxes[index];
+      if (box) box.pos = { ...position };
+    });
+    this.syncActors();
+    this.updateHud();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      levelIndex: this.levelIndex,
+      moves: this.moves,
+      player: { ...this.player },
+      boxes: this.boxes.map(box => ({ ...box.pos })),
+    });
   }
 
   private clearScene(): void {
@@ -284,6 +338,7 @@ class Sokoban3DGame {
     if (this.solved()) {
       this.messageText.textContent = `Solved ${requiredItemAt(this.levels, this.levelIndex, 'Sokoban levels').name} in ${this.moves} moves.`;
     }
+    this.saveState();
   }
 
   private pushHistory(): void {
@@ -307,6 +362,7 @@ class Sokoban3DGame {
     this.syncActors();
     this.updateHud();
     this.messageText.textContent = 'Move undone.';
+    this.saveState();
   }
 
   private restart(): void {

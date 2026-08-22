@@ -24,6 +24,7 @@ import { Material2D } from '@haiyue/engine';
 import { createRect2D } from '@haiyue/engine/geometry';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -46,6 +47,32 @@ interface Cell {
 }
 
 type GamePhase = 'idle' | 'playing' | 'won' | 'lost';
+
+interface MinesweeperSaveData {
+  rows: number;
+  cols: number;
+  totalMines: number;
+  phase: GamePhase;
+  elapsedSec: number;
+  cells: Array<Array<{ isMine: boolean; adjCount: number; state: CellState }>>;
+}
+
+function isMinesweeperSaveData(value: unknown): value is MinesweeperSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.rows)
+    && isNonNegativeInteger(value.cols)
+    && isNonNegativeInteger(value.totalMines)
+    && isNonNegativeInteger(value.elapsedSec)
+    && (value.phase === 'idle' || value.phase === 'playing' || value.phase === 'won' || value.phase === 'lost')
+    && Array.isArray(value.cells)
+    && value.cells.length === value.rows
+    && value.cells.every(row => Array.isArray(row) && row.length === value.cols && row.every(cell => (
+      isRecord(cell)
+      && typeof cell.isMine === 'boolean'
+      && isNonNegativeInteger(cell.adjCount) && cell.adjCount <= 8
+      && (cell.state === 'hidden' || cell.state === 'revealed' || cell.state === 'flagged')
+    )));
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -189,6 +216,11 @@ function project3DToScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Minesweeper {
+  private readonly saves = new SingleSlotGameSave<MinesweeperSaveData>({
+    gameId: 'minesweeper',
+    name: 'Minesweeper 自动存档',
+    validateData: isMinesweeperSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!:  World;
 
@@ -226,6 +258,7 @@ class Minesweeper {
   private elapsedSec = 0;
   private flagCount = 0;
   private revealedCount = 0;
+  private savedElapsedSec = -1;
 
   // Interaction
   private hoveredCell: Cell | null = null;
@@ -257,7 +290,7 @@ class Minesweeper {
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
     this._setupDOM();
-    this._newGame();
+    await this._loadOrCreateState();
     this._setupInput(canvas);
 
     this.engine.on('update', ({ detail: { time, delta } }) => {
@@ -358,7 +391,7 @@ class Minesweeper {
 
   // ── New game ──────────────────────────────────────────────────────────────
 
-  private _newGame() {
+  private _newGame(save = true) {
     // Remove old entities
     for (const row of this.cells) {
       for (const cell of row) {
@@ -382,6 +415,67 @@ class Minesweeper {
     this.elStatus.classList.remove('visible');
     this._updateHUD();
     this._buildGrid();
+    if (save) this._saveState();
+  }
+
+  private async _loadOrCreateState(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.rows !== this.rows || saved.cols !== this.cols || saved.totalMines !== this.totalMines) {
+      this._newGame();
+      return;
+    }
+    this._newGame(false);
+    this.phase = saved.phase;
+    this.elapsedSec = saved.elapsedSec;
+    this.startTime = performance.now() - this.elapsedSec * 1000;
+    this.flagCount = 0;
+    this.revealedCount = 0;
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const data = requiredItemAt(requiredItemAt(saved.cells, row, 'saved Minesweeper rows'), col, 'saved Minesweeper cells');
+        const cell = cellAt(this.cells, row, col);
+        cell.isMine = data.isMine;
+        cell.adjCount = data.adjCount;
+        if (data.state === 'flagged') {
+          this._toggleFlag(cell);
+        } else if (data.state === 'revealed') {
+          cell.state = 'revealed';
+          if (cell.isMine) this._showMine(cell);
+          else {
+            this.revealedCount++;
+            cell.cubeMat.color.setFromSRGB(MAT_REVEALED.r, MAT_REVEALED.g, MAT_REVEALED.b, 1);
+            cell.cubeEntity.getComponent(CartesianTransform3D)!.setPosition(cell.col * CELL_SIZE, -0.15, cell.row * CELL_SIZE);
+          }
+        }
+      }
+    }
+    this._restoreStatusOverlay();
+    this._updateHUD();
+    this.savedElapsedSec = this.elapsedSec;
+  }
+
+  private _restoreStatusOverlay(): void {
+    if (this.phase !== 'won' && this.phase !== 'lost') return;
+    this.elStatusText.textContent = this.phase === 'won' ? '✓  CLEARED' : '💥  BOOM';
+    this.elStatusText.className = this.phase;
+    this.elStatusSub.textContent = `Time: ${this.elapsedSec}s  ·  R to restart`;
+    this.elStatus.classList.add('visible');
+  }
+
+  private _saveState(): void {
+    this.saves.save({
+      rows: this.rows,
+      cols: this.cols,
+      totalMines: this.totalMines,
+      phase: this.phase,
+      elapsedSec: this.elapsedSec,
+      cells: this.cells.map(row => row.map(cell => ({
+        isMine: cell.isMine,
+        adjCount: cell.adjCount,
+        state: cell.state,
+      }))),
+    });
+    this.savedElapsedSec = this.elapsedSec;
   }
 
   // ── Build grid ────────────────────────────────────────────────────────────
@@ -707,6 +801,7 @@ class Minesweeper {
       } else if (e.button === 0) {
         if (cell.state === 'hidden') this._reveal(cell);
       }
+      this._saveState();
     });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -814,6 +909,7 @@ class Minesweeper {
     if (this.phase === 'playing') {
       this.elapsedSec = Math.floor((time - this.startTime) / 1000);
       this.elTimer.textContent = String(this.elapsedSec);
+      if (this.elapsedSec !== this.savedElapsedSec) this._saveState();
     }
 
     // Build viewProj from camera for picking & label projection

@@ -27,6 +27,10 @@ export interface MinecraftWorldOptions {
   readonly generateTerrain?: boolean;
 }
 
+export interface MinecraftBlockEdit extends BlockCell {
+  readonly paletteIndex: number | null;
+}
+
 const NEIGHBOR_OFFSETS: readonly (readonly [number, number, number])[] = Object.freeze([
   [-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1],
 ]);
@@ -42,6 +46,7 @@ export class MinecraftWorld {
   private readonly _blocks: Uint8Array;
   private readonly _surfaceY: Int16Array;
   private _blockCount = 0;
+  private readonly _edits = new Map<string, MinecraftBlockEdit>();
 
   constructor(options: MinecraftWorldOptions = {}) {
     this.size = integerInRange(options.size ?? DEFAULT_WORLD_SIZE, 1, MAX_WORLD_SIZE, 'world size');
@@ -81,6 +86,7 @@ export class MinecraftWorld {
     this._blocks[index] = encoded;
     const column = this._columnIndex(cell.x, cell.z);
     if (cell.y > this._surfaceY[column]!) this._surfaceY[column] = cell.y;
+    this._edits.set(`${cell.x},${cell.y},${cell.z}`, { ...cell, paletteIndex });
     return true;
   }
 
@@ -92,7 +98,19 @@ export class MinecraftWorld {
     this._blockCount -= 1;
     const column = this._columnIndex(cell.x, cell.z);
     if (this._surfaceY[column] === cell.y) this._surfaceY[column] = this._findSurfaceY(cell.x, cell.z, cell.y - 1);
+    this._edits.set(`${cell.x},${cell.y},${cell.z}`, { ...cell, paletteIndex: null });
     return true;
+  }
+
+  applyEdits(edits: readonly MinecraftBlockEdit[]): void {
+    for (const edit of edits) {
+      if (edit.paletteIndex === null) this.removeBlock(edit);
+      else this.setBlock(edit, edit.paletteIndex);
+    }
+  }
+
+  snapshotEdits(): MinecraftBlockEdit[] {
+    return [...this._edits.values()].map(edit => ({ ...edit }));
   }
 
   surfaceHeight(x: number, z: number): number | null {

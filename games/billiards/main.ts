@@ -6,6 +6,21 @@ import {
   Physics2DSystem,
 } from '@haiyue/engine/physics';
 import { RenderIntegration } from '@haiyue/engine/experimental';
+import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface BilliardsSaveData {
+  potted: number;
+  balls: Array<{ x: number; y: number; active: boolean }>;
+}
+
+function isBilliardsSaveData(value: unknown): value is BilliardsSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.potted) && value.potted <= 10
+    && Array.isArray(value.balls) && value.balls.length === 11
+    && value.balls.every(ball => isRecord(ball)
+      && isFiniteNumber(ball.x) && isFiniteNumber(ball.y)
+      && typeof ball.active === 'boolean');
+}
 
 interface Ball {
   entity: Entity;
@@ -56,6 +71,11 @@ function clampPull(dx: number, dy: number): [number, number] {
 }
 
 class BilliardsGame {
+  private readonly saves = new SingleSlotGameSave<BilliardsSaveData>({
+    gameId: 'billiards',
+    name: 'Billiards 自动存档',
+    validateData: isBilliardsSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private cameraEntity!: Entity;
@@ -70,6 +90,7 @@ class BilliardsGame {
   private aimStart: [number, number] = [0, 0];
   private pointerId = -1;
   private readonly velocityScratch = { x: 0, y: 0 };
+  private wasMoving = false;
 
   private elScore = document.getElementById('score')!;
   private elState = document.getElementById('state')!;
@@ -101,7 +122,7 @@ class BilliardsGame {
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
 
-    this.newGame();
+    await this.loadOrStart();
     this.setupInput(canvas);
     document.getElementById('btn-new')!.addEventListener('click', () => this.newGame());
 
@@ -109,7 +130,7 @@ class BilliardsGame {
     this.engine.run();
   }
 
-  private newGame(): void {
+  private newGame(save = true): void {
     for (const ball of this.balls) this.world.removeEntity(ball.entity);
     for (const entity of this.tableEntities) this.world.removeEntity(entity);
     this.balls = [];
@@ -136,6 +157,37 @@ class BilliardsGame {
 
     this.world.update(0, 0);
     this.updateHud();
+    this.wasMoving = false;
+    if (save) this.saveState();
+  }
+
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    this.newGame(false);
+    if (!saved) {
+      this.saveState();
+      return;
+    }
+    this.potted = saved.potted;
+    saved.balls.forEach((data, index) => {
+      const ball = this.balls[index];
+      if (!ball) return;
+      ball.active = data.active;
+      if (!data.active) this.world.removeEntity(ball.entity);
+      else {
+        this.physics.teleportBody(ball.body, data.x, data.y, 0);
+        ball.transform.x = data.x;
+        ball.transform.y = data.y;
+      }
+    });
+    this.updateHud();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      potted: this.potted,
+      balls: this.balls.map(ball => ({ x: ball.transform.x, y: ball.transform.y, active: ball.active })),
+    });
   }
 
   private createTable(): void {
@@ -282,6 +334,10 @@ class BilliardsGame {
     this.world.update(time, delta);
     this.checkPockets();
     this.settleSlowBalls();
+    const moving = this.balls.some(ball => ball.active && this.physics.getLinearVelocity(ball.body, this.velocityScratch)
+      && Math.hypot(this.velocityScratch.x, this.velocityScratch.y) >= STOP_SPEED);
+    if (this.wasMoving && !moving) this.saveState();
+    this.wasMoving = moving;
     if (!this.aiming) this.updateHud();
   }
 

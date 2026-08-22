@@ -15,6 +15,14 @@ import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { mat4 } from 'wgpu-matrix';
 import { requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface PianoSaveData { lastMidi: number | null }
+
+function isPianoSaveData(value: unknown): value is PianoSaveData {
+  return isRecord(value) && (value.lastMidi === null
+    || (isNonNegativeInteger(value.lastMidi) && value.lastMidi <= 127));
+}
 
 interface Config {
   startMidi: number;
@@ -145,6 +153,11 @@ function screenToRay(
 }
 
 class PianoDemo {
+  private readonly saves = new SingleSlotGameSave<PianoSaveData>({
+    gameId: 'piano',
+    name: 'Piano 自动存档',
+    validateData: isPianoSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private camEntity!: Entity;
@@ -174,6 +187,10 @@ class PianoDemo {
     this._setupScene();
     this._buildKeyboard();
     this._setupInput(canvas);
+    const saved = await this.saves.load();
+    if (saved?.lastMidi !== null && saved?.lastMidi !== undefined) {
+      this.elNote.textContent = `${noteName(saved.lastMidi)}  MIDI ${saved.lastMidi}`;
+    }
     this._loadMidi();
 
     this.engine.on('update', ({ detail: { time, delta } }) => this._tick(time, delta));
@@ -315,6 +332,7 @@ class PianoDemo {
     key.pressUntil = now + PRESS_MS;
     this.elNote.textContent = `${key.name}  MIDI ${key.midi}`;
     this._setKeyPressed(key, true);
+    this.saves.save({ lastMidi: key.midi });
 
     if (this.midiReady && window.MIDI) {
       window.MIDI.noteOn(0, key.midi, 118, 0);

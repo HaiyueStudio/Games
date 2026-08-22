@@ -17,6 +17,8 @@ interface MinecraftInteractionOptions {
   readonly target: HTMLElement;
   readonly blockCount: HTMLElement;
   readonly message: HTMLElement;
+  readonly initialPalette?: number;
+  readonly onStateChanged?: (selectedPalette: number) => void;
 }
 
 /** Pointer-lock block editing and number-key palette selection. */
@@ -32,6 +34,7 @@ export class MinecraftInteractionSystem extends System {
   private readonly _direction = new Float32Array(3);
   private readonly _buttons: HTMLButtonElement[] = [];
   private _selectedPalette = 3;
+  private readonly _onStateChanged: (selectedPalette: number) => void;
   private _hit: VoxelRaycastHit | null = null;
   private _messageTimer = 0;
   private _disposed = false;
@@ -48,6 +51,8 @@ export class MinecraftInteractionSystem extends System {
     this._target = options.target;
     this._blockCount = options.blockCount;
     this._message = options.message;
+    this._selectedPalette = options.initialPalette ?? 3;
+    this._onStateChanged = options.onStateChanged ?? (() => undefined);
     this._buildHotbar();
     window.addEventListener('keydown', this._onKeyDown);
     this._canvas.addEventListener('mousedown', this._onMouseDown);
@@ -103,6 +108,7 @@ export class MinecraftInteractionSystem extends System {
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-pressed', String(selected));
     }
+    this._onStateChanged(this._selectedPalette);
   }
 
   private _onKeyDown = (event: KeyboardEvent): void => {
@@ -127,6 +133,7 @@ export class MinecraftInteractionSystem extends System {
     this._renderer.syncNeighborhood(this._voxelWorld, cell);
     this._flash('已删除方块');
     this._syncHud();
+    this._onStateChanged(this._selectedPalette);
   }
 
   private _addBlock(cell: Readonly<BlockCell>): void {
@@ -138,6 +145,7 @@ export class MinecraftInteractionSystem extends System {
     this._renderer.syncNeighborhood(this._voxelWorld, cell);
     this._flash(`已放置 ${MINECRAFT_BLOCK_COLORS[this._selectedPalette]?.name ?? '方块'}`);
     this._syncHud();
+    this._onStateChanged(this._selectedPalette);
   }
 
   private _intersectsPlayer(cell: Readonly<BlockCell>): boolean {

@@ -18,8 +18,26 @@ import { mat4 } from 'wgpu-matrix';
 import { GravityMazeGame, MazeOutcomeSystem } from './GravityMazeGame';
 import { BALL_RADIUS } from './MazeConfig';
 import { MazeTiltSystem } from './MazeTiltSystem';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface GravityMazeSaveData {
+  baseSeed: number;
+  level: number;
+}
+
+function isGravityMazeSaveData(value: unknown): value is GravityMazeSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.baseSeed) && value.baseSeed <= 0xffff_ffff
+    && isNonNegativeInteger(value.level) && value.level >= 1;
+}
 
 async function main(): Promise<void> {
+  const saves = new SingleSlotGameSave<GravityMazeSaveData>({
+    gameId: 'gravity-maze',
+    name: 'Gravity Maze 自动存档',
+    validateData: isGravityMazeSaveData,
+  });
+  const saved = await saves.load();
   const rayTracingEvidence = new URLSearchParams(location.search).get('rayTracing') === '1';
   const canvas = requiredElement('canvas', HTMLCanvasElement);
   const engine = new HaiyueEngine({
@@ -95,9 +113,12 @@ async function main(): Promise<void> {
     ))
     .addComponent(ballBody));
 
-  const game = new GravityMazeGame(scene, physics, tilt, ballTransform, ballBody, requestedSeed());
+  const baseSeed = saved?.baseSeed ?? requestedSeed();
+  const game = new GravityMazeGame(scene, physics, tilt, ballTransform, ballBody, baseSeed, level => {
+    saves.save({ baseSeed, level });
+  });
   scene.addSystem(new MazeOutcomeSystem(game), false);
-  game.loadLevel(1);
+  game.loadLevel(saved?.level ?? 1);
 
   const errors: string[] = [];
   engine.device.addEventListener('uncapturederror', event => errors.push(event.error.message));

@@ -10,6 +10,7 @@ import {
   GuiSystem,
 } from '@haiyue/engine/gui';
 import { requiredItemAt } from '../arrayAccess';
+import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type CellKind = 'month' | 'day' | 'weekday';
 type DoubleClickAction = 'rotate' | 'flip';
@@ -66,6 +67,28 @@ interface PieceState {
   col: number;
   visuals: TileVisual[];
   styleKey: string;
+}
+
+interface CalendarPuzzleSaveData {
+  month: number;
+  day: number;
+  weekday: number;
+  pieces: Array<Pick<PieceState, 'rotation' | 'flipped' | 'layer' | 'x' | 'y' | 'placed' | 'row' | 'col'>>;
+}
+
+function isCalendarPuzzleSaveData(value: unknown): value is CalendarPuzzleSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.month) && value.month >= 1 && value.month <= 12
+    && isNonNegativeInteger(value.day) && value.day >= 1 && value.day <= 31
+    && isNonNegativeInteger(value.weekday) && value.weekday <= 6
+    && Array.isArray(value.pieces)
+    && value.pieces.every(piece => isRecord(piece)
+      && isNonNegativeInteger(piece.rotation)
+      && typeof piece.flipped === 'boolean'
+      && isNonNegativeInteger(piece.layer)
+      && isFiniteNumber(piece.x) && isFiniteNumber(piece.y)
+      && typeof piece.placed === 'boolean'
+      && Number.isSafeInteger(piece.row) && Number.isSafeInteger(piece.col));
 }
 
 interface DragState {
@@ -163,6 +186,11 @@ function normalizeCells(cells: Point[]): Point[] {
 }
 
 export class CalendarPuzzleGame {
+  private readonly saves = new SingleSlotGameSave<CalendarPuzzleSaveData>({
+    gameId: 'calendar-puzzle',
+    name: 'Calendar Puzzle 自动存档',
+    validateData: isCalendarPuzzleSaveData,
+  });
   private engine!: HaiyueEngine;
   private scene!: ReturnType<HaiyueEngine['createScene']>;
   private world!: World;
@@ -216,7 +244,7 @@ export class CalendarPuzzleGame {
     this.buildPieces();
     this.setupGui();
     this.bindInput(canvas);
-    this.applySelectedDate(true);
+    await this.loadOrStart();
 
     this.engine.switchScene(this.scene);
     this.engine.on('update', ({ detail: { time } }) => {
@@ -524,6 +552,7 @@ export class CalendarPuzzleGame {
         this.updateStatus();
       }
       if (moved <= 6) this.handlePieceClick(piece, point);
+      this.saveState();
     };
     canvas.addEventListener('pointerup', release);
     canvas.addEventListener('pointercancel', release);
@@ -592,6 +621,57 @@ export class CalendarPuzzleGame {
     if (resetPieces) this.resetPieces();
   }
 
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.pieces.length !== this.pieces.length) {
+      this.applySelectedDate(true);
+      this.saveState();
+      return;
+    }
+    this.selectedMonth = saved.month;
+    this.selectedDay = Math.min(saved.day, this.daysInSelectedMonth(saved.month));
+    this.selectedWeekday = saved.weekday;
+    this.monthSelect.setValue(this.selectedMonth, false);
+    this.daySelect.options = this.dayOptions(this.selectedMonth);
+    this.daySelect.setValue(this.selectedDay, false);
+    this.weekdaySelect.setValue(this.selectedWeekday, false);
+    this.applySelectedDate(false);
+    this.occupancy.clear();
+    saved.pieces.forEach((data, index) => {
+      const piece = requiredItemAt(this.pieces, index, 'calendar puzzle pieces');
+      piece.rotation = data.rotation % 4;
+      piece.flipped = data.flipped;
+      piece.layer = data.layer;
+      piece.row = data.row;
+      piece.col = data.col;
+      piece.placed = data.placed && this.canPlace(piece, data.row, data.col);
+      this.rebuildPieceVisuals(piece);
+      this.setPiecePosition(piece, data.x, data.y);
+      if (piece.placed) this.occupyPiece(piece);
+      this.syncPieceStyle(piece);
+    });
+    this.updateStatus();
+    this.checkWin();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      month: this.selectedMonth,
+      day: this.selectedDay,
+      weekday: this.selectedWeekday,
+      pieces: this.pieces.map(piece => ({
+        rotation: piece.rotation,
+        flipped: piece.flipped,
+        layer: piece.layer,
+        x: piece.x,
+        y: piece.y,
+        placed: piece.placed,
+        row: piece.row,
+        col: piece.col,
+      })),
+    });
+  }
+
   private findMonthCell(month: number): string {
     const cell = BOARD_CELLS.find(item => item.key === `m${month}`);
     if (!cell) throw new Error(`Invalid month ${month}`);
@@ -651,6 +731,7 @@ export class CalendarPuzzleGame {
 
   private resetPieces(): void {
     this.layoutTray();
+    this.saveState();
   }
 
   private shufflePieces(): void {
@@ -705,6 +786,7 @@ export class CalendarPuzzleGame {
       this.syncPieceStyle(this.selectedPiece);
       this.updateStatus();
     }
+    this.saveState();
   }
 
   private flipSelected(): void {
@@ -717,6 +799,7 @@ export class CalendarPuzzleGame {
       this.syncPieceStyle(this.selectedPiece);
       this.updateStatus();
     }
+    this.saveState();
   }
 
   private setSelectedPiece(piece: PieceState | null): void {

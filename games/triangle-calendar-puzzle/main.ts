@@ -14,6 +14,7 @@ import {
   triangleVertices,
 } from './triangleCalendarLogic';
 import { requiredItemAt } from '../arrayAccess';
+import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 interface PieceState {
   definition: TrianglePieceDefinition;
@@ -24,6 +25,27 @@ interface PieceState {
   placed: boolean;
   occupiedKeys: string[];
   element: SVGGElement;
+}
+
+interface TriangleCalendarSaveData {
+  month: number;
+  day: number;
+  weekday: number;
+  pieces: Array<Pick<PieceState, 'rotation' | 'flipped' | 'pivotX' | 'pivotY' | 'placed' | 'occupiedKeys'>>;
+}
+
+function isTriangleCalendarSaveData(value: unknown): value is TriangleCalendarSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.month) && value.month >= 1 && value.month <= 12
+    && isNonNegativeInteger(value.day) && value.day >= 1 && value.day <= 31
+    && isNonNegativeInteger(value.weekday) && value.weekday <= 6
+    && Array.isArray(value.pieces)
+    && value.pieces.every(piece => isRecord(piece)
+      && isNonNegativeInteger(piece.rotation)
+      && typeof piece.flipped === 'boolean'
+      && isFiniteNumber(piece.pivotX) && isFiniteNumber(piece.pivotY)
+      && typeof piece.placed === 'boolean'
+      && Array.isArray(piece.occupiedKeys) && piece.occupiedKeys.every(key => typeof key === 'string'));
 }
 
 interface DragState {
@@ -71,6 +93,11 @@ const MONTH_NAMES = [
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 export class TriangleCalendarPuzzleGame {
+  private readonly saves = new SingleSlotGameSave<TriangleCalendarSaveData>({
+    gameId: 'triangle-calendar-puzzle',
+    name: 'Triangle Calendar Puzzle 自动存档',
+    validateData: isTriangleCalendarSaveData,
+  });
   private readonly svg: SVGSVGElement;
   private readonly board = createTriangleCalendarBoard();
   private readonly positionedBoard: PositionedTriangleCell[];
@@ -109,6 +136,7 @@ export class TriangleCalendarPuzzleGame {
     this.setupControls();
     this.bindPointerInput();
     this.updateDateTargets(true);
+    void this.loadOrStart();
   }
 
   destroy(): void {
@@ -244,14 +272,17 @@ export class TriangleCalendarPuzzleGame {
       this.selectedMonth = Number(this.monthSelect.value);
       this.refreshDayOptions();
       this.updateDateTargets(true);
+      this.saveState();
     });
     this.daySelect.addEventListener('change', () => {
       this.selectedDay = Number(this.daySelect.value);
       this.updateDateTargets(true);
+      this.saveState();
     });
     this.weekdaySelect.addEventListener('change', () => {
       this.selectedWeekday = Number(this.weekdaySelect.value);
       this.updateDateTargets(true);
+      this.saveState();
     });
     requiredElement('today-button', HTMLButtonElement).addEventListener('click', () => {
       const today = new Date();
@@ -262,10 +293,11 @@ export class TriangleCalendarPuzzleGame {
       this.weekdaySelect.value = String(this.selectedWeekday);
       this.refreshDayOptions();
       this.updateDateTargets(true);
+      this.saveState();
     });
     requiredElement('reset-button', HTMLButtonElement).addEventListener(
       'click',
-      () => this.resetPieces(),
+      () => { this.resetPieces(); this.saveState(); },
     );
     requiredElement('rotate-button', HTMLButtonElement).addEventListener(
       'click',
@@ -298,6 +330,7 @@ export class TriangleCalendarPuzzleGame {
       piece.element.classList.remove('dragging', 'invalid-drop', 'valid-drop');
       this.snapPiece(piece);
       this.updateStatus();
+      this.saveState();
     };
     this.svg.addEventListener('pointerup', release);
     this.svg.addEventListener('pointercancel', release);
@@ -358,6 +391,7 @@ export class TriangleCalendarPuzzleGame {
     this.updatePieceTransform(piece);
     this.snapPiece(piece);
     this.updateStatus();
+    this.saveState();
   }
 
   private flipSelected(): void {
@@ -373,6 +407,7 @@ export class TriangleCalendarPuzzleGame {
     this.updatePieceTransform(piece);
     this.snapPiece(piece);
     this.updateStatus();
+    this.saveState();
   }
 
   private renderPieceShape(piece: PieceState): void {
@@ -578,6 +613,55 @@ export class TriangleCalendarPuzzleGame {
     }
     if (resetPieces) this.resetPieces();
     this.updateStatus();
+  }
+
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.pieces.length !== this.pieces.length) {
+      this.saveState();
+      return;
+    }
+    this.selectedMonth = saved.month;
+    this.selectedDay = saved.day;
+    this.selectedWeekday = saved.weekday;
+    this.monthSelect.value = String(this.selectedMonth);
+    this.weekdaySelect.value = String(this.selectedWeekday);
+    this.refreshDayOptions();
+    this.updateDateTargets(false);
+    this.occupancy.clear();
+    saved.pieces.forEach((data, index) => {
+      const piece = requiredItemAt(this.pieces, index, 'triangle puzzle pieces');
+      piece.rotation = data.rotation % 6;
+      piece.flipped = data.flipped;
+      piece.pivotX = data.pivotX;
+      piece.pivotY = data.pivotY;
+      const validKeys = data.occupiedKeys.length === piece.definition.cells.length
+        && data.occupiedKeys.every(key => this.boardByKey.has(key) && !this.targetKeys.has(key) && !this.occupancy.has(key));
+      piece.placed = data.placed && validKeys;
+      piece.occupiedKeys = piece.placed ? [...data.occupiedKeys] : [];
+      for (const key of piece.occupiedKeys) this.occupancy.set(key, piece.definition.id);
+      this.renderPieceShape(piece);
+      piece.element.classList.toggle('placed', piece.placed);
+      this.updatePieceTransform(piece);
+    });
+    this.updateStatus();
+    this.checkCompletion();
+  }
+
+  private saveState(): void {
+    this.saves.save({
+      month: this.selectedMonth,
+      day: this.selectedDay,
+      weekday: this.selectedWeekday,
+      pieces: this.pieces.map(piece => ({
+        rotation: piece.rotation,
+        flipped: piece.flipped,
+        pivotX: piece.pivotX,
+        pivotY: piece.pivotY,
+        placed: piece.placed,
+        occupiedKeys: [...piece.occupiedKeys],
+      })),
+    });
   }
 
   private refreshDayOptions(): void {

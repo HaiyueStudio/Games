@@ -13,6 +13,20 @@ import {
   UNITY_WFC_SPAWN_FLAGS,
 } from './unityModuleFaces';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+
+interface WfcMapSaveData {
+  seed: number;
+  playerX: number;
+  playerZ: number;
+}
+
+function isWfcMapSaveData(value: unknown): value is WfcMapSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.seed) && value.seed <= 0xffff_ffff
+    && Number.isSafeInteger(value.playerX)
+    && Number.isSafeInteger(value.playerZ);
+}
 import { UnityInfiniteWfcMap } from './UnityInfiniteWfc';
 import { buildWfcGroundNavMesh } from './WfcGroundNavMesh';
 import {
@@ -291,6 +305,11 @@ class BlocksMeshLibrary {
 }
 
 class WfcCityGame {
+  private readonly saves = new SingleSlotGameSave<WfcMapSaveData>({
+    gameId: 'wfc-map',
+    name: 'WFC Map 自动存档',
+    validateData: isWfcMapSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private cameraEntity!: Entity;
@@ -369,7 +388,12 @@ class WfcCityGame {
       if (event.key.startsWith('Arrow')) event.preventDefault();
     });
     window.addEventListener('keyup', event => this.pressed.delete(event.key));
-    this.resetWorld();
+    const saved = await this.saves.load();
+    if (saved) {
+      this.fixedSeedToggle.checked = true;
+      this.seedInput.value = String(saved.seed);
+    }
+    this.resetWorld(saved ?? undefined);
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
   }
@@ -416,13 +440,13 @@ class WfcCityGame {
     this.world.addEntity(rim);
   }
 
-  private resetWorld(): void {
+  private resetWorld(restored?: WfcMapSaveData): void {
     while (this.entities.length) this.world.removeEntity(this.entities.pop()!);
     this.pickables.length = 0;
     this.playerPath.reset();
     this.playerMoving = false;
     this.hasPlayerCommand = false;
-    const requestedSeed = this.nextSeed();
+    const requestedSeed = restored?.seed ?? this.nextSeed();
     for (let attempt = 0; attempt < INITIAL_GENERATION_ATTEMPTS; attempt++) {
       while (this.entities.length) this.world.removeEntity(this.entities.pop()!);
       this.pickables.length = 0;
@@ -434,8 +458,8 @@ class WfcCityGame {
       this.playableAnchorKey = undefined;
       this.seed = (requestedSeed + Math.imul(attempt, 0x9e3779b9)) >>> 0;
       this.generator.reset(this.seed);
-      this.playerX = START_X;
-      this.playerZ = START_Z;
+      this.playerX = restored?.playerX ?? START_X;
+      this.playerZ = restored?.playerZ ?? START_Z;
       this.minGeneratedX = this.playerX - VIEW_RADIUS_X;
       this.maxGeneratedX = this.playerX + VIEW_RADIUS_X;
       this.minGeneratedZ = this.playerZ - VIEW_RADIUS_Z;
@@ -447,6 +471,11 @@ class WfcCityGame {
     this.updateCameraTarget();
     this.updateHud();
     this.pickedText.textContent = 'NavMesh ready';
+    this.saveState();
+  }
+
+  private saveState(): void {
+    this.saves.save({ seed: this.seed, playerX: this.playerX, playerZ: this.playerZ });
   }
 
   private nextSeed(): number {
@@ -785,6 +814,7 @@ class WfcCityGame {
       this.playerZ = nextPlayerZ;
       this.ensureGeneratedAround(this.playerX, this.playerZ);
       this.updateHud();
+      this.saveState();
     }
     this.updateCameraTarget();
   }

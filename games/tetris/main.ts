@@ -14,6 +14,7 @@ import { AmbientLight } from '@haiyue/engine/lighting';
 import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { requiredItemAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type Phase = 'playing' | 'paused' | 'lost';
 type PieceKind = 'I' | 'J' | 'L' | 'O' | 'S' | 'T' | 'Z';
@@ -33,6 +34,16 @@ interface Piece {
   row: number;
   col: number;
   rotation: number;
+}
+
+interface TetrisSaveData {
+  rows: number;
+  cols: number;
+  board: Array<Array<PieceKind | null>>;
+  current: Piece;
+  nextKind: PieceKind;
+  phase: Phase;
+  score: number;
 }
 
 interface BlockVisual {
@@ -69,6 +80,7 @@ const SHAPES: Record<PieceKind, Point[]> = {
 };
 
 const KINDS = Object.keys(SHAPES) as PieceKind[];
+const KIND_SET = new Set<string>(KINDS);
 const geoCell = createBox3D({ width: 0.52, height: CELL_HEIGHT, depth: 0.52 });
 const geoBlock = createBox3D({ width: 0.54, height: BLOCK_HEIGHT, depth: 0.54 });
 
@@ -95,7 +107,35 @@ function randomKind(): PieceKind {
   return requiredItemAt(KINDS, Math.floor(Math.random() * KINDS.length), 'Tetris piece kinds');
 }
 
+function isPiece(value: unknown): value is Piece {
+  return isRecord(value)
+    && typeof value.kind === 'string' && KIND_SET.has(value.kind)
+    && Number.isSafeInteger(value.row)
+    && Number.isSafeInteger(value.col)
+    && Number.isSafeInteger(value.rotation);
+}
+
+function isTetrisSaveData(value: unknown): value is TetrisSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.rows)
+    && isNonNegativeInteger(value.cols)
+    && Array.isArray(value.board)
+    && value.board.length === value.rows
+    && value.board.every(row => Array.isArray(row)
+      && row.length === value.cols
+      && row.every(cell => cell === null || (typeof cell === 'string' && KIND_SET.has(cell))))
+    && isPiece(value.current)
+    && typeof value.nextKind === 'string' && KIND_SET.has(value.nextKind)
+    && (value.phase === 'playing' || value.phase === 'paused' || value.phase === 'lost')
+    && isNonNegativeInteger(value.score);
+}
+
 class TetrisGame {
+  private readonly saves = new SingleSlotGameSave<TetrisSaveData>({
+    gameId: 'tetris',
+    name: 'Tetris 自动存档',
+    validateData: isTetrisSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private camEntity!: Entity;
@@ -139,7 +179,7 @@ class TetrisGame {
     this._setupDOM();
     this._setupInput();
     this._buildCells();
-    this._newGame();
+    await this._loadOrCreateState();
 
     this.engine.on('update', ({ detail: { time, delta } }) => this._tick(time, delta));
     this.engine.run();
@@ -240,6 +280,7 @@ class TetrisGame {
         e.preventDefault();
         this._hardDrop();
       }
+      this._saveState();
     });
   }
 
@@ -258,7 +299,7 @@ class TetrisGame {
     }
   }
 
-  private _newGame() {
+  private _newGame(save = true) {
     for (const visual of this.boardVisuals.values()) this.world.removeEntity(visual.entity);
     for (const visual of this.activeVisuals) this.world.removeEntity(visual.entity);
     this.boardVisuals.clear();
@@ -272,6 +313,38 @@ class TetrisGame {
     this._syncHUD();
     this._syncPauseButton();
     this._syncStatus();
+    if (save) this._saveState();
+  }
+
+  private async _loadOrCreateState(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.rows !== this.config.rows || saved.cols !== this.config.cols) {
+      this._newGame();
+      return;
+    }
+    this.board = saved.board.map(row => [...row]);
+    this.current = { ...saved.current };
+    this.nextKind = saved.nextKind;
+    this.phase = saved.phase;
+    this.score = saved.score;
+    this.dropAccumulator = 0;
+    this._syncBoardVisuals();
+    this._syncActiveVisuals();
+    this._syncNextPreview();
+    this._syncHUD();
+    this._syncStatus();
+  }
+
+  private _saveState(): void {
+    this.saves.save({
+      rows: this.config.rows,
+      cols: this.config.cols,
+      board: this.board.map(row => [...row]),
+      current: { ...this.current },
+      nextKind: this.nextKind,
+      phase: this.phase,
+      score: this.score,
+    });
   }
 
   private _spawnPiece() {
@@ -476,6 +549,7 @@ class TetrisGame {
     if (this.phase === 'lost') return;
     this.phase = this.phase === 'paused' ? 'playing' : 'paused';
     this._syncStatus();
+    this._saveState();
   }
 
   private _syncPauseButton() {
@@ -488,6 +562,7 @@ class TetrisGame {
       this.dropAccumulator += delta;
       if (this.dropAccumulator >= DROP_MS) {
         this._softDrop();
+        this._saveState();
       }
     }
     this.world.update(time, delta);

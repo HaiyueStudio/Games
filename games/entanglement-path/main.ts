@@ -3,6 +3,7 @@ import { FixedScreenTransform3D, MusicPlayerComponent, Transform3D } from '@haiy
 import { FixedScreenTransform3DSystem, Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type AxialKey = string;
 type Phase = 'playing' | 'ended';
@@ -46,6 +47,63 @@ interface PlacedTile {
   entry: number;
   exit: number;
   order: number;
+}
+
+interface EntanglementSaveData {
+  levelIndex: number;
+  bestByLevel: number[];
+  placed: Array<[AxialKey, PlacedTile]>;
+  current: Axial;
+  incomingSide: Port;
+  pathStart: Axial;
+  pathEntry: Port;
+  sourceExit: Port | null;
+  phase: Phase;
+  score: number;
+  pathLength: number;
+  nextTile: TileDef;
+  reserveTile: TileDef;
+  rotation: number;
+  reserveRotation: number;
+  tileSerial: number;
+}
+
+function isAxial(value: unknown): value is Axial {
+  return isRecord(value) && Number.isSafeInteger(value.q) && Number.isSafeInteger(value.r);
+}
+
+function isPort(value: unknown): value is Port {
+  return isNonNegativeInteger(value) && value < 12;
+}
+
+function isTileDef(value: unknown): value is TileDef {
+  return isRecord(value)
+    && isNonNegativeInteger(value.id)
+    && isNonNegativeInteger(value.variant)
+    && Array.isArray(value.pairs)
+    && value.pairs.every(pair => Array.isArray(pair) && pair.length === 2 && pair.every(isPort));
+}
+
+function isPlacedTile(value: unknown): value is PlacedTile {
+  return isRecord(value) && isTileDef(value.tile)
+    && isNonNegativeInteger(value.rotation) && isPort(value.entry) && isPort(value.exit)
+    && isNonNegativeInteger(value.order);
+}
+
+function isEntanglementSaveData(value: unknown): value is EntanglementSaveData {
+  return isRecord(value)
+    && isNonNegativeInteger(value.levelIndex)
+    && Array.isArray(value.bestByLevel) && value.bestByLevel.every(isNonNegativeInteger)
+    && Array.isArray(value.placed) && value.placed.every(item => Array.isArray(item) && item.length === 2
+      && typeof item[0] === 'string' && isPlacedTile(item[1]))
+    && isAxial(value.current) && isPort(value.incomingSide)
+    && isAxial(value.pathStart) && isPort(value.pathEntry)
+    && (value.sourceExit === null || isPort(value.sourceExit))
+    && (value.phase === 'playing' || value.phase === 'ended')
+    && isNonNegativeInteger(value.score) && isNonNegativeInteger(value.pathLength)
+    && isTileDef(value.nextTile) && isTileDef(value.reserveTile)
+    && isNonNegativeInteger(value.rotation) && isNonNegativeInteger(value.reserveRotation)
+    && isNonNegativeInteger(value.tileSerial);
 }
 
 interface TraceResult {
@@ -867,6 +925,11 @@ function drawScorePanelTexture(
 }
 
 class EntanglementPathGame {
+  private readonly saves = new SingleSlotGameSave<EntanglementSaveData>({
+    gameId: 'entanglement-path',
+    name: 'Entanglement Path 自动存档',
+    validateData: isEntanglementSaveData,
+  });
   private engine!: HaiyueEngine;
   private world!: World;
   private cells = new Map<AxialKey, BoardCell>();
@@ -883,11 +946,12 @@ class EntanglementPathGame {
   private score = 0;
   private pathLength = 0;
   private best = 0;
+  private bestByLevel: number[] = [];
+  private tileSerial = 0;
   private nextTile: TileDef = this.randomTile();
   private reserveTile: TileDef = this.randomTile();
   private rotation = 0;
   private reserveRotation = 0;
-  private tileSerial = 0;
   private previewMaterial!: BasicMaterial;
   private previewTransform!: CartesianTransform3D;
   private previewMesh!: Mesh3D;
@@ -951,7 +1015,7 @@ class EntanglementPathGame {
     void this.loadTurnSounds();
     void this.loadEndSound();
     this.levels = await this.loadLevels();
-    this.loadLevel(0, false);
+    await this.loadOrStart();
     this.buildDecorations();
     this.updateDecorationScale();
     this.buildPanel();
@@ -1871,6 +1935,7 @@ class EntanglementPathGame {
     this.syncPreview();
     this.syncReserve();
     this.startSwapAnimation(previewTexture, reserveTexture, previewPosition, reservePosition, previewScale, reserveScale);
+    this.saveState();
   }
 
   private startSwapAnimation(
@@ -1916,6 +1981,7 @@ class EntanglementPathGame {
     this.previewSpinTo = shortestRotationAngle(previousRotation, this.rotation);
     this.previewSpinStart = performance.now();
     this.previewSpinActive = true;
+    this.saveState();
   }
 
   private findExitSide(tile: TileDef, rotation: number, entrySide: number): number {
@@ -2016,12 +2082,13 @@ class EntanglementPathGame {
     void this.playLineSound(addedLength);
     if (this.score > this.best) {
       this.best = this.score;
-      localStorage.setItem(this.bestStorageKey(), String(this.best));
+      this.bestByLevel[this.levelIndex] = this.best;
     }
     if (trace.ended || !trace.current || trace.incomingSide == null) {
       this.phase = 'ended';
       void this.playEndSound();
       this.syncAll();
+      this.saveState();
       return;
     }
 
@@ -2032,6 +2099,7 @@ class EntanglementPathGame {
     this.previewRenderedRotation = this.rotation;
     this.previewSpinActive = false;
     this.syncAll();
+    this.saveState();
   }
 
   private reset(): void {
@@ -2066,6 +2134,7 @@ class EntanglementPathGame {
     this.previewRenderedRotation = this.rotation;
     this.previewSpinActive = false;
     this.syncAll();
+    this.saveState();
   }
 
   private syncAll(): void {
@@ -2083,7 +2152,7 @@ class EntanglementPathGame {
     this.clearBoard();
     this.levelIndex = (index + this.levels.length) % this.levels.length;
     this.level = requiredItemAt(this.levels, this.levelIndex, 'entanglement levels');
-    this.best = Number(localStorage.getItem(this.bestStorageKey()) ?? '0') || 0;
+    this.best = this.bestByLevel[this.levelIndex] ?? 0;
     this.placed.clear();
     this.activeEntries.clear();
     this.previousBreathingEntries.clear();
@@ -2105,7 +2174,70 @@ class EntanglementPathGame {
     this.resetPathStart();
     this.redrawSourceCell();
     this.raisePreviewEntity();
-    if (sync) this.syncAll();
+    if (sync) {
+      this.syncAll();
+      this.saveState();
+    }
+  }
+
+  private async loadOrStart(): Promise<void> {
+    const saved = await this.saves.load();
+    if (!saved || saved.levelIndex >= this.levels.length) {
+      this.loadLevel(0, false);
+      this.saveState();
+      return;
+    }
+    this.bestByLevel = [...saved.bestByLevel];
+    this.loadLevel(saved.levelIndex, false);
+    this.placed = new Map(saved.placed.filter(([cellKey]) => {
+      const cell = this.cells.get(cellKey);
+      return !!cell && !cell.wall;
+    }).map(([cellKey, placed]) => [cellKey, {
+      ...placed,
+      tile: { ...placed.tile, pairs: placed.tile.pairs.map(pair => [...pair] as [Port, Port]) },
+    }]));
+    this.current = { ...saved.current };
+    this.incomingSide = saved.incomingSide;
+    this.pathStart = { ...saved.pathStart };
+    this.pathEntry = saved.pathEntry;
+    this.sourceExit = saved.sourceExit;
+    this.phase = saved.phase;
+    this.score = saved.score;
+    this.pathLength = saved.pathLength;
+    this.nextTile = { ...saved.nextTile, pairs: saved.nextTile.pairs.map(pair => [...pair] as [Port, Port]) };
+    this.reserveTile = { ...saved.reserveTile, pairs: saved.reserveTile.pairs.map(pair => [...pair] as [Port, Port]) };
+    this.rotation = saved.rotation % 6;
+    this.reserveRotation = saved.reserveRotation % 6;
+    this.tileSerial = saved.tileSerial;
+    this.previewRenderedRotation = this.rotation;
+    this.rebuildActivePath();
+    this.redrawPlacedTiles();
+    this.redrawSourceCell();
+  }
+
+  private saveState(): void {
+    this.bestByLevel[this.levelIndex] = this.best;
+    this.saves.save({
+      levelIndex: this.levelIndex,
+      bestByLevel: [...this.bestByLevel],
+      placed: [...this.placed.entries()].map(([cellKey, placed]): [AxialKey, PlacedTile] => [cellKey, {
+        ...placed,
+        tile: { ...placed.tile, pairs: placed.tile.pairs.map(pair => [...pair] as [Port, Port]) },
+      }]),
+      current: { ...this.current },
+      incomingSide: this.incomingSide,
+      pathStart: { ...this.pathStart },
+      pathEntry: this.pathEntry,
+      sourceExit: this.sourceExit,
+      phase: this.phase,
+      score: this.score,
+      pathLength: this.pathLength,
+      nextTile: { ...this.nextTile, pairs: this.nextTile.pairs.map(pair => [...pair] as [Port, Port]) },
+      reserveTile: { ...this.reserveTile, pairs: this.reserveTile.pairs.map(pair => [...pair] as [Port, Port]) },
+      rotation: this.rotation,
+      reserveRotation: this.reserveRotation,
+      tileSerial: this.tileSerial,
+    });
   }
 
   private raisePreviewEntity(): void {
@@ -2123,10 +2255,6 @@ class EntanglementPathGame {
       this.world.removeEntity(cell.entity);
     }
     this.cells.clear();
-  }
-
-  private bestStorageKey(): string {
-    return `entanglement-path-best:${this.level.id}`;
   }
 
   private addActiveEntry(cellKey: AxialKey, entry: Port): void {

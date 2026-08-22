@@ -54,6 +54,7 @@ import {
   type TileSpecial,
 } from './Match3SpecialRules';
 import { Match3TilePresentation } from './Match3TilePresentation';
+import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type GamePhase = 'idle' | 'swapping' | 'reverting' | 'channeling' | 'arming' | 'clearing' | 'falling';
 
@@ -96,6 +97,26 @@ interface Match3Snapshot {
   readonly specials: Readonly<Record<'bomb' | 'rainbow' | 'super-bomb', number>>;
 }
 
+interface Match3SaveData {
+  score: number;
+  moves: number;
+  grid: SpecialGrid;
+}
+
+function isMatch3SaveData(value: unknown): value is Match3SaveData {
+  const specials = new Set(['normal', 'bomb', 'rainbow', 'super-bomb']);
+  return isRecord(value)
+    && isNonNegativeInteger(value.score)
+    && isNonNegativeInteger(value.moves)
+    && Array.isArray(value.grid)
+    && value.grid.length === MATCH3_ROWS
+    && value.grid.every(row => Array.isArray(row) && row.length === MATCH3_COLUMNS && row.every(cell => (
+      cell === null || (isRecord(cell)
+        && (cell.color === null || (isNonNegativeInteger(cell.color) && cell.color < MATCH3_KIND_COUNT))
+        && typeof cell.special === 'string' && specials.has(cell.special))
+    )));
+}
+
 interface Match3DebugApi {
   snapshot(): Match3Snapshot;
   select(row: number, column: number): void;
@@ -121,6 +142,11 @@ const BOARD_HALF_WIDTH = ((MATCH3_COLUMNS - 1) * CELL_STEP + TILE_SIZE) / 2 + 0.
 const BOARD_HALF_HEIGHT = ((MATCH3_ROWS - 1) * CELL_STEP + TILE_SIZE) / 2 + 0.34;
 
 class Match3Game {
+  private readonly saves = new SingleSlotGameSave<Match3SaveData>({
+    gameId: 'match-3',
+    name: 'Match-3 自动存档',
+    validateData: isMatch3SaveData,
+  });
   private readonly regression = new URLSearchParams(location.search).get('regression') === '1';
   private regressionRandomState = 0x7f4a7c15;
   private readonly random = (): number => {
@@ -186,7 +212,7 @@ class Match3Game {
     this.setupGeometryAndMaterials();
     this.createBoardBackdrop();
     this.bindInput();
-    this.restart();
+    await this.loadOrRestart();
 
     window.__match3 = {
       snapshot: () => this.snapshot(),
@@ -473,6 +499,7 @@ class Match3Game {
       this.phase = 'idle';
       this.messageText.textContent = '点击相邻方块，或按住滑动来交换位置';
       this.updateHud();
+      this.saveState();
       return;
     }
 
@@ -491,6 +518,7 @@ class Match3Game {
         this.messageText.textContent = '点击相邻方块，或按住滑动来交换位置';
       }
       this.updateHud();
+      this.saveState();
     }
   }
 
@@ -660,7 +688,7 @@ class Match3Game {
     this.messageText.textContent = '新方块落下中…';
   }
 
-  private restart(): void {
+  private restart(save = true): void {
     if (this.regression) this.regressionRandomState = 0x7f4a7c15;
     this.resetPointerGesture();
     this.clearTileEntities();
@@ -679,6 +707,45 @@ class Match3Game {
     this.rebuildBoard('点击相邻方块，或按住滑动来交换位置');
     this.applyBrowserFixture();
     this.updateHud();
+    if (save) this.saveState();
+  }
+
+  private async loadOrRestart(): Promise<void> {
+    if (this.regression) {
+      this.restart(false);
+      return;
+    }
+    const saved = await this.saves.load();
+    if (!saved) {
+      this.restart();
+      return;
+    }
+    this.resetPointerGesture();
+    this.clearTileEntities();
+    this.clearShardEntities();
+    this.explosionEffect.clear();
+    this.lightningEffect.clear();
+    this.score = saved.score;
+    this.moves = saved.moves;
+    this.cascade = 0;
+    this.selected = null;
+    this.phase = 'idle';
+    for (let row = 0; row < MATCH3_ROWS; row++) {
+      for (let column = 0; column < MATCH3_COLUMNS; column++) {
+        const data = saved.grid[row]?.[column];
+        if (!data) continue;
+        const tile = this.createTile(data.color ?? 0, row, column);
+        this.applyTileSpecial(tile, data.color, data.special);
+        this.setTile(row, column, tile);
+      }
+    }
+    this.messageText.textContent = '已恢复自动存档';
+    this.updateHud();
+  }
+
+  private saveState(): void {
+    if (this.regression || this.phase !== 'idle') return;
+    this.saves.save({ score: this.score, moves: this.moves, grid: this.toSpecialGrid() });
   }
 
   private applyBrowserFixture(): void {
