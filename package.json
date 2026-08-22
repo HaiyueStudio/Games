@@ -10,6 +10,7 @@
     "deps:local": "node scripts/install-local-dependencies.mjs",
     "build": "node scripts/build-games.mjs",
     "build:target": "node scripts/build-target.mjs",
+    "preview:build": "node scripts/build-preview-site.mjs",
     "dev": "rollup -c rollup.config.js --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --experimental-strip-types --test \"games/test/**/*.test.mjs\""

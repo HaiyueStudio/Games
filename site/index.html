@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Play WebGPU, physics, puzzle, arcade, and procedural games built with HaiyueStudio Engine."
+    />
+    <meta name="theme-color" content="#07141e" />
+    <title>HaiyueStudio Games</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="HaiyueStudio Games home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>HAIYUE</strong><small>GAME LAB</small></span>
+      </a>
+      <nav aria-label="Project links">
+        <a href="https://github.com/HaiyueStudio/Games">Source</a>
+        <a href="https://github.com/HaiyueStudio/Engine">Engine</a>
+        <span class="support-pill" id="webgpu-status">Checking WebGPU</span>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <p class="eyebrow">Built with HaiyueStudio Engine</p>
+        <h1 id="hero-title">Small games.<br /><span>Big engine ideas.</span></h1>
+        <p class="hero-copy">
+          Explore rendering, physics, procedural worlds, audio, and classic puzzles. Every game runs directly in
+          your browser.
+        </p>
+        <a class="hero-action" href="#games">Explore the collection <span aria-hidden="true">↓</span></a>
+        <div class="hero-stats" aria-label="Collection statistics">
+          <div><strong id="game-count">—</strong><span>Playable games</span></div>
+          <div><strong>WebGPU</strong><span>Real-time rendering</span></div>
+          <div><strong>Open</strong><span>Source experiments</span></div>
+        </div>
+      </section>
+
+      <section class="collection" id="games" aria-labelledby="collection-title">
+        <div class="collection-heading">
+          <div>
+            <p class="eyebrow">The collection</p>
+            <h2 id="collection-title">Choose your next game</h2>
+          </div>
+          <label class="search-box">
+            <span class="sr-only">Search games</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" /></svg>
+            <input id="game-search" type="search" placeholder="Search games" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="filters" id="game-filters" aria-label="Filter games"></div>
+        <div class="game-grid" id="game-grid" aria-live="polite"></div>
+        <p class="empty-state" id="empty-state" hidden>No games match that search.</p>
+      </section>
+    </main>
+
+    <footer>
+      <span>HaiyueStudio Games</span>
+      <span>Experiments powered by the public Engine API</span>
+    </footer>
+
+    <dialog class="game-dialog" id="game-dialog">
+      <div class="player-shell">
+        <header class="player-header">
+          <div>
+            <span class="player-kicker">Now playing</span>
+            <strong id="player-title">Game</strong>
+          </div>
+          <div class="player-actions">
+            <a id="player-new-tab" href="./" target="_blank" rel="noopener">Open in new tab ↗</a>
+            <button id="player-close" type="button" aria-label="Close game">×</button>
+          </div>
+        </header>
+        <div class="player-stage">
+          <div class="player-loading">Loading game…</div>
+          <iframe
+            id="game-frame"
+            title="Game preview"
+            src="about:blank"
+            allow="autoplay; fullscreen; gamepad"
+            allowfullscreen
+          ></iframe>
+        </div>
+      </div>
+    </dialog>
+
+    <noscript>This page needs JavaScript to load the game catalog.</noscript>
+  </body>
+</html>
