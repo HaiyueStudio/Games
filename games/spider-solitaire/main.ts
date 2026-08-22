@@ -1161,7 +1161,7 @@ class SpiderSolitaire {
     const key = `face-${rank}`;
     let material = this.textureMaterials.get(key);
     if (!material) {
-      material = new BasicMaterial({ texture: this.createCardCanvas(rank), cullMode: 'none', depthWrite: false });
+      material = new BasicMaterial({ texture: this.createCardCanvas(rank), cullMode: 'none', blending: 'normal', depthWrite: false });
       this.textureMaterials.set(key, material);
     }
     return material;
@@ -1171,7 +1171,7 @@ class SpiderSolitaire {
     const key = 'back';
     let material = this.textureMaterials.get(key);
     if (!material) {
-      material = new BasicMaterial({ texture: this.createBackCanvas(), cullMode: 'none', depthWrite: false });
+      material = new BasicMaterial({ texture: this.createBackCanvas(), cullMode: 'none', blending: 'normal', depthWrite: false });
       this.textureMaterials.set(key, material);
     }
     return material;
