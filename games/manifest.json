@@ -266,6 +266,37 @@
       "ci": "smoke"
     },
     {
+      "id": "sky-strike",
+      "title": "Sky Strike",
+      "entry": "sky-strike/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow",
+        "input",
+        "particles",
+        "generated-assets"
+      ],
+      "assets": [
+        "sky-strike/assets/player-fighter.png",
+        "sky-strike/assets/enemy-scout.png",
+        "sky-strike/assets/enemy-dart.png",
+        "sky-strike/assets/enemy-bomber.png",
+        "sky-strike/assets/enemy-splitter.png",
+        "sky-strike/assets/enemy-stealth.png",
+        "sky-strike/assets/enemy-gunship.png",
+        "sky-strike/assets/enemy-drone.png",
+        "sky-strike/assets/elite-crimson-lance.png",
+        "sky-strike/assets/elite-violet-fortress.png",
+        "sky-strike/assets/boss-dreadnought.png"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "spider-solitaire",
       "title": "spider solitaire",
       "entry": "spider-solitaire/main.ts",

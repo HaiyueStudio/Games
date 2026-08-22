@@ -15,6 +15,7 @@ const gameDetails = {
   'pad-simulator': { genre: 'audio', description: 'Play a responsive drum-pad grid with pointer or keyboard input.', mark: '▤' },
   pacman: { genre: 'arcade', description: 'Navigate the maze, collect every pellet, and avoid the ghosts.', mark: 'ᗧ' },
   piano: { genre: 'audio', description: 'A playable browser piano with keyboard and pointer controls.', mark: '♬' },
+  'sky-strike': { genre: 'arcade', description: 'Pilot a starfighter through dense formations and cascading bullet patterns.', mark: '▲' },
   'sokoban-3d': { genre: 'puzzle', description: 'Push every crate into place in a dimensional warehouse.', mark: '⬡' },
   'spider-solitaire': { genre: 'cards', description: 'Build descending runs and complete all eight suits.', mark: '♠' },
   sudoku: { genre: 'puzzle', description: 'A clean number puzzle with notes, checks, and saved progress.', mark: '9' },

@@ -28,6 +28,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | Pad Simulator | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=pad-simulator) |
 | Pac-Man | 2D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pacman) |
 | Piano | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=piano) |
+| Sky Strike | 2D bullet hell | [Play](https://haiyuestudio.github.io/Games/?game=sky-strike) |
 | Sokoban 3D | 3D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=sokoban-3d) |
 | Spider Solitaire | 2D card game | [Play](https://haiyuestudio.github.io/Games/?game=spider-solitaire) |
 | Sudoku | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=sudoku) |
