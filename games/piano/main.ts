@@ -17,6 +17,7 @@ import { mat4 } from 'wgpu-matrix';
 import { requiredNumberAt } from '../arrayAccess';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 import { PianoSynth } from './audio';
+import { type ParsedMidi, parseMidi } from './midi';
 
 interface PianoSaveData { lastMidi: number | null }
 
@@ -43,6 +44,22 @@ interface PianoKey {
   depth: number;
   height: number;
   pressUntil: number;
+}
+
+interface ScoreCatalogEntry {
+  composer: string;
+  file: string;
+  id: string;
+  license: string;
+  mutopiaId: string;
+  sourcePage: string;
+  title: string;
+}
+
+interface ScoreCatalog {
+  entries: ScoreCatalogEntry[];
+  license: string;
+  source: string;
 }
 
 const CANVAS_W = 900;
@@ -73,6 +90,12 @@ function noteName(midi: number): string {
   const name = NOTE_NAMES[midi % 12] ?? '?';
   const octave = Math.floor(midi / 12) - 1;
   return `${name}${octave}`;
+}
+
+function formatDuration(milliseconds: number): string {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function rayIntersectsAABB(
@@ -149,9 +172,19 @@ class PianoDemo {
   private viewProj = new Float32Array(16);
   private readonly audio = new PianoSynth();
   private audioReady = false;
+  private readonly scoreCache = new Map<string, ParsedMidi>();
+  private scores: ScoreCatalogEntry[] = [];
+  private playbackFrame: number | null = null;
+  private playbackToken = 0;
 
   private elStatus!: HTMLElement;
   private elNote!: HTMLElement;
+  private elScoreList!: HTMLSelectElement;
+  private elAutoPlay!: HTMLButtonElement;
+  private elAutoStop!: HTMLButtonElement;
+  private elPlaybackStatus!: HTMLElement;
+  private elPlaybackProgress!: HTMLProgressElement;
+  private elScoreSource!: HTMLAnchorElement;
 
   constructor(private config: Config) {
     this.config.startMidi = Math.max(0, Math.floor(config.startMidi || 21));
@@ -168,9 +201,16 @@ class PianoDemo {
     this.world = new World('Piano');
     this.elStatus = document.getElementById('status')!;
     this.elNote = document.getElementById('note')!;
+    this.elScoreList = document.getElementById('score-list') as HTMLSelectElement;
+    this.elAutoPlay = document.getElementById('auto-play') as HTMLButtonElement;
+    this.elAutoStop = document.getElementById('auto-stop') as HTMLButtonElement;
+    this.elPlaybackStatus = document.getElementById('playback-status')!;
+    this.elPlaybackProgress = document.getElementById('playback-progress') as HTMLProgressElement;
+    this.elScoreSource = document.getElementById('score-source') as HTMLAnchorElement;
     this._setupScene();
     this._buildKeyboard();
     this._setupInput(canvas);
+    this._setupScoreLibrary();
     const saved = await this.saves.load();
     if (saved?.lastMidi !== null && saved?.lastMidi !== undefined) {
       this.elNote.textContent = `${noteName(saved.lastMidi)}  MIDI ${saved.lastMidi}`;
@@ -285,21 +325,54 @@ class PianoDemo {
   }
 
   private _setupInput(canvas: HTMLCanvasElement) {
-    canvas.addEventListener('mousedown', (e) => {
-      const key = this._pickKey(e.clientX, e.clientY, canvas);
-      if (!key) return;
+    let activePointerId: number | null = null;
+    let lastPointerMidi: number | null = null;
+    const triggerAtPointer = (event: PointerEvent) => {
+      const key = this._pickKey(event.clientX, event.clientY, canvas);
+      if (!key) {
+        lastPointerMidi = null;
+        return;
+      }
+      if (key.midi === lastPointerMidi) return;
+      lastPointerMidi = key.midi;
       this._pressKey(key);
+    };
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || activePointerId !== null) return;
+      event.preventDefault();
+      activePointerId = event.pointerId;
+      lastPointerMidi = null;
+      canvas.setPointerCapture(event.pointerId);
+      triggerAtPointer(event);
+    });
+    canvas.addEventListener('pointermove', (event) => {
+      if (event.pointerId !== activePointerId) return;
+      event.preventDefault();
+      triggerAtPointer(event);
+    });
+    const endPointer = (event: PointerEvent) => {
+      if (event.pointerId !== activePointerId) return;
+      activePointerId = null;
+      lastPointerMidi = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    };
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('lostpointercapture', () => {
+      activePointerId = null;
+      lastPointerMidi = null;
     });
   }
 
-  private _pressKey(key: PianoKey) {
+  private _pressKey(key: PianoKey, velocity = 118, persist = true) {
     const now = performance.now();
     key.pressUntil = now + PRESS_MS;
     this.elNote.textContent = `${key.name}  MIDI ${key.midi}`;
     this._setKeyPressed(key, true);
-    this.saves.save({ lastMidi: key.midi });
+    if (persist) this.saves.save({ lastMidi: key.midi });
 
-    void this.audio.play(key.midi, 118).then(() => {
+    void this.audio.play(key.midi, velocity).then(() => {
       if (this.audioReady) return;
       this.audioReady = true;
       this.elStatus.textContent = 'Web Audio ready';
@@ -307,6 +380,126 @@ class PianoDemo {
       this.elStatus.textContent = 'Audio could not start';
       console.error('[piano] Unable to play note.', error);
     });
+  }
+
+  private _setupScoreLibrary() {
+    this.elScoreList.addEventListener('change', () => {
+      this._stopPlayback('Ready');
+      this._updateSelectedScore();
+    });
+    this.elAutoPlay.addEventListener('click', () => {
+      void this._playSelectedScore();
+    });
+    this.elAutoStop.addEventListener('click', () => this._stopPlayback('Stopped'));
+
+    void fetch('./scores/catalog.json')
+      .then(async response => {
+        if (!response.ok) throw new Error(`Score catalog request failed with ${response.status}.`);
+        return response.json() as Promise<ScoreCatalog>;
+      })
+      .then(catalog => {
+        if (catalog.license !== 'Public Domain' || !Array.isArray(catalog.entries) || catalog.entries.length === 0) {
+          throw new Error('Score catalog is empty or has an unsupported license.');
+        }
+        this.scores = catalog.entries.map(entry => ({ ...entry, license: catalog.license }));
+        this.elScoreList.replaceChildren(...this.scores.map(score => {
+          const option = document.createElement('option');
+          option.value = score.id;
+          option.textContent = `${score.title} — ${score.composer}`;
+          return option;
+        }));
+        this.elScoreList.selectedIndex = 0;
+        this.elScoreList.disabled = false;
+        this.elAutoPlay.disabled = false;
+        this.elPlaybackStatus.textContent = 'Ready';
+        this._updateSelectedScore();
+      })
+      .catch((error: unknown) => {
+        this.elPlaybackStatus.textContent = 'Score list unavailable';
+        console.error('[piano] Unable to load score catalog.', error);
+      });
+  }
+
+  private _selectedScore(): ScoreCatalogEntry | null {
+    return this.scores.find(score => score.id === this.elScoreList.value) ?? null;
+  }
+
+  private _updateSelectedScore() {
+    const score = this._selectedScore();
+    this.elScoreSource.href = score?.sourcePage ?? 'https://www.mutopiaproject.org/';
+    this.elScoreSource.textContent = score ? `${score.license} · ${score.mutopiaId}` : 'Mutopia Project';
+  }
+
+  private async _playSelectedScore() {
+    const score = this._selectedScore();
+    if (!score) return;
+    this._stopPlayback('Loading MIDI…');
+    const token = this.playbackToken;
+    this.elAutoPlay.disabled = true;
+    this.elAutoStop.disabled = false;
+
+    try {
+      await this.audio.activate();
+      this.audioReady = true;
+      this.elStatus.textContent = 'Web Audio ready';
+      let parsed = this.scoreCache.get(score.id);
+      if (!parsed) {
+        const response = await fetch(score.file);
+        if (!response.ok) throw new Error(`MIDI request failed with ${response.status}.`);
+        parsed = parseMidi(await response.arrayBuffer());
+        if (parsed.notes.length === 0) throw new Error('MIDI score contains no playable notes.');
+        this.scoreCache.set(score.id, parsed);
+      }
+      if (token !== this.playbackToken) return;
+      this._startPlayback(score, parsed, token);
+    } catch (error) {
+      if (token !== this.playbackToken) return;
+      this._finishPlayback('Unable to play score');
+      console.error('[piano] Unable to start automatic playback.', error);
+    }
+  }
+
+  private _startPlayback(score: ScoreCatalogEntry, midi: ParsedMidi, token: number) {
+    const startedAt = performance.now();
+    let cursor = 0;
+    this.elPlaybackStatus.textContent = `Playing ${score.title}`;
+    this.elPlaybackProgress.value = 0;
+
+    const advance = (now: number) => {
+      if (token !== this.playbackToken) return;
+      const elapsed = now - startedAt;
+      while (cursor < midi.notes.length) {
+        const note = midi.notes[cursor];
+        if (!note || note.startMs > elapsed + 10) break;
+        const key = this.keys.find(candidate => candidate.midi === note.midi);
+        if (key) this._pressKey(key, note.velocity, false);
+        cursor += 1;
+      }
+      this.elPlaybackProgress.value = midi.durationMs > 0 ? Math.min(1, elapsed / midi.durationMs) : 1;
+      this.elPlaybackStatus.textContent = `${score.title} · ${formatDuration(elapsed)} / ${formatDuration(midi.durationMs)}`;
+      if (cursor >= midi.notes.length && elapsed >= midi.durationMs) {
+        this.elPlaybackProgress.value = 1;
+        this._finishPlayback('Playback complete');
+        return;
+      }
+      this.playbackFrame = requestAnimationFrame(advance);
+    };
+    this.playbackFrame = requestAnimationFrame(advance);
+  }
+
+  private _stopPlayback(status: string) {
+    this.playbackToken += 1;
+    this.audio.stopAll();
+    this._finishPlayback(status);
+  }
+
+  private _finishPlayback(status: string) {
+    if (this.playbackFrame !== null) cancelAnimationFrame(this.playbackFrame);
+    this.playbackFrame = null;
+    this.elAutoPlay.disabled = this.scores.length === 0;
+    this.elAutoStop.disabled = true;
+    this.elPlaybackStatus.textContent = status;
+    if (status !== 'Playback complete') this.elPlaybackProgress.value = 0;
   }
 
   private _setKeyPressed(key: PianoKey, pressed: boolean) {

@@ -10,6 +10,11 @@ interface Partial {
   detune: number;
 }
 
+interface ActiveVoice {
+  envelope: GainNode;
+  oscillators: OscillatorNode[];
+}
+
 const PIANO_PARTIALS: readonly Partial[] = [
   { ratio: 1, level: 1, detune: -0.8 },
   { ratio: 1, level: 0.24, detune: 1.2 },
@@ -37,17 +42,24 @@ function audioContextConstructor(): typeof AudioContext | null {
 export class PianoSynth {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
+  private readonly activeVoices = new Set<ActiveVoice>();
 
   get isSupported(): boolean {
     return audioContextConstructor() !== null;
   }
 
-  async play(midi: number, velocity = 118): Promise<void> {
+  async activate(): Promise<void> {
     const context = this.getContext();
     if (context.state === 'suspended') await context.resume();
     if (context.state !== 'running') {
       throw new Error(`AudioContext did not start; current state is ${context.state}.`);
     }
+  }
+
+  async play(midi: number, velocity = 118): Promise<void> {
+    await this.activate();
+    const context = this.context;
+    if (!context) throw new Error('Piano audio context was not initialized.');
 
     const master = this.master;
     if (!master) throw new Error('Piano audio output was not initialized.');
@@ -59,7 +71,9 @@ export class PianoSynth {
     const strength = Math.max(0.05, Math.min(1, velocity / 127));
     const envelope = context.createGain();
     const filter = context.createBiquadFilter();
+    const voice: ActiveVoice = { envelope, oscillators: [] };
     let activeOscillators = PIANO_PARTIALS.length;
+    this.activeVoices.add(voice);
 
     envelope.gain.setValueAtTime(MIN_AUDIBLE_GAIN, start);
     envelope.gain.exponentialRampToValueAtTime(0.72 * strength, start + 0.008);
@@ -76,6 +90,7 @@ export class PianoSynth {
     for (const partial of PIANO_PARTIALS) {
       const oscillator = context.createOscillator();
       const partialGain = context.createGain();
+      voice.oscillators.push(oscillator);
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(frequency * partial.ratio, start);
       oscillator.detune.setValueAtTime(partial.detune, start);
@@ -89,6 +104,7 @@ export class PianoSynth {
         if (activeOscillators === 0) {
           filter.disconnect();
           envelope.disconnect();
+          this.activeVoices.delete(voice);
         }
       }, { once: true });
       oscillator.start(start);
@@ -96,10 +112,29 @@ export class PianoSynth {
     }
   }
 
+  stopAll(): void {
+    const context = this.context;
+    if (!context) return;
+    const now = context.currentTime;
+    for (const voice of this.activeVoices) {
+      voice.envelope.gain.cancelScheduledValues(now);
+      voice.envelope.gain.setTargetAtTime(MIN_AUDIBLE_GAIN, now, 0.015);
+      for (const oscillator of voice.oscillators) {
+        try {
+          oscillator.stop(now + 0.08);
+        } catch {
+          // An oscillator that has already ended needs no further cleanup.
+        }
+      }
+    }
+  }
+
   async dispose(): Promise<void> {
     const context = this.context;
+    this.stopAll();
     this.context = null;
     this.master = null;
+    this.activeVoices.clear();
     if (context && context.state !== 'closed') await context.close();
   }
 

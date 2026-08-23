@@ -253,7 +253,12 @@
         "2d",
         "game-workflow"
       ],
-      "assets": [],
+      "assets": [
+        "piano/scores/catalog.json",
+        "piano/scores/fur-elise.mid",
+        "piano/scores/chopin-prelude-op28-no20.mid",
+        "piano/scores/mozart-sonata-fragment.mid"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null

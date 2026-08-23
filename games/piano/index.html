@@ -26,6 +26,7 @@
       width: 900px;
       height: 600px;
       border-radius: 8px;
+      touch-action: none;
     }
     #overlay {
       position: absolute;
@@ -80,6 +81,89 @@
       font-weight: 800;
       color: #f8fafc;
     }
+    #library {
+      position: absolute;
+      top: 86px;
+      right: 24px;
+      width: 310px;
+      padding: 11px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 7px;
+      background: rgba(8, 14, 22, 0.88);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
+      pointer-events: auto;
+    }
+    #library-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    #score-list {
+      width: 100%;
+      height: 52px;
+      padding: 3px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 4px;
+      outline: 0;
+      background: #111827;
+      color: #e2e8f0;
+      font-size: 10px;
+    }
+    #score-list:focus { border-color: #60a5fa; }
+    #score-list option { padding: 3px 5px; }
+    #transport {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      align-items: center;
+      gap: 6px;
+      margin-top: 7px;
+    }
+    #transport button {
+      min-width: 54px;
+      padding: 6px 8px;
+      border: 1px solid rgba(96, 165, 250, 0.42);
+      border-radius: 4px;
+      background: rgba(37, 99, 235, 0.24);
+      color: #eff6ff;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 900;
+    }
+    #transport button:hover:not(:disabled) { background: rgba(37, 99, 235, 0.45); }
+    #transport button:disabled { cursor: default; opacity: 0.42; }
+    #playback-status {
+      min-width: 0;
+      overflow: hidden;
+      color: #cbd5e1;
+      font-size: 9px;
+      text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #playback-progress {
+      width: 100%;
+      height: 4px;
+      margin-top: 6px;
+      display: block;
+      accent-color: #60a5fa;
+    }
+    #score-source {
+      display: block;
+      margin-top: 5px;
+      overflow: hidden;
+      color: #93c5fd;
+      font-size: 8px;
+      text-decoration: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #score-source:hover { color: #dbeafe; }
   </style>
 </head>
 <body>
@@ -93,9 +177,22 @@
         </div>
         <div id="status">Preparing Web Audio...</div>
       </div>
+      <section id="library" aria-label="Public-domain MIDI scores">
+        <div id="library-title"><span>Public-domain MIDI</span><span>03 scores</span></div>
+        <select id="score-list" size="3" aria-label="Choose a MIDI score" disabled>
+          <option>Loading score list…</option>
+        </select>
+        <div id="transport">
+          <button id="auto-play" type="button" disabled>Auto play</button>
+          <button id="auto-stop" type="button" disabled>Stop</button>
+          <span id="playback-status" aria-live="polite">Loading…</span>
+        </div>
+        <progress id="playback-progress" max="1" value="0" aria-label="Playback progress"></progress>
+        <a id="score-source" href="https://www.mutopiaproject.org/" target="_blank" rel="noreferrer">Mutopia Project</a>
+      </section>
       <div id="note">A0 - C8</div>
     </div>
   </div>
-  <script type="module" src="./bundle.js?v=piano-web-audio-v1"></script>
+  <script type="module" src="./bundle.js?v=piano-midi-library-v3"></script>
 </body>
 </html>
