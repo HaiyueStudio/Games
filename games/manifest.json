@@ -4,6 +4,7 @@
   "entries": [
     {
       "id": "2048",
+      "thumbnail": "screenshots/2048.webp",
       "title": "2048",
       "entry": "2048/main.ts",
       "capabilities": [
@@ -20,6 +21,7 @@
     },
     {
       "id": "billiards-3d",
+      "thumbnail": "screenshots/billiards-3d.webp",
       "title": "billiards 3d",
       "entry": "billiards-3d/main.ts",
       "capabilities": [
@@ -41,6 +43,7 @@
     },
     {
       "id": "billiards",
+      "thumbnail": "screenshots/billiards.webp",
       "title": "billiards",
       "entry": "billiards/main.ts",
       "capabilities": [
@@ -58,6 +61,7 @@
     },
     {
       "id": "calendar-puzzle",
+      "thumbnail": "screenshots/calendar-puzzle.webp",
       "title": "calendar puzzle",
       "entry": "calendar-puzzle/main.ts",
       "capabilities": [
@@ -74,6 +78,7 @@
     },
     {
       "id": "triangle-calendar-puzzle",
+      "thumbnail": "screenshots/triangle-calendar-puzzle.webp",
       "title": "triangle calendar puzzle",
       "entry": "triangle-calendar-puzzle/main.ts",
       "capabilities": [
@@ -91,6 +96,7 @@
     },
     {
       "id": "entanglement-path",
+      "thumbnail": "screenshots/entanglement-path.webp",
       "title": "entanglement path",
       "entry": "entanglement-path/main.ts",
       "capabilities": [
@@ -107,6 +113,7 @@
     },
     {
       "id": "icosahedron-minesweeper",
+      "thumbnail": "screenshots/icosahedron-minesweeper.webp",
       "title": "icosahedron minesweeper",
       "entry": "icosahedron-minesweeper/main.ts",
       "capabilities": [
@@ -123,6 +130,7 @@
     },
     {
       "id": "gravity-maze",
+      "thumbnail": "screenshots/gravity-maze.webp",
       "title": "Gravity Maze",
       "entry": "gravity-maze/main.ts",
       "capabilities": [
@@ -144,6 +152,7 @@
     },
     {
       "id": "match-3",
+      "thumbnail": "screenshots/match-3.webp",
       "title": "match 3",
       "entry": "match-3/main.ts",
       "capabilities": [
@@ -162,6 +171,7 @@
     },
     {
       "id": "minesweeper",
+      "thumbnail": "screenshots/minesweeper.webp",
       "title": "minesweeper",
       "entry": "minesweeper/main.ts",
       "capabilities": [
@@ -178,6 +188,7 @@
     },
     {
       "id": "minecraft-lite",
+      "thumbnail": "screenshots/minecraft-lite.webp",
       "title": "Minecraft Lite",
       "entry": "minecraft-lite/main.ts",
       "capabilities": [
@@ -200,6 +211,7 @@
     },
     {
       "id": "pad-simulator",
+      "thumbnail": "screenshots/pad-simulator.webp",
       "title": "pad simulator",
       "entry": "pad-simulator/main.ts",
       "capabilities": [
@@ -216,6 +228,7 @@
     },
     {
       "id": "pacman",
+      "thumbnail": "screenshots/pacman.webp",
       "title": "Pac-Man",
       "entry": "pacman/main.ts",
       "capabilities": [
@@ -233,6 +246,7 @@
     },
     {
       "id": "piano",
+      "thumbnail": "screenshots/piano.webp",
       "title": "piano",
       "entry": "piano/main.ts",
       "capabilities": [
@@ -249,6 +263,7 @@
     },
     {
       "id": "pong",
+      "thumbnail": "screenshots/pong.webp",
       "title": "Pong",
       "entry": "pong/main.ts",
       "capabilities": [
@@ -267,6 +282,7 @@
     },
     {
       "id": "sokoban-3d",
+      "thumbnail": "screenshots/sokoban-3d.webp",
       "title": "sokoban 3d",
       "entry": "sokoban-3d/main.ts",
       "capabilities": [
@@ -285,6 +301,7 @@
     },
     {
       "id": "sky-strike",
+      "thumbnail": "screenshots/sky-strike.webp",
       "title": "Sky Strike",
       "entry": "sky-strike/main.ts",
       "capabilities": [
@@ -316,6 +333,7 @@
     },
     {
       "id": "spider-solitaire",
+      "thumbnail": "screenshots/spider-solitaire.webp",
       "title": "spider solitaire",
       "entry": "spider-solitaire/main.ts",
       "capabilities": [
@@ -333,6 +351,7 @@
     },
     {
       "id": "sudoku",
+      "thumbnail": "screenshots/sudoku.webp",
       "title": "sudoku",
       "entry": "sudoku/main.ts",
       "capabilities": [
@@ -349,6 +368,7 @@
     },
     {
       "id": "tetris",
+      "thumbnail": "screenshots/tetris.webp",
       "title": "tetris",
       "entry": "tetris/main.ts",
       "capabilities": [
@@ -365,6 +385,7 @@
     },
     {
       "id": "wfc-map",
+      "thumbnail": "screenshots/wfc-map.webp",
       "title": "wfc map",
       "entry": "wfc-map/main.ts",
       "capabilities": [

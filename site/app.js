@@ -53,6 +53,10 @@ function gameUrl(game) {
   return `./games/${encodeURIComponent(game.id)}/index.html`;
 }
 
+function thumbnailUrl(game) {
+  return `./${game.thumbnail}`;
+}
+
 function detailFor(game) {
   return gameDetails[game.id] ?? {
     genre: 'game',
@@ -113,10 +117,20 @@ function createCard(game, index) {
   visual.setAttribute('aria-label', `Play ${game.title}`);
   visual.addEventListener('click', () => openGame(game));
 
+  const screenshot = document.createElement('img');
+  screenshot.className = 'card-screenshot';
+  screenshot.src = thumbnailUrl(game);
+  screenshot.alt = `${game.title} gameplay screenshot`;
+  screenshot.loading = index < 3 ? 'eager' : 'lazy';
+  screenshot.decoding = 'async';
+  if (index < 3) screenshot.fetchPriority = 'high';
+  screenshot.addEventListener('load', () => visual.classList.add('has-screenshot'));
+  screenshot.addEventListener('error', () => screenshot.remove());
+
   const mark = document.createElement('span');
   mark.className = 'card-mark';
   mark.textContent = details.mark;
-  visual.append(mark);
+  visual.append(screenshot, mark);
 
   const body = document.createElement('div');
   body.className = 'card-body';

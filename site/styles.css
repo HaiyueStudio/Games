@@ -255,34 +255,57 @@ h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -0.04em; }
   background: linear-gradient(145deg, #173f48, #102731);
 }
 
-.card-visual::before, .card-visual::after {
+.card-visual::before {
   content: "";
   position: absolute;
-  width: 140px;
-  height: 140px;
-  border: 1px solid currentColor;
-  opacity: 0.12;
-  transform: rotate(24deg);
+  z-index: 1;
+  inset: 42% 0 0;
+  background: linear-gradient(to bottom, transparent, rgba(3, 10, 15, 0.68));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
 }
 
-.card-visual::after { width: 82px; height: 82px; transform: rotate(52deg); }
 .card-visual[data-tone="2"] { background: linear-gradient(145deg, #4c2b39, #1c2735); color: #ff9c7f; }
 .card-visual[data-tone="3"] { background: linear-gradient(145deg, #273d5c, #122638); color: #8eb9ff; }
 .card-visual[data-tone="4"] { background: linear-gradient(145deg, #4b4523, #173233); color: #ffdb68; }
 .card-visual[data-tone="5"] { background: linear-gradient(145deg, #38305a, #15283b); color: #c1a7ff; }
 .card-visual[data-tone="6"] { background: linear-gradient(145deg, #16493e, #15313c); color: #65efbb; }
 
+.card-screenshot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.01);
+  transition: opacity 180ms ease, transform 260ms ease;
+}
+
+.card-visual.has-screenshot::before,
+.card-visual.has-screenshot .card-screenshot { opacity: 1; }
+
+.card-visual.has-screenshot:hover .card-screenshot { transform: scale(1.045); }
+
 .card-mark {
-  position: relative;
-  z-index: 1;
-  font-size: 3rem;
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  bottom: 11px;
+  min-width: 34px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(4, 12, 18, 0.64);
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: -0.08em;
+  letter-spacing: 0.02em;
   text-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
   transition: transform 180ms ease;
 }
 
-.card-visual:hover .card-mark { transform: scale(1.08) rotate(-3deg); }
+.card-visual:hover .card-mark { transform: translateY(-2px); }
 .card-body { padding: 21px; }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .card-heading h3 { margin: 0; font-size: 1.05rem; }

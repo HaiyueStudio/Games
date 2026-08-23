@@ -4,9 +4,10 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,6 +32,25 @@ if (!existsSync(manifestPath)) fail(`Missing game manifest: ${manifestPath}`);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (!Array.isArray(manifest.entries) || manifest.entries.length === 0) {
   fail('games/manifest.json must contain a non-empty entries array.');
+}
+
+const thumbnailPaths = new Set();
+for (const game of manifest.entries) {
+  if (!game || typeof game.id !== 'string' || !game.id) fail('Every manifest entry must have a non-empty id.');
+  if (typeof game.thumbnail !== 'string' || !game.thumbnail) {
+    fail(`Game ${game.id} must declare a thumbnail.`);
+  }
+
+  const thumbnail = resolve(siteSource, game.thumbnail);
+  const relativeThumbnail = relative(siteSource, thumbnail);
+  if (!relativeThumbnail || relativeThumbnail.startsWith('..') || isAbsolute(relativeThumbnail)) {
+    fail(`Game ${game.id} thumbnail must stay inside site/.`);
+  }
+  if (thumbnailPaths.has(relativeThumbnail)) fail(`Game ${game.id} reuses thumbnail ${game.thumbnail}.`);
+  if (!existsSync(thumbnail) || statSync(thumbnail).size < 1024) {
+    fail(`Game ${game.id} thumbnail is missing or too small: site/${relativeThumbnail}.`);
+  }
+  thumbnailPaths.add(relativeThumbnail);
 }
 
 rmSync(outputRoot, { force: true, recursive: true });

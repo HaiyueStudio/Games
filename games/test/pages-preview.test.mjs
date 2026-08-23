@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -14,9 +14,19 @@ test('Pages lobby is driven by the game manifest', () => {
   assert.ok(manifest.entries.length > 0);
   assert.match(app, /fetch\(catalogUrl\)/);
   assert.match(app, /\.\/games\/\$\{encodeURIComponent\(game\.id\)\}\/index\.html/);
+  assert.match(app, /document\.createElement\('img'\)/);
+  assert.match(app, /screenshot\.loading = index < 3 \? 'eager' : 'lazy'/);
+  assert.match(app, /screenshot\.decoding = 'async'/);
 
+  const thumbnailPaths = new Set();
   for (const game of manifest.entries) {
     assert.ok(existsSync(join(repositoryRoot, 'games', game.id, 'index.html')), `${game.id} needs index.html`);
+    assert.equal(typeof game.thumbnail, 'string', `${game.id} needs a thumbnail path`);
+    assert.ok(!thumbnailPaths.has(game.thumbnail), `${game.id} needs a unique thumbnail`);
+    const thumbnail = join(repositoryRoot, 'site', game.thumbnail);
+    assert.ok(existsSync(thumbnail), `${game.id} thumbnail needs to exist`);
+    assert.ok(statSync(thumbnail).size >= 1024, `${game.id} thumbnail needs real image content`);
+    thumbnailPaths.add(game.thumbnail);
   }
 });
 
