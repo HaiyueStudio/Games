@@ -11,6 +11,8 @@ type Color = [number, number, number, number];
 
 interface LevelDef {
   name: string;
+  difficulty: 'beginner' | 'medium' | 'hard';
+  source?: { file: string; level: number };
   map: string[];
 }
 
@@ -35,6 +37,7 @@ interface Snapshot {
 interface SokobanSaveData extends Snapshot {
   levelIndex: number;
   completedLevels?: number[];
+  levelSetVersion?: number;
 }
 
 function isPoint(value: unknown): value is Point {
@@ -45,6 +48,7 @@ function isLevelDef(value: unknown): value is LevelDef {
   return isRecord(value)
     && typeof value.name === 'string'
     && value.name.length > 0
+    && (value.difficulty === 'beginner' || value.difficulty === 'medium' || value.difficulty === 'hard')
     && Array.isArray(value.map)
     && value.map.length >= 3
     && value.map.every(row => typeof row === 'string');
@@ -57,6 +61,7 @@ function isSokobanSaveData(value: unknown): value is SokobanSaveData {
     && isPoint(value.player)
     && Array.isArray(value.boxes)
     && value.boxes.every(isPoint)
+    && (value.levelSetVersion === undefined || isNonNegativeInteger(value.levelSetVersion))
     && (value.completedLevels === undefined || (
       Array.isArray(value.completedLevels)
       && value.completedLevels.every(isNonNegativeInteger)
@@ -68,6 +73,7 @@ const FLOOR_H = 4;
 const WALL_H = 34;
 const BOX_SIZE = 28;
 const PLAYER_R = 15;
+const LEVEL_SET_VERSION = 2;
 const COLORS = {
   floor: [0.30, 0.35, 0.35, 1] as Color,
   floorAlt: [0.26, 0.31, 0.31, 1] as Color,
@@ -312,7 +318,9 @@ class Sokoban3DGame {
     this.levelButtons.forEach((button, index) => {
       const completed = this.completedLevels.has(index);
       const current = index === this.levelIndex;
-      button.setText(`${completed ? 'OK ' : current ? '> ' : ''}${index + 1}`);
+      const difficulty = requiredItemAt(this.levels, index, 'Sokoban levels').difficulty;
+      const difficultyLabel = difficulty === 'beginner' ? 'B' : difficulty === 'medium' ? 'M' : 'H';
+      button.setText(completed ? `OK ${index + 1}` : `${current ? '> ' : ''}${difficultyLabel}${index + 1}`);
       button.setStyle({
         backgroundColor: completed ? '#15803d' : current ? '#1d4ed8' : 'rgba(30,41,59,0.94)',
         borderColor: completed ? '#4ade80' : current ? '#60a5fa' : '#475569',
@@ -381,7 +389,11 @@ class Sokoban3DGame {
       this.loadLevel(0);
       return;
     }
-    this.completedLevels = new Set((saved.completedLevels ?? []).filter(index => index < this.levels.length));
+    const savedCompletedLevels = saved.completedLevels ?? [];
+    this.completedLevels = new Set(savedCompletedLevels.filter(index => (
+      index < this.levels.length
+      && (saved.levelSetVersion === LEVEL_SET_VERSION || index < 2)
+    )));
     this.loadLevel(saved.levelIndex, false);
     if (saved.boxes.length !== this.boxes.length) {
       this.saveState();
@@ -407,6 +419,7 @@ class Sokoban3DGame {
       player: { ...this.player },
       boxes: this.boxes.map(box => ({ ...box.pos })),
       completedLevels: [...this.completedLevels].sort((a, b) => a - b),
+      levelSetVersion: LEVEL_SET_VERSION,
     });
   }
 

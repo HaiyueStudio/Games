@@ -3,11 +3,12 @@
     "name": "Google DeepMind Boxoban levels",
     "url": "https://github.com/google-deepmind/boxoban-levels",
     "license": "Apache-2.0",
-    "note": "Used as a reference for the standard ASCII format and compact four-crate difficulty. The maps in this file were authored for the HaiYue example."
+    "notice": "Levels 3-10 are redistributed from medium/valid/003.txt levels 0-7. Levels 11-16 are redistributed from hard/000.txt levels 0-5. Display names and metadata were added for this example; the ASCII maps are unchanged."
   },
   "levels": [
     {
       "name": "Warehouse Gate",
+      "difficulty": "beginner",
       "map": [
         "########",
         "#  .   #",
@@ -19,6 +20,7 @@
     },
     {
       "name": "Twin Crates",
+      "difficulty": "beginner",
       "map": [
         "#########",
         "#   #   #",
@@ -29,170 +31,241 @@
       ]
     },
     {
-      "name": "Corner Work",
+      "name": "Medium Relay I",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 0 },
       "map": [
         "##########",
-        "#   .    #",
-        "# # ## # #",
-        "# $    $ #",
-        "#   @    #",
-        "#   .    #",
+        "##########",
+        "##########",
+        "##########",
+        "# # ######",
+        "#    @.###",
+        "# $ $. ###",
+        "####$$. ##",
+        "#       .#",
         "##########"
       ]
     },
     {
-      "name": "Loading Dock",
-      "map": [
-        "###########",
-        "#    #    #",
-        "# .$   $. #",
-        "#         #",
-        "#  $ @ $  #",
-        "#  .   .  #",
-        "###########"
-      ]
-    },
-    {
-      "name": "Forklift Basics",
-      "map": [
-        "########",
-        "#  ..  #",
-        "#  $$  #",
-        "#      #",
-        "#  @   #",
-        "########"
-      ]
-    },
-    {
-      "name": "Side Shift",
-      "map": [
-        "#########",
-        "# .   . #",
-        "# $   $ #",
-        "#   #   #",
-        "#       #",
-        "#   @   #",
-        "#########"
-      ]
-    },
-    {
-      "name": "Center Post",
-      "map": [
-        "#########",
-        "#  . .  #",
-        "#  $ $  #",
-        "#   #   #",
-        "#       #",
-        "#   @   #",
-        "#########"
-      ]
-    },
-    {
-      "name": "Three Lanes",
+      "name": "Medium Relay II",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 1 },
       "map": [
         "##########",
-        "# .  .  .#",
-        "# $  $  $#",
-        "#        #",
-        "#  ##    #",
-        "#    @   #",
+        "#.    ## #",
+        "# $ .  $ #",
+        "# $  $ ..#",
+        "#@#  #   #",
+        "##########",
+        "##########",
+        "##########",
+        "##########",
         "##########"
       ]
     },
     {
-      "name": "Cross Dock",
+      "name": "Medium Relay III",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 2 },
       "map": [
         "##########",
-        "# .    . #",
-        "#   $    #",
-        "#  $  $  #",
-        "# .    @ #",
+        "###.     #",
+        "### . $#@#",
+        "###  $ $ #",
+        "####   # #",
+        "#   . ## #",
+        "#   ###  #",
+        "##$ # # .#",
+        "##       #",
+        "##########"
+      ]
+    },
+    {
+      "name": "Medium Relay IV",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 3 },
+      "map": [
+        "##########",
+        "#   ######",
+        "# $$######",
+        "#    #####",
+        "##  #. ###",
+        "#@$.  $. #",
+        "### .   ##",
+        "####### ##",
+        "##########",
+        "##########"
+      ]
+    },
+    {
+      "name": "Medium Relay V",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 4 },
+      "map": [
+        "##########",
+        "#  .     #",
+        "# $ $ .# #",
+        "#.###@####",
+        "#  # .####",
+        "# ##   ###",
+        "#### $ $ #",
+        "####     #",
+        "##### ####",
+        "##########"
+      ]
+    },
+    {
+      "name": "Medium Relay VI",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 5 },
+      "map": [
+        "##########",
+        "##########",
+        "#####. $.#",
+        "#####    #",
+        "######## #",
+        "#######  #",
+        "##### ## #",
+        "## $ $.  #",
+        "#@$  .   #",
+        "##########"
+      ]
+    },
+    {
+      "name": "Medium Relay VII",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 6 },
+      "map": [
+        "##########",
+        "# .  #####",
+        "# $# #####",
+        "# $   ####",
+        "# #   . ##",
+        "#  .    ##",
+        "# ##  $ ##",
+        "# $ .#####",
+        "#   @#####",
+        "##########"
+      ]
+    },
+    {
+      "name": "Medium Relay VIII",
+      "difficulty": "medium",
+      "source": { "file": "medium/valid/003.txt", "level": 7 },
+      "map": [
+        "##########",
+        "#   @   ##",
+        "## $    ##",
+        "##  ## ###",
+        "##   .$ ##",
+        "##  .  ###",
+        "####$. ###",
+        "#### $.###",
+        "###    ###",
+        "##########"
+      ]
+    },
+    {
+      "name": "Hard Lock I",
+      "difficulty": "hard",
+      "source": { "file": "hard/000.txt", "level": 0 },
+      "map": [
+        "##########",
+        "######## #",
+        "#######  #",
+        "#######$ #",
+        "#######  #",
+        "######. .#",
+        "###### $.#",
+        "#####  #$#",
+        "#####. $@#",
+        "##########"
+      ]
+    },
+    {
+      "name": "Hard Lock II",
+      "difficulty": "hard",
+      "source": { "file": "hard/000.txt", "level": 1 },
+      "map": [
+        "##########",
+        "##########",
+        "## #######",
+        "#.   #####",
+        "#. $######",
+        "##  . ####",
+        "#   $#####",
+        "##$$.#####",
+        "#      @ #",
+        "##########"
+      ]
+    },
+    {
+      "name": "Hard Lock III",
+      "difficulty": "hard",
+      "source": { "file": "hard/000.txt", "level": 2 },
+      "map": [
+        "##########",
+        "########@#",
+        "########$#",
+        "##### #  #",
+        "#####  . #",
+        "##### $. #",
+        "######.  #",
+        "######$$.#",
+        "######   #",
+        "##########"
+      ]
+    },
+    {
+      "name": "Hard Lock IV",
+      "difficulty": "hard",
+      "source": { "file": "hard/000.txt", "level": 3 },
+      "map": [
+        "##########",
+        "##########",
+        "##@#######",
+        "##$#######",
+        "##  ######",
+        "# .$######",
+        "#   # ..##",
+        "# $ $   .#",
         "#        #",
         "##########"
       ]
     },
     {
-      "name": "Four Bay",
-      "map": [
-        "###########",
-        "# . . . . #",
-        "# $ $ $ $ #",
-        "#         #",
-        "#  ###    #",
-        "#    @    #",
-        "###########"
-      ]
-    },
-    {
-      "name": "Island Route",
+      "name": "Hard Lock V",
+      "difficulty": "hard",
+      "source": { "file": "hard/000.txt", "level": 4 },
       "map": [
         "##########",
-        "# .    . #",
-        "#        #",
-        "# $ ## $ #",
-        "#        #",
-        "#   @    #",
+        "#@ . #####",
+        "# $$ #####",
+        "## .######",
+        "#  $ #####",
+        "#.  ######",
+        "#  $ #####",
+        "# #.######",
+        "#     ####",
         "##########"
       ]
     },
     {
-      "name": "Long Haul",
+      "name": "Hard Lock VI",
+      "difficulty": "hard",
+      "source": { "file": "hard/000.txt", "level": 5 },
       "map": [
         "##########",
-        "# . . .  #",
-        "#        #",
-        "# $ $ $  #",
-        "#   @    #",
-        "#        #",
+        "####  . ##",
+        "#### $  ##",
+        "######@###",
+        "##  ## ###",
+        "## .   ###",
+        "#   #$.###",
+        "# $.# $ ##",
+        "#       ##",
         "##########"
-      ]
-    },
-    {
-      "name": "Split Shift",
-      "map": [
-        "############",
-        "# . .  . . #",
-        "# $ $  $ $ #",
-        "#          #",
-        "#    ##    #",
-        "#    @     #",
-        "############"
-      ]
-    },
-    {
-      "name": "Offset Targets",
-      "map": [
-        "###########",
-        "# .  .    #",
-        "# $  $    #",
-        "#    @    #",
-        "#  $   $  #",
-        "#  .   .  #",
-        "###########"
-      ]
-    },
-    {
-      "name": "Narrow Aisles",
-      "map": [
-        "###########",
-        "# .  .  . #",
-        "# $  $  $ #",
-        "#   # #   #",
-        "#         #",
-        "#    @    #",
-        "###########"
-      ]
-    },
-    {
-      "name": "Final Dispatch",
-      "map": [
-        "############",
-        "# . .  . . #",
-        "# $ $  $ $ #",
-        "#    ##    #",
-        "#          #",
-        "#    @     #",
-        "############"
       ]
     }
   ]
