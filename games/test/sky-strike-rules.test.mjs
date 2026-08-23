@@ -35,6 +35,7 @@ test('Sky Strike defines seven regular enemies, two elites, and one boss', () =>
   assert.equal(NORMAL_ENEMIES.length, 7);
   assert.equal(ELITE_ENEMIES.length, 2);
   assert.equal(BOSS_ENEMY.tier, 'boss');
+  assert.equal(BOSS_ENEMY.hitPoints, 1_300);
   assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 10);
   assert.ok(ENEMY_DEFINITIONS.every(enemy => enemy.hitPoints > 0 && enemy.size > 0));
 });
