@@ -81,7 +81,6 @@
       color: #f8fafc;
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/midi.js/0.3.1/MIDI.min.js"></script>
 </head>
 <body>
   <div id="wrap">
@@ -92,11 +91,11 @@
           <div id="title">Piano</div>
           <div id="sub">88 keys built from WebGPU cubes. Click a key to play.</div>
         </div>
-        <div id="status">Loading MIDI.js...</div>
+        <div id="status">Preparing Web Audio...</div>
       </div>
       <div id="note">A0 - C8</div>
     </div>
   </div>
-  <script type="module" src="./bundle.js"></script>
+  <script type="module" src="./bundle.js?v=piano-web-audio-v1"></script>
 </body>
 </html>

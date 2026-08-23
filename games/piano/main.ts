@@ -16,6 +16,7 @@ import { createBox3D } from '@haiyue/engine';
 import { mat4 } from 'wgpu-matrix';
 import { requiredNumberAt } from '../arrayAccess';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+import { PianoSynth } from './audio';
 
 interface PianoSaveData { lastMidi: number | null }
 
@@ -42,24 +43,6 @@ interface PianoKey {
   depth: number;
   height: number;
   pressUntil: number;
-}
-
-interface MidiJs {
-  loadPlugin(options: {
-    soundfontUrl?: string;
-    instrument?: string;
-    onsuccess?: () => void;
-    onerror?: () => void;
-  }): void;
-  setVolume(channel: number, volume: number): void;
-  noteOn(channel: number, note: number, velocity: number, delay: number): void;
-  noteOff(channel: number, note: number, delay: number): void;
-}
-
-declare global {
-  interface Window {
-    MIDI?: MidiJs;
-  }
 }
 
 const CANVAS_W = 900;
@@ -164,7 +147,8 @@ class PianoDemo {
   private cam3D!: Camera3D;
   private keys: PianoKey[] = [];
   private viewProj = new Float32Array(16);
-  private midiReady = false;
+  private readonly audio = new PianoSynth();
+  private audioReady = false;
 
   private elStatus!: HTMLElement;
   private elNote!: HTMLElement;
@@ -191,7 +175,9 @@ class PianoDemo {
     if (saved?.lastMidi !== null && saved?.lastMidi !== undefined) {
       this.elNote.textContent = `${noteName(saved.lastMidi)}  MIDI ${saved.lastMidi}`;
     }
-    this._loadMidi();
+    this.elStatus.textContent = this.audio.isSupported
+      ? 'Click a key to enable audio'
+      : 'Web Audio unavailable';
 
     this.engine.on('update', ({ detail: { time, delta } }) => this._tick(time, delta));
     this.engine.run();
@@ -306,27 +292,6 @@ class PianoDemo {
     });
   }
 
-  private _loadMidi() {
-    const midi = window.MIDI;
-    if (!midi?.loadPlugin) {
-      this.elStatus.textContent = 'MIDI.js unavailable';
-      return;
-    }
-
-    midi.loadPlugin({
-      soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/',
-      instrument: 'acoustic_grand_piano',
-      onsuccess: () => {
-        midi.setVolume(0, 127);
-        this.midiReady = true;
-        this.elStatus.textContent = 'MIDI.js ready';
-      },
-      onerror: () => {
-        this.elStatus.textContent = 'MIDI.js load failed';
-      },
-    });
-  }
-
   private _pressKey(key: PianoKey) {
     const now = performance.now();
     key.pressUntil = now + PRESS_MS;
@@ -334,10 +299,14 @@ class PianoDemo {
     this._setKeyPressed(key, true);
     this.saves.save({ lastMidi: key.midi });
 
-    if (this.midiReady && window.MIDI) {
-      window.MIDI.noteOn(0, key.midi, 118, 0);
-      window.MIDI.noteOff(0, key.midi, 0.72);
-    }
+    void this.audio.play(key.midi, 118).then(() => {
+      if (this.audioReady) return;
+      this.audioReady = true;
+      this.elStatus.textContent = 'Web Audio ready';
+    }).catch((error: unknown) => {
+      this.elStatus.textContent = 'Audio could not start';
+      console.error('[piano] Unable to play note.', error);
+    });
   }
 
   private _setKeyPressed(key: PianoKey, pressed: boolean) {
