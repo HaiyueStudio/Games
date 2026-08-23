@@ -248,6 +248,24 @@
       "ci": "manual"
     },
     {
+      "id": "pong",
+      "title": "Pong",
+      "entry": "pong/main.ts",
+      "capabilities": [
+        "3d",
+        "game-workflow",
+        "input",
+        "particles"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "sokoban-3d",
       "title": "sokoban 3d",
       "entry": "sokoban-3d/main.ts",
