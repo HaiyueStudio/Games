@@ -170,6 +170,26 @@
       "ci": "manual"
     },
     {
+      "id": "neon-circuit",
+      "thumbnail": "screenshots/neon-circuit.png",
+      "title": "Neon Circuit",
+      "entry": "neon-circuit/main.ts",
+      "capabilities": [
+        "3d",
+        "game-workflow",
+        "input",
+        "particles",
+        "procedural-geometry"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "minesweeper",
       "thumbnail": "screenshots/minesweeper.webp",
       "title": "minesweeper",
