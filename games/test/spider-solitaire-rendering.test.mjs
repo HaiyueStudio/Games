@@ -23,7 +23,19 @@ test('Spider Solitaire draws canvas card textures after opaque card bodies', () 
   );
   assert.match(
     page,
-    /bundle\.js\?v=spider-solitaire-card-material-fix-v4/,
-    'the page should invalidate bundles cached before the card material fix',
+    /bundle\.js\?v=spider-solitaire-render-pool-v5/,
+    'the page should invalidate bundles cached before the pooled renderer',
   );
+});
+
+test('Spider Solitaire reuses scene entities and geometry during drag and deal animation', () => {
+  const source = read('games', 'spider-solitaire', 'main.ts');
+
+  assert.match(source, /private sceneVisuals: SceneVisual\[\] = \[\]/, 'scene visuals should be pooled');
+  assert.match(source, /private geometryCache = new Map<string, Geometry3D>\(\)/, 'generated geometry should be cached');
+  assert.match(source, /if \(this\.drag\.active\) this\.requestSceneRender\(\)/, 'pointer events should only invalidate the next frame');
+  assert.match(source, /this\.flushRender\(\);\s+this\.world\.update\(time, delta\)/, 'scene rebuilds should be coalesced to the engine tick');
+  assert.match(source, /if \(position\[0\] !== x \|\| position\[1\] !== y \|\| position\[2\] !== z\)/, 'static transforms should not be dirtied every frame');
+  assert.doesNotMatch(source, /this\.world\.removeEntity\(entity\)/, 'animation frames should not destroy scene entities');
+  assert.doesNotMatch(source, /new CartesianTransform3D\(\{\s+position: \[pose\.x, pose\.y, pose\.z\]/, 'card picking should reuse its transform');
 });

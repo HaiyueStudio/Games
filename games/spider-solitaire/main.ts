@@ -98,6 +98,12 @@ interface CardFlight {
   hideCardId?: number;
 }
 
+interface SceneVisual {
+  entity: Entity;
+  transform: CartesianTransform3D;
+  mesh: Mesh3D;
+}
+
 type UiAction = 'deal' | 'undo' | 'new';
 type GuiActionButton = { action: UiAction; button: GuiButton };
 
@@ -206,9 +212,14 @@ class SpiderSolitaire {
   private orbitTransform!: SphericalTransform3D;
   private orbitControl!: OrbitControl;
   private canvas!: HTMLCanvasElement;
-  private sceneEntities: Entity[] = [];
+  private sceneVisuals: SceneVisual[] = [];
+  private sceneVisualCursor = 0;
+  private sceneDirty = true;
+  private guiDirty = true;
+  private geometryCache = new Map<string, Geometry3D>();
   private solidMaterials = new Map<string, BlinnPhongMaterial>();
   private textureMaterials = new Map<string, BasicMaterial>();
+  private dynamicTextMaterials = new Map<string, { text: string; material: BasicMaterial }>();
   private toastMessage = 'Drag a face-up descending stack to a destination column.';
   private savedOrbitState: { rotate: boolean; pan: boolean; zoom: boolean } | null = null;
   private guiButtons: GuiActionButton[] = [];
@@ -216,6 +227,7 @@ class SpiderSolitaire {
   private hiddenAnimatedCardIds = new Set<number>();
   private pickRay = new Ray();
   private cardPickGeometry: Geometry3D = createBox3D({ width: CARD_WIDTH, height: CARD_THICKNESS + 2, depth: CARD_DEPTH });
+  private cardPickTransform = new CartesianTransform3D({ rotation: [CARD_TILT, 0, 0] });
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
@@ -234,6 +246,7 @@ class SpiderSolitaire {
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
     this.bindUi();
     await this.loadOrStart();
+    this.flushRender();
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
   }
@@ -242,8 +255,10 @@ class SpiderSolitaire {
     if (this.flights.length > 0) {
       const before = this.flights.length;
       this.flights = this.flights.filter(flight => time < flight.startTime + flight.duration);
-      if (this.flights.length !== before || this.flights.length > 0) this.render();
+      if (this.flights.length !== before || this.flights.length > 0) this.requestSceneRender();
+      if (before > 0 && this.flights.length === 0) this.guiDirty = true;
     }
+    this.flushRender();
     this.world.update(time, delta);
   }
 
@@ -511,7 +526,7 @@ class SpiderSolitaire {
     if (!this.drag.active && Math.hypot(event.clientX - this.drag.startX, event.clientY - this.drag.startY) > 5) {
       this.drag.active = true;
     }
-    if (this.drag.active) this.render();
+    if (this.drag.active) this.requestSceneRender();
     event.preventDefault();
   }
 
@@ -545,11 +560,8 @@ class SpiderSolitaire {
           const card = requiredItemAt(cards, cardIndex, 'Spider cards');
           if (this.hiddenAnimatedCardIds.has(card.id)) continue;
           const pose = this.columnCardPose(column, cardIndex);
-          const transform = new CartesianTransform3D({
-            position: [pose.x, pose.y, pose.z],
-            rotation: [CARD_TILT, 0, 0],
-          });
-          const hit = ray.intersectMesh(this.cardPickGeometry, transform.localMatrix, { useBVH: false });
+          this.cardPickTransform.setPosition(pose.x, pose.y, pose.z);
+          const hit = ray.intersectMesh(this.cardPickGeometry, this.cardPickTransform.localMatrix, { useBVH: false });
           if (hit && (!closest || hit.distance < closest.distance)) {
             closest = { column, cardIndex, distance: hit.distance };
           }
@@ -761,8 +773,23 @@ class SpiderSolitaire {
   }
 
   private render(): void {
-    this.rebuildScene();
-    this.syncGui();
+    this.sceneDirty = true;
+    this.guiDirty = true;
+  }
+
+  private requestSceneRender(): void {
+    this.sceneDirty = true;
+  }
+
+  private flushRender(): void {
+    if (this.sceneDirty) {
+      this.sceneDirty = false;
+      this.rebuildScene();
+    }
+    if (this.guiDirty) {
+      this.guiDirty = false;
+      this.syncGui();
+    }
   }
 
   private syncGui(): void {
@@ -775,8 +802,7 @@ class SpiderSolitaire {
   }
 
   private rebuildScene(): void {
-    for (const entity of this.sceneEntities) this.world.removeEntity(entity);
-    this.sceneEntities = [];
+    this.sceneVisualCursor = 0;
     this.hiddenAnimatedCardIds = new Set(this.flights.map(flight => flight.hideCardId).filter((id): id is number => id != null));
     this.addTable();
     this.addHud();
@@ -785,6 +811,9 @@ class SpiderSolitaire {
     this.addColumns();
     this.addDragStack();
     this.addAnimatedFlights();
+    for (let i = this.sceneVisualCursor; i < this.sceneVisuals.length; i++) {
+      requiredItemAt(this.sceneVisuals, i, 'Spider scene visuals').entity.disabled = true;
+    }
   }
 
   private addTable(): void {
@@ -802,7 +831,7 @@ class SpiderSolitaire {
     }), HUD_Y);
 
     const stats = `Moves ${this.moves}     Runs ${this.completedRuns} / 8     Stock ${this.stock.length}`;
-    this.addTextPlane('Stats', -228, HUD_Z + 43, 420, 30, this.textMaterial(`stats-${stats}`, stats, {
+    this.addTextPlane('Stats', -228, HUD_Z + 43, 420, 30, this.dynamicTextMaterial('stats', stats, {
       width: 900,
       height: 96,
       fontSize: 34,
@@ -811,7 +840,7 @@ class SpiderSolitaire {
       align: 'left',
     }), HUD_Y);
 
-    this.addTextPlane('Toast', 0, 334, 560, 38, this.textMaterial(`toast-${this.toastMessage}`, this.toastMessage, {
+    this.addTextPlane('Toast', 0, 334, 560, 38, this.dynamicTextMaterial('toast', this.toastMessage, {
       width: 1200,
       height: 128,
       fontSize: 34,
@@ -912,17 +941,17 @@ class SpiderSolitaire {
     const rotationY = extraRotation.y ?? 0;
     const rotationZ = extraRotation.z ?? 0;
     this.addBox('CardBody', x, y, z, CARD_WIDTH, CARD_THICKNESS, CARD_DEPTH, bodyMaterial, rotationX, rotationY, rotationZ);
-    const faceEntity = new Entity('CardFace');
-    faceEntity.addComponent(new CartesianTransform3D({
-      position: [x, y + CARD_THICKNESS * 0.5 + 0.24, z],
-      rotation: [rotationX, rotationY, rotationZ],
-    }));
-    faceEntity.addComponent(new Mesh3D(
-      createPlane3D({ width: CARD_WIDTH * 0.94, height: CARD_DEPTH * 0.94, normal: 'y' }),
+    this.addVisual(
+      'CardFace',
+      x,
+      y + CARD_THICKNESS * 0.5 + 0.24,
+      z,
+      this.planeGeometry(CARD_WIDTH * 0.94, CARD_DEPTH * 0.94),
       card && faceUp ? this.cardFaceMaterial(card.rank) : this.cardBackMaterial(),
-    ));
-    this.world.addEntity(faceEntity);
-    this.sceneEntities.push(faceEntity);
+      rotationX,
+      rotationY,
+      rotationZ,
+    );
 
     if (selected && stackIndex === 0) {
       this.addBox('SelectionGlow', x, y - 0.12, z, CARD_WIDTH + 8, 1.1, CARD_DEPTH + 8, this.solidMaterial('selected', COLORS.selected, 18), CARD_TILT);
@@ -936,20 +965,73 @@ class SpiderSolitaire {
   }
 
   private addTextPlane(name: string, x: number, z: number, width: number, depth: number, material: BasicMaterial, y: number): void {
-    const entity = new Entity(name);
-    entity.addComponent(new CartesianTransform3D({ position: [x, y, z] }));
-    entity.addComponent(new Mesh3D(createPlane3D({ width, height: depth, normal: 'y' }), material));
-    this.world.addEntity(entity);
-    this.sceneEntities.push(entity);
+    this.addVisual(name, x, y, z, this.planeGeometry(width, depth), material);
   }
 
   private addBox(name: string, x: number, y: number, z: number, width: number, height: number, depth: number, material: BlinnPhongMaterial, rotationX = 0, rotationY = 0, rotationZ = 0): Entity {
-    const entity = new Entity(name);
-    entity.addComponent(new CartesianTransform3D({ position: [x, y, z], rotation: [rotationX, rotationY, rotationZ] }));
-    entity.addComponent(new Mesh3D(createBox3D({ width, height, depth }), material));
-    this.world.addEntity(entity);
-    this.sceneEntities.push(entity);
-    return entity;
+    return this.addVisual(name, x, y, z, this.boxGeometry(width, height, depth), material, rotationX, rotationY, rotationZ);
+  }
+
+  private addVisual(
+    name: string,
+    x: number,
+    y: number,
+    z: number,
+    geometry: Geometry3D,
+    material: BasicMaterial | BlinnPhongMaterial,
+    rotationX = 0,
+    rotationY = 0,
+    rotationZ = 0,
+  ): Entity {
+    const visualIndex = this.sceneVisualCursor++;
+    let visual = this.sceneVisuals[visualIndex];
+    if (!visual) {
+      const entity = new Entity(name);
+      const transform = new CartesianTransform3D({
+        position: [x, y, z],
+        rotation: [rotationX, rotationY, rotationZ],
+      });
+      const mesh = new Mesh3D(geometry, material);
+      entity.addComponent(transform);
+      entity.addComponent(mesh);
+      this.world.addEntity(entity);
+      visual = { entity, transform, mesh };
+      this.sceneVisuals.push(visual);
+    } else {
+      if (visual.entity.name !== name) visual.entity.name = name;
+      visual.entity.disabled = false;
+      const position = visual.transform.position;
+      if (position[0] !== x || position[1] !== y || position[2] !== z) {
+        visual.transform.setPosition(x, y, z);
+      }
+      const rotation = visual.transform.rotation;
+      if (rotation[0] !== rotationX || rotation[1] !== rotationY || rotation[2] !== rotationZ) {
+        visual.transform.setRotation(rotationX, rotationY, rotationZ);
+      }
+      if (visual.mesh.geometry !== geometry) visual.mesh.geometry = geometry;
+      if (visual.mesh.material !== material) visual.mesh.material = material;
+    }
+    return visual.entity;
+  }
+
+  private boxGeometry(width: number, height: number, depth: number): Geometry3D {
+    const key = `box:${width}:${height}:${depth}`;
+    let geometry = this.geometryCache.get(key);
+    if (!geometry) {
+      geometry = createBox3D({ width, height, depth });
+      this.geometryCache.set(key, geometry);
+    }
+    return geometry;
+  }
+
+  private planeGeometry(width: number, height: number): Geometry3D {
+    const key = `plane-y:${width}:${height}`;
+    let geometry = this.geometryCache.get(key);
+    if (!geometry) {
+      geometry = createPlane3D({ width, height, normal: 'y' });
+      this.geometryCache.set(key, geometry);
+    }
+    return geometry;
   }
 
   private columnX(column: number): number {
@@ -1088,8 +1170,11 @@ class SpiderSolitaire {
     const rect = this.canvas.getBoundingClientRect();
     const nx = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
     const ny = 1 - ((clientY - rect.top) / Math.max(1, rect.height)) * 2;
-    const near = this.unproject(nx, ny, 0);
-    const far = this.unproject(nx, ny, 1);
+    const viewProj = this.viewProjectionMatrix();
+    if (!viewProj) return null;
+    const inverseViewProjection = mat4.inverse(viewProj) as Float32Array;
+    const near = this.unproject(nx, ny, 0, inverseViewProjection);
+    const far = this.unproject(nx, ny, 1, inverseViewProjection);
     if (!near || !far) return null;
     const dy = far.y - near.y;
     if (Math.abs(dy) < 0.0001) return null;
@@ -1102,10 +1187,7 @@ class SpiderSolitaire {
     };
   }
 
-  private unproject(ndcX: number, ndcY: number, ndcZ: number): { x: number; y: number; z: number } | null {
-    const viewProj = this.viewProjectionMatrix();
-    if (!viewProj) return null;
-    const inv = mat4.inverse(viewProj) as Float32Array;
+  private unproject(ndcX: number, ndcY: number, ndcZ: number, inv: Float32Array): { x: number; y: number; z: number } | null {
     const x = requiredNumberAt(inv, 0, 'Spider inverse view projection') * ndcX + requiredNumberAt(inv, 4, 'Spider inverse view projection') * ndcY + requiredNumberAt(inv, 8, 'Spider inverse view projection') * ndcZ + requiredNumberAt(inv, 12, 'Spider inverse view projection');
     const y = requiredNumberAt(inv, 1, 'Spider inverse view projection') * ndcX + requiredNumberAt(inv, 5, 'Spider inverse view projection') * ndcY + requiredNumberAt(inv, 9, 'Spider inverse view projection') * ndcZ + requiredNumberAt(inv, 13, 'Spider inverse view projection');
     const z = requiredNumberAt(inv, 2, 'Spider inverse view projection') * ndcX + requiredNumberAt(inv, 6, 'Spider inverse view projection') * ndcY + requiredNumberAt(inv, 10, 'Spider inverse view projection') * ndcZ + requiredNumberAt(inv, 14, 'Spider inverse view projection');
@@ -1193,6 +1275,14 @@ class SpiderSolitaire {
       material = new BasicMaterial({ texture: this.createTextCanvas(text, options), cullMode: 'none', blending: 'normal', depthWrite: false });
       this.textureMaterials.set(key, material);
     }
+    return material;
+  }
+
+  private dynamicTextMaterial(key: string, text: string, options: TextMaterialOptions): BasicMaterial {
+    const cached = this.dynamicTextMaterials.get(key);
+    if (cached?.text === text) return cached.material;
+    const material = new BasicMaterial({ texture: this.createTextCanvas(text, options), cullMode: 'none', blending: 'normal', depthWrite: false });
+    this.dynamicTextMaterials.set(key, { text, material });
     return material;
   }
 
