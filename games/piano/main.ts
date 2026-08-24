@@ -62,8 +62,6 @@ interface ScoreCatalog {
   source: string;
 }
 
-const CANVAS_W = 900;
-const CANVAS_H = 600;
 const WHITE_W = 0.34;
 const WHITE_D = 2.45;
 const WHITE_H = 0.20;
@@ -72,6 +70,9 @@ const BLACK_D = 1.48;
 const BLACK_H = 0.28;
 const PRESS_DEPTH = 0.13;
 const PRESS_MS = 140;
+const CAMERA_BASE_RADIUS = 13.4;
+const CAMERA_REFERENCE_ASPECT = 3 / 2;
+const CAMERA_MAX_RADIUS = 55;
 const BLACK_PITCH_CLASSES = new Set([1, 3, 6, 8, 10]);
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -125,13 +126,10 @@ function rayIntersectsAABB(
 }
 
 function screenToRay(
-  px: number,
-  py: number,
+  ndcX: number,
+  ndcY: number,
   invViewProj: Float32Array,
 ): { origin: [number, number, number]; dir: [number, number, number] } {
-  const ndcX = (px / CANVAS_W) * 2 - 1;
-  const ndcY = -(py / CANVAS_H) * 2 + 1;
-
   const unproject = (z: number): [number, number, number] => {
     const v = [ndcX, ndcY, z, 1];
     const r = [0, 0, 0, 0];
@@ -195,6 +193,7 @@ class PianoDemo {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.08, b: 0.10, a: 1 },
+      devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2),
     });
     await this.engine.init();
 
@@ -229,7 +228,7 @@ class PianoDemo {
     const targetX = keyboardW / 2;
 
     const spherical = new SphericalTransform3D({
-      radius: 13.4,
+      radius: CAMERA_BASE_RADIUS,
       theta: 0,
       phi: Math.PI / 3.6,
       target: [targetX, 0, 0.28],
@@ -513,10 +512,11 @@ class PianoDemo {
 
   private _pickKey(clientX: number, clientY: number, canvas: HTMLCanvasElement): PianoKey | null {
     const rect = canvas.getBoundingClientRect();
-    const px = (clientX - rect.left) * (CANVAS_W / rect.width);
-    const py = (clientY - rect.top) * (CANVAS_H / rect.height);
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
     const invVP = mat4.inverse(this.viewProj) as Float32Array;
-    const { origin, dir } = screenToRay(px, py, invVP);
+    const { origin, dir } = screenToRay(ndcX, ndcY, invVP);
 
     let best: PianoKey | null = null;
     let bestT = Infinity;
@@ -538,9 +538,15 @@ class PianoDemo {
 
   private _tick(time: number, delta: number) {
     const camT = this.camEntity.getComponent(SphericalTransform3D)!;
+    const aspect = this.engine.displayWidth / Math.max(1, this.engine.displayHeight);
+    const responsiveRadius = Math.min(
+      CAMERA_MAX_RADIUS,
+      CAMERA_BASE_RADIUS * Math.max(1, CAMERA_REFERENCE_ASPECT / aspect),
+    );
+    if (Math.abs(camT.radius - responsiveRadius) > 0.001) camT.radius = responsiveRadius;
     camT.updateWorldMatrix();
     const view = mat4.inverse(camT.worldMatrix) as Float32Array;
-    this.cam3D.updateAspect(CANVAS_W / CANVAS_H);
+    this.cam3D.updateAspect(aspect);
     mat4.multiply(this.cam3D.projectionMatrix, view, this.viewProj);
 
     const now = performance.now();

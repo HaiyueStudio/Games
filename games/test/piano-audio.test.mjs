@@ -27,7 +27,7 @@ test('piano audio is self-contained and no longer loads MIDI.js', () => {
   const html = read('games', 'piano', 'index.html');
   const main = read('games', 'piano', 'main.ts');
   assert.doesNotMatch(html, /MIDI\.min\.js|cdnjs\.cloudflare\.com/);
-  assert.match(html, /bundle\.js\?v=piano-midi-library-v3/);
+  assert.match(html, /bundle\.js\?v=piano-fullscreen-v4/);
   assert.doesNotMatch(main, /window\.MIDI|midi-js-soundfonts/);
   assert.match(main, /new PianoSynth\(\)/);
 });

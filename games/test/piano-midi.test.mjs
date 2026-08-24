@@ -70,3 +70,15 @@ test('piano exposes automatic playback and pointer glissando controls', () => {
   assert.match(main, /setPointerCapture\(event\.pointerId\)/);
   assert.match(main, /key\.midi === lastPointerMidi/);
 });
+
+test('piano canvas and camera follow the browser viewport', () => {
+  const html = read('games', 'piano', 'index.html');
+  const main = read('games', 'piano', 'main.ts');
+  assert.match(html, /#wrap\s*\{[^}]*width:\s*100vw;[^}]*height:\s*100dvh;/s);
+  assert.match(html, /canvas\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/s);
+  assert.match(html, /<canvas id="canvas"><\/canvas>/);
+  assert.match(main, /devicePixelRatio:\s*\(\) => Math\.min\(window\.devicePixelRatio \|\| 1, 2\)/);
+  assert.match(main, /this\.engine\.displayWidth \/ Math\.max\(1, this\.engine\.displayHeight\)/);
+  assert.match(main, /CAMERA_BASE_RADIUS \* Math\.max\(1, CAMERA_REFERENCE_ASPECT \/ aspect\)/);
+  assert.doesNotMatch(main, /CANVAS_W|CANVAS_H/);
+});
