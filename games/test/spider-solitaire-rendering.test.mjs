@@ -8,7 +8,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '.
 const read = (...parts) => readFileSync(join(repositoryRoot, ...parts), 'utf8');
 
 test('Spider Solitaire draws canvas card textures after opaque card bodies', () => {
-  const source = read('games', 'spider-solitaire', 'main.ts');
+  const source = read('games', 'spider-solitaire', 'SpiderSolitaireGame.ts');
   const page = read('games', 'spider-solitaire', 'index.html');
 
   assert.match(
@@ -29,7 +29,7 @@ test('Spider Solitaire draws canvas card textures after opaque card bodies', () 
 });
 
 test('Spider Solitaire reuses scene entities and geometry during drag and deal animation', () => {
-  const source = read('games', 'spider-solitaire', 'main.ts');
+  const source = read('games', 'spider-solitaire', 'SpiderSolitaireGame.ts');
 
   assert.match(source, /private sceneVisuals: SceneVisual\[\] = \[\]/, 'scene visuals should be pooled');
   assert.match(source, /private geometryCache = new Map<string, Geometry3D>\(\)/, 'generated geometry should be cached');

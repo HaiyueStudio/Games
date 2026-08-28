@@ -1,7 +1,7 @@
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial, RadialShadowMaterial } from '@haiyue/engine/material';
 import { BlinnPhongRenderSystem, RadialShadowRenderFeature, Render3DSystem } from '@haiyue/engine/systems';
-import { Camera3D, CartesianTransform3D, ColorSRGB, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, Transform2D, HaiyueEngine, World, createBox3D, createPlane3D, createSphere3D } from '@haiyue/engine';
+import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, Transform2D, HaiyueEngine, World, createBox3D, createPlane3D, createSphere3D } from '@haiyue/engine';
 import {
   Physics2DBody,
   Physics2DSystem,

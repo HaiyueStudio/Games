@@ -1,4 +1,4 @@
-import { CalendarPuzzleGame } from '../../calendar-puzzle/main';
+import { CalendarPuzzleGame } from '../../calendar-puzzle/CalendarPuzzleGame';
 
 interface PadPointerEvent {
   x: number;

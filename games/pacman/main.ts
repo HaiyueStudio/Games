@@ -20,7 +20,6 @@ import {
   DIRECTION_VECTORS,
   OPPOSITE_DIRECTION,
   PACMAN_MAZE_LAYOUT,
-  availableDirections,
   cellAt,
   chooseGhostDirection,
   ghostTarget,

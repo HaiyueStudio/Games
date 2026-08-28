@@ -270,7 +270,7 @@ async function createLocalSource(files: FileList | File[]): Promise<SpineSource>
   const meta = parseSpineMeta(jsonText);
   let imageFile = list.find(file => /\.(png|jpg|jpeg|webp)$/i.test(file.name)) ?? null;
   const imageUrls: Record<string, string> = {};
-  let atlasUrl = '';
+  let atlasUrl: string;
   if (atlasFile) {
     const atlasText = await atlasFile.text();
     const atlasBase = dirname(filePath(atlasFile));

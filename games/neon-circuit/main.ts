@@ -22,7 +22,6 @@ import {
 } from '@haiyue/engine/systems';
 import { SingleSlotGameSave, isRecord } from '../save/SingleSlotGameSave';
 import {
-  BOOST_MAX_SPEED,
   BOOST_PAD_HALF_WIDTH,
   BOOST_ZONE_HALF_LENGTH,
   BOOST_ZONES,

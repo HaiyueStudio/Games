@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 import {
   SINGLE_SLOT_SAVE_DATA_VERSION,
@@ -68,7 +68,12 @@ test('every manifest game uses the engine save facade with no direct storage acc
   assert.ok(Array.isArray(manifest.entries));
   assert.ok(manifest.entries.length > 1);
   for (const entry of manifest.entries) {
-    const source = await readFile(new URL(`../${entry.entry}`, import.meta.url), 'utf8');
+    const directory = new URL(`../${entry.entry.replace(/[^/]+$/, '')}`, import.meta.url);
+    const sourceFiles = (await readdir(directory, { recursive: true }))
+      .filter(file => file.endsWith('.ts'));
+    const source = (await Promise.all(sourceFiles.map(file => (
+      readFile(new URL(file.replaceAll('\\', '/'), directory), 'utf8')
+    )))).join('\n');
     assert.match(
       source,
       /SingleSlotGameSave|from '@haiyue\/engine\/save'/,

@@ -9,7 +9,6 @@ import { RenderIntegration } from '@haiyue/engine/experimental';
 import { mat4 } from 'wgpu-matrix';
 import { UNITY_WFC_MODULES, UnityWfcModule } from './unityModuleData';
 import {
-  UNITY_WFC_FACE_WALKABLE,
   UNITY_WFC_SPAWN_FLAGS,
 } from './unityModuleFaces';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
