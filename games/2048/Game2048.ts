@@ -14,8 +14,14 @@ import { AmbientLight } from '@haiyue/engine/lighting';
 import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { GameSaveError, GameSaveService, LocalStorageSaveBackend } from '@haiyue/engine/save';
+import { Easing, TweenManager, TweenSystem, type Tween } from '@haiyue/engine/tween';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
 import { CameraViewProjectionCache } from '../CameraViewProjectionCache';
+import {
+  loadGame2048Config,
+  type Game2048Config,
+  type Game2048Palette,
+} from './config';
 import {
   GAME_2048_ID,
   GAME_2048_SAVE_DATA_VERSION,
@@ -37,49 +43,17 @@ import {
   type TileMovement,
 } from './rules';
 
-interface Config {
-  rows: number;
-  cols: number;
-}
-
 interface TileVisual {
   entity: Entity;
   material: BasicMaterial;
   label: HTMLElement;
-  animation?: TileAnimation | undefined;
+  tween?: Tween<TileTweenPosition> | undefined;
 }
 
-interface TileAnimation {
-  fromRow: number;
-  fromCol: number;
-  toRow: number;
-  toCol: number;
-  start: number;
-  duration: number;
+interface TileTweenPosition extends Record<string, unknown> {
+  x: number;
+  z: number;
 }
-
-const CELL_SIZE = 1.22;
-const CELL_HEIGHT = 0.14;
-const TILE_HEIGHT = 0.28;
-const MOVE_ANIMATION_MS = 130;
-const SWIPE_THRESHOLD = 24;
-const geoCell = createBox3D({ width: 1.04, height: CELL_HEIGHT, depth: 1.04 });
-const geoTile = createBox3D({ width: 1.02, height: TILE_HEIGHT, depth: 1.02 });
-
-const TILE_COLORS: Record<number, { bg: string; fg: string }> = {
-  0: { bg: '#cdc1b4', fg: '#776e65' },
-  2: { bg: '#eee4da', fg: '#776e65' },
-  4: { bg: '#ede0c8', fg: '#776e65' },
-  8: { bg: '#f2b179', fg: '#f9f6f2' },
-  16: { bg: '#f59563', fg: '#f9f6f2' },
-  32: { bg: '#f67c5f', fg: '#f9f6f2' },
-  64: { bg: '#f65e3b', fg: '#f9f6f2' },
-  128: { bg: '#edcf72', fg: '#f9f6f2' },
-  256: { bg: '#edcc61', fg: '#f9f6f2' },
-  512: { bg: '#edc850', fg: '#f9f6f2' },
-  1024: { bg: '#edc53f', fg: '#f9f6f2' },
-  2048: { bg: '#edc22e', fg: '#f9f6f2' },
-};
 
 function color(hex: string): ColorSRGB {
   return ColorSRGB.fromHex(hex);
@@ -114,6 +88,9 @@ class Game2048 {
   private spherical!: SphericalTransform3D;
   private viewProj = new Float32Array(16);
   private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
+  private readonly tweenManager = new TweenManager();
+  private readonly cellGeometry: ReturnType<typeof createBox3D>;
+  private readonly tileGeometry: ReturnType<typeof createBox3D>;
 
   private board: number[][];
   private score = 0;
@@ -135,9 +112,17 @@ class Game2048 {
   private mouseStartY = 0;
   private mouseDown = false;
 
-  constructor(private config: Config) {
-    this.config.rows = Math.max(2, Math.floor(config.rows || 4));
-    this.config.cols = Math.max(2, Math.floor(config.cols || 4));
+  constructor(private readonly config: Game2048Config) {
+    this.cellGeometry = createBox3D({
+      width: config.geometry.cellWidth,
+      height: config.geometry.cellHeight,
+      depth: config.geometry.cellWidth,
+    });
+    this.tileGeometry = createBox3D({
+      width: config.geometry.tileWidth,
+      height: config.geometry.tileHeight,
+      depth: config.geometry.tileWidth,
+    });
     this.board = makeEmptyBoard(this.config.rows, this.config.cols);
     this.saves = new GameSaveService<Game2048SaveData>({
       gameId: GAME_2048_ID,
@@ -158,6 +143,7 @@ class Game2048 {
     this.engine.resizeToDisplaySize(true);
 
     this.world = new World('2048');
+    this.world.addSystem(new TweenSystem({ manager: this.tweenManager, priority: -100 }));
     this._setupCamera();
     this._setupLights();
     this._setupDOM();
@@ -173,8 +159,8 @@ class Game2048 {
   }
 
   private _setupCamera() {
-    const gridW = (this.config.cols - 1) * CELL_SIZE;
-    const gridH = (this.config.rows - 1) * CELL_SIZE;
+    const gridW = (this.config.cols - 1) * this.config.geometry.cellSize;
+    const gridH = (this.config.rows - 1) * this.config.geometry.cellSize;
     const radius = Math.max(gridW, gridH) * 1.08 + 5.2;
 
     this.spherical = new SphericalTransform3D({
@@ -287,14 +273,18 @@ class Game2048 {
   }
 
   private _buildCells() {
-    const mat = new BasicMaterial({ color: color('#cdc1b4') });
+    const mat = new BasicMaterial({ color: color(this._paletteForValue(0).bg) });
     for (let r = 0; r < this.config.rows; r++) {
       for (let c = 0; c < this.config.cols; c++) {
         const cell = new Entity(`cell_${r}_${c}`);
         cell.addComponent(new CartesianTransform3D({
-          position: [c * CELL_SIZE, -0.02, r * CELL_SIZE],
+          position: [
+            c * this.config.geometry.cellSize,
+            -0.02,
+            r * this.config.geometry.cellSize,
+          ],
         }));
-        cell.addComponent(new Mesh3D(geoCell, mat));
+        cell.addComponent(new Mesh3D(this.cellGeometry, mat));
         this.world.addEntity(cell);
         this.cells.push(cell);
       }
@@ -402,7 +392,7 @@ class Game2048 {
   }
 
   private _moveBySwipe(dx: number, dy: number) {
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < this.config.input.swipeThreshold) return;
     this._move(Math.abs(dx) > Math.abs(dy)
       ? (dx > 0 ? 'right' : 'left')
       : (dy > 0 ? 'down' : 'up'));
@@ -432,10 +422,10 @@ class Game2048 {
 
         let visual = this.tiles.get(key);
         if (!visual) {
-          const material = new BasicMaterial({ color: color('#eee4da') });
+          const material = new BasicMaterial({ color: color(this._paletteForValue(value).bg) });
           const entity = new Entity(`tile_${key}`);
           entity.addComponent(new CartesianTransform3D());
-          entity.addComponent(new Mesh3D(geoTile, material));
+          entity.addComponent(new Mesh3D(this.tileGeometry, material));
           this.world.addEntity(entity);
 
           const label = document.createElement('div');
@@ -446,7 +436,7 @@ class Game2048 {
           this.tiles.set(key, visual);
         }
 
-        const palette = TILE_COLORS[value] ?? { bg: '#3c3a32', fg: '#f9f6f2' };
+        const palette = this._paletteForValue(value);
         const bg = color(palette.bg);
         visual.material.color.setFromSRGB(bg.r, bg.g, bg.b, 1);
         visual.label.textContent = String(value);
@@ -456,28 +446,28 @@ class Game2048 {
         const transform = visual.entity.getComponent(CartesianTransform3D)!;
         const movement = movementMap.get(key);
         if (movement && (movement.fromRow !== r || movement.fromCol !== c)) {
-          visual.animation = {
-            fromRow: movement.fromRow,
-            fromCol: movement.fromCol,
-            toRow: r,
-            toCol: c,
-            start: performance.now(),
-            duration: MOVE_ANIMATION_MS,
-          };
-          transform.setPosition(
-            movement.fromCol * CELL_SIZE,
-            TILE_HEIGHT * 0.55,
-            movement.fromRow * CELL_SIZE,
+          this._animateTile(
+            visual,
+            transform,
+            movement.fromCol * this.config.geometry.cellSize,
+            movement.fromRow * this.config.geometry.cellSize,
+            c * this.config.geometry.cellSize,
+            r * this.config.geometry.cellSize,
           );
         } else {
-          visual.animation = undefined;
-          transform.setPosition(c * CELL_SIZE, TILE_HEIGHT * 0.55, r * CELL_SIZE);
+          this._stopTileTween(visual);
+          transform.setPosition(
+            c * this.config.geometry.cellSize,
+            this.config.geometry.tileHeight * 0.55,
+            r * this.config.geometry.cellSize,
+          );
         }
       }
     }
 
     for (const [key, visual] of this.tiles) {
       if (used.has(key)) continue;
+      this._stopTileTween(visual);
       this.world.removeEntity(visual.entity);
       visual.label.remove();
       this.tiles.delete(key);
@@ -486,6 +476,46 @@ class Game2048 {
     this.elScore.textContent = String(this.score);
     this.elBest.textContent = String(this.best);
     this._syncStatus();
+  }
+
+  private _paletteForValue(value: number): Game2048Palette {
+    return this.config.colors.tiles[String(value)] ?? this.config.colors.fallback;
+  }
+
+  private _animateTile(
+    visual: TileVisual,
+    transform: CartesianTransform3D,
+    fromX: number,
+    fromZ: number,
+    toX: number,
+    toZ: number,
+  ): void {
+    this._stopTileTween(visual);
+    transform.setPosition(fromX, this.config.geometry.tileHeight * 0.55, fromZ);
+
+    const position: TileTweenPosition = { x: fromX, z: fromZ };
+    const tween = this.tweenManager.create(position, {
+      duration: this.config.animation.moveDurationMs,
+      easing: Easing.cubicOut,
+    });
+    tween.onUpdate = current => {
+      transform.setPosition(current.x, this.config.geometry.tileHeight * 0.55, current.z);
+    };
+    tween.onComplete = () => {
+      if (visual.tween !== tween) return;
+      transform.setPosition(toX, this.config.geometry.tileHeight * 0.55, toZ);
+      visual.tween = undefined;
+    };
+    tween.to({ x: toX, z: toZ });
+    visual.tween = tween;
+  }
+
+  private _stopTileTween(visual: TileVisual): void {
+    const tween = visual.tween;
+    if (!tween) return;
+    tween.stop();
+    this.tweenManager.remove(tween);
+    visual.tween = undefined;
   }
 
   private _fontSizeForValue(value: number): number {
@@ -514,7 +544,7 @@ class Game2048 {
       const z = requiredNumberAt(transform.position, 2, '2048 tile position');
       const sc = project3DToScreen(
         x,
-        TILE_HEIGHT + 0.18,
+        this.config.geometry.tileHeight + 0.18,
         z,
         this.viewProj,
         viewportWidth,
@@ -526,43 +556,16 @@ class Game2048 {
     }
   }
 
-  private _updateAnimations(now: number) {
-    for (const visual of this.tiles.values()) {
-      const animation = visual.animation;
-      if (!animation) continue;
-
-      const t = Math.min(1, (now - animation.start) / animation.duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const x = (animation.fromCol + (animation.toCol - animation.fromCol) * eased) * CELL_SIZE;
-      const z = (animation.fromRow + (animation.toRow - animation.fromRow) * eased) * CELL_SIZE;
-      visual.entity
-        .getComponent(CartesianTransform3D)!
-        .setPosition(x, TILE_HEIGHT * 0.55, z);
-
-      if (t >= 1) {
-        visual.animation = undefined;
-      }
-    }
-  }
-
   private _tick(time: number, delta: number) {
     const viewportWidth = Math.max(1, this.engine.displayWidth);
     const viewportHeight = Math.max(1, this.engine.displayHeight);
     this.cameraProjection.update(this.spherical, this.cam3D, viewportWidth, viewportHeight);
-    this._updateAnimations(performance.now());
-    this._updateLabels(viewportWidth, viewportHeight);
     this.world.update(time, delta);
+    this._updateLabels(viewportWidth, viewportHeight);
   }
 }
 
 export async function start2048(canvas: HTMLCanvasElement): Promise<void> {
-  const cfg = await fetch('./config.json')
-    .then(r => r.json())
-    .catch(() => ({ rows: 4, cols: 4 })) as Partial<Config>;
-
-  const game = new Game2048({
-    rows: cfg.rows ?? 4,
-    cols: cfg.cols ?? 4,
-  });
+  const game = new Game2048(await loadGame2048Config());
   await game.init(canvas);
 }

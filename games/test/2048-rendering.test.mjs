@@ -14,7 +14,15 @@ test('2048 fills the viewport and renders with four-sample MSAA', async () => {
   assert.match(source, /engine\.displayWidth/);
   assert.match(source, /engine\.displayHeight/);
   assert.match(source, /cameraProjection\.update/);
+  assert.match(source, /new TweenSystem\(/);
+  assert.match(source, /Easing\.cubicOut/);
+  assert.match(source, /tweenManager\.create/);
+  assert.match(source, /loadGame2048Config/);
   assert.doesNotMatch(source, /updateWorldMatrix\(/);
   assert.doesNotMatch(source, /updateAspect\(/);
+  assert.doesNotMatch(source, /_updateAnimations/);
+  assert.doesNotMatch(source, /interface TileAnimation/);
+  assert.doesNotMatch(source, /const (?:CELL|TILE|MOVE|SWIPE)_/);
+  assert.doesNotMatch(source, /const TILE_COLORS/);
   assert.doesNotMatch(source, /const CANVAS_[WH]\s*=/);
 });
