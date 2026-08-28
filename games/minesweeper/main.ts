@@ -24,6 +24,7 @@ import { Material2D } from '@haiyue/engine';
 import { createRect2D } from '@haiyue/engine/geometry';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { CameraViewProjectionCache } from '../CameraViewProjectionCache';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,6 +269,7 @@ class Minesweeper {
 
   // viewProj for picking & projection
   private viewProj: Float32Array = new Float32Array(16);
+  private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
 
   constructor(rows: number, cols: number, mines: number) {
     this.rows       = rows;
@@ -913,12 +915,7 @@ class Minesweeper {
     }
 
     // Build viewProj from camera for picking & label projection
-    const cam3D = this.camEntity.getComponent(Camera3D)!;
-    const camT  = this.camEntity.getComponent(SphericalTransform3D)!;
-    camT.updateWorldMatrix();
-    const view = mat4.inverse(camT.worldMatrix) as Float32Array;
-    cam3D.updateAspect(CANVAS_W / CANVAS_H);
-    mat4.multiply(cam3D.projectionMatrix, view, this.viewProj);
+    this.cameraProjection.update(this.spherical, this.cam3D, CANVAS_W, CANVAS_H);
 
     this._updateLabels();
 

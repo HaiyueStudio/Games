@@ -14,8 +14,8 @@ import { AmbientLight } from '@haiyue/engine/lighting';
 import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { GameSaveError, GameSaveService, LocalStorageSaveBackend } from '@haiyue/engine/save';
-import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { CameraViewProjectionCache } from '../CameraViewProjectionCache';
 import {
   GAME_2048_ID,
   GAME_2048_SAVE_DATA_VERSION,
@@ -113,6 +113,7 @@ class Game2048 {
   private cam3D!: Camera3D;
   private spherical!: SphericalTransform3D;
   private viewProj = new Float32Array(16);
+  private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
 
   private board: number[][];
   private score = 0;
@@ -547,11 +548,7 @@ class Game2048 {
   private _tick(time: number, delta: number) {
     const viewportWidth = Math.max(1, this.engine.displayWidth);
     const viewportHeight = Math.max(1, this.engine.displayHeight);
-    const camT = this.camEntity.getComponent(SphericalTransform3D)!;
-    camT.updateWorldMatrix();
-    const view = mat4.inverse(camT.worldMatrix) as Float32Array;
-    this.cam3D.updateAspect(viewportWidth / viewportHeight);
-    mat4.multiply(this.cam3D.projectionMatrix, view, this.viewProj);
+    this.cameraProjection.update(this.spherical, this.cam3D, viewportWidth, viewportHeight);
     this._updateAnimations(performance.now());
     this._updateLabels(viewportWidth, viewportHeight);
     this.world.update(time, delta);

@@ -15,6 +15,7 @@ import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { mat4 } from 'wgpu-matrix';
 import { requiredNumberAt } from '../arrayAccess';
+import { CameraViewProjectionCache } from '../CameraViewProjectionCache';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 import { PianoSynth } from './audio';
 import { type ParsedMidi, parseMidi } from './midi';
@@ -168,6 +169,7 @@ class PianoDemo {
   private cam3D!: Camera3D;
   private keys: PianoKey[] = [];
   private viewProj = new Float32Array(16);
+  private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
   private readonly audio = new PianoSynth();
   private audioReady = false;
   private readonly scoreCache = new Map<string, ParsedMidi>();
@@ -544,10 +546,12 @@ class PianoDemo {
       CAMERA_BASE_RADIUS * Math.max(1, CAMERA_REFERENCE_ASPECT / aspect),
     );
     if (Math.abs(camT.radius - responsiveRadius) > 0.001) camT.radius = responsiveRadius;
-    camT.updateWorldMatrix();
-    const view = mat4.inverse(camT.worldMatrix) as Float32Array;
-    this.cam3D.updateAspect(aspect);
-    mat4.multiply(this.cam3D.projectionMatrix, view, this.viewProj);
+    this.cameraProjection.update(
+      camT,
+      this.cam3D,
+      this.engine.displayWidth,
+      this.engine.displayHeight,
+    );
 
     const now = performance.now();
     for (const key of this.keys) {

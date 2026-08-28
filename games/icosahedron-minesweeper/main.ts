@@ -18,6 +18,7 @@ import { DirectionalLight } from '@haiyue/engine';
 import { EnvironmentLight } from '@haiyue/engine';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
+import { CameraViewProjectionCache } from '../CameraViewProjectionCache';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 type CellState = 'hidden' | 'revealed' | 'flagged';
@@ -288,6 +289,7 @@ class IcosahedronMinesweeper {
   private camera!: Entity;
   private cameraTransform!: SphericalTransform3D;
   private viewProj = mat4.identity() as Float32Array;
+  private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
   private ray = new Ray();
   private cells: Cell[] = [];
   private readonly cellMaterials = createCellMaterialPalette();
@@ -632,11 +634,13 @@ class IcosahedronMinesweeper {
   }
 
   private _updateViewProjection(): void {
-    this.cameraTransform.updateWorldMatrix();
     const camera = this.camera.getComponent(Camera3D)!;
-    camera.updateAspect(this.engine.displayWidth / this.engine.displayHeight);
-    const view = mat4.inverse(this.cameraTransform.worldMatrix) as Float32Array;
-    mat4.multiply(camera.projectionMatrix, view, this.viewProj);
+    this.cameraProjection.update(
+      this.cameraTransform,
+      camera,
+      this.engine.displayWidth,
+      this.engine.displayHeight,
+    );
   }
 
   private _updateLabels(): void {

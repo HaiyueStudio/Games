@@ -13,5 +13,8 @@ test('2048 fills the viewport and renders with four-sample MSAA', async () => {
   assert.match(source, /msaaSamples:\s*4/);
   assert.match(source, /engine\.displayWidth/);
   assert.match(source, /engine\.displayHeight/);
+  assert.match(source, /cameraProjection\.update/);
+  assert.doesNotMatch(source, /updateWorldMatrix\(/);
+  assert.doesNotMatch(source, /updateAspect\(/);
   assert.doesNotMatch(source, /const CANVAS_[WH]\s*=/);
 });
