@@ -19,6 +19,16 @@ export interface Game2048Config {
   input: {
     swipeThreshold: number;
   };
+  hud: {
+    modal: {
+      winTitle: string;
+      winMessage: string;
+      lostTitle: string;
+      lostMessage: string;
+      confirmText: string;
+      cancelText: string;
+    };
+  };
   colors: {
     fallback: Game2048Palette;
     tiles: Record<string, Game2048Palette>;
@@ -36,6 +46,8 @@ export function parseGame2048Config(value: unknown): Game2048Config {
   const geometry = requiredRecord(value.geometry, 'geometry');
   const animation = requiredRecord(value.animation, 'animation');
   const input = requiredRecord(value.input, 'input');
+  const hud = requiredRecord(value.hud, 'hud');
+  const modal = requiredRecord(hud.modal, 'hud.modal');
   const colors = requiredRecord(value.colors, 'colors');
   const tiles = requiredRecord(colors.tiles, 'colors.tiles');
 
@@ -61,6 +73,16 @@ export function parseGame2048Config(value: unknown): Game2048Config {
     },
     input: {
       swipeThreshold: positiveNumber(input.swipeThreshold, 'input.swipeThreshold'),
+    },
+    hud: {
+      modal: {
+        winTitle: nonEmptyString(modal.winTitle, 'hud.modal.winTitle'),
+        winMessage: nonEmptyString(modal.winMessage, 'hud.modal.winMessage'),
+        lostTitle: nonEmptyString(modal.lostTitle, 'hud.modal.lostTitle'),
+        lostMessage: nonEmptyString(modal.lostMessage, 'hud.modal.lostMessage'),
+        confirmText: nonEmptyString(modal.confirmText, 'hud.modal.confirmText'),
+        cancelText: nonEmptyString(modal.cancelText, 'hud.modal.cancelText'),
+      },
     },
     colors: {
       fallback: parsePalette(colors.fallback, 'colors.fallback'),
@@ -99,6 +121,13 @@ function positiveNumber(value: unknown, path: string): number {
 function hexColor(value: unknown, path: string): string {
   if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) {
     throw new TypeError(`2048 config ${path} must be a six-digit hex color.`);
+  }
+  return value;
+}
+
+function nonEmptyString(value: unknown, path: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new TypeError(`2048 config ${path} must be a non-empty string.`);
   }
   return value;
 }

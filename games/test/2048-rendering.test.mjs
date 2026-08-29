@@ -20,12 +20,14 @@ test('2048 fills the viewport and renders its HUD with engine GUI and four-sampl
   assert.match(source, /loadGame2048Config/);
   assert.match(source, /new GuiRoot\(/);
   assert.match(source, /new GuiLabel\(/);
+  assert.match(source, /new GuiModal\(/);
   assert.match(source, /new GuiButton\(/);
   assert.equal(source.match(/new GuiButton\(/g)?.length, 1);
   assert.match(source, /autoWidth:\s*true/);
   assert.match(source, /hoverBackgroundColor:/);
   assert.doesNotMatch(source, /labelRoot|labelEntity|_textElement/);
   assert.match(source, /new GuiSystem\(/);
+  assert.doesNotMatch(source, /guiStatus/);
   assert.doesNotMatch(source, /BlinnPhongRenderSystem/);
   assert.doesNotMatch(source, /document\.|HTMLElement|createElement|getElementById/);
   assert.doesNotMatch(source, /updateWorldMatrix\(/);

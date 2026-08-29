@@ -17,6 +17,8 @@ test('2048 JSON config owns board, geometry, animation, input, and palette setti
   assert.equal(config.geometry.tileHeight, 0.28);
   assert.equal(config.animation.moveDurationMs, 130);
   assert.equal(config.input.swipeThreshold, 24);
+  assert.equal(config.hud.modal.winTitle, 'You win!');
+  assert.equal(config.hud.modal.confirmText, 'New Game');
   assert.deepEqual(config.colors.tiles['2048'], { bg: '#edc22e', fg: '#f9f6f2' });
 });
 
@@ -36,5 +38,12 @@ test('2048 config validation rejects unsafe dimensions and malformed colors', as
       },
     }),
     /colors\.tiles\.2\.bg/,
+  );
+  assert.throws(
+    () => parseGame2048Config({
+      ...raw,
+      hud: { modal: { ...raw.hud.modal, confirmText: '   ' } },
+    }),
+    /hud\.modal\.confirmText/,
   );
 });

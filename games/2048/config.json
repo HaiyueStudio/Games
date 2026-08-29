@@ -14,6 +14,16 @@
   "input": {
     "swipeThreshold": 24
   },
+  "hud": {
+    "modal": {
+      "winTitle": "You win!",
+      "winMessage": "Keep playing or start a new game.",
+      "lostTitle": "Game over",
+      "lostMessage": "No more moves. Start a new game.",
+      "confirmText": "New Game",
+      "cancelText": "Keep Playing"
+    }
+  },
   "colors": {
     "fallback": { "bg": "#3c3a32", "fg": "#f9f6f2" },
     "tiles": {

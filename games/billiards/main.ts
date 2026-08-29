@@ -6,7 +6,9 @@ import {
   Physics2DSystem,
 } from '@haiyue/engine/physics';
 import { RenderIntegration } from '@haiyue/engine/experimental';
+import { GuiSystem } from '@haiyue/engine/gui';
 import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+import { BilliardsHud } from './BilliardsHud';
 
 interface BilliardsSaveData {
   potted: number;
@@ -55,14 +57,6 @@ function screenToWorld(canvas: HTMLCanvasElement, camera: Camera2D, event: Point
   return [x, y];
 }
 
-function worldToScreen(canvas: HTMLCanvasElement, camera: Camera2D, x: number, y: number): [number, number] {
-  const rect = canvas.getBoundingClientRect();
-  return [
-    rect.width * (0.5 + (x * camera.zoom) / camera.width),
-    rect.height * (0.5 - (y * camera.zoom) / camera.height),
-  ];
-}
-
 function clampPull(dx: number, dy: number): [number, number] {
   const length = Math.hypot(dx, dy);
   if (length <= MAX_PULL || length === 0) return [dx, dy];
@@ -81,6 +75,9 @@ class BilliardsGame {
   private cameraEntity!: Entity;
   private camera!: Camera2D;
   private physics!: Physics2DSystem;
+  private hud!: BilliardsHud;
+  private aimTransform!: Transform2D;
+  private aimMesh!: Mesh2D;
 
   private balls: Ball[] = [];
   private tableEntities: Entity[] = [];
@@ -91,10 +88,7 @@ class BilliardsGame {
   private pointerId = -1;
   private readonly velocityScratch = { x: 0, y: 0 };
   private wasMoving = false;
-
-  private elScore = document.getElementById('score')!;
-  private elState = document.getElementById('state')!;
-  private aimEl = document.getElementById('aim') as HTMLElement;
+  private newGameRequested = false;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new HaiyueEngine({
@@ -102,9 +96,16 @@ class BilliardsGame {
       clearColor: { r: 0.06, g: 0.16, b: 0.12, a: 1 },
     });
     await this.engine.init();
+    this.engine.resizeToDisplaySize(true);
 
     this.world = new World('Billiards');
-    this.camera = new Camera2D();
+    this.camera = new Camera2D({
+      width: 900,
+      height: 600,
+      designWidth: 900,
+      designHeight: 600,
+      viewportMode: 'expand',
+    });
     this.cameraEntity = new Entity('Camera');
     this.cameraEntity.addComponent(this.camera);
     this.world.addEntity(this.cameraEntity);
@@ -118,13 +119,17 @@ class BilliardsGame {
     });
     this.world.addSystem(this.physics);
     this.world.addSystem(new Mesh2DRenderSystem(this.engine, this.cameraEntity, { loadOp: 'clear', priority: 10 }));
+    this.hud = new BilliardsHud(this.world, () => this.requestNewGame());
+    const guiSystem = new GuiSystem(this.engine, { loadOp: 'load' });
+    guiSystem.priority = 20;
+    this.world.addSystem(guiSystem);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Billiards.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
 
     await this.loadOrStart();
+    this.setupAimGuide();
     this.setupInput(canvas);
-    document.getElementById('btn-new')!.addEventListener('click', () => this.newGame());
 
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
@@ -155,15 +160,21 @@ class BilliardsGame {
       }
     }
 
-    this.world.update(0, 0);
     this.updateHud();
     this.wasMoving = false;
     if (save) this.saveState();
   }
 
+  private requestNewGame(): void {
+    this.newGameRequested = true;
+  }
+
   private async loadOrStart(): Promise<void> {
     const saved = await this.saves.load();
     this.newGame(false);
+    // Initial physics bodies must exist before a saved position can be restored.
+    // This runs before the engine loop starts, so it cannot re-enter GUI dispatch.
+    this.world.update(0, 0);
     if (!saved) {
       this.saveState();
       return;
@@ -280,13 +291,13 @@ class BilliardsGame {
       this.pointerId = event.pointerId;
       this.aimStart = [this.cueBall.transform.x, this.cueBall.transform.y];
       canvas.setPointerCapture(event.pointerId);
-      this.updateAim(canvas, target);
+      this.updateAim(target);
       event.preventDefault();
     });
 
     canvas.addEventListener('pointermove', (event) => {
       if (!this.aiming || event.pointerId !== this.pointerId) return;
-      this.updateAim(canvas, screenToWorld(canvas, this.camera, event));
+      this.updateAim(screenToWorld(canvas, this.camera, event));
       event.preventDefault();
     });
 
@@ -303,17 +314,13 @@ class BilliardsGame {
     canvas.addEventListener('pointercancel', release);
   }
 
-  private updateAim(canvas: HTMLCanvasElement, pointer: [number, number]): void {
+  private updateAim(pointer: [number, number]): void {
     const [pullX, pullY] = clampPull(pointer[0] - this.aimStart[0], pointer[1] - this.aimStart[1]);
-    const [sx, sy] = worldToScreen(canvas, this.camera, this.aimStart[0], this.aimStart[1]);
     const length = Math.hypot(pullX, pullY);
-    const angle = Math.atan2(-pullY, pullX);
-    this.aimEl.style.display = 'block';
-    this.aimEl.style.left = `${sx}px`;
-    this.aimEl.style.top = `${sy}px`;
-    this.aimEl.style.width = `${length}px`;
-    this.aimEl.style.transform = `rotate(${angle}rad)`;
-    this.elState.textContent = `Power ${Math.round(length / MAX_PULL * 100)}%`;
+    this.aimTransform.setPosition(this.aimStart[0] + pullX * 0.5, this.aimStart[1] + pullY * 0.5);
+    this.aimTransform.rotation = Math.atan2(pullY, pullX);
+    this.aimTransform.setScale(Math.max(0.001, length), 1);
+    this.hud.setState(`Power ${Math.round(length / MAX_PULL * 100)}%`);
   }
 
   private shoot(pointer: [number, number]): void {
@@ -327,10 +334,14 @@ class BilliardsGame {
       -pullX * IMPULSE_SCALE,
       -pullY * IMPULSE_SCALE,
     )) return;
-    this.elState.textContent = 'Rolling';
+    this.hud.setState('Rolling');
   }
 
   private tick(time: number, delta: number): void {
+    if (this.newGameRequested) {
+      this.newGameRequested = false;
+      this.newGame();
+    }
     this.world.update(time, delta);
     this.checkPockets();
     this.settleSlowBalls();
@@ -383,18 +394,31 @@ class BilliardsGame {
   }
 
   private updateHud(): void {
-    this.elScore.textContent = `${this.potted} / 10`;
+    this.hud.setScore(this.potted);
     if (this.potted >= 10) {
-      this.elState.textContent = 'Cleared';
+      this.hud.setState('Cleared');
     } else if (this.canShoot()) {
-      this.elState.textContent = 'Ready';
+      this.hud.setState('Ready');
     } else {
-      this.elState.textContent = 'Rolling';
+      this.hud.setState('Rolling');
     }
   }
 
   private hideAim(): void {
-    this.aimEl.style.display = 'none';
+    if (this.aimTransform) this.aimTransform.setScale(0, 0);
+  }
+
+  private setupAimGuide(): void {
+    const entity = new Entity('Aim Guide');
+    this.aimTransform = new Transform2D();
+    this.aimTransform.setScale(0, 0);
+    this.aimMesh = new Mesh2D(
+      createRect2D({ width: 1, height: 4 }),
+      new Material2D({ color: new ColorSRGB(1, 1, 1, 0.8), blending: 'normal' }),
+    );
+    entity.addComponent(this.aimTransform);
+    entity.addComponent(this.aimMesh);
+    this.world.addEntity(entity);
   }
 }
 

@@ -19,6 +19,7 @@ import {
   GuiButton,
   GuiDirtyFlags,
   GuiLabel,
+  GuiModal,
   GuiRoot,
   GuiSystem,
   type GuiElement,
@@ -145,7 +146,8 @@ class Game2048 {
   private tileLabelRoot!: GuiRoot;
   private guiScore!: GuiLabel;
   private guiBest!: GuiLabel;
-  private guiStatus!: GuiLabel;
+  private guiModal!: GuiModal;
+  private dismissedModalPhase: GamePhase | null = null;
 
   private touchStartX = 0;
   private touchStartY = 0;
@@ -284,24 +286,48 @@ class Game2048 {
     }));
     this._anchorBefore(this.guiScore, this.guiBest, 8);
 
-    const status = this._createGuiRoot('2048StatusGui', 22, '#776e65');
-    this.guiStatus = status.root.add(new GuiLabel({
-      x: 0,
-      y: 0,
-      width: 360,
-      height: 112,
-      text: '',
-      textAlign: 'center',
-      visible: false,
+    this.tileLabelRoot = this._createGuiRoot('2048TileLabelsGui', 34, '#776e65').root;
+
+    const modalConfig = this.config.hud.modal;
+    const status = this._createGuiRoot('2048ModalGui', 16, '#776e65');
+    this.guiModal = status.root.add(new GuiModal({
+      width: 440,
+      height: 240,
+      title: modalConfig.winTitle,
+      message: modalConfig.winMessage,
+      confirmText: modalConfig.confirmText,
+      cancelText: modalConfig.cancelText,
+      showCloseButton: true,
+      showConfirmButton: true,
+      showCancelButton: true,
+      closeOnBackdrop: false,
       style: {
-        backgroundColor: 'rgba(238,228,218,0.92)',
+        backgroundColor: '#f5eee6',
         borderColor: '#bbada0',
-        radius: 8,
+        color: '#776e65',
+        radius: 10,
+      },
+      backdropColor: 'rgba(238,228,218,0.72)',
+      onConfirm: () => this._newGame(),
+      onCancel: () => this._dismissModal(),
+      onClose: reason => {
+        if (reason === 'close' || reason === 'backdrop') this._dismissModal();
       },
     }));
-    this._anchorCenter(this.guiStatus);
-
-    this.tileLabelRoot = this._createGuiRoot('2048TileLabelsGui', 34, '#776e65').root;
+    this.guiModal.confirmButton.setStyle({
+      backgroundColor: '#8f7a66',
+      hoverBackgroundColor: '#9f8b76',
+      borderColor: '#8f7a66',
+      color: '#f9f6f2',
+      hoverColor: '#ffffff',
+    });
+    this.guiModal.cancelButton.setStyle({
+      backgroundColor: '#ded4ca',
+      hoverBackgroundColor: '#d2c5b8',
+      borderColor: '#bbada0',
+      color: '#776e65',
+      hoverColor: '#5f554b',
+    });
 
     const controls = this._createGuiRoot('2048ControlsGui', 15, '#f9f6f2');
     const newGame = controls.root.add(new GuiButton({
@@ -363,15 +389,6 @@ class Game2048 {
       layout(parentRect);
       element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
       element.rect.y = parentRect.y + parentRect.height - bottom - element.rect.height;
-    };
-  }
-
-  private _anchorCenter(element: GuiElement): void {
-    const layout = element.layout.bind(element);
-    element.layout = (parentRect) => {
-      layout(parentRect);
-      element.rect.x = parentRect.x + (parentRect.width - element.rect.width) / 2;
-      element.rect.y = parentRect.y + (parentRect.height - element.rect.height) / 2;
     };
   }
 
@@ -509,6 +526,8 @@ class Game2048 {
     this.board = makeEmptyBoard(this.config.rows, this.config.cols);
     this.score = 0;
     this.phase = 'playing';
+    this.dismissedModalPhase = null;
+    this.guiModal?.hide();
     this._spawnRandomTile();
     this._spawnRandomTile();
     if (save) {
@@ -530,7 +549,7 @@ class Game2048 {
   }
 
   private _move(direction: Direction) {
-    if (this.phase === 'lost') return;
+    if (this.phase === 'lost' || this.guiModal?.visible) return;
 
     const before = cloneBoard(this.board);
     const result = calculateMove(this.board, direction);
@@ -693,16 +712,27 @@ class Game2048 {
 
   private _syncStatus() {
     if (this.phase === 'playing') {
-      this.guiStatus.setVisible(false);
+      this.dismissedModalPhase = null;
+      this.guiModal.hide();
+      return;
+    }
+    if (this.dismissedModalPhase === this.phase) {
+      this.guiModal.hide();
       return;
     }
 
-    const title = this.phase === 'won' ? 'You win!' : 'Game over';
-    const subtitle = this.phase === 'won'
-      ? 'Keep playing or start a new game.'
-      : 'No more moves. Start a new game.';
-    this.guiStatus.setText(`${title} · ${subtitle}`);
-    this.guiStatus.setVisible(true);
+    const modal = this.config.hud.modal;
+    const won = this.phase === 'won';
+    this.guiModal.setTitle(won ? modal.winTitle : modal.lostTitle);
+    this.guiModal.setMessage(won ? modal.winMessage : modal.lostMessage);
+    this.guiModal.setConfirmText(modal.confirmText);
+    this.guiModal.setCancelText(modal.cancelText);
+    this.guiModal.setShowCancelButton(won);
+    this.guiModal.show();
+  }
+
+  private _dismissModal(): void {
+    this.dismissedModalPhase = this.phase;
   }
 
   private _updateLabels(viewportWidth: number, viewportHeight: number) {
