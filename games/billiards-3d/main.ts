@@ -7,8 +7,12 @@ import {
   Physics2DSystem,
 } from '@haiyue/engine/physics';
 import { RenderIntegration } from '@haiyue/engine/experimental';
+import { GuiSystem } from '@haiyue/engine/gui';
+import { mat4 } from 'wgpu-matrix';
 import { requiredNumberAt } from '../arrayAccess';
 import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
+import { Billiards3DHud } from './Billiards3DHud';
+import { projectToScreen } from './input';
 
 interface Billiards3DSaveData {
   potted: number;
@@ -73,13 +77,6 @@ function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
 
-function projectToScreen(x: number, y: number, z: number, viewProj: Float32Array): { x: number; y: number; behind: boolean } {
-  const cx = requiredNumberAt(viewProj, 0, 'billiards view projection') * x + requiredNumberAt(viewProj, 4, 'billiards view projection') * y + requiredNumberAt(viewProj, 8, 'billiards view projection') * z + requiredNumberAt(viewProj, 12, 'billiards view projection');
-  const cy = requiredNumberAt(viewProj, 1, 'billiards view projection') * x + requiredNumberAt(viewProj, 5, 'billiards view projection') * y + requiredNumberAt(viewProj, 9, 'billiards view projection') * z + requiredNumberAt(viewProj, 13, 'billiards view projection');
-  const cw = requiredNumberAt(viewProj, 3, 'billiards view projection') * x + requiredNumberAt(viewProj, 7, 'billiards view projection') * y + requiredNumberAt(viewProj, 11, 'billiards view projection') * z + requiredNumberAt(viewProj, 15, 'billiards view projection');
-  return { x: (cx / cw + 1) * 450, y: (1 - cy / cw) * 300, behind: cw < 0 };
-}
-
 class Billiards3DGame {
   private readonly saves = new SingleSlotGameSave<Billiards3DSaveData>({
     gameId: 'billiards-3d',
@@ -93,7 +90,10 @@ class Billiards3DGame {
   private orbitTransform!: SphericalTransform3D;
   private orbit!: OrbitControl;
   private physics!: Physics2DSystem;
+  private hud!: Billiards3DHud;
   private viewProj = new Float32Array(16);
+  private projection = new Float32Array(16);
+  private viewMatrix = new Float32Array(16);
 
   private balls: Ball[] = [];
   private tableEntities: Entity[] = [];
@@ -106,6 +106,7 @@ class Billiards3DGame {
   private pointerId = -1;
   private readonly velocityScratch = { x: 0, y: 0 };
   private wasMoving = false;
+  private newGameRequested = false;
   private transition: {
     startTime: number;
     duration: number;
@@ -114,11 +115,6 @@ class Billiards3DGame {
     done: () => void;
   } | null = null;
 
-  private elScore = document.getElementById('score')!;
-  private elState = document.getElementById('state')!;
-  private elPowerWrap = document.getElementById('power-wrap') as HTMLElement;
-  private elPower = document.getElementById('power') as HTMLElement;
-
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new HaiyueEngine({
       canvas,
@@ -126,6 +122,7 @@ class Billiards3DGame {
       msaaSamples: 4,
     });
     await this.engine.init();
+    this.engine.resizeToDisplaySize(true);
     this.world = new World('Billiards3D');
 
     this.setupCamera(canvas);
@@ -141,13 +138,16 @@ class Billiards3DGame {
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 10, loadOp: 'clear' });
     this.world.addSystem(render3DSystem);
     this.world.addSystem(new RadialShadowRenderFeature(this.engine, this.cameraEntity, { priority: 20, loadOp: 'load' }));
+    this.hud = new Billiards3DHud(this.world, () => this.requestNewGame());
+    const guiSystem = new GuiSystem(this.engine, { loadOp: 'load' });
+    guiSystem.priority = 30;
+    this.world.addSystem(guiSystem);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Billiards3D.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
 
     await this.loadOrStart();
     this.setupInput(canvas);
-    document.getElementById('btn-new')!.addEventListener('click', () => this.newGame());
 
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
@@ -214,6 +214,10 @@ class Billiards3DGame {
     this.updateHud();
     this.wasMoving = false;
     if (save) this.saveState();
+  }
+
+  private requestNewGame(): void {
+    this.newGameRequested = true;
   }
 
   private async loadOrStart(): Promise<void> {
@@ -349,7 +353,8 @@ class Billiards3DGame {
       canvas.setPointerCapture(event.pointerId);
       this.showPower(0);
       event.preventDefault();
-    });
+      event.stopImmediatePropagation();
+    }, { capture: true });
     canvas.addEventListener('pointermove', (event) => {
       if (!this.charging || event.pointerId !== this.pointerId) return;
       this.chargePower = clamp01((event.clientY - this.chargeStartY) / MAX_DRAG);
@@ -373,9 +378,16 @@ class Billiards3DGame {
   }
 
   private pointerNearCue(canvas: HTMLCanvasElement, event: PointerEvent): boolean {
-    const pos = projectToScreen(this.cueBall.t2d.x, BALL_Y, this.cueBall.t2d.y, this.viewProj);
-    if (pos.behind) return false;
     const rect = canvas.getBoundingClientRect();
+    const pos = projectToScreen(
+      this.cueBall.t2d.x,
+      BALL_Y,
+      this.cueBall.t2d.y,
+      this.viewProj,
+      rect.width,
+      rect.height,
+    );
+    if (pos.behind) return false;
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     return Math.hypot(x - pos.x, y - pos.y) <= 44;
@@ -388,7 +400,7 @@ class Billiards3DGame {
       direction[0] * power * MAX_DRAG * IMPULSE_SCALE,
       direction[1] * power * MAX_DRAG * IMPULSE_SCALE,
     )) return;
-    this.elState.textContent = 'Rolling';
+    this.hud.setState('Rolling');
     this.transitionToTopView();
   }
 
@@ -402,6 +414,10 @@ class Billiards3DGame {
   }
 
   private tick(time: number, delta: number): void {
+    if (this.newGameRequested) {
+      this.newGameRequested = false;
+      this.newGame();
+    }
     this.updateCameraTransition(time);
     this.world.update(time, delta);
     this.syncBallMeshes();
@@ -550,83 +566,26 @@ class Billiards3DGame {
 
   private updateViewProj(): void {
     this.orbitTransform.updateWorldMatrix(undefined, 0);
-    const view = this.orbitTransform.worldMatrix;
-    const inv = new Float32Array(view);
-    const m = this.camera.projectionMatrix;
-    const viewMatrix = invert4(inv);
-    multiply4(m, viewMatrix, this.viewProj);
+    const aspect = Math.max(1, this.engine.displayWidth) / Math.max(1, this.engine.displayHeight);
+    const projection = this.camera.writeProjectionMatrix(this.projection, aspect);
+    const view = mat4.inverse(this.orbitTransform.worldMatrix, this.viewMatrix);
+    mat4.multiply(projection, view, this.viewProj);
   }
 
   private showPower(power: number): void {
-    this.elPowerWrap.style.display = 'block';
-    this.elPower.style.width = `${Math.round(power * 100)}%`;
-    this.elState.textContent = `Power ${Math.round(power * 100)}%`;
+    this.hud.showPower(power);
   }
 
   private hidePower(): void {
-    this.elPowerWrap.style.display = 'none';
-    this.elPower.style.width = '0%';
+    this.hud.hidePower();
   }
 
   private updateHud(): void {
-    this.elScore.textContent = `${this.potted} / 10`;
-    if (this.potted >= 10) this.elState.textContent = 'Cleared';
-    else if (this.mode === 'aim' && this.canShoot()) this.elState.textContent = 'Ready';
-    else this.elState.textContent = 'Rolling';
+    this.hud.setScore(this.potted);
+    if (this.potted >= 10) this.hud.setState('Cleared');
+    else if (this.mode === 'aim' && this.canShoot()) this.hud.setState('Ready');
+    else this.hud.setState('Rolling');
   }
-}
-
-function multiply4(a: Float32Array, b: Float32Array, out: Float32Array): void {
-  for (let c = 0; c < 4; c++) {
-    for (let r = 0; r < 4; r++) {
-      out[c * 4 + r] =
-        requiredNumberAt(a, r, 'left billiards matrix') * requiredNumberAt(b, c * 4, 'right billiards matrix') +
-        requiredNumberAt(a, 4 + r, 'left billiards matrix') * requiredNumberAt(b, c * 4 + 1, 'right billiards matrix') +
-        requiredNumberAt(a, 8 + r, 'left billiards matrix') * requiredNumberAt(b, c * 4 + 2, 'right billiards matrix') +
-        requiredNumberAt(a, 12 + r, 'left billiards matrix') * requiredNumberAt(b, c * 4 + 3, 'right billiards matrix');
-    }
-  }
-}
-
-function invert4(m: Float32Array): Float32Array {
-  const inv = new Float32Array(16);
-  const n = Array.from(m);
-  const a00 = requiredNumberAt(n, 0, 'billiards matrix'), a01 = requiredNumberAt(n, 1, 'billiards matrix'), a02 = requiredNumberAt(n, 2, 'billiards matrix'), a03 = requiredNumberAt(n, 3, 'billiards matrix');
-  const a10 = requiredNumberAt(n, 4, 'billiards matrix'), a11 = requiredNumberAt(n, 5, 'billiards matrix'), a12 = requiredNumberAt(n, 6, 'billiards matrix'), a13 = requiredNumberAt(n, 7, 'billiards matrix');
-  const a20 = requiredNumberAt(n, 8, 'billiards matrix'), a21 = requiredNumberAt(n, 9, 'billiards matrix'), a22 = requiredNumberAt(n, 10, 'billiards matrix'), a23 = requiredNumberAt(n, 11, 'billiards matrix');
-  const a30 = requiredNumberAt(n, 12, 'billiards matrix'), a31 = requiredNumberAt(n, 13, 'billiards matrix'), a32 = requiredNumberAt(n, 14, 'billiards matrix'), a33 = requiredNumberAt(n, 15, 'billiards matrix');
-  const b00 = a00 * a11 - a01 * a10;
-  const b01 = a00 * a12 - a02 * a10;
-  const b02 = a00 * a13 - a03 * a10;
-  const b03 = a01 * a12 - a02 * a11;
-  const b04 = a01 * a13 - a03 * a11;
-  const b05 = a02 * a13 - a03 * a12;
-  const b06 = a20 * a31 - a21 * a30;
-  const b07 = a20 * a32 - a22 * a30;
-  const b08 = a20 * a33 - a23 * a30;
-  const b09 = a21 * a32 - a22 * a31;
-  const b10 = a21 * a33 - a23 * a31;
-  const b11 = a22 * a33 - a23 * a32;
-  let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-  if (!det) return inv;
-  det = 1 / det;
-  inv[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
-  inv[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
-  inv[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-  inv[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
-  inv[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
-  inv[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
-  inv[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
-  inv[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
-  inv[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
-  inv[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
-  inv[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
-  inv[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
-  inv[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
-  inv[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
-  inv[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
-  inv[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
-  return inv;
 }
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
