@@ -1,6 +1,6 @@
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial, RadialShadowMaterial } from '@haiyue/engine/material';
-import { BlinnPhongRenderSystem, RadialShadowRenderFeature, Render3DSystem } from '@haiyue/engine/systems';
+import { RadialShadowRenderFeature, Render3DSystem } from '@haiyue/engine/systems';
 import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, Transform2D, HaiyueEngine, World, createBox3D, createPlane3D, createSphere3D } from '@haiyue/engine';
 import {
   Physics2DBody,
@@ -135,7 +135,6 @@ class Billiards3DGame {
     });
     this.world.addSystem(this.physics);
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 10, loadOp: 'clear' });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, this.cameraEntity, { priority: -1, render3DSystem }));
     this.world.addSystem(render3DSystem);
     this.world.addSystem(new RadialShadowRenderFeature(this.engine, this.cameraEntity, { priority: 20, loadOp: 'load' }));
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Billiards3D.render' });

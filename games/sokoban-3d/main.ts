@@ -1,6 +1,6 @@
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
-import { BlinnPhongRenderSystem, Render3DSystem } from '@haiyue/engine/systems';
+import { Render3DSystem } from '@haiyue/engine/systems';
 import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createSphere3D, type Geometry3D } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { GuiButton, GuiElement, GuiRoot, GuiSystem } from '@haiyue/engine/gui';
@@ -138,7 +138,6 @@ class Sokoban3DGame {
     this.setupCamera(canvas);
     this.setupLights();
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 10, loadOp: 'clear' });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, this.cameraEntity, { priority: -1, render3DSystem }));
     this.world.addSystem(render3DSystem);
     this.levels = await this.loadLevels();
     this.setupGui();

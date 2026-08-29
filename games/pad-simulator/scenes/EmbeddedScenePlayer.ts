@@ -2,7 +2,7 @@ import { AmbientLight, PointLight } from '@haiyue/engine/lighting';
 import { BasicMaterial, Camera2D, Camera3D, CartesianTransform3D, ColorSRGB, Component, DirectionalLight, Entity, Geometry2D, Geometry3D, Material2D, Mesh2D, Mesh3D, SphericalTransform3D, System, Transform2D, HaiyueEngine, World } from '@haiyue/engine';
 import { BasisTransform3D, DataComponent, InstancedMesh3D, KeyboardComponent, MeshHelper, ScriptComponent, ScriptResource, Transform3D, type JsonObject, type ScriptLifecycleName, type ScriptRuntimeApi, type ScriptRuntimeContext, type ScriptRuntimeReadApi, type ScriptRuntimeSceneApi } from '@haiyue/engine/components';
 import { BlinnPhongMaterial, CssMaterial, DepthMaterial, InstancedMaterial, Material, NormalMaterial, RadialShadowMaterial, type CssMaterialStyle } from '@haiyue/engine/material';
-import { BlinnPhongRenderSystem, InstancedMesh3DRenderSystem, Mesh2DRenderSystem, RadialShadowRenderFeature, Render3DSystem } from '@haiyue/engine/systems';
+import { InstancedMesh3DRenderSystem, Mesh2DRenderSystem, RadialShadowRenderFeature, Render3DSystem } from '@haiyue/engine/systems';
 import { InputMap } from '@haiyue/engine/input';
 import { createRoundedBox3D } from '@haiyue/engine/geometry';
 import { type EngineDefaults } from '@haiyue/engine/core';
@@ -347,11 +347,6 @@ function findPrefab(runtime: PlayerRuntime, nameOrId: string | number): RuntimeP
   return [...runtime.prefabMap.values()].find(prefab => prefab.name === nameOrId) ?? null;
 }
 
-function hasBlinnPhongMesh(world: World): boolean {
-  for (const entity of world.entities.values()) if (entity.getComponent(Mesh3D)?.material instanceof BlinnPhongMaterial) return true;
-  return false;
-}
-
 function hasRadialShadowMesh(world: World): boolean {
   for (const entity of world.entities.values()) if (entity.getComponent(Mesh3D)?.material.type === 'radial-shadow') return true;
   return false;
@@ -677,7 +672,6 @@ export class EmbeddedScenePlayer {
     const render3DSystem = new Render3DSystem(this.engine, cameraEntity, { loadOp: 'clear', priority: 0, msaaSamples: 1, reverseZ: this.engine.reverseZ });
     this.world.addSystem(render3DSystem);
     this.world.addSystem(new GltfModelSystem({ priority: 0 }));
-    if (hasBlinnPhongMesh(this.world)) this.world.addSystem(new BlinnPhongRenderSystem(this.engine, cameraEntity, { priority: -1, render3DSystem }));
     if (hasRadialShadowMesh(this.world) && !(scene.systems ?? []).some(config => !config.disabled && config.type === 'RadialShadowRenderFeature')) {
       this.world.addSystem(new RadialShadowRenderFeature(this.engine, cameraEntity, { loadOp: 'load', priority: 20 }));
     }

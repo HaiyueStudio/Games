@@ -6,7 +6,6 @@ import { CartesianTransform3D } from '@haiyue/engine';
 import { SphericalTransform3D } from '@haiyue/engine';
 import { Mesh3D } from '@haiyue/engine';
 import { Render3DSystem } from '@haiyue/engine/systems';
-import { BlinnPhongRenderSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { BasicMaterial } from '@haiyue/engine';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
@@ -235,7 +234,6 @@ class Minesweeper {
   private spherical!: SphericalTransform3D;
 
   private render3D!: Render3DSystem;
-  private renderBP!: BlinnPhongRenderSystem;
 
   // HUD 2D
   private cam2DEntity!: Entity;
@@ -334,11 +332,6 @@ class Minesweeper {
     });
     this.world.addSystem(this.render3D);
 
-    this.renderBP = new BlinnPhongRenderSystem(this.engine, this.camEntity, {
-      priority: -1,
-      render3DSystem: this.render3D,
-    });
-    this.world.addSystem(this.renderBP);
 
     // Lights
     const ambientE = new Entity('AmbientLight');

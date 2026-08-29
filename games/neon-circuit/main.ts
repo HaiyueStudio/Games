@@ -15,7 +15,6 @@ import { createPathExtrusion3D, createRoundedBox3D, type Geometry3D, type PathEx
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
 import {
-  BlinnPhongRenderSystem,
   Particle3DRenderSystem,
   Particle3DSystem,
   Render3DSystem,
@@ -165,7 +164,6 @@ class NeonCircuitGame {
     this.world.addEntity(cameraEntity);
 
     const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4 });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, cameraEntity, { priority: -1, render3DSystem: render3D }));
     this.world.addSystem(render3D);
     this.world.addSystem(new Particle3DSystem({ maxDeltaSeconds: 0.06, priority: -10 }));
     this.world.addSystem(new Particle3DRenderSystem(this.engine, cameraEntity, { priority: 20, loadOp: 'load' }));

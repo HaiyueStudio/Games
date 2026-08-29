@@ -15,7 +15,7 @@ import { RenderIntegration } from '@haiyue/engine/experimental';
 import { createCylinder3D } from '@haiyue/engine/geometry';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
-import { BlinnPhongRenderSystem, Render3DSystem } from '@haiyue/engine/systems';
+import { Render3DSystem } from '@haiyue/engine/systems';
 import {
   DIRECTION_VECTORS,
   OPPOSITE_DIRECTION,
@@ -301,10 +301,6 @@ class PacmanGame {
       loadOp: 'clear',
       transparentSort: false,
     });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, cameraEntity, {
-      priority: -1,
-      render3DSystem,
-    }));
     this.world.addSystem(render3DSystem);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Pacman.render' });
     this.world.addRuntimeIntegration(renderIntegration);

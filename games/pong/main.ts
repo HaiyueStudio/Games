@@ -17,7 +17,6 @@ import { createRoundedBox3D } from '@haiyue/engine/geometry';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial, RadialShadowMaterial } from '@haiyue/engine/material';
 import {
-  BlinnPhongRenderSystem,
   Particle3DRenderSystem,
   Particle3DSystem,
   RadialShadowRenderFeature,
@@ -198,7 +197,6 @@ class PongGame {
     this.world.addEntity(cameraEntity);
 
     const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4 });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, cameraEntity, { priority: -1, render3DSystem: render3D }));
     this.world.addSystem(render3D);
     this.world.addSystem(new RadialShadowRenderFeature(this.engine, cameraEntity, { priority: 15, loadOp: 'load' }));
     this.world.addSystem(new Particle3DSystem({ maxDeltaSeconds: 0.08, priority: -10 }));

@@ -15,7 +15,6 @@ import { RenderIntegration } from '@haiyue/engine/experimental';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
 import {
-  BlinnPhongRenderSystem,
   Line3DRenderSystem,
   Particle3DRenderSystem,
   Particle3DSystem,
@@ -247,10 +246,6 @@ class Match3Game {
       loadOp: 'clear',
       msaaSamples: 4,
     });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, cameraEntity, {
-      priority: -1,
-      render3DSystem,
-    }));
     this.world.addSystem(render3DSystem);
     this.lightningRenderSystem = new Line3DRenderSystem(this.engine, cameraEntity, {
       loadOp: 'load',

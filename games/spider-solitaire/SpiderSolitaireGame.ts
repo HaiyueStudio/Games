@@ -1,7 +1,7 @@
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createPlane3D, type Geometry3D } from '@haiyue/engine';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
-import { BlinnPhongRenderSystem, Render3DSystem } from '@haiyue/engine/systems';
+import { Render3DSystem } from '@haiyue/engine/systems';
 import { Ray } from '@haiyue/engine/math';
 import {
   GuiButton,
@@ -173,7 +173,6 @@ class SpiderSolitaire {
     this.setupCamera();
     this.setupLights();
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 20, loadOp: 'clear', transparentSort: false, reverseZ: true });
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, this.cameraEntity, { priority: -1, render3DSystem }));
     this.world.addSystem(render3DSystem);
     this.setupGui();
     const renderIntegration = new RenderIntegration(this.engine, { label: 'SpiderSolitaire.render' });

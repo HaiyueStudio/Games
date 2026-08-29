@@ -6,7 +6,6 @@ import { CartesianTransform3D } from '@haiyue/engine';
 import { SphericalTransform3D } from '@haiyue/engine';
 import { Mesh3D } from '@haiyue/engine';
 import { Render3DSystem } from '@haiyue/engine/systems';
-import { BlinnPhongRenderSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { BasicMaterial } from '@haiyue/engine';
 import { ColorSRGB } from '@haiyue/engine';
@@ -251,10 +250,6 @@ class PianoDemo {
       loadOp: 'clear',
     });
     this.world.addSystem(render3DSystem);
-    this.world.addSystem(new BlinnPhongRenderSystem(this.engine, this.camEntity, {
-      priority: -1,
-      render3DSystem,
-    }));
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Piano.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
