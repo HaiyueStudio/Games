@@ -5,6 +5,7 @@ import { Camera3D } from '@haiyue/engine';
 import { CartesianTransform3D } from '@haiyue/engine';
 import { SphericalTransform3D } from '@haiyue/engine';
 import { Mesh3D } from '@haiyue/engine';
+import { System } from '@haiyue/engine';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { BlinnPhongRenderSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
@@ -15,6 +16,16 @@ import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { GameSaveError, GameSaveService, LocalStorageSaveBackend } from '@haiyue/engine/save';
 import { Easing, TweenManager, TweenSystem, type Tween } from '@haiyue/engine/tween';
+import {
+  GuiButton,
+  GuiDirtyFlags,
+  GuiLabel,
+  GuiRoot,
+  GuiSystem,
+  type GuiElement,
+  type GuiRect,
+  type GuiTheme,
+} from '@haiyue/engine/gui';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
 import { CameraViewProjectionCache } from '../CameraViewProjectionCache';
 import {
@@ -46,7 +57,8 @@ import {
 interface TileVisual {
   entity: Entity;
   material: BasicMaterial;
-  label: HTMLElement;
+  label: GuiLabel;
+  labelPosition: { x: number; y: number };
   tween?: Tween<TileTweenPosition> | undefined;
 }
 
@@ -57,6 +69,25 @@ interface TileTweenPosition extends Record<string, unknown> {
 
 function color(hex: string): ColorSRGB {
   return ColorSRGB.fromHex(hex);
+}
+
+function guiTheme(fontSize: number, text: string): Partial<GuiTheme> {
+  return {
+    fontSize,
+    radius: 5,
+    colors: {
+      text,
+      textMuted: text,
+      primary: '#8f7a66',
+      danger: '#c94c4c',
+      background: 'rgba(0,0,0,0)',
+      surface: 'rgba(0,0,0,0)',
+      border: 'rgba(0,0,0,0)',
+      hover: '#9f8b76',
+      active: '#776e65',
+      disabled: 'rgba(0,0,0,0)',
+    },
+  };
 }
 
 function project3DToScreen(
@@ -79,6 +110,19 @@ function project3DToScreen(
   };
 }
 
+class Game2048GuiSyncSystem extends System {
+  constructor(private readonly sync: () => void) {
+    super(() => false);
+    this.name = 'Game2048GuiSyncSystem';
+    this.priority = -50;
+  }
+
+  override update(): this {
+    this.sync();
+    return this;
+  }
+}
+
 class Game2048 {
   private readonly saves: GameSaveService<Game2048SaveData>;
   private engine!: HaiyueEngine;
@@ -99,12 +143,10 @@ class Game2048 {
   private cells: Entity[] = [];
   private tiles = new Map<string, TileVisual>();
 
-  private elScore!: HTMLElement;
-  private elBest!: HTMLElement;
-  private elLabels!: HTMLElement;
-  private elStatus!: HTMLElement;
-  private elStatusTitle!: HTMLElement;
-  private elStatusSub!: HTMLElement;
+  private tileLabelRoot!: GuiRoot;
+  private guiScore!: GuiLabel;
+  private guiBest!: GuiLabel;
+  private guiStatus!: GuiLabel;
 
   private touchStartX = 0;
   private touchStartY = 0;
@@ -144,9 +186,16 @@ class Game2048 {
 
     this.world = new World('2048');
     this.world.addSystem(new TweenSystem({ manager: this.tweenManager, priority: -100 }));
+    this.world.addSystem(new Game2048GuiSyncSystem(() => {
+      this._updateLabels(
+        Math.max(1, this.engine.displayWidth),
+        Math.max(1, this.engine.displayHeight),
+      );
+    }));
     this._setupCamera();
     this._setupLights();
-    this._setupDOM();
+    this._setupGui();
+    this._setupRenderIntegration();
     this._setupInput(canvas);
     this._buildCells();
     await this._loadOrCreateState();
@@ -192,9 +241,6 @@ class Game2048 {
       priority: -1,
       render3DSystem,
     }));
-    const renderIntegration = new RenderIntegration(this.engine, { label: 'Game2048.render' });
-    this.world.addRuntimeIntegration(renderIntegration);
-    renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
   }
 
   private _setupLights() {
@@ -211,18 +257,123 @@ class Game2048 {
     this.world.addEntity(directional);
   }
 
-  private _setupDOM() {
-    this.elScore = document.getElementById('score')!;
-    this.elBest = document.getElementById('best')!;
-    this.elLabels = document.getElementById('tile-labels')!;
-    this.elStatus = document.getElementById('status')!;
-    this.elStatusTitle = document.getElementById('status-title')!;
-    this.elStatusSub = document.getElementById('status-sub')!;
-    document.getElementById('btn-new')!.addEventListener('click', () => this._newGame());
+  private _setupGui(): void {
+    const title = this._createGuiRoot('2048TitleGui', 46, '#776e65');
+    title.root.add(this._labelElement({ x: 18, y: 12, width: 180, height: 54 }, '2048'));
+
+    const subtitle = this._createGuiRoot('2048SubtitleGui', 13, '#8f7a66');
+    subtitle.root.add(this._labelElement(
+      { x: 18, y: 62, width: 310, height: 30 },
+      'Arrow keys / WASD · Auto save',
+    ));
+
+    const scores = this._createGuiRoot('2048ScoresGui', 16, '#ffffff');
+    this.guiScore = scores.root.add(new GuiLabel({
+      x: 0,
+      y: 18,
+      width: 108,
+      height: 42,
+      text: 'SCORE  0',
+      textAlign: 'center',
+      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5 },
+    }));
+    this._anchorRight(this.guiScore, 132);
+    this.guiBest = scores.root.add(new GuiLabel({
+      x: 0,
+      y: 18,
+      width: 108,
+      height: 42,
+      text: 'BEST  0',
+      textAlign: 'center',
+      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5 },
+    }));
+    this._anchorRight(this.guiBest, 16);
+
+    const status = this._createGuiRoot('2048StatusGui', 22, '#776e65');
+    this.guiStatus = status.root.add(new GuiLabel({
+      x: 0,
+      y: 0,
+      width: 360,
+      height: 112,
+      text: '',
+      textAlign: 'center',
+      visible: false,
+      style: {
+        backgroundColor: 'rgba(238,228,218,0.92)',
+        borderColor: '#bbada0',
+        radius: 8,
+      },
+    }));
+    this._anchorCenter(this.guiStatus);
+
+    this.tileLabelRoot = this._createGuiRoot('2048TileLabelsGui', 34, '#776e65').root;
+
+    const controls = this._createGuiRoot('2048ControlsGui', 15, '#f9f6f2');
+    const newGame = controls.root.add(new GuiButton({
+      x: 0,
+      y: 0,
+      width: 116,
+      height: 42,
+      text: 'New Game',
+      variant: 'primary',
+      style: { radius: 5 },
+      onClick: () => this._newGame(),
+    }));
+    this._anchorBottomRight(newGame, 18, 18);
+
+    this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
+  }
+
+  private _setupRenderIntegration(): void {
+    const renderIntegration = new RenderIntegration(this.engine, { label: 'Game2048.render' });
+    this.world.addRuntimeIntegration(renderIntegration);
+    renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
+  }
+
+  private _createGuiRoot(name: string, fontSize: number, textColor: string): { root: GuiRoot } {
+    const entity = new Entity(name);
+    const root = new GuiRoot({ theme: guiTheme(fontSize, textColor) });
+    entity.addComponent(root);
+    this.world.addEntity(entity);
+    return { root };
+  }
+
+  private _labelElement(rect: GuiRect, text: string): GuiLabel {
+    return new GuiLabel({
+      ...rect,
+      text,
+      textAlign: 'center',
+    });
+  }
+
+  private _anchorRight(element: GuiElement, right: number): void {
+    const layout = element.layout.bind(element);
+    element.layout = (parentRect) => {
+      layout(parentRect);
+      element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
+    };
+  }
+
+  private _anchorBottomRight(element: GuiElement, right: number, bottom: number): void {
+    const layout = element.layout.bind(element);
+    element.layout = (parentRect) => {
+      layout(parentRect);
+      element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
+      element.rect.y = parentRect.y + parentRect.height - bottom - element.rect.height;
+    };
+  }
+
+  private _anchorCenter(element: GuiElement): void {
+    const layout = element.layout.bind(element);
+    element.layout = (parentRect) => {
+      layout(parentRect);
+      element.rect.x = parentRect.x + (parentRect.width - element.rect.width) / 2;
+      element.rect.y = parentRect.y + (parentRect.height - element.rect.height) / 2;
+    };
   }
 
   private _setupInput(canvas: HTMLCanvasElement) {
-    document.addEventListener('keydown', (e) => {
+    window.addEventListener('keydown', (e) => {
       const keyMap: Record<string, Direction | undefined> = {
         ArrowLeft: 'left',
         a: 'left',
@@ -419,29 +570,42 @@ class Game2048 {
         const key = `${r}_${c}`;
         if (!value) continue;
         used.add(key);
+        const palette = this._paletteForValue(value);
 
         let visual = this.tiles.get(key);
         if (!visual) {
-          const material = new BasicMaterial({ color: color(this._paletteForValue(value).bg) });
+          const material = new BasicMaterial({ color: color(palette.bg) });
           const entity = new Entity(`tile_${key}`);
           entity.addComponent(new CartesianTransform3D());
           entity.addComponent(new Mesh3D(this.tileGeometry, material));
           this.world.addEntity(entity);
 
-          const label = document.createElement('div');
-          label.className = 'tile-num';
-          this.elLabels.appendChild(label);
-
-          visual = { entity, material, label };
+          const labelPosition = { x: 0, y: 0 };
+          const label = this.tileLabelRoot.add(new GuiLabel({
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 48,
+            text: String(value),
+            fontSize: this._fontSizeForValue(value),
+            textAlign: 'center',
+            style: { color: palette.fg },
+          }));
+          const layout = label.layout.bind(label);
+          label.layout = (parentRect) => {
+            layout(parentRect);
+            label.rect.x = labelPosition.x - label.rect.width / 2;
+            label.rect.y = labelPosition.y - label.rect.height / 2;
+          };
+          visual = { entity, material, label, labelPosition };
           this.tiles.set(key, visual);
         }
 
-        const palette = this._paletteForValue(value);
         const bg = color(palette.bg);
         visual.material.color.setFromSRGB(bg.r, bg.g, bg.b, 1);
-        visual.label.textContent = String(value);
-        visual.label.style.color = palette.fg;
-        visual.label.style.fontSize = `${this._fontSizeForValue(value)}px`;
+        visual.label.setText(String(value));
+        visual.label.setFontSize(this._fontSizeForValue(value));
+        visual.label.setStyle({ color: palette.fg });
 
         const transform = visual.entity.getComponent(CartesianTransform3D)!;
         const movement = movementMap.get(key);
@@ -469,12 +633,12 @@ class Game2048 {
       if (used.has(key)) continue;
       this._stopTileTween(visual);
       this.world.removeEntity(visual.entity);
-      visual.label.remove();
+      this.tileLabelRoot.remove(visual.label);
       this.tiles.delete(key);
     }
 
-    this.elScore.textContent = String(this.score);
-    this.elBest.textContent = String(this.best);
+    this.guiScore.setText(`SCORE  ${this.score}`);
+    this.guiBest.setText(`BEST  ${this.best}`);
     this._syncStatus();
   }
 
@@ -526,15 +690,16 @@ class Game2048 {
 
   private _syncStatus() {
     if (this.phase === 'playing') {
-      this.elStatus.classList.remove('visible');
+      this.guiStatus.setVisible(false);
       return;
     }
 
-    this.elStatusTitle.textContent = this.phase === 'won' ? 'You win!' : 'Game over';
-    this.elStatusSub.textContent = this.phase === 'won'
+    const title = this.phase === 'won' ? 'You win!' : 'Game over';
+    const subtitle = this.phase === 'won'
       ? 'Keep playing or start a new game.'
       : 'No more moves. Start a new game.';
-    this.elStatus.classList.add('visible');
+    this.guiStatus.setText(`${title} · ${subtitle}`);
+    this.guiStatus.setVisible(true);
   }
 
   private _updateLabels(viewportWidth: number, viewportHeight: number) {
@@ -550,9 +715,13 @@ class Game2048 {
         viewportWidth,
         viewportHeight,
       );
-      visual.label.style.display = sc.behind ? 'none' : 'block';
-      visual.label.style.left = `${sc.x}px`;
-      visual.label.style.top = `${sc.y}px`;
+      visual.label.setVisible(!sc.behind);
+      if (sc.behind) continue;
+      if (Math.abs(visual.labelPosition.x - sc.x) < 0.05
+        && Math.abs(visual.labelPosition.y - sc.y) < 0.05) continue;
+      visual.labelPosition.x = sc.x;
+      visual.labelPosition.y = sc.y;
+      visual.label.markDirty(GuiDirtyFlags.Layout | GuiDirtyFlags.Visual);
     }
   }
 
@@ -561,7 +730,6 @@ class Game2048 {
     const viewportHeight = Math.max(1, this.engine.displayHeight);
     this.cameraProjection.update(this.spherical, this.cam3D, viewportWidth, viewportHeight);
     this.world.update(time, delta);
-    this._updateLabels(viewportWidth, viewportHeight);
   }
 }
 

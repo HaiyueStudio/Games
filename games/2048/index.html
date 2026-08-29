@@ -5,226 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>2048 - WebGPU</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
+    html,
     body {
-      background: #faf8ef;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
-      font-family: Arial, Helvetica, sans-serif;
-      color: #776e65;
-    }
-
-    #wrap {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-    }
-
-    canvas {
-      display: block;
       width: 100%;
       height: 100%;
+      overflow: hidden;
+      background: #faf8ef;
+    }
+
+    #canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
       touch-action: none;
-    }
-
-    #overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-
-    #hud {
-      position: absolute;
-      top: 18px;
-      left: 24px;
-      right: 24px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 18px;
-    }
-
-    #title {
-      font-size: clamp(38px, 6vw, 52px);
-      font-weight: 800;
-      line-height: 0.95;
-      color: #776e65;
-      letter-spacing: 0;
-    }
-
-    #subtitle {
-      margin-top: 8px;
-      font-size: 14px;
-      color: #8f7a66;
-      font-weight: 700;
-    }
-
-    #scores {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .score-box {
-      min-width: 96px;
-      padding: 9px 13px 8px;
-      border-radius: 4px;
-      background: #bbada0;
-      color: #fff;
-      text-align: center;
-      font-weight: 800;
-      line-height: 1;
-    }
-
-    .score-label {
-      display: block;
-      font-size: 11px;
-      color: #eee4da;
-      margin-bottom: 5px;
-      text-transform: uppercase;
-    }
-
-    .score-value {
-      display: block;
-      font-size: 24px;
-    }
-
-    #tile-labels {
-      position: absolute;
-      inset: 0;
-    }
-
-    .tile-num {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      font-weight: 800;
-      line-height: 1;
-      letter-spacing: 0;
-      text-align: center;
-      white-space: nowrap;
-      pointer-events: none;
-      user-select: none;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.22);
-    }
-
-    #status {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      min-width: 260px;
-      min-height: 150px;
-      padding: 26px 34px;
-      border-radius: 6px;
-      background: rgba(238, 228, 218, 0.88);
-      color: #776e65;
-      text-align: center;
-      font-weight: 800;
-      box-shadow: 0 18px 45px rgba(119, 110, 101, 0.22);
-    }
-
-    #status.visible {
-      display: flex;
-    }
-
-    #status-title {
-      font-size: 38px;
-      margin-bottom: 12px;
-    }
-
-    #status-sub {
-      font-size: 14px;
-      color: #8f7a66;
-    }
-
-    #btn-new {
-      position: absolute;
-      right: 24px;
-      bottom: 20px;
-      pointer-events: all;
-      border: none;
-      border-radius: 4px;
-      background: #8f7a66;
-      color: #f9f6f2;
-      padding: 10px 18px;
-      font-size: 14px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    #btn-new:hover {
-      background: #9f8b76;
-    }
-
-    @media (max-width: 560px) {
-      #hud {
-        top: 12px;
-        left: 14px;
-        right: 14px;
-        gap: 10px;
-      }
-
-      #subtitle {
-        max-width: 150px;
-        font-size: 11px;
-      }
-
-      .score-box {
-        min-width: 66px;
-        padding: 8px;
-      }
-
-      .score-value {
-        font-size: 18px;
-      }
-
-      #btn-new {
-        right: 14px;
-        bottom: 14px;
-      }
     }
   </style>
 </head>
 <body>
-  <div id="wrap">
-    <canvas id="canvas"></canvas>
-    <div id="overlay">
-      <div id="hud">
-        <div>
-          <div id="title">2048</div>
-          <div id="subtitle">Use arrow keys or WASD. State is saved automatically.</div>
-        </div>
-        <div id="scores">
-          <div class="score-box">
-            <span class="score-label">Score</span>
-            <span class="score-value" id="score">0</span>
-          </div>
-          <div class="score-box">
-            <span class="score-label">Best</span>
-            <span class="score-value" id="best">0</span>
-          </div>
-        </div>
-      </div>
-
-      <div id="tile-labels"></div>
-
-      <div id="status">
-        <div id="status-title"></div>
-        <div id="status-sub"></div>
-      </div>
-    </div>
-
-    <button id="btn-new">New Game</button>
-  </div>
-
+  <canvas id="canvas"></canvas>
   <script type="module" src="./bundle.js"></script>
 </body>
 </html>
