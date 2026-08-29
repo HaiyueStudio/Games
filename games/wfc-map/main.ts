@@ -358,7 +358,11 @@ class WfcCityGame {
   private readonly statusText = document.getElementById('status')!;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({ canvas, clearColor: { r: 0.72, g: 0.78, b: 0.82, a: 1 } });
+    this.engine = new HaiyueEngine({
+      canvas,
+      clearColor: { r: 0.72, g: 0.78, b: 0.82, a: 1 },
+      msaaSamples: 4,
+    });
     await this.engine.init();
     await this.blockMeshes.load('./assets/blocks.glb');
     this.world = new World('UnityWfcCity');

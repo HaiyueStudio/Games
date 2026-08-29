@@ -996,6 +996,7 @@ class EntanglementPathGame {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.10, b: 0.13, a: 1 },
+      msaaSamples: 4,
       devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2),
     });
     await this.engine.init();

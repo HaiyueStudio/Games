@@ -624,7 +624,7 @@ export class EmbeddedScenePlayer {
       canvas: this.canvas,
       ...(defaults === undefined ? {} : { defaults }),
       alphaMode: 'premultiplied',
-      msaaSamples: 1,
+      msaaSamples: 4,
       devicePixelRatio: 1,
     });
     await this.engine.init();
@@ -669,7 +669,7 @@ export class EmbeddedScenePlayer {
     const renderIntegration = new RenderIntegration(this.engine, { label: 'EmbeddedScenePlayer.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     installConfiguredSystems(scene, this.world, this.engine, cameraEntity);
-    const render3DSystem = new Render3DSystem(this.engine, cameraEntity, { loadOp: 'clear', priority: 0, msaaSamples: 1, reverseZ: this.engine.reverseZ });
+    const render3DSystem = new Render3DSystem(this.engine, cameraEntity, { loadOp: 'clear', priority: 0, msaaSamples: 4, reverseZ: this.engine.reverseZ });
     this.world.addSystem(render3DSystem);
     this.world.addSystem(new GltfModelSystem({ priority: 0 }));
     if (hasRadialShadowMesh(this.world) && !(scene.systems ?? []).some(config => !config.disabled && config.type === 'RadialShadowRenderFeature')) {

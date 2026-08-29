@@ -216,7 +216,7 @@ class PerpetualCalendarGpuScene {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: COLORS.background[0], g: COLORS.background[1], b: COLORS.background[2], a: 1 },
-      msaaSamples: 1,
+      msaaSamples: 4,
     });
     await this.engine.init();
     this.font = buildSdfBitmapFont({
@@ -284,8 +284,8 @@ class PerpetualCalendarGpuScene {
 
     const integration = new RenderIntegration(this.engine, { label: 'PerpetualCalendar.render' });
     this.world.addRuntimeIntegration(integration);
-    const shapes = new Render3DSystem(this.engine, camera, { priority: 0, loadOp: 'clear', msaaSamples: 1 });
-    const text = new BitmapTextRenderSystem(this.engine, camera, { loadOp: 'load', msaaSamples: 1 });
+    const shapes = new Render3DSystem(this.engine, camera, { priority: 0, loadOp: 'clear', msaaSamples: 4 });
+    const text = new BitmapTextRenderSystem(this.engine, camera, { loadOp: 'load', msaaSamples: 4 });
     text.priority = 10;
     this.world.addSystem(shapes);
     this.world.addSystem(text);

@@ -166,7 +166,12 @@ class SpiderSolitaire {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = new HaiyueEngine({ canvas, clearColor: { r: 0.04, g: 0.11, b: 0.09, a: 1 }, devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
+    this.engine = new HaiyueEngine({
+      canvas,
+      clearColor: { r: 0.04, g: 0.11, b: 0.09, a: 1 },
+      msaaSamples: 4,
+      devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2),
+    });
     await this.engine.init();
     this.engine.reverseZ = true;
     this.world = new World('SpiderSolitaireWebGPU');

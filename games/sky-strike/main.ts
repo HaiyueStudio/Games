@@ -1121,6 +1121,7 @@ async function main(): Promise<void> {
   const engine = new HaiyueEngine({
     canvas: engineCanvas,
     clearColor: { r: 0.005, g: 0.01, b: 0.035, a: 1 },
+    msaaSamples: 4,
     devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2),
   });
   await engine.init();

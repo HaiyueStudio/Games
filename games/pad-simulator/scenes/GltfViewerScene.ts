@@ -195,7 +195,7 @@ export class GltfViewerScene {
       canvas: this.canvas,
       clearColor: { r: 0.030, g: 0.038, b: 0.055, a: 1 },
       alphaMode: 'premultiplied',
-      msaaSamples: 1,
+      msaaSamples: 4,
       devicePixelRatio: 1,
     });
     await this.engine.init();

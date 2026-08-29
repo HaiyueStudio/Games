@@ -120,7 +120,11 @@ class Billiards3DGame {
   private elPower = document.getElementById('power') as HTMLElement;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({ canvas, clearColor: { r: 0.03, g: 0.07, b: 0.06, a: 1 } });
+    this.engine = new HaiyueEngine({
+      canvas,
+      clearColor: { r: 0.03, g: 0.07, b: 0.06, a: 1 },
+      msaaSamples: 4,
+    });
     await this.engine.init();
     this.world = new World('Billiards3D');
 

@@ -279,6 +279,7 @@ class Minesweeper {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.07, b: 0.13, a: 1 },
+      msaaSamples: 4,
     });
     await this.engine.init();
 

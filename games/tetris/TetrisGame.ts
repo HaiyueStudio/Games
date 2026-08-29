@@ -87,6 +87,7 @@ class TetrisGame {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.07, g: 0.10, b: 0.16, a: 1 },
+      msaaSamples: 4,
     });
     await this.engine.init();
 

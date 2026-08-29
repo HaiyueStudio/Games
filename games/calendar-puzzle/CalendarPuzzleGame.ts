@@ -150,6 +150,7 @@ export class CalendarPuzzleGame {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.92, g: 0.96, b: 0.92, a: 1 },
+      msaaSamples: 4,
     });
     await this.engine.init();
 

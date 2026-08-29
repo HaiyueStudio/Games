@@ -310,6 +310,7 @@ class IcosahedronMinesweeper {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.035, g: 0.04, b: 0.055, a: 1 },
+      msaaSamples: 4,
     });
     await this.engine.init();
 

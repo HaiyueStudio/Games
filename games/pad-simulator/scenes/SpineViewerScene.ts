@@ -377,9 +377,7 @@ export class SpineViewerScene {
       canvas: this.canvas,
       clearColor: { r: 0.032, g: 0.041, b: 0.060, a: 1 },
       alphaMode: 'premultiplied',
-      // Multiple passes with MSAA currently cannot preserve the resolved
-      // swapchain contents between passes through loadOp:'load'.
-      msaaSamples: 1,
+      msaaSamples: 4,
       devicePixelRatio: 1,
     });
     await this.engine.init();

@@ -132,7 +132,11 @@ class Sokoban3DGame {
   private messageText = document.getElementById('message')!;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({ canvas, clearColor: { r: 0.07, g: 0.09, b: 0.11, a: 1 } });
+    this.engine = new HaiyueEngine({
+      canvas,
+      clearColor: { r: 0.07, g: 0.09, b: 0.11, a: 1 },
+      msaaSamples: 4,
+    });
     await this.engine.init();
     this.world = new World('Sokoban3D');
     this.setupCamera(canvas);

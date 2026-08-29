@@ -94,6 +94,7 @@ class BilliardsGame {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.16, b: 0.12, a: 1 },
+      msaaSamples: 4,
     });
     await this.engine.init();
     this.engine.resizeToDisplaySize(true);

@@ -101,6 +101,7 @@ export class SudokuGame {
     this.engine = new HaiyueEngine({
       canvas,
       clearColor: { r: 0.95, g: 0.92, b: 0.86, a: 1 },
+      msaaSamples: 4,
     });
     await this.engine.init();
 
