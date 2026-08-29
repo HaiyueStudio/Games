@@ -88,8 +88,17 @@ test('three-color weapons upgrade independently and stop at level three', () => 
   assert.ok(weaponProfile('red', 3).projectileCount > weaponProfile('red', 1).projectileCount);
   assert.ok(weaponProfile('blue', 3).projectileCount > weaponProfile('blue', 1).projectileCount);
   assert.ok(weaponProfile('blue', 3).damage > weaponProfile('red', 3).damage);
-  assert.deepEqual([1, 2, 3].map(level => weaponProfile('red', level).damage), [2, 2.75, 3.5]);
-  assert.deepEqual([1, 2, 3].map(level => weaponProfile('blue', level).damage), [5, 7.5, 10]);
+  assert.deepEqual([1, 2, 3].map(level => weaponProfile('red', level).damage), [2, 2, 2]);
+  assert.deepEqual([1, 2, 3].map(level => weaponProfile('blue', level).damage), [5, 5, 5]);
+  assert.deepEqual([1, 2, 3].map(level => weaponProfile('red', level).spreadSpeed), [120, 180, 240]);
+  assert.deepEqual([1, 2, 3].map(level => {
+    const profile = weaponProfile('red', level);
+    return profile.damage * profile.projectileCount;
+  }), [6, 10, 14]);
+  assert.deepEqual([1, 2, 3].map(level => {
+    const profile = weaponProfile('blue', level);
+    return profile.damage * profile.projectileCount;
+  }), [10, 15, 20]);
   assert.deepEqual([1, 2, 3].map(level => weaponProfile('purple', level).beamDamagePerSecond), [21, 31, 43]);
   assert.ok(weaponProfile('blue', 3).damage * weaponProfile('blue', 3).projectileCount
     > weaponProfile('red', 3).damage * weaponProfile('red', 3).projectileCount);

@@ -175,10 +175,10 @@ export function weaponProfile(form: WeaponForm, requestedLevel: number): WeaponP
     return {
       form,
       level,
-      damage: [0, 2, 2.75, 3.5][level] ?? 2,
+      damage: 2,
       projectileCount: [0, 3, 5, 7][level] ?? 3,
       fireIntervalMs: 100,
-      spreadSpeed: [0, 88, 126, 164][level] ?? 88,
+      spreadSpeed: [0, 120, 180, 240][level] ?? 120,
       beamWidth: 0,
       beamDamagePerSecond: 0,
       attractionRadius: 0,
@@ -188,7 +188,7 @@ export function weaponProfile(form: WeaponForm, requestedLevel: number): WeaponP
     return {
       form,
       level,
-      damage: [0, 5, 7.5, 10][level] ?? 5,
+      damage: 5,
       projectileCount: [0, 2, 3, 4][level] ?? 2,
       fireIntervalMs: 140,
       spreadSpeed: 0,
