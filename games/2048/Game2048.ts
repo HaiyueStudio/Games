@@ -268,26 +268,26 @@ class Game2048 {
     ));
 
     const scores = this._createGuiRoot('2048ScoresGui', 16, '#ffffff');
-    this.guiScore = scores.root.add(new GuiLabel({
-      x: 0,
-      y: 18,
-      width: 108,
-      height: 42,
-      text: 'SCORE  0',
-      textAlign: 'center',
-      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5 },
-    }));
-    this._anchorRight(this.guiScore, 132);
     this.guiBest = scores.root.add(new GuiLabel({
       x: 0,
       y: 18,
-      width: 108,
       height: 42,
       text: 'BEST  0',
       textAlign: 'center',
-      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5 },
+      autoWidth: true,
+      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5, padding: 12 },
     }));
     this._anchorRight(this.guiBest, 16);
+    this.guiScore = scores.root.add(new GuiLabel({
+      x: 0,
+      y: 18,
+      height: 42,
+      text: 'SCORE  0',
+      textAlign: 'center',
+      autoWidth: true,
+      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5, padding: 12 },
+    }));
+    this._anchorBefore(this.guiScore, this.guiBest, 8);
 
     const status = this._createGuiRoot('2048StatusGui', 22, '#776e65');
     this.guiStatus = status.root.add(new GuiLabel({
@@ -316,7 +316,7 @@ class Game2048 {
       height: 42,
       text: 'New Game',
       variant: 'primary',
-      style: { radius: 5 },
+      style: { radius: 5, hoverBackgroundColor: '#a18b75', hoverColor: '#ffffff' },
       onClick: () => this._newGame(),
     }));
     this._anchorBottomRight(newGame, 18, 18);
@@ -351,6 +351,14 @@ class Game2048 {
     element.layout = (parentRect) => {
       layout(parentRect);
       element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
+    };
+  }
+
+  private _anchorBefore(element: GuiElement, next: GuiElement, gap: number): void {
+    const layout = element.layout.bind(element);
+    element.layout = (parentRect) => {
+      layout(parentRect);
+      element.rect.x = next.rect.x - gap - element.rect.width;
     };
   }
 
