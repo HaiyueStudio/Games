@@ -12,6 +12,7 @@ import { mat4 } from 'wgpu-matrix';
 import { requiredNumberAt } from '../arrayAccess';
 import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 import { Billiards3DHud } from './Billiards3DHud';
+import { CueStick } from './CueStick';
 import { projectToScreen } from './input';
 
 interface Billiards3DSaveData {
@@ -91,6 +92,7 @@ class Billiards3DGame {
   private orbit!: OrbitControl;
   private physics!: Physics2DSystem;
   private hud!: Billiards3DHud;
+  private cueStick!: CueStick;
   private viewProj = new Float32Array(16);
   private projection = new Float32Array(16);
   private viewMatrix = new Float32Array(16);
@@ -138,6 +140,7 @@ class Billiards3DGame {
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 10, loadOp: 'clear' });
     this.world.addSystem(render3DSystem);
     this.world.addSystem(new RadialShadowRenderFeature(this.engine, this.cameraEntity, { priority: 20, loadOp: 'load' }));
+    this.cueStick = new CueStick(this.world);
     this.hud = new Billiards3DHud(this.world, () => this.requestNewGame());
     const guiSystem = new GuiSystem(this.engine, { loadOp: 'load' });
     guiSystem.priority = 30;
@@ -178,7 +181,7 @@ class Billiards3DGame {
 
   private setupLights(): void {
     const ambient = new Entity('Ambient');
-    ambient.addComponent(new AmbientLight({ color: [1, 1, 1], intensity: 0.34 }));
+    ambient.addComponent(new AmbientLight({ color: [1, 1, 1], intensity: 0.72 }));
     this.world.addEntity(ambient);
     const key = new Entity('KeyLight');
     key.addComponent(new DirectionalLight({ color: [1, 0.96, 0.88], intensity: 1.35, direction: [-0.35, -1, -0.25] }));
@@ -573,10 +576,18 @@ class Billiards3DGame {
   }
 
   private showPower(power: number): void {
+    this.cueStick.show(
+      this.cueBall.t2d.x,
+      BALL_Y,
+      this.cueBall.t2d.y,
+      this.shotDirection(),
+      power,
+    );
     this.hud.showPower(power);
   }
 
   private hidePower(): void {
+    this.cueStick.hide();
     this.hud.hidePower();
   }
 

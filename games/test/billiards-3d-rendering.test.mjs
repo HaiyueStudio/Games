@@ -30,3 +30,19 @@ test('billiards 3d delegates matrix operations to wgpu-matrix', async () => {
   assert.match(source, /mat4\.multiply\(projection, view, this\.viewProj\)/);
   assert.doesNotMatch(source, /function (?:multiply4|invert4)\(/);
 });
+
+test('billiards 3d reuses a tapered cue stick and pulls it back with shot power', async () => {
+  const [source, cueStick] = await Promise.all([
+    readFile(new URL('../billiards-3d/main.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards-3d/CueStick.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(source, /this\.cueStick = new CueStick\(this\.world\)/);
+  assert.match(source, /this\.cueStick\.show\(/);
+  assert.match(source, /this\.cueStick\.hide\(\)/);
+  assert.match(cueStick, /createCylinder3D\(\{/);
+  assert.match(cueStick, /CUE_MAX_PULLBACK \* clampedPower/);
+  assert.match(cueStick, /cueX - directionX \* distance/);
+  assert.match(cueStick, /cueZ - directionZ \* distance/);
+  assert.match(cueStick, /this\.entity\.disabled = (?:true|false)/);
+});
