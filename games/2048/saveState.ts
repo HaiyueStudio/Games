@@ -11,6 +11,7 @@ export interface Game2048SaveData {
   score: number;
   best: number;
   phase: Game2048Phase;
+  dismissedModalPhase?: Exclude<Game2048Phase, 'playing'> | null;
 }
 
 export function isGame2048SaveData(value: unknown, rows: number, cols: number): value is Game2048SaveData {
@@ -18,6 +19,10 @@ export function isGame2048SaveData(value: unknown, rows: number, cols: number): 
   if (value.rows !== rows || value.cols !== cols) return false;
   if (!isScore(value.score) || !isScore(value.best) || value.best < value.score) return false;
   if (value.phase !== 'playing' && value.phase !== 'won' && value.phase !== 'lost') return false;
+  if ('dismissedModalPhase' in value
+    && value.dismissedModalPhase !== null
+    && value.dismissedModalPhase !== 'won'
+    && value.dismissedModalPhase !== 'lost') return false;
   return Array.isArray(value.board)
     && value.board.length === rows
     && value.board.every(row => Array.isArray(row) && row.length === cols && row.every(isTileValue));

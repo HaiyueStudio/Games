@@ -470,6 +470,7 @@ class Game2048 {
         this.score = saved.data.score;
         this.best = saved.data.best;
         this.phase = saved.data.phase;
+        this.dismissedModalPhase = saved.data.dismissedModalPhase ?? null;
         return;
       }
       this._newGame(false);
@@ -501,6 +502,9 @@ class Game2048 {
       score: this.score,
       best: this.best,
       phase: this.phase,
+      dismissedModalPhase: this.dismissedModalPhase === 'won' || this.dismissedModalPhase === 'lost'
+        ? this.dismissedModalPhase
+        : null,
     };
     await this.saves.save({
       saveId: GAME_2048_SAVE_ID,
@@ -733,6 +737,7 @@ class Game2048 {
 
   private _dismissModal(): void {
     this.dismissedModalPhase = this.phase;
+    this._saveState();
   }
 
   private _updateLabels(viewportWidth: number, viewportHeight: number) {

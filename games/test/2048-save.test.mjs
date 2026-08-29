@@ -20,6 +20,7 @@ const valid = {
   score: 4096,
   best: 8192,
   phase: 'playing',
+  dismissedModalPhase: null,
 };
 
 test('2048 declares one stable autosave identity and validates complete game data', () => {
@@ -38,11 +39,18 @@ test('2048 save validation rejects wrong board shape, illegal tiles, and incompl
   largeTile.board[0][0] = 2 ** 40;
   assert.equal(isGame2048SaveData(largeTile, 4, 4), true);
   assert.equal(isGame2048SaveData({ ...valid, best: 1 }, 4, 4), false);
+  assert.equal(isGame2048SaveData({ ...valid, phase: 'won', dismissedModalPhase: 'won' }, 4, 4), true);
+  assert.equal(isGame2048SaveData({ ...valid, dismissedModalPhase: 'playing' }, 4, 4), false);
+  const legacySave = { ...valid };
+  delete legacySave.dismissedModalPhase;
+  assert.equal(isGame2048SaveData(legacySave, 4, 4), true);
 });
 
 test('2048 persistence goes through the engine save facade without direct storage calls', async () => {
   const source = await readFile(new URL('../2048/Game2048.ts', import.meta.url), 'utf8');
   assert.match(source, /from '@haiyue\/engine\/save'/);
   assert.match(source, /maxSlots:\s*1/);
+  assert.match(source, /this\.dismissedModalPhase = saved\.data\.dismissedModalPhase \?\? null/);
+  assert.match(source, /private _dismissModal\(\): void \{[\s\S]*?this\._saveState\(\)/);
   assert.doesNotMatch(source, /localStorage\.(getItem|setItem|removeItem)/);
 });
