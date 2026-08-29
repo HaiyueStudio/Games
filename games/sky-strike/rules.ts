@@ -1,6 +1,7 @@
 export type EnemyTier = 'normal' | 'elite' | 'boss';
-export type BulletPattern = 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral';
+export type BulletPattern = 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
 export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
 export type EnemyBulletColor = 'red' | 'blue';
@@ -16,6 +17,7 @@ export interface EnemyDefinition {
   readonly fireIntervalMs: number;
   readonly bulletPattern: BulletPattern;
   readonly flightPattern: FlightPattern;
+  readonly bossAttack?: BossAttack;
 }
 
 export interface Circle {
@@ -67,6 +69,11 @@ export const BOSS_LASER_DAMAGE = 100;
 export const POWERUP_FORM_INTERVAL_MS = 8_000;
 export const MAX_WEAPON_LEVEL = 3;
 export const ENEMY_FIRE_INTERVAL_MULTIPLIER = 2;
+export const INITIAL_BOMBS = 3;
+export const MAX_BOMBS = 5;
+export const BOMB_DAMAGE = 420;
+export const BOMB_RADIUS = 265;
+export const BOMB_FORWARD_OFFSET = 235;
 
 export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'scout', sprite: 'assets/enemy-scout.png', tier: 'normal', hitPoints: 5, speed: 116, score: 100, size: 58, fireIntervalMs: 1800, bulletPattern: 'aimed', flightPattern: 'straight' },
@@ -78,12 +85,15 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'drone', sprite: 'assets/enemy-drone.png', tier: 'normal', hitPoints: 7, speed: 104, score: 170, size: 56, fireIntervalMs: 1500, bulletPattern: 'aimed', flightPattern: 'weave' },
   { id: 'crimson-lance', sprite: 'assets/elite-crimson-lance.png', tier: 'elite', hitPoints: 78, speed: 52, score: 2400, size: 120, fireIntervalMs: 720, bulletPattern: 'spread', flightPattern: 'sweep' },
   { id: 'violet-fortress', sprite: 'assets/elite-violet-fortress.png', tier: 'elite', hitPoints: 118, speed: 38, score: 3600, size: 138, fireIntervalMs: 820, bulletPattern: 'ring', flightPattern: 'fortress' },
-  { id: 'dreadnought', sprite: 'assets/boss-dreadnought.png', tier: 'boss', hitPoints: 1_300, speed: 34, score: 25_000, size: 292, fireIntervalMs: 260, bulletPattern: 'spiral', flightPattern: 'fortress' },
+  { id: 'dreadnought', sprite: 'assets/boss-dreadnought.png', tier: 'boss', hitPoints: 1_300, speed: 34, score: 25_000, size: 292, fireIntervalMs: 260, bulletPattern: 'spiral', flightPattern: 'fortress', bossAttack: 'laser' },
+  { id: 'ion-seraph', sprite: 'assets/boss-ion-seraph.png', tier: 'boss', hitPoints: 1_650, speed: 38, score: 32_000, size: 302, fireIntervalMs: 310, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'arc-storm' },
+  { id: 'void-mantis', sprite: 'assets/boss-void-mantis.png', tier: 'boss', hitPoints: 2_000, speed: 42, score: 40_000, size: 310, fireIntervalMs: 235, bulletPattern: 'scythe', flightPattern: 'fortress', bossAttack: 'gravity-fan' },
 ]);
 
 const ENEMY_BY_ID = new Map(ENEMY_DEFINITIONS.map(definition => [definition.id, definition]));
 export const NORMAL_ENEMIES = Object.freeze(ENEMY_DEFINITIONS.filter(definition => definition.tier === 'normal'));
 export const ELITE_ENEMIES = Object.freeze(ENEMY_DEFINITIONS.filter(definition => definition.tier === 'elite'));
+export const BOSS_ENEMIES = Object.freeze(ENEMY_DEFINITIONS.filter(definition => definition.tier === 'boss'));
 export const BOSS_ENEMY = requiredEnemyDefinition('dreadnought');
 
 export function requiredEnemyDefinition(id: string): EnemyDefinition {
@@ -116,6 +126,20 @@ export function circlesOverlap(a: Circle, b: Circle): boolean {
   const dy = a.y - b.y;
   const radius = a.radius + b.radius;
   return dx * dx + dy * dy <= radius * radius;
+}
+
+export function createBombArea(playerX: number, playerY: number): Circle {
+  return {
+    x: Math.max(0, Math.min(LOGICAL_WIDTH, playerX)),
+    y: Math.max(BOMB_RADIUS * 0.72, playerY - BOMB_FORWARD_OFFSET),
+    radius: BOMB_RADIUS,
+  };
+}
+
+export function isInsideBombArea(area: Circle, target: Circle): boolean {
+  const dx = area.x - target.x;
+  const dy = area.y - target.y;
+  return dx * dx + dy * dy <= (area.radius + target.radius) * (area.radius + target.radius);
 }
 
 export function aimedVelocity(fromX: number, fromY: number, toX: number, toY: number, speed: number): Velocity {
@@ -213,7 +237,7 @@ export function nextPowerupForm(form: PowerupForm): PowerupForm {
 }
 
 export function enemyProjectileProfile(definition: EnemyDefinition): EnemyProjectileProfile {
-  const blue = definition.bulletPattern === 'burst' || definition.bulletPattern === 'ring';
+  const blue = definition.bulletPattern === 'burst' || definition.bulletPattern === 'ring' || definition.bulletPattern === 'arc';
   return blue
     ? { color: 'blue', cssColor: '#48a7ff', damage: BLUE_ENEMY_BULLET_DAMAGE }
     : { color: 'red', cssColor: '#ff415e', damage: RED_ENEMY_BULLET_DAMAGE };

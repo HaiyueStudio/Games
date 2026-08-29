@@ -46,12 +46,16 @@
       #weapon-value[data-form="blue"] { color: #62bdff; }
       #weapon-value[data-form="purple"] { color: #d27aff; }
       #weapon-level { min-width: 34px; color: rgba(229, 244, 255, .72); font: 800 8px/1 ui-monospace, monospace; }
+      #bomb-readout { position: absolute; left: 13px; bottom: 12px; display: flex; align-items: center; gap: 7px; color: #ffe384; font: 900 10px/1 ui-monospace, monospace; text-shadow: 0 0 13px rgba(255, 211, 73, .72); }
+      #bomb-button { width: 54px; height: 34px; pointer-events: auto; border: 1px solid rgba(255, 221, 101, .52); background: radial-gradient(circle at 50% 36%, rgba(255, 213, 74, .34), rgba(48, 24, 5, .84)); color: #fff5c5; font: 900 10px/1 ui-monospace, monospace; cursor: pointer; box-shadow: 0 0 18px rgba(255, 181, 35, .2); }
+      #bomb-button:hover:not(:disabled) { background: radial-gradient(circle at 50% 36%, rgba(255, 239, 141, .58), rgba(91, 40, 4, .9)); }
+      #bomb-button:disabled { opacity: .38; cursor: default; }
       #boss-hud { position: absolute; top: 130px; left: 18px; right: 18px; display: none; }
       #boss-hud.visible { display: block; }
       #boss-label { display: flex; justify-content: space-between; margin-bottom: 5px; color: #ff869d; font-size: 8px; font-weight: 900; letter-spacing: 0.17em; }
       #boss-track { height: 5px; overflow: hidden; border: 1px solid rgba(255, 76, 111, 0.55); background: rgba(64, 5, 21, 0.75); }
       #boss-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff244f, #ff7890); box-shadow: 0 0 15px #ff244f; transition: width 120ms linear; }
-      #controls-hint { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 78px); color: rgba(177, 210, 227, 0.68); font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-align: center; text-shadow: 0 1px 8px #000; }
+      #controls-hint { position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 36px); color: rgba(177, 210, 227, 0.68); font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-align: center; text-shadow: 0 1px 8px #000; }
       #pause-button { position: absolute; right: 12px; bottom: 11px; width: 50px; height: 29px; pointer-events: auto; border: 1px solid rgba(94, 226, 255, 0.24); background: rgba(4, 16, 34, 0.62); color: rgba(219, 244, 255, 0.8); font-size: 9px; font-weight: 800; cursor: pointer; backdrop-filter: blur(8px); }
       #pause-button:disabled { opacity: 0.35; }
       #status { position: absolute; inset: 0; display: none; place-items: center; padding: 28px; pointer-events: auto; background: radial-gradient(circle at center, rgba(7, 19, 45, 0.55), rgba(1, 3, 11, 0.78)); backdrop-filter: blur(3px); }
@@ -97,15 +101,16 @@
           </div>
         </div>
         <div id="boss-hud">
-          <div id="boss-label"><span>DREADNOUGHT</span><span>THREAT Ω</span></div>
+          <div id="boss-label"><span id="boss-name">DREADNOUGHT</span><span>THREAT Ω</span></div>
           <div id="boss-track"><div id="boss-fill"></div></div>
         </div>
-        <div id="controls-hint">WASD / 方向键移动 · J 射击 · 精英掉落三色武器</div>
+        <div id="controls-hint">WASD / 方向键移动 · J 射击 · K / B 投放炸弹</div>
+        <div id="bomb-readout"><button id="bomb-button" type="button" aria-label="投放炸弹">BOMB</button><span>× <strong id="bomb-count">3</strong></span></div>
         <button id="pause-button" type="button">暂停</button>
         <div id="status" class="visible">
           <div class="status-card">
             <h1 id="status-title">SKY STRIKE</h1>
-            <p id="status-copy">移动：WASD / 方向键　射击：J / 按住屏幕</p>
+            <p id="status-copy">移动：WASD / 方向键　射击：J / 按住屏幕　炸弹：K / B</p>
             <button class="action-button" id="start-button" type="button">开始出击</button>
             <button class="action-button" id="restart-button" type="button" hidden>再次出击</button>
           </div>

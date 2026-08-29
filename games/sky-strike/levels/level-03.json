@@ -1,0 +1,16 @@
+{
+  "id": "void-hunt",
+  "name": "虚空狩猎",
+  "seed": 2054523661,
+  "bossId": "void-mantis",
+  "spawns": [
+    { "atMs": 400, "enemyId": "dart", "position": { "mode": "random", "minX": 70, "maxX": 410 }, "count": 6, "intervalMs": 430 },
+    { "atMs": 4100, "enemyId": "stealth", "position": { "mode": "fixed", "x": 100 }, "count": 4, "intervalMs": 680 },
+    { "atMs": 7200, "enemyId": "stealth", "position": { "mode": "fixed", "x": 380 }, "count": 4, "intervalMs": 680 },
+    { "atMs": 11200, "enemyId": "violet-fortress", "position": { "mode": "random", "minX": 150, "maxX": 330 } },
+    { "atMs": 15600, "enemyId": "bomber", "position": { "mode": "random", "minX": 90, "maxX": 390 }, "count": 4, "intervalMs": 880 },
+    { "atMs": 21600, "enemyId": "gunship", "position": { "mode": "fixed", "x": 105 }, "count": 3, "intervalMs": 720 },
+    { "atMs": 24400, "enemyId": "gunship", "position": { "mode": "fixed", "x": 375 }, "count": 3, "intervalMs": 720 },
+    { "atMs": 30400, "enemyId": "void-mantis", "position": { "mode": "fixed", "x": 240 } }
+  ]
+}

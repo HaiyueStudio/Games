@@ -345,9 +345,15 @@
         "sky-strike/assets/enemy-stealth.png",
         "sky-strike/assets/enemy-gunship.png",
         "sky-strike/assets/enemy-drone.png",
-        "sky-strike/assets/elite-crimson-lance.png",
-        "sky-strike/assets/elite-violet-fortress.png",
-        "sky-strike/assets/boss-dreadnought.png"
+          "sky-strike/assets/elite-crimson-lance.png",
+          "sky-strike/assets/elite-violet-fortress.png",
+          "sky-strike/assets/boss-dreadnought.png",
+          "sky-strike/assets/boss-ion-seraph.png",
+          "sky-strike/assets/boss-void-mantis.png",
+          "sky-strike/assets/fx-burning-impact.png",
+          "sky-strike/levels/level-01.json",
+          "sky-strike/levels/level-02.json",
+          "sky-strike/levels/level-03.json"
       ],
       "screenshot": {
         "required": false,

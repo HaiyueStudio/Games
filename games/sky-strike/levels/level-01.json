@@ -1,0 +1,15 @@
+{
+  "id": "orbital-gate",
+  "name": "轨道之门",
+  "seed": 1369968926,
+  "bossId": "dreadnought",
+  "spawns": [
+    { "atMs": 600, "enemyId": "scout", "position": { "mode": "fixed", "x": 110 }, "count": 3, "intervalMs": 700 },
+    { "atMs": 3400, "enemyId": "dart", "position": { "mode": "fixed", "x": 370 }, "count": 3, "intervalMs": 620 },
+    { "atMs": 7200, "enemyId": "splitter", "position": { "mode": "random", "minX": 90, "maxX": 390 }, "count": 3, "intervalMs": 1100 },
+    { "atMs": 12200, "enemyId": "bomber", "position": { "mode": "fixed", "x": 240 }, "count": 2, "intervalMs": 1800 },
+    { "atMs": 17800, "enemyId": "crimson-lance", "position": { "mode": "random", "minX": 130, "maxX": 350 } },
+    { "atMs": 23200, "enemyId": "gunship", "position": { "mode": "fixed", "x": 120 }, "count": 3, "intervalMs": 950 },
+    { "atMs": 29600, "enemyId": "dreadnought", "position": { "mode": "fixed", "x": 240 } }
+  ]
+}

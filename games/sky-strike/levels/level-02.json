@@ -1,0 +1,16 @@
+{
+  "id": "ion-tempest",
+  "name": "离子风暴",
+  "seed": 185279779,
+  "bossId": "ion-seraph",
+  "spawns": [
+    { "atMs": 500, "enemyId": "stealth", "position": { "mode": "random", "minX": 80, "maxX": 400 }, "count": 4, "intervalMs": 560 },
+    { "atMs": 3900, "enemyId": "drone", "position": { "mode": "fixed", "x": 92 }, "count": 5, "intervalMs": 500 },
+    { "atMs": 7800, "enemyId": "splitter", "position": { "mode": "fixed", "x": 388 }, "count": 4, "intervalMs": 760 },
+    { "atMs": 12800, "enemyId": "violet-fortress", "position": { "mode": "fixed", "x": 240 } },
+    { "atMs": 17200, "enemyId": "gunship", "position": { "mode": "random", "minX": 96, "maxX": 384 }, "count": 3, "intervalMs": 920 },
+    { "atMs": 22300, "enemyId": "crimson-lance", "position": { "mode": "fixed", "x": 135 } },
+    { "atMs": 24600, "enemyId": "crimson-lance", "position": { "mode": "fixed", "x": 345 } },
+    { "atMs": 30000, "enemyId": "ion-seraph", "position": { "mode": "fixed", "x": 240 } }
+  ]
+}
