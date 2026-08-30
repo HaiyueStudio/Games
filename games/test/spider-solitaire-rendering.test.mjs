@@ -23,8 +23,8 @@ test('Spider Solitaire draws canvas card textures after opaque card bodies', () 
   );
   assert.match(
     page,
-    /bundle\.js\?v=spider-solitaire-difficulty-v6/,
-    'the page should invalidate bundles cached before difficulty support',
+    /bundle\.js\?v=spider-solitaire-interaction-v7/,
+    'the page should invalidate bundles cached before engine-managed interaction',
   );
 });
 
@@ -48,4 +48,14 @@ test('Spider Solitaire reuses scene entities and geometry during drag and deal a
   assert.match(source, /if \(position\[0\] !== x \|\| position\[1\] !== y \|\| position\[2\] !== z\)/, 'static transforms should not be dirtied every frame');
   assert.doesNotMatch(source, /this\.world\.removeEntity\(entity\)/, 'animation frames should not destroy scene entities');
   assert.doesNotMatch(source, /new CartesianTransform3D\(\{\s+position: \[pose\.x, pose\.y, pose\.z\]/, 'card picking should reuse its transform');
+});
+
+test('Spider Solitaire delegates pointer and keyboard input to engine components', () => {
+  const source = read('games', 'spider-solitaire', 'SpiderSolitaireGame.ts');
+
+  assert.match(source, /new InteractionSystem\(this\.engine, this\.cameraEntity\)/);
+  assert.match(source, /new Interactive\(\{/);
+  assert.match(source, /this\.keyboard = new KeyboardComponent\(\)/);
+  assert.match(source, /this\.keyboard\.wasPressed\('spider\.deal'\)/);
+  assert.doesNotMatch(source, /\.addEventListener\(/, 'game code should not bind native input listeners');
 });

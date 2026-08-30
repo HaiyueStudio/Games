@@ -1,7 +1,8 @@
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createPlane3D, type Geometry3D } from '@haiyue/engine';
+import { Interactive, KeyboardComponent, type InteractiveEvent } from '@haiyue/engine/components';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
-import { Render3DSystem } from '@haiyue/engine/systems';
+import { InteractionSystem, Render3DSystem } from '@haiyue/engine/systems';
 import { Ray } from '@haiyue/engine/math';
 import {
   GuiButton,
@@ -157,6 +158,7 @@ class SpiderSolitaire {
   private cameraEntity!: Entity;
   private orbitTransform!: SphericalTransform3D;
   private orbitControl!: OrbitControl;
+  private keyboard!: KeyboardComponent;
   private canvas!: HTMLCanvasElement;
   private sceneVisuals: SceneVisual[] = [];
   private sceneVisualCursor = 0;
@@ -188,13 +190,14 @@ class SpiderSolitaire {
     this.world = new World('SpiderSolitaireWebGPU');
     this.setupCamera();
     this.setupLights();
+    this.setupInput();
+    this.world.addSystem(new InteractionSystem(this.engine, this.cameraEntity));
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 20, loadOp: 'clear', transparentSort: false, reverseZ: true });
     this.world.addSystem(render3DSystem);
     this.setupGui();
     const renderIntegration = new RenderIntegration(this.engine, { label: 'SpiderSolitaire.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
-    this.bindUi();
     await this.loadOrStart();
     this.flushRender();
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
@@ -210,6 +213,7 @@ class SpiderSolitaire {
     }
     this.flushRender();
     this.world.update(time, delta);
+    this.handleKeyboardInput();
   }
 
   private setupCamera(): void {
@@ -248,12 +252,15 @@ class SpiderSolitaire {
     this.world.addEntity(fill);
   }
 
-  private bindUi(): void {
-    this.canvas.addEventListener('pointerdown', event => this.handlePointerDown(event));
-    window.addEventListener('keydown', event => this.handleKey(event));
-    window.addEventListener('pointermove', event => this.handlePointerMove(event));
-    window.addEventListener('pointerup', event => this.handlePointerUp(event));
-    window.addEventListener('pointercancel', event => this.handlePointerUp(event));
+  private setupInput(): void {
+    KeyboardComponent.defineAction('spider.new-game', ['KeyN']);
+    KeyboardComponent.defineAction('spider.undo', ['KeyZ']);
+    KeyboardComponent.defineAction('spider.deal', ['KeyD', 'Space']);
+    KeyboardComponent.defineAction('spider.cancel', ['Escape']);
+    const inputEntity = new Entity('SpiderSolitaireInput');
+    this.keyboard = new KeyboardComponent();
+    inputEntity.addComponent(this.keyboard);
+    this.world.addEntity(inputEntity);
   }
 
   private setupGui(): void {
@@ -370,19 +377,14 @@ class SpiderSolitaire {
     return cards;
   }
 
-  private handleKey(event: KeyboardEvent): void {
-    const key = event.key.toLowerCase();
-    if (key === 'n') this.newGame();
+  private handleKeyboardInput(): void {
+    if (this.keyboard.wasPressed('spider.new-game')) this.newGame();
     if (this.isAnimating()) {
-      if (key === 'z' || key === 'd' || key === ' ') event.preventDefault();
       return;
     }
-    if (key === 'z') this.undo();
-    if (key === 'd' || key === ' ') {
-      this.dealFromStock();
-      event.preventDefault();
-    }
-    if (key === 'escape') {
+    if (this.keyboard.wasPressed('spider.undo')) this.undo();
+    if (this.keyboard.wasPressed('spider.deal')) this.dealFromStock();
+    if (this.keyboard.wasPressed('spider.cancel')) {
       this.selection = null;
       this.drag = null;
       this.resumeOrbitControl();
@@ -497,6 +499,18 @@ class SpiderSolitaire {
       this.selectOrMove(drag.selection.column, drag.selection.index);
     }
     event.preventDefault();
+  }
+
+  private handleInteractivePointerDown(event: InteractiveEvent): void {
+    if (event.nativeEvent instanceof PointerEvent) this.handlePointerDown(event.nativeEvent);
+  }
+
+  private handleInteractivePointerMove(event: InteractiveEvent): void {
+    if (event.nativeEvent instanceof PointerEvent) this.handlePointerMove(event.nativeEvent);
+  }
+
+  private handleInteractivePointerUp(event: InteractiveEvent): void {
+    if (event.nativeEvent instanceof PointerEvent) this.handlePointerUp(event.nativeEvent);
   }
 
   private columnHitFromPoint(clientX: number, clientY: number): PointerColumnHit | null {
@@ -948,6 +962,11 @@ class SpiderSolitaire {
       const mesh = new Mesh3D(geometry, material);
       entity.addComponent(transform);
       entity.addComponent(mesh);
+      entity.addComponent(new Interactive({
+        onPointerDown: event => this.handleInteractivePointerDown(event),
+        onPointerMove: event => this.handleInteractivePointerMove(event),
+        onPointerUp: event => this.handleInteractivePointerUp(event),
+      }));
       this.world.addEntity(entity);
       visual = { entity, transform, mesh };
       this.sceneVisuals.push(visual);
