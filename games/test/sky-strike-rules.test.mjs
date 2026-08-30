@@ -170,6 +170,8 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(source, /'arrowup'.*'arrowdown'.*'arrowleft'.*'arrowright'.*'w'.*'a'.*'s'.*'d'.*'j'.*'k'.*'b'/s);
   assert.match(source, /addEventListener\('pointerdown'/);
   assert.match(source, /addEventListener\('pointermove'/);
+  assert.match(source, /addEventListener\('contextmenu'.*preventDefault/s);
+  assert.match(source, /event\.button === 2.*activateBomb\(\)/s);
   assert.match(source, /POWERUP_FORM_INTERVAL_MS/);
   assert.match(source, /BOSS_LASER_WARNING_MS/);
   assert.match(source, /damagePlayer\(bullet\.damage\)/);

@@ -265,7 +265,7 @@ class SkyStrikeGame {
     this.createStars();
     this.setupInput();
     this.syncHud();
-    this.showStatus('SKY STRIKE', '移动：WASD / 方向键　射击：J / 按住屏幕　炸弹：K / B', '开始出击');
+    this.showStatus('SKY STRIKE', '移动：WASD / 方向键　射击：J / 按住屏幕　炸弹：K / B / 鼠标右键', '开始出击');
     this.render();
   }
 
@@ -343,8 +343,14 @@ class SkyStrikeGame {
     });
     window.addEventListener('keyup', event => this.keys.delete(event.key.toLowerCase()));
 
+    this.canvas.addEventListener('contextmenu', event => event.preventDefault());
     this.canvas.addEventListener('pointerdown', event => {
       event.preventDefault();
+      if (event.button === 2) {
+        this.activateBomb();
+        return;
+      }
+      if (event.button !== 0) return;
       this.canvas.setPointerCapture(event.pointerId);
       this.pointerFiring = true;
       this.movePlayerToPointer(event);
