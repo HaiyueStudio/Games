@@ -16,17 +16,23 @@ import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
 import {
   cloneSpiderCard as cloneCard,
   cloneSpiderColumns as cloneColumns,
+  createSpiderDeck,
+  isSpiderCompleteRun,
+  isSpiderMovableRun,
   isSpiderSaveData,
-  shuffleSpiderCards as shuffle,
   spiderColumnAt as columnAt,
   SPIDER_COLUMN_COUNT as COLUMN_COUNT,
+  SPIDER_DIFFICULTY_LABELS as DIFFICULTY_LABELS,
   SPIDER_INITIAL_DEAL as INITIAL_DEAL,
   SPIDER_RANK_LABELS as RANK_LABELS,
   SPIDER_RUN_LENGTH as RUN_LENGTH,
+  SPIDER_SUIT_SYMBOLS as SUIT_SYMBOLS,
   type SpiderCard as Card,
   type SpiderCardSelection as CardSelection,
+  type SpiderDifficulty as Difficulty,
   type SpiderRank as Rank,
   type SpiderSnapshot as Snapshot,
+  type SpiderSuit as Suit,
 } from './model';
 
 type Color = [number, number, number, number];
@@ -85,8 +91,8 @@ interface SceneVisual {
   mesh: Mesh3D;
 }
 
-type UiAction = 'deal' | 'undo' | 'new';
-type GuiActionButton = { action: UiAction; button: GuiButton };
+type UiAction = 'deal' | 'undo' | 'new' | Difficulty;
+type GuiActionButton = { action: UiAction; button: GuiButton; label: string; difficulty: Difficulty | undefined };
 
 const TABLE_WIDTH = 1080;
 const TABLE_DEPTH = 720;
@@ -111,6 +117,9 @@ const RUN_COLLECT_ANIMATION_MS = 760;
 const ANIMATION_STAGGER_MS = 42;
 
 const GUI_BUTTONS = [
+  { action: 'easy' as UiAction, difficulty: 'easy' as Difficulty, label: 'Easy · 1 Suit', width: 116 },
+  { action: 'normal' as UiAction, difficulty: 'normal' as Difficulty, label: 'Normal · 2', width: 116 },
+  { action: 'hard' as UiAction, difficulty: 'hard' as Difficulty, label: 'Hard · 4', width: 104 },
   { action: 'deal' as UiAction, label: 'Deal', width: 92 },
   { action: 'undo' as UiAction, label: 'Undo', width: 92 },
   { action: 'new' as UiAction, label: 'New Game', width: 124 },
@@ -134,7 +143,9 @@ class SpiderSolitaire {
   });
   private columns: Card[][] = [];
   private stock: Card[] = [];
+  private difficulty: Difficulty = 'easy';
   private completedRuns = 0;
+  private completedSuits: Suit[] = [];
   private moves = 0;
   private nextId = 1;
   private selection: CardSelection | null = null;
@@ -285,7 +296,7 @@ class SpiderSolitaire {
         original.call(button, parentRect);
         button.rect.x = parentRect.width - offsetRight;
       })(button.layout);
-      this.guiButtons.push({ action: item.action, button });
+      this.guiButtons.push({ action: item.action, button, label: item.label, difficulty: item.difficulty });
       right += 10;
     }
 
@@ -294,10 +305,11 @@ class SpiderSolitaire {
     this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
   }
 
-  private newGame(save = true): void {
+  private newGame(save = true, message = 'Drag a face-up, same-suit descending stack to another column.'): void {
     this.columns = Array.from({ length: COLUMN_COUNT }, () => []);
     this.stock = this.createDeck();
     this.completedRuns = 0;
+    this.completedSuits = [];
     this.moves = 0;
     this.selection = null;
     this.drag = null;
@@ -316,7 +328,7 @@ class SpiderSolitaire {
       }
     }
 
-    this.toast('Drag a face-up descending stack to a destination column.');
+    this.toast(message);
     this.render();
     if (save) this.saveState();
   }
@@ -329,7 +341,9 @@ class SpiderSolitaire {
     }
     this.columns = cloneColumns(saved.columns);
     this.stock = saved.stock.map(cloneCard);
+    this.difficulty = saved.difficulty;
     this.completedRuns = saved.completedRuns;
+    this.completedSuits = [...saved.completedSuits];
     this.moves = saved.moves;
     this.nextId = Math.max(0, ...this.columns.flat().map(card => card.id), ...this.stock.map(card => card.id)) + 1;
     this.selection = null;
@@ -341,22 +355,19 @@ class SpiderSolitaire {
 
   private saveState(): void {
     this.saves.save({
+      difficulty: this.difficulty,
       columns: cloneColumns(this.columns),
       stock: this.stock.map(cloneCard),
       completedRuns: this.completedRuns,
+      completedSuits: [...this.completedSuits],
       moves: this.moves,
     });
   }
 
   private createDeck(): Card[] {
-    const cards: Card[] = [];
-    this.nextId = 1;
-    for (let deck = 0; deck < 8; deck++) {
-      for (let rank = 1; rank <= 13; rank++) {
-        cards.push({ id: this.nextId++, rank: rank as Rank, faceUp: false });
-      }
-    }
-    return shuffle(cards);
+    const cards = createSpiderDeck(this.difficulty);
+    this.nextId = cards.length + 1;
+    return cards;
   }
 
   private handleKey(event: KeyboardEvent): void {
@@ -553,7 +564,14 @@ class SpiderSolitaire {
     if (this.isAnimating() && action !== 'new') return;
     if (action === 'deal') this.dealFromStock();
     else if (action === 'undo') this.undo();
-    else this.newGame();
+    else if (action === 'new') this.newGame();
+    else this.changeDifficulty(action);
+  }
+
+  private changeDifficulty(difficulty: Difficulty): void {
+    if (difficulty === this.difficulty) return;
+    this.difficulty = difficulty;
+    this.newGame(true, `${DIFFICULTY_LABELS[difficulty]} started. Build same-suit runs from King to Ace.`);
   }
 
   private tryMoveSelection(destinationColumn: number): boolean {
@@ -596,13 +614,7 @@ class SpiderSolitaire {
   }
 
   private isMovableStack(columnIndex: number, cardIndex: number): boolean {
-    const column = columnAt(this.columns, columnIndex);
-    for (let i = cardIndex; i < column.length; i++) {
-      const card = requiredItemAt(column, i, 'Spider cards');
-      if (!card.faceUp) return false;
-      if (i > cardIndex && requiredItemAt(column, i - 1, 'Spider cards').rank !== card.rank + 1) return false;
-    }
-    return true;
+    return isSpiderMovableRun(columnAt(this.columns, columnIndex).slice(cardIndex));
   }
 
   private dealFromStock(): void {
@@ -661,6 +673,7 @@ class SpiderSolitaire {
         const runIndex = this.completedRuns;
         this.addRunCollectAnimation(run, columnIndex, runStartIndex, runIndex);
         column.splice(column.length - RUN_LENGTH, RUN_LENGTH);
+        this.completedSuits.push(requiredItemAt(run, 0, 'completed Spider run').suit);
         this.completedRuns++;
         this.flipExposedCard(columnIndex);
         changed = true;
@@ -670,11 +683,7 @@ class SpiderSolitaire {
   }
 
   private isCompleteRun(cards: Card[]): boolean {
-    for (let i = 0; i < RUN_LENGTH; i++) {
-      const card = requiredItemAt(cards, i, 'completed Spider run');
-      if (!card.faceUp || card.rank !== 13 - i) return false;
-    }
-    return true;
+    return isSpiderCompleteRun(cards);
   }
 
   private flipExposedCard(columnIndex: number): void {
@@ -685,9 +694,11 @@ class SpiderSolitaire {
 
   private pushHistory(): void {
     this.history.push({
+      difficulty: this.difficulty,
       columns: cloneColumns(this.columns),
       stock: this.stock.map(cloneCard),
       completedRuns: this.completedRuns,
+      completedSuits: [...this.completedSuits],
       moves: this.moves,
     });
   }
@@ -700,7 +711,9 @@ class SpiderSolitaire {
     }
     this.columns = cloneColumns(snapshot.columns);
     this.stock = snapshot.stock.map(cloneCard);
+    this.difficulty = snapshot.difficulty;
     this.completedRuns = snapshot.completedRuns;
+    this.completedSuits = [...snapshot.completedSuits];
     this.moves = snapshot.moves;
     this.selection = null;
     this.drag = null;
@@ -735,7 +748,9 @@ class SpiderSolitaire {
     for (const item of this.guiButtons) {
       const disabled = (item.action === 'deal' && this.stock.length < COLUMN_COUNT) ||
         (item.action === 'undo' && this.history.length === 0) ||
+        item.difficulty === this.difficulty ||
         (this.isAnimating() && item.action !== 'new');
+      item.button.setText(item.difficulty === this.difficulty ? `✓ ${item.label}` : item.label);
       item.button.setDisabled(disabled);
     }
   }
@@ -769,7 +784,7 @@ class SpiderSolitaire {
       align: 'left',
     }), HUD_Y);
 
-    const stats = `Moves ${this.moves}     Runs ${this.completedRuns} / 8     Stock ${this.stock.length}`;
+    const stats = `${DIFFICULTY_LABELS[this.difficulty]}     Moves ${this.moves}     Runs ${this.completedRuns} / 8     Stock ${this.stock.length}`;
     this.addTextPlane('Stats', -228, HUD_Z + 43, 420, 30, this.dynamicTextMaterial('stats', stats, {
       width: 900,
       height: 96,
@@ -801,16 +816,16 @@ class SpiderSolitaire {
 
   private addFoundation(): void {
     for (let i = 0; i < 8; i++) {
-      if (i < this.completedRuns) this.addCompletedRunPile(i);
+      if (i < this.completedRuns) this.addCompletedRunPile(i, requiredItemAt(this.completedSuits, i, 'completed Spider suits'));
     }
   }
 
-  private addCompletedRunPile(runIndex: number): void {
+  private addCompletedRunPile(runIndex: number, suit: Suit): void {
     this.addSlot(FOUNDATION_START_X + runIndex * FOUNDATION_GAP, FOUNDATION_Z, '');
     for (let i = 0; i < 5; i++) {
       const pose = this.foundationRunPose(runIndex, i);
       const rank = Math.max(1, 13 - i * 3) as Rank;
-      this.addCardVisual({ id: -10000 - runIndex * 10 - i, rank, faceUp: true }, pose.x, pose.z, pose.y, i, false);
+      this.addCardVisual({ id: -10000 - runIndex * 10 - i, rank, suit, faceUp: true }, pose.x, pose.z, pose.y, i, false);
     }
   }
 
@@ -886,7 +901,7 @@ class SpiderSolitaire {
       y + CARD_THICKNESS * 0.5 + 0.24,
       z,
       this.planeGeometry(CARD_WIDTH * 0.94, CARD_DEPTH * 0.94),
-      card && faceUp ? this.cardFaceMaterial(card.rank) : this.cardBackMaterial(),
+      card && faceUp ? this.cardFaceMaterial(card.rank, card.suit) : this.cardBackMaterial(),
       rotationX,
       rotationY,
       rotationZ,
@@ -1178,11 +1193,11 @@ class SpiderSolitaire {
     return material;
   }
 
-  private cardFaceMaterial(rank: Rank): BasicMaterial {
-    const key = `face-${rank}`;
+  private cardFaceMaterial(rank: Rank, suit: Suit): BasicMaterial {
+    const key = `face-${suit}-${rank}`;
     let material = this.textureMaterials.get(key);
     if (!material) {
-      material = new BasicMaterial({ texture: this.createCardCanvas(rank), cullMode: 'none', blending: 'normal', depthWrite: false });
+      material = new BasicMaterial({ texture: this.createCardCanvas(rank, suit), cullMode: 'none', blending: 'normal', depthWrite: false });
       this.textureMaterials.set(key, material);
     }
     return material;
@@ -1225,7 +1240,7 @@ class SpiderSolitaire {
     return material;
   }
 
-  private createCardCanvas(rank: Rank): HTMLCanvasElement {
+  private createCardCanvas(rank: Rank, suit: Suit): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     canvas.width = 384;
     canvas.height = 528;
@@ -1237,20 +1252,21 @@ class SpiderSolitaire {
     context.strokeStyle = '#26303a';
     context.stroke();
 
-    context.fillStyle = '#111827';
+    const suitSymbol = SUIT_SYMBOLS[suit];
+    context.fillStyle = suit === 'hearts' || suit === 'diamonds' ? '#c92532' : '#111827';
     context.textBaseline = 'top';
     context.textAlign = 'left';
     context.font = '900 76px ui-sans-serif, system-ui, sans-serif';
     context.fillText(RANK_LABELS[rank], 36, 30);
     context.font = '900 72px ui-sans-serif, system-ui, sans-serif';
-    context.fillText('♠', 38, 108);
+    context.fillText(suitSymbol, 38, 108);
 
     context.save();
     context.globalAlpha = 0.16;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.font = '900 190px ui-sans-serif, system-ui, sans-serif';
-    context.fillText('♠', 192, 278);
+    context.fillText(suitSymbol, 192, 278);
     context.restore();
 
     context.save();
@@ -1261,7 +1277,7 @@ class SpiderSolitaire {
     context.font = '900 76px ui-sans-serif, system-ui, sans-serif';
     context.fillText(RANK_LABELS[rank], 0, 0);
     context.font = '900 72px ui-sans-serif, system-ui, sans-serif';
-    context.fillText('♠', 0, 78);
+    context.fillText(suitSymbol, 0, 78);
     context.restore();
     return canvas;
   }

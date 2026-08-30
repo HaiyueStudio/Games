@@ -13,7 +13,7 @@ test('Spider Solitaire draws canvas card textures after opaque card bodies', () 
 
   assert.match(
     source,
-    /texture: this\.createCardCanvas\(rank\), cullMode: 'none', blending: 'normal', depthWrite: false/,
+    /texture: this\.createCardCanvas\(rank, suit\), cullMode: 'none', blending: 'normal', depthWrite: false/,
     'face textures should use the blended render pass',
   );
   assert.match(
@@ -23,9 +23,19 @@ test('Spider Solitaire draws canvas card textures after opaque card bodies', () 
   );
   assert.match(
     page,
-    /bundle\.js\?v=spider-solitaire-render-pool-v5/,
-    'the page should invalidate bundles cached before the pooled renderer',
+    /bundle\.js\?v=spider-solitaire-difficulty-v6/,
+    'the page should invalidate bundles cached before difficulty support',
   );
+});
+
+test('Spider Solitaire exposes one, two, and four-suit difficulty controls', () => {
+  const source = read('games', 'spider-solitaire', 'SpiderSolitaireGame.ts');
+
+  assert.match(source, /difficulty: 'easy'.*label: 'Easy · 1 Suit'/);
+  assert.match(source, /difficulty: 'normal'.*label: 'Normal · 2'/);
+  assert.match(source, /difficulty: 'hard'.*label: 'Hard · 4'/);
+  assert.match(source, /private difficulty: Difficulty = 'easy'/, 'easy should be the default difficulty');
+  assert.match(source, /this\.newGame\(true, `\$\{DIFFICULTY_LABELS\[difficulty\]\} started\./);
 });
 
 test('Spider Solitaire reuses scene entities and geometry during drag and deal animation', () => {
