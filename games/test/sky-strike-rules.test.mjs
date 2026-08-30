@@ -6,12 +6,15 @@ import {
   BOSS_ENEMY,
   BOSS_ENEMIES,
   BOSS_LASER_DAMAGE,
+  BOSS_CRITICAL_HEALTH_RATIO,
+  BOSS_WARNING_LEAD_MS,
   BOMB_DAMAGE,
   BOMB_RADIUS,
   BLUE_ENEMY_BULLET_DAMAGE,
   ELITE_ENEMIES,
   ENEMY_DEFINITIONS,
   ENEMY_FIRE_INTERVAL_MULTIPLIER,
+  KAMIKAZE_COLLISION_DAMAGE,
   LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
   NORMAL_ENEMIES,
@@ -19,10 +22,14 @@ import {
   PLAYER_MAX_LIVES,
   PLAYER_REGEN_PER_SECOND,
   RED_ENEMY_BULLET_DAMAGE,
+  SAUCER_DEATH_BULLET_COUNT,
   aimedVelocity,
+  bossCriticalDamageIntensity,
+  calculateBossWarningProgress,
   circlesOverlap,
   createBombArea,
   createNormalSpawnSequence,
+  createRadialBurst,
   createSeededRandom,
   distancePointToSegment,
   enemyFireIntervalMs,
@@ -31,20 +38,27 @@ import {
   nextPowerupForm,
   regeneratePlayerHealth,
   selectLaserTarget,
+  stepFireCooldown,
+  steerKamikazeVelocity,
   upgradeWeapon,
   weaponProfile,
 } from '../sky-strike/rules.ts';
-import { compileLevelTimeline, resolveSpawnX } from '../sky-strike/levels/loader.ts';
+import {
+  compileLevelTimeline,
+  mixHexColor,
+  mixLevelBackground,
+  resolveSpawnX,
+} from '../sky-strike/levels/loader.ts';
 
-test('Sky Strike defines seven regular enemies, two elites, and three distinct bosses', () => {
-  assert.equal(ENEMY_DEFINITIONS.length, 12);
-  assert.equal(NORMAL_ENEMIES.length, 7);
+test('Sky Strike defines nine regular enemies, two elites, and four distinct bosses', () => {
+  assert.equal(ENEMY_DEFINITIONS.length, 15);
+  assert.equal(NORMAL_ENEMIES.length, 9);
   assert.equal(ELITE_ENEMIES.length, 2);
-  assert.equal(BOSS_ENEMIES.length, 3);
+  assert.equal(BOSS_ENEMIES.length, 4);
   assert.equal(BOSS_ENEMY.tier, 'boss');
   assert.equal(BOSS_ENEMY.hitPoints, 1_300);
-  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan']);
-  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 12);
+  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy']);
+  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 15);
   assert.ok(ENEMY_DEFINITIONS.every(enemy => enemy.hitPoints > 0 && enemy.size > 0));
 });
 
@@ -89,7 +103,7 @@ test('three-color weapons upgrade independently and stop at level three', () => 
   assert.ok(weaponProfile('blue', 3).projectileCount > weaponProfile('blue', 1).projectileCount);
   assert.ok(weaponProfile('blue', 3).damage > weaponProfile('red', 3).damage);
   assert.deepEqual([1, 2, 3].map(level => weaponProfile('red', level).damage), [2, 2, 2]);
-  assert.deepEqual([1, 2, 3].map(level => weaponProfile('blue', level).damage), [5, 5, 5]);
+  assert.deepEqual([1, 2, 3].map(level => weaponProfile('blue', level).damage), [4, 4, 4]);
   assert.deepEqual([1, 2, 3].map(level => weaponProfile('red', level).spreadSpeed), [120, 180, 240]);
   assert.deepEqual([1, 2, 3].map(level => {
     const profile = weaponProfile('red', level);
@@ -98,11 +112,35 @@ test('three-color weapons upgrade independently and stop at level three', () => 
   assert.deepEqual([1, 2, 3].map(level => {
     const profile = weaponProfile('blue', level);
     return profile.damage * profile.projectileCount;
-  }), [10, 15, 20]);
-  assert.deepEqual([1, 2, 3].map(level => weaponProfile('purple', level).beamDamagePerSecond), [21, 31, 43]);
+  }), [8, 12, 16]);
+  assert.deepEqual([1, 2, 3].map(level => weaponProfile('purple', level).beamDamagePerSecond), [25, 35, 45]);
   assert.ok(weaponProfile('blue', 3).damage * weaponProfile('blue', 3).projectileCount
     > weaponProfile('red', 3).damage * weaponProfile('red', 3).projectileCount);
   assert.equal(nextPowerupForm(nextPowerupForm(nextPowerupForm('red'))), 'red');
+});
+
+test('player firing cooldown never accumulates a pointer-down catch-up burst', () => {
+  assert.deepEqual(stepFireCooldown(-850, 16, false, 105), { shouldFire: false, cooldownMs: 0 });
+  assert.deepEqual(stepFireCooldown(-850, 16, true, 105), { shouldFire: true, cooldownMs: 105 });
+  assert.deepEqual(stepFireCooldown(105, 16, true, 105), { shouldFire: false, cooldownMs: 89 });
+  assert.deepEqual(stepFireCooldown(5, 16, true, 105), { shouldFire: true, cooldownMs: 105 });
+});
+
+test('boss warning starts three seconds before its scheduled appearance', () => {
+  assert.equal(BOSS_WARNING_LEAD_MS, 3_000);
+  assert.equal(calculateBossWarningProgress(3_001), 0);
+  assert.equal(calculateBossWarningProgress(3_000), 0);
+  assert.equal(calculateBossWarningProgress(1_500), 0.5);
+  assert.equal(calculateBossWarningProgress(1), 1 - 1 / 3_000);
+  assert.equal(calculateBossWarningProgress(0), 0);
+});
+
+test('boss damage effects only intensify inside the critical health band', () => {
+  assert.equal(BOSS_CRITICAL_HEALTH_RATIO, 0.3);
+  assert.equal(bossCriticalDamageIntensity(301, 1_000), 0);
+  assert.equal(bossCriticalDamageIntensity(300, 1_000), 0);
+  assert.ok(Math.abs(bossCriticalDamageIntensity(150, 1_000) - 0.5) < 1e-8);
+  assert.equal(bossCriticalDamageIntensity(0, 1_000), 1);
 });
 
 test('purple laser attracts a nearby forward target and boss beam geometry is stable', () => {
@@ -126,6 +164,26 @@ test('bullet aiming and circular hit tests remain stable', () => {
   assert.equal(LOGICAL_WIDTH * 2, LOGICAL_HEIGHT);
 });
 
+test('saucer death burst is radial and kamikaze steering accelerates toward the player', () => {
+  const saucer = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'saucer');
+  const kamikaze = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'kamikaze');
+  assert.equal(saucer?.bulletPattern, 'none');
+  assert.equal(saucer?.deathBurstCount, SAUCER_DEATH_BULLET_COUNT);
+  assert.equal(kamikaze?.flightPattern, 'kamikaze');
+  assert.equal(kamikaze?.contactDamage, KAMIKAZE_COLLISION_DAMAGE);
+  assert.equal(KAMIKAZE_COLLISION_DAMAGE, 90);
+
+  const burst = createRadialBurst(SAUCER_DEATH_BULLET_COUNT, 200);
+  assert.equal(burst.length, 16);
+  assert.ok(burst.every(velocity => Math.abs(Math.hypot(velocity.x, velocity.y) - 200) < 1e-8));
+  assert.ok(Math.abs(burst.reduce((sum, velocity) => sum + velocity.x, 0)) < 1e-8);
+  assert.ok(Math.abs(burst.reduce((sum, velocity) => sum + velocity.y, 0)) < 1e-8);
+
+  const steered = steerKamikazeVelocity({ x: 0, y: 112 }, 0, 0, 100, 100, 112, 2, 0.5);
+  assert.ok(steered.x > 0);
+  assert.ok(Math.hypot(steered.x, steered.y) > 112);
+});
+
 test('bomb area is forward-facing and includes nearby enemies and projectiles', () => {
   const area = createBombArea(240, 820);
   assert.equal(area.x, 240);
@@ -137,9 +195,10 @@ test('bomb area is forward-facing and includes nearby enemies and projectiles', 
 });
 
 test('level timelines expand grouped spawns and resolve deterministic positions', async () => {
-  const levelUrls = [1, 2, 3].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
+  const levelUrls = [1, 2, 3, 4].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
   const levels = await Promise.all(levelUrls.map(async url => JSON.parse(await readFile(url, 'utf8'))));
-  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis']);
+  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier']);
+  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307']);
   for (const level of levels) {
     const timeline = compileLevelTimeline(level);
     assert.ok(timeline.length >= level.spawns.length);
@@ -153,13 +212,19 @@ test('level timelines expand grouped spawns and resolve deterministic positions'
     [resolveSpawnX(position, randomA), resolveSpawnX(position, randomA)],
     [resolveSpawnX(position, randomB), resolveSpawnX(position, randomB)],
   );
+
+  assert.equal(mixHexColor('#000000', '#ffffff', 0.5), '#808080');
+  assert.deepEqual(
+    mixLevelBackground(levels[0].background, levels[1].background, 1),
+    levels[1].background,
+  );
 });
 
 test('manifest assets, one-slot save, and keyboard/pointer controls are wired', async () => {
   const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8'));
   const entry = manifest.entries.find(candidate => candidate.id === 'sky-strike');
   assert.ok(entry);
-  assert.equal(entry.assets.length, 17);
+  assert.equal(entry.assets.length, 21);
   for (const asset of entry.assets) {
     assert.ok(existsSync(new URL(`../${asset}`, import.meta.url)), `${asset} must exist`);
   }
@@ -177,6 +242,16 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(source, /damagePlayer\(bullet\.damage\)/);
   assert.match(source, /activateBomb\(\)/);
   assert.match(source, /loadSkyStrikeLevels\(\)/);
+  assert.match(source, /bossAttack === 'carrier-deploy'/);
+  assert.match(source, /steerKamikazeVelocity\(/);
+  assert.match(source, /stepFireCooldown\(/);
+  assert.match(source, /drawBossWarning\(\)/);
+  assert.match(source, /updateBossDamageEffects\(/);
+  assert.match(source, /addEnemyDestructionEffects\(/);
+  assert.match(source, /addLaserImpact\(/);
+  assert.match(source, /drawEnergyImpacts\(\)/);
+  assert.match(source, /drawDebris\(\)/);
+  assert.doesNotMatch(source, /definition\.tier === 'boss'\) this\.enemyBullets\.length = 0/);
   assert.match(html, /height:\s*100dvh/);
   assert.match(html, /width:\s*min\(100vw,\s*50dvh\)/);
 });

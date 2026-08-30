@@ -1635,6 +1635,71 @@ class SkyStrikeGame {
     this.context.restore();
   }
 
+  private drawEnergyImpacts(): void {
+    this.context.save();
+    this.context.globalCompositeOperation = 'screen';
+    for (const impact of this.energyImpacts) {
+      const progress = Math.min(1, impact.ageMs / impact.durationMs);
+      const fade = 1 - progress;
+      const radius = impact.size * (0.4 + progress * 1.15);
+      this.context.save();
+      this.context.translate(impact.x, impact.y);
+      this.context.rotate(impact.rotation + progress * 1.8);
+
+      const glow = this.context.createRadialGradient(0, 0, 0, 0, 0, radius);
+      glow.addColorStop(0, `rgba(244, 250, 255, ${fade})`);
+      glow.addColorStop(0.2, `rgba(82, 225, 255, ${fade * 0.88})`);
+      glow.addColorStop(0.58, `rgba(158, 66, 255, ${fade * 0.58})`);
+      glow.addColorStop(1, 'rgba(75, 22, 255, 0)');
+      this.context.fillStyle = glow;
+      this.context.beginPath();
+      this.context.arc(0, 0, radius, 0, Math.PI * 2);
+      this.context.fill();
+
+      this.context.strokeStyle = `rgba(112, 234, 255, ${fade * 0.95})`;
+      this.context.lineWidth = Math.max(1.5, 4 * fade);
+      this.context.setLineDash([8, 5]);
+      this.context.lineDashOffset = -impact.ageMs * 0.08;
+      this.context.beginPath();
+      this.context.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+      this.context.stroke();
+
+      this.context.strokeStyle = `rgba(201, 93, 255, ${fade * 0.75})`;
+      this.context.lineWidth = 2;
+      this.context.setLineDash([]);
+      for (let ray = 0; ray < 4; ray++) {
+        const angle = ray * Math.PI / 2;
+        this.context.beginPath();
+        this.context.moveTo(Math.cos(angle) * radius * 0.18, Math.sin(angle) * radius * 0.18);
+        this.context.lineTo(Math.cos(angle) * radius * 1.1, Math.sin(angle) * radius * 1.1);
+        this.context.stroke();
+      }
+      this.context.restore();
+    }
+    this.context.restore();
+  }
+
+  private drawDebris(): void {
+    for (const fragment of this.debris) {
+      const alpha = Math.max(0, fragment.lifeMs / fragment.maxLifeMs);
+      this.context.save();
+      this.context.translate(fragment.x, fragment.y);
+      this.context.rotate(fragment.rotation);
+      this.context.globalAlpha = alpha;
+      this.context.fillStyle = fragment.color;
+      this.context.shadowColor = alpha > 0.55 ? '#ff7b35' : fragment.color;
+      this.context.shadowBlur = alpha > 0.55 ? 8 : 2;
+      this.context.beginPath();
+      this.context.moveTo(-fragment.size * 0.62, -fragment.size * 0.34);
+      this.context.lineTo(fragment.size * 0.68, -fragment.size * 0.16);
+      this.context.lineTo(fragment.size * 0.24, fragment.size * 0.56);
+      this.context.lineTo(-fragment.size * 0.42, fragment.size * 0.28);
+      this.context.closePath();
+      this.context.fill();
+      this.context.restore();
+    }
+  }
+
   private drawBombBlast(): void {
     const blast = this.bombBlast;
     if (!blast) return;
