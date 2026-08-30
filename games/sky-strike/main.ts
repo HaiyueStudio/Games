@@ -17,9 +17,12 @@ import {
   POWERUP_FORM_INTERVAL_MS,
   RED_ENEMY_BULLET_DAMAGE,
   aimedVelocity,
+  bossCriticalDamageIntensity,
+  calculateBossWarningProgress,
   circlesOverlap,
   clampToPlayfield,
   createBombArea,
+  createRadialBurst,
   createSeededRandom,
   distancePointToSegment,
   enemyFireIntervalMs,
@@ -29,6 +32,8 @@ import {
   requiredEnemyDefinition,
   selectLaserTarget,
   isInsideBombArea,
+  stepFireCooldown,
+  steerKamikazeVelocity,
   upgradeWeapon,
   velocityFromAngle,
   weaponProfile,
@@ -40,8 +45,10 @@ import {
 import {
   compileLevelTimeline,
   loadSkyStrikeLevels,
+  mixLevelBackground,
   resolveSpawnX,
   type CompiledLevelSpawn,
+  type LevelBackground,
   type SkyStrikeLevel,
 } from './levels/loader';
 
@@ -87,6 +94,10 @@ interface EnemyState {
   phaseOffset: number;
   entered: boolean;
   laserCooldownMs: number;
+  velocityX: number;
+  velocityY: number;
+  rotation: number;
+  damageEffectCooldownMs: number;
 }
 
 interface WeaponPowerup {
@@ -116,6 +127,28 @@ interface ImpactEffect {
   durationMs: number;
   size: number;
   rotation: number;
+}
+
+interface EnergyImpactEffect {
+  x: number;
+  y: number;
+  ageMs: number;
+  durationMs: number;
+  size: number;
+  rotation: number;
+}
+
+interface DebrisFragment {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rotation: number;
+  angularVelocity: number;
+  lifeMs: number;
+  maxLifeMs: number;
+  size: number;
+  color: string;
 }
 
 interface BombBlast {
@@ -163,7 +196,19 @@ const BOSS_LASER_WARNING_MS = 1_250;
 const BOSS_LASER_ACTIVE_MS = 460;
 const BOMB_EFFECT_DURATION_MS = 1_050;
 const LEVEL_ADVANCE_DELAY_MS = 2_600;
+const BACKGROUND_TRANSITION_MS = 7_000;
 const SAVE_NAME = 'Sky Strike 自动存档';
+const DEFAULT_BACKGROUND: LevelBackground = Object.freeze({
+  top: '#030617',
+  middle: '#071d3a',
+  bottom: '#02040d',
+  nebula: '#4739b4',
+});
+
+function hexToRgba(hex: string, alpha: number): string {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${value >> 16}, ${(value >> 8) & 0xff}, ${value & 0xff}, ${alpha})`;
+}
 
 function isSkyStrikeSaveData(value: unknown): value is SkyStrikeSaveData {
   return isRecord(value)
@@ -190,6 +235,8 @@ class SkyStrikeGame {
   private readonly bombPowerups: BombPowerup[] = [];
   private readonly sparks: Spark[] = [];
   private readonly impacts: ImpactEffect[] = [];
+  private readonly energyImpacts: EnergyImpactEffect[] = [];
+  private readonly debris: DebrisFragment[] = [];
   private readonly images = new Map<string, HTMLImageElement>();
   private readonly player: PlayerState = {
     x: LOGICAL_WIDTH / 2,
@@ -216,6 +263,10 @@ class SkyStrikeGame {
   private nextLevelSpawnIndex = 0;
   private levelAdvanceMs = 0;
   private levelRandom = createSeededRandom(1);
+  private bossWarningProgress = 0;
+  private backgroundFrom = DEFAULT_BACKGROUND;
+  private backgroundTo = DEFAULT_BACKGROUND;
+  private backgroundTransitionMs = BACKGROUND_TRANSITION_MS;
   private pointerFiring = false;
   private boss: EnemyState | null = null;
   private bossLaser: BossLaserState | null = null;
@@ -280,9 +331,12 @@ class SkyStrikeGame {
 
     this.elapsedMs += delta;
     this.levelElapsedMs += delta;
+    this.backgroundTransitionMs = Math.min(BACKGROUND_TRANSITION_MS, this.backgroundTransitionMs + delta);
     this.bestWave = Math.max(this.bestWave, this.wave);
     this.shakeMs = Math.max(0, this.shakeMs - delta);
     this.updateImpacts(delta);
+    this.updateEnergyImpacts(delta);
+    this.updateDebris(delta);
     this.updateBombBlast(delta);
     this.updateLevelTransition(delta);
     this.updatePlayer(delta);
@@ -408,6 +462,8 @@ class SkyStrikeGame {
     this.bombPowerups.length = 0;
     this.sparks.length = 0;
     this.impacts.length = 0;
+    this.energyImpacts.length = 0;
+    this.debris.length = 0;
     this.boss = null;
     this.bossLaser = null;
     this.weaponForm = 'basic';
@@ -472,6 +528,9 @@ class SkyStrikeGame {
   private beginLevel(index: number): void {
     const level = this.levels[index];
     if (!level) return;
+    this.backgroundFrom = this.currentBackground();
+    this.backgroundTo = level.background;
+    this.backgroundTransitionMs = 0;
     this.levelIndex = index;
     this.wave = index + 1;
     this.levelElapsedMs = 0;
@@ -479,6 +538,7 @@ class SkyStrikeGame {
     this.levelAdvanceMs = 0;
     this.levelTimeline = compileLevelTimeline(level);
     this.levelRandom = createSeededRandom(level.seed + this.sorties * 997);
+    this.bossWarningProgress = 0;
     this.enemyBullets.length = 0;
     this.bossLaser = null;
     this.player.invulnerableMs = Math.max(this.player.invulnerableMs, 1_200);
@@ -524,13 +584,17 @@ class SkyStrikeGame {
     this.player.y = clampToPlayfield(this.player.y + vertical * PLAYER_SPEED * seconds, this.player.radius + 48, LOGICAL_HEIGHT - 18);
     this.player.invulnerableMs = Math.max(0, this.player.invulnerableMs - deltaMs);
     this.player.health = regeneratePlayerHealth(this.player.health, seconds);
-    this.player.fireCooldownMs -= deltaMs;
     const firing = this.keys.has('j') || this.pointerFiring;
     const profile = weaponProfile(this.weaponForm, this.weaponLevel);
     this.laserFiring = firing && profile.form === 'purple';
-    if (firing && profile.form !== 'purple' && this.player.fireCooldownMs <= 0) {
+    if (profile.form === 'purple') {
+      this.player.fireCooldownMs = 0;
+      return;
+    }
+    const cooldown = stepFireCooldown(this.player.fireCooldownMs, deltaMs, firing, profile.fireIntervalMs);
+    this.player.fireCooldownMs = cooldown.cooldownMs;
+    if (cooldown.shouldFire) {
       this.firePlayerWeapons(profile);
-      this.player.fireCooldownMs += profile.fireIntervalMs;
     }
   }
 
@@ -571,7 +635,9 @@ class SkyStrikeGame {
       return;
     }
     this.laserTarget.hitPoints -= profile.beamDamagePerSecond * (LASER_DAMAGE_TICK_MS / 1000);
-    this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#cf67ff');
+    this.addLaserImpact(this.laserTarget.x, this.laserTarget.y, 22 + this.weaponLevel * 5);
+    this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#65e8ff');
+    this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#bd5cff');
     this.laserDamageCooldownMs += LASER_DAMAGE_TICK_MS;
     if (this.laserTarget.hitPoints <= 0) {
       const destroyed = this.laserTarget;
@@ -587,12 +653,29 @@ class SkyStrikeGame {
       const definition = requiredEnemyDefinition(spawn.enemyId);
       const x = resolveSpawnX(spawn.position, this.levelRandom);
       this.spawnEnemy(definition, x);
-      if (definition.tier === 'boss') this.enemyBullets.length = 0;
       this.nextLevelSpawnIndex++;
     }
+    this.updateBossWarning();
   }
 
-  private spawnEnemy(definition: EnemyDefinition, requestedX?: number): void {
+  private updateBossWarning(): void {
+    let nextBossSpawn: CompiledLevelSpawn | undefined;
+    for (let index = this.nextLevelSpawnIndex; index < this.levelTimeline.length; index++) {
+      const spawn = this.levelTimeline[index];
+      if (spawn && requiredEnemyDefinition(spawn.enemyId).tier === 'boss') {
+        nextBossSpawn = spawn;
+        break;
+      }
+    }
+    if (!nextBossSpawn) {
+      this.bossWarningProgress = 0;
+      return;
+    }
+    const timeUntilBossMs = nextBossSpawn.atMs - this.levelElapsedMs;
+    this.bossWarningProgress = calculateBossWarningProgress(timeUntilBossMs);
+  }
+
+  private spawnEnemy(definition: EnemyDefinition, requestedX?: number, requestedY?: number): void {
     const margin = definition.tier === 'boss' ? definition.size * 0.38 : definition.size * 0.35;
     const fallbackX = definition.tier === 'boss'
       ? LOGICAL_WIDTH / 2
@@ -601,7 +684,7 @@ class SkyStrikeGame {
     const enemy: EnemyState = {
       definition,
       x,
-      y: -definition.size * 0.7,
+      y: requestedY ?? -definition.size * 0.7,
       radius: definition.size * (definition.tier === 'boss' ? 0.31 : 0.28),
       originX: x,
       hitPoints: definition.hitPoints + (definition.tier === 'normal' ? Math.min(4, Math.floor(this.wave / 4)) : 0),
@@ -610,6 +693,10 @@ class SkyStrikeGame {
       phaseOffset: this.levelRandom() * Math.PI * 2,
       entered: false,
       laserCooldownMs: definition.tier === 'boss' ? 3_600 : 0,
+      velocityX: 0,
+      velocityY: definition.speed,
+      rotation: 0,
+      damageEffectCooldownMs: 0,
     };
     this.enemies.push(enemy);
     if (definition.tier === 'boss') this.boss = enemy;
@@ -635,8 +722,12 @@ class SkyStrikeGame {
       if (enemy.definition.tier === 'boss') {
         if (enemy.y < 142) enemy.y += enemy.definition.speed * seconds;
         else enemy.entered = true;
-        const travel = enemy.definition.id === 'void-mantis' ? 116 : enemy.definition.id === 'ion-seraph' ? 94 : 72;
-        const frequency = enemy.definition.id === 'void-mantis' ? 0.00105 : 0.00072;
+        const travel = enemy.definition.id === 'star-carrier'
+          ? 46
+          : enemy.definition.id === 'void-mantis' ? 116 : enemy.definition.id === 'ion-seraph' ? 94 : 72;
+        const frequency = enemy.definition.id === 'star-carrier'
+          ? 0.00048
+          : enemy.definition.id === 'void-mantis' ? 0.00105 : 0.00072;
         enemy.x = LOGICAL_WIDTH / 2 + Math.sin(enemy.ageMs * frequency) * travel;
         if (enemy.definition.id === 'void-mantis' && enemy.entered) {
           enemy.y = 142 + Math.sin(enemy.ageMs * 0.0017) * 24;
@@ -645,6 +736,23 @@ class SkyStrikeGame {
           enemy.laserCooldownMs -= deltaMs;
           if (enemy.laserCooldownMs <= 0) this.triggerBossAttack(enemy);
         }
+        this.updateBossDamageEffects(enemy, deltaMs);
+      } else if (movement === 'kamikaze') {
+        const velocity = steerKamikazeVelocity(
+          { x: enemy.velocityX, y: enemy.velocityY },
+          enemy.x,
+          enemy.y,
+          this.player.x,
+          this.player.y,
+          enemy.definition.speed,
+          enemy.ageMs / 1000,
+          seconds,
+        );
+        enemy.velocityX = velocity.x;
+        enemy.velocityY = velocity.y;
+        enemy.x += velocity.x * seconds;
+        enemy.y += velocity.y * seconds;
+        enemy.rotation = Math.atan2(velocity.x, -velocity.y);
       } else if (movement === 'fortress') {
         if (enemy.y < 180) enemy.y += enemy.definition.speed * seconds;
         else enemy.entered = true;
@@ -656,7 +764,10 @@ class SkyStrikeGame {
         enemy.x = clampToPlayfield(enemy.originX + Math.sin(enemy.ageMs * frequency + enemy.phaseOffset) * amplitude, 24, LOGICAL_WIDTH);
       }
 
-      if (enemy.fireCooldownMs <= 0 && enemy.y > 40 && enemy.y < LOGICAL_HEIGHT * 0.72) {
+      if (enemy.definition.bulletPattern !== 'none'
+        && enemy.fireCooldownMs <= 0
+        && enemy.y > 40
+        && enemy.y < LOGICAL_HEIGHT * 0.72) {
         this.fireEnemyPattern(enemy);
         enemy.fireCooldownMs += enemyFireIntervalMs(enemy.definition.fireIntervalMs, this.wave);
       }
@@ -729,6 +840,20 @@ class SkyStrikeGame {
   private triggerBossAttack(enemy: EnemyState): void {
     if (enemy.definition.bossAttack === 'laser') {
       this.startBossLaser(enemy);
+      return;
+    }
+    if (enemy.definition.bossAttack === 'carrier-deploy') {
+      enemy.laserCooldownMs = 4_600;
+      const activeSummons = this.enemies.filter(candidate => candidate.definition.id === 'saucer' || candidate.definition.id === 'kamikaze').length;
+      if (activeSummons < 10) {
+        const saucer = requiredEnemyDefinition('saucer');
+        const kamikaze = requiredEnemyDefinition('kamikaze');
+        this.spawnEnemy(saucer, enemy.x, enemy.y + enemy.definition.size * 0.22);
+        this.spawnEnemy(kamikaze, enemy.x - 92, enemy.y + enemy.definition.size * 0.12);
+        this.spawnEnemy(kamikaze, enemy.x + 92, enemy.y + enemy.definition.size * 0.12);
+        this.addSparks(enemy.x, enemy.y + enemy.definition.size * 0.18, 42, '#70eaff');
+        this.shakeMs = Math.max(this.shakeMs, 220);
+      }
       return;
     }
     const projectile = enemyProjectileProfile(enemy.definition);
@@ -905,7 +1030,7 @@ class SkyStrikeGame {
       if (!isInsideBombArea(area, enemy)) continue;
       enemy.hitPoints -= BOMB_DAMAGE;
       this.addImpact(enemy.x, enemy.y, enemy.definition.tier === 'boss' ? 130 : 74);
-      if (enemy.hitPoints <= 0) this.destroyEnemy(index, enemy);
+      if (enemy.hitPoints <= 0) this.destroyEnemy(index, enemy, true);
     }
     this.addSparks(area.x, area.y, 120, '#ffe672');
     this.player.invulnerableMs = Math.max(this.player.invulnerableMs, 850);
@@ -971,21 +1096,28 @@ class SkyStrikeGame {
       return;
     }
 
-    for (const enemy of this.enemies) {
+    for (let enemyIndex = this.enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
+      const enemy = this.enemies[enemyIndex]!;
       const radius = enemy.definition.size * 0.25;
       if (circlesOverlap({ x: enemy.x, y: enemy.y, radius }, this.player)) {
-        this.damagePlayer(PLAYER_MAX_HEALTH);
+        const contactDamage = enemy.definition.contactDamage ?? PLAYER_MAX_HEALTH;
+        if (enemy.definition.contactDamage !== undefined) {
+          this.enemies.splice(enemyIndex, 1);
+          this.addImpact(enemy.x, enemy.y, 96);
+          this.addSparks(enemy.x, enemy.y, 48, '#ff742f');
+        }
+        this.damagePlayer(contactDamage);
         return;
       }
     }
   }
 
-  private destroyEnemy(index: number, enemy: EnemyState): void {
+  private destroyEnemy(index: number, enemy: EnemyState, suppressDeathBurst = false): void {
     this.enemies.splice(index, 1);
+    if (!suppressDeathBurst && enemy.definition.deathBurstCount) this.fireDeathBurst(enemy);
     this.score += enemy.definition.score;
     this.highScore = Math.max(this.highScore, this.score);
-    const sparkCount = enemy.definition.tier === 'boss' ? 84 : enemy.definition.tier === 'elite' ? 36 : 14;
-    this.addSparks(enemy.x, enemy.y, sparkCount, enemy.definition.tier === 'boss' ? '#ff365f' : '#ffb84c');
+    this.addEnemyDestructionEffects(enemy);
     this.shakeMs = enemy.definition.tier === 'boss' ? 900 : 180;
     if (enemy.definition.tier === 'elite') this.spawnWeaponPowerup(enemy);
     if (enemy.definition.tier === 'elite' && this.levelRandom() < 0.45) this.spawnBombPowerup(enemy);
@@ -998,6 +1130,25 @@ class SkyStrikeGame {
       this.enemyBullets.length = 0;
       this.saveProgress();
     }
+  }
+
+  private fireDeathBurst(enemy: EnemyState): void {
+    const count = enemy.definition.deathBurstCount ?? 0;
+    const projectile = enemyProjectileProfile(enemy.definition);
+    for (const velocity of createRadialBurst(count, ENEMY_BULLET_SPEED * 0.92, enemy.phaseOffset)) {
+      this.enemyBullets.push({
+        x: enemy.x,
+        y: enemy.y,
+        vx: velocity.x,
+        vy: velocity.y,
+        radius: 5,
+        damage: projectile.damage,
+        hostile: true,
+        color: '#42e7df',
+      });
+    }
+    this.addSparks(enemy.x, enemy.y, 34, '#55fff1');
+    this.shakeMs = Math.max(this.shakeMs, 240);
   }
 
   private damagePlayer(damage: number): void {
@@ -1056,6 +1207,80 @@ class SkyStrikeGame {
     if (this.sparks.length > 360) this.sparks.splice(0, this.sparks.length - 360);
   }
 
+  private updateBossDamageEffects(enemy: EnemyState, deltaMs: number): void {
+    const intensity = bossCriticalDamageIntensity(enemy.hitPoints, enemy.definition.hitPoints);
+    if (!enemy.entered || intensity <= 0) {
+      enemy.damageEffectCooldownMs = 0;
+      return;
+    }
+    enemy.damageEffectCooldownMs -= deltaMs;
+    if (enemy.damageEffectCooldownMs > 0) return;
+    const x = enemy.x + (this.levelRandom() - 0.5) * enemy.definition.size * 0.58;
+    const y = enemy.y + (this.levelRandom() - 0.5) * enemy.definition.size * 0.42;
+    this.addImpact(x, y, 30 + intensity * 30);
+    this.addSparks(x, y, 4 + Math.round(intensity * 5), intensity > 0.62 ? '#ff492d' : '#ffb13d');
+    enemy.damageEffectCooldownMs = 430 - intensity * 205 + this.levelRandom() * 110;
+  }
+
+  private addEnemyDestructionEffects(enemy: EnemyState): void {
+    const tier = enemy.definition.tier;
+    const mainSize = tier === 'boss'
+      ? enemy.definition.size * 0.9
+      : tier === 'elite' ? enemy.definition.size * 1.25 : Math.max(76, enemy.definition.size * 1.35);
+    const secondaryCount = tier === 'boss' ? 8 : tier === 'elite' ? 4 : 2;
+    const sparkCount = tier === 'boss' ? 120 : tier === 'elite' ? 62 : 34;
+    const debrisCount = tier === 'boss' ? 30 : tier === 'elite' ? 17 : 9;
+    this.addImpact(enemy.x, enemy.y, mainSize);
+    for (let index = 0; index < secondaryCount; index++) {
+      const angle = this.random() * Math.PI * 2;
+      const distance = enemy.definition.size * (0.12 + this.random() * 0.32);
+      this.addImpact(
+        enemy.x + Math.cos(angle) * distance,
+        enemy.y + Math.sin(angle) * distance,
+        mainSize * (0.32 + this.random() * 0.28),
+      );
+    }
+    this.addSparks(enemy.x, enemy.y, sparkCount, tier === 'boss' ? '#ff365f' : '#ffc15a');
+    this.addSparks(enemy.x, enemy.y, Math.ceil(sparkCount * 0.45), '#fff2ae');
+    this.addDebris(enemy.x, enemy.y, debrisCount, enemy.definition.size, tier);
+  }
+
+  private addDebris(x: number, y: number, count: number, sourceSize: number, tier: EnemyDefinition['tier']): void {
+    const colors = tier === 'boss'
+      ? ['#812e42', '#e25349', '#5e2635']
+      : tier === 'elite' ? ['#733b91', '#d16bcb', '#482a64'] : ['#788697', '#d57042', '#3f4b5d'];
+    for (let index = 0; index < count; index++) {
+      const angle = this.random() * Math.PI * 2;
+      const speed = 70 + this.random() * (tier === 'boss' ? 280 : 210);
+      const lifeMs = 520 + this.random() * 720;
+      this.debris.push({
+        x: x + (this.random() - 0.5) * sourceSize * 0.24,
+        y: y + (this.random() - 0.5) * sourceSize * 0.2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        rotation: this.random() * Math.PI * 2,
+        angularVelocity: (this.random() - 0.5) * 12,
+        lifeMs,
+        maxLifeMs: lifeMs,
+        size: 4 + this.random() * Math.max(5, sourceSize * 0.07),
+        color: colors[Math.floor(this.random() * colors.length)] ?? colors[0]!,
+      });
+    }
+    if (this.debris.length > 140) this.debris.splice(0, this.debris.length - 140);
+  }
+
+  private addLaserImpact(x: number, y: number, size: number): void {
+    this.energyImpacts.push({
+      x,
+      y,
+      ageMs: 0,
+      durationMs: 260,
+      size,
+      rotation: this.random() * Math.PI * 2,
+    });
+    if (this.energyImpacts.length > 36) this.energyImpacts.splice(0, this.energyImpacts.length - 36);
+  }
+
   private addImpact(x: number, y: number, size: number): void {
     this.impacts.push({
       x,
@@ -1074,6 +1299,28 @@ class SkyStrikeGame {
       impact.ageMs += deltaMs;
       impact.y -= deltaMs * 0.012;
       if (impact.ageMs >= impact.durationMs) this.impacts.splice(index, 1);
+    }
+  }
+
+  private updateEnergyImpacts(deltaMs: number): void {
+    for (let index = this.energyImpacts.length - 1; index >= 0; index--) {
+      const impact = this.energyImpacts[index]!;
+      impact.ageMs += deltaMs;
+      if (impact.ageMs >= impact.durationMs) this.energyImpacts.splice(index, 1);
+    }
+  }
+
+  private updateDebris(deltaMs: number): void {
+    const seconds = deltaMs / 1000;
+    for (let index = this.debris.length - 1; index >= 0; index--) {
+      const fragment = this.debris[index]!;
+      fragment.lifeMs -= deltaMs;
+      fragment.x += fragment.vx * seconds;
+      fragment.y += fragment.vy * seconds;
+      fragment.vy += 86 * seconds;
+      fragment.rotation += fragment.angularVelocity * seconds;
+      fragment.vx *= 0.985;
+      if (fragment.lifeMs <= 0) this.debris.splice(index, 1);
     }
   }
 
@@ -1101,6 +1348,7 @@ class SkyStrikeGame {
 
     this.context.setTransform(scaleX, 0, 0, scaleY, shakeX * scaleX, shakeY * scaleY);
     this.drawSpace();
+    this.drawBossWarning();
     this.drawBullets(this.playerBullets);
     this.drawEnemies();
     this.drawPowerups();
@@ -1109,22 +1357,25 @@ class SkyStrikeGame {
     this.drawPlayer();
     this.drawBullets(this.enemyBullets);
     this.drawImpacts();
+    this.drawEnergyImpacts();
+    this.drawDebris();
     this.drawBombBlast();
     this.drawSparks();
     this.context.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   private drawSpace(): void {
+    const background = this.currentBackground();
     const gradient = this.context.createLinearGradient(0, 0, 0, LOGICAL_HEIGHT);
-    gradient.addColorStop(0, '#030617');
-    gradient.addColorStop(0.55, '#07132b');
-    gradient.addColorStop(1, '#02040d');
+    gradient.addColorStop(0, background.top);
+    gradient.addColorStop(0.55, background.middle);
+    gradient.addColorStop(1, background.bottom);
     this.context.fillStyle = gradient;
     this.context.fillRect(-12, -12, LOGICAL_WIDTH + 24, LOGICAL_HEIGHT + 24);
 
     const nebula = this.context.createRadialGradient(88, 340, 10, 88, 340, 260);
-    nebula.addColorStop(0, 'rgba(71, 57, 180, 0.16)');
-    nebula.addColorStop(1, 'rgba(20, 30, 90, 0)');
+    nebula.addColorStop(0, hexToRgba(background.nebula, 0.2));
+    nebula.addColorStop(1, hexToRgba(background.nebula, 0));
     this.context.fillStyle = nebula;
     this.context.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
@@ -1136,18 +1387,52 @@ class SkyStrikeGame {
     this.context.globalAlpha = 1;
   }
 
+  private currentBackground(): LevelBackground {
+    const progress = Math.min(1, this.backgroundTransitionMs / BACKGROUND_TRANSITION_MS);
+    const easedProgress = progress * progress * (3 - 2 * progress);
+    return mixLevelBackground(this.backgroundFrom, this.backgroundTo, easedProgress);
+  }
+
+  private drawBossWarning(): void {
+    if (this.bossWarningProgress <= 0) return;
+    const flash = Math.sin(this.bossWarningProgress * Math.PI * 3) ** 2;
+    const intensity = flash * (0.3 + this.bossWarningProgress * 0.7);
+    const warningWidth = 132;
+    this.context.save();
+    this.context.globalCompositeOperation = 'screen';
+
+    const left = this.context.createLinearGradient(0, 0, warningWidth, 0);
+    left.addColorStop(0, `rgba(255, 35, 35, ${intensity * 0.72})`);
+    left.addColorStop(1, 'rgba(255, 20, 20, 0)');
+    this.context.fillStyle = left;
+    this.context.fillRect(0, 0, warningWidth, LOGICAL_HEIGHT);
+
+    const right = this.context.createLinearGradient(LOGICAL_WIDTH, 0, LOGICAL_WIDTH - warningWidth, 0);
+    right.addColorStop(0, `rgba(255, 35, 35, ${intensity * 0.72})`);
+    right.addColorStop(1, 'rgba(255, 20, 20, 0)');
+    this.context.fillStyle = right;
+    this.context.fillRect(LOGICAL_WIDTH - warningWidth, 0, warningWidth, LOGICAL_HEIGHT);
+
+    this.context.fillStyle = `rgba(255, 105, 80, ${intensity * 0.82})`;
+    this.context.fillRect(0, 0, 5, LOGICAL_HEIGHT);
+    this.context.fillRect(LOGICAL_WIDTH - 5, 0, 5, LOGICAL_HEIGHT);
+    this.context.restore();
+  }
+
   private drawEnemies(): void {
     for (const enemy of this.enemies) {
       const image = this.images.get(enemy.definition.sprite);
       if (!image) continue;
       const width = enemy.definition.size;
-      const height = enemy.definition.tier === 'boss' ? width * 1.18 : width * 1.3;
+      const height = width * (enemy.definition.renderAspect ?? (enemy.definition.tier === 'boss' ? 1.18 : 1.3));
       this.context.save();
+      this.context.translate(enemy.x, enemy.y);
+      this.context.rotate(enemy.rotation);
       if (enemy.definition.tier === 'elite' || enemy.definition.tier === 'boss') {
         this.context.shadowColor = enemy.definition.tier === 'boss' ? '#ff244f' : '#b455ff';
         this.context.shadowBlur = enemy.definition.tier === 'boss' ? 28 : 18;
       }
-      this.context.drawImage(image, enemy.x - width / 2, enemy.y - height / 2, width, height);
+      this.context.drawImage(image, -width / 2, -height / 2, width, height);
       this.context.restore();
     }
   }

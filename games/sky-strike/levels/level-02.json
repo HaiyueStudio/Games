@@ -3,6 +3,12 @@
   "name": "离子风暴",
   "seed": 185279779,
   "bossId": "ion-seraph",
+  "background": {
+    "top": "#140307",
+    "middle": "#35101a",
+    "bottom": "#090207",
+    "nebula": "#a62f45"
+  },
   "spawns": [
     { "atMs": 500, "enemyId": "stealth", "position": { "mode": "random", "minX": 80, "maxX": 400 }, "count": 4, "intervalMs": 560 },
     { "atMs": 3900, "enemyId": "drone", "position": { "mode": "fixed", "x": 92 }, "count": 5, "intervalMs": 500 },

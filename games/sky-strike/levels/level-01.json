@@ -3,6 +3,12 @@
   "name": "轨道之门",
   "seed": 1369968926,
   "bossId": "dreadnought",
+  "background": {
+    "top": "#030617",
+    "middle": "#071d3a",
+    "bottom": "#02040d",
+    "nebula": "#4739b4"
+  },
   "spawns": [
     { "atMs": 600, "enemyId": "scout", "position": { "mode": "fixed", "x": 110 }, "count": 3, "intervalMs": 700 },
     { "atMs": 3400, "enemyId": "dart", "position": { "mode": "fixed", "x": 370 }, "count": 3, "intervalMs": 620 },

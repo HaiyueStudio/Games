@@ -3,6 +3,12 @@
   "name": "虚空狩猎",
   "seed": 2054523661,
   "bossId": "void-mantis",
+  "background": {
+    "top": "#0d0418",
+    "middle": "#291044",
+    "bottom": "#07020d",
+    "nebula": "#7338a8"
+  },
   "spawns": [
     { "atMs": 400, "enemyId": "dart", "position": { "mode": "random", "minX": 70, "maxX": 410 }, "count": 6, "intervalMs": 430 },
     { "atMs": 4100, "enemyId": "stealth", "position": { "mode": "fixed", "x": 100 }, "count": 4, "intervalMs": 680 },

@@ -19,11 +19,19 @@ export interface LevelSpawnGroup {
   readonly intervalMs?: number;
 }
 
+export interface LevelBackground {
+  readonly top: string;
+  readonly middle: string;
+  readonly bottom: string;
+  readonly nebula: string;
+}
+
 export interface SkyStrikeLevel {
   readonly id: string;
   readonly name: string;
   readonly seed: number;
   readonly bossId: string;
+  readonly background: LevelBackground;
   readonly spawns: readonly LevelSpawnGroup[];
 }
 
@@ -37,6 +45,7 @@ const LEVEL_PATHS = [
   'levels/level-01.json',
   'levels/level-02.json',
   'levels/level-03.json',
+  'levels/level-04.json',
 ] as const;
 
 export async function loadSkyStrikeLevels(): Promise<readonly SkyStrikeLevel[]> {
@@ -62,12 +71,38 @@ export function resolveSpawnX(position: SpawnPosition, random: () => number): nu
   return position.minX + (position.maxX - position.minX) * random();
 }
 
+export function mixHexColor(from: string, to: string, amount: number): string {
+  const progress = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 0));
+  const fromValue = Number.parseInt(from.slice(1), 16);
+  const toValue = Number.parseInt(to.slice(1), 16);
+  const channel = (shift: number) => Math.round(
+    ((fromValue >> shift) & 0xff) * (1 - progress) + ((toValue >> shift) & 0xff) * progress,
+  );
+  return `#${[channel(16), channel(8), channel(0)]
+    .map(value => value.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+export function mixLevelBackground(
+  from: LevelBackground,
+  to: LevelBackground,
+  amount: number,
+): LevelBackground {
+  return {
+    top: mixHexColor(from.top, to.top, amount),
+    middle: mixHexColor(from.middle, to.middle, amount),
+    bottom: mixHexColor(from.bottom, to.bottom, amount),
+    nebula: mixHexColor(from.nebula, to.nebula, amount),
+  };
+}
+
 function parseLevel(value: unknown, path: string): SkyStrikeLevel {
   if (!isRecord(value)
     || typeof value.id !== 'string'
     || typeof value.name !== 'string'
     || !isFiniteNumber(value.seed)
     || typeof value.bossId !== 'string'
+    || !isLevelBackground(value.background)
     || !Array.isArray(value.spawns)) {
     throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} has an invalid root object.`);
   }
@@ -80,6 +115,7 @@ function parseLevel(value: unknown, path: string): SkyStrikeLevel {
     name: value.name,
     seed: Math.floor(value.seed),
     bossId: value.bossId,
+    background: Object.freeze({ ...value.background }),
     spawns: Object.freeze(spawns),
   });
 }
@@ -120,6 +156,18 @@ function isSpawnPosition(value: unknown): value is SpawnPosition {
     && value.minX >= 24
     && value.maxX <= 456
     && value.minX <= value.maxX;
+}
+
+function isLevelBackground(value: unknown): value is LevelBackground {
+  return isRecord(value)
+    && isHexColor(value.top)
+    && isHexColor(value.middle)
+    && isHexColor(value.bottom)
+    && isHexColor(value.nebula);
+}
+
+function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && /^#[\da-f]{6}$/i.test(value);
 }
 
 function isFiniteNumber(value: unknown): value is number {

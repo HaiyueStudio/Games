@@ -1,0 +1,23 @@
+{
+  "id": "carrier-siege",
+  "name": "航母围攻",
+  "seed": 1447257893,
+  "bossId": "star-carrier",
+  "background": {
+    "top": "#281307",
+    "middle": "#6a3512",
+    "bottom": "#1b0b04",
+    "nebula": "#d8892f"
+  },
+  "spawns": [
+    { "atMs": 500, "enemyId": "saucer", "position": { "mode": "fixed", "x": 105 }, "count": 3, "intervalMs": 900 },
+    { "atMs": 3800, "enemyId": "saucer", "position": { "mode": "fixed", "x": 375 }, "count": 3, "intervalMs": 900 },
+    { "atMs": 7600, "enemyId": "kamikaze", "position": { "mode": "random", "minX": 85, "maxX": 395 }, "count": 5, "intervalMs": 720 },
+    { "atMs": 12400, "enemyId": "gunship", "position": { "mode": "fixed", "x": 240 }, "count": 2, "intervalMs": 1500 },
+    { "atMs": 15800, "enemyId": "saucer", "position": { "mode": "random", "minX": 90, "maxX": 390 }, "count": 4, "intervalMs": 750 },
+    { "atMs": 17400, "enemyId": "kamikaze", "position": { "mode": "random", "minX": 75, "maxX": 405 }, "count": 6, "intervalMs": 620 },
+    { "atMs": 22800, "enemyId": "violet-fortress", "position": { "mode": "fixed", "x": 240 } },
+    { "atMs": 26800, "enemyId": "kamikaze", "position": { "mode": "random", "minX": 70, "maxX": 410 }, "count": 5, "intervalMs": 520 },
+    { "atMs": 32000, "enemyId": "star-carrier", "position": { "mode": "fixed", "x": 240 } }
+  ]
+}

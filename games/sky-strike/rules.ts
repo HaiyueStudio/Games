@@ -1,7 +1,7 @@
 export type EnemyTier = 'normal' | 'elite' | 'boss';
-export type BulletPattern = 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
-export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress';
-export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan';
+export type BulletPattern = 'none' | 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
+export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
 export type EnemyBulletColor = 'red' | 'blue';
@@ -18,6 +18,9 @@ export interface EnemyDefinition {
   readonly bulletPattern: BulletPattern;
   readonly flightPattern: FlightPattern;
   readonly bossAttack?: BossAttack;
+  readonly contactDamage?: number;
+  readonly deathBurstCount?: number;
+  readonly renderAspect?: number;
 }
 
 export interface Circle {
@@ -55,11 +58,18 @@ export interface LaserTarget {
   readonly radius: number;
 }
 
+export interface FireCooldownStep {
+  readonly shouldFire: boolean;
+  readonly cooldownMs: number;
+}
+
 export const LOGICAL_WIDTH = 480;
 export const LOGICAL_HEIGHT = 960;
 export const PLAYER_SPEED = 330;
 export const PLAYER_FIRE_INTERVAL_MS = 105;
 export const BOSS_FIRST_APPEARANCE_MS = 55_000;
+export const BOSS_WARNING_LEAD_MS = 3_000;
+export const BOSS_CRITICAL_HEALTH_RATIO = 0.3;
 export const PLAYER_MAX_LIVES = 3;
 export const PLAYER_MAX_HEALTH = 100;
 export const PLAYER_REGEN_PER_SECOND = 1;
@@ -74,6 +84,11 @@ export const MAX_BOMBS = 5;
 export const BOMB_DAMAGE = 420;
 export const BOMB_RADIUS = 265;
 export const BOMB_FORWARD_OFFSET = 235;
+export const KAMIKAZE_COLLISION_DAMAGE = 90;
+export const KAMIKAZE_ACCELERATION = 125;
+export const KAMIKAZE_MAX_SPEED = 390;
+export const KAMIKAZE_STEERING_PER_SECOND = 3.4;
+export const SAUCER_DEATH_BULLET_COUNT = 16;
 
 export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'scout', sprite: 'assets/enemy-scout.png', tier: 'normal', hitPoints: 5, speed: 116, score: 100, size: 58, fireIntervalMs: 1800, bulletPattern: 'aimed', flightPattern: 'straight' },
@@ -83,11 +98,14 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'stealth', sprite: 'assets/enemy-stealth.png', tier: 'normal', hitPoints: 8, speed: 124, score: 240, size: 72, fireIntervalMs: 1650, bulletPattern: 'spread', flightPattern: 'sweep' },
   { id: 'gunship', sprite: 'assets/enemy-gunship.png', tier: 'normal', hitPoints: 36, speed: 55, score: 420, size: 88, fireIntervalMs: 1050, bulletPattern: 'burst', flightPattern: 'straight' },
   { id: 'drone', sprite: 'assets/enemy-drone.png', tier: 'normal', hitPoints: 7, speed: 104, score: 170, size: 56, fireIntervalMs: 1500, bulletPattern: 'aimed', flightPattern: 'weave' },
+  { id: 'saucer', sprite: 'assets/enemy-saucer.png', tier: 'normal', hitPoints: 12, speed: 76, score: 280, size: 72, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'weave', deathBurstCount: SAUCER_DEATH_BULLET_COUNT, renderAspect: 1 },
+  { id: 'kamikaze', sprite: 'assets/enemy-kamikaze.png', tier: 'normal', hitPoints: 7, speed: 112, score: 210, size: 58, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'kamikaze', contactDamage: KAMIKAZE_COLLISION_DAMAGE },
   { id: 'crimson-lance', sprite: 'assets/elite-crimson-lance.png', tier: 'elite', hitPoints: 78, speed: 52, score: 2400, size: 120, fireIntervalMs: 720, bulletPattern: 'spread', flightPattern: 'sweep' },
   { id: 'violet-fortress', sprite: 'assets/elite-violet-fortress.png', tier: 'elite', hitPoints: 118, speed: 38, score: 3600, size: 138, fireIntervalMs: 820, bulletPattern: 'ring', flightPattern: 'fortress' },
   { id: 'dreadnought', sprite: 'assets/boss-dreadnought.png', tier: 'boss', hitPoints: 1_300, speed: 34, score: 25_000, size: 292, fireIntervalMs: 260, bulletPattern: 'spiral', flightPattern: 'fortress', bossAttack: 'laser' },
   { id: 'ion-seraph', sprite: 'assets/boss-ion-seraph.png', tier: 'boss', hitPoints: 1_650, speed: 38, score: 32_000, size: 302, fireIntervalMs: 310, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'arc-storm' },
   { id: 'void-mantis', sprite: 'assets/boss-void-mantis.png', tier: 'boss', hitPoints: 2_000, speed: 42, score: 40_000, size: 310, fireIntervalMs: 235, bulletPattern: 'scythe', flightPattern: 'fortress', bossAttack: 'gravity-fan' },
+  { id: 'star-carrier', sprite: 'assets/boss-star-carrier.png', tier: 'boss', hitPoints: 2_500, speed: 28, score: 50_000, size: 350, fireIntervalMs: 1_450, bulletPattern: 'aimed', flightPattern: 'fortress', bossAttack: 'carrier-deploy', renderAspect: 1.32 },
 ]);
 
 const ENEMY_BY_ID = new Map(ENEMY_DEFINITIONS.map(definition => [definition.id, definition]));
@@ -149,12 +167,65 @@ export function aimedVelocity(fromX: number, fromY: number, toX: number, toY: nu
   return { x: dx / length * speed, y: dy / length * speed };
 }
 
+export function createRadialBurst(count: number, speed: number, angleOffset = 0): Velocity[] {
+  const safeCount = Math.max(1, Math.floor(count));
+  return Array.from({ length: safeCount }, (_, index) => velocityFromAngle(
+    angleOffset + index / safeCount * Math.PI * 2,
+    speed,
+  ));
+}
+
+export function steerKamikazeVelocity(
+  current: Velocity,
+  fromX: number,
+  fromY: number,
+  targetX: number,
+  targetY: number,
+  baseSpeed: number,
+  ageSeconds: number,
+  deltaSeconds: number,
+): Velocity {
+  const desiredSpeed = Math.min(KAMIKAZE_MAX_SPEED, baseSpeed + Math.max(0, ageSeconds) * KAMIKAZE_ACCELERATION);
+  const desired = aimedVelocity(fromX, fromY, targetX, targetY, desiredSpeed);
+  const blend = 1 - Math.exp(-KAMIKAZE_STEERING_PER_SECOND * Math.max(0, deltaSeconds));
+  return {
+    x: current.x + (desired.x - current.x) * blend,
+    y: current.y + (desired.y - current.y) * blend,
+  };
+}
+
 export function velocityFromAngle(angle: number, speed: number): Velocity {
   return { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
 }
 
 export function clampToPlayfield(value: number, radius: number, maximum: number): number {
   return Math.max(radius, Math.min(maximum - radius, value));
+}
+
+export function stepFireCooldown(
+  currentCooldownMs: number,
+  deltaMs: number,
+  firing: boolean,
+  intervalMs: number,
+): FireCooldownStep {
+  if (!firing) return { shouldFire: false, cooldownMs: 0 };
+  const remainingMs = Math.max(0, currentCooldownMs) - Math.max(0, deltaMs);
+  if (remainingMs > 0) return { shouldFire: false, cooldownMs: remainingMs };
+  return { shouldFire: true, cooldownMs: Math.max(1, intervalMs) };
+}
+
+export function calculateBossWarningProgress(timeUntilBossMs: number): number {
+  if (!Number.isFinite(timeUntilBossMs)
+    || timeUntilBossMs <= 0
+    || timeUntilBossMs > BOSS_WARNING_LEAD_MS) return 0;
+  return 1 - timeUntilBossMs / BOSS_WARNING_LEAD_MS;
+}
+
+export function bossCriticalDamageIntensity(hitPoints: number, maximumHitPoints: number): number {
+  if (!Number.isFinite(hitPoints) || !Number.isFinite(maximumHitPoints) || maximumHitPoints <= 0) return 0;
+  const healthRatio = Math.max(0, hitPoints) / maximumHitPoints;
+  if (healthRatio >= BOSS_CRITICAL_HEALTH_RATIO) return 0;
+  return 1 - healthRatio / BOSS_CRITICAL_HEALTH_RATIO;
 }
 
 export function regeneratePlayerHealth(health: number, deltaSeconds: number): number {
@@ -188,7 +259,7 @@ export function weaponProfile(form: WeaponForm, requestedLevel: number): WeaponP
     return {
       form,
       level,
-      damage: 5,
+      damage: 4,
       projectileCount: [0, 2, 3, 4][level] ?? 2,
       fireIntervalMs: 140,
       spreadSpeed: 0,
@@ -206,7 +277,7 @@ export function weaponProfile(form: WeaponForm, requestedLevel: number): WeaponP
       fireIntervalMs: 70,
       spreadSpeed: 0,
       beamWidth: [0, 8, 12, 17][level] ?? 8,
-      beamDamagePerSecond: [0, 21, 31, 43][level] ?? 21,
+      beamDamagePerSecond: [0, 25, 35, 45][level] ?? 25,
       attractionRadius: [0, 105, 135, 170][level] ?? 105,
     };
   }
