@@ -1,0 +1,24 @@
+{
+  "id": "prism-eclipse",
+  "name": "棱镜日蚀",
+  "seed": 975318642,
+  "bossId": "helios-prism",
+  "background": {
+    "top": "#031317",
+    "middle": "#0b3940",
+    "bottom": "#020a0d",
+    "nebula": "#2ac7b7"
+  },
+  "spawns": [
+    { "atMs": 500, "enemyId": "stealth", "position": { "mode": "random", "minX": 75, "maxX": 405 }, "count": 5, "intervalMs": 520 },
+    { "atMs": 4200, "enemyId": "drone", "position": { "mode": "fixed", "x": 105 }, "count": 4, "intervalMs": 620 },
+    { "atMs": 6900, "enemyId": "drone", "position": { "mode": "fixed", "x": 375 }, "count": 4, "intervalMs": 620 },
+    { "atMs": 10400, "enemyId": "prism-lancer", "position": { "mode": "fixed", "x": 240 } },
+    { "atMs": 14800, "enemyId": "saucer", "position": { "mode": "random", "minX": 85, "maxX": 395 }, "count": 5, "intervalMs": 760 },
+    { "atMs": 19200, "enemyId": "kamikaze", "position": { "mode": "random", "minX": 70, "maxX": 410 }, "count": 6, "intervalMs": 560 },
+    { "atMs": 23800, "enemyId": "prism-lancer", "position": { "mode": "fixed", "x": 135 } },
+    { "atMs": 25200, "enemyId": "prism-lancer", "position": { "mode": "fixed", "x": 345 } },
+    { "atMs": 28600, "enemyId": "gunship", "position": { "mode": "random", "minX": 100, "maxX": 380 }, "count": 3, "intervalMs": 820 },
+    { "atMs": 34600, "enemyId": "helios-prism", "position": { "mode": "fixed", "x": 240 } }
+  ]
+}

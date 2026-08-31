@@ -10,12 +10,15 @@ import {
   LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
   MAX_BOMBS,
+  MAX_LEVEL_BONUS_BULLET_COUNT,
   NORMAL_ENEMIES,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_LIVES,
   PLAYER_SPEED,
   POWERUP_FORM_INTERVAL_MS,
   RED_ENEMY_BULLET_DAMAGE,
+  SERPENT_SEGMENT_COUNT,
+  SPACE_TRAIN_CAR_COUNT,
   aimedVelocity,
   bossCriticalDamageIntensity,
   calculateBossWarningProgress,
@@ -27,10 +30,15 @@ import {
   distancePointToSegment,
   enemyFireIntervalMs,
   enemyProjectileProfile,
+  heliosEmitterCount,
   nextPowerupForm,
   regeneratePlayerHealth,
+  resolveEnemyDamage,
   requiredEnemyDefinition,
   selectLaserTarget,
+  serpentTurretFireIntervalMs,
+  shouldTriggerMaxLevelPickupBurst,
+  shouldSerpentCharge,
   isInsideBombArea,
   stepFireCooldown,
   steerKamikazeVelocity,
@@ -80,6 +88,7 @@ interface Bullet {
   damage: number;
   hostile: boolean;
   color: string;
+  rotation?: number;
 }
 
 interface EnemyState {
@@ -98,6 +107,10 @@ interface EnemyState {
   velocityY: number;
   rotation: number;
   damageEffectCooldownMs: number;
+  segmentOwner: EnemyState | null;
+  segmentOrder: number;
+  charging: boolean;
+  chargeCooldownMs: number;
 }
 
 interface WeaponPowerup {
@@ -166,6 +179,14 @@ interface BossLaserState {
   hitPlayer: boolean;
 }
 
+interface HostileLaserState {
+  source: EnemyState;
+  phase: 'warning' | 'active';
+  timerMs: number;
+  targetX: number;
+  hitPlayer: boolean;
+}
+
 interface Star {
   x: number;
   y: number;
@@ -194,6 +215,8 @@ const ENEMY_BULLET_SPEED = 172;
 const LASER_DAMAGE_TICK_MS = 80;
 const BOSS_LASER_WARNING_MS = 1_250;
 const BOSS_LASER_ACTIVE_MS = 460;
+const HOSTILE_LASER_WARNING_MS = 920;
+const HOSTILE_LASER_ACTIVE_MS = 520;
 const BOMB_EFFECT_DURATION_MS = 1_050;
 const LEVEL_ADVANCE_DELAY_MS = 2_600;
 const BACKGROUND_TRANSITION_MS = 7_000;
@@ -237,6 +260,7 @@ class SkyStrikeGame {
   private readonly impacts: ImpactEffect[] = [];
   private readonly energyImpacts: EnergyImpactEffect[] = [];
   private readonly debris: DebrisFragment[] = [];
+  private readonly hostileLasers: HostileLaserState[] = [];
   private readonly images = new Map<string, HTMLImageElement>();
   private readonly player: PlayerState = {
     x: LOGICAL_WIDTH / 2,
@@ -344,6 +368,7 @@ class SkyStrikeGame {
     this.updateBullets(delta);
     this.updateEnemies(delta);
     this.updateBossLaser(delta);
+    this.updateHostileLasers(delta);
     this.updatePowerups(delta);
     this.updatePlayerLaser(delta);
     this.resolveCollisions();
@@ -352,7 +377,9 @@ class SkyStrikeGame {
   }
 
   private async loadImages(): Promise<void> {
-    const sources = [PLAYER_SPRITE, FIRE_EFFECT_SPRITE, ...ENEMY_DEFINITIONS.map(definition => definition.sprite)];
+    const sources = [PLAYER_SPRITE, FIRE_EFFECT_SPRITE, ...ENEMY_DEFINITIONS
+      .map(definition => definition.sprite)
+      .filter(source => source.startsWith('assets/'))];
     await Promise.all(sources.map(source => new Promise<void>((resolve, reject) => {
       const image = new Image();
       image.decoding = 'async';
@@ -464,6 +491,7 @@ class SkyStrikeGame {
     this.impacts.length = 0;
     this.energyImpacts.length = 0;
     this.debris.length = 0;
+    this.hostileLasers.length = 0;
     this.boss = null;
     this.bossLaser = null;
     this.weaponForm = 'basic';
@@ -540,6 +568,7 @@ class SkyStrikeGame {
     this.levelRandom = createSeededRandom(level.seed + this.sorties * 997);
     this.bossWarningProgress = 0;
     this.enemyBullets.length = 0;
+    this.hostileLasers.length = 0;
     this.bossLaser = null;
     this.player.invulnerableMs = Math.max(this.player.invulnerableMs, 1_200);
     this.addSparks(LOGICAL_WIDTH / 2, 150, 32, '#6eeaff');
@@ -626,7 +655,8 @@ class SkyStrikeGame {
       return;
     }
     const profile = weaponProfile(this.weaponForm, this.weaponLevel);
-    this.laserTarget = selectLaserTarget(this.player.x, this.player.y, profile.attractionRadius, this.enemies);
+    const vulnerableTargets = this.enemies.filter(enemy => !enemy.definition.directDamageImmune);
+    this.laserTarget = selectLaserTarget(this.player.x, this.player.y, profile.attractionRadius, vulnerableTargets);
     this.laserDamageCooldownMs -= deltaMs;
     if (!this.laserTarget || this.laserDamageCooldownMs > 0) return;
     const targetIndex = this.enemies.indexOf(this.laserTarget);
@@ -634,15 +664,15 @@ class SkyStrikeGame {
       this.laserTarget = null;
       return;
     }
-    this.laserTarget.hitPoints -= profile.beamDamagePerSecond * (LASER_DAMAGE_TICK_MS / 1000);
+    const damage = profile.beamDamagePerSecond * (LASER_DAMAGE_TICK_MS / 1000);
+    const target = this.laserTarget;
+    this.damageEnemy(targetIndex, target, damage);
     this.addLaserImpact(this.laserTarget.x, this.laserTarget.y, 22 + this.weaponLevel * 5);
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#65e8ff');
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#bd5cff');
     this.laserDamageCooldownMs += LASER_DAMAGE_TICK_MS;
-    if (this.laserTarget.hitPoints <= 0) {
-      const destroyed = this.laserTarget;
+    if (!this.enemies.includes(target)) {
       this.laserTarget = null;
-      this.destroyEnemy(targetIndex, destroyed);
     }
   }
 
@@ -675,7 +705,7 @@ class SkyStrikeGame {
     this.bossWarningProgress = calculateBossWarningProgress(timeUntilBossMs);
   }
 
-  private spawnEnemy(definition: EnemyDefinition, requestedX?: number, requestedY?: number): void {
+  private spawnEnemy(definition: EnemyDefinition, requestedX?: number, requestedY?: number): EnemyState {
     const margin = definition.tier === 'boss' ? definition.size * 0.38 : definition.size * 0.35;
     const fallbackX = definition.tier === 'boss'
       ? LOGICAL_WIDTH / 2
@@ -687,19 +717,41 @@ class SkyStrikeGame {
       y: requestedY ?? -definition.size * 0.7,
       radius: definition.size * (definition.tier === 'boss' ? 0.31 : 0.28),
       originX: x,
-      hitPoints: definition.hitPoints + (definition.tier === 'normal' ? Math.min(4, Math.floor(this.wave / 4)) : 0),
+      hitPoints: definition.hitPoints + (definition.tier === 'normal' && !definition.segmentedPart
+        ? Math.min(4, Math.floor(this.wave / 4))
+        : 0),
       ageMs: 0,
       fireCooldownMs: enemyFireIntervalMs(definition.fireIntervalMs, 0) * (0.45 + this.levelRandom() * 0.5),
       phaseOffset: this.levelRandom() * Math.PI * 2,
       entered: false,
-      laserCooldownMs: definition.tier === 'boss' ? 3_600 : 0,
+      laserCooldownMs: definition.bossAttack === 'emitter-grid' ? 650 : definition.tier === 'boss' ? 3_600 : 0,
       velocityX: 0,
       velocityY: definition.speed,
       rotation: 0,
       damageEffectCooldownMs: 0,
+      segmentOwner: null,
+      segmentOrder: 0,
+      charging: false,
+      chargeCooldownMs: definition.id === 'iron-serpent' ? 4_200 : 0,
     };
     this.enemies.push(enemy);
     if (definition.tier === 'boss') this.boss = enemy;
+    if (definition.id === 'space-train') {
+      const carDefinition = requiredEnemyDefinition('space-train-car');
+      for (let order = 1; order <= SPACE_TRAIN_CAR_COUNT; order++) {
+        const car = this.spawnEnemy(carDefinition, x, enemy.y - order * 58);
+        car.segmentOwner = enemy;
+        car.segmentOrder = order;
+      }
+    } else if (definition.id === 'iron-serpent') {
+      const segmentDefinition = requiredEnemyDefinition('iron-serpent-turret');
+      for (let order = 1; order <= SERPENT_SEGMENT_COUNT; order++) {
+        const segment = this.spawnEnemy(segmentDefinition, x, enemy.y - order * 44);
+        segment.segmentOwner = enemy;
+        segment.segmentOrder = order;
+      }
+    }
+    return enemy;
   }
 
   private updateLevelTransition(deltaMs: number): void {
@@ -720,23 +772,43 @@ class SkyStrikeGame {
       const movement = enemy.definition.flightPattern;
 
       if (enemy.definition.tier === 'boss') {
-        if (enemy.y < 142) enemy.y += enemy.definition.speed * seconds;
-        else enemy.entered = true;
-        const travel = enemy.definition.id === 'star-carrier'
-          ? 46
-          : enemy.definition.id === 'void-mantis' ? 116 : enemy.definition.id === 'ion-seraph' ? 94 : 72;
-        const frequency = enemy.definition.id === 'star-carrier'
-          ? 0.00048
-          : enemy.definition.id === 'void-mantis' ? 0.00105 : 0.00072;
-        enemy.x = LOGICAL_WIDTH / 2 + Math.sin(enemy.ageMs * frequency) * travel;
-        if (enemy.definition.id === 'void-mantis' && enemy.entered) {
-          enemy.y = 142 + Math.sin(enemy.ageMs * 0.0017) * 24;
+        if (enemy.definition.id === 'iron-serpent') {
+          this.updateIronSerpent(enemy, deltaMs);
+        } else {
+          if (enemy.y < 142) enemy.y += enemy.definition.speed * seconds;
+          else enemy.entered = true;
+          const travel = enemy.definition.id === 'helios-prism'
+            ? 38
+            : enemy.definition.id === 'star-carrier'
+            ? 46
+            : enemy.definition.id === 'void-mantis' ? 116 : enemy.definition.id === 'ion-seraph' ? 94 : 72;
+          const frequency = enemy.definition.id === 'helios-prism'
+            ? 0.0004
+            : enemy.definition.id === 'star-carrier'
+            ? 0.00048
+            : enemy.definition.id === 'void-mantis' ? 0.00105 : 0.00072;
+          enemy.x = LOGICAL_WIDTH / 2 + Math.sin(enemy.ageMs * frequency) * travel;
+          if (enemy.definition.id === 'void-mantis' && enemy.entered) {
+            enemy.y = 142 + Math.sin(enemy.ageMs * 0.0017) * 24;
+          }
         }
-        if (enemy.entered && (!this.bossLaser || enemy.definition.bossAttack !== 'laser')) {
+        if (enemy.entered
+          && enemy.definition.bossAttack !== 'serpent-barrage'
+          && (!this.bossLaser || enemy.definition.bossAttack !== 'laser')) {
           enemy.laserCooldownMs -= deltaMs;
           if (enemy.laserCooldownMs <= 0) this.triggerBossAttack(enemy);
         }
         this.updateBossDamageEffects(enemy, deltaMs);
+      } else if (enemy.definition.segmentedPart === 'serpent-turret') {
+        if (!this.updateSerpentTurretPosition(enemy)) {
+          this.enemies.splice(index, 1);
+          continue;
+        }
+      } else if (movement === 'anchor') {
+        enemy.entered = true;
+      } else if (movement === 'rail') {
+        enemy.y += enemy.definition.speed * seconds;
+        enemy.x = enemy.originX;
       } else if (movement === 'kamikaze') {
         const velocity = steerKamikazeVelocity(
           { x: enemy.velocityX, y: enemy.velocityY },
@@ -769,14 +841,78 @@ class SkyStrikeGame {
         && enemy.y > 40
         && enemy.y < LOGICAL_HEIGHT * 0.72) {
         this.fireEnemyPattern(enemy);
+        const boss = this.boss;
+        enemy.fireCooldownMs += enemy.definition.segmentedPart === 'serpent-turret'
+          && boss?.definition.bossAttack === 'serpent-barrage'
+          ? serpentTurretFireIntervalMs(enemy.definition.fireIntervalMs, boss.hitPoints, boss.definition.hitPoints)
+          : enemyFireIntervalMs(enemy.definition.fireIntervalMs, this.wave);
+      }
+      if (enemy.definition.laserWeapon
+        && enemy.fireCooldownMs <= 0
+        && enemy.y > 40
+        && enemy.y < LOGICAL_HEIGHT * 0.72
+        && !this.hostileLasers.some(laser => laser.source === enemy)) {
+        this.startHostileLaser(enemy);
         enemy.fireCooldownMs += enemyFireIntervalMs(enemy.definition.fireIntervalMs, this.wave);
       }
 
-      if (enemy.y > LOGICAL_HEIGHT + enemy.definition.size) {
+      if (enemy.y > LOGICAL_HEIGHT + enemy.definition.size
+        && enemy.definition.segmentedPart !== 'serpent-turret') {
         this.enemies.splice(index, 1);
         if (this.boss === enemy) this.boss = null;
       }
     }
+  }
+
+  private updateIronSerpent(enemy: EnemyState, deltaMs: number): void {
+    const seconds = deltaMs / 1000;
+    if (enemy.charging) {
+      enemy.x += enemy.velocityX * seconds;
+      enemy.y += enemy.velocityY * seconds;
+      if (enemy.y > LOGICAL_HEIGHT + 180 || enemy.x < -180 || enemy.x > LOGICAL_WIDTH + 180) {
+        enemy.charging = false;
+        enemy.entered = false;
+        enemy.x = clampToPlayfield(this.player.x, 70, LOGICAL_WIDTH);
+        enemy.originX = enemy.x;
+        enemy.y = -enemy.definition.size * 0.72;
+        enemy.chargeCooldownMs = 4_200;
+      }
+      return;
+    }
+    if (enemy.y < 360) {
+      enemy.y = Math.min(360, enemy.y + enemy.definition.speed * seconds);
+      enemy.entered = enemy.y >= 360;
+    } else {
+      enemy.entered = true;
+      enemy.x = LOGICAL_WIDTH / 2 + Math.sin(enemy.ageMs * 0.00115) * 112;
+    }
+    if (!enemy.entered || !shouldSerpentCharge(enemy.hitPoints, enemy.definition.hitPoints)) return;
+    enemy.chargeCooldownMs -= deltaMs;
+    if (enemy.chargeCooldownMs > 0) return;
+    const velocity = aimedVelocity(enemy.x, enemy.y, this.player.x, this.player.y, 520);
+    enemy.velocityX = velocity.x;
+    enemy.velocityY = Math.max(280, velocity.y);
+    enemy.charging = true;
+    enemy.chargeCooldownMs = 5_200;
+    this.addSparks(enemy.x, enemy.y + 36, 52, '#ff4938');
+    this.addImpact(enemy.x, enemy.y, 118);
+    this.shakeMs = Math.max(this.shakeMs, 520);
+  }
+
+  private updateSerpentTurretPosition(enemy: EnemyState): boolean {
+    const owner = enemy.segmentOwner;
+    if (!owner || !this.enemies.includes(owner)) return false;
+    const spacing = 44;
+    if (owner.charging) {
+      const speed = Math.hypot(owner.velocityX, owner.velocityY) || 1;
+      enemy.x = owner.x - owner.velocityX / speed * spacing * enemy.segmentOrder;
+      enemy.y = owner.y - owner.velocityY / speed * spacing * enemy.segmentOrder;
+    } else {
+      enemy.x = owner.x + Math.sin(owner.ageMs * 0.0024 - enemy.segmentOrder * 0.58) * (18 + enemy.segmentOrder * 1.8);
+      enemy.y = owner.y - spacing * enemy.segmentOrder;
+    }
+    enemy.entered = owner.entered;
+    return true;
   }
 
   private fireEnemyPattern(enemy: EnemyState): void {
@@ -856,6 +992,11 @@ class SkyStrikeGame {
       }
       return;
     }
+    if (enemy.definition.bossAttack === 'emitter-grid') {
+      enemy.laserCooldownMs = 3_800;
+      this.spawnHeliosEmitters(enemy);
+      return;
+    }
     const projectile = enemyProjectileProfile(enemy.definition);
     const add = (angle: number, speed: number, radius = 6) => this.enemyBullets.push({
       x: enemy.x,
@@ -886,6 +1027,34 @@ class SkyStrikeGame {
       this.addSparks(enemy.x, enemy.y, 46, '#d35cff');
     }
     this.shakeMs = Math.max(this.shakeMs, 300);
+  }
+
+  private spawnHeliosEmitters(boss: EnemyState): void {
+    const emitterDefinition = requiredEnemyDefinition('helios-emitter');
+    const desiredCount = heliosEmitterCount(boss.hitPoints, boss.definition.hitPoints);
+    const activeEmitters = this.enemies.filter(enemy => enemy.definition.id === emitterDefinition.id);
+    if (activeEmitters.length >= desiredCount) return;
+    const slots = [
+      { x: 78, y: 292 },
+      { x: 240, y: 326 },
+      { x: 402, y: 292 },
+      { x: 122, y: 468 },
+      { x: 358, y: 468 },
+      { x: 240, y: 562 },
+    ];
+    const availableSlots = slots.filter(slot => !activeEmitters.some(emitter => (
+      Math.hypot(emitter.x - slot.x, emitter.y - slot.y) < 48
+    )));
+    const spawnCount = Math.min(desiredCount - activeEmitters.length, availableSlots.length);
+    for (let index = 0; index < spawnCount; index++) {
+      const slotIndex = Math.floor(this.levelRandom() * availableSlots.length);
+      const [slot] = availableSlots.splice(slotIndex, 1);
+      if (!slot) continue;
+      this.spawnEnemy(emitterDefinition, slot.x, slot.y);
+      this.addSparks(slot.x, slot.y, 24, '#72efff');
+      this.addLaserImpact(slot.x, slot.y, 42);
+    }
+    this.shakeMs = Math.max(this.shakeMs, 240);
   }
 
   private startBossLaser(enemy: EnemyState): void {
@@ -930,8 +1099,53 @@ class SkyStrikeGame {
     if (laser.timerMs <= 0) this.bossLaser = null;
   }
 
+  private startHostileLaser(source: EnemyState): void {
+    this.hostileLasers.push({
+      source,
+      phase: 'warning',
+      timerMs: HOSTILE_LASER_WARNING_MS,
+      targetX: this.player.x,
+      hitPlayer: false,
+    });
+    if (this.hostileLasers.length > 12) this.hostileLasers.splice(0, this.hostileLasers.length - 12);
+  }
+
+  private updateHostileLasers(deltaMs: number): void {
+    for (let index = this.hostileLasers.length - 1; index >= 0; index--) {
+      const laser = this.hostileLasers[index]!;
+      if (!this.enemies.includes(laser.source)) {
+        this.hostileLasers.splice(index, 1);
+        continue;
+      }
+      laser.timerMs -= deltaMs;
+      if (laser.phase === 'warning' && laser.timerMs <= 0) {
+        laser.phase = 'active';
+        laser.timerMs = HOSTILE_LASER_ACTIVE_MS;
+        this.addSparks(laser.source.x, laser.source.y, 18, '#88f5ff');
+      }
+      if (laser.phase === 'active' && !laser.hitPlayer && this.player.invulnerableMs <= 0) {
+        const startY = laser.source.y + laser.source.definition.size * 0.18;
+        const distance = distancePointToSegment(
+          this.player.x,
+          this.player.y,
+          laser.source.x,
+          startY,
+          laser.targetX,
+          LOGICAL_HEIGHT + 20,
+        );
+        if (distance <= this.player.radius + 10) {
+          laser.hitPlayer = true;
+          this.damagePlayer(laser.source.definition.laserDamage ?? BLUE_ENEMY_BULLET_DAMAGE);
+        }
+      }
+      if (laser.timerMs <= 0) this.hostileLasers.splice(index, 1);
+    }
+  }
+
   private spawnWeaponPowerup(enemy: EnemyState): void {
-    const initialForm: PowerupForm = enemy.definition.id === 'crimson-lance' ? 'red' : 'purple';
+    const initialForm: PowerupForm = enemy.definition.id === 'crimson-lance'
+      ? 'red'
+      : enemy.definition.id === 'prism-lancer' ? 'blue' : 'purple';
     this.powerups.push({
       x: enemy.x,
       y: enemy.y,
@@ -994,12 +1208,35 @@ class SkyStrikeGame {
   }
 
   private collectPowerup(powerup: WeaponPowerup): void {
+    const triggerBonusBurst = shouldTriggerMaxLevelPickupBurst(this.weaponForm, this.weaponLevel, powerup.form);
     const upgraded = upgradeWeapon(this.weaponForm, this.weaponLevel, powerup.form);
     this.weaponForm = upgraded.form;
     this.weaponLevel = upgraded.level;
     this.player.fireCooldownMs = 0;
     this.addSparks(powerup.x, powerup.y, 36, this.powerupColor(powerup.form));
+    if (triggerBonusBurst) this.fireMaxLevelBonusBurst();
     this.shakeMs = Math.max(this.shakeMs, 180);
+  }
+
+  private fireMaxLevelBonusBurst(): void {
+    const speed = PLAYER_BULLET_SPEED * 0.62;
+    for (const velocity of createRadialBurst(MAX_LEVEL_BONUS_BULLET_COUNT, speed, -Math.PI / 2)) {
+      const angle = Math.atan2(velocity.y, velocity.x);
+      this.playerBullets.push({
+        x: this.player.x + Math.cos(angle) * 18,
+        y: this.player.y + Math.sin(angle) * 18,
+        vx: velocity.x,
+        vy: velocity.y,
+        radius: 4,
+        damage: weaponProfile('basic', 0).damage,
+        hostile: false,
+        color: '#70efff',
+        rotation: angle + Math.PI / 2,
+      });
+    }
+    this.addLaserImpact(this.player.x, this.player.y, 74);
+    this.addSparks(this.player.x, this.player.y, 54, '#a9f8ff');
+    this.shakeMs = Math.max(this.shakeMs, 260);
   }
 
   private powerupColor(form: PowerupForm): string {
@@ -1026,11 +1263,12 @@ class SkyStrikeGame {
       this.enemyBullets.splice(index, 1);
     }
     for (let index = this.enemies.length - 1; index >= 0; index--) {
-      const enemy = this.enemies[index]!;
+      const enemy = this.enemies[index];
+      if (!enemy) continue;
       if (!isInsideBombArea(area, enemy)) continue;
-      enemy.hitPoints -= BOMB_DAMAGE;
-      this.addImpact(enemy.x, enemy.y, enemy.definition.tier === 'boss' ? 130 : 74);
-      if (enemy.hitPoints <= 0) this.destroyEnemy(index, enemy, true);
+      if (enemy.definition.directDamageImmune) this.addLaserImpact(enemy.x, enemy.y, 92);
+      else this.addImpact(enemy.x, enemy.y, enemy.definition.tier === 'boss' ? 130 : 74);
+      this.damageEnemy(index, enemy, BOMB_DAMAGE, true);
     }
     this.addSparks(area.x, area.y, 120, '#ffe672');
     this.player.invulnerableMs = Math.max(this.player.invulnerableMs, 850);
@@ -1077,11 +1315,15 @@ class SkyStrikeGame {
       for (let enemyIndex = this.enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
         const enemy = this.enemies[enemyIndex]!;
         if (!circlesOverlap(bullet, enemy)) continue;
-        enemy.hitPoints -= bullet.damage;
         hit = true;
-        this.addSparks(bullet.x, bullet.y, 7, '#ffbd62');
-        this.addImpact(bullet.x, bullet.y, enemy.definition.tier === 'boss' ? 58 : 42);
-        if (enemy.hitPoints <= 0) this.destroyEnemy(enemyIndex, enemy);
+        if (enemy.definition.directDamageImmune) {
+          this.addSparks(bullet.x, bullet.y, 10, '#82efff');
+          this.addLaserImpact(bullet.x, bullet.y, 34);
+        } else {
+          this.addSparks(bullet.x, bullet.y, 7, '#ffbd62');
+          this.addImpact(bullet.x, bullet.y, enemy.definition.tier === 'boss' ? 58 : 42);
+        }
+        this.damageEnemy(enemyIndex, enemy, bullet.damage);
         break;
       }
       if (hit) this.playerBullets.splice(bulletIndex, 1);
@@ -1102,7 +1344,13 @@ class SkyStrikeGame {
       if (circlesOverlap({ x: enemy.x, y: enemy.y, radius }, this.player)) {
         const contactDamage = enemy.definition.contactDamage ?? PLAYER_MAX_HEALTH;
         if (enemy.definition.contactDamage !== undefined) {
-          this.enemies.splice(enemyIndex, 1);
+          if (enemy.definition.damageProxyMultiplier
+            || enemy.definition.segmentedPart === 'train-head'
+            || enemy.definition.segmentedPart === 'train-car') {
+            this.damageEnemy(enemyIndex, enemy, enemy.hitPoints);
+          } else {
+            this.enemies.splice(enemyIndex, 1);
+          }
           this.addImpact(enemy.x, enemy.y, 96);
           this.addSparks(enemy.x, enemy.y, 48, '#ff742f');
         }
@@ -1113,8 +1361,16 @@ class SkyStrikeGame {
   }
 
   private destroyEnemy(index: number, enemy: EnemyState, suppressDeathBurst = false): void {
-    this.enemies.splice(index, 1);
+    const actualIndex = this.enemies[index] === enemy ? index : this.enemies.indexOf(enemy);
+    if (actualIndex < 0) return;
+    this.enemies.splice(actualIndex, 1);
+    for (let laserIndex = this.hostileLasers.length - 1; laserIndex >= 0; laserIndex--) {
+      if (this.hostileLasers[laserIndex]?.source === enemy) this.hostileLasers.splice(laserIndex, 1);
+    }
     if (!suppressDeathBurst && enemy.definition.deathBurstCount) this.fireDeathBurst(enemy);
+    if (enemy.definition.segmentedPart === 'serpent-turret') {
+      this.compactSerpentSegments(enemy.segmentOwner);
+    }
     this.score += enemy.definition.score;
     this.highScore = Math.max(this.highScore, this.score);
     this.addEnemyDestructionEffects(enemy);
@@ -1123,12 +1379,66 @@ class SkyStrikeGame {
     if (enemy.definition.tier === 'elite' && this.levelRandom() < 0.45) this.spawnBombPowerup(enemy);
     if (enemy.definition.tier === 'boss') this.spawnBombPowerup(enemy);
     if (this.boss === enemy) {
+      if (enemy.definition.bossAttack === 'emitter-grid') this.removeHeliosEmitters();
+      if (enemy.definition.bossAttack === 'serpent-barrage') this.removeIronSerpentSegments();
       this.boss = null;
       this.bossLaser = null;
       this.bossesDefeated++;
       this.levelAdvanceMs = LEVEL_ADVANCE_DELAY_MS;
       this.enemyBullets.length = 0;
       this.saveProgress();
+    }
+  }
+
+  private damageEnemy(index: number, enemy: EnemyState, damage: number, suppressDeathBurst = false): boolean {
+    if (!this.enemies.includes(enemy)) return true;
+    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage);
+    if (resolvedDamage.targetDamage <= 0) return false;
+    const effectiveDamage = Math.min(resolvedDamage.targetDamage, Math.max(0, enemy.hitPoints));
+    enemy.hitPoints -= effectiveDamage;
+    const boss = this.boss;
+    if (resolvedDamage.relayedBossDamage > 0
+      && boss
+      && enemy.definition.damageProxyBossAttack === boss.definition.bossAttack) {
+      const relayedDamage = effectiveDamage * (enemy.definition.damageProxyMultiplier ?? 0);
+      boss.hitPoints -= relayedDamage;
+      this.addLaserImpact(boss.x, boss.y, 30 + Math.min(28, relayedDamage * 0.08));
+      this.addSparks(boss.x, boss.y, 5, '#7cecff');
+    }
+    if (enemy.hitPoints <= 0) this.destroyEnemy(index, enemy, suppressDeathBurst);
+    if (boss && boss.hitPoints <= 0 && this.enemies.includes(boss)) {
+      this.destroyEnemy(this.enemies.indexOf(boss), boss);
+    }
+    return !this.enemies.includes(enemy);
+  }
+
+  private removeHeliosEmitters(): void {
+    for (let index = this.enemies.length - 1; index >= 0; index--) {
+      if (this.enemies[index]?.definition.id === 'helios-emitter') this.enemies.splice(index, 1);
+    }
+    for (let index = this.hostileLasers.length - 1; index >= 0; index--) {
+      if (this.hostileLasers[index]?.source.definition.id === 'helios-emitter') this.hostileLasers.splice(index, 1);
+    }
+  }
+
+  private compactSerpentSegments(owner: EnemyState | null): void {
+    if (!owner) return;
+    const segments = this.enemies
+      .filter(candidate => candidate.segmentOwner === owner && candidate.definition.segmentedPart === 'serpent-turret')
+      .sort((left, right) => left.segmentOrder - right.segmentOrder);
+    segments.forEach((segment, index) => {
+      segment.segmentOrder = index + 1;
+    });
+  }
+
+  private removeIronSerpentSegments(): void {
+    for (let index = this.enemies.length - 1; index >= 0; index--) {
+      if (this.enemies[index]?.definition.segmentedPart === 'serpent-turret') this.enemies.splice(index, 1);
+    }
+    for (let index = this.hostileLasers.length - 1; index >= 0; index--) {
+      if (this.hostileLasers[index]?.source.definition.segmentedPart === 'serpent-turret') {
+        this.hostileLasers.splice(index, 1);
+      }
     }
   }
 
@@ -1350,10 +1660,12 @@ class SkyStrikeGame {
     this.drawSpace();
     this.drawBossWarning();
     this.drawBullets(this.playerBullets);
+    this.drawSerpentLinks();
     this.drawEnemies();
     this.drawPowerups();
     this.drawPlayerLaser();
     this.drawBossLaser();
+    this.drawHostileLasers();
     this.drawPlayer();
     this.drawBullets(this.enemyBullets);
     this.drawImpacts();
@@ -1421,6 +1733,18 @@ class SkyStrikeGame {
 
   private drawEnemies(): void {
     for (const enemy of this.enemies) {
+      if (enemy.definition.id === 'helios-emitter') {
+        this.drawHeliosEmitter(enemy);
+        continue;
+      }
+      if (enemy.definition.segmentedPart === 'train-car') {
+        this.drawSpaceTrainCar(enemy);
+        continue;
+      }
+      if (enemy.definition.segmentedPart === 'serpent-turret') {
+        this.drawIronSerpentTurret(enemy);
+        continue;
+      }
       const image = this.images.get(enemy.definition.sprite);
       if (!image) continue;
       const width = enemy.definition.size;
@@ -1433,8 +1757,156 @@ class SkyStrikeGame {
         this.context.shadowBlur = enemy.definition.tier === 'boss' ? 28 : 18;
       }
       this.context.drawImage(image, -width / 2, -height / 2, width, height);
+      if (enemy.definition.directDamageImmune) {
+        const pulse = 0.35 + Math.sin(this.elapsedMs * 0.006) * 0.12;
+        this.context.strokeStyle = `rgba(105, 232, 255, ${pulse})`;
+        this.context.lineWidth = 3;
+        this.context.shadowColor = '#5be9ff';
+        this.context.shadowBlur = 20;
+        this.context.beginPath();
+        this.context.ellipse(0, 0, width * 0.52, height * 0.46, 0, 0, Math.PI * 2);
+        this.context.stroke();
+      }
       this.context.restore();
     }
+  }
+
+  private drawSerpentLinks(): void {
+    const segments = this.enemies
+      .filter(enemy => enemy.definition.segmentedPart === 'serpent-turret' && enemy.segmentOwner)
+      .sort((left, right) => left.segmentOrder - right.segmentOrder);
+    if (segments.length === 0) return;
+    const owner = segments[0]?.segmentOwner;
+    if (!owner || !this.enemies.includes(owner)) return;
+
+    this.context.save();
+    this.context.lineCap = 'round';
+    this.context.lineJoin = 'round';
+    this.context.shadowColor = '#29d6a2';
+    this.context.shadowBlur = 12;
+    this.context.strokeStyle = 'rgba(18, 45, 42, 0.96)';
+    this.context.lineWidth = 25;
+    this.context.beginPath();
+    this.context.moveTo(owner.x, owner.y);
+    for (const segment of segments) this.context.lineTo(segment.x, segment.y);
+    this.context.stroke();
+    this.context.shadowBlur = 5;
+    this.context.strokeStyle = 'rgba(66, 221, 167, 0.72)';
+    this.context.lineWidth = 5;
+    this.context.stroke();
+    this.context.restore();
+  }
+
+  private drawSpaceTrainCar(enemy: EnemyState): void {
+    const healthRatio = Math.max(0, enemy.hitPoints / enemy.definition.hitPoints);
+    const pulse = 0.72 + Math.sin(enemy.ageMs * 0.012 + enemy.phaseOffset) * 0.18;
+    this.context.save();
+    this.context.translate(enemy.x, enemy.y);
+    this.context.shadowColor = '#47e7ff';
+    this.context.shadowBlur = 10 * pulse;
+    this.context.fillStyle = '#151d26';
+    this.context.strokeStyle = '#b75a25';
+    this.context.lineWidth = 3;
+    this.context.beginPath();
+    this.context.moveTo(-22, -22);
+    this.context.lineTo(-16, -28);
+    this.context.lineTo(16, -28);
+    this.context.lineTo(22, -22);
+    this.context.lineTo(22, 22);
+    this.context.lineTo(16, 28);
+    this.context.lineTo(-16, 28);
+    this.context.lineTo(-22, 22);
+    this.context.closePath();
+    this.context.fill();
+    this.context.stroke();
+    this.context.fillStyle = '#263340';
+    this.context.fillRect(-15, -18, 30, 36);
+    this.context.fillStyle = `rgba(55, 225, 255, ${pulse})`;
+    this.context.fillRect(-10, -14, 20, 8);
+    this.context.fillRect(-10, 7, 20, 7);
+    this.context.strokeStyle = '#ffc06a';
+    this.context.lineWidth = 3;
+    this.context.beginPath();
+    this.context.arc(0, 0, 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * healthRatio);
+    this.context.stroke();
+    this.context.fillStyle = '#56616b';
+    this.context.fillRect(-5, -34, 10, 7);
+    this.context.fillRect(-5, 27, 10, 7);
+    this.context.restore();
+  }
+
+  private drawIronSerpentTurret(enemy: EnemyState): void {
+    const healthRatio = Math.max(0, enemy.hitPoints / enemy.definition.hitPoints);
+    const aimAngle = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x);
+    const pulse = 0.7 + Math.sin(enemy.ageMs * 0.009 + enemy.phaseOffset) * 0.22;
+    this.context.save();
+    this.context.translate(enemy.x, enemy.y);
+    this.context.shadowColor = '#35e5b0';
+    this.context.shadowBlur = 14 * pulse;
+    this.context.fillStyle = '#142a29';
+    this.context.strokeStyle = '#45dca8';
+    this.context.lineWidth = 3;
+    this.context.beginPath();
+    this.context.arc(0, 0, 24, 0, Math.PI * 2);
+    this.context.fill();
+    this.context.stroke();
+
+    this.context.rotate(aimAngle);
+    this.context.fillStyle = '#56666b';
+    this.context.fillRect(2, -5, 28, 10);
+    this.context.fillStyle = '#a6282f';
+    this.context.fillRect(24, -3, 10, 6);
+    this.context.rotate(-aimAngle);
+    this.context.fillStyle = '#071312';
+    this.context.beginPath();
+    this.context.arc(0, 0, 12, 0, Math.PI * 2);
+    this.context.fill();
+    this.context.fillStyle = `rgba(255, 72, 72, ${pulse})`;
+    this.context.beginPath();
+    this.context.arc(0, 0, 6, 0, Math.PI * 2);
+    this.context.fill();
+    this.context.strokeStyle = '#ffd16c';
+    this.context.lineWidth = 3;
+    this.context.beginPath();
+    this.context.arc(0, 0, 19, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * healthRatio);
+    this.context.stroke();
+    this.context.restore();
+  }
+
+  private drawHeliosEmitter(enemy: EnemyState): void {
+    const pulse = 0.82 + Math.sin(this.elapsedMs * 0.012 + enemy.phaseOffset) * 0.18;
+    const healthRatio = Math.max(0, enemy.hitPoints / enemy.definition.hitPoints);
+    this.context.save();
+    this.context.translate(enemy.x, enemy.y);
+    this.context.rotate(enemy.ageMs * 0.00045 + enemy.phaseOffset);
+    this.context.globalCompositeOperation = 'screen';
+    this.context.shadowColor = '#60ecff';
+    this.context.shadowBlur = 22 * pulse;
+    this.context.fillStyle = 'rgba(14, 36, 52, 0.94)';
+    this.context.strokeStyle = '#79efff';
+    this.context.lineWidth = 3;
+    this.context.beginPath();
+    for (let point = 0; point < 6; point++) {
+      const angle = point * Math.PI / 3 - Math.PI / 2;
+      const radius = point % 2 === 0 ? 29 : 25;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (point === 0) this.context.moveTo(x, y);
+      else this.context.lineTo(x, y);
+    }
+    this.context.closePath();
+    this.context.fill();
+    this.context.stroke();
+    this.context.fillStyle = '#d9fbff';
+    this.context.beginPath();
+    this.context.arc(0, 0, 9 * pulse, 0, Math.PI * 2);
+    this.context.fill();
+    this.context.strokeStyle = `rgba(201, 87, 255, ${0.45 + pulse * 0.35})`;
+    this.context.lineWidth = 4;
+    this.context.beginPath();
+    this.context.arc(0, 0, 18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * healthRatio);
+    this.context.stroke();
+    this.context.restore();
   }
 
   private drawPowerups(): void {
@@ -1562,6 +2034,45 @@ class SkyStrikeGame {
     this.context.restore();
   }
 
+  private drawHostileLasers(): void {
+    for (const laser of this.hostileLasers) {
+      const source = laser.source;
+      const device = source.definition.tier === 'device';
+      const startY = source.y + source.definition.size * 0.18;
+      const pulse = 0.42 + Math.sin(this.elapsedMs * 0.024 + source.phaseOffset) * 0.16;
+      this.context.save();
+      this.context.lineCap = 'round';
+      if (laser.phase === 'warning') {
+        this.context.strokeStyle = device
+          ? `rgba(150, 246, 255, ${pulse})`
+          : `rgba(245, 154, 255, ${pulse})`;
+        this.context.lineWidth = 2.5;
+        this.context.setLineDash([14, 9]);
+        this.context.shadowColor = device ? '#70eeff' : '#d763ff';
+        this.context.shadowBlur = 12;
+      } else {
+        this.context.strokeStyle = device ? 'rgba(73, 226, 255, 0.46)' : 'rgba(204, 60, 255, 0.48)';
+        this.context.lineWidth = device ? 22 : 26;
+        this.context.shadowColor = device ? '#46e1ff' : '#c440ff';
+        this.context.shadowBlur = 32;
+      }
+      this.context.beginPath();
+      this.context.moveTo(source.x, startY);
+      this.context.lineTo(laser.targetX, LOGICAL_HEIGHT + 20);
+      this.context.stroke();
+      if (laser.phase === 'active') {
+        this.context.strokeStyle = '#f4fdff';
+        this.context.lineWidth = device ? 5 : 7;
+        this.context.setLineDash([]);
+        this.context.beginPath();
+        this.context.moveTo(source.x, startY);
+        this.context.lineTo(laser.targetX, LOGICAL_HEIGHT + 20);
+        this.context.stroke();
+      }
+      this.context.restore();
+    }
+  }
+
   private drawPlayer(): void {
     const image = this.images.get(PLAYER_SPRITE);
     if (!image) return;
@@ -1592,7 +2103,13 @@ class SkyStrikeGame {
       if (bullet.hostile) {
         this.context.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
       } else {
-        this.context.roundRect(bullet.x - 2.4, bullet.y - 13, 4.8, 22, 2.4);
+        if (bullet.rotation !== undefined) {
+          this.context.translate(bullet.x, bullet.y);
+          this.context.rotate(bullet.rotation);
+          this.context.roundRect(-2.4, -13, 4.8, 22, 2.4);
+        } else {
+          this.context.roundRect(bullet.x - 2.4, bullet.y - 13, 4.8, 22, 2.4);
+        }
       }
       this.context.fill();
       this.context.restore();

@@ -1,7 +1,8 @@
-export type EnemyTier = 'normal' | 'elite' | 'boss';
+export type EnemyTier = 'normal' | 'elite' | 'boss' | 'device';
 export type BulletPattern = 'none' | 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
-export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze';
-export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy';
+export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze' | 'anchor' | 'rail';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage';
+export type SegmentedPart = 'train-head' | 'train-car' | 'serpent-head' | 'serpent-turret';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
 export type EnemyBulletColor = 'red' | 'blue';
@@ -21,6 +22,12 @@ export interface EnemyDefinition {
   readonly contactDamage?: number;
   readonly deathBurstCount?: number;
   readonly renderAspect?: number;
+  readonly directDamageImmune?: boolean;
+  readonly damageProxyMultiplier?: number;
+  readonly laserWeapon?: boolean;
+  readonly laserDamage?: number;
+  readonly segmentedPart?: SegmentedPart;
+  readonly damageProxyBossAttack?: BossAttack;
 }
 
 export interface Circle {
@@ -63,6 +70,11 @@ export interface FireCooldownStep {
   readonly cooldownMs: number;
 }
 
+export interface EnemyDamageResolution {
+  readonly targetDamage: number;
+  readonly relayedBossDamage: number;
+}
+
 export const LOGICAL_WIDTH = 480;
 export const LOGICAL_HEIGHT = 960;
 export const PLAYER_SPEED = 330;
@@ -89,6 +101,11 @@ export const KAMIKAZE_ACCELERATION = 125;
 export const KAMIKAZE_MAX_SPEED = 390;
 export const KAMIKAZE_STEERING_PER_SECOND = 3.4;
 export const SAUCER_DEATH_BULLET_COUNT = 16;
+export const MAX_LEVEL_BONUS_BULLET_COUNT = 24;
+export const SPACE_TRAIN_SEGMENT_HIT_POINTS = 16;
+export const SPACE_TRAIN_CAR_COUNT = 7;
+export const SERPENT_SEGMENT_COUNT = 9;
+export const SERPENT_CHARGE_HEALTH_RATIO = 0.35;
 
 export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'scout', sprite: 'assets/enemy-scout.png', tier: 'normal', hitPoints: 5, speed: 116, score: 100, size: 58, fireIntervalMs: 1800, bulletPattern: 'aimed', flightPattern: 'straight' },
@@ -100,12 +117,19 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'drone', sprite: 'assets/enemy-drone.png', tier: 'normal', hitPoints: 7, speed: 104, score: 170, size: 56, fireIntervalMs: 1500, bulletPattern: 'aimed', flightPattern: 'weave' },
   { id: 'saucer', sprite: 'assets/enemy-saucer.png', tier: 'normal', hitPoints: 12, speed: 76, score: 280, size: 72, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'weave', deathBurstCount: SAUCER_DEATH_BULLET_COUNT, renderAspect: 1 },
   { id: 'kamikaze', sprite: 'assets/enemy-kamikaze.png', tier: 'normal', hitPoints: 7, speed: 112, score: 210, size: 58, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'kamikaze', contactDamage: KAMIKAZE_COLLISION_DAMAGE },
+  { id: 'space-train', sprite: 'assets/enemy-space-train.png', tier: 'normal', hitPoints: SPACE_TRAIN_SEGMENT_HIT_POINTS, speed: 300, score: 320, size: 64, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'rail', contactDamage: 60, renderAspect: 1.5, segmentedPart: 'train-head' },
+  { id: 'space-train-car', sprite: 'procedural:space-train-car', tier: 'device', hitPoints: SPACE_TRAIN_SEGMENT_HIT_POINTS, speed: 300, score: 180, size: 56, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'rail', contactDamage: 50, renderAspect: 1.05, segmentedPart: 'train-car' },
   { id: 'crimson-lance', sprite: 'assets/elite-crimson-lance.png', tier: 'elite', hitPoints: 78, speed: 52, score: 2400, size: 120, fireIntervalMs: 720, bulletPattern: 'spread', flightPattern: 'sweep' },
   { id: 'violet-fortress', sprite: 'assets/elite-violet-fortress.png', tier: 'elite', hitPoints: 118, speed: 38, score: 3600, size: 138, fireIntervalMs: 820, bulletPattern: 'ring', flightPattern: 'fortress' },
+  { id: 'prism-lancer', sprite: 'assets/elite-prism-lancer.png', tier: 'elite', hitPoints: 148, speed: 46, score: 4_600, size: 142, fireIntervalMs: 1_700, bulletPattern: 'none', flightPattern: 'sweep', laserWeapon: true, laserDamage: 70, renderAspect: 1.5 },
+  { id: 'helios-emitter', sprite: 'procedural:helios-emitter', tier: 'device', hitPoints: 36, speed: 0, score: 650, size: 58, fireIntervalMs: 1_500, bulletPattern: 'none', flightPattern: 'anchor', contactDamage: 45, damageProxyMultiplier: 7, damageProxyBossAttack: 'emitter-grid', laserWeapon: true, laserDamage: 65, renderAspect: 1 },
+  { id: 'iron-serpent-turret', sprite: 'procedural:iron-serpent-turret', tier: 'device', hitPoints: 120, speed: 0, score: 1_100, size: 56, fireIntervalMs: 2_200, bulletPattern: 'aimed', flightPattern: 'anchor', contactDamage: 50, damageProxyMultiplier: 1, damageProxyBossAttack: 'serpent-barrage', renderAspect: 1, segmentedPart: 'serpent-turret' },
   { id: 'dreadnought', sprite: 'assets/boss-dreadnought.png', tier: 'boss', hitPoints: 1_300, speed: 34, score: 25_000, size: 292, fireIntervalMs: 260, bulletPattern: 'spiral', flightPattern: 'fortress', bossAttack: 'laser' },
   { id: 'ion-seraph', sprite: 'assets/boss-ion-seraph.png', tier: 'boss', hitPoints: 1_650, speed: 38, score: 32_000, size: 302, fireIntervalMs: 310, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'arc-storm' },
   { id: 'void-mantis', sprite: 'assets/boss-void-mantis.png', tier: 'boss', hitPoints: 2_000, speed: 42, score: 40_000, size: 310, fireIntervalMs: 235, bulletPattern: 'scythe', flightPattern: 'fortress', bossAttack: 'gravity-fan' },
   { id: 'star-carrier', sprite: 'assets/boss-star-carrier.png', tier: 'boss', hitPoints: 2_500, speed: 28, score: 50_000, size: 350, fireIntervalMs: 1_450, bulletPattern: 'aimed', flightPattern: 'fortress', bossAttack: 'carrier-deploy', renderAspect: 1.32 },
+  { id: 'helios-prism', sprite: 'assets/boss-helios-prism.png', tier: 'boss', hitPoints: 2_800, speed: 26, score: 62_000, size: 356, fireIntervalMs: 1_800, bulletPattern: 'none', flightPattern: 'fortress', bossAttack: 'emitter-grid', directDamageImmune: true, renderAspect: 1.5 },
+  { id: 'iron-serpent', sprite: 'assets/boss-iron-serpent.png', tier: 'boss', hitPoints: 2_200, speed: 110, score: 74_000, size: 154, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'fortress', bossAttack: 'serpent-barrage', renderAspect: 1.5, segmentedPart: 'serpent-head' },
 ]);
 
 const ENEMY_BY_ID = new Map(ENEMY_DEFINITIONS.map(definition => [definition.id, definition]));
@@ -228,6 +252,41 @@ export function bossCriticalDamageIntensity(hitPoints: number, maximumHitPoints:
   return 1 - healthRatio / BOSS_CRITICAL_HEALTH_RATIO;
 }
 
+export function heliosEmitterCount(hitPoints: number, maximumHitPoints: number): number {
+  if (!Number.isFinite(hitPoints) || !Number.isFinite(maximumHitPoints) || maximumHitPoints <= 0) return 3;
+  const healthRatio = Math.max(0, Math.min(1, hitPoints / maximumHitPoints));
+  if (healthRatio > 2 / 3) return 3;
+  if (healthRatio > 1 / 3) return 4;
+  return 6;
+}
+
+export function resolveEnemyDamage(definition: EnemyDefinition, requestedDamage: number): EnemyDamageResolution {
+  const damage = Math.max(0, Number.isFinite(requestedDamage) ? requestedDamage : 0);
+  if (definition.directDamageImmune) return { targetDamage: 0, relayedBossDamage: 0 };
+  return {
+    targetDamage: damage,
+    relayedBossDamage: damage * Math.max(0, definition.damageProxyMultiplier ?? 0),
+  };
+}
+
+export function serpentTurretFireIntervalMs(
+  baseIntervalMs: number,
+  bossHitPoints: number,
+  bossMaximumHitPoints: number,
+): number {
+  const base = Math.max(1, Number.isFinite(baseIntervalMs) ? baseIntervalMs : 1);
+  if (!Number.isFinite(bossHitPoints) || !Number.isFinite(bossMaximumHitPoints) || bossMaximumHitPoints <= 0) {
+    return base * 1.6;
+  }
+  const healthRatio = Math.max(0, Math.min(1, bossHitPoints / bossMaximumHitPoints));
+  return base * (0.42 + healthRatio * 1.18);
+}
+
+export function shouldSerpentCharge(hitPoints: number, maximumHitPoints: number): boolean {
+  if (!Number.isFinite(hitPoints) || !Number.isFinite(maximumHitPoints) || maximumHitPoints <= 0) return false;
+  return hitPoints > 0 && hitPoints / maximumHitPoints < SERPENT_CHARGE_HEALTH_RATIO;
+}
+
 export function regeneratePlayerHealth(health: number, deltaSeconds: number): number {
   const safeHealth = Math.max(0, Math.min(PLAYER_MAX_HEALTH, health));
   const safeDelta = Math.max(0, Number.isFinite(deltaSeconds) ? deltaSeconds : 0);
@@ -299,6 +358,14 @@ export function upgradeWeapon(currentForm: WeaponForm, currentLevel: number, pic
     form: pickup,
     level: currentForm === pickup ? Math.min(MAX_WEAPON_LEVEL, Math.max(1, currentLevel + 1)) : 1,
   };
+}
+
+export function shouldTriggerMaxLevelPickupBurst(
+  currentForm: WeaponForm,
+  currentLevel: number,
+  pickup: PowerupForm,
+): boolean {
+  return currentForm === pickup && currentLevel >= MAX_WEAPON_LEVEL;
 }
 
 export function nextPowerupForm(form: PowerupForm): PowerupForm {

@@ -1,0 +1,25 @@
+{
+  "id": "serpent-rail",
+  "name": "蛇行星轨",
+  "seed": 1863475209,
+  "bossId": "iron-serpent",
+  "background": {
+    "top": "#020d0a",
+    "middle": "#123c2d",
+    "bottom": "#010604",
+    "nebula": "#38b887"
+  },
+  "spawns": [
+    { "atMs": 500, "enemyId": "scout", "position": { "mode": "random", "minX": 65, "maxX": 415 }, "count": 5, "intervalMs": 480 },
+    { "atMs": 3900, "enemyId": "space-train", "position": { "mode": "fixed", "x": 112 } },
+    { "atMs": 7200, "enemyId": "dart", "position": { "mode": "random", "minX": 75, "maxX": 405 }, "count": 5, "intervalMs": 480 },
+    { "atMs": 9400, "enemyId": "space-train", "position": { "mode": "fixed", "x": 368 } },
+    { "atMs": 13200, "enemyId": "prism-lancer", "position": { "mode": "fixed", "x": 240 } },
+    { "atMs": 17400, "enemyId": "space-train", "position": { "mode": "fixed", "x": 240 } },
+    { "atMs": 21100, "enemyId": "kamikaze", "position": { "mode": "random", "minX": 70, "maxX": 410 }, "count": 7, "intervalMs": 500 },
+    { "atMs": 25700, "enemyId": "space-train", "position": { "mode": "fixed", "x": 105 } },
+    { "atMs": 27100, "enemyId": "space-train", "position": { "mode": "fixed", "x": 375 } },
+    { "atMs": 31000, "enemyId": "violet-fortress", "position": { "mode": "fixed", "x": 240 } },
+    { "atMs": 37800, "enemyId": "iron-serpent", "position": { "mode": "fixed", "x": 240 } }
+  ]
+}

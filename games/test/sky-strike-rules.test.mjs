@@ -17,12 +17,17 @@ import {
   KAMIKAZE_COLLISION_DAMAGE,
   LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
+  MAX_LEVEL_BONUS_BULLET_COUNT,
   NORMAL_ENEMIES,
   PLAYER_MAX_HEALTH,
   PLAYER_MAX_LIVES,
   PLAYER_REGEN_PER_SECOND,
   RED_ENEMY_BULLET_DAMAGE,
   SAUCER_DEATH_BULLET_COUNT,
+  SERPENT_CHARGE_HEALTH_RATIO,
+  SERPENT_SEGMENT_COUNT,
+  SPACE_TRAIN_CAR_COUNT,
+  SPACE_TRAIN_SEGMENT_HIT_POINTS,
   aimedVelocity,
   bossCriticalDamageIntensity,
   calculateBossWarningProgress,
@@ -34,10 +39,15 @@ import {
   distancePointToSegment,
   enemyFireIntervalMs,
   enemyProjectileProfile,
+  heliosEmitterCount,
   isInsideBombArea,
   nextPowerupForm,
   regeneratePlayerHealth,
+  resolveEnemyDamage,
   selectLaserTarget,
+  serpentTurretFireIntervalMs,
+  shouldSerpentCharge,
+  shouldTriggerMaxLevelPickupBurst,
   stepFireCooldown,
   steerKamikazeVelocity,
   upgradeWeapon,
@@ -50,16 +60,53 @@ import {
   resolveSpawnX,
 } from '../sky-strike/levels/loader.ts';
 
-test('Sky Strike defines nine regular enemies, two elites, and four distinct bosses', () => {
-  assert.equal(ENEMY_DEFINITIONS.length, 15);
-  assert.equal(NORMAL_ENEMIES.length, 9);
-  assert.equal(ELITE_ENEMIES.length, 2);
-  assert.equal(BOSS_ENEMIES.length, 4);
+test('Sky Strike defines ten regular enemies, three elites, six bosses, and segmented devices', () => {
+  assert.equal(ENEMY_DEFINITIONS.length, 22);
+  assert.equal(NORMAL_ENEMIES.length, 10);
+  assert.equal(ELITE_ENEMIES.length, 3);
+  assert.equal(BOSS_ENEMIES.length, 6);
   assert.equal(BOSS_ENEMY.tier, 'boss');
   assert.equal(BOSS_ENEMY.hitPoints, 1_300);
-  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy']);
-  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 15);
+  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage']);
+  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 22);
   assert.ok(ENEMY_DEFINITIONS.every(enemy => enemy.hitPoints > 0 && enemy.size > 0));
+  const helios = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-prism');
+  const emitter = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-emitter');
+  const prismLancer = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'prism-lancer');
+  assert.equal(helios?.directDamageImmune, true);
+  assert.equal(emitter?.damageProxyMultiplier, 7);
+  assert.equal(emitter?.laserWeapon, true);
+  assert.equal(prismLancer?.tier, 'elite');
+  assert.equal(prismLancer?.laserWeapon, true);
+  assert.deepEqual(resolveEnemyDamage(helios, 100), { targetDamage: 0, relayedBossDamage: 0 });
+  assert.deepEqual(resolveEnemyDamage(emitter, 4), { targetDamage: 4, relayedBossDamage: 28 });
+});
+
+test('space train cars and mechanical serpent segments follow the requested combat rules', () => {
+  const train = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'space-train');
+  const trainCar = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'space-train-car');
+  const serpent = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'iron-serpent');
+  const turret = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'iron-serpent-turret');
+  assert.equal(SPACE_TRAIN_CAR_COUNT, 7);
+  assert.equal(train?.hitPoints, SPACE_TRAIN_SEGMENT_HIT_POINTS);
+  assert.equal(trainCar?.hitPoints, SPACE_TRAIN_SEGMENT_HIT_POINTS);
+  assert.equal(train?.flightPattern, 'rail');
+  assert.equal(train?.bulletPattern, 'none');
+  assert.equal(trainCar?.bulletPattern, 'none');
+  assert.ok((train?.speed ?? 0) >= 300);
+  assert.equal(SERPENT_SEGMENT_COUNT, 9);
+  assert.equal(serpent?.bossAttack, 'serpent-barrage');
+  assert.equal(turret?.damageProxyBossAttack, 'serpent-barrage');
+  assert.deepEqual(resolveEnemyDamage(turret, 16), { targetDamage: 16, relayedBossDamage: 16 });
+
+  const fullHealthInterval = serpentTurretFireIntervalMs(2_200, 2_200, 2_200);
+  const halfHealthInterval = serpentTurretFireIntervalMs(2_200, 1_100, 2_200);
+  const criticalInterval = serpentTurretFireIntervalMs(2_200, 440, 2_200);
+  assert.ok(fullHealthInterval > halfHealthInterval);
+  assert.ok(halfHealthInterval > criticalInterval);
+  assert.equal(SERPENT_CHARGE_HEALTH_RATIO, 0.35);
+  assert.equal(shouldSerpentCharge(770, 2_200), false);
+  assert.equal(shouldSerpentCharge(769, 2_200), true);
 });
 
 test('enemy selection is deterministic for a seeded sortie', () => {
@@ -117,6 +164,16 @@ test('three-color weapons upgrade independently and stop at level three', () => 
   assert.ok(weaponProfile('blue', 3).damage * weaponProfile('blue', 3).projectileCount
     > weaponProfile('red', 3).damage * weaponProfile('red', 3).projectileCount);
   assert.equal(nextPowerupForm(nextPowerupForm(nextPowerupForm('red'))), 'red');
+  assert.equal(MAX_LEVEL_BONUS_BULLET_COUNT, 24);
+  assert.equal(shouldTriggerMaxLevelPickupBurst('red', 3, 'red'), true);
+  assert.equal(shouldTriggerMaxLevelPickupBurst('red', 2, 'red'), false);
+  assert.equal(shouldTriggerMaxLevelPickupBurst('red', 3, 'blue'), false);
+});
+
+test('Helios deploys more laser emitters as its health falls', () => {
+  assert.equal(heliosEmitterCount(2_800, 2_800), 3);
+  assert.equal(heliosEmitterCount(1_800, 2_800), 4);
+  assert.equal(heliosEmitterCount(900, 2_800), 6);
 });
 
 test('player firing cooldown never accumulates a pointer-down catch-up burst', () => {
@@ -195,10 +252,10 @@ test('bomb area is forward-facing and includes nearby enemies and projectiles', 
 });
 
 test('level timelines expand grouped spawns and resolve deterministic positions', async () => {
-  const levelUrls = [1, 2, 3, 4].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
+  const levelUrls = [1, 2, 3, 4, 5, 6].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
   const levels = await Promise.all(levelUrls.map(async url => JSON.parse(await readFile(url, 'utf8'))));
-  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier']);
-  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307']);
+  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier', 'helios-prism', 'iron-serpent']);
+  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307', '#031317', '#020d0a']);
   for (const level of levels) {
     const timeline = compileLevelTimeline(level);
     assert.ok(timeline.length >= level.spawns.length);
@@ -224,7 +281,7 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8'));
   const entry = manifest.entries.find(candidate => candidate.id === 'sky-strike');
   assert.ok(entry);
-  assert.equal(entry.assets.length, 21);
+  assert.equal(entry.assets.length, 27);
   for (const asset of entry.assets) {
     assert.ok(existsSync(new URL(`../${asset}`, import.meta.url)), `${asset} must exist`);
   }
@@ -251,6 +308,16 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(source, /addLaserImpact\(/);
   assert.match(source, /drawEnergyImpacts\(\)/);
   assert.match(source, /drawDebris\(\)/);
+  assert.match(source, /spawnHeliosEmitters\(/);
+  assert.match(source, /damageProxyMultiplier/);
+  assert.match(source, /startHostileLaser\(/);
+  assert.match(source, /fireMaxLevelBonusBurst\(/);
+  assert.match(source, /SPACE_TRAIN_CAR_COUNT/);
+  assert.match(source, /updateIronSerpent\(/);
+  assert.match(source, /updateSerpentTurretPosition\(/);
+  assert.match(source, /compactSerpentSegments\(/);
+  assert.match(source, /drawSpaceTrainCar\(/);
+  assert.match(source, /drawIronSerpentTurret\(/);
   assert.doesNotMatch(source, /definition\.tier === 'boss'\) this\.enemyBullets\.length = 0/);
   assert.match(html, /height:\s*100dvh/);
   assert.match(html, /width:\s*min\(100vw,\s*50dvh\)/);
