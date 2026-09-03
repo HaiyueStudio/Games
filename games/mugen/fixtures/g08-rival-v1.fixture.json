@@ -6,7 +6,7 @@
   "license": "MIT",
   "purpose": "second independent G08 vertical-slice fighter",
   "expected": {
-    "packageSha256": "864e201e0b4be3f043e36afc4d5fd97c77c813ca753bc183d7a98b1c1469b239",
+    "packageSha256": "7e3051c34ee5c9e0eca70a1f0b88549947f0b903cd7d727dabf66645e172e322",
     "actions": 9,
     "commands": 5,
     "states": 10,

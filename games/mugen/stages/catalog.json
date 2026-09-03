@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    { "id": "mountainside-temple", "displayName": "Mountainside Temple", "def": "kfm.def" },
+    { "id": "training-room", "displayName": "Training Room", "def": "stage0.def" },
+    { "id": "training-room-720", "displayName": "Training Room 720", "def": "stage0-720.def" }
+  ]
+}

@@ -159,7 +159,8 @@ test('viewer product is manifest-backed and exposes required controls without pr
   const html = readFileSync(new URL('../mugen/charactorPreview.html', import.meta.url), 'utf8');
   for (const id of ['directory-input', 'entry-select', 'action-search', 'action-filter', 'timeline', 'palette-select', 'debug-clsn1', 'debug-clsn2', 'viewer-canvas']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /href="\.\/index\.html"/u);
-  assert.match(html, /dist\/charactorPreview\.js\?v=20260902-hit-audio-1/u);
+  const htmlRevision = html.match(/dist\/charactorPreview\.js\?v=([A-Za-z0-9._-]+)/u)?.[1];
+  assert.ok(htmlRevision, 'preview HTML must version its module entry');
   assert.match(html, /<hy-virtual-list[^>]+id="action-list"[^>]+item-height="58"[^>]+overscan="4"/u);
   for (const id of ['entry-select', 'action-filter', 'speed-select', 'palette-select', 'background-select']) assert.match(html, new RegExp(`<hy-select[^>]+id="${id}"`));
   const previewSource = readFileSync(new URL('../mugen/charactorPreview.ts', import.meta.url), 'utf8');
@@ -171,7 +172,9 @@ test('viewer product is manifest-backed and exposes required controls without pr
   const source = readFileSync(new URL('../mugen/charactorPreview.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /(?:\/src\/|\.\.\/\.\.\/Engine|localStorage|sessionStorage|fetch\s*\()/);
   assert.match(source, /createMugenImportWorkerClient/);
-  assert.match(source, /VIEWER_BUILD_REVISION = '20260902-hit-audio-1'/u);
+  const sourceRevision = source.match(/VIEWER_BUILD_REVISION = '([A-Za-z0-9._-]+)'/u)?.[1];
+  assert.ok(sourceRevision, 'preview source must declare its build revision');
+  assert.equal(htmlRevision, sourceRevision, 'preview HTML and Worker cache revisions must stay synchronized');
   assert.match(source, /url\.searchParams\.set\('v', VIEWER_BUILD_REVISION\)/u);
   assert(source.indexOf('this.#bindImportControls()') < source.indexOf('await this.#view.init()'), 'directory import must remain available when WebGPU initialization fails');
   assert.match(source, /from '@haiyue\/ui\/virtual-list'/u);

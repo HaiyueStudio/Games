@@ -1,6 +1,7 @@
 import { IndexedSpriteRenderer, type IndexedSpriteDrawCommand, type IndexedSpriteRendererStats } from '@haiyue/extensions/experimental/indexed-sprite';
 import type { MugenAirSnapshot } from '../import/air/MugenAirRuntime';
 import type { MugenCharacterModel, MugenRenderAssetModel, MugenViewerPalette, MugenViewerSprite } from './MugenCharacterModel';
+import { mugenRenderPixelRatio } from './MugenRenderBudget';
 
 export type MugenViewerBackground = 'checker' | 'dark' | 'light';
 
@@ -34,6 +35,8 @@ export interface MugenViewerActorFrame {
   readonly colorMatrix?: readonly [number, number, number, number, number, number, number, number, number, number, number, number] | null;
 }
 
+export interface MugenAssetUploadProgress { readonly uploadedBytes: number; readonly totalBytes: number; readonly ratio: number; }
+
 export class MugenWebGpuView {
   readonly canvas: HTMLCanvasElement;
   readonly overlay: HTMLCanvasElement;
@@ -49,6 +52,7 @@ export class MugenWebGpuView {
   #installGeneration = 0;
   #deviceGeneration = 0;
   #disposed = false;
+  #overlayVisible = false;
   #onError: (error: unknown) => void;
 
   constructor(canvas: HTMLCanvasElement, overlay: HTMLCanvasElement, stage: HTMLElement, onError: (error: unknown) => void) {
@@ -83,10 +87,10 @@ export class MugenWebGpuView {
     return this.installModels([model], signal);
   }
 
-  async installModels(models: readonly MugenRenderAssetModel[], signal?: AbortSignal): Promise<IndexedSpriteRendererStats> {
+  async installModels(models: readonly MugenRenderAssetModel[], signal?: AbortSignal, onProgress?: (progress: MugenAssetUploadProgress) => void): Promise<IndexedSpriteRendererStats> {
     this.#assertAlive();
     if (!this.#device) throw new Error('MUGEN WebGPU view is not initialized.');
-    if (models.length < 1 || models.length > 4) throw new RangeError('MUGEN WebGPU view requires from one to four character models.');
+    if (models.length < 1 || models.length > 64) throw new RangeError('MUGEN WebGPU view requires from one to 64 render asset models.');
     const generation = ++this.#installGeneration;
     const next = new IndexedSpriteRenderer(this.#device, models.flatMap(model => model.rendererSprites), models.flatMap(model => model.rendererPalettes), {
       targetFormat: this.#format,
@@ -95,8 +99,10 @@ export class MugenWebGpuView {
     });
     try {
       signal?.throwIfAborted();
+      reportUploadProgress(next.stats(), onProgress);
       while (!next.ready) {
-        next.upload(Math.min(4 * 1024 * 1024, next.limits.maxUploadBytesPerFrame));
+        next.upload(Math.min(12 * 1024 * 1024, next.limits.maxUploadBytesPerFrame));
+        reportUploadProgress(next.stats(), onProgress);
         if (!next.ready) await nextAnimationFrame();
         signal?.throwIfAborted();
         if (generation !== this.#installGeneration || this.#disposed) throw new DOMException('Superseded MUGEN renderer install.', 'AbortError');
@@ -115,7 +121,7 @@ export class MugenWebGpuView {
   }
 
   resize(): MugenViewerViewport {
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const ratio = mugenRenderPixelRatio(this.stage.clientWidth, this.stage.clientHeight, window.devicePixelRatio || 1);
     const width = Math.max(1, Math.round(this.stage.clientWidth * ratio));
     const height = Math.max(1, Math.round(this.stage.clientHeight * ratio));
     if (this.canvas.width !== width || this.canvas.height !== height) {
@@ -132,8 +138,10 @@ export class MugenWebGpuView {
   renderActors(actors: readonly MugenViewerActorFrame[], settings: MugenViewerFrameSettings): IndexedSpriteRendererStats | null {
     if (this.#disposed || !this.#device || !this.#context || !this.#renderer || this.#spriteById.size === 0 || !this.#renderer.ready) return null;
     const viewport = this.resize();
-    const actorCommands = actors.map(actor => Object.freeze({ actor, command: this.#drawCommand(actor.snapshot, actor.paletteId, actor.transparency, actor.colorMatrix) }));
-    const commands = actorCommands.flatMap(value => value.command === null ? [] : [value.command]);
+    const showOverlay = settings.debug.origin || settings.debug.axis || settings.debug.spriteBounds || settings.debug.clsn1 || settings.debug.clsn2;
+    const actorCommands: Array<Readonly<{ actor: MugenViewerActorFrame; command: IndexedSpriteDrawCommand | null }>> = [];
+    const commands: IndexedSpriteDrawCommand[] = [];
+    for (const actor of actors) { const command = this.#drawCommand(actor.snapshot, actor.paletteId, actor.transparency, actor.colorMatrix); if (command !== null) commands.push(command); if (showOverlay) actorCommands.push({ actor, command }); }
     const encoder = this.#device.createCommandEncoder({ label: 'MugenViewer.frame' });
     const pass = encoder.beginRenderPass({
       label: 'MugenViewer.pass',
@@ -147,7 +155,8 @@ export class MugenWebGpuView {
     const stats = this.#renderer.render(pass, commands, viewport.width, viewport.height);
     pass.end();
     this.#device.queue.submit([encoder.finish()]);
-    this.#drawOverlay(actorCommands, settings, viewport.devicePixelRatio);
+    if (showOverlay) { this.#drawOverlay(actorCommands, settings, viewport.devicePixelRatio); this.#overlayVisible = true; }
+    else if (this.#overlayVisible) { this.clearOverlay(); this.#overlayVisible = false; }
     this.stage.dataset.background = settings.background;
     return stats;
   }
@@ -295,3 +304,9 @@ function drawSpriteBounds(context: CanvasRenderingContext2D, sprite: MugenViewer
 }
 
 function nextAnimationFrame(): Promise<void> { return new Promise(resolve => requestAnimationFrame(() => resolve())); }
+
+function reportUploadProgress(stats: IndexedSpriteRendererStats, onProgress?: (progress: MugenAssetUploadProgress) => void): void {
+  if (onProgress === undefined) return;
+  const totalBytes = stats.uploadedBytes + stats.pendingUploadBytes;
+  onProgress(Object.freeze({ uploadedBytes: stats.uploadedBytes, totalBytes, ratio: totalBytes === 0 ? 1 : stats.uploadedBytes / totalBytes }));
+}

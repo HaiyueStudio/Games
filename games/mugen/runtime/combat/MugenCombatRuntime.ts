@@ -3,8 +3,9 @@ import { evaluateMugenAirAction, type MugenAirSnapshot, type MugenAirWorldCollis
 import type { MugenAirAction, MugenAirBank } from '../../import/air/types';
 import type { MugenInputHistory, MugenPlayerInputFrame, MugenTickInput } from '../input/MugenInputRuntime';
 import type { MugenHelperEntitySnapshot, MugenProjectileEntitySnapshot } from '../entities/MugenEntityAuthority';
-import type { MugenActiveHitDefinition, MugenActiveReversalDefinition, MugenFighterSnapshot, MugenHeadlessMatch, MugenHitOverride } from '../match/MugenMatchState';
+import type { MugenActiveHitDefinition, MugenActiveReversalDefinition, MugenFighterSnapshot, MugenHeadlessMatch, MugenHitOverride, MugenMatchSnapshot } from '../match/MugenMatchState';
 import { MugenScriptRuntime, type MugenScriptAnimationContext, type MugenScriptStepContext, type MugenScriptTickTrace } from '../script/MugenScriptRuntime';
+import { MugenStageCamera, type MugenStageCameraConfig, type MugenStageCameraSnapshot } from '../stage/MugenStageCamera';
 
 export interface MugenCombatFighterConfig {
   readonly fighterId: string;
@@ -26,13 +27,14 @@ export interface MugenCombatConfig {
   readonly fightCoordinateScale?: number;
   readonly stageBounds?: readonly [left: number, right: number];
   readonly screenBounds?: readonly [left: number, right: number];
+  readonly camera?: MugenStageCameraConfig;
   readonly coordinateScale?: number;
   readonly guardDistance?: number;
   readonly koHoldTicks?: number;
 }
 
 export interface MugenCombatContactTrace { readonly attackerId: string; readonly defenderId: string; readonly result: 'hit' | 'guarded' | 'reversed'; readonly damage: number; readonly activationId: string }
-export interface MugenCombatTickTrace { readonly tick: number; readonly script: MugenScriptTickTrace; readonly contacts: readonly MugenCombatContactTrace[]; readonly animationHashes: readonly string[]; readonly hash: string }
+export interface MugenCombatTickTrace { readonly tick: number; readonly script: MugenScriptTickTrace; readonly contacts: readonly MugenCombatContactTrace[]; readonly animationHashes: readonly string[]; readonly camera: MugenStageCameraSnapshot; readonly hash: string }
 
 interface NormalizedFighterConfig extends Required<Omit<MugenCombatFighterConfig, 'air'>> { readonly actions: ReadonlyMap<number, MugenAirAction> }
 interface PendingContact { readonly attacker: MugenFighterSnapshot; readonly defender: MugenFighterSnapshot; readonly hitDef: MugenActiveHitDefinition; readonly guarded: boolean; readonly hitOverride: MugenHitOverride | null; readonly juggleRemaining: number | null }
@@ -54,6 +56,7 @@ export class MugenCombatRuntime {
   readonly #order: readonly [string, string];
   readonly #stageBounds: readonly [number, number];
   readonly #screenBounds: readonly [number, number];
+  readonly #camera: MugenStageCamera | null;
   readonly #guardDistance: number;
   readonly #koHoldTicks: number;
 
@@ -69,27 +72,38 @@ export class MugenCombatRuntime {
     this.#order = Object.freeze([normalized[0].fighterId, normalized[1].fighterId]);
     this.#stageBounds = vectorRange(config.stageBounds ?? [-320, 320], 'stageBounds');
     this.#screenBounds = vectorRange(config.screenBounds ?? this.#stageBounds, 'screenBounds');
+    this.#camera = config.camera === undefined ? null : new MugenStageCamera(config.camera);
     this.#guardDistance = positive(config.guardDistance ?? 90, 'guardDistance');
     this.#koHoldTicks = boundedInteger(config.koHoldTicks ?? 60, 1, 600, 'koHoldTicks');
   }
 
+  get camera(): MugenStageCameraSnapshot {
+    if (this.#camera !== null) return this.#camera.snapshot();
+    const center = Math.fround((this.#screenBounds[0] + this.#screenBounds[1]) / 2);
+    return Object.freeze({ position: Object.freeze([center, 0]) as readonly [number, number], screenBounds: this.#screenBounds, visibleBounds: this.#screenBounds });
+  }
+
   step(match: MugenHeadlessMatch, input: MugenTickInput, history: MugenInputHistory): MugenCombatTickTrace {
     if (!match.transactionOpen || match.tick !== input.tick) throw new Error('MUGEN combat runtime requires a matching open match tick.');
-    this.#validateFighters(match);
-    if (match.phase === 'fight' && match.snapshot().roundTimeRemainingTicks === 0) this.#resolveTimeOver(match);
+    const openingSnapshot = match.snapshot();
+    this.#validateFighters(openingSnapshot);
+    if (match.phase === 'fight' && openingSnapshot.roundTimeRemainingTicks === 0) this.#resolveTimeOver(match);
     if (match.phase === 'fight') this.#faceOpponents(match);
     let animations = this.#animations(match);
     const opponentByFighter = new Map([[this.#order[0], this.#order[1]], [this.#order[1], this.#order[0]]]);
     const inGuardDistance = this.#guardDistanceSet(match, animations);
     const animationExistsByFighter = new Map(this.#order.map(id => [id, new Set(this.#fighters.get(id)!.actions.keys())]));
     for (const helper of this.script.entities.helpers()) animationExistsByFighter.set(helper.entityId, new Set(this.#fighters.get(helper.rootId)!.actions.keys()));
-    const scriptContext = Object.freeze({ animationByFighter: animations, animationExistsByFighter, animationDurationByOwner: this.#animationDurationByOwner, opponentByFighter, inGuardDistance, stageBounds: this.#stageBounds, screenBounds: this.#screenBounds });
+    const cameraBefore = this.camera;
+    const scriptContext = Object.freeze({ animationByFighter: animations, animationExistsByFighter, animationDurationByOwner: this.#animationDurationByOwner, opponentByFighter, inGuardDistance, stageBounds: this.#stageBounds, screenBounds: cameraBefore.screenBounds, cameraPosition: cameraBefore.position });
     const script = this.script.step(match, input, history, scriptContext);
-    this.#applyScreenBounds(match);
-    this.script.entities.removeProjectilesOutsideBounds(this.#stageBounds[0], this.#stageBounds[1], this.#screenBounds[0], this.#screenBounds[1]);
+    this.#constrainFighters(match, true);
+    const screenBounds = this.camera.screenBounds;
+    this.script.entities.removeProjectilesOutsideBounds(this.#stageBounds[0], this.#stageBounds[1], screenBounds[0], screenBounds[1]);
     this.#resolveProjectileTerminalAnimations();
     if (match.phase === 'fight') { this.#recoverHitStates(match); this.#faceOpponents(match); }
     this.#applyTargetBindings(match);
+    this.#constrainFighters(match, false);
     const contacts: MugenCombatContactTrace[] = [];
     if (match.phase === 'fight' && !this.#order.some(id => match.fighter(id).hitPauseTicks > 0)) {
       animations = this.#animations(match);
@@ -105,14 +119,15 @@ export class MugenCombatRuntime {
       for (const contact of this.#collectProjectileContacts(match, input, animations)) { contacts.push(this.#applyContact(match, contact, scriptContext)); this.script.entities.recordProjectileContact(contact.projectileEntityId, contact.guarded ? 'guarded' : 'hit', contact.hitDef.hitCount); }
       for (const contact of this.#collectProjectileHelperContacts(match, input)) { contacts.push(this.#applyProjectileHelperContact(match, contact)); this.script.entities.recordProjectileContact(contact.projectileEntityId, contact.guarded ? 'guarded' : 'hit', contact.hitDef.hitCount); }
       this.#resolveKo(match);
-    } else if (match.phase === 'ko' && match.snapshot().phaseTime >= this.#koHoldTicks) match.completeKo();
+    } else if (match.phase === 'ko' && openingSnapshot.phaseTime >= this.#koHoldTicks) match.completeKo();
+    this.#constrainFighters(match, false);
     animations = this.#animations(match);
     const animationHashes = Object.freeze(this.#order.map(id => hashAnimation(animations.get(id)!)));
-    const base = Object.freeze({ tick: input.tick, script, contacts: Object.freeze(contacts), animationHashes });
+    const base = Object.freeze({ tick: input.tick, script, contacts: Object.freeze(contacts), animationHashes, camera: this.camera });
     return Object.freeze({ ...base, hash: hashSimulationState(base as unknown as SimulationStateValue) });
   }
 
-  #validateFighters(match: MugenHeadlessMatch): void { const ids = match.snapshot().fighters.map(value => value.id); if (ids[0] !== this.#order[0] || ids[1] !== this.#order[1]) throw new TypeError('MUGEN combat fighter order does not match the match authority.'); }
+  #validateFighters(snapshot: MugenMatchSnapshot): void { const ids = snapshot.fighters.map(value => value.id); if (ids[0] !== this.#order[0] || ids[1] !== this.#order[1]) throw new TypeError('MUGEN combat fighter order does not match the match authority.'); }
 
   #applyTargetBindings(match: MugenHeadlessMatch): void { for (const id of this.#order) { const fighter = match.fighter(id); const binding = fighter.targetBinding; if (binding !== null) { const owner = match.fighter(binding.ownerId); match.setKinematics(id, { position: [owner.position[0] + binding.offset[0] * owner.facing, owner.position[1] + binding.offset[1]], velocity: [0, 0] }); continue; } const entity = this.script.entities.entity(id); if (entity?.kind === 'root' && entity.bindTargetId !== null) match.setKinematics(id, { position: entity.position, velocity: [0, 0] }); } }
 
@@ -126,12 +141,20 @@ export class MugenCombatRuntime {
 
   #faceOpponents(match: MugenHeadlessMatch): void {
     const currentFirst = match.fighter(this.#order[0]); const currentSecond = match.fighter(this.#order[1]);
-    const output = new Map(this.script.outputs.snapshot().entities.map(entity => [entity.entityId, entity]));
-    if (currentFirst.control && currentFirst.moveType === 'I' && currentFirst.hitPauseTicks === 0 && !output.get(currentFirst.id)?.assertions.includes('noautoturn')) match.setKinematics(currentFirst.id, { facing: currentFirst.position[0] <= currentSecond.position[0] ? 1 : -1 });
-    if (currentSecond.control && currentSecond.moveType === 'I' && currentSecond.hitPauseTicks === 0 && !output.get(currentSecond.id)?.assertions.includes('noautoturn')) match.setKinematics(currentSecond.id, { facing: currentSecond.position[0] <= currentFirst.position[0] ? 1 : -1 });
+    if (currentFirst.control && currentFirst.moveType === 'I' && currentFirst.hitPauseTicks === 0 && !this.script.outputs.findEntity(currentFirst.id)?.assertions.includes('noautoturn')) match.setKinematics(currentFirst.id, { facing: currentFirst.position[0] <= currentSecond.position[0] ? 1 : -1 });
+    if (currentSecond.control && currentSecond.moveType === 'I' && currentSecond.hitPauseTicks === 0 && !this.script.outputs.findEntity(currentSecond.id)?.assertions.includes('noautoturn')) match.setKinematics(currentSecond.id, { facing: currentSecond.position[0] <= currentFirst.position[0] ? 1 : -1 });
   }
 
-  #applyScreenBounds(match: MugenHeadlessMatch): void { const output = new Map(this.script.outputs.snapshot().entities.map(entity => [entity.entityId, entity])); for (const id of this.#order) { const fighter = match.fighter(id); const screen = output.get(id)?.screenBound; if (screen?.bound !== true) continue; const x = Math.max(this.#screenBounds[0], Math.min(this.#screenBounds[1], fighter.position[0])); if (x !== fighter.position[0]) match.setKinematics(id, { position: [x, fighter.position[1]] }); } }
+  #constrainFighters(match: MugenHeadlessMatch, updateCamera: boolean): void {
+    if (updateCamera && this.#camera !== null) this.#camera.update(this.#order.map(id => { const fighter = match.fighter(id); const screen = this.script.outputs.findEntity(id)?.screenBound; return Object.freeze({ id, position: fighter.position, moveCamera: screen?.moveCamera ?? Object.freeze([true, true]) as readonly [boolean, boolean] }); }));
+    const bounds = this.camera.screenBounds;
+    for (const id of this.#order) {
+      const fighter = match.fighter(id); const screenBound = this.script.outputs.findEntity(id)?.screenBound?.bound !== false; const x = this.#camera?.constrainX(fighter.position[0], screenBound) ?? Math.max(this.#stageBounds[0], Math.min(this.#stageBounds[1], screenBound ? Math.max(bounds[0], Math.min(bounds[1], fighter.position[0])) : fighter.position[0]));
+      if (x === fighter.position[0]) continue;
+      const velocityX = (x === bounds[0] && fighter.velocity[0] < 0) || (x === bounds[1] && fighter.velocity[0] > 0) || (x === this.#stageBounds[0] && fighter.velocity[0] < 0) || (x === this.#stageBounds[1] && fighter.velocity[0] > 0) ? 0 : fighter.velocity[0];
+      match.setKinematics(id, { position: [x, fighter.position[1]], velocity: [velocityX, fighter.velocity[1]] });
+    }
+  }
 
   #animations(match: MugenHeadlessMatch): ReadonlyMap<string, MugenScriptAnimationContext> {
     const result = new Map<string, MugenScriptAnimationContext>();

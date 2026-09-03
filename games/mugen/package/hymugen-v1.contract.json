@@ -27,7 +27,7 @@
   "maxDepth": 128,
   "maxStringBytes": 16777216,
   "maxCollectionEntries": 4194304,
-  "maxPackageBytes": 268435456,
+  "maxPackageBytes": 536870912,
   "requiredEnvelope": [
     "format",
     "version",

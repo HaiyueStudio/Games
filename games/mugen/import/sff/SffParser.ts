@@ -120,21 +120,24 @@ function parseV1(bytes: Uint8Array, resource: MugenImportResource, versionBytes:
       if (dataLength !== physicalDataLength && (!paletteShared || dataLength !== physicalDataLength + 768)) invalid(resource.canonicalPath, headerOffset + 4, 'SFF v1 declared and physical sprite lengths disagree.');
       const block = new MugenBoundedBinaryReader(bytes, resource.canonicalPath).sliceAt(dataOffset, physicalDataLength);
       const decoded = decodePcx8(block, resource.canonicalPath, dataOffset, paletteShared);
-      checkDimensions(decoded.width, decoded.height, 1, resource.canonicalPath, dataOffset);
+      checkDimensions(decoded.width, decoded.height, decoded.colorDepth === 24 ? 3 : 1, resource.canonicalPath, dataOffset);
       let paletteSourceIndex: number | null;
-      if (paletteShared) {
-        if (previousPaletteIndex === null) missingPalette(resource.canonicalPath, headerOffset + 18, group, item);
-        paletteSourceIndex = previousPaletteIndex;
-      } else {
-        if (decoded.paletteRgba === null) missingPalette(resource.canonicalPath, dataOffset, group, item);
+      if (decoded.pixelFormat !== 'indexed8') {
+        paletteSourceIndex = null;
+      } else if (decoded.paletteRgba !== null) {
         paletteSourceIndex = palettes.length;
         palettes.push(Object.freeze({ sourceIndex: paletteSourceIndex, group: 0, item: paletteSourceIndex, colorCount: 256, rgba: decoded.paletteRgba, linkedToSourceIndex: null, source: 'sff-v1' }));
         previousPaletteIndex = paletteSourceIndex;
+      } else {
+        // A shared first sprite is valid when the character DEF supplies ACT
+        // palettes. Some old exporters also omit a repeated PCX palette while
+        // forgetting to set the shared flag.
+        paletteSourceIndex = previousPaletteIndex;
       }
-      decodedSpriteBytes = checkedDecodedTotal(decodedSpriteBytes, decoded.indices.byteLength, resource.canonicalPath);
+      decodedSpriteBytes = checkedDecodedTotal(decodedSpriteBytes, decoded.pixels.byteLength, resource.canonicalPath);
       sprites.push(Object.freeze({
         sourceIndex, group, item, width: decoded.width, height: decoded.height, axisX, axisY,
-        colorDepth: 8, pixelFormat: 'indexed8', compression: 'pcx', pixels: decoded.indices,
+        colorDepth: decoded.colorDepth, pixelFormat: decoded.pixelFormat, compression: 'pcx', pixels: decoded.pixels,
         linkedToSourceIndex: null, paletteSourceIndex,
       }));
     }

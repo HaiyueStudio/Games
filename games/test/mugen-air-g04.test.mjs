@@ -161,6 +161,21 @@ test('AIR normalizes legacy A2 through A9 transparency spellings to additive ble
   ]);
 });
 
+test('AIR ignores an uncommented non-ASCII legacy annotation with a warning', async () => {
+  const bank = await parseAir('[Begin Action 15600]\n15600,0,0,0,1\n○三角木馬\n[Begin Action 15920]\n15920,0,0,0,1\n');
+  assert.deepEqual(bank.actions.map(action => action.number), [15600, 15920]);
+  assert.deepEqual(bank.diagnostics.map(item => ({ code: item.code, severity: item.severity, recovery: item.recovery, group: item.group })), [{
+    code: 'E_MUGEN_AIR_ANNOTATION_IGNORED',
+    severity: 'warning',
+    recovery: 'ignore',
+    group: 15600,
+  }]);
+  await assertDiagnostic(
+    () => parseAir('[Begin Action 0]\n0,0,0,0,1\nunknown directive\n'),
+    'E_MUGEN_AIR_ELEMENT_INVALID',
+  );
+});
+
 test('AIR canonicalizes legacy negative sprite identifiers to a blank element', async () => {
   const bank = await parseAir('[Begin Action 0]\n-10,5,0,0,8\n');
   assert.deepEqual(
@@ -169,14 +184,27 @@ test('AIR canonicalizes legacy negative sprite identifiers to a blank element', 
   );
 });
 
-test('AIR evaluates legacy literal arithmetic in sprite identifiers without relaxing other fields', async () => {
-  const bank = await parseAir('[Begin Action 168120]\n504-5,15,-5,15,10\n');
+test('AIR normalizes legacy zero-duration elements with a displaced flip field', async () => {
+  const bank = await parseAir('[Begin Action 0]\n0,0,0,0,0,0,,\n0,1,0,0,0,0,,H\n0,2,0,0,1\n');
+  assert.deepEqual(bank.actions[0].elements.map(element => ({ duration: element.durationTicks, flipX: element.flipX, flipY: element.flipY })), [
+    { duration: 0, flipX: false, flipY: false },
+    { duration: 0, flipX: true, flipY: false },
+    { duration: 1, flipX: false, flipY: false },
+  ]);
+});
+
+test('AIR evaluates legacy literal arithmetic in sprite identifiers and offsets without relaxing other fields', async () => {
+  const bank = await parseAir('[Begin Action 168120]\n504-5,15,-1-1,2+3,10\n');
   assert.deepEqual(
-    { group: bank.actions[0].elements[0].spriteGroup, item: bank.actions[0].elements[0].spriteItem, duration: bank.actions[0].elements[0].durationTicks },
-    { group: 499, item: 15, duration: 10 },
+    { group: bank.actions[0].elements[0].spriteGroup, item: bank.actions[0].elements[0].spriteItem, x: bank.actions[0].elements[0].offsetX, y: bank.actions[0].elements[0].offsetY, duration: bank.actions[0].elements[0].durationTicks },
+    { group: 499, item: 15, x: -2, y: 5, duration: 10 },
   );
   await assertDiagnostic(
     () => parseAir('[Begin Action 0]\n1*2,0,0,0,1\n'),
+    'E_MUGEN_AIR_ELEMENT_INVALID',
+  );
+  await assertDiagnostic(
+    () => parseAir('[Begin Action 0]\n0,0,0,0,1+1\n'),
     'E_MUGEN_AIR_ELEMENT_INVALID',
   );
 });
@@ -245,6 +273,22 @@ test('AIR collision count remains authoritative for Elecbyte KFM mislabeled box 
   assert.equal(bank.actions[0].elements[0].clsn2.length, 0);
 });
 
+test('AIR normalizes a complete one-based legacy collision block', async () => {
+  const bank = await parseAir('[Begin Action 0]\nClsn1: 2\nClsn1[1]=0,0,1,1\nClsn1[2]=2,2,3,3\n0,0,0,0,1\n');
+  assert.deepEqual(bank.actions[0].elements[0].clsn1.map(box => ({ index: box.index, left: box.left })), [
+    { index: 0, left: 0 },
+    { index: 1, left: 2 },
+  ]);
+});
+
+test('AIR recovers a legacy skipped final collision index positionally', async () => {
+  const bank = await parseAir('[Begin Action 0]\nClsn2: 2\nClsn2[0]=0,0,1,1\nClsn2[2]=2,2,3,3\n0,0,0,0,1\n');
+  assert.deepEqual(bank.actions[0].elements[0].clsn2.map(box => ({ index: box.index, left: box.left })), [
+    { index: 0, left: 0 },
+    { index: 1, left: 2 },
+  ]);
+});
+
 test('AIR accepts legacy all-stage collision coordinates while retaining a finite safety bound', async () => {
   const bank = await parseAir('[Begin Action 0]\nClsn1: 1\nClsn1[0] = -9999999, -9999999, 9999999, 9999999\n0,0,0,0,1\n');
   assert.deepEqual(bank.actions[0].elements[0].clsn1.map(box => [box.left, box.top, box.right, box.bottom]), [[-9_999_999, -9_999_999, 9_999_999, 9_999_999]]);
@@ -269,8 +313,6 @@ test('AIR parser fails closed on malformed actions, elements, collision declarat
     ['E_MUGEN_AIR_ELEMENT_INVALID', '[Begin Action 0]\n0,0,0,0,1,Q\n'],
     ['E_MUGEN_AIR_ELEMENT_INVALID', '[Begin Action 0]\n0,0,0,0,1,,AS257D0\n'],
     ['E_MUGEN_AIR_ELEMENT_INVALID', '[Begin Action 0]\n0,0,0,0,1,,,1025\n'],
-    ['E_MUGEN_AIR_DURATION_INVALID', '[Begin Action 0]\n0,0,0,0,-2\n'],
-    ['E_MUGEN_AIR_DURATION_INVALID', '[Begin Action 0]\n0,0,0,0,1\nLoopStart\n0,1,0,0,0\n'],
     ['E_MUGEN_AIR_CLSN_COUNT', '[Begin Action 0]\nClsn1: 1\n0,0,0,0,1\n'],
     ['E_MUGEN_AIR_CLSN_COUNT', '[Begin Action 0]\nClsn1: 2\nClsn1[0]=0,0,1,1\nClsn1[0]=0,0,1,1\n0,0,0,0,1\n'],
     ['E_MUGEN_LIMIT_EXCEEDED', '[Begin Action 0]\nClsn1: 257\n'],
@@ -279,6 +321,89 @@ test('AIR parser fails closed on malformed actions, elements, collision declarat
     ['E_MUGEN_AIR_ELEMENT_INVALID', '[Begin Action 0]\n0,0,0,0,1\nInterpolate Blend\n0,1,0,0,1,,S\n'],
   ];
   for (const [code, source] of cases) await assertDiagnostic(() => parseAir(source), code);
+});
+
+test('AIR recovers common legacy placeholder, timing, optional-field and concatenated-frame spellings', async () => {
+  const bank = await parseAir([
+    '[Begin Action 1]',
+    '[Begin Action 2]',
+    '0,0,0,0,-4',
+    '[Begin Action 3]',
+    '0,0,0,0,-.1',
+    '[Begin Action 4]',
+    '0,0,0,0,2H',
+    '[Begin Action 5]',
+    '0,0,0,0,1,A',
+    '[Begin Action 6]',
+    '0,0,0,0,1,H,,A0',
+    '[Begin Action 7]',
+    '0,0,0,0,1,,, ,A1',
+    '[Begin Action 8]',
+    '0,0,0,0,1,H1,0,0,0,2,H',
+    '[Begin Action 9]',
+    '0,,.,,1',
+    '[Begin Action 10]',
+    '0,0,0,0,2',
+    'LoopStart',
+    '0,0,0,0,0',
+    '[Begin Action 11]',
+    '0,0,0,-8-,1',
+    '[Begin Action 12]',
+    '0,0,0,0,1,,H',
+    '[Begin Action 13]',
+    '0,0,0,0,1,V,H',
+    '[Begin Action 14]',
+    '0,20,,0,0,3',
+    '[Begin Action 15]',
+    '0,0,0,\u0081@0,3\u0081@\u0081@',
+    '[Begin Action 16]',
+    'Clsn2Defalut: 1',
+    'Clsn2[0]=0,0,1,1',
+    'lootstart',
+    '0,0,0,0,1,,A12',
+    '[Begin Action 17]',
+    'ƒoƒXƒ^[ legacy annotation',
+    '[Begin Action 18]',
+    '0,0,0,0,1,,aa',
+    '[Begin Action 19]',
+    '0,0,0,0,1,,0X0A12',
+    '[Begin Action 20]',
+    '0,0,0,0,1,,A125D120',
+    '',
+  ].join('\n'));
+
+  assert.equal(bank.actions.find(action => action.number === 1).elements[0].spriteId, null);
+  assert.equal(bank.actions.find(action => action.number === 2).elements[0].durationTicks, -1);
+  assert.equal(bank.actions.find(action => action.number === 3).elements[0].durationTicks, -1);
+  assert.equal(bank.actions.find(action => action.number === 4).elements[0].flipX, true);
+  assert.equal(bank.actions.find(action => action.number === 5).elements[0].blend.mode, 'add');
+  assert.equal(bank.actions.find(action => action.number === 6).elements[0].blend.mode, 'add');
+  assert.equal(bank.actions.find(action => action.number === 7).elements[0].blend.destinationAlpha, 128);
+  assert.equal(bank.actions.find(action => action.number === 8).elements.length, 2);
+  assert.deepEqual(
+    { item: bank.actions.find(action => action.number === 9).elements[0].spriteItem, x: bank.actions.find(action => action.number === 9).elements[0].offsetX, y: bank.actions.find(action => action.number === 9).elements[0].offsetY },
+    { item: 0, x: 0, y: 0 },
+  );
+  assert.equal(bank.actions.find(action => action.number === 10).loopTicks, 1);
+  assert.equal(bank.actions.find(action => action.number === 11).elements[0].offsetY, -8);
+  assert.equal(bank.actions.find(action => action.number === 12).elements[0].flipX, true);
+  assert.deepEqual(
+    { flipX: bank.actions.find(action => action.number === 13).elements[0].flipX, flipY: bank.actions.find(action => action.number === 13).elements[0].flipY },
+    { flipX: true, flipY: true },
+  );
+  assert.equal(bank.actions.find(action => action.number === 14).elements[0].durationTicks, 3);
+  assert.deepEqual(
+    { y: bank.actions.find(action => action.number === 15).elements[0].offsetY, duration: bank.actions.find(action => action.number === 15).elements[0].durationTicks },
+    { y: 0, duration: 3 },
+  );
+  assert.equal(bank.actions.find(action => action.number === 16).elements[0].blend.mode, 'add');
+  assert.equal(bank.actions.find(action => action.number === 16).loopStart, 0);
+  assert.equal(bank.actions.find(action => action.number === 17).elements[0].spriteId, null);
+  assert.equal(bank.actions.find(action => action.number === 18).elements[0].blend.mode, 'add');
+  assert.equal(bank.actions.find(action => action.number === 19).elements[0].blend.mode, 'add');
+  assert.deepEqual(bank.actions.find(action => action.number === 20).elements[0].blend, { mode: 'add', sourceAlpha: 125, destinationAlpha: 120 });
+  assert(bank.diagnostics.some(item => item.code === 'E_MUGEN_AIR_ACTION_EMPTY'));
+  assert(bank.diagnostics.some(item => item.code === 'E_MUGEN_AIR_TIMING_RECOVERED'));
 });
 
 test('AIR parser survives deterministic text mutation fuzz without leaking native errors', async () => {

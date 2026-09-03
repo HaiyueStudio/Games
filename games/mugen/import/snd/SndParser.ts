@@ -14,9 +14,9 @@ export async function parseMugenSnd(resource: MugenImportResource, signal?: Abor
   const version = Object.freeze([bytes[12]!, bytes[13]!, bytes[14]!, bytes[15]!]) as readonly [number, number, number, number];
   const versionKey = version.join('.');
   // WinMUGEN-era authoring tools commonly emit 1.0.1.0. Fighter Factory
-  // Ultimate also writes the byte-reordered 0.1.0.1 variant. MUGEN loads
-  // both with the same linked RIFF/WAVE record layout as 4.0.0.0.
-  if (versionKey !== '4.0.0.0' && versionKey !== '1.0.1.0' && versionKey !== '0.1.0.1') fail('MUGEN SND version is unsupported.', 12);
+  // variants also write 0.1.0.1 and 0.4.0.0. MUGEN loads all of them with
+  // the same linked RIFF/WAVE record layout as 4.0.0.0.
+  if (!['4.0.0.0', '1.0.1.0', '0.1.0.1', '0.4.0.0'].includes(versionKey)) fail('MUGEN SND version is unsupported.', 12);
   const count = view.getUint32(16, true); const firstOffset = view.getUint32(20, true);
   if (count > MUGEN_LIMITS.snd.maxEntriesPerFile) limit('maxEntriesPerFile', count, MUGEN_LIMITS.snd.maxEntriesPerFile);
   if ((count === 0) !== (firstOffset === 0)) fail('MUGEN SND count and first subheader offset disagree.', 16);
@@ -48,9 +48,12 @@ function parseWave(bytes: Uint8Array, resource: MugenImportResource, absoluteOff
   if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') fail('MUGEN SND entry is not a RIFF/WAVE payload.', 0);
   const rawDeclaredEnd = view.getUint32(4, true) + 8;
   // Some Fighter Factory banks write the complete RIFF byte length into the
-  // size field instead of the spec-required length-minus-eight. Accept only
-  // that exact bounded mismatch and continue with the enclosing SND length.
-  const declaredEnd = rawDeclaredEnd === bytes.byteLength + 8 ? bytes.byteLength : rawDeclaredEnd;
+  // size field instead of the spec-required length-minus-eight. Other legacy
+  // tools are consistently off by four while their chunks exactly fill the
+  // enclosing SND record. Accept only those bounded mismatches; chunk parsing
+  // below still proves that every embedded payload fits the outer boundary.
+  const boundedLegacyMismatch = Math.abs(rawDeclaredEnd - bytes.byteLength) <= 8;
+  const declaredEnd = boundedLegacyMismatch ? bytes.byteLength : rawDeclaredEnd;
   if (declaredEnd > bytes.byteLength || declaredEnd < 12) fail('MUGEN SND RIFF length is out of range.', 4);
   let cursor = 12; let format: { channels: number; sampleRate: number; bitsPerSample: number; blockAlign: number } | null = null; let dataLength = -1;
   while (cursor + 8 <= declaredEnd) { const id = tag(cursor); const length = view.getUint32(cursor + 4, true); const payload = cursor + 8; const end = payload + length; if (end > declaredEnd || end < payload) fail('MUGEN SND WAV chunk is truncated.', cursor + 4);

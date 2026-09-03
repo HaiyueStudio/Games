@@ -160,12 +160,21 @@ function parseLine(
     return { token: Object.freeze({ kind: 'blank', span: span(file.canonicalPath, byteBoundaries, absoluteStart, absoluteStart + line.length, lineNumber, 1) }) };
   }
   const value = content.slice(trimStart, trimEnd);
+  if (value === '[' && comment) return { token: comment };
+  if (/^[=_*-]{3,}$/u.test(value)) {
+    return { token: Object.freeze({ kind: 'directive', value, sectionIndex, span: fullSpan }), ...(comment ? { comment } : {}) };
+  }
   if (value.startsWith('[')) {
     const firstClosingBracket = value.indexOf(']');
     const headerEnd = firstClosingBracket === value.length - 1
       ? firstClosingBracket
       : legacyStateHeaderEnd(value, firstClosingBracket);
-    if (headerEnd < 0) failSyntax(file, byteBoundaries, absoluteStart + trimStart, lineNumber, trimStart + 1, 'Malformed MUGEN section header.');
+    if (headerEnd < 0) {
+      if (isDecorativeBracketDirective(value, firstClosingBracket)) {
+        return { token: Object.freeze({ kind: 'directive', value, sectionIndex, span: fullSpan }), ...(comment ? { comment } : {}) };
+      }
+      failSyntax(file, byteBoundaries, absoluteStart + trimStart, lineNumber, trimStart + 1, 'Malformed MUGEN section header.');
+    }
     const name = value.slice(1, headerEnd).trim();
     if (name === '') failSyntax(file, byteBoundaries, absoluteStart + trimStart, lineNumber, trimStart + 1, 'MUGEN section name cannot be empty.');
     return { token: Object.freeze({ kind: 'section', name, foldedName: asciiCaseFold(name), span: fullSpan }), ...(comment ? { comment } : {}) };
@@ -208,11 +217,24 @@ function parseLine(
 }
 
 function legacyStateHeaderEnd(value: string, firstClosingBracket: number): number {
-  if (firstClosingBracket <= 1 || !value.endsWith(']')) return -1;
-  const name = value.slice(1, firstClosingBracket).trim();
-  if (!/^state(?:def)?\s+-?\d+(?:\s*,.*)?$/iu.test(name)) return -1;
-  const suffix = value.slice(firstClosingBracket + 1, -1).trim();
-  return suffix !== '' && !suffix.includes('[') && !suffix.includes('=') && !suffix.includes(';') ? firstClosingBracket : -1;
+  const candidateEnd = firstClosingBracket < 0 ? value.length : firstClosingBracket;
+  if (candidateEnd <= 1) return -1;
+  const name = value.slice(1, candidateEnd).trim();
+  const numericState = /^state(?:def)?\s+-?\d+(?:\s*,.*)?$/iu.test(name);
+  const labeledController = !name.includes('[') && !name.includes(']') && /^state\s+[^,=;]+(?:\s*,.*)?$/iu.test(name);
+  if (!numericState && !labeledController) return -1;
+  if (firstClosingBracket < 0) return candidateEnd;
+  const rawSuffix = value.slice(firstClosingBracket + 1).trim();
+  if (rawSuffix === ']') return firstClosingBracket;
+  const suffix = rawSuffix.endsWith(']') ? rawSuffix.slice(0, -1).trim() : rawSuffix;
+  const hasStructuralCharacter = suffix.includes('[') || suffix.includes(']') || suffix.includes('=') || suffix.includes(';');
+  return suffix !== '' && !hasStructuralCharacter ? firstClosingBracket : -1;
+}
+
+function isDecorativeBracketDirective(value: string, firstClosingBracket: number): boolean {
+  if (firstClosingBracket <= 1) return false;
+  const suffix = value.slice(firstClosingBracket + 1).trim();
+  return /^-{3,}$/u.test(suffix);
 }
 
 function findCommentOffset(
@@ -237,6 +259,7 @@ function findCommentOffset(
       return suffixOffset < 0 ? -1 : suffixStart + suffixOffset;
     }
   }
+  if (!line.includes(';')) return -1;
   return findOutsideQuotes(line, ';', file, absoluteStart, lineNumber, byteBoundaries);
 }
 

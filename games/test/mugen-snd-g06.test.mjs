@@ -33,6 +33,13 @@ test('SND parser accepts the Fighter Factory 0.1.0.1 header variant', async () =
   assert.equal(bank.entries.length, 6);
 });
 
+test('SND parser accepts the Fighter Factory 0.4.0.0 header variant', async () => {
+  const bytes = fixture.slice(); bytes.set([0, 4, 0, 0], 12);
+  const bank = await parseMugenSnd(resource(bytes));
+  assert.deepEqual(bank.version, [0, 4, 0, 0]);
+  assert.equal(bank.entries.length, 6);
+});
+
 test('SND parser accepts Fighter Factory WAV chunks without the required odd-byte padding', async () => {
   const bank = await parseMugenSnd(resource(unpaddedLegacySnd()));
   assert.deepEqual(bank.version, [0, 1, 0, 1]);
@@ -49,6 +56,38 @@ test('SND parser accepts Fighter Factory RIFF sizes that include the eight-byte 
   view.setUint32(entryOffset + 16 + 4, payloadLength, true);
   const bank = await parseMugenSnd(resource(bytes));
   assert.equal(bank.entries.length, 6);
+});
+
+test('SND parser accepts legacy RIFF sizes that overrun a complete outer record by four bytes', async () => {
+  const bytes = fixture.slice();
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const entryOffset = view.getUint32(20, true);
+  const payloadLength = view.getUint32(entryOffset + 4, true);
+  view.setUint32(entryOffset + 16 + 4, payloadLength - 4, true);
+  const bank = await parseMugenSnd(resource(bytes));
+  assert.equal(bank.entries.length, 6);
+});
+
+test('SND parser accepts legacy RIFF sizes that underreport a complete outer record by four bytes', async () => {
+  const bytes = fixture.slice();
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const entryOffset = view.getUint32(20, true);
+  const payloadLength = view.getUint32(entryOffset + 4, true);
+  view.setUint32(entryOffset + 16 + 4, payloadLength - 12, true);
+  const bank = await parseMugenSnd(resource(bytes));
+  assert.equal(bank.entries.length, 6);
+});
+
+test('SND parser accepts bounded one-byte RIFF size drift from legacy authoring tools', async () => {
+  for (const drift of [-1, 1]) {
+    const bytes = fixture.slice();
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const entryOffset = view.getUint32(20, true);
+    const payloadLength = view.getUint32(entryOffset + 4, true);
+    view.setUint32(entryOffset + 16 + 4, payloadLength - 8 + drift, true);
+    const bank = await parseMugenSnd(resource(bytes));
+    assert.equal(bank.entries.length, 6);
+  }
 });
 
 test('G06 SND contribution enters deterministic HYMUGEN sound table without raw bank bytes', async () => {

@@ -99,7 +99,7 @@ export class MugenStateExecutor {
       const controller = state.controllers[controllerIndex]!; const snapshot = host.snapshot(); const controllerKey = `${snapshot.entityId}|${epoch}|${state.number}|${controllerIndex}|${controller.sourcePath}:${controller.sourceLine}`;
       if (snapshot.paused) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'paused', []); continue; }
       if (snapshot.hitPaused && !controller.ignoreHitPause) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'hitpause', []); continue; }
-      const triggerTrace: MugenTriggerExpressionTrace[] = []; const passed = evaluateTriggers(controller, host, triggerTrace);
+      const triggerTrace: MugenTriggerExpressionTrace[] = []; const passed = evaluateTriggers(controller, host, triggerTrace, traceEnabled);
       if (!passed) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'trigger-false', triggerTrace); continue; }
       const entry = this.#persistent.get(controllerKey) ?? { trueCount: 0, firedOnce: false }; entry.trueCount = controller.persistent === 0 ? 1 : entry.trueCount + 1; this.#persistent.set(controllerKey, entry);
       const fires = controller.persistent === 0 ? !entry.firedOnce : entry.trueCount === controller.persistent;
@@ -112,18 +112,18 @@ export class MugenStateExecutor {
   }
 }
 
-function evaluateTriggers(controller: MugenStateController, host: MugenStateExecutorHost, trace: MugenTriggerExpressionTrace[]): boolean {
+function evaluateTriggers(controller: MugenStateController, host: MugenStateExecutorHost, trace: MugenTriggerExpressionTrace[], traceEnabled: boolean): boolean {
   for (let index = 0; index < controller.triggerAll.length; index += 1) {
-    const outcome = condition(host.evaluate(controller.triggerAll[index]!)); trace.push(Object.freeze({ kind: 'triggerall', group: null, index, outcome }));
-    if (outcome !== 'true') { for (let rest = index + 1; rest < controller.triggerAll.length; rest += 1) trace.push(Object.freeze({ kind: 'triggerall', group: null, index: rest, outcome: 'short-circuited' })); appendGroups(controller, trace, 'short-circuited'); return false; }
+    const outcome = condition(host.evaluate(controller.triggerAll[index]!)); if (traceEnabled) trace.push(Object.freeze({ kind: 'triggerall', group: null, index, outcome }));
+    if (outcome !== 'true') { if (traceEnabled) { for (let rest = index + 1; rest < controller.triggerAll.length; rest += 1) trace.push(Object.freeze({ kind: 'triggerall', group: null, index: rest, outcome: 'short-circuited' })); appendGroups(controller, trace, 'short-circuited'); } return false; }
   }
   let expectedGroup = 1;
   for (let groupIndex = 0; groupIndex < controller.triggerGroups.length; groupIndex += 1) {
     const group = controller.triggerGroups[groupIndex]!;
-    if (group.group !== expectedGroup) { for (let rest = groupIndex; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'ignored-gap' })); return false; }
+    if (group.group !== expectedGroup) { if (traceEnabled) for (let rest = groupIndex; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'ignored-gap' })); return false; }
     let groupPassed = true;
-    for (let index = 0; index < group.expressions.length; index += 1) { const outcome = condition(host.evaluate(group.expressions[index]!)); trace.push(Object.freeze({ kind: 'group', group: group.group, index, outcome })); if (outcome !== 'true') { groupPassed = false; for (let rest = index + 1; rest < group.expressions.length; rest += 1) trace.push(Object.freeze({ kind: 'group', group: group.group, index: rest, outcome: 'short-circuited' })); break; } }
-    if (groupPassed) { for (let rest = groupIndex + 1; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'short-circuited' })); return true; }
+    for (let index = 0; index < group.expressions.length; index += 1) { const outcome = condition(host.evaluate(group.expressions[index]!)); if (traceEnabled) trace.push(Object.freeze({ kind: 'group', group: group.group, index, outcome })); if (outcome !== 'true') { groupPassed = false; if (traceEnabled) for (let rest = index + 1; rest < group.expressions.length; rest += 1) trace.push(Object.freeze({ kind: 'group', group: group.group, index: rest, outcome: 'short-circuited' })); break; } }
+    if (groupPassed) { if (traceEnabled) for (let rest = groupIndex + 1; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'short-circuited' })); return true; }
     expectedGroup += 1;
   }
   return false;

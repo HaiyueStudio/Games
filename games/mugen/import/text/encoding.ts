@@ -37,31 +37,21 @@ export function decodeMugenText(
   const encoding: MugenSourceEncoding = hadUtf8Bom ? 'utf-8' : explicitEncoding ?? 'windows-1252';
   const offset = hadUtf8Bom ? 3 : 0;
   const decoded = encoding === 'utf-8'
-    ? decodeUtf8(bytes, offset, canonicalPath)
+    ? decodeUtf8(bytes, offset, canonicalPath, hadUtf8Bom)
     : encoding === 'windows-1252'
       ? decodeWindows1252(bytes, offset)
       : decodeLegacyStreaming(bytes, offset, canonicalPath, encoding);
   const normalized = normalizeLineEndings(decoded.text, decoded.byteBoundaries);
-  const nulOffset = normalized.text.indexOf('\0');
-  if (nulOffset >= 0) {
-    failMugen(mugenDiagnostic(
-      'E_MUGEN_TEXT_SYNTAX',
-      'text-parse',
-      'error',
-      'release-resource',
-      `NUL is forbidden in MUGEN text: ${canonicalPath}`,
-      { canonicalPath, byteOffset: normalized.byteBoundaries[nulOffset]! },
-    ));
-  }
+  const sanitizedText = sanitizeLegacyCommentNuls(normalized.text, normalized.byteBoundaries, bytes, offset, canonicalPath);
   return Object.freeze({
-    text: normalized.text,
+    text: sanitizedText,
     encoding,
     hadUtf8Bom,
     byteBoundaries: normalized.byteBoundaries,
   });
 }
 
-function decodeUtf8(bytes: Uint8Array, offset: number, canonicalPath: string): { text: string; byteBoundaries: Uint32Array } {
+function decodeUtf8(bytes: Uint8Array, offset: number, canonicalPath: string, allowLegacyCommentBytes: boolean): { text: string; byteBoundaries: Uint32Array } {
   const chunks: string[] = [];
   const boundaries: number[] = [offset];
   let cursor = offset;
@@ -83,24 +73,115 @@ function decodeUtf8(bytes: Uint8Array, offset: number, canonicalPath: string): {
       codePoint = first & 0x07;
       length = 4;
     } else {
+      if (allowLegacyCommentBytes && isIgnorableLegacyByte(bytes, start, offset)) {
+        appendLegacyByte(chunks, boundaries, first, start);
+        cursor++;
+        continue;
+      }
       failInvalidEncoding(canonicalPath, start);
     }
-    if (cursor + length > bytes.byteLength) failInvalidEncoding(canonicalPath, start);
+    if (cursor + length > bytes.byteLength) {
+      if (allowLegacyCommentBytes && isIgnorableLegacyByte(bytes, start, offset)) {
+        appendLegacyByte(chunks, boundaries, first, start);
+        cursor++;
+        continue;
+      }
+      failInvalidEncoding(canonicalPath, start);
+    }
+    let invalidContinuation = -1;
     for (let index = 1; index < length; index++) {
       const continuation = bytes[cursor + index]!;
-      if ((continuation & 0xc0) !== 0x80) failInvalidEncoding(canonicalPath, cursor + index);
+      if ((continuation & 0xc0) !== 0x80) {
+        invalidContinuation = cursor + index;
+        break;
+      }
       codePoint = (codePoint << 6) | (continuation & 0x3f);
     }
-    if ((length === 3 && codePoint < 0x800)
+    const invalidScalar = (length === 3 && codePoint < 0x800)
       || (length === 4 && codePoint < 0x1_0000)
       || (codePoint >= 0xd800 && codePoint <= 0xdfff)
-      || codePoint > 0x10_ffff) {
-      failInvalidEncoding(canonicalPath, start);
+      || codePoint > 0x10_ffff;
+    if (invalidContinuation >= 0 || invalidScalar) {
+      if (allowLegacyCommentBytes && isIgnorableLegacyByte(bytes, start, offset)) {
+        appendLegacyByte(chunks, boundaries, first, start);
+        cursor++;
+        continue;
+      }
+      failInvalidEncoding(canonicalPath, invalidContinuation >= 0 ? invalidContinuation : start);
     }
     cursor += length;
     appendMapped(chunks, boundaries, String.fromCodePoint(codePoint), start, cursor);
   }
   return { text: chunks.join(''), byteBoundaries: Uint32Array.from(boundaries) };
+}
+
+function isCommentByte(bytes: Uint8Array, byteOffset: number, documentOffset: number): boolean {
+  let lineStart = byteOffset;
+  while (lineStart > documentOffset && bytes[lineStart - 1] !== 0x0a && bytes[lineStart - 1] !== 0x0d) lineStart--;
+  let firstContent = lineStart;
+  while (firstContent < byteOffset && (bytes[firstContent] === 0x20 || bytes[firstContent] === 0x09)) firstContent++;
+  if (bytes[firstContent] === 0x27) return true;
+  let quote = 0;
+  for (let cursor = lineStart; cursor < byteOffset; cursor++) {
+    const byte = bytes[cursor]!;
+    if (quote !== 0) {
+      if (byte === quote && bytes[cursor - 1] !== 0x5c) quote = 0;
+      continue;
+    }
+    if (byte === 0x22 || byte === 0x27) quote = byte;
+    else if (byte === 0x3b) return true;
+  }
+  return false;
+}
+
+function isIgnorableLegacyByte(bytes: Uint8Array, byteOffset: number, documentOffset: number): boolean {
+  if (isCommentByte(bytes, byteOffset, documentOffset)) return true;
+  let lineStart = byteOffset;
+  while (lineStart > documentOffset && bytes[lineStart - 1] !== 0x0a && bytes[lineStart - 1] !== 0x0d) lineStart--;
+  let quote = 0;
+  for (let cursor = lineStart; cursor < byteOffset; cursor++) {
+    const byte = bytes[cursor]!;
+    if (quote !== 0) {
+      if (byte === quote && bytes[cursor - 1] !== 0x5c) quote = 0;
+    } else if (byte === 0x22 || byte === 0x27) {
+      quote = byte;
+    } else if (byte === 0x3b) {
+      return true;
+    }
+  }
+  return quote !== 0;
+}
+
+function sanitizeLegacyCommentNuls(
+  text: string,
+  boundaries: Uint32Array,
+  sourceBytes: Uint8Array,
+  documentOffset: number,
+  canonicalPath: string,
+): string {
+  if (!text.includes('\0')) return text;
+  const characters = [...text];
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] !== '\0') continue;
+    const byteOffset = boundaries[index]!;
+    if (!isCommentByte(sourceBytes, byteOffset, documentOffset)) {
+      failMugen(mugenDiagnostic(
+        'E_MUGEN_TEXT_SYNTAX',
+        'text-parse',
+        'error',
+        'release-resource',
+        `NUL is forbidden in MUGEN text: ${canonicalPath}`,
+        { canonicalPath, byteOffset },
+      ));
+    }
+    characters[index] = ' ';
+  }
+  return characters.join('');
+}
+
+function appendLegacyByte(chunks: string[], boundaries: number[], byte: number, offset: number): void {
+  const codePoint = byte >= 0x80 && byte <= 0x9f ? WINDOWS_1252_C1[byte - 0x80]! : byte;
+  appendMapped(chunks, boundaries, String.fromCodePoint(codePoint), offset, offset + 1);
 }
 
 function decodeWindows1252(bytes: Uint8Array, offset: number): { text: string; byteBoundaries: Uint32Array } {

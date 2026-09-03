@@ -100,6 +100,42 @@ test('loss-aware text parser preserves duplicate order, comments, header semicol
   assert.equal(assignmentsInSection(parseMugenTextFile(cp1252.require('legacy.def')), 'Info')[0].value, '"€"');
   const invalidUtf8 = await createMugenVfs([{ path: 'bad.def', bytes: Uint8Array.of(0xc3, 0x28) }]);
   await assertDiagnostic(async () => parseMugenTextFile(invalidUtf8.require('bad.def'), 'utf-8'), 'E_MUGEN_ENCODING_INVALID_SEQUENCE');
+  const mixedBomComment = await createMugenVfs([{ path: 'mixed.air', bytes: concatenate([
+    Uint8Array.of(0xef, 0xbb, 0xbf),
+    UTF8.encode('; '),
+    Uint8Array.of(0xd5, 0xbe, 0xc1, 0xa2),
+    UTF8.encode('\n[Begin Action 0]\n0,0,0,0,1\n'),
+  ]) }]);
+  assert.equal(parseMugenTextFile(mixedBomComment.require('mixed.air')).sections[0].name, 'Begin Action 0');
+  const mixedBomTrailingComment = await createMugenVfs([{ path: 'mixed.air', bytes: concatenate([
+    Uint8Array.of(0xef, 0xbb, 0xbf),
+    UTF8.encode('[Begin Action 15150];'),
+    Uint8Array.of(0x90, 0x47, 0x8e, 0xe8),
+    UTF8.encode('\n0,0,0,0,1\n'),
+  ]) }]);
+  assert.equal(parseMugenTextFile(mixedBomTrailingComment.require('mixed.air')).sections[0].name, 'Begin Action 15150');
+  const mixedBomQuotedValue = await createMugenVfs([{ path: 'mixed.cns', bytes: concatenate([
+    Uint8Array.of(0xef, 0xbb, 0xbf),
+    UTF8.encode('[State 0]\ntext="legacy '),
+    Uint8Array.of(0x81),
+    UTF8.encode(' value"\ntype=Null\n'),
+  ]) }]);
+  assert.equal(assignmentsInSection(parseMugenTextFile(mixedBomQuotedValue.require('mixed.cns')), 'State 0')[0].key, 'text');
+  const legacyCommentNul = await createMugenVfs([{ path: 'nul.air', bytes: concatenate([
+    UTF8.encode(';'), Uint8Array.of(0), UTF8.encode('annotation\n[Begin Action 0]\n0,0,0,0,1\n'),
+  ]) }]);
+  assert.equal(parseMugenTextFile(legacyCommentNul.require('nul.air')).sections[0].name, 'Begin Action 0');
+  const invalidDirectiveNul = await createMugenVfs([{ path: 'bad-nul.air', bytes: concatenate([
+    UTF8.encode('[Begin Action 0]\n'), Uint8Array.of(0), UTF8.encode('\n'),
+  ]) }]);
+  await assertDiagnostic(async () => parseMugenTextFile(invalidDirectiveNul.require('bad-nul.air')), 'E_MUGEN_TEXT_SYNTAX');
+  const invalidBomDirective = await createMugenVfs([{ path: 'bad.air', bytes: concatenate([
+    Uint8Array.of(0xef, 0xbb, 0xbf),
+    UTF8.encode('[Begin Action 0]\n'),
+    Uint8Array.of(0xc1, 0xa2),
+    UTF8.encode('\n'),
+  ]) }]);
+  await assertDiagnostic(async () => parseMugenTextFile(invalidBomDirective.require('bad.air')), 'E_MUGEN_ENCODING_INVALID_SEQUENCE');
   const utf16 = await createMugenVfs([{ path: 'utf16.def', bytes: Uint8Array.of(0xff, 0xfe, 0x41, 0x00) }]);
   await assertDiagnostic(async () => parseMugenTextFile(utf16.require('utf16.def')), 'E_MUGEN_ENCODING_UNSUPPORTED');
 
@@ -121,11 +157,26 @@ test('loss-aware text parser preserves legacy apostrophe-prefixed directive line
 });
 
 test('loss-aware text parser accepts a legacy State header with a damaged trailing label only', async () => {
-  const vfs = await createMugenVfs([input('hero.cns', '[State 1897, helper]damaged label]\ntype=Helper\n')]);
+  const vfs = await createMugenVfs([input('hero.cns', '[State 1897, helper]damaged label]\ntype=Helper\n[State -3,S_HS]damaged label\ntype=ChangeState\n[State 3236, Push\ntype=PlayerPush\n[State 1200, helper]]\ntype=Helper\n[State a]damaged label\ntype=Null\n')]);
   const document = parseMugenTextFile(vfs.require('hero.cns'), 'utf-8');
   assert.equal(document.sections[0].name, 'State 1897, helper');
+  assert.equal(document.sections[1].name, 'State -3,S_HS');
+  assert.equal(document.sections[2].name, 'State 3236, Push');
+  assert.equal(document.sections[3].name, 'State 1200, helper');
+  assert.equal(document.sections[4].name, 'State a');
   const malformed = await createMugenVfs([input('bad.cns', '[Info]damaged label]\nname=Bad\n')]);
   await assertDiagnostic(async () => parseMugenTextFile(malformed.require('bad.cns'), 'utf-8'), 'E_MUGEN_TEXT_SYNTAX');
+  const malformedWithoutClosingSuffix = await createMugenVfs([input('bad.cns', '[Info]damaged label\nname=Bad\n')]);
+  await assertDiagnostic(async () => parseMugenTextFile(malformedWithoutClosingSuffix.require('bad.cns'), 'utf-8'), 'E_MUGEN_TEXT_SYNTAX');
+});
+
+test('loss-aware text parser preserves legacy separators, bracketed headings and malformed unused string values as directives or assignments', async () => {
+  const vfs = await createMugenVfs([input('legacy.cns', '[Statedef 0]\n====================\n[heading]----------\n[;comment without closing bracket\ntext="Value1 is %f",Value2 is %d"\n')]);
+  const document = parseMugenTextFile(vfs.require('legacy.cns'), 'utf-8');
+  assert.equal(document.sections.length, 1);
+  assert.equal(document.tokens.filter(token => token.kind === 'directive').length, 2);
+  assert.equal(document.tokens.find(token => token.kind === 'assignment')?.key, 'text');
+  assert(document.tokens.some(token => token.kind === 'comment' && token.value === 'comment without closing bracket'));
 });
 
 test('dependency graph selects a character DEF, resolves case-insensitively, records exact edges and rejects missing/cyclic/traversing references', async () => {
@@ -211,7 +262,7 @@ test('HYMUGEN v1 is byte-exact, round-trips canonically, excludes raw source byt
   assert.equal(headerView.getUint16(10, true), 0);
   assert.equal(headerView.getUint32(12, true), first.encoded.bytes.byteLength - WIRE_CONTRACT.headerBytes);
   assert.equal(WIRE_CONTRACT.maxPackageBytes, MUGEN_LIMITS.worker.maxMessageBytes);
-  assert.equal(Object.keys(MUGEN_DIAGNOSTIC_CATALOG).length, 52);
+  assert.equal(Object.keys(MUGEN_DIAGNOSTIC_CATALOG).length, 55);
   assert.equal(canonicalJson(first.report), canonicalJson(second.report));
   assert.match(first.encoded.packageSha256, /^[0-9a-f]{64}$/);
   assert.equal(new TextDecoder().decode(first.encoded.bytes).includes('G02 Fighter'), false);

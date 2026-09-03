@@ -27,7 +27,7 @@ defineCheckboxComponents();
 defineRangeComponents();
 defineMugenActionListItem();
 
-const VIEWER_BUILD_REVISION = '20260903-mai2k-audio-1';
+const VIEWER_BUILD_REVISION = '20260903-batch-compat-1';
 
 class MugenCharacterViewerApp {
   readonly #view: MugenWebGpuView;

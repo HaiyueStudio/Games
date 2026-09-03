@@ -36,19 +36,26 @@ export async function importMugenSpriteContributions(graph: MugenImportGraph, si
   for (const bank of banks) {
     features.add(`g03.sff.${bank.version}`);
     for (const palette of bank.palettes) palettes.push(paletteValue(bank.canonicalPath, palette));
-    for (const sprite of bank.sprites) {
-      features.add(`g03.sff.${sprite.compression}`);
-      features.add(`g03.sprite.${sprite.pixelFormat}`);
-      sprites.push(spriteValue(bank.canonicalPath, sprite));
-    }
   }
+  const externalPalettes: Array<{ readonly selection: number; readonly value: MugenCanonicalValue }> = [];
   for (const resource of graph.resources.filter(value => value.kind === 'palette').sort(resourceOrder)) {
     throwIfAborted(signal);
     const selection = selectionFromDependency(graph.edges, resource);
     const palette = parseMugenAct(asVfsFile(resource), 1, selection);
     decodedPaletteBytes = addBudget(decodedPaletteBytes, palette.rgba.byteLength, MUGEN_LIMITS.sff.maxDecodedPaletteBytesPerPackage, 'maxDecodedPaletteBytesPerPackage');
-    palettes.push(paletteValue(resource.canonicalPath, palette));
+    const value = paletteValue(resource.canonicalPath, palette);
+    palettes.push(value);
+    externalPalettes.push({ selection, value });
     features.add('g03.palette.act');
+  }
+  externalPalettes.sort((left, right) => left.selection - right.selection || canonicalTableOrder(left.value, right.value));
+  const externalPaletteId = externalPalettes.length === 0 ? null : String((externalPalettes[0]!.value as Record<string, MugenCanonicalValue>).id);
+  for (const bank of banks) {
+    for (const sprite of bank.sprites) {
+      features.add(`g03.sff.${sprite.compression}`);
+      features.add(`g03.sprite.${sprite.pixelFormat}`);
+      sprites.push(spriteValue(bank.canonicalPath, sprite, externalPaletteId));
+    }
   }
   palettes.sort(canonicalTableOrder);
   sprites.sort(canonicalTableOrder);
@@ -76,7 +83,7 @@ function paletteValue(path: string, palette: MugenDecodedPalette): MugenCanonica
   });
 }
 
-function spriteValue(path: string, sprite: MugenDecodedSprite): MugenCanonicalValue {
+function spriteValue(path: string, sprite: MugenDecodedSprite, externalPaletteId: string | null): MugenCanonicalValue {
   return Object.freeze({
     id: spriteId(path, sprite.sourceIndex),
     kind: 'sprite-plane',
@@ -92,7 +99,9 @@ function spriteValue(path: string, sprite: MugenDecodedSprite): MugenCanonicalVa
     pixelFormat: sprite.pixelFormat,
     compression: sprite.compression,
     dataSpriteId: sprite.linkedToSourceIndex === null ? null : spriteId(path, sprite.linkedToSourceIndex),
-    paletteId: sprite.paletteSourceIndex === null ? null : paletteId(path, sprite.paletteSourceIndex),
+    paletteId: sprite.pixelFormat !== 'indexed8'
+      ? null
+      : sprite.paletteSourceIndex === null ? externalPaletteId : paletteId(path, sprite.paletteSourceIndex),
     pixelsBase64: sprite.pixels === null ? null : encodeBase64(sprite.pixels),
   });
 }

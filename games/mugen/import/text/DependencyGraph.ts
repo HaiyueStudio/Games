@@ -124,7 +124,7 @@ export async function buildMugenImportGraph(vfs: MugenVfs, options: BuildMugenIm
         const targetPath = resolveReferenceWithLocation(document, reference.assignment, reference.path);
         const target = vfs.get(targetPath);
         if (!target) {
-          if (isEngineProvidedExternalReference(document, reference.assignment)) continue;
+          if (isEngineProvidedExternalReference(document, reference.assignment) || isOptionalStageAudioReference(options.entryKind, document, reference.assignment)) continue;
           failMugen(mugenDiagnostic(
             'E_MUGEN_DEPENDENCY_MISSING',
             'dependency',
@@ -254,6 +254,10 @@ function isKnownFilesKey(key: string): boolean {
 function isEngineProvidedExternalReference(document: MugenTextDocument, assignment: MugenAssignmentToken): boolean {
   return asciiCaseFold(sectionName(document, assignment)) === 'files'
     && ENGINE_PROVIDED_FILE_KEYS.has(assignment.foldedKey);
+}
+
+function isOptionalStageAudioReference(entryKind: MugenEntryKind | undefined, document: MugenTextDocument, assignment: MugenAssignmentToken): boolean {
+  return entryKind === 'stage' && asciiCaseFold(sectionName(document, assignment)) === 'music' && assignment.foldedKey === 'bgmusic';
 }
 
 function isStateScriptReference(document: MugenTextDocument, assignment: MugenAssignmentToken): boolean {

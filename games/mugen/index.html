@@ -24,7 +24,7 @@
         <label>操作<select id="p1-control"><option value="0">玩家</option><option value="4">电脑 · 普通</option><option value="2">电脑 · 简单</option><option value="6">电脑 · 困难</option><option value="8">电脑 · 最高</option></select></label>
         <p id="p1-control-hint">A D 移动 · W 跳跃 · S 蹲下 · U / I / J / K 攻击</p>
       </div>
-      <div class="versus-mark">VS</div>
+      <div class="versus-center"><div class="versus-mark">VS</div><label>舞台<select id="stage-select" aria-label="舞台选择" disabled><option>正在载入…</option></select></label></div>
       <div class="fighter-card p2-card">
         <div class="player-tag">PLAYER 2</div>
         <label>角色<select id="p2-character"><option value="kfm720">Kung Fu Man 720</option><option value="kfm">Kung Fu Man</option></select></label>
@@ -49,6 +49,7 @@
       </div>
       <canvas id="fight-canvas" aria-label="WebGPU 格斗画面"></canvas>
       <canvas id="fight-debug" aria-hidden="true"></canvas>
+      <canvas id="flow-canvas" aria-label="Haiyue 引擎游戏界面"></canvas>
       <div class="stage-floor" aria-hidden="true"></div>
       <div id="phase-banner" class="phase-banner"><strong>LOADING</strong><span>正在准备比赛</span></div>
       <div id="loading-error" class="loading-error" hidden></div>
@@ -89,6 +90,6 @@
       <footer><button id="reset-key-settings" type="button">恢复默认</button><button id="save-key-settings" class="primary" type="button">保存并应用</button></footer>
     </form>
   </dialog>
-  <script type="module" src="./dist/bundle.js"></script>
+  <script type="module" src="./dist/bundle.js?v=m11-flow4"></script>
 </body>
 </html>

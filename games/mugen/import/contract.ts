@@ -83,11 +83,11 @@ export const MUGEN_LIMITS = Object.freeze({
     maxWorkersPerImport: 2,
     maxQueuedRequests: 8,
     maxInFlightRequests: 2,
-    // Large Fighter Factory characters can legitimately encode to more than
-    // 64 MiB after sprites and sounds enter the deterministic viewer package.
-    // Keep the Worker transfer bounded at 256 MiB, below the 512 MiB decoded
-    // asset budgets enforced by the SFF and SND parsers.
-    maxMessageBytes: 268_435_456,
+    // True-color Fighter Factory characters can legitimately approach 500 MiB
+    // after planar PCX sprites enter the deterministic viewer package. Keep
+    // the Worker transfer bounded at the same 512 MiB ceiling as decoded
+    // package assets.
+    maxMessageBytes: 536_870_912,
     maxImportWallMilliseconds: 120_000,
     progressMinimumIntervalMilliseconds: 50,
     abortAcknowledgementMilliseconds: 1_000,

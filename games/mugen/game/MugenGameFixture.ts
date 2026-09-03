@@ -5,6 +5,7 @@ import { decodeMugenPackage } from '../package/codec';
 import type { MugenVfsInput } from '../import/vfs/MugenVfs';
 import type { MugenImportWorkerClient } from '../import/worker/MugenImportWorkerClient';
 import { createMugenCharacterModel, type MugenCharacterModel } from '../viewer/MugenCharacterModel';
+import { resolveMugenDrawScale, type MugenDrawScale } from './MugenCharacterScale';
 
 export interface MugenBuiltInGameFixture {
   readonly id: string;
@@ -18,6 +19,7 @@ export interface MugenBuiltInGameFixture {
   readonly sounds: readonly MugenGameSound[];
   readonly packageSha256: string;
   readonly localCoord: readonly [number, number];
+  readonly drawScale: MugenDrawScale;
   readonly runtimeProfile: 'm09-native-character-common-v1' | 'g08-basic-fighter-adapter-v1';
   readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local';
 }
@@ -27,12 +29,19 @@ export interface MugenGameSound { readonly id: string; readonly group: number; r
 interface CharacterCatalog { readonly schemaVersion: 2; readonly runtimeProfile: 'm09-native-character-common-v1'; readonly commonState: string; readonly characters: readonly CharacterDescriptor[]; }
 interface CharacterDescriptor { readonly id: string; readonly label: string; readonly directory: string; readonly entryDef: string; readonly airPath: string; readonly scriptProfile: 'native-common-v1' | 'adapter-v1'; readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local'; readonly files: readonly string[]; }
 interface RuntimeAdapter { readonly commands: MugenCommandProgram; readonly states: MugenStateProgram; }
+export interface MugenFixtureLoadProgress { readonly completed: number; readonly total: number; readonly label: string; }
 
 const REQUIRED_ACTIONS = Object.freeze([0, 10, 20, 21, 40, 120, 200, 5000, 5020]);
 
-export async function loadMugenBuiltInGameFixtures(worker: MugenImportWorkerClient, signal?: AbortSignal): Promise<readonly MugenBuiltInGameFixture[]> {
+export async function loadMugenBuiltInGameFixtures(worker: MugenImportWorkerClient, signal?: AbortSignal, onProgress?: (progress: MugenFixtureLoadProgress) => void): Promise<readonly MugenBuiltInGameFixture[]> {
   const catalog = await loadCatalog(signal); const commonState = Object.freeze({ path: catalog.commonState, bytes: await fetchBytes(`../common/${catalog.commonState}`, `公共状态 ${catalog.commonState}`, signal) }); const result: MugenBuiltInGameFixture[] = []; let adapter: Promise<RuntimeAdapter> | null = null;
-  for (const descriptor of catalog.characters) { if (descriptor.scriptProfile === 'adapter-v1') adapter ??= loadRuntimeAdapter(worker, signal); result.push(await loadCharacter(worker, descriptor, commonState, descriptor.scriptProfile === 'adapter-v1' ? await adapter! : null, signal)); }
+  onProgress?.(Object.freeze({ completed: 0, total: catalog.characters.length, label: catalog.characters[0]?.label ?? '' }));
+  for (const [index, descriptor] of catalog.characters.entries()) {
+    onProgress?.(Object.freeze({ completed: index, total: catalog.characters.length, label: descriptor.label }));
+    if (descriptor.scriptProfile === 'adapter-v1') adapter ??= loadRuntimeAdapter(worker, signal);
+    result.push(await loadCharacter(worker, descriptor, commonState, descriptor.scriptProfile === 'adapter-v1' ? await adapter! : null, signal));
+    onProgress?.(Object.freeze({ completed: index + 1, total: catalog.characters.length, label: descriptor.label }));
+  }
   if (result.length < 2) throw new TypeError('MUGEN 角色目录至少需要两个可选角色。');
   return Object.freeze(result);
 }
@@ -57,7 +66,7 @@ async function loadCharacter(worker: MugenImportWorkerClient, descriptor: Charac
   });
   return Object.freeze({
     id: descriptor.id, displayName: descriptor.label, characterName: imported.metadata.name ?? descriptor.label, authorName: imported.metadata.author ?? '', model, commands, states, air, sounds,
-    packageSha256: imported.packageSha256, localCoord: imported.metadata.localCoord ?? Object.freeze([320, 240]), runtimeProfile: descriptor.scriptProfile === 'native-common-v1' ? 'm09-native-character-common-v1' : 'g08-basic-fighter-adapter-v1',
+    packageSha256: imported.packageSha256, localCoord: imported.metadata.localCoord ?? Object.freeze([320, 240]), drawScale: resolveMugenDrawScale(states.constants), runtimeProfile: descriptor.scriptProfile === 'native-common-v1' ? 'm09-native-character-common-v1' : 'g08-basic-fighter-adapter-v1',
     contentLicense: descriptor.contentLicense,
   });
 }

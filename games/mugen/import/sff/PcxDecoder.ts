@@ -4,7 +4,9 @@ import { checkedProduct, MugenBoundedBinaryReader } from './BinaryReader';
 export interface DecodedPcx8 {
   readonly width: number;
   readonly height: number;
-  readonly indices: Uint8Array;
+  readonly pixels: Uint8Array;
+  readonly pixelFormat: 'indexed8' | 'rgb8';
+  readonly colorDepth: 8 | 24;
   readonly paletteRgba: Uint8Array | null;
 }
 
@@ -22,27 +24,27 @@ export function decodePcx8(block: Uint8Array, canonicalPath: string, blockOffset
   reader.seek(65);
   const planes = reader.u8();
   const bytesPerLine = reader.u16();
-  if (manufacturer !== 10 || ![0, 2, 3, 5].includes(version) || ![0, 1].includes(encoding) || bitsPerPixel !== 8 || planes !== 1) {
+  if (manufacturer !== 10 || ![0, 2, 3, 5].includes(version) || ![0, 1].includes(encoding) || bitsPerPixel !== 8 || (planes !== 1 && planes !== 3)) {
     invalid(canonicalPath, blockOffset, `Unsupported PCX header (${manufacturer}/${version}/${encoding}/${bitsPerPixel}/${planes}).`);
   }
   const width = xMax - xMin + 1;
   const height = yMax - yMin + 1;
   if (width <= 0 || height <= 0 || bytesPerLine < width) invalid(canonicalPath, blockOffset, 'PCX dimensions or bytes-per-line are invalid.');
   checkedProduct([width, height], canonicalPath, 'PCX pixel');
-  let paletteMarker = -1;
-  if (!paletteShared) {
-    for (let offset = block.byteLength - 769; offset >= 128; offset--) {
-      if (block[offset] === 0x0c) { paletteMarker = offset; break; }
-    }
-    if (paletteMarker < 0) invalid(canonicalPath, blockOffset, 'PCX 256-color palette marker is missing.');
-  }
-  const dataEnd = paletteShared ? block.byteLength : paletteMarker;
+  // Several WinMUGEN tools disagree with the SFF palette-shared bit. Trust an
+  // actual terminal PCX palette when present, and otherwise let the SFF layer
+  // resolve an earlier or external ACT palette.
+  const paletteMarker = !paletteShared && planes === 1 && block.byteLength >= 897 && block[block.byteLength - 769] === 0x0c
+    ? block.byteLength - 769
+    : -1;
+  const dataEnd = paletteMarker >= 0 ? paletteMarker : block.byteLength;
   let source = 128;
-  const indices = new Uint8Array(width * height);
-  const scanline = new Uint8Array(bytesPerLine);
+  const pixels = new Uint8Array(width * height * planes);
+  const scanlineLength = checkedProduct([bytesPerLine, planes], canonicalPath, 'PCX scanline');
+  const scanline = new Uint8Array(scanlineLength);
   for (let y = 0; y < height; y++) {
     let scanlineOffset = 0;
-    while (scanlineOffset < bytesPerLine) {
+    while (scanlineOffset < scanlineLength) {
       if (source >= dataEnd) invalid(canonicalPath, blockOffset + source, 'PCX image data is truncated.');
       let value = block[source++]!;
       let count = 1;
@@ -51,14 +53,23 @@ export function decodePcx8(block: Uint8Array, canonicalPath: string, blockOffset
         if (count === 0 || source >= dataEnd) invalid(canonicalPath, blockOffset + source - 1, 'PCX RLE packet is invalid or truncated.');
         value = block[source++]!;
       }
-      if (count > bytesPerLine - scanlineOffset) invalid(canonicalPath, blockOffset + source, 'PCX RLE packet crosses a scanline boundary.');
+      if (count > scanlineLength - scanlineOffset) invalid(canonicalPath, blockOffset + source, 'PCX RLE packet crosses a scanline boundary.');
       scanline.fill(value, scanlineOffset, scanlineOffset + count);
       scanlineOffset += count;
     }
-    indices.set(scanline.subarray(0, width), y * width);
+    if (planes === 1) {
+      pixels.set(scanline.subarray(0, width), y * width);
+    } else {
+      for (let x = 0; x < width; x++) {
+        const destination = (y * width + x) * 3;
+        pixels[destination] = scanline[x]!;
+        pixels[destination + 1] = scanline[bytesPerLine + x]!;
+        pixels[destination + 2] = scanline[bytesPerLine * 2 + x]!;
+      }
+    }
   }
   let paletteRgba: Uint8Array | null = null;
-  if (!paletteShared) {
+  if (paletteMarker >= 0) {
     paletteRgba = new Uint8Array(256 * 4);
     const paletteOffset = paletteMarker + 1;
     for (let index = 0; index < 256; index++) {
@@ -68,7 +79,7 @@ export function decodePcx8(block: Uint8Array, canonicalPath: string, blockOffset
       paletteRgba[index * 4 + 3] = index === 0 ? 0 : 255;
     }
   }
-  return Object.freeze({ width, height, indices, paletteRgba });
+  return Object.freeze({ width, height, pixels, pixelFormat: planes === 1 ? 'indexed8' : 'rgb8', colorDepth: planes === 1 ? 8 : 24, paletteRgba });
 }
 
 function invalid(canonicalPath: string, byteOffset: number, message: string): never {

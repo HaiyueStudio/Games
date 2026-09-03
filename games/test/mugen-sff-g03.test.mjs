@@ -69,6 +69,30 @@ test('SFF v1 accepts the Elecbyte 1.1 FightFX header variant and rejects unknown
   await assertDiagnostic(() => parseMugenSff(fakeResource('unknown-v1.sff', unknownMinor)), 'E_MUGEN_FORMAT_VERSION');
 });
 
+test('SFF v1 decodes three-plane truecolor PCX sprites', async () => {
+  const bank = await parseMugenSff(fakeResource('truecolor.sff', buildSingleSffV1(pcx24(2, 1, Uint8Array.of(10, 20, 30, 40, 50, 60)))));
+  assert.equal(bank.sprites[0].pixelFormat, 'rgb8');
+  assert.equal(bank.sprites[0].colorDepth, 24);
+  assert.deepEqual([...bank.sprites[0].pixels], [10, 20, 30, 40, 50, 60]);
+  assert.equal(bank.sprites[0].paletteSourceIndex, null);
+});
+
+test('SFF v1 resolves a missing embedded PCX palette through the character ACT palette', async () => {
+  const sff = buildSingleSffV1(pcx8(2, 1, Uint8Array.of(1, 2), null));
+  const inputs = [
+    { path: 'hero.def', bytes: UTF8.encode('[Files]\ncmd=hero.cmd\nsprite=hero.sff\nanim=hero.air\npal1=hero.act\n') },
+    { path: 'hero.cmd', bytes: UTF8.encode('[Command]\nname=x\n') },
+    { path: 'hero.air', bytes: UTF8.encode('[Begin Action 0]\n0,0,0,0,1\n') },
+    { path: 'hero.sff', bytes: sff },
+    { path: 'hero.act', bytes: new Uint8Array(768) },
+  ];
+  const vfs = await createMugenVfs(inputs);
+  const graph = await buildMugenImportGraph(vfs, { encoding: 'utf-8' });
+  const result = await importMugenSpriteContributions(graph);
+  assert.equal(result.banks[0].sprites[0].paletteSourceIndex, null);
+  assert.equal(result.contributions.sprites[0].paletteId, 'hero.act#palette:0');
+});
+
 test('SFF v2.01 decodes raw, RLE8, RLE5, LZ5, PNG8/24/32, links, palettes and alpha', async () => {
   const bank = await parseMugenSff(fakeResource('hero-v201.sff', buildSffV2Fixture()));
   assert.equal(bank.version, '2.01');
@@ -229,6 +253,35 @@ function pcx8(width, height, pixels, palette) {
   view.setUint16(66, width, true);
   output.set(pixels, 128);
   if (palette) { output[128 + pixels.byteLength] = 0x0c; output.set(palette, 129 + pixels.byteLength); }
+  return output;
+}
+
+function pcx24(width, height, pixels) {
+  const output = new Uint8Array(128 + width * height * 3);
+  const view = new DataView(output.buffer);
+  output.set([10, 5, 0, 8], 0);
+  view.setUint16(8, width - 1, true);
+  view.setUint16(10, height - 1, true);
+  output[65] = 3;
+  view.setUint16(66, width, true);
+  let destination = 128;
+  for (let y = 0; y < height; y++) {
+    for (let channel = 0; channel < 3; channel++) {
+      for (let x = 0; x < width; x++) output[destination++] = pixels[(y * width + x) * 3 + channel];
+    }
+  }
+  return output;
+}
+
+function buildSingleSffV1(data) {
+  const output = new Uint8Array(512 + 32 + data.byteLength);
+  output.set(UTF8.encode('ElecbyteSpr\0'));
+  output.set([0, 0, 0, 1], 12);
+  const view = new DataView(output.buffer);
+  view.setUint32(20, 1, true);
+  view.setUint32(24, 512, true);
+  view.setUint32(516, data.byteLength, true);
+  output.set(data, 544);
   return output;
 }
 

@@ -37,6 +37,18 @@ test('G07-C product-native KFM programs execute their own light-punch command de
   assert.equal(first.state, 200); assert.equal(second.state, 200); assert.equal(first.scriptHash, second.scriptHash); assert.equal(first.matchHash, second.matchHash); assert(first.executed.some(value => value.endsWith(':change-state')));
 });
 
+test('G07-C engine air physics lands an attack state that relies on MUGEN state 52', () => {
+  const runtime = new MugenScriptRuntime(officialKfm.map((value, index) => ({ fighterId: `P${index + 1}`, name: value.metadata.name ?? undefined, authorName: value.metadata.author ?? undefined, commands: value.commands, states: value.states, localCoord: value.metadata.localCoord ?? [320, 240], engineControlTransitions: true })));
+  const match = new MugenHeadlessMatch({ seed: 'g07c-air-landing', roundsToWin: 1, roundTimeTicks: null, maxEventsPerTick: 512, fighters: [{ id: 'P1', displayName: 'P1', packageSha256: 'a'.repeat(64), spawn: [-40, -40], facing: 1, initialStateNumber: 640, initialControl: false }, { id: 'P2', displayName: 'P2', packageSha256: 'b'.repeat(64), spawn: [40, 0], facing: -1, initialControl: true }] });
+  const history = new MugenInputHistory(180);
+  let snapshot;
+  for (let tick = 1; tick <= 90; tick += 1) {
+    const input = history.push({ tick, players: [player('P1', new Set()), player('P2', new Set())] }, { P1: 1, P2: -1 });
+    match.beginTick(input); if (tick === 1) match.startFight(); runtime.step(match, input, history, { opponentByFighter: new Map([['P1', 'P2'], ['P2', 'P1']]), stageBounds: [-160, 160], screenBounds: [-160, 160] }); snapshot = match.endTick().state;
+  }
+  assert.equal(snapshot.fighters[0].position[1], 0); assert.notEqual(snapshot.fighters[0].stateNumber, 640); assert(snapshot.fighters[0].position[1] < 1_000);
+});
+
 function runPunch(runtime) {
   const match = new MugenHeadlessMatch({ seed: 'g07c-native-product', roundsToWin: 1, roundTimeTicks: null, maxEventsPerTick: 512, fighters: [{ id: 'P1', displayName: 'P1', packageSha256: 'a'.repeat(64), spawn: [-40, 0], facing: 1, initialControl: true }, { id: 'P2', displayName: 'P2', packageSha256: 'b'.repeat(64), spawn: [40, 0], facing: -1, initialControl: true }] });
   const history = new MugenInputHistory(180); const input = history.push({ tick: 1, players: [player('P1', new Set(['x'])), player('P2', new Set())] }, { P1: 1, P2: -1 }); match.beginTick(input).startFight(); const trace = runtime.step(match, input, history, { opponentByFighter: new Map([['P1', 'P2'], ['P2', 'P1']]), stageBounds: [-160, 160], screenBounds: [-160, 160] }); const result = match.endTick();

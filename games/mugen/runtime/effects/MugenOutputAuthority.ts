@@ -143,6 +143,7 @@ export class MugenOutputAuthority {
   pruneEntities(validEntityIds: ReadonlySet<string>): this { for (const entityId of this.#entities.keys()) if (!validEntityIds.has(entityId)) this.#entities.delete(entityId); return this; }
 
   entity(entityId: string): MugenEntityOutputState { return freezeEntity(entityId, this.#entity(entityId)); }
+  findEntity(entityId: string): MugenEntityOutputState | null { const state = this.#entities.get(entityId); return state === undefined ? null : freezeEntity(entityId, state); }
   snapshot(): MugenOutputAuthoritySnapshot {
     const base = Object.freeze({ schemaVersion: 4 as const, revision: 'm09-g08-output-authority-v4' as const, tick: this.#tick, entities: Object.freeze([...this.#entities.entries()].sort(([left], [right]) => left.localeCompare(right, 'en')).map(([id, state]) => freezeEntity(id, state))), backgroundPalette: this.#backgroundPalette, allPalette: this.#allPalette, environmentColor: this.#environmentColor, cameraShake: this.#cameraShake, events: Object.freeze([...this.#events]) });
     return Object.freeze({ ...base, hash: hashSimulationState(base as unknown as SimulationStateValue) });

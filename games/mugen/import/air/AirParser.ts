@@ -2,6 +2,7 @@ import { MUGEN_LIMITS } from '../contract';
 import { failMugen, mugenDiagnostic, throwIfAborted, type MugenImportDiagnostic } from '../diagnostics';
 import type { MugenImportResource } from '../text/DependencyGraph';
 import type { MugenAssignmentToken, MugenDirectiveToken, MugenTextDocument, MugenTextSpan } from '../text/MugenTextParser';
+import { asciiCaseFold } from '../vfs/path';
 import type {
   MugenAirAction,
   MugenAirBank,
@@ -63,7 +64,8 @@ export function parseMugenAir(document: MugenTextDocument, options: ParseMugenAi
     actionLines.set(actionNumber, section.header.span.line);
     if (actions.length >= MUGEN_LIMITS.air.maxActions) failBudget(document, section.header.span, 'maxActions', actions.length + 1, MUGEN_LIMITS.air.maxActions);
     const tokens = document.tokens.filter((token): token is SemanticToken =>
-      (token.kind === 'assignment' || token.kind === 'directive') && token.sectionIndex === sectionIndex);
+      (token.kind === 'assignment' || token.kind === 'directive') && token.sectionIndex === sectionIndex)
+      .flatMap(expandLegacyConcatenatedToken);
     const parsed = parseAction(document, actionNumber, section.header.span, tokens, options.spriteResolver, diagnostics, options.signal);
     elementCount = checkedAggregate(document, section.header.span, 'maxElementsPerPackage', elementCount, parsed.elements.length, MUGEN_LIMITS.air.maxElementsPerPackage);
     const actionBoxes = parsed.elements.reduce((total, element) => total + element.clsn1.length + element.clsn2.length, 0);
@@ -129,10 +131,14 @@ function parseAction(
       continue;
     }
     if (token.kind === 'assignment') {
+      if (containsNonAscii(token.key) && !/^clsn[12]/iu.test(token.key)) {
+        diagnostics.push(ignoredAnnotationDiagnostic(document, token.span, actionNumber, `${token.key}=${token.value}`));
+        continue;
+      }
       failAir(document, token.keySpan, 'E_MUGEN_AIR_CLSN_COUNT', `AIR collision assignment ${token.key} has no matching count declaration.`, { group: actionNumber });
     }
     const directive = token.value.trim();
-    const count = /^clsn([12])(default)?\s*:\s*([+-]?\d+)$/i.exec(directive);
+    const count = /^clsn([12])(default|defalut)?\s*:\s*([+-]?\d+)$/i.exec(directive);
     if (count) {
       const expected = parseNonNegativeInt(count[3]!, document, token.span, 'collision count');
       if (expected > MUGEN_LIMITS.air.maxCollisionBoxesPerElement) failBudget(document, token.span, 'maxCollisionBoxesPerElement', expected, MUGEN_LIMITS.air.maxCollisionBoxesPerElement);
@@ -140,7 +146,7 @@ function parseAction(
       if (expected === 0) commitCollision(pendingCollision);
       continue;
     }
-    if (/^loopstart$/i.test(directive)) {
+    if (/^(?:loopstarts?|lootstart)$/i.test(directive)) {
       pendingLoopStart = true;
       continue;
     }
@@ -153,6 +159,10 @@ function parseAction(
       continue;
     }
     if (/^copy\s+action\b/i.test(directive)) failAir(document, token.span, 'E_MUGEN_OUT_OF_PROFILE', 'Copy Action is outside the MUGEN 1.1b1 strict AIR subset.', { group: actionNumber });
+    if (isLegacyAnnotation(directive)) {
+      diagnostics.push(ignoredAnnotationDiagnostic(document, token.span, actionNumber, directive));
+      continue;
+    }
     if (!/^[+-]?\d/.test(directive)) failAir(document, token.span, 'E_MUGEN_AIR_ELEMENT_INVALID', `Unknown AIR directive: ${directive}.`, { group: actionNumber });
     if (elements.length >= MUGEN_LIMITS.air.maxElementsPerAction) failBudget(document, token.span, 'maxElementsPerAction', elements.length + 1, MUGEN_LIMITS.air.maxElementsPerAction);
     if (pendingLoopStart) { loopStart = elements.length; pendingLoopStart = false; }
@@ -165,7 +175,18 @@ function parseAction(
   if (pendingCollision !== null) failAir(document, pendingCollision.declaration.span, 'E_MUGEN_AIR_CLSN_COUNT', `${pendingCollision.kind} declares ${pendingCollision.expected} boxes but only ${pendingCollision.boxes.size} were provided.`, { group: actionNumber });
   if (pendingInterpolation.length > 0) failAir(document, actionSpan, 'E_MUGEN_AIR_ELEMENT_INVALID', 'AIR interpolation directive has no following element.', { group: actionNumber });
   if (pendingLoopStart) failAir(document, actionSpan, 'E_MUGEN_AIR_ELEMENT_INVALID', 'LoopStart has no following element.', { group: actionNumber });
-  if (elements.length === 0) failAir(document, actionSpan, 'E_MUGEN_AIR_ELEMENT_INVALID', `AIR action ${actionNumber} has no elements.`, { group: actionNumber });
+  if (elements.length === 0) {
+    diagnostics.push(mugenDiagnostic(
+      'E_MUGEN_AIR_ACTION_EMPTY', 'air', 'warning', 'ignore',
+      `AIR action ${actionNumber} is empty; a one-tick blank preview element is synthesized.`,
+      { ...location(document, actionSpan), section: `Begin Action ${actionNumber}`, group: actionNumber },
+    ));
+    elements.push(Object.freeze({
+      index: 0, spriteGroup: -1, spriteItem: -1, spriteId: null, offsetX: 0, offsetY: 0, durationTicks: 1,
+      flipX: false, flipY: false, blend: OPAQUE_BLEND, scaleX: 1, scaleY: 1, angleDegrees: 0,
+      interpolateToThis: Object.freeze([]), clsn1: Object.freeze([]), clsn2: Object.freeze([]), ...sourceSpan(actionSpan),
+    }));
+  }
 
   const firstInfinite = elements.findIndex(element => element.durationTicks === -1);
   if (firstInfinite >= 0 && firstInfinite < elements.length - 1) {
@@ -195,7 +216,17 @@ function parseAction(
   const infinite = elements[elements.length - 1]!.durationTicks === -1;
   const positiveTicks = (from: number, to: number): number => elements.slice(from, to).reduce((total, element) => checkedTickSum(document, spanOf(element), total, Math.max(0, element.durationTicks)), 0);
   const preLoopTicks = positiveTicks(0, loopStart);
-  const loopTicks = infinite ? null : positiveTicks(loopStart, elements.length);
+  let loopTicks = infinite ? null : positiveTicks(loopStart, elements.length);
+  if (!infinite && loopTicks === 0) {
+    const recovered = elements[loopStart]!;
+    elements[loopStart] = Object.freeze({ ...recovered, durationTicks: 1 });
+    loopTicks = 1;
+    diagnostics.push(mugenDiagnostic(
+      'E_MUGEN_AIR_TIMING_RECOVERED', 'air', 'warning', 'ignore',
+      `AIR action ${actionNumber} has a zero-duration loop; its first loop element is held for one tick.`,
+      { ...location(document, actionSpan), section: `Begin Action ${actionNumber}`, group: actionNumber },
+    ));
+  }
   const totalTicks = infinite ? null : checkedTickSum(document, actionSpan, preLoopTicks, loopTicks!);
   if (!infinite && totalTicks === 0) failAir(document, actionSpan, 'E_MUGEN_AIR_DURATION_INVALID', `AIR action ${actionNumber} has no observable element duration.`, { group: actionNumber });
   if (!infinite && loopTicks === 0) failAir(document, actionSpan, 'E_MUGEN_AIR_DURATION_INVALID', `AIR action ${actionNumber} has a zero-duration loop segment.`, { group: actionNumber });
@@ -210,6 +241,32 @@ function parseAction(
   });
 }
 
+function isLegacyAnnotation(value: string): boolean {
+  if (asciiCaseFold(value.trim()) === 'apex') return true;
+  return containsNonAscii(value) && !/^[+-]?\d/u.test(value.trim());
+}
+
+function containsNonAscii(value: string): boolean { return [...value].some(character => character.codePointAt(0)! > 0x7f); }
+
+function ignoredAnnotationDiagnostic(document: MugenTextDocument, span: MugenTextSpan, actionNumber: number, value: string): MugenImportDiagnostic {
+  return mugenDiagnostic(
+    'E_MUGEN_AIR_ANNOTATION_IGNORED', 'air', 'warning', 'ignore',
+    `Uncommented legacy AIR annotation is ignored: ${value}.`,
+    { ...location(document, span), section: `Begin Action ${actionNumber}`, group: actionNumber },
+  );
+}
+
+function expandLegacyConcatenatedToken(token: SemanticToken): readonly SemanticToken[] {
+  if (token.kind !== 'directive') return [token];
+  const boundary = /(?:hv|vh|h|v)(?=[+-]?\d+\s*,)/iu.exec(token.value);
+  if (!boundary) return [token];
+  const split = boundary.index + boundary[0].length;
+  const first = token.value.slice(0, split).trim();
+  const second = token.value.slice(split).trim();
+  if ((first.match(/,/gu)?.length ?? 0) < 4 || (second.match(/,/gu)?.length ?? 0) < 4) return [token];
+  return [Object.freeze({ ...token, value: first }), Object.freeze({ ...token, value: second })];
+}
+
 function parseElement(
   document: MugenTextDocument,
   token: MugenDirectiveToken,
@@ -221,19 +278,20 @@ function parseElement(
   diagnostics: MugenImportDiagnostic[],
   actionNumber: number,
 ): MugenAirElement {
-  const fields = token.value.split(',').map(value => value.trim().replace(/\u00ff+$/u, '').trim());
+  const rawFields = token.value.split(',').map(value => value.replace(/\u0081@/gu, ' ').trim().replace(/\u00ff+$/u, '').trim());
+  const fields = normalizeLegacyOptionalFields(normalizeLegacyDisplacedFlip(normalizeLegacyMissingOffset(normalizeLegacyDurationFlip(normalizeLegacyZeroDurationElement(rawFields)))));
   if (fields.length < 5 || fields.length > 10) failAir(document, token.span, 'E_MUGEN_AIR_ELEMENT_INVALID', `AIR element must have 5 to 10 comma-separated fields, got ${fields.length}.`, { group: actionNumber, item: index });
-  const parsedSpriteGroup = parseLegacySpriteInt32(fields[0]!, document, token.span, 'sprite group');
-  const parsedSpriteItem = parseLegacySpriteInt32(fields[1]!, document, token.span, 'sprite item');
+  const parsedSpriteGroup = parseLegacyInt32(fields[0]!, document, token.span, 'sprite group');
+  const parsedSpriteItem = parseLegacyInt32(fields[1]!, document, token.span, 'sprite item');
   // Official AIR uses -1 as the blank sentinel, while older authoring tools
   // and hand-authored characters sometimes emit other negative identifiers.
   // MUGEN renders those as an empty element, so canonicalize them to -1.
   const spriteGroup = parsedSpriteGroup < 0 ? -1 : parsedSpriteGroup;
   const spriteItem = parsedSpriteItem < 0 ? -1 : parsedSpriteItem;
-  const offsetX = parseBoundedInt(fields[2]!, document, token.span, 'x offset', MUGEN_LIMITS.air.maxAbsoluteOffset);
-  const offsetY = parseBoundedInt(fields[3]!, document, token.span, 'y offset', MUGEN_LIMITS.air.maxAbsoluteOffset);
-  const durationTicks = parseInt32(fields[4]!, document, token.span, 'duration');
-  if (durationTicks < -1 || durationTicks > MUGEN_LIMITS.air.maxFiniteElementTicks) failAir(document, token.span, 'E_MUGEN_AIR_DURATION_INVALID', `AIR duration ${durationTicks} is outside -1..${MUGEN_LIMITS.air.maxFiniteElementTicks}.`, { group: actionNumber, item: index });
+  const offsetX = parseLegacyBoundedInt(fields[2]!, document, token.span, 'x offset', MUGEN_LIMITS.air.maxAbsoluteOffset);
+  const offsetY = parseLegacyBoundedInt(fields[3]!, document, token.span, 'y offset', MUGEN_LIMITS.air.maxAbsoluteOffset);
+  const durationTicks = parseLegacyDuration(fields[4]!, document, token.span);
+  if (durationTicks > MUGEN_LIMITS.air.maxFiniteElementTicks) failAir(document, token.span, 'E_MUGEN_AIR_DURATION_INVALID', `AIR duration ${durationTicks} exceeds ${MUGEN_LIMITS.air.maxFiniteElementTicks}.`, { group: actionNumber, item: index });
   const flip = (fields[5] ?? '').toLowerCase();
   if (!/^(?:|h|v|hv|vh)$/.test(flip)) failAir(document, token.span, 'E_MUGEN_AIR_ELEMENT_INVALID', `Invalid AIR flip flags: ${fields[5]}.`, { group: actionNumber, item: index });
   const blend = parseBlend(fields[6] ?? '', document, token.span, actionNumber, index);
@@ -268,14 +326,75 @@ function parseElement(
   });
 }
 
+/**
+ * A few WinMUGEN authoring tools emitted zero-duration frames as
+ * `group,item,x,y,0,0,,H`: the extra numeric zero occupies the flip column
+ * and moves an optional H/V flag to the scale column. MUGEN accepts these as
+ * ordinary zero-duration frames, so restore the intended six-field form.
+ */
+function normalizeLegacyZeroDurationElement(fields: readonly string[]): readonly string[] {
+  if (fields.length < 7 || fields[4] !== '0' || fields[5] !== '0' || fields[6] !== '') return fields;
+  const trailingValues = fields.slice(7).filter(value => value !== '');
+  if (trailingValues.length === 0) return fields.slice(0, 5);
+  if (trailingValues.length === 1 && /^(?:h|v|hv|vh)$/iu.test(trailingValues[0]!)) return [...fields.slice(0, 5), trailingValues[0]!];
+  return fields;
+}
+
+function normalizeLegacyDurationFlip(fields: readonly string[]): readonly string[] {
+  if (fields.length < 5) return fields;
+  const combined = /^([+-]?\d+)(hv|vh|h|v)$/iu.exec(fields[4]!);
+  if (!combined || (fields[5] ?? '') !== '') return fields;
+  return [...fields.slice(0, 4), combined[1]!, combined[2]!, ...fields.slice(6)];
+}
+
+function normalizeLegacyMissingOffset(fields: readonly string[]): readonly string[] {
+  if (fields.length === 6 && fields[2] === '' && fields[4] === '0' && /^[1-9]\d*$/u.test(fields[5]!)) {
+    return [fields[0]!, fields[1]!, '0', fields[3]!, fields[5]!];
+  }
+  return fields;
+}
+
+function normalizeLegacyDisplacedFlip(fields: readonly string[]): readonly string[] {
+  const firstFlip = fields[5] ?? '';
+  const displacedFlip = fields[6] ?? '';
+  if (!/^(?:h|v)$/iu.test(displacedFlip) || !fields.slice(7).every(value => value === '')) return fields;
+  if (firstFlip === '') return [...fields.slice(0, 5), displacedFlip];
+  if (/^(?:h|v)$/iu.test(firstFlip) && asciiCaseFold(firstFlip) !== asciiCaseFold(displacedFlip)) {
+    return [...fields.slice(0, 5), `${firstFlip}${displacedFlip}`];
+  }
+  return fields;
+}
+
+function normalizeLegacyOptionalFields(fields: readonly string[]): readonly string[] {
+  if (fields.length <= 5) return fields;
+  const candidates = fields.map((value, index) => ({ value, index })).filter(candidate => candidate.index >= 5 && isBlendToken(candidate.value));
+  if (candidates.length !== 1 || candidates[0]!.index === 6) return fields;
+  const candidate = candidates[0]!;
+  const flip = /^(?:h|v|hv|vh)$/iu.test(fields[5] ?? '') ? fields[5]! : '';
+  const hasOtherValue = fields.some((value, index) => index >= 5 && value !== '' && index !== candidate.index && !(index === 5 && value === flip));
+  return hasOtherValue ? fields : [...fields.slice(0, 5), flip, candidate.value];
+}
+
+function isBlendToken(value: string): boolean { return /^(?:aa|(?:0x0)?a\d*|s|a?as\d+d\d+|a\d+d\d+)$/iu.test(value); }
+
 function parseCollisionAssignment(document: MugenTextDocument, token: MugenAssignmentToken, pending: PendingCollision, actionNumber: number): MugenAirCollisionBox {
   const match = /^clsn([12])\s*\[\s*(\d+)\s*\]$/i.exec(token.key);
   // Elecbyte's bundled KFM contains a `Clsn1: 1` block whose sole assignment is
   // misspelled `Clsn2[0]`. MUGEN consumes assignments positionally after the
   // count declaration, so the declaration remains authoritative here too.
   if (!match) failAir(document, token.keySpan, 'E_MUGEN_AIR_CLSN_COUNT', `${pending.kind} declaration was followed by incompatible box ${token.key}.`, { group: actionNumber });
-  const index = parseNonNegativeInt(match[2]!, document, token.keySpan, 'collision index');
-  if (index >= pending.expected) failAir(document, token.keySpan, 'E_MUGEN_AIR_CLSN_COUNT', `${pending.kind} box index ${index} exceeds declared count ${pending.expected}.`, { group: actionNumber });
+  let index = parseNonNegativeInt(match[2]!, document, token.keySpan, 'collision index');
+  if (index >= pending.expected) {
+    // Old AIR editors occasionally serialize the final box with a skipped or
+    // one-based index. MUGEN consumes the declared number of following box
+    // assignments positionally, so recover only when this is the final slot.
+    const positionalFinal = pending.boxes.size === pending.expected - 1;
+    if (!positionalFinal) failAir(document, token.keySpan, 'E_MUGEN_AIR_CLSN_COUNT', `${pending.kind} box index ${index} exceeds declared count ${pending.expected}.`, { group: actionNumber });
+    const shifted = [...pending.boxes.values()].map((box, position) => Object.freeze({ ...box, index: position }));
+    pending.boxes.clear();
+    for (const box of shifted) pending.boxes.set(box.index, box);
+    index = pending.expected - 1;
+  }
   const fields = token.value.split(',').map(value => value.trim());
   if (fields.length !== 4) failAir(document, token.valueSpan, 'E_MUGEN_AIR_ELEMENT_INVALID', `${pending.kind}[${index}] must contain four coordinates.`, { group: actionNumber });
   const values = fields.map((value, field) => parseBoundedInt(value, document, token.valueSpan, `collision coordinate ${field}`, MUGEN_LIMITS.air.maxAbsoluteCollisionCoordinate));
@@ -283,20 +402,30 @@ function parseCollisionAssignment(document: MugenTextDocument, token: MugenAssig
 }
 
 function parseBlend(value: string, document: MugenTextDocument, span: MugenTextSpan, action: number, element: number): MugenAirBlend {
-  const normalized = value.replace(/\s/g, '').toLowerCase();
+  let normalized = value.replace(/\s/g, '').toLowerCase();
   if (normalized === '') return OPAQUE_BLEND;
+  if (/^\d+$/u.test(normalized)) return OPAQUE_BLEND;
+  if (normalized.startsWith('aas')) normalized = normalized.slice(1);
+  if (normalized === 'aa') normalized = 'a';
+  if (normalized.startsWith('0x0a')) normalized = normalized.slice(3);
+  if (/^a\d+d\d+$/u.test(normalized)) normalized = `as${normalized.slice(1)}`;
   if (normalized === 'a') return Object.freeze({ mode: 'add', sourceAlpha: 256, destinationAlpha: 256 });
   if (normalized === 'a1') return Object.freeze({ mode: 'add', sourceAlpha: 256, destinationAlpha: 128 });
-  // A2..A9 are non-standard WinMUGEN-era spellings found in characters authored
+  // A2, A10, A12 and similar values are non-standard WinMUGEN-era spellings found in characters authored
   // with older community tools. Those runtimes treat them as ordinary additive
   // blending rather than rejecting the entire animation bank.
-  if (/^a[2-9]$/u.test(normalized)) return Object.freeze({ mode: 'add', sourceAlpha: 256, destinationAlpha: 256 });
+  if (/^a\d+$/u.test(normalized)) return Object.freeze({ mode: 'add', sourceAlpha: 256, destinationAlpha: 256 });
   if (normalized === 's') return Object.freeze({ mode: 'subtract', sourceAlpha: 256, destinationAlpha: 256 });
-  const alpha = /^as(\d{1,3})d(\d{1,3})$/.exec(normalized);
+  const alpha = /^as(\d{1,9})d(\d{1,9})$/.exec(normalized);
   if (alpha) {
-    const sourceAlpha = Number(alpha[1]);
-    const destinationAlpha = Number(alpha[2]);
-    if (sourceAlpha <= 256 && destinationAlpha <= 256) return Object.freeze({ mode: 'add', sourceAlpha, destinationAlpha });
+    const rawSourceAlpha = Number(alpha[1]);
+    const rawDestinationAlpha = Number(alpha[2]);
+    if ((rawSourceAlpha > 256 && alpha[1]!.length <= 3) || (rawDestinationAlpha > 256 && alpha[2]!.length <= 3)) {
+      failAir(document, span, 'E_MUGEN_AIR_ELEMENT_INVALID', `Invalid AIR blend parameter: ${value}.`, { group: action, item: element });
+    }
+    const sourceAlpha = Math.min(256, rawSourceAlpha);
+    const destinationAlpha = Math.min(256, rawDestinationAlpha);
+    return Object.freeze({ mode: 'add', sourceAlpha, destinationAlpha });
   }
   failAir(document, span, 'E_MUGEN_AIR_ELEMENT_INVALID', `Invalid AIR blend parameter: ${value}.`, { group: action, item: element });
 }
@@ -321,6 +450,12 @@ function parseBoundedInt(value: string, document: MugenTextDocument, span: Mugen
   return parsed;
 }
 
+function parseLegacyBoundedInt(value: string, document: MugenTextDocument, span: MugenTextSpan, label: string, maximum: number): number {
+  const parsed = parseLegacyInt32(value, document, span, label);
+  if (Math.abs(parsed) > maximum) failAir(document, span, 'E_MUGEN_AIR_ELEMENT_INVALID', `AIR ${label} exceeds ±${maximum}: ${value}.`);
+  return parsed;
+}
+
 function parseInt32(value: string, document: MugenTextDocument, span: MugenTextSpan, label: string): number {
   if (!/^[+-]?\d+$/.test(value)) failAir(document, span, 'E_MUGEN_AIR_ELEMENT_INVALID', `AIR ${label} is not an integer: ${value}.`);
   const parsed = Number(value);
@@ -328,13 +463,25 @@ function parseInt32(value: string, document: MugenTextDocument, span: MugenTextS
   return parsed;
 }
 
+function parseLegacyDuration(value: string, document: MugenTextDocument, span: MugenTextSpan): number {
+  if (/^[+-]?\d+$/u.test(value)) return Math.max(-1, parseInt32(value, document, span, 'duration'));
+  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u.test(value)) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed < 0) return -1;
+  }
+  failAir(document, span, 'E_MUGEN_AIR_ELEMENT_INVALID', `AIR duration is not an integer: ${value}.`);
+}
+
 /**
  * A small number of WinMUGEN-era AIR files contain constant arithmetic in a
- * sprite identifier (for example Fiona's `504-5`). It is not part of the AIR
- * standard, but evaluating a single literal addition/subtraction is safe and
- * lets the existing missing-sprite recovery preserve the rest of the action.
+ * sprite identifier or element offset (for example `504-5` or `-1-1`). It is
+ * not part of the AIR standard, but evaluating one literal addition/subtraction
+ * is safe and preserves the rest of the action without evaluating script code.
  */
-function parseLegacySpriteInt32(value: string, document: MugenTextDocument, span: MugenTextSpan, label: string): number {
+function parseLegacyInt32(value: string, document: MugenTextDocument, span: MugenTextSpan, label: string): number {
+  if (value === '' || value === '.') return 0;
+  const trailingSign = /^([+-]?\d+)[+-]$/u.exec(value);
+  if (trailingSign) return parseInt32(trailingSign[1]!, document, span, label);
   if (/^[+-]?\d+$/u.test(value)) return parseInt32(value, document, span, label);
   const expression = /^([+-]?\d+)\s*([+-])\s*(\d+)$/u.exec(value);
   if (!expression) failAir(document, span, 'E_MUGEN_AIR_ELEMENT_INVALID', `AIR ${label} is not an integer: ${value}.`);
