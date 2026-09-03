@@ -1,6 +1,12 @@
 import { MUGEN_LIMITS } from '../contract';
 import type { MugenExpressionAst, MugenExpressionInstruction, MugenExpressionProgram, MugenExpressionSource } from './types';
 
+// Imported packages are deeply frozen by the package codec and compiler output is
+// immutable as well. Validation is deliberately strict at the trust boundary, but
+// repeating the complete CFG/stack walk for every trigger on every game tick is
+// prohibitively expensive for large characters such as Petra.
+const validatedFrozenPrograms = new WeakSet<object>();
+
 export function compileMugenExpression(ast: MugenExpressionAst, source: MugenExpressionSource | null = null): MugenExpressionProgram {
   const compiler = new Compiler(); compiler.emitExpression(ast, 1, 0); compiler.emit(Object.freeze({ op: 'return' }));
   const instructions = Object.freeze(compiler.instructions);
@@ -60,6 +66,7 @@ class Compiler {
 }
 
 export function validateExpressionProgram(value: unknown): asserts value is MugenExpressionProgram {
+  if (record(value) && validatedFrozenPrograms.has(value)) return;
   if (!record(value) || value.schemaVersion !== 1 || value.revision !== 'm09-g01-expression-bytecode-v1' || !Array.isArray(value.instructions) || !Number.isSafeInteger(value.maxStack) || Number(value.maxStack) < 1 || (value.source !== null && (!record(value.source) || !boundedString(value.source.canonicalPath, MUGEN_LIMITS.directoryAndArchive.maxPathUtf8Bytes) || !positiveInteger(value.source.line) || !positiveInteger(value.source.column)))) throw new TypeError('MUGEN expression bytecode envelope is invalid.');
   exactKeys(value, ['schemaVersion', 'revision', 'instructions', 'maxStack', 'source']); if (value.source !== null) exactKeys(value.source, ['canonicalPath', 'line', 'column']);
   const instructions = value.instructions as unknown[];
@@ -67,6 +74,14 @@ export function validateExpressionProgram(value: unknown): asserts value is Muge
   for (const instruction of instructions) validateInstruction(instruction, instructions.length);
   const observed = validateExpressionInstructions(instructions as MugenExpressionInstruction[]);
   if (observed !== value.maxStack) throw new TypeError(`MUGEN expression maxStack mismatch: declared ${value.maxStack}, observed ${observed}.`);
+  if (isDeepFrozenProgram(value as unknown as MugenExpressionProgram)) validatedFrozenPrograms.add(value);
+}
+
+function isDeepFrozenProgram(value: MugenExpressionProgram): boolean {
+  return Object.isFrozen(value)
+    && Object.isFrozen(value.instructions)
+    && value.instructions.every(instruction => Object.isFrozen(instruction))
+    && (value.source === null || Object.isFrozen(value.source));
 }
 
 function validateExpressionInstructions(instructions: readonly MugenExpressionInstruction[]): number {

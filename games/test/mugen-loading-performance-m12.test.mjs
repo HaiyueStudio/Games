@@ -25,7 +25,7 @@ test('M12 reuses immutable stage actors until a visible input changes', () => {
 });
 
 test('M12 loading UI reports parse and GPU upload progress through Haiyue GUI', () => {
-  const flow = read('../mugen/game/MugenFlowUi.ts'); const main = read('../mugen/main.ts'); const view = read('../mugen/viewer/MugenWebGpuView.ts'); const html = read('../mugen/index.html'); const capture = read('../../scripts/verify-mugen-g08-browser.mjs');
+  const flow = read('../mugen/game/MugenFlowUi.ts'); const main = read('../mugen/main.ts'); const fixtures = read('../mugen/game/MugenGameFixture.ts'); const audio = read('../mugen/game/MugenGameAudio.ts'); const view = read('../mugen/viewer/MugenWebGpuView.ts'); const html = read('../mugen/index.html'); const capture = read('../../scripts/verify-mugen-g08-browser.mjs');
   assert.match(flow, /new GuiProgress/u); assert.match(flow, /loadingProgress/u); assert.match(main, /正在解析角色/u); assert.match(main, /正在上传精灵到显存/u);
   assert.match(view, /pendingUploadBytes/u); assert.match(view, /showOverlay/u); assert.match(main, /performanceSimulationMs/u);
   assert.match(view, /MAX_VIEWPORT_DIMENSION/u); assert.match(view, /Math\.min\(MAX_VIEWPORT_DIMENSION/u);
@@ -37,6 +37,7 @@ test('M12 loading UI reports parse and GPU upload progress through Haiyue GUI', 
   assert.match(main, /#publishBrowserCaptureResult/u); assert.match(main, /result\.dataset\.status = 'passed'/u);
   assert.match(html, /id="progress" hidden/u); assert.match(html, /id="result" hidden/u); assert.match(capture, /runChromeWebGpuFixture/u); assert.match(capture, /mugen-g08-browser-current\.png/u);
   const executor = read('../mugen/runtime/state-execution/MugenStateExecutor.ts'); assert.match(executor, /traceEnabled \? \[\] : undefined/u); assert.match(executor, /if \(trace\) trace\.push/u);
+  assert.match(fixtures, /class MugenBuiltInGameFixtureLoader/u); assert.match(main, /characterLoader\.entries\.slice\(0, 2\)/u); assert.match(main, /loader\.load\(id\)/u); assert.match(audio, /retainFixtures/u); assert.match(flow, /角色载入中/u);
 });
 
 function read(path) { return readFileSync(new URL(path, import.meta.url), 'utf8'); }

@@ -6,8 +6,8 @@ const INT_MIN = -2_147_483_648;
 const INT_MAX = 2_147_483_647;
 
 export interface MugenExpressionVmVariables {
-  readonly integer: Int32Array;
-  readonly float: Float32Array;
+  readonly integer: Int32Array | readonly number[];
+  readonly float: Float32Array | readonly number[];
 }
 
 export interface MugenExpressionVmContext {
@@ -158,7 +158,7 @@ function mathFunction(name: string, args: readonly MugenExpressionValue[]): Muge
 }
 
 function loadVariable(variables: MugenExpressionVmVariables, type: 'integer' | 'float', index: MugenExpressionValue): MugenExpressionValue { if (index.kind === 'bottom') return index; if (index.kind !== 'int') return mugenBottom(`${type} variable index must be int`); const array = type === 'integer' ? variables.integer : variables.float; if (index.value < 0 || index.value >= array.length) return mugenBottom(`${type} variable index ${index.value} is out of range`); return type === 'integer' ? mugenInt(array[index.value]!) : mugenFloat(array[index.value]!); }
-function storeVariable(variables: MugenExpressionVmVariables, type: 'integer' | 'float', index: MugenExpressionValue, value: MugenExpressionValue): MugenExpressionValue { if (index.kind === 'bottom') return index; if (value.kind === 'bottom') return value; if (index.kind !== 'int' || !numeric(value)) return mugenBottom(`invalid ${type} variable assignment`); const array = type === 'integer' ? variables.integer : variables.float; if (index.value < 0 || index.value >= array.length) return mugenBottom(`${type} variable index ${index.value} is out of range`); if (type === 'integer') { const assigned = Math.trunc(value.value) | 0; variables.integer[index.value] = assigned; return mugenInt(assigned); } const assigned = Math.fround(value.value); variables.float[index.value] = assigned; return mugenFloat(assigned); }
+function storeVariable(variables: MugenExpressionVmVariables, type: 'integer' | 'float', index: MugenExpressionValue, value: MugenExpressionValue): MugenExpressionValue { if (index.kind === 'bottom') return index; if (value.kind === 'bottom') return value; if (index.kind !== 'int' || !numeric(value)) return mugenBottom(`invalid ${type} variable assignment`); const array = type === 'integer' ? variables.integer : variables.float; if (index.value < 0 || index.value >= array.length) return mugenBottom(`${type} variable index ${index.value} is out of range`); if (type === 'integer') { if (!(variables.integer instanceof Int32Array)) return mugenBottom('integer variable storage is read-only'); const assigned = Math.trunc(value.value) | 0; variables.integer[index.value] = assigned; return mugenInt(assigned); } if (!(variables.float instanceof Float32Array)) return mugenBottom('float variable storage is read-only'); const assigned = Math.fround(value.value); variables.float[index.value] = assigned; return mugenFloat(assigned); }
 function equality(left: MugenExpressionValue, right: MugenExpressionValue): boolean | null { if (numeric(left) && numeric(right)) { const [a, b] = promote(left, right); return a === b; } if (left.kind === 'string' && right.kind === 'string') return left.value.toLowerCase() === right.value.toLowerCase(); return null; }
 function promote(left: Extract<MugenExpressionValue, { kind: 'int' | 'float' }>, right: Extract<MugenExpressionValue, { kind: 'int' | 'float' }>): readonly [number, number] { return left.kind === 'float' || right.kind === 'float' ? [Math.fround(left.value), Math.fround(right.value)] : [left.value, right.value]; }
 function numeric(value: MugenExpressionValue): value is Extract<MugenExpressionValue, { kind: 'int' | 'float' }> { return value.kind === 'int' || value.kind === 'float'; }

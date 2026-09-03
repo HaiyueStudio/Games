@@ -18,6 +18,9 @@ export interface MugenRedirectedExpressionProgram {
 
 export type MugenRuntimeExpression = MugenExpressionProgram | MugenRedirectedExpressionProgram;
 
+const validatedFrozenRuntimeExpressions = new WeakSet<object>();
+const frozenVariableWriteCache = new WeakMap<object, boolean>();
+
 export function compileMugenRuntimeExpression(ast: MugenExpressionAst, source: MugenExpressionSource | null = null): MugenRuntimeExpression {
   const redirections: MugenRedirectionProgram[] = [];
   const expression = compileMugenExpression(lower(ast, source, redirections, false), source);
@@ -27,6 +30,7 @@ export function compileMugenRuntimeExpression(ast: MugenExpressionAst, source: M
 }
 
 export function validateMugenRuntimeExpression(value: unknown): asserts value is MugenRuntimeExpression {
+  if (record(value) && validatedFrozenRuntimeExpressions.has(value)) return;
   if (isG01Program(value)) { validateExpressionProgram(value); return; }
   if (!record(value) || value.schemaVersion !== 1 || value.revision !== 'm09-g02-runtime-expression-v1' || !Array.isArray(value.redirections)) throw new TypeError('MUGEN redirected expression envelope is invalid.');
   exactKeys(value, ['schemaVersion', 'revision', 'expression', 'redirections']); validateExpressionProgram(value.expression);
@@ -40,9 +44,27 @@ export function validateMugenRuntimeExpression(value: unknown): asserts value is
     if (redirection.selectorArgument !== null) validateExpressionProgram(redirection.selectorArgument);
     validateSelectorArity(redirection.selector as MugenRedirectionSelector, redirection.selectorArgument);
   }
+  if (isDeepFrozenRedirectedProgram(value as unknown as MugenRedirectedExpressionProgram)) validatedFrozenRuntimeExpressions.add(value);
+}
+
+function isDeepFrozenRedirectedProgram(value: MugenRedirectedExpressionProgram): boolean {
+  return Object.isFrozen(value)
+    && Object.isFrozen(value.redirections)
+    && value.redirections.every(redirection => Object.isFrozen(redirection));
 }
 
 export function isRedirectedExpressionProgram(value: MugenRuntimeExpression): value is MugenRedirectedExpressionProgram { return value.revision === 'm09-g02-runtime-expression-v1'; }
+
+/** Returns whether evaluating the expression can write var/fvar state. */
+export function mugenRuntimeExpressionWritesVariables(value: MugenRuntimeExpression): boolean {
+  const cached = frozenVariableWriteCache.get(value); if (cached !== undefined) return cached;
+  const programs = isRedirectedExpressionProgram(value)
+    ? [value.expression, ...value.redirections.flatMap(entry => entry.selectorArgument === null ? [entry.expression] : [entry.selectorArgument, entry.expression])]
+    : [value];
+  const writes = programs.some(program => program.instructions.some(instruction => instruction.op === 'store-variable'));
+  if (Object.isFrozen(value)) frozenVariableWriteCache.set(value, writes);
+  return writes;
+}
 
 function lower(ast: MugenExpressionAst, source: MugenExpressionSource | null, redirections: MugenRedirectionProgram[], insideSelectorArgument: boolean): MugenExpressionAst {
   switch (ast.kind) {

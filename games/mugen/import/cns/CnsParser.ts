@@ -91,7 +91,13 @@ function parseCharacterConstants(documents: readonly MugenTextDocument[]): Mugen
       if (result[key] !== undefined) failAssignment(document, assignment, `Duplicate MUGEN character constant: ${key}.`);
       result[key] = Math.fround(values[0]!);
       result[`${key}.x`] = Math.fround(values[0]!);
-      if (values[1] !== undefined) result[`${key}.y`] = Math.fround(values[1]);
+      if (values[1] !== undefined) {
+        result[`${key}.y`] = Math.fround(values[1]);
+        // MUGEN exposes the neutral jump vector's second component through
+        // Const(velocity.jump.y) / Const(velocity.airjump.y), even though the
+        // CNS declaration is named jump.neu / airjump.neu.
+        if (namespace === 'velocity' && (assignment.foldedKey === 'jump.neu' || assignment.foldedKey === 'airjump.neu')) result[`velocity.${assignment.foldedKey.slice(0, -4)}.y`] = Math.fround(values[1]);
+      }
     }
   }
   return Object.freeze(Object.fromEntries(Object.entries(result).sort(([left], [right]) => left.localeCompare(right))));

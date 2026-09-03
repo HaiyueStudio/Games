@@ -281,6 +281,41 @@ test('typed state VM drives stand, walk, crouch, jump and basic attack through t
   assert(first.executed.some(value => value.endsWith(':var-add')));
 });
 
+test('native engine automatically leaves state 5110 after Data.liedown.time and restores control through 5120', async () => {
+  const commands = parseMugenCommandDocument(await textDocument('liedown.cmd', '[Command]\nname="dummy"\ncommand=s\n'));
+  const states = parseMugenStateDocuments([await textDocument('liedown.cns', `[Data]
+liedown.time = 2
+[Velocity]
+jump.neu = 0,-9.5
+airjump.neu = 0,-8
+[Statedef -1]
+[Statedef 0]
+type=S
+movetype=I
+physics=S
+ctrl=1
+[Statedef 5110]
+type=L
+movetype=H
+physics=N
+ctrl=0
+[Statedef 5120]
+type=L
+movetype=I
+physics=N
+ctrl=0
+[State 5120, finished]
+type=ChangeState
+trigger1=Time>=2
+value=0
+ctrl=1
+`)]);
+  assert.equal(states.constants['velocity.jump.y'], -9.5); assert.equal(states.constants['velocity.airjump.y'], -8);
+  const runtime = new MugenScriptRuntime([{ fighterId: 'P1', commands, states, engineControlTransitions: true }, { fighterId: 'P2', commands, states, engineControlTransitions: true }]); const inputs = inputBuilder(); const match = createMatch(); const visited = [];
+  for (let tick = 0; tick < 6; tick += 1) { const input = inputs.push([]); match.beginTick(input); if (tick === 0) { match.startFight(); runtime.enterFighterState(match, 'P1', 5110, 'P1', {}, false); } runtime.step(match, input, inputs.history); const result = match.endTick(); visited.push(result.state.fighters[0].stateNumber); }
+  assert(visited.includes(5120), `get-up state was not visited: ${visited.join(',')}`); assert.equal(match.fighter('P1').stateNumber, 0); assert.equal(match.fighter('P1').control, true);
+});
+
 test('state metadata and variables are part of the authoritative hash and survive snapshot restore', async () => {
   const { history, push } = inputBuilder(); const match = createMatch();
   const input = push([]); match.beginTick(input).startFight().setFighterStateMetadata('P1', { stateType: 'A', moveType: 'A', physics: 'A' }).setIntegerVariable('P1', 7, 42).setFloatVariable('P1', 3, 1.25);

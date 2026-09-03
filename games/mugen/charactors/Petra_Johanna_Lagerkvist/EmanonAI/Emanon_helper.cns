@@ -1,0 +1,247 @@
+
+;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;常駐ヘルパー・各種変数確認用
+;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;※ガード補助も兼ねたいがー　どうしたものか
+;ガード補助を兼ねると、EnemyNear切り替えとかどうしようかね
+
+
+[Statedef 90001]
+anim = 0
+Ctrl = 0
+
+[State a];ムテキング
+type = NotHitBy
+Trigger1 = 1
+value = SCA
+time = -1
+
+[State a];影消すよー
+type = AssertSpecial
+Trigger1 = 1
+flag = Invisible
+flag2 = NoShadow
+
+[State a];位置固定
+type = BindToParent
+Trigger1 = 1
+pos = 100,0
+
+[State a];アニメ変更・当たり判定用に
+type = ChangeAnim
+Trigger1 = 1
+value = Root,Anim
+
+;＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+;項目の表示
+;＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+[State -2, デバック(変数確認)]
+Type = DisplayToClipBoard
+Trigger1 = 1
+Text = "EType:%d var(55):%d Guard:%d"
+Params = var(56),var(55),var(51)
+IgnoreHitPause = 1
+
+;＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+;ここから各種管理項目
+;＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+;----------------------------------------------------------------
+;＊EnemyNear,StateType
+
+[State -2,立ち判定]
+type = varset
+TriggerAll = (EnemyNear(Root,var(52)),Time >= (10 - Root,var(56) * 2)) || (!(Root,Time)&&(Root,var(54) = 4)) || (Root,var(54) = [5,6]);AIレベルによる反応速度の差
+Trigger1 = (EnemyNear(Root,var(52)),StateType = S)
+v = 56
+value = 1
+IgnoreHitPause = 1
+
+[State -2,屈み判定]
+type = varset
+TriggerAll = (EnemyNear(Root,var(52)),Time >= (10 - Root,var(56) * 2)) || (!(Root,Time)&&(Root,var(54) = 4)) || (Root,var(54) = [5,6]);AIレベルによる反応速度の差
+Trigger1 = (EnemyNear(Root,var(52)),StateType = C)
+v = 56
+value = 2
+IgnoreHitPause = 1
+
+[State -2,空中判定]
+type = varset
+TriggerAll = (EnemyNear(Root,var(52)),Time >= (10 - Root,var(56) * 2)) || (!Time&&(Root,var(54) = 4)) || (Root,var(54) = [5,6]);AIレベルによる反応速度の差
+Trigger1 = (EnemyNear(Root,var(52)),StateType = A)
+v = 56
+value = 3
+IgnoreHitPause = 1
+
+[State -2,ダウン判定]
+type = varset
+TriggerAll = (EnemyNear(Root,var(52)),Time >= (10 - Root,var(56) * 2)) || (!(Root,Time)&&(Root,var(54) = 4)) || (Root,var(54) = [5,6]);AIレベルによる反応速度の差
+Trigger1 = (EnemyNear(Root,var(52)),StateType = L)
+v = 56
+value = 4
+IgnoreHitPause = 1
+
+;----------------------------------------------------------------
+;＊ダッシュ制御
+
+[State -2,ダッシュ制御カウント]
+type = varset
+Trigger1 = Root,time = 0
+Trigger1 = Root,StateNo = 100
+v = 53
+value = 90
+IgnoreHitPause = 1
+
+[State -2,ダッシュ制御リセット]
+type = varadd
+Trigger1 = var(53) > 0
+v = 53
+value = -1
+
+;----------------------------------------------------------------
+;＊歩き制御用
+
+[State -2,歩き制御・前進]
+type = varadd
+trigger1 = (Root,StateNo = 19) || (Root,StateNo = 20)
+Trigger1 = Root,Vel x > 0
+v = 52
+value = 1
+
+[State -2,歩き制御・後退]
+type = varadd
+trigger1 = (Root,StateNo = 19) || (Root,StateNo = 20)
+Trigger1 = Root,Vel x < 0
+v = 52
+value = -1
+
+[State -2,歩き制御・リセット]
+type = varset
+trigger1 = (Root,StateNo = 19) || (Root,StateNo = 20)
+Trigger1 = Root,Vel x = 0
+trigger2 = !((Root,StateNo = 19) || (Root,StateNo = 20))
+v = 52
+value = 0
+
+;----------------------------------------------------------------
+;＊中距離行動選択
+
+[State -2]
+type = varSet
+Trigger1 = (GameTime % 360) = 0
+Trigger2 = RoundState = [0,1]
+v = 49
+value = IfElse((var(50) >= 51),1,2)
+;51以上なら近距離、50以下なら遠距離
+
+;----------------------------------------------------------------
+;＊百分率
+
+[State -2]
+type = varrandom
+Trigger1 = (GameTime % 60) = 0
+Trigger2 = RoundState = [0,1]
+v = 50
+range = 1,100
+
+;----------------------------------------------------------------
+;＊ガード警報
+
+[State -2,ガード警報・通常]
+type = Varset
+TriggerAll = (EnemyNear(Root,var(52)),Time >= (10 - Root,var(56) * 2)) || (!Time&&(Root,var(54) = 4)) || (Root,var(54) = [5,6]);AIレベルによる反応速度の差
+Trigger1 = InGuardDist
+v = 51
+value = 1
+IgnoreHitPause = 1
+
+[State -2,ガード警報・飛び道具]
+type = null;Varset
+Trigger1 = (EnemyNear(0),NumProj > 0)
+Trigger1 = (EnemyNear(0),MoveType != A)
+Trigger1 = (EnemyNear(0),Time >=  5)
+Trigger2 = NumEnemy = 2
+Trigger2 = (EnemyNear(1),NumProj > 0)
+Trigger2 = (EnemyNear(1),MoveType != A)
+Trigger2 = (EnemyNear(1),Time >=  5)
+v = 51
+value = 1
+IgnoreHitPause = 1
+
+[State -2,ガード警報・リセット]
+type = null;Varset
+TriggerAll = (EnemyNear(Root,var(52)),Time >= (10 - Root,var(56) * 2)) || (!Time&&(Root,var(54) = 4)) || (Root,var(54) = [5,6]);AIレベルによる反応速度の差
+Trigger1 = NumEnemy = 1
+Trigger1 = !InGuardDist && (EnemyNear(0),NumProj > 0)
+Trigger2 = NumEnemy = 2
+Trigger2 = !InGuardDist && (EnemyNear(0),NumProj > 0) && (Enemynear(1),NumProj > 0)
+v = 51
+value = 0
+IgnoreHitPause = 1
+
+[State -2,ガード警報・リセット]
+type = Varset
+Trigger1 = !InGuardDist
+v = 51
+value = 0
+IgnoreHitPause = 1
+
+;----------------------------------------------------------------
+;＊ガードステート反応速度制限解除条件
+[state -2]
+type = varset
+;Trigger1 = Root,Vel X < 0
+Trigger1 = (Root,StateNo = [19,20]) || (Root,StateNo = [50,52])
+v = 45
+value = 1
+IgnoreHitPause = 1
+
+[state -2]
+type = varset
+Trigger1 = Root,PrevStateNo = [5000,5270]
+v = 45
+value = 2
+IgnoreHitPause = 1
+
+[state -2]
+type = varset
+Trigger1 = Root,StateNo = [5000,5270]
+v = 45
+value = 3
+IgnoreHitPause = 1
+
+[state -2]
+type = varset
+Trigger1 = Root,StateNo = [120,159]
+v = 45
+value = 4
+IgnoreHitPause = 1
+
+[state -2]
+type = varset
+Trigger1 = EnemyNear(Root,var(52)),NumProj > 0
+v = 45
+value = 5
+IgnoreHitPause = 1
+
+[state -2]
+type = varset
+Trigger1 = (EnemyNear(Root,var(52)),hitdefattr = SCA,NP,SP,HP)
+v = 45
+value = 6
+IgnoreHitPause = 1
+
+[State -2]
+type = varset
+TriggerAll = var(45) > 0
+;Trigger1 = !((Root,Vel X < 0) && ((Root,StateNo = [19,20]) || (Root,StateNo = [50,51])))
+Trigger1 = !((Root,StateNo = [19,20]) || (Root,StateNo = [50,51]))
+Trigger1 = !(Root,PrevStateNo = [5000,5270])
+Trigger1 = !(Root,StateNo = [5000,5270])
+Trigger1 = !(Root,StateNo = [120,159])
+Trigger1 = !(EnemyNear(Root,var(52)),NumProj > 0)
+Trigger1 = !(EnemyNear(Root,var(52)),hitdefattr = SCA,NP,SP,HP)
+v = 45
+value = 0
+

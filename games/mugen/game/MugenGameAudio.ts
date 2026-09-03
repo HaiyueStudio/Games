@@ -12,8 +12,17 @@ export class MugenGameAudio {
   #ready = false;
 
   async install(fixtures: readonly MugenBuiltInGameFixture[]): Promise<void> {
-    for (const fixture of fixtures) for (const sound of fixture.sounds) if (sound.selectedByKey) { await this.#mixer.decodeAndInstall(bufferId(sound), decodeBase64(sound.encodedBase64)); this.#sounds.set(soundKey(fixture.packageSha256, sound.group, sound.item), sound); }
+    for (const fixture of fixtures) for (const sound of fixture.sounds) if (sound.selectedByKey) { const key = soundKey(fixture.packageSha256, sound.group, sound.item); if (!this.#sounds.has(key)) await this.#mixer.decodeAndInstall(bufferId(sound), decodeBase64(sound.encodedBase64)); this.#sounds.set(key, sound); }
     this.#ready = true; this.#syncEvidence();
+  }
+
+  /** Drops decoded character audio that is no longer used by either player. */
+  retainFixtures(fixtures: readonly MugenBuiltInGameFixture[]): void {
+    const retainedPackages = new Set(fixtures.map(fixture => fixture.packageSha256)); const systemPackage = this.#ownerPackages.get('system'); if (systemPackage !== undefined) retainedPackages.add(systemPackage);
+    const removedBufferIds = new Set<string>();
+    for (const [key, sound] of this.#sounds) { const separator = key.indexOf(':'); if (separator >= 0 && retainedPackages.has(key.slice(0, separator))) continue; this.#sounds.delete(key); removedBufferIds.add(bufferId(sound)); }
+    const retainedBufferIds = new Set([...this.#sounds.values()].map(bufferId)); for (const id of removedBufferIds) if (!retainedBufferIds.has(id)) this.#mixer.removeBuffer(id);
+    this.#syncEvidence();
   }
 
   async installFightSounds(soundBankSha256: string | null, sounds: readonly MugenGameSound[]): Promise<void> {

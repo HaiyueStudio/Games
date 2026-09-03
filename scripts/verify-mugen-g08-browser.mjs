@@ -20,6 +20,9 @@ const capture = await runChromeWebGpuFixture({
     verifyHitSpark: 1,
     verifyFightSound: 1,
     verifyFightFx: 1,
+    ...(process.env.MUGEN_VERIFY_P1 ? { verifyP1: process.env.MUGEN_VERIFY_P1 } : {}),
+    ...(process.env.MUGEN_VERIFY_P2 ? { verifyP2: process.env.MUGEN_VERIFY_P2 } : {}),
+    ...(process.env.MUGEN_VERIFY_MODE ? { verifyMode: process.env.MUGEN_VERIFY_MODE } : {}),
   },
   timeoutMs: 600_000,
   visualCapture: {

@@ -90,7 +90,7 @@ export class MugenFlowUi {
     label(root, `${MODE_NAMES[model.mode]}  ·  选择角色`, '6%', '6%', '88%', 60, 36, '#fff0b5'); label(root, 'PLAYER 1', '8%', '19%', '34%', 28, 13, '#65ceff'); label(root, 'PLAYER 2', '58%', '19%', '34%', 28, 13, '#ff718d');
     label(root, model.p1Name, '5%', '72%', '40%', 48, 24, '#ffffff'); label(root, model.p2Name, '55%', '72%', '40%', 48, 24, '#ffffff');
     button(root, '‹', '7%', '82%', '8%', 48, () => this.#callbacks.cycleCharacter(0, -1)); button(root, '›', '35%', '82%', '8%', 48, () => this.#callbacks.cycleCharacter(0, 1)); button(root, '‹', '57%', '82%', '8%', 48, () => this.#callbacks.cycleCharacter(1, -1)); button(root, '›', '85%', '82%', '8%', 48, () => this.#callbacks.cycleCharacter(1, 1));
-    button(root, '返回', '5%', '92%', '16%', 42, this.#callbacks.goTitle); button(root, '确认阵容', '39%', '90%', '22%', 48, this.#callbacks.confirmCharacters, true);
+    button(root, '返回', '5%', '92%', '16%', 42, this.#callbacks.goTitle); button(root, model.ready ? '确认阵容' : '角色载入中…', '39%', '90%', '22%', 48, this.#callbacks.confirmCharacters, true, !model.ready);
   }
 
   #stage(root: GuiRoot, model: MugenFlowViewModel): void {

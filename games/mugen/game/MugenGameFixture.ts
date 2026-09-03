@@ -16,6 +16,7 @@ export interface MugenBuiltInGameFixture {
   readonly commands: MugenCommandProgram;
   readonly states: MugenStateProgram;
   readonly air: MugenAirBank;
+  readonly actionsByNumber: ReadonlyMap<number, MugenAirBank['actions'][number]>;
   readonly sounds: readonly MugenGameSound[];
   readonly packageSha256: string;
   readonly localCoord: readonly [number, number];
@@ -28,25 +29,46 @@ export interface MugenGameSound { readonly id: string; readonly group: number; r
 
 interface CharacterCatalog { readonly schemaVersion: 2; readonly runtimeProfile: 'm09-native-character-common-v1'; readonly commonState: string; readonly characters: readonly CharacterDescriptor[]; }
 interface CharacterDescriptor { readonly id: string; readonly label: string; readonly directory: string; readonly entryDef: string; readonly airPath: string; readonly scriptProfile: 'native-common-v1' | 'adapter-v1'; readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local'; readonly files: readonly string[]; }
+export interface MugenCharacterCatalogEntry { readonly id: string; readonly label: string; }
 interface RuntimeAdapter { readonly commands: MugenCommandProgram; readonly states: MugenStateProgram; }
 export interface MugenFixtureLoadProgress { readonly completed: number; readonly total: number; readonly label: string; }
 
 const REQUIRED_ACTIONS = Object.freeze([0, 10, 20, 21, 40, 120, 200, 5000, 5020]);
 
 export async function loadMugenBuiltInGameFixtures(worker: MugenImportWorkerClient, signal?: AbortSignal, onProgress?: (progress: MugenFixtureLoadProgress) => void): Promise<readonly MugenBuiltInGameFixture[]> {
-  const catalog = await loadCatalog(signal); const commonState = Object.freeze({ path: catalog.commonState, bytes: await fetchBytes(`../common/${catalog.commonState}`, `公共状态 ${catalog.commonState}`, signal) }); const result: MugenBuiltInGameFixture[] = []; let adapter: Promise<RuntimeAdapter> | null = null;
-  onProgress?.(Object.freeze({ completed: 0, total: catalog.characters.length, label: catalog.characters[0]?.label ?? '' }));
-  for (const [index, descriptor] of catalog.characters.entries()) {
-    onProgress?.(Object.freeze({ completed: index, total: catalog.characters.length, label: descriptor.label }));
-    if (descriptor.scriptProfile === 'adapter-v1') adapter ??= loadRuntimeAdapter(worker, signal);
-    result.push(await loadCharacter(worker, descriptor, commonState, descriptor.scriptProfile === 'adapter-v1' ? await adapter! : null, signal));
-    onProgress?.(Object.freeze({ completed: index + 1, total: catalog.characters.length, label: descriptor.label }));
-  }
+  const loader = await MugenBuiltInGameFixtureLoader.create(worker, signal); const result: MugenBuiltInGameFixture[] = [];
+  onProgress?.(Object.freeze({ completed: 0, total: loader.entries.length, label: loader.entries[0]?.label ?? '' }));
+  for (const [index, descriptor] of loader.entries.entries()) { onProgress?.(Object.freeze({ completed: index, total: loader.entries.length, label: descriptor.label })); result.push(await loader.load(descriptor.id, signal)); onProgress?.(Object.freeze({ completed: index + 1, total: loader.entries.length, label: descriptor.label })); }
   if (result.length < 2) throw new TypeError('MUGEN 角色目录至少需要两个可选角色。');
   return Object.freeze(result);
 }
 
-export async function loadMugenBuiltInGameFixture(worker: MugenImportWorkerClient, signal?: AbortSignal): Promise<MugenBuiltInGameFixture> { return (await loadMugenBuiltInGameFixtures(worker, signal))[0]!; }
+export async function loadMugenBuiltInGameFixture(worker: MugenImportWorkerClient, signal?: AbortSignal): Promise<MugenBuiltInGameFixture> { const loader = await MugenBuiltInGameFixtureLoader.create(worker, signal); return loader.load(loader.entries[0]!.id, signal); }
+
+/** Lightweight catalog plus on-demand character package importer. */
+export class MugenBuiltInGameFixtureLoader {
+  readonly entries: readonly MugenCharacterCatalogEntry[];
+  readonly #worker: MugenImportWorkerClient;
+  readonly #commonState: MugenVfsInput;
+  readonly #descriptors: ReadonlyMap<string, CharacterDescriptor>;
+  readonly #inflight = new Map<string, Promise<MugenBuiltInGameFixture>>();
+  #adapter: Promise<RuntimeAdapter> | null = null;
+
+  private constructor(worker: MugenImportWorkerClient, catalog: CharacterCatalog, commonState: MugenVfsInput) {
+    this.#worker = worker; this.#commonState = commonState; this.#descriptors = new Map(catalog.characters.map(value => [value.id, value])); this.entries = Object.freeze(catalog.characters.map(value => Object.freeze({ id: value.id, label: value.label })));
+  }
+
+  static async create(worker: MugenImportWorkerClient, signal?: AbortSignal): Promise<MugenBuiltInGameFixtureLoader> {
+    const catalog = await loadCatalog(signal); const commonState = Object.freeze({ path: catalog.commonState, bytes: await fetchBytes(`../common/${catalog.commonState}`, `公共状态 ${catalog.commonState}`, signal) }); return new MugenBuiltInGameFixtureLoader(worker, catalog, commonState);
+  }
+
+  load(id: string, signal?: AbortSignal): Promise<MugenBuiltInGameFixture> {
+    const existing = this.#inflight.get(id); if (existing !== undefined) return existing;
+    const descriptor = this.#descriptors.get(id); if (descriptor === undefined) return Promise.reject(new RangeError(`未知 MUGEN 内置角色：${id}。`));
+    const pending = (async () => { if (descriptor.scriptProfile === 'adapter-v1') this.#adapter ??= loadRuntimeAdapter(this.#worker, signal); const adapter = descriptor.scriptProfile === 'adapter-v1' ? await this.#adapter : null; return loadCharacter(this.#worker, descriptor, this.#commonState, adapter, signal); })();
+    this.#inflight.set(id, pending); void pending.finally(() => { if (this.#inflight.get(id) === pending) this.#inflight.delete(id); }).catch(() => undefined); return pending;
+  }
+}
 
 async function loadCharacter(worker: MugenImportWorkerClient, descriptor: CharacterDescriptor, commonState: MugenVfsInput, adapter: RuntimeAdapter | null, signal?: AbortSignal): Promise<MugenBuiltInGameFixture> {
   const characterInputs = await Promise.all(descriptor.files.map(async path => Object.freeze({ path, bytes: await fetchBytes(`../charactors/${descriptor.directory}/${path}`, `角色文件 ${descriptor.directory}/${path}`, signal) }))) satisfies readonly MugenVfsInput[];
@@ -64,8 +86,9 @@ async function loadCharacter(worker: MugenImportWorkerClient, descriptor: Charac
     elementCount: model.actions.reduce((total, value) => total + value.action.elements.length, 0),
     collisionBoxCount: model.actions.reduce((total, value) => total + value.action.elements.reduce((sum, element) => sum + element.clsn1.length + element.clsn2.length, 0), 0),
   });
+  const actionsByNumber = new Map(air.actions.map(action => [action.number, action]));
   return Object.freeze({
-    id: descriptor.id, displayName: descriptor.label, characterName: imported.metadata.name ?? descriptor.label, authorName: imported.metadata.author ?? '', model, commands, states, air, sounds,
+    id: descriptor.id, displayName: descriptor.label, characterName: imported.metadata.name ?? descriptor.label, authorName: imported.metadata.author ?? '', model, commands, states, air, actionsByNumber, sounds,
     packageSha256: imported.packageSha256, localCoord: imported.metadata.localCoord ?? Object.freeze([320, 240]), drawScale: resolveMugenDrawScale(states.constants), runtimeProfile: descriptor.scriptProfile === 'native-common-v1' ? 'm09-native-character-common-v1' : 'g08-basic-fighter-adapter-v1',
     contentLicense: descriptor.contentLicense,
   });

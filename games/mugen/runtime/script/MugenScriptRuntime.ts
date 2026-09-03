@@ -8,6 +8,7 @@ import type { MugenInputHistory, MugenTickInput } from '../input/MugenInputRunti
 import type { MugenFighterSnapshot, MugenHeadlessMatch, MugenMatchSnapshot, MugenMoveType, MugenPhysicsType, MugenResolvedHitDefinition, MugenResolvedReversalDefinition, MugenStateType } from '../match/MugenMatchState';
 import type { MugenExpressionVmContext } from '../vm/MugenExpressionVm';
 import { evaluateMugenRuntimeExpression, type MugenTriggerEvaluationHost } from '../triggers/MugenTriggerEvaluator';
+import { isRedirectedExpressionProgram, mugenRuntimeExpressionWritesVariables } from '../../import/trigger/MugenRuntimeExpression';
 import { MugenStateExecutor, type MugenControllerExecutionTrace, type MugenStateExecutorSnapshot } from '../state-execution/MugenStateExecutor';
 import { MugenCommandMatcher } from './MugenCommandMatcher';
 import { commitMugenCoreMutation, type MugenCoreMutationCommand } from '../controllers/core/MugenCoreMutation';
@@ -15,7 +16,10 @@ import { commitMugenCombatMutation, type MugenCombatMutationCommand } from '../c
 import { MugenEntityAuthority, type MugenEntityAuthoritySnapshot, type MugenEntityCommitResult, type MugenExplodEntitySnapshot, type MugenHelperEntitySnapshot, type MugenProjectileSpawn } from '../entities/MugenEntityAuthority';
 import { MugenOutputAuthority, type MugenAfterImageEffect, type MugenAssertSpecialFlag, type MugenForceFeedbackWaveform, type MugenOutputAuthoritySnapshot, type MugenPaletteEffect, type MugenTransparencyMode } from '../effects/MugenOutputAuthority';
 
-export interface MugenFighterScriptProgram { readonly fighterId: string; readonly name?: string; readonly authorName?: string; readonly commands: MugenCommandProgram; readonly states: MugenStateProgram; readonly localCoord?: readonly [number, number]; readonly paletteNumber?: number; readonly gravity?: number; readonly standFriction?: number; readonly crouchFriction?: number; readonly engineControlTransitions?: boolean }
+const EMPTY_COMMANDS: ReadonlySet<string> = new Set<string>();
+const scriptStructureHashes = new WeakMap<object, WeakMap<object, string>>();
+
+export interface MugenFighterScriptProgram { readonly fighterId: string; readonly name?: string; readonly authorName?: string; readonly sourceHash?: string; readonly commands: MugenCommandProgram; readonly states: MugenStateProgram; readonly localCoord?: readonly [number, number]; readonly paletteNumber?: number; readonly gravity?: number; readonly standFriction?: number; readonly crouchFriction?: number; readonly engineControlTransitions?: boolean }
 export interface MugenPauseSnapshot { readonly kind: 'pause' | 'super-pause'; readonly ownerRootId: string; readonly remainingTicks: number; readonly ownerMoveTicks: number; readonly endCommandBufferTicks: number; readonly backgroundPaused: boolean; readonly darken: boolean; readonly opponentDefenseMultiplier: number; readonly ownerUnhittable: boolean; readonly startedTick: number }
 export interface MugenScriptTickTrace { readonly tick: number; readonly programHash: string; readonly commandHashes: readonly string[]; readonly executedControllers: readonly string[]; readonly triggerTrace: readonly MugenControllerExecutionTrace[]; readonly entityCommit: MugenEntityCommitResult; readonly entityHash: string; readonly pause: MugenPauseSnapshot | null; readonly output: MugenOutputAuthoritySnapshot; readonly outputHash: string; readonly hash: string }
 export interface MugenScriptAnimationContext { readonly action: MugenAirAction; readonly snapshot: MugenAirSnapshot }
@@ -23,7 +27,7 @@ export interface MugenStageInfo { readonly name: string; readonly displayName: s
 export interface MugenScriptStepContext { readonly animationByFighter?: ReadonlyMap<string, MugenScriptAnimationContext>; readonly animationExistsByFighter?: ReadonlyMap<string, ReadonlySet<number>>; readonly animationDurationByOwner?: ReadonlyMap<string, ReadonlyMap<number, number | null>>; readonly opponentByFighter?: ReadonlyMap<string, string>; readonly inGuardDistance?: ReadonlySet<string>; readonly stageBounds?: readonly [left: number, right: number]; readonly screenBounds?: readonly [left: number, right: number]; readonly cameraPosition?: readonly [x: number, y: number]; readonly cameraZoom?: number; readonly stageInfo?: MugenStageInfo; readonly matchNumber?: number; readonly homeTeamSide?: 1 | 2; readonly traceTriggers?: boolean }
 export interface MugenScriptRuntimeSnapshot { readonly schemaVersion: 8; readonly revision: 'm09-g08-script-character-parity-v8'; readonly programHash: string; readonly lastTick: number; readonly lastRoundNumber: number; readonly pause: MugenPauseSnapshot | null; readonly executors: Readonly<Record<string, MugenStateExecutorSnapshot>>; readonly systemVariables: Readonly<Record<string, readonly number[]>>; readonly systemFloatVariables: Readonly<Record<string, readonly number[]>>; readonly entities: MugenEntityAuthoritySnapshot; readonly outputs: MugenOutputAuthoritySnapshot }
 
-interface EvaluationContext extends MugenScriptStepContext { readonly match: MugenHeadlessMatch; readonly matchSnapshot: MugenMatchSnapshot; readonly entities: MugenEntityAuthority; readonly fighterId: string; readonly commands: ReadonlySet<string>; readonly aiLevelByRoot: ReadonlyMap<string, number>; readonly identityByRoot: ReadonlyMap<string, Readonly<{ name: string | null; authorName: string }>>; readonly constantsByRoot: ReadonlyMap<string, Readonly<Record<string, number>>>; readonly localCoordByRoot: ReadonlyMap<string, readonly [number, number]>; readonly paletteNumberByRoot: ReadonlyMap<string, number>; readonly systemVariablesByRoot: ReadonlyMap<string, Int32Array>; readonly systemFloatVariablesByRoot: ReadonlyMap<string, Float32Array> }
+interface EvaluationContext extends MugenScriptStepContext { readonly match: MugenHeadlessMatch; readonly matchSnapshot: MugenMatchSnapshot; readonly entities: MugenEntityAuthority; readonly fighterId: string; readonly commands: ReadonlySet<string>; readonly aiLevelByRoot: ReadonlyMap<string, number>; readonly identityByRoot: ReadonlyMap<string, Readonly<{ name: string | null; authorName: string }>>; readonly constantsByRoot: ReadonlyMap<string, Readonly<Record<string, number>>>; readonly localCoordByRoot: ReadonlyMap<string, readonly [number, number]>; readonly paletteNumberByRoot: ReadonlyMap<string, number>; readonly systemVariablesByRoot: ReadonlyMap<string, Int32Array>; readonly systemFloatVariablesByRoot: ReadonlyMap<string, Float32Array>; readonly evaluationFighters?: Map<string, MugenFighterSnapshot>; readonly evaluationHelpers?: Map<string, MugenHelperEntitySnapshot> }
 
 export class MugenScriptRuntime {
   entities: MugenEntityAuthority;
@@ -46,7 +50,7 @@ export class MugenScriptRuntime {
     if (!Array.isArray(programs) || programs.length !== 2) throw new TypeError('MUGEN script runtime requires exactly two fighter programs.');
     if (!Number.isSafeInteger(maxControllerEvaluationsPerFighterTick) || maxControllerEvaluationsPerFighterTick < 1 || maxControllerEvaluationsPerFighterTick > 8_192) throw new RangeError('MUGEN controller evaluation budget must be from 1 to 8192.');
     this.maxControllerEvaluationsPerFighterTick = maxControllerEvaluationsPerFighterTick;
-    const normalizedPrograms: Array<Readonly<{ fighterId: string; name: string | null; authorName: string; commands: MugenCommandProgram; states: MugenStateProgram; localCoord: readonly [number, number]; paletteNumber: number; defenseMultiplier: number; airJuggle: number; gravity: number; standFriction: number; crouchFriction: number; engineControlTransitions: boolean }>> = [];
+    const normalizedPrograms: Array<Readonly<{ fighterId: string; name: string | null; authorName: string; sourceHash: string; localCoord: readonly [number, number]; paletteNumber: number; defenseMultiplier: number; airJuggle: number; gravity: number; standFriction: number; crouchFriction: number; engineControlTransitions: boolean }>> = [];
     const entries = programs.map(program => {
       const states = new Map<number, MugenStateDefinition>(program.states.states.map((state: MugenStateDefinition) => [state.number, state]));
       if (!states.has(0) || !states.has(-1)) throw new TypeError(`MUGEN state program for ${program.fighterId} requires states -1 and 0.`);
@@ -58,7 +62,8 @@ export class MugenScriptRuntime {
       const engineControlTransitions = program.engineControlTransitions === true;
       const name = program.name?.trim() || null; const authorName = program.authorName?.trim() ?? '';
       const localCoord = Object.freeze(program.localCoord === undefined ? [320, 240] : [...program.localCoord]) as readonly [number, number]; const paletteNumber = program.paletteNumber ?? 1;
-      normalizedPrograms.push(Object.freeze({ fighterId: program.fighterId, name, authorName, commands: program.commands, states: program.states, localCoord, paletteNumber, defenseMultiplier, airJuggle, gravity, standFriction, crouchFriction, engineControlTransitions }));
+      const sourceHash = program.sourceHash === undefined ? scriptStructureHash(program.commands, program.states) : sha256(program.sourceHash, `${program.fighterId}.sourceHash`);
+      normalizedPrograms.push(Object.freeze({ fighterId: program.fighterId, name, authorName, sourceHash, localCoord, paletteNumber, defenseMultiplier, airJuggle, gravity, standFriction, crouchFriction, engineControlTransitions }));
       this.#identityByRoot.set(program.fighterId, Object.freeze({ name, authorName })); this.#constantsByRoot.set(program.fighterId, program.states.constants); this.#localCoordByRoot.set(program.fighterId, localCoord); this.#paletteNumberByRoot.set(program.fighterId, paletteNumber); this.#systemVariablesByRoot.set(program.fighterId, new Int32Array(5)); this.#systemFloatVariablesByRoot.set(program.fighterId, new Float32Array(5));
       return [program.fighterId, Object.freeze({ matcher: new MugenCommandMatcher(program.commands), states, defenseMultiplier, airJuggle, gravity, standFriction, crouchFriction, engineControlTransitions })] as const;
     });
@@ -82,16 +87,20 @@ export class MugenScriptRuntime {
       const commands = new Set(matched.names); commandsByRoot.set(player.playerId, commands);
       if (match.phase === 'ready') continue;
       const paused = this.#pausedFor(player.playerId);
-      const context: EvaluationContext = { match, matchSnapshot, entities: this.entities, fighterId: player.playerId, commands, aiLevelByRoot, identityByRoot: this.#identityByRoot, constantsByRoot: this.#constantsByRoot, localCoordByRoot: this.#localCoordByRoot, paletteNumberByRoot: this.#paletteNumberByRoot, systemVariablesByRoot: this.#systemVariablesByRoot, systemFloatVariablesByRoot: this.#systemFloatVariablesByRoot, ...stepContext };
+      const evaluationFighters = new Map<string, MugenFighterSnapshot>();
+      const context: EvaluationContext = { match, matchSnapshot, entities: this.entities, fighterId: player.playerId, commands, aiLevelByRoot, identityByRoot: this.#identityByRoot, constantsByRoot: this.#constantsByRoot, localCoordByRoot: this.#localCoordByRoot, paletteNumberByRoot: this.#paletteNumberByRoot, systemVariablesByRoot: this.#systemVariablesByRoot, systemFloatVariablesByRoot: this.#systemFloatVariablesByRoot, evaluationFighters, ...stepContext };
       if (match.fighter(player.playerId).moveType === 'H') this.entities.removeExplodsOnOwnerGetHit(player.playerId);
       if (enteringRound) { match.setDamageMultipliers(player.playerId, { attack: 1, defense: program.defenseMultiplier }); commitCombat(match, { kind: 'juggle-pool', fighterId: player.playerId, capacity: program.airJuggle }); const fighter = match.fighter(player.playerId); const definition = this.#programs.get(fighter.stateDataOwnerId)?.states.get(fighter.stateNumber); if (!definition) throw new RangeError(`MUGEN initial state ${fighter.stateNumber} does not exist for state owner ${fighter.stateDataOwnerId}.`); this.#applyStateDefinition(definition, context, undefined, undefined, fighter.stateDataOwnerId); }
       if (match.phase === 'fight' && !paused && program.engineControlTransitions) this.#applyEngineControlTransition(program, context);
       const executor = this.#executors.get(player.playerId)!;
+      let fighterSnapshotCache: MugenFighterSnapshot | null = null;
+      const currentFighter = (): MugenFighterSnapshot => { if (fighterSnapshotCache === null) { fighterSnapshotCache = match.fighter(player.playerId); evaluationFighters.set(player.playerId, fighterSnapshotCache); } return fighterSnapshotCache; };
+      let executorSnapshot: Readonly<{ entityId: string; stateNumber: number; stateGeneration: number; hitPaused: boolean; paused: boolean; helper: boolean; keyControl: boolean; usingOwnStateData: boolean }> | null = null;
       const result = executor.executeTick({
-        snapshot: () => { const fighter = match.fighter(player.playerId); return Object.freeze({ entityId: fighter.id, stateNumber: fighter.stateNumber, stateGeneration: fighter.stateGeneration, hitPaused: fighter.hitPauseTicks > 0, paused, helper: false, keyControl: true, usingOwnStateData: fighter.stateDataOwnerId === fighter.id }); },
-        state: (number, owner) => { const fighter = match.fighter(player.playerId); const ownerId = owner === 'own' ? fighter.id : fighter.stateDataOwnerId; return this.#programs.get(ownerId)?.states.get(number) ?? null; },
-        evaluate: expression => evaluateValue(expression, context),
-        execute: (controller, execution) => { executedControllers.push(`${context.fighterId}:${execution.stateNumber}:${execution.controllerIndex}:${controller.type}`); return Object.freeze({ transitioned: this.#execute(controller, program, context) }); },
+        snapshot: () => { if (executorSnapshot !== null) return executorSnapshot; const fighter = currentFighter(); executorSnapshot = Object.freeze({ entityId: fighter.id, stateNumber: fighter.stateNumber, stateGeneration: fighter.stateGeneration, hitPaused: fighter.hitPauseTicks > 0, paused, helper: false, keyControl: true, usingOwnStateData: fighter.stateDataOwnerId === fighter.id }); return executorSnapshot; },
+        state: (number, owner) => { const fighter = currentFighter(); const ownerId = owner === 'own' ? fighter.id : fighter.stateDataOwnerId; return this.#programs.get(ownerId)?.states.get(number) ?? null; },
+        evaluate: expression => tryEvaluateVariableGate(expression, currentFighter(), context) ?? evaluateValue(expression, context),
+        execute: (controller, execution) => { executedControllers.push(`${context.fighterId}:${execution.stateNumber}:${execution.controllerIndex}:${controller.type}`); const transitioned = this.#execute(controller, program, context); executorSnapshot = null; fighterSnapshotCache = null; evaluationFighters.delete(player.playerId); return Object.freeze({ transitioned }); },
       }, { trace: stepContext.traceTriggers === true });
       triggerTrace.push(...result.trace);
       if (paused) continue;
@@ -103,6 +112,7 @@ export class MugenScriptRuntime {
         commit(match, { kind: 'kinematics', fighterId: player.playerId, position: [fighter.position[0] + fighter.velocity[0], fighter.position[1] + fighter.velocity[1]] });
         if (program.engineControlTransitions) this.#applyEngineLandingTransition(program, context);
       }
+      if (program.engineControlTransitions) this.#applyEngineLiedownTransition(context);
     }
     if (match.phase !== 'ready') this.#stepHelpers(match, commandsByRoot, aiLevelByRoot, stepContext, executedControllers, triggerTrace);
     if (this.#pause !== null) match.setTimerFrozen(true);
@@ -212,6 +222,14 @@ export class MugenScriptRuntime {
     commit(context.match, { kind: 'kinematics', fighterId: fighter.id, position: [fighter.position[0], 0], velocity: [fighter.velocity[0], 0] });
   }
 
+  #applyEngineLiedownTransition(context: EvaluationContext): void {
+    const fighter = context.match.fighter(context.fighterId); if (fighter.ko || fighter.stateNumber !== 5110 || fighter.hitPauseTicks > 0) return;
+    const configured = context.constantsByRoot.get(fighter.id)?.['data.liedown.time']; const liedownTicks = Math.max(0, Math.min(3_600, Math.trunc(configured ?? 60))); if (fighter.stateTime < liedownTicks) return;
+    const ownerId = fighter.stateDataOwnerId; const definition = this.#programs.get(ownerId)?.states.get(5120); if (!definition) throw new RangeError(`MUGEN engine liedown transition target 5120 does not exist for ${fighter.id}.`);
+    commit(context.match, { kind: 'change-state', fighterId: fighter.id, stateNumber: 5120, stateDataOwnerId: ownerId, preserveHitDefinition: false, preserveMoveContact: false, preserveHitCount: false });
+    this.#applyStateDefinition(definition, context, false, undefined, ownerId);
+  }
+
   enterFighterState(match: MugenHeadlessMatch, fighterId: string, stateNumber: number, stateDataOwnerId: string, stepContext: MugenScriptStepContext = {}, control?: boolean): void {
     if (!match.transactionOpen) throw new Error('MUGEN external state transition requires an open match tick.');
     const definition = this.#programs.get(stateDataOwnerId)?.states.get(stateNumber); if (!definition) throw new RangeError(`MUGEN external state ${stateNumber} does not exist for state owner ${stateDataOwnerId}.`);
@@ -250,14 +268,15 @@ export class MugenScriptRuntime {
       const program = this.#programs.get(initial.rootId); if (!program) continue;
       let helper = this.entities.entity(initial.entityId) as MugenHelperEntitySnapshot;
       if (helper.moveType === 'H') this.entities.removeExplodsOnOwnerGetHit(helper.entityId);
-      const context: EvaluationContext = { match, matchSnapshot, entities: this.entities, fighterId: helper.entityId, commands: helper.keyControl ? commandsByRoot.get(helper.rootId) ?? new Set<string>() : new Set<string>(), aiLevelByRoot, identityByRoot: this.#identityByRoot, constantsByRoot: this.#constantsByRoot, localCoordByRoot: this.#localCoordByRoot, paletteNumberByRoot: this.#paletteNumberByRoot, systemVariablesByRoot: this.#systemVariablesByRoot, systemFloatVariablesByRoot: this.#systemFloatVariablesByRoot, ...stepContext };
+      const evaluationHelpers = new Map<string, MugenHelperEntitySnapshot>([[helper.entityId, helper]]);
+      const context: EvaluationContext = { match, matchSnapshot, entities: this.entities, fighterId: helper.entityId, commands: helper.keyControl ? commandsByRoot.get(helper.rootId) ?? EMPTY_COMMANDS : EMPTY_COMMANDS, aiLevelByRoot, identityByRoot: this.#identityByRoot, constantsByRoot: this.#constantsByRoot, localCoordByRoot: this.#localCoordByRoot, paletteNumberByRoot: this.#paletteNumberByRoot, systemVariablesByRoot: this.#systemVariablesByRoot, systemFloatVariablesByRoot: this.#systemFloatVariablesByRoot, evaluationHelpers, ...stepContext };
       if (helper.stateDefinitionPending) { const definition = this.#programs.get(helper.stateDataOwnerId)?.states.get(helper.stateNumber); if (!definition) throw new RangeError(`MUGEN Helper pending state ${helper.stateNumber} does not exist for ${helper.stateDataOwnerId}.`); this.#applyHelperStateDefinition(helper, definition, context); this.entities.updateHelper(helper.entityId, { stateGeneration: helper.stateGeneration === 0 ? 1 : helper.stateGeneration, stateDefinitionPending: false }); helper = this.entities.entity(helper.entityId) as MugenHelperEntitySnapshot; }
       let executor = this.#executors.get(helper.entityId); if (!executor) { executor = new MugenStateExecutor({ maxControllerEvaluationsPerTick: this.maxControllerEvaluationsPerFighterTick }); this.#executors.set(helper.entityId, executor); }
       const result = executor.executeTick({
-        snapshot: () => { const current = this.entities.entity(helper.entityId) as MugenHelperEntitySnapshot; return Object.freeze({ entityId: current.entityId, stateNumber: current.stateNumber, stateGeneration: current.stateGeneration, hitPaused: current.hitPauseTicks > 0, paused: this.#helperPaused(current), helper: true, keyControl: current.keyControl, usingOwnStateData: current.stateDataOwnerId === current.rootId }); },
-        state: (number, owner) => { const current = this.entities.entity(helper.entityId) as MugenHelperEntitySnapshot; return this.#programs.get(owner === 'own' ? current.rootId : current.stateDataOwnerId)?.states.get(number) ?? null; },
-        evaluate: expression => evaluateValue(expression, context),
-        execute: (controller, execution) => { executedControllers.push(`${helper.entityId}:${execution.stateNumber}:${execution.controllerIndex}:${controller.type}`); return Object.freeze({ transitioned: this.#executeHelper(controller, context) }); },
+        snapshot: () => Object.freeze({ entityId: helper.entityId, stateNumber: helper.stateNumber, stateGeneration: helper.stateGeneration, hitPaused: helper.hitPauseTicks > 0, paused: this.#helperPaused(helper), helper: true, keyControl: helper.keyControl, usingOwnStateData: helper.stateDataOwnerId === helper.rootId }),
+        state: (number, owner) => this.#programs.get(owner === 'own' ? helper.rootId : helper.stateDataOwnerId)?.states.get(number) ?? null,
+        evaluate: expression => tryEvaluateVariableGate(expression, helper, context) ?? evaluateValue(expression, context),
+        execute: (controller, execution) => { executedControllers.push(`${helper.entityId}:${execution.stateNumber}:${execution.controllerIndex}:${controller.type}`); const transitioned = this.#executeHelper(controller, context); const current = this.entities.entity(helper.entityId); if (current?.kind === 'helper') { helper = current; evaluationHelpers.set(helper.entityId, helper); } else evaluationHelpers.delete(helper.entityId); return Object.freeze({ transitioned }); },
       }, { trace: stepContext.traceTriggers === true });
       triggerTrace.push(...result.trace);
       const current = this.entities.entity(helper.entityId);
@@ -417,12 +436,95 @@ function evaluate(expression: MugenExpression, context: EvaluationContext): unkn
   return value.kind === 'bottom' ? 0 : value.value;
 }
 
+const variableGateCache = new WeakMap<object, boolean>();
+
+/**
+ * Petra's EmanonAI places the same `var(53) / var(54)` gate in front of
+ * hundreds of controllers. Running those tiny, pure gates through the full
+ * redirected-expression host dominated a frame. This restricted interpreter
+ * covers only immutable, variable-only boolean bytecode; everything else
+ * falls through to the authoritative VM.
+ */
+function tryEvaluateVariableGate(expression: MugenExpression, fighter: MugenFighterSnapshot | MugenHelperEntitySnapshot, context: EvaluationContext): MugenExpressionValue | null {
+  if (isRedirectedExpressionProgram(expression)) return null;
+  let eligible = variableGateCache.get(expression);
+  if (eligible === undefined) {
+    eligible = expression.instructions.every(instruction => instruction.op === 'push-int' || instruction.op === 'push-float' || instruction.op === 'push-string' || instruction.op === 'load-reference' || instruction.op === 'load-variable' || instruction.op === 'binary' || instruction.op === 'unary' || instruction.op === 'interval' || instruction.op === 'branch-and' || instruction.op === 'branch-or' || instruction.op === 'truthy' || instruction.op === 'return');
+    if (Object.isFrozen(expression)) variableGateCache.set(expression, eligible);
+  }
+  if (!eligible) return null;
+  const stack: Array<Readonly<{ kind: 'int' | 'float'; value: number } | { kind: 'string'; value: string }>> = []; let pc = 0;
+  while (pc < expression.instructions.length) {
+    const instruction = expression.instructions[pc]!;
+    if (instruction.op === 'push-int' || instruction.op === 'push-float') { stack.push({ kind: instruction.op === 'push-int' ? 'int' : 'float', value: instruction.value }); pc += 1; continue; }
+    if (instruction.op === 'push-string') { stack.push({ kind: 'string', value: instruction.value }); pc += 1; continue; }
+    if (instruction.op === 'load-reference') { const value = simpleReference(instruction.name, fighter, context); if (value === null) return null; stack.push(value); pc += 1; continue; }
+    if (instruction.op === 'load-variable') {
+      const index = stack.pop(); if (index?.kind !== 'int') return null;
+      const variables = instruction.variableType === 'integer' ? fighter.integerVariables : fighter.floatVariables;
+      if (index.value < 0 || index.value >= variables.length) return null;
+      stack.push({ kind: instruction.variableType === 'integer' ? 'int' : 'float', value: variables[index.value]! }); pc += 1; continue;
+    }
+    if (instruction.op === 'binary') {
+      const right = stack.pop(); const left = stack.pop(); if (left === undefined || right === undefined) return null;
+      const comparable = typeof left.value === typeof right.value; const numericPair = typeof left.value === 'number' && typeof right.value === 'number'; const value = instruction.operator === '=' ? comparable && left.value === right.value : instruction.operator === '!=' ? !comparable || left.value !== right.value : !numericPair ? null : instruction.operator === '>' ? left.value > right.value : instruction.operator === '>=' ? left.value >= right.value : instruction.operator === '<' ? left.value < right.value : instruction.operator === '<=' ? left.value <= right.value : null;
+      if (value === null) return null; stack.push({ kind: 'int', value: value ? 1 : 0 }); pc += 1; continue;
+    }
+    if (instruction.op === 'unary') {
+      const operand = stack.pop(); if (operand === undefined || operand.kind === 'string') return null;
+      if (instruction.operator === '!') stack.push({ kind: 'int', value: operand.value === 0 ? 1 : 0 });
+      else if (instruction.operator === '~') { if (operand.kind !== 'int') return null; stack.push({ kind: 'int', value: ~operand.value }); }
+      else stack.push({ kind: operand.kind, value: instruction.operator === '-' ? -operand.value : operand.value });
+      pc += 1; continue;
+    }
+    if (instruction.op === 'interval') {
+      const upper = stack.pop(); const lower = stack.pop(); const value = stack.pop(); if (upper === undefined || lower === undefined || value === undefined || upper.kind === 'string' || lower.kind === 'string' || value.kind === 'string') return null;
+      const inside = (instruction.includeLower ? value.value >= lower.value : value.value > lower.value) && (instruction.includeUpper ? value.value <= upper.value : value.value < upper.value); stack.push({ kind: 'int', value: (instruction.operator === '=' ? inside : !inside) ? 1 : 0 }); pc += 1; continue;
+    }
+    if (instruction.op === 'branch-and' || instruction.op === 'branch-or') {
+      const value = stack[stack.length - 1]; if (value === undefined || value.kind === 'string') return null; const truth = value.value !== 0;
+      if ((instruction.op === 'branch-and' && !truth) || (instruction.op === 'branch-or' && truth)) { stack[stack.length - 1] = { kind: 'int', value: truth ? 1 : 0 }; pc = instruction.target; } else { stack.pop(); pc += 1; }
+      continue;
+    }
+    if (instruction.op === 'truthy') { const value = stack.pop(); if (value === undefined || value.kind === 'string') return null; stack.push({ kind: 'int', value: value.value === 0 ? 0 : 1 }); pc += 1; continue; }
+    if (instruction.op === 'return') { const value = stack.pop(); return value === undefined || stack.length !== 0 ? null : value.kind === 'int' ? mugenInt(Number(value.value)) : value.kind === 'float' ? mugenFloat(Number(value.value)) : mugenString(String(value.value)); }
+    return null;
+  }
+  return null;
+}
+
+function simpleReference(name: string, entity: MugenFighterSnapshot | MugenHelperEntitySnapshot, context: EvaluationContext): Readonly<{ kind: 'int' | 'float'; value: number } | { kind: 'string'; value: string }> | null {
+  const helper = 'kind' in entity && entity.kind === 'helper';
+  switch (name) {
+    case 'ailevel': return { kind: 'int', value: context.aiLevelByRoot.get(helper ? (entity as MugenHelperEntitySnapshot).rootId : (entity as MugenFighterSnapshot).id) ?? 0 };
+    case 'alive': return { kind: 'int', value: entity.life > 0 ? 1 : 0 };
+    case 'anim': return { kind: 'int', value: entity.actionNumber };
+    case 'ctrl': return { kind: 'int', value: entity.control ? 1 : 0 };
+    case 'facing': return { kind: 'int', value: entity.facing };
+    case 'ishelper': return { kind: 'int', value: helper ? 1 : 0 };
+    case 'movetype': return { kind: 'string', value: entity.moveType };
+    case 'pos.x': return { kind: 'float', value: entity.position[0] };
+    case 'pos.y': return { kind: 'float', value: entity.position[1] };
+    case 'prevstateno': return { kind: 'int', value: entity.previousStateNumber };
+    case 'roundstate': return { kind: 'int', value: context.match.phase === 'fight' ? 2 : context.match.phase === 'ready' ? 1 : 3 };
+    case 'stateno': return { kind: 'int', value: entity.stateNumber };
+    case 'statetype': return { kind: 'string', value: entity.stateType };
+    case 'time': case 'statetime': return { kind: 'int', value: entity.stateTime };
+    case 'vel.x': return { kind: 'float', value: entity.velocity[0] * entity.facing };
+    case 'vel.y': return { kind: 'float', value: entity.velocity[1] };
+    default: return null;
+  }
+}
+
 function evaluateValue(expression: MugenExpression, context: EvaluationContext): MugenExpressionValue {
-  const entries = new Map<string, { before: MugenFighterSnapshot | MugenHelperEntitySnapshot; helper: boolean; integer: Int32Array; float: Float32Array; context: MugenExpressionVmContext }>();
+  const writesVariables = mugenRuntimeExpressionWritesVariables(expression);
+  const evaluationFighters = new Map<string, MugenFighterSnapshot>();
+  const entries = new Map<string, { before: MugenFighterSnapshot | MugenHelperEntitySnapshot; helper: boolean; integer: Int32Array | readonly number[]; float: Float32Array | readonly number[]; context: MugenExpressionVmContext }>();
   const contextFor = (fighterId: string): MugenExpressionVmContext | null => {
     const existing = entries.get(fighterId); if (existing) return existing.context;
-    let before: MugenFighterSnapshot | MugenHelperEntitySnapshot; let helper = false; try { before = context.match.fighter(fighterId); } catch { const entity = context.entities.entity(fighterId); if (entity?.kind !== 'helper') return null; before = entity; helper = true; }
-    const integer = Int32Array.from(before.integerVariables); const float = Float32Array.from(before.floatVariables); const entityContext: EvaluationContext = { ...context, fighterId, commands: fighterId === context.fighterId ? context.commands : new Set<string>() };
+    let before: MugenFighterSnapshot | MugenHelperEntitySnapshot; let helper = false; const cachedFighter = context.evaluationFighters?.get(fighterId); const cachedHelper = context.evaluationHelpers?.get(fighterId); if (cachedFighter !== undefined) before = cachedFighter; else if (cachedHelper !== undefined) { before = cachedHelper; helper = true; } else try { before = context.match.fighter(fighterId); } catch { const entity = context.entities.entity(fighterId); if (entity?.kind !== 'helper') return null; before = entity; helper = true; }
+    if (!helper) evaluationFighters.set(fighterId, before as MugenFighterSnapshot);
+    const integer = writesVariables ? Int32Array.from(before.integerVariables) : before.integerVariables; const float = writesVariables ? Float32Array.from(before.floatVariables) : before.floatVariables; const entityContext: EvaluationContext = { ...context, fighterId, commands: fighterId === context.fighterId ? context.commands : EMPTY_COMMANDS, evaluationFighters };
     const vmContext: MugenExpressionVmContext = { variables: Object.freeze({ integer, float }), random: Object.freeze({ nextMugenRandom: () => context.match.nextRandomUint32() % 1000 }), resolve: name => referenceValue(name, entityContext), call: (name, arguments_) => callValue(name, arguments_, entityContext) };
     entries.set(fighterId, { before, helper, integer, float, context: vmContext }); return vmContext;
   };
@@ -440,7 +542,7 @@ function evaluateValue(expression: MugenExpression, context: EvaluationContext):
     },
   };
   const value = evaluateMugenRuntimeExpression(expression, context.fighterId, host).value;
-  for (const [fighterId, entry] of entries) {
+  if (writesVariables) for (const [fighterId, entry] of entries) {
     for (let index = 0; index < entry.integer.length; index++) if (entry.integer[index] !== entry.before.integerVariables[index]) { if (entry.helper) context.entities.setHelperVariable(fighterId, 'integer', index, entry.integer[index]!); else commit(context.match, { kind: 'integer-variable', fighterId, operation: 'set', index, value: entry.integer[index]! }); }
     for (let index = 0; index < entry.float.length; index++) if (entry.float[index] !== entry.before.floatVariables[index]) { if (entry.helper) context.entities.setHelperVariable(fighterId, 'float', index, entry.float[index]!); else commit(context.match, { kind: 'float-variable', fighterId, operation: 'set', index, value: entry.float[index]! }); }
   }
@@ -448,12 +550,12 @@ function evaluateValue(expression: MugenExpression, context: EvaluationContext):
 }
 
 function referenceValue(name: string, context: EvaluationContext): MugenExpressionValue {
-  const helper = context.entities.entity(context.fighterId); if (helper?.kind === 'helper') return helperReferenceValue(name, helper, context);
-  const fighter = context.match.fighter(context.fighterId);
+  const helper = context.evaluationHelpers?.get(context.fighterId) ?? context.entities.entity(context.fighterId); if (helper?.kind === 'helper') return helperReferenceValue(name, helper, context);
+  const fighter = context.evaluationFighters?.get(context.fighterId) ?? context.match.fighter(context.fighterId);
   const entity = context.entities.entity(context.fighterId);
   const animation = context.animationByFighter?.get(fighter.id);
   const opponentId = context.opponentByFighter?.get(fighter.id) ?? context.matchSnapshot.fighters.find(value => value.id !== fighter.id)?.id;
-  const opponent = opponentId === undefined ? null : context.match.fighter(opponentId);
+  const opponent = opponentId === undefined ? null : context.evaluationFighters?.get(opponentId) ?? context.match.fighter(opponentId);
   const identity = context.identityByRoot.get(fighter.id); const opponentIdentity = opponent === null ? undefined : context.identityByRoot.get(opponent.id); const geometry = screenGeometry(context, fighter.id); const edges = edgeDistances(fighter.position[0], fighter.facing, fighter.widthOverride.edge, [geometry.left, geometry.right]); const snapshot = context.matchSnapshot;
   if (name === 'canrecover') return mugenInt(fighter.hitFall && fighter.hitFallRecover && fighter.hitElapsedTicks >= fighter.hitFallRecoverTime ? 1 : 0);
   if (name === 'hitfall') return mugenInt(fighter.hitFall ? 1 : 0);
@@ -514,7 +616,7 @@ function referenceValue(name: string, context: EvaluationContext): MugenExpressi
 
 function callValue(name: string, arguments_: readonly MugenExpressionValue[], context: EvaluationContext): MugenExpressionValue {
   if (name === 'command' && arguments_.length === 1 && arguments_[0]?.kind === 'string') return mugenInt(context.commands.has(arguments_[0].value.toLowerCase()) ? 1 : 0);
-  const playerEntity = context.entities.entity(context.fighterId); const rootId = playerEntity?.rootId ?? context.fighterId;
+  const playerEntity = context.evaluationHelpers?.get(context.fighterId) ?? context.entities.entity(context.fighterId); const rootId = playerEntity?.rootId ?? context.fighterId;
   if (name === 'const' && arguments_.length === 1 && arguments_[0]?.kind === 'string') { const key = arguments_[0].value.toLowerCase(); const value = playerEntity?.kind === 'helper' ? playerEntity.constantOverrides[key] ?? context.constantsByRoot.get(rootId)?.[key] : context.constantsByRoot.get(rootId)?.[key]; return value === undefined ? mugenBottom(`unknown MUGEN character constant ${arguments_[0].value}`) : mugenFloat(value); }
   if ((name === 'const240p' || name === 'const480p' || name === 'const720p') && arguments_.length === 1 && (arguments_[0]?.kind === 'int' || arguments_[0]?.kind === 'float')) { const baseline = name === 'const240p' ? 240 : name === 'const480p' ? 480 : 720; const height = context.localCoordByRoot.get(rootId)?.[1] ?? 240; return mugenFloat(arguments_[0].value * height / baseline); }
   if (name === 'stagevar' && arguments_.length === 1 && arguments_[0]?.kind === 'string') return stageVariable(context, arguments_[0].value);
@@ -523,7 +625,7 @@ function callValue(name: string, arguments_: readonly MugenExpressionValue[], co
   if (name === 'animelem' && arguments_.length === 1 && arguments_[0]?.kind === 'int') { const animation = context.animationByFighter?.get(context.fighterId); return mugenInt(animation !== undefined && animation.snapshot.frameIndex + 1 === arguments_[0].value && animation.snapshot.frameTick === 0 ? 1 : 0); }
   if (name === 'animelemtime' && arguments_.length === 1 && arguments_[0]?.kind === 'int') { const value = animationElementTime(context, arguments_[0].value); return value === null ? mugenBottom('MUGEN AnimElemTime element does not exist') : mugenInt(value); }
   if (name === 'animelemno' && arguments_.length === 1 && arguments_[0]?.kind === 'int') { const value = animationElementNumber(context.animationByFighter?.get(context.fighterId), arguments_[0].value); return value === null ? mugenBottom('MUGEN AnimElemNo time precedes the action') : mugenInt(value); }
-  const fighter = context.match.fighter(context.fighterId);
+  const fighter = context.evaluationFighters?.get(context.fighterId) ?? context.match.fighter(context.fighterId);
   const integerArgument = arguments_.length === 1 && arguments_[0]?.kind === 'int' ? arguments_[0].value : null;
   if (name === 'ishelper' && integerArgument !== null) return mugenInt(0);
   if (name === 'sysvar' && integerArgument !== null) return systemVariable(context, fighter.id, integerArgument);
@@ -795,6 +897,8 @@ function optionalNumber(expression: MugenExpression | undefined, context: Evalua
 function truthy(value: unknown): boolean { if (typeof value === 'boolean') return value; if (typeof value === 'number') return value !== 0; throw new TypeError('MUGEN trigger result must be boolean or numeric.'); }
 function finiteFloat(value: number, label: string): number { if (!Number.isFinite(value) || Math.abs(value) > 1_000_000_000_000) throw new RangeError(`MUGEN ${label} exceeds the finite float budget.`); const result = Math.fround(value); return Object.is(result, -0) ? 0 : result; }
 function finitePositiveFloat(value: number, label: string): number { const result = finiteFloat(value, label); if (result <= 0) throw new RangeError(`MUGEN ${label} must be positive.`); return result; }
+function sha256(value: string, label: string): string { if (!/^[a-f0-9]{64}$/u.test(value)) throw new TypeError(`MUGEN ${label} must be a lowercase SHA-256 digest.`); return value; }
+function scriptStructureHash(commands: MugenCommandProgram, states: MugenStateProgram): string { let byCommands = scriptStructureHashes.get(states); if (byCommands === undefined) { byCommands = new WeakMap<object, string>(); scriptStructureHashes.set(states, byCommands); } const cached = byCommands.get(commands); if (cached !== undefined) return cached; const hash = hashSimulationState({ commands, states } as unknown as SimulationStateValue); if (Object.isFrozen(states) && Object.isFrozen(commands)) byCommands.set(commands, hash); return hash; }
 function friction(value: number, label: string): number { const result = finiteFloat(value, label); if (result < 0 || result > 1) throw new RangeError(`MUGEN ${label} must be from 0 to 1.`); return result; }
 function applyPhysics(match: MugenHeadlessMatch, fighter: MugenFighterSnapshot, program: Readonly<{ gravity: number; standFriction: number; crouchFriction: number }>): void { if (fighter.physics === 'A') commit(match, { kind: 'kinematics', fighterId: fighter.id, velocity: [fighter.velocity[0], fighter.velocity[1] + program.gravity] }); else if (fighter.physics === 'S' || fighter.physics === 'C') { const coefficient = fighter.physics === 'S' ? program.standFriction : program.crouchFriction; const x = Math.abs(fighter.velocity[0] * coefficient) < 0.01 ? 0 : fighter.velocity[0] * coefficient; commit(match, { kind: 'kinematics', fighterId: fighter.id, velocity: [x, fighter.velocity[1]] }); } }
 function applyHelperPhysics(entities: MugenEntityAuthority, helper: MugenHelperEntitySnapshot, program: Readonly<{ gravity: number; standFriction: number; crouchFriction: number }>): void { if (helper.physics === 'A') entities.updateHelper(helper.entityId, { velocity: [helper.velocity[0], helper.velocity[1] + program.gravity] }); else if (helper.physics === 'S' || helper.physics === 'C') { const coefficient = helper.physics === 'S' ? program.standFriction : program.crouchFriction; const x = Math.abs(helper.velocity[0] * coefficient) < 0.01 ? 0 : helper.velocity[0] * coefficient; entities.updateHelper(helper.entityId, { velocity: [x, helper.velocity[1]] }); } }
