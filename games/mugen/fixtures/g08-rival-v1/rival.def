@@ -1,0 +1,14 @@
+[Info]
+name = "Haiyue Rival"
+displayname = "Haiyue Rival"
+author = "Haiyue Engine contributors"
+mugenversion = 1.1
+localcoord = 320,180
+
+[Files]
+cmd = rival.cmd
+cns = rival.cns
+sprite = rival.sff
+anim = rival.air
+sound = rival.snd
+pal1 = rival.act

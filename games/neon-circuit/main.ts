@@ -1,4 +1,5 @@
 import {
+  BasicMaterial,
   Camera3D,
   CartesianTransform3D,
   DirectionalLight,
@@ -8,12 +9,14 @@ import {
   SphericalTransform3D,
   World,
   createBox3D,
+  createPlane3D,
 } from '@haiyue/engine';
 import { ParticleEmitter3D } from '@haiyue/engine/components';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { createPathExtrusion3D, createRoundedBox3D, type Geometry3D, type PathExtrusionPoint } from '@haiyue/engine/geometry';
+import { createPathExtrusion3D, type Geometry3D, type PathExtrusionPoint } from '@haiyue/engine/geometry';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
+import { GltfModelComponent, GltfModelSystem } from '@haiyue/extensions/gltf';
 import {
   Particle3DRenderSystem,
   Particle3DSystem,
@@ -21,6 +24,8 @@ import {
 } from '@haiyue/engine/systems';
 import { SingleSlotGameSave, isRecord } from '../save/SingleSlotGameSave';
 import {
+  BOOST_DURATION_SECONDS,
+  BOOST_MAX_SPEED,
   BOOST_PAD_HALF_WIDTH,
   BOOST_ZONE_HALF_LENGTH,
   BOOST_ZONES,
@@ -35,6 +40,7 @@ import {
   type RaceState,
   type RaceTrack,
 } from './RaceRules';
+import { ThrusterFlameTexture } from './ThrusterFlameTexture';
 
 type Color = readonly [number, number, number, number];
 type Phase = 'countdown' | 'racing' | 'paused' | 'finished';
@@ -81,17 +87,16 @@ const COLORS = {
   boost: [0.08, 0.95, 1, 1] as Color,
   marker: [0.48, 0.65, 0.78, 1] as Color,
   ground: [0.016, 0.024, 0.048, 1] as Color,
-  hull: [0.075, 0.12, 0.20, 1] as Color,
-  hullLight: [0.12, 0.72, 0.98, 1] as Color,
-  canopy: [0.28, 0.08, 0.46, 1] as Color,
   magenta: [0.95, 0.08, 0.58, 1] as Color,
   white: [0.88, 0.95, 1, 1] as Color,
 } as const;
 
-const CAR_SCALE = 0.78;
+const RACER_MODEL_SCALE = 0.078;
+const THRUSTER_OFFSET_X = 5.6;
+const THRUSTER_OFFSET_Z = -20.8;
 
 class NeonCircuitGame {
-  private readonly track: RaceTrack = createRaceTrack(264);
+  private readonly track: RaceTrack = createRaceTrack(520);
   private readonly saves = new SingleSlotGameSave<RacerSaveData>({
     gameId: 'neon-circuit',
     name: 'Neon Circuit 最佳成绩',
@@ -100,6 +105,7 @@ class NeonCircuitGame {
   private engine!: HaiyueEngine;
   private world!: World;
   private camera!: SphericalTransform3D;
+  private cameraComponent!: Camera3D;
   private readonly keys = new Set<string>();
   private readonly carParts: CarPart[] = [];
   private readonly materials = new Map<string, BlinnPhongMaterial>();
@@ -117,6 +123,8 @@ class NeonCircuitGame {
   private thrusterRight!: CartesianTransform3D;
   private thrusterEmitterLeft!: ParticleEmitter3D;
   private thrusterEmitterRight!: ParticleEmitter3D;
+  private thrusterFlame!: ThrusterFlameTexture;
+  private racerModel!: GltfModelComponent;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new HaiyueEngine({
@@ -145,7 +153,10 @@ class NeonCircuitGame {
       setState: next => { this.state = { ...this.state, ...next }; },
     };
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
-    window.addEventListener('pagehide', () => this.engine.destroy(), { once: true });
+    window.addEventListener('pagehide', () => {
+      this.thrusterFlame.destroy();
+      this.engine.destroy();
+    }, { once: true });
     this.engine.run();
   }
 
@@ -153,9 +164,10 @@ class NeonCircuitGame {
     const start = racePose(this.track, this.state);
     this.cameraHeading = start.heading;
     const cameraEntity = new Entity('Chase camera');
-    cameraEntity.addComponent(new Camera3D({ type: 'perspective', fov: Math.PI / 3.55, near: 1, far: 3200 }));
+    this.cameraComponent = new Camera3D({ type: 'perspective', fov: Math.PI / 3.55, near: 1, far: 9_500 });
+    cameraEntity.addComponent(this.cameraComponent);
     this.camera = new SphericalTransform3D({
-      radius: 118,
+      radius: 106,
       theta: start.heading + Math.PI,
       phi: 1.18,
       target: [start.x, start.y + 12, start.z],
@@ -163,13 +175,14 @@ class NeonCircuitGame {
     cameraEntity.addComponent(this.camera);
     this.world.addEntity(cameraEntity);
 
+    this.world.addSystem(new GltfModelSystem({ priority: -20, loadTimeoutMs: 20_000 }));
     const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4 });
     this.world.addSystem(render3D);
     this.world.addSystem(new Particle3DSystem({ maxDeltaSeconds: 0.06, priority: -10 }));
     this.world.addSystem(new Particle3DRenderSystem(this.engine, cameraEntity, { priority: 20, loadOp: 'load' }));
     const integration = new RenderIntegration(this.engine, { label: 'NeonCircuit.render' });
     this.world.addRuntimeIntegration(integration);
-    integration.registerAll(this.world, () => ({ pass: 'shared' }));
+    integration.registerAll(this.world);
   }
 
   private setupLighting(): void {
@@ -185,17 +198,17 @@ class NeonCircuitGame {
   }
 
   private buildEnvironment(): void {
-    this.addBox('Void floor', 0, -24, 0, 4_400, 12, 4_400, COLORS.ground, 5);
+    this.addBox('Void floor', 0, -24, 0, 9_200, 12, 9_200, COLORS.ground, 5);
     let randomState = 0x91e10da5;
     const random = (): number => {
       randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
       return randomState / 0x1_0000_0000;
     };
-    for (let index = 0; index < 56; index++) {
-      const angle = index / 56 * Math.PI * 2 + (random() - 0.5) * 0.08;
-      const radius = 1_720 + random() * 580;
-      const height = 55 + random() * 210;
-      const width = 35 + random() * 65;
+    for (let index = 0; index < 88; index++) {
+      const angle = index / 88 * Math.PI * 2 + (random() - 0.5) * 0.06;
+      const radius = 3_650 + random() * 720;
+      const height = 70 + random() * 280;
+      const width = 38 + random() * 78;
       const x = Math.sin(angle) * radius;
       const z = Math.cos(angle) * radius;
       this.addBox(`Skyline-${index}`, x, height * 0.5 - 18, z, width, height, width, index % 4 === 0 ? [0.12, 0.055, 0.18, 1] : [0.025, 0.055, 0.095, 1], 12);
@@ -235,6 +248,34 @@ class NeonCircuitGame {
         closedShape: false,
         uvScale: [0.02, 1],
       }), COLORS.marker, 58);
+    }
+
+    for (let distance = 220; distance < this.track.length; distance += 360) {
+      const ribPath = [-2.2, 2.2].map(offset => this.extrusionPoint(distance + offset, 0, 0.48));
+      this.addGeometry(`Velocity rib ${Math.round(distance)}`, createPathExtrusion3D({
+        path: ribPath,
+        shape: [[-ROAD_HALF_WIDTH * 0.88, 0], [ROAD_HALF_WIDTH * 0.88, 0]],
+        closedShape: false,
+        uvScale: [0.08, 0.03],
+      }), Math.floor(distance / 360) % 5 === 0 ? COLORS.magenta : COLORS.marker, 88);
+    }
+
+    for (let distance = 520; distance < this.track.length; distance += 840) {
+      const sample = sampleTrack(this.track, distance);
+      const right = bankedRight(sample.heading, sample.pitch, sample.bank);
+      const up = bankedUp(sample.heading, sample.pitch, sample.bank);
+      for (const side of [-1, 1]) {
+        const x = sample.x + right[0] * side * (ROAD_HALF_WIDTH + 12) + up[0] * 18;
+        const y = sample.y + right[1] * side * (ROAD_HALF_WIDTH + 12) + up[1] * 18;
+        const z = sample.z + right[2] * side * (ROAD_HALF_WIDTH + 12) + up[2] * 18;
+        this.addBox(
+          `Velocity beacon ${Math.round(distance)} ${side}`,
+          x, y, z, 5, 36, 5,
+          Math.floor(distance / 840) % 2 === 0 ? COLORS.rail : COLORS.magenta,
+          100,
+          [-sample.pitch, sample.heading, sample.bank],
+        );
+      }
     }
 
     BOOST_ZONES.forEach((center, index) => {
@@ -282,19 +323,54 @@ class NeonCircuitGame {
   }
 
   private buildHoverCar(): void {
-    this.addCarPart('Main hull', [0, 6, 0], [0, 0, 0], 27, 7, 43, 7, COLORS.hull, 78);
-    this.addCarPart('Nose', [0, 5, 22], [-0.08, 0, 0], 13, 5, 28, 5, COLORS.hullLight, 100);
-    this.addCarPart('Canopy', [0, 11, 2], [0, 0, 0], 13, 7, 19, 5, COLORS.canopy, 108);
-    this.addCarPart('Left wing', [-18, 4, -2], [0, 0, -0.08], 22, 3.5, 31, 3, COLORS.hull, 60);
-    this.addCarPart('Right wing', [18, 4, -2], [0, 0, 0.08], 22, 3.5, 31, 3, COLORS.hull, 60);
-    this.addCarPart('Left edge', [-24, 4, -3], [0, 0, 0], 3, 2.5, 29, 1, COLORS.magenta, 110);
-    this.addCarPart('Right edge', [24, 4, -3], [0, 0, 0], 3, 2.5, 29, 1, COLORS.magenta, 110);
-    this.addCarPart('Tail glow', [0, 5, -21], [0, 0, 0], 15, 3.5, 4, 1, COLORS.boost, 120);
+    const racerTransform = new CartesianTransform3D({
+      scale: [RACER_MODEL_SCALE, RACER_MODEL_SCALE, RACER_MODEL_SCALE],
+      anchor: [0, 60 * RACER_MODEL_SCALE, 0],
+    });
+    const racerEntity = new Entity('Wraith Raider racer');
+    this.racerModel = new GltfModelComponent({
+      src: './assets/wraith-raider.glb',
+      autoLoad: true,
+      clearPrevious: true,
+      baseColorFactor: [1, 1, 1, 1],
+    });
+    racerEntity.addComponent(racerTransform);
+    racerEntity.addComponent(this.racerModel);
+    this.world.addEntity(racerEntity);
+    this.carParts.push({ transform: racerTransform, offset: [0, 4.5, 0], localRotation: [0, 0, 0] });
 
-    const left = this.createThruster('Left thruster', -9);
+    this.thrusterFlame = new ThrusterFlameTexture(this.engine.device);
+    const flameGeometry = createPlane3D({ width: 8.5, height: 42, normal: 'y' });
+    const flameMaterial = new BasicMaterial({
+      color: [1, 1, 1, 1],
+      texture: this.thrusterFlame.texture,
+      blending: 'additive',
+      depthWrite: false,
+      cullMode: 'none',
+      sampler: {
+        magFilter: 'linear',
+        minFilter: 'linear',
+        addressModeU: 'clamp-to-edge',
+        addressModeV: 'clamp-to-edge',
+      },
+    });
+    for (const [index, offsetX] of [-THRUSTER_OFFSET_X, THRUSTER_OFFSET_X].entries()) {
+      const flameTransform = new CartesianTransform3D();
+      const flameEntity = new Entity(`Thruster flame ${index + 1}`);
+      flameEntity.addComponent(flameTransform);
+      flameEntity.addComponent(new Mesh3D(flameGeometry, flameMaterial));
+      this.world.addEntity(flameEntity);
+      this.carParts.push({
+        transform: flameTransform,
+        offset: [offsetX, 3.9, THRUSTER_OFFSET_Z - 21],
+        localRotation: [0, 0, 0],
+      });
+    }
+
+    const left = this.createThruster('Left thruster', -THRUSTER_OFFSET_X);
     this.thrusterLeft = left.transform;
     this.thrusterEmitterLeft = left.emitter;
-    const right = this.createThruster('Right thruster', 9);
+    const right = this.createThruster('Right thruster', THRUSTER_OFFSET_X);
     this.thrusterRight = right.transform;
     this.thrusterEmitterRight = right.emitter;
   }
@@ -308,12 +384,12 @@ class NeonCircuitGame {
       loop: true,
       seed: offsetX < 0 ? 1031 : 2063,
       lifetime: [0.18, 0.48],
-      speed: [10, 38],
+      speed: [28, 92],
       direction: [0, 0.15, 1],
       spread: 0.35,
       gravity: [0, 12, 0],
-      startSize: [3.5, 7],
-      endSize: [0.4, 2],
+      startSize: [2.8, 5.2],
+      endSize: [0.3, 1.2],
       startColor: [0.35, 0.95, 1, 0.95],
       endColor: [0.95, 0.05, 0.62, 0],
       blendMode: 'additive',
@@ -397,35 +473,48 @@ class NeonCircuitGame {
         .setPosition(pose.x + localX * cos + localZ * sin, pose.y + localY + hover, pose.z - localX * sin + localZ * cos)
         .setRotation(this.visualPitch + part.localRotation[0], pose.heading + part.localRotation[1], pose.bank + this.visualBank + part.localRotation[2]);
     }
-    for (const [transform, offsetX] of [[this.thrusterLeft, -9 * CAR_SCALE], [this.thrusterRight, 9 * CAR_SCALE]] as const) {
-      transform.setPosition(
-        pose.x + offsetX * cos - 20 * CAR_SCALE * sin,
-        pose.y + 5 * CAR_SCALE + hover,
-        pose.z - offsetX * sin - 20 * CAR_SCALE * cos,
-      );
+    for (const [transform, offsetX] of [[this.thrusterLeft, -THRUSTER_OFFSET_X], [this.thrusterRight, THRUSTER_OFFSET_X]] as const) {
+      transform
+        .setPosition(
+          pose.x + offsetX * cos + THRUSTER_OFFSET_Z * sin,
+          pose.y + 4.8 + hover,
+          pose.z - offsetX * sin + THRUSTER_OFFSET_Z * cos,
+        )
+        .setRotation(this.visualPitch, pose.heading, pose.bank + this.visualBank);
     }
-    const trailRate = this.phase === 'racing' ? 24 + this.state.speed * 0.13 + (this.state.boostRemaining > 0 ? 52 : 0) : 8;
+    const speedRatio = Math.min(1, this.state.speed / BOOST_MAX_SPEED);
+    const boostStrength = Math.min(1, this.state.boostRemaining / BOOST_DURATION_SECONDS);
+    const trailRate = this.phase === 'racing' ? 28 + this.state.speed * 0.16 + boostStrength * 88 : 8;
     this.thrusterEmitterLeft.emissionRate = trailRate;
     this.thrusterEmitterRight.emissionRate = trailRate;
+    this.thrusterFlame.update(timeMs * 0.001, speedRatio, boostStrength);
 
-    const headingResponse = 1 - Math.exp(-seconds * 5.5);
+    const headingResponse = 1 - Math.exp(-seconds * (4.6 + speedRatio * 2.8));
     this.cameraHeading = lerpAngle(this.cameraHeading, pose.heading, headingResponse);
     this.camera.theta = this.cameraHeading + Math.PI;
-    this.camera.radius = 112 + Math.min(26, this.state.speed * 0.075);
-    this.camera.setTarget(pose.x, pose.y + 13, pose.z);
+    this.camera.radius = 106 - speedRatio * 15 + boostStrength * 3;
+    this.cameraComponent.fov = 0.88 + speedRatio * 0.28 + boostStrength * 0.10;
+    const lookAhead = 12 + speedRatio * 44;
+    const forwardHorizontal = Math.cos(pose.pitch);
+    this.camera.setTarget(
+      pose.x + Math.sin(pose.heading) * forwardHorizontal * lookAhead,
+      pose.y + 11 + Math.sin(pose.pitch) * lookAhead,
+      pose.z + Math.cos(pose.heading) * forwardHorizontal * lookAhead,
+    );
   }
 
   private updateHud(): void {
     query<HTMLElement>('#speed').textContent = String(Math.round(this.state.speed * 1.45)).padStart(3, '0');
     query<HTMLElement>('#lap').textContent = `${Math.min(this.state.lap, TOTAL_LAPS)} / ${TOTAL_LAPS}`;
     query<HTMLElement>('#timer').textContent = formatTime(this.state.elapsed);
-    query<HTMLElement>('#boost-fill').style.width = `${Math.min(100, this.state.boostRemaining / 1.15 * 100)}%`;
+    query<HTMLElement>('#boost-fill').style.width = `${Math.min(100, this.state.boostRemaining / BOOST_DURATION_SECONDS * 100)}%`;
     query<HTMLElement>('#boost-label').textContent = this.state.boostRemaining > 0 ? 'BOOST ACTIVE' : 'SEEK CYAN PAD';
     document.body.dataset.phase = this.phase;
     document.body.dataset.renderStatus ??= 'pending';
     document.body.dataset.speed = this.state.speed.toFixed(2);
     document.body.dataset.lap = String(this.state.lap);
     document.body.dataset.boost = this.state.boostRemaining.toFixed(2);
+    document.body.dataset.modelStatus = this.racerModel.status;
     if (this.phase === 'countdown') {
       const value = this.countdown <= 0.45 ? 'GO' : String(Math.max(1, Math.ceil(this.countdown - 0.4)));
       const announcement = query<HTMLElement>('#announcement');
@@ -501,36 +590,6 @@ class NeonCircuitGame {
     if (scopedError) this.validationErrors.push(scopedError.message);
     document.body.dataset.renderStatus = this.validationErrors.length === 0 ? 'passed' : 'failed';
     query<HTMLElement>('#result').textContent = JSON.stringify({ status: document.body.dataset.renderStatus, errors: this.validationErrors, ...this.snapshot() });
-  }
-
-  private addCarPart(
-    name: string,
-    offset: readonly [number, number, number],
-    localRotation: readonly [number, number, number],
-    width: number,
-    height: number,
-    depth: number,
-    radius: number,
-    color: Color,
-    shininess: number,
-  ): void {
-    const scaledOffset: readonly [number, number, number] = [
-      offset[0] * CAR_SCALE,
-      offset[1] * CAR_SCALE,
-      offset[2] * CAR_SCALE,
-    ];
-    const transform = new CartesianTransform3D();
-    const entity = new Entity(name);
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createRoundedBox3D({
-      width: width * CAR_SCALE,
-      height: height * CAR_SCALE,
-      depth: depth * CAR_SCALE,
-      radius: radius * CAR_SCALE,
-      segments: 3,
-    }), this.material(color, shininess)));
-    this.world.addEntity(entity);
-    this.carParts.push({ transform, offset: scaledOffset, localRotation });
   }
 
   private addBox(

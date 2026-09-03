@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07090f">
+  <title>MUGEN 角色动画查看器 · Haiyue</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body data-render-status="starting">
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">HY</span>
+        <div><p>HAIYUE LAB</p><h1>MUGEN 角色动画查看器</h1></div>
+      </div>
+      <div class="import-actions">
+        <a class="button secondary" href="./index.html">进入格斗游戏</a>
+        <input id="directory-input" type="file" webkitdirectory multiple hidden>
+        <button id="file-button" class="button secondary" type="button">选择角色目录</button>
+        <button id="picker-button" class="button primary" type="button">打开目录</button>
+        <button id="cancel-import" class="button danger" type="button" hidden>取消导入</button>
+      </div>
+    </header>
+
+    <section id="entry-choice" class="entry-choice" hidden>
+      <div><strong>发现多个 DEF 入口</strong><span>请选择要查看的角色定义。</span></div>
+      <hy-select id="entry-select" aria-label="角色 DEF 入口"></hy-select>
+      <button id="entry-import" class="button primary" type="button">导入所选入口</button>
+    </section>
+
+    <div class="workspace">
+      <aside class="sidebar left-panel">
+        <section class="panel summary-panel">
+          <div class="panel-heading"><span>CHARACTER</span><small id="import-state">等待选择目录</small></div>
+          <h2 id="character-name">尚未载入角色</h2>
+          <p id="character-meta" class="muted">本地素材不会上传或自动保存。</p>
+          <dl class="summary-grid">
+            <div><dt>ACTIONS</dt><dd id="summary-actions">—</dd></div>
+            <div><dt>SPRITES</dt><dd id="summary-sprites">—</dd></div>
+            <div><dt>USED</dt><dd id="summary-used">—</dd></div>
+            <div><dt>PALETTES</dt><dd id="summary-palettes">—</dd></div>
+          </dl>
+          <div id="import-progress" class="progress" hidden><span></span></div>
+        </section>
+
+        <section class="panel catalog-panel">
+          <div class="panel-heading"><span>ACTION CATALOG</span><small id="catalog-count">0</small></div>
+          <div class="catalog-tools">
+            <input id="action-search" type="search" placeholder="搜索编号或标准名称" aria-label="搜索动作">
+            <hy-select id="action-filter" aria-label="筛选动作"></hy-select>
+          </div>
+          <hy-virtual-list id="action-list" class="action-list" item-height="58" overscan="4" aria-label="AIR 动作列表">
+            <div class="empty-list" slot="empty">载入角色后显示 AIR actions</div>
+          </hy-virtual-list>
+        </section>
+      </aside>
+
+      <section class="viewer-column">
+        <div id="viewer-stage" class="viewer-stage" data-background="checker">
+          <canvas id="viewer-canvas" aria-label="MUGEN 动画 WebGPU 预览"></canvas>
+          <canvas id="debug-canvas" aria-hidden="true"></canvas>
+          <div id="drop-hint" class="drop-hint">
+            <div class="drop-icon">＋</div>
+            <strong>选择一个 MUGEN 角色目录</strong>
+            <span>解析 DEF、SFF / ACT 与 AIR，在本机逐帧查看动作</span>
+          </div>
+          <div class="viewport-badges">
+            <span id="frame-badge">ACTION — · ELEMENT — · TICK —</span>
+            <span id="gpu-badge">WEBGPU INIT</span>
+          </div>
+        </div>
+
+        <section class="transport panel">
+          <div class="transport-buttons">
+            <button id="go-first" type="button" title="首帧">|◀</button>
+            <button id="previous-element" type="button" title="上一 element">◀◀</button>
+            <button id="previous-tick" type="button" title="上一 tick">◀</button>
+            <button id="play-toggle" class="play" type="button">暂停</button>
+            <button id="next-tick" type="button" title="下一 tick">▶</button>
+            <button id="next-element" type="button" title="下一 element">▶▶</button>
+            <button id="go-last" type="button" title="末帧">▶|</button>
+          </div>
+          <div class="timeline-row">
+            <span id="tick-value">0</span>
+            <hy-range id="timeline" min="0" max="1" step="1" value="0" aria-label="动作时间轴"></hy-range>
+            <span id="tick-limit">1 tick</span>
+          </div>
+          <div class="transport-options">
+            <hy-checkbox id="loop-toggle" checked label="循环"></hy-checkbox>
+            <label class="compact-field">速度 <hy-select id="speed-select" aria-label="播放速度"></hy-select></label>
+            <label class="volume-field">音量 <hy-range id="volume-control" min="0" max="100" step="5" value="80" aria-label="预览音量"></hy-range><span id="volume-value">80%</span></label>
+            <span id="audio-status" class="audio-status">未关联音频</span>
+            <button id="reset-view" type="button">重置视图</button>
+            <span id="zoom-value">200%</span>
+          </div>
+        </section>
+      </section>
+
+      <aside class="sidebar right-panel">
+        <section class="panel inspector-panel">
+          <div class="panel-heading"><span>FRAME INSPECTOR</span><small id="action-label">—</small></div>
+          <dl id="frame-details" class="details-list">
+            <div><dt>Sprite</dt><dd>—</dd></div>
+            <div><dt>Duration</dt><dd>—</dd></div>
+            <div><dt>Transform</dt><dd>—</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel view-panel">
+          <div class="panel-heading"><span>VIEW</span></div>
+          <label class="field">Palette<hy-select id="palette-select" aria-label="调色板"></hy-select></label>
+          <label class="field">Background<hy-select id="background-select" aria-label="预览背景"></hy-select></label>
+          <div class="debug-grid">
+            <hy-checkbox id="debug-origin" checked label="Origin"></hy-checkbox>
+            <hy-checkbox id="debug-axis" checked label="Axis"></hy-checkbox>
+            <hy-checkbox id="debug-bounds" label="Sprite bounds"></hy-checkbox>
+            <hy-checkbox id="debug-clsn1" checked label="Clsn1"></hy-checkbox>
+            <hy-checkbox id="debug-clsn2" checked label="Clsn2"></hy-checkbox>
+          </div>
+          <p class="hint">拖动画布平移，滚轮缩放。红色为攻击框，蓝色为受击框。</p>
+          <button id="device-loss-test" class="button secondary verify-control" type="button" hidden>模拟设备丢失</button>
+        </section>
+
+        <details class="panel diagnostics-panel" open>
+          <summary><span>IMPORT REPORT</span><small id="diagnostic-count">0 diagnostics</small></summary>
+          <div id="diagnostics" class="diagnostics"><p class="muted">尚无导入报告。</p></div>
+        </details>
+      </aside>
+    </div>
+  </main>
+  <script type="module" src="./dist/charactorPreview.js?v=20260903-mai2k-audio-1"></script>
+</body>
+</html>

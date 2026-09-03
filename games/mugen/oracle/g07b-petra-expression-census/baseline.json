@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "goal": "g07b-petra-trigger-expression-closure",
+  "character": "Petra_Johanna_Lagerkvist",
+  "capturedAt": "2026-09-02",
+  "total": 10309,
+  "accepted": 9534,
+  "failed": 775,
+  "groups": [
+    {"family":"legacy-animelem-comparison","count":160},
+    {"family":"legal-redirection-composition","count":156},
+    {"family":"teamside","count":146},
+    {"family":"name","count":68},
+    {"family":"legacy-animelem-compound-parenthesis","count":47},
+    {"family":"authorname","count":37},
+    {"family":"ishelper-call","count":28},
+    {"family":"sysvar","count":22},
+    {"family":"p2movetype","count":20},
+    {"family":"backedgebodydist","count":16},
+    {"family":"backedgedist","count":13},
+    {"family":"frontedgedist","count":12},
+    {"family":"gametime","count":11},
+    {"family":"frontedgebodydist","count":8},
+    {"family":"numenemy","count":6},
+    {"family":"matchover","count":5},
+    {"family":"p2stateno","count":5},
+    {"family":"teammode","count":5},
+    {"family":"p2statetype","count":3},
+    {"family":"roundsexisted","count":3},
+    {"family":"winko","count":3},
+    {"family":"p2name-p4name","count":1}
+  ]
+}

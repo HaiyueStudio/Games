@@ -1,0 +1,13 @@
+[Info]
+name = "G02 Fighter"
+displayname = "G02 Fighter"
+versiondate = 08,30,2026
+mugenversion = 1.1
+
+[Files]
+cmd = Hero.CMD
+cns = hero.cns
+sprite = hero.sff
+anim = hero.air
+sound = hero.snd
+pal1 = hero.act

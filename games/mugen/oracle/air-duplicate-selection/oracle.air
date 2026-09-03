@@ -1,0 +1,7 @@
+; First definition: Petra portrait.
+[Begin Action 0]
+9000, 1, -60, -200, -1
+
+; Last definition: Petra standing sprite.
+[Begin Action 0]
+0, 0, 0, 0, -1

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g08-rival-v1",
+  "generator": "games/mugen/fixtures/generate-g08-rival-v1.mjs",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": "MIT",
+  "purpose": "second independent G08 vertical-slice fighter",
+  "expected": {
+    "packageSha256": "864e201e0b4be3f043e36afc4d5fd97c77c813ca753bc183d7a98b1c1469b239",
+    "actions": 9,
+    "commands": 5,
+    "states": 10,
+    "sounds": 6,
+    "sprites": 2,
+    "palettes": 2
+  },
+  "files": {
+    "rival.def": {
+      "bytes": 248,
+      "sha256": "e20b81536241c7af2efd95a570d3afbf9b08a6fdf41b2ebc84ba951b59c6ba35"
+    },
+    "rival.cmd": {
+      "bytes": 759,
+      "sha256": "626f685cdae2e422740b4b76c9439ee73cfd07fea82c37a4d302b45909659653"
+    },
+    "rival.cns": {
+      "bytes": 1785,
+      "sha256": "892bfdcf0c6317cf8aed29618729ab0b1d0baba6b1f009952a59d7743b034ff6"
+    },
+    "rival.air": {
+      "bytes": 778,
+      "sha256": "b362ab46de0143fc80bf51d1e29ad79690c57cbc0a0c4f31803176e339bda445"
+    },
+    "rival.sff": {
+      "bytes": 1953,
+      "sha256": "2fb6c68701b3e37e03c67489ffb17e41f5656b56296c644307f94bad0182799a"
+    },
+    "rival.act": {
+      "bytes": 768,
+      "sha256": "50f22042d1003a250a11088666a2ace5ed03f86c0f017c2a61cd23747c8b66ee"
+    },
+    "rival.snd": {
+      "bytes": 12772,
+      "sha256": "e68afe4355efbc5840d358b5e34327717466a05764ab450401c3b95052068dee"
+    }
+  }
+}

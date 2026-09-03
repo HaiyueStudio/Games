@@ -1,0 +1,11 @@
+[Info]
+name = "Viewer Fighter"
+displayname = "Viewer Fighter EX"
+author = "Haiyue Fixture"
+mugenversion = 1.1
+localcoord = 640,360
+[Files]
+cmd=hero.cmd
+sprite=hero.sff
+anim=hero.air
+pal1=hero.act

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "format": "haiyue-mugen-package",
+  "extension": ".hymugen",
+  "wireVersion": 1,
+  "magicHex": "48594d5547454e00",
+  "headerBytes": 48,
+  "header": [
+    {"name":"magic","offset":0,"bytes":8,"encoding":"fixed-bytes"},
+    {"name":"wireVersion","offset":8,"bytes":2,"encoding":"uint16-little-endian"},
+    {"name":"flags","offset":10,"bytes":2,"encoding":"uint16-little-endian","requiredValue":0},
+    {"name":"payloadBytes","offset":12,"bytes":4,"encoding":"uint32-little-endian"},
+    {"name":"packageSha256","offset":16,"bytes":32,"encoding":"raw-sha256"}
+  ],
+  "hashScope": "all-file-bytes-except-offset-16-through-47",
+  "valueTags": {
+    "null": 0,
+    "false": 1,
+    "true": 2,
+    "signedSafeInteger64LittleEndian": 3,
+    "finiteExactFloat32LittleEndian": 4,
+    "utf8StringWithUint32Length": 5,
+    "arrayWithUint32Count": 6,
+    "sortedObjectWithUint32Count": 7
+  },
+  "objectKeyOrder": "ascending-utf16-code-units",
+  "maxDepth": 128,
+  "maxStringBytes": 16777216,
+  "maxCollectionEntries": 4194304,
+  "maxPackageBytes": 268435456,
+  "requiredEnvelope": [
+    "format",
+    "version",
+    "contractRevision",
+    "profile",
+    "entryKind",
+    "entryDef",
+    "selectedEncoding",
+    "sourceSetSha256",
+    "dependencyGraphSha256",
+    "featureUsage",
+    "budgetUsage",
+    "diagnostics",
+    "provenance",
+    "tables"
+  ],
+  "tableKeys": ["strings","resources","palettes","sprites","actions","sounds","commands","states","stage","motif"],
+  "rawSourceBytesInPackage": false
+}

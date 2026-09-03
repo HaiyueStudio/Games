@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="title desc">
+  <title id="title">Haiyue MUGEN 角色动画查看器</title>
+  <desc id="desc">深色像素风界面中展示格斗角色动画帧、碰撞框和动作目录。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#090c13"/><stop offset="1" stop-color="#171c27"/></linearGradient>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#1e2531"/><rect x="10" y="10" width="10" height="10" fill="#1e2531"/></pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="640" height="360" rx="20" fill="url(#bg)"/>
+  <rect x="18" y="18" width="604" height="46" rx="9" fill="#0d1119" stroke="#303848"/>
+  <rect x="32" y="28" width="28" height="28" rx="6" fill="#ccff45"/><text x="46" y="47" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="12" fill="#090b0f">HY</text>
+  <text x="72" y="40" font-family="sans-serif" font-weight="800" font-size="13" fill="#f3f5f9">MUGEN 角色动画查看器</text><text x="72" y="53" font-family="monospace" font-size="7" fill="#7d8799">AIR ACTION · SFF SPRITE · CLSN DEBUG</text>
+  <rect x="24" y="76" width="154" height="260" rx="8" fill="#0e121a" stroke="#2a3140"/>
+  <text x="38" y="98" font-family="monospace" font-size="8" fill="#8590a3">ACTION CATALOG</text>
+  <g font-family="monospace" font-size="9"><rect x="30" y="108" width="142" height="34" rx="4" fill="#222a1c"/><rect x="30" y="108" width="3" height="34" fill="#ccff45"/><text x="42" y="124" fill="#ccff45">0</text><text x="68" y="124" fill="#f3f5f9">站立</text><text x="68" y="136" fill="#778196" font-size="7">6 elements · LOOP</text>
+  <text x="42" y="160" fill="#ccff45">20</text><text x="68" y="160" fill="#d9dee8">向前行走</text><text x="42" y="190" fill="#ccff45">40</text><text x="68" y="190" fill="#d9dee8">起跳</text><text x="42" y="220" fill="#ccff45">200</text><text x="68" y="220" fill="#d9dee8">自定义动作</text></g>
+  <rect x="190" y="76" width="278" height="210" rx="8" fill="url(#grid)" stroke="#2a3140"/>
+  <path d="M329 114h24l9 20 16 13-9 22 16 46-25 7-15-39-4 69h-29l-3-69-18 38-25-11 25-62 14-14 7-20z" fill="#dce4f0" stroke="#6f7b90" stroke-width="3" filter="url(#glow)"/>
+  <path d="M291 148l-27 62M369 148l16 67" stroke="#dce4f0" stroke-width="15" stroke-linecap="round"/>
+  <rect x="282" y="129" width="92" height="101" fill="#48a7ff" fill-opacity=".08" stroke="#48a7ff" stroke-width="2"/><rect x="344" y="142" width="74" height="48" fill="#ff496f" fill-opacity=".1" stroke="#ff496f" stroke-width="2"/>
+  <path d="M318 236h24M330 224v24" stroke="#ccff45" stroke-width="2"/>
+  <rect x="190" y="296" width="278" height="40" rx="8" fill="#10151e" stroke="#2a3140"/><path d="M208 318h232" stroke="#4b5568"/><path d="M208 318h112" stroke="#ccff45" stroke-width="3"/><circle cx="320" cy="318" r="6" fill="#ccff45"/>
+  <rect x="480" y="76" width="136" height="260" rx="8" fill="#0e121a" stroke="#2a3140"/><text x="494" y="99" font-family="monospace" font-size="8" fill="#8590a3">FRAME INSPECTOR</text>
+  <g font-family="monospace" font-size="8"><text x="494" y="126" fill="#6f7a8d">SPRITE</text><text x="494" y="141" fill="#edf1f7">0, 0</text><text x="494" y="166" fill="#6f7a8d">DURATION</text><text x="494" y="181" fill="#edf1f7">4 ticks</text><text x="494" y="206" fill="#6f7a8d">COLLISION</text><text x="494" y="221" fill="#ff6685">Clsn1 1</text><text x="550" y="221" fill="#62b3ff">Clsn2 2</text><text x="494" y="251" fill="#6f7a8d">PALETTE</text><text x="494" y="266" fill="#edf1f7">1, 1</text></g>
+  <rect x="494" y="286" width="108" height="28" rx="5" fill="#ccff45"/><text x="548" y="304" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="9" fill="#090b0f">打开角色目录</text>
+</svg>

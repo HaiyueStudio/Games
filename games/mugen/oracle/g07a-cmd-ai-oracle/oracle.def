@@ -1,0 +1,18 @@
+[Info]
+name = "Haiyue G07A CMD AI Oracle"
+displayname = "Haiyue G07A CMD AI Oracle"
+versiondate = 09,02,2026
+mugenversion = 1.1
+author = "HaiyueStudio local verification"
+localcoord = 320,240
+
+[Files]
+cmd = oracle.cmd
+cns = oracle.cns
+st = oracle.cns
+sprite = ../kfm/kfm.sff
+anim = oracle.air
+sound = ../kfm/kfm.snd
+
+[Palette Keymap]
+x = 1

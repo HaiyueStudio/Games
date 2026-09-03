@@ -1,0 +1,21 @@
+{
+  "allControllers": 3033,
+  "parsedControllers": 190,
+  "outputControllers": 190,
+  "controllers": {
+    "assertspecial": { "count": 137, "parameters": ["flag", "flag2", "flag3"] },
+    "forcefeedback": { "count": 19, "parameters": ["ampl", "time", "waveform"] },
+    "envshake": { "count": 8, "parameters": ["ampl", "freq", "phase", "time"] },
+    "screenbound": { "count": 6, "parameters": ["movecamera", "value"] },
+    "gamemakeanim": { "count": 4, "parameters": ["pos", "under", "value"] },
+    "fallenvshake": { "count": 3, "parameters": [] },
+    "trans": { "count": 3, "parameters": ["alpha", "trans"] },
+    "appendtoclipboard": { "count": 2, "parameters": ["params", "text"] },
+    "displaytoclipboard": { "count": 2, "parameters": ["params", "text"] },
+    "palfx": { "count": 2, "parameters": ["add", "time"] },
+    "afterimage": { "count": 1, "parameters": ["framegap", "paladd", "palbright", "palcontrast", "palmul", "time", "timegap", "trans"] },
+    "afterimagetime": { "count": 1, "parameters": ["time"] },
+    "bgpalfx": { "count": 1, "parameters": ["add", "color", "time"] },
+    "makedust": { "count": 1, "parameters": ["pos", "spacing"] }
+  }
+}

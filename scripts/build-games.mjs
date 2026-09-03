@@ -22,7 +22,11 @@ for (const game of games) await buildGame(game);
 
 async function buildGame(game) {
   console.log(`\n> rollup game ${game}`);
-  const expectedOutputs = [game === 'gravity-maze' ? 'games/gravity-maze/dist' : `games/${game}/bundle.js`];
+  const expectedOutputs = game === 'gravity-maze'
+    ? ['games/gravity-maze/dist']
+    : game === 'mugen'
+      ? ['games/mugen/dist']
+      : [`games/${game}/bundle.js`];
   try {
     await runRollupOnce({
       cwd: repositoryRoot,

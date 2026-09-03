@@ -69,7 +69,7 @@ for (const game of manifest.entries) {
 
   const source = join(repositoryRoot, 'games', game.id);
   const htmlEntry = join(source, 'index.html');
-  const bundle = game.id === 'gravity-maze'
+  const bundle = game.id === 'gravity-maze' || game.id === 'mugen'
     ? join(source, 'dist', 'bundle.js')
     : join(source, 'bundle.js');
 

@@ -47,33 +47,43 @@ export interface RacePose extends TrackControlPoint {
 }
 
 export const TOTAL_LAPS = 3;
-export const ROAD_HALF_WIDTH = 78;
-export const RAIL_LIMIT = 88;
-export const BOOST_PAD_HALF_WIDTH = 19;
-export const CRUISE_MAX_SPEED = 360;
-export const BOOST_MAX_SPEED = 510;
-export const BOOST_DURATION_SECONDS = 1.15;
-export const BOOST_ZONES = Object.freeze([0.145, 0.49, 0.805] as const);
-export const BOOST_ZONE_HALF_LENGTH = 0.009;
+export const ROAD_HALF_WIDTH = 92;
+export const RAIL_LIMIT = 103;
+export const BOOST_PAD_HALF_WIDTH = 16;
+export const CRUISE_MAX_SPEED = 650;
+export const BOOST_MAX_SPEED = 920;
+export const BOOST_DURATION_SECONDS = 1.8;
+export const BOOST_ZONES = Object.freeze([0.08, 0.275, 0.47, 0.675, 0.865] as const);
+export const BOOST_ZONE_HALF_LENGTH = 0.0065;
 
 export const TRACK_CONTROL_POINTS: readonly TrackControlPoint[] = Object.freeze([
-  { x: 0, y: 35, z: -1_420 },
-  { x: 640, y: 68, z: -1_340 },
-  { x: 1_170, y: 132, z: -900 },
-  { x: 1_420, y: 92, z: -260 },
-  { x: 1_365, y: 18, z: 470 },
-  { x: 980, y: 55, z: 1_030 },
-  { x: 390, y: 158, z: 1_390 },
-  { x: -285, y: 112, z: 1_430 },
-  { x: -900, y: 28, z: 1_150 },
-  { x: -1_310, y: 64, z: 610 },
-  { x: -1_450, y: 148, z: -90 },
-  { x: -1_295, y: 104, z: -760 },
-  { x: -805, y: 26, z: -1_225 },
-  { x: -310, y: 18, z: -1_090 },
+  { x: 0, y: 72, z: -3_260 },
+  { x: 720, y: 98, z: -3_210 },
+  { x: 1_460, y: 178, z: -2_980 },
+  { x: 2_180, y: 295, z: -2_510 },
+  { x: 2_760, y: 245, z: -1_820 },
+  { x: 3_110, y: 122, z: -980 },
+  { x: 3_180, y: 205, z: -80 },
+  { x: 2_960, y: 338, z: 780 },
+  { x: 2_470, y: 415, z: 1_520 },
+  { x: 1_720, y: 302, z: 2_090 },
+  { x: 850, y: 158, z: 2_420 },
+  { x: 20, y: 286, z: 2_520 },
+  { x: -720, y: 458, z: 2_320 },
+  { x: -1_210, y: 365, z: 1_790 },
+  { x: -1_080, y: 214, z: 1_180 },
+  { x: -1_610, y: 126, z: 780 },
+  { x: -2_350, y: 232, z: 720 },
+  { x: -2_950, y: 396, z: 210 },
+  { x: -3_220, y: 318, z: -610 },
+  { x: -3_060, y: 168, z: -1_430 },
+  { x: -2_560, y: 112, z: -2_120 },
+  { x: -1_840, y: 268, z: -2_650 },
+  { x: -1_050, y: 442, z: -2_810 },
+  { x: -520, y: 315, z: -2_410 },
 ]);
 
-export function createRaceTrack(segmentCount = 180): RaceTrack {
+export function createRaceTrack(segmentCount = 360): RaceTrack {
   const count = Math.max(48, Math.floor(segmentCount));
   const positions = Array.from({ length: count }, (_, index) => {
     const scaled = index / count * TRACK_CONTROL_POINTS.length;
@@ -131,22 +141,22 @@ export function stepRace(track: RaceTrack, state: RaceState, controls: RaceContr
 
   let boostRemaining = Math.max(0, state.boostRemaining - dt);
   let speed = state.speed;
-  speed += throttle * 182 * dt;
-  speed -= brake * 230 * dt;
-  speed -= (throttle > 0 ? 11 : 34) * dt;
-  if (boostRemaining > 0) speed += 165 * dt;
+  speed += throttle * 410 * dt;
+  speed -= brake * 560 * dt;
+  speed -= (throttle > 0 ? 18 : 74) * dt;
+  if (boostRemaining > 0) speed += 520 * dt;
 
-  const steeringAuthority = 72 + Math.min(1, speed / 170) * 118;
+  const steeringAuthority = 105 + Math.min(1, speed / 430) * 205;
   let lateralSpeed = state.lateralSpeed + steer * steeringAuthority * dt;
   lateralSpeed *= Math.exp(-dt * (steer === 0 ? 5.8 : 3.5));
   let lateral = state.lateral + lateralSpeed * dt;
 
-  if (Math.abs(lateral) > ROAD_HALF_WIDTH) speed *= Math.exp(-dt * 1.65);
+  if (Math.abs(lateral) > ROAD_HALF_WIDTH) speed *= Math.exp(-dt * 2.1);
   let wallHits = state.wallHits;
   if (Math.abs(lateral) > RAIL_LIMIT) {
     lateral = Math.sign(lateral) * RAIL_LIMIT;
     lateralSpeed *= -0.32;
-    speed *= 0.72;
+    speed *= 0.68;
     wallHits++;
     events.push('wall');
   }
@@ -170,7 +180,7 @@ export function stepRace(track: RaceTrack, state: RaceState, controls: RaceContr
   const zone = boostZoneAt(distance / track.length, lateral);
   if (zone >= 0 && zone !== state.activeBoostZone) {
     boostRemaining = BOOST_DURATION_SECONDS;
-    speed = Math.max(speed, 215);
+    speed = Math.max(speed, 590);
     events.push('boost');
   }
 

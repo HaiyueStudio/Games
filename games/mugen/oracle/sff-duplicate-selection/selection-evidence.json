@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "oracle": "mugen-1.1b1-sff-v1-duplicate-key-selection",
+  "conclusion": "last-source-record-wins",
+  "key": { "group": 9000, "item": 666 },
+  "records": [
+    { "sourceIndex": 3, "headerOffset": 28058, "width": 90, "height": 37 },
+    { "sourceIndex": 1531, "headerOffset": 13818430, "width": 90, "height": 37 }
+  ],
+  "runs": {
+    "original": {
+      "sourceSha256": "76e6c2cc377132bbc68a67f4b121a6e6dcd13fc7a84f3e09e8b7862ed07065e2",
+      "screenshotSha256": "e30bf346d673b361d154c2975f78613cb97d195bda321aa1bd6b43fbea68fb69",
+      "observation": "renders-source-index-1531"
+    },
+    "firstOnly": {
+      "sourceSha256": "aa3fcbfb3417f7db2d1cbf72915d9a5d76e01e9297317e249dfdeabdb0cc89a5",
+      "screenshotSha256": "a1dfe737961ef9065f190917698d002c33ac5ee983338b595ec55be94ec95506",
+      "observation": "renders-source-index-3"
+    },
+    "lastOnly": {
+      "sourceSha256": "d6656ad7ff0339d6c78dabd6ee3f922c9f20e8635bacdc0e8ac603a2e3efa72a",
+      "screenshotSha256": "1bf419c0d18169c08078a658b9de528c378c63aa088b1c95dca768f26b28a5f2",
+      "observation": "renders-source-index-1531"
+    }
+  },
+  "implementation": {
+    "selection": "retain every source record for diagnostics and source-index identity; AIR lookup selects the final record in deterministic SFF source order",
+    "diagnostic": "E_MUGEN_SFF_SPRITE_DUPLICATE warning/ignore"
+  }
+}

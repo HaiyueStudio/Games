@@ -1,0 +1,14 @@
+[Info]
+name = "Haiyue Fighter"
+displayname = "Haiyue Fighter"
+author = "Haiyue Engine contributors"
+mugenversion = 1.1
+localcoord = 320,180
+
+[Files]
+cmd = hero.cmd
+cns = hero.cns
+sprite = hero.sff
+anim = hero.air
+sound = vertical.snd
+pal1 = hero.act

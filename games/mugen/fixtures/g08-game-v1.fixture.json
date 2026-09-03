@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g08-game-v1",
+  "purpose": "G08 browser package-to-simulation-to-WebGPU playable vertical fixture",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": {
+    "spdx": "MIT",
+    "pathFromGamesRoot": "LICENSE",
+    "sha256": "fcab8ebffddcc8932ff412b247c81237c87438cda13d62167450a848385bcc2a"
+  },
+  "contractRevision": "m08-g01-2026-08-30.2",
+  "profile": "mugen-1.1b1-strict",
+  "contentRole": "formal-fixture",
+  "storage": "generated-g05-binary-plus-committed-g08-text",
+  "files": {
+    "hero.def": { "source": "g08-game-v1", "bytes": 250, "sha256": "85ed7a27159866d62c198a0f86538f2afff1c8c2e017596e483d5112e39e0768" },
+    "hero.cmd": { "source": "g08-game-v1", "bytes": 759, "sha256": "626f685cdae2e422740b4b76c9439ee73cfd07fea82c37a4d302b45909659653" },
+    "hero.cns": { "source": "g08-game-v1", "bytes": 1788, "sha256": "bcddfcdf3f331074361b0aaddf1f0f03c857e9e15eb57b4718f6c741ca67cfe8" },
+    "hero.air": { "source": "g08-game-v1", "bytes": 772, "sha256": "235f6f0f59ce29483f6ed679f7b1347d7ed0749a75fd8f5405f529743bebaefd" },
+    "hero.sff": { "source": "g05-viewer-v1", "bytes": 1857, "sha256": "95f1aed3ff47aec6726fa18c1b74e6931f31e4318fde8a5044dc8a65d3b70f14" },
+    "hero.act": { "source": "g05-viewer-v1", "bytes": 768, "sha256": "f3a25aa93aa2fbba28d79260535bbd6a5eb0fc1c24a8b0f04e12b484c1dfe363" },
+    "vertical.snd": { "source": "g06-generated-snd-v1", "bytes": 12772, "sha256": "e68afe4355efbc5840d358b5e34327717466a05764ab450401c3b95052068dee" }
+  },
+  "expected": {
+    "packageSha256": "26e7e20dca8fdc260e05290f2ebd30018b4a9e33714b2991c7e646008372a39b",
+    "actions": 9,
+    "commands": 5,
+    "states": 10,
+    "palettes": 2,
+    "sprites": 2,
+    "sounds": 6
+  }
+}

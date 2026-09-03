@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g05-viewer-v1",
+  "purpose": "G05 browser directory import, linked sprite/palette, AIR loop/infinite/missing-reference, transform, blend and collision-overlay evidence",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": {
+    "spdx": "MIT",
+    "pathFromGamesRoot": "LICENSE",
+    "sha256": "fcab8ebffddcc8932ff412b247c81237c87438cda13d62167450a848385bcc2a"
+  },
+  "contractRevision": "m08-g01-2026-08-30.2",
+  "importerRevision": "m08-g05-viewer-v1",
+  "profile": "mugen-1.1b1-strict",
+  "contentRole": "formal-fixture",
+  "storage": "generated-and-committed",
+  "generator": "games/mugen/fixtures/generate-g05-viewer-v1.mjs",
+  "files": {
+    "hero.act": { "bytes": 768, "sha256": "f3a25aa93aa2fbba28d79260535bbd6a5eb0fc1c24a8b0f04e12b484c1dfe363" },
+    "hero.air": { "bytes": 190, "sha256": "0289f0d34ac9c227cdfed96c751b968d4a6c4cb066efe34b4830b2dc8f0125e3" },
+    "hero.cmd": { "bytes": 27, "sha256": "dfa10ed3d75699d8948dcb616e48bf6cd9cd343a94952916edf11d122cec1693" },
+    "hero.def": { "bytes": 196, "sha256": "aba449c27d0a7243695bff70cd0c786bd3aec4947573ab769a5c7421a0fca6fe" },
+    "hero.sff": { "bytes": 1857, "sha256": "95f1aed3ff47aec6726fa18c1b74e6931f31e4318fde8a5044dc8a65d3b70f14" }
+  },
+  "expected": {
+    "packageSha256": "b7a6246d45a83d7108a81fad50378bafd414b15789e3f977a6b0e0845b53d5b0",
+    "browserLocalPackageSha256": "319a53741c3ee78f09cddb0aadfd696262c25f2f48dc47c70f84e0c8af277d48",
+    "actions": 2,
+    "elements": 5,
+    "sprites": 2,
+    "rendererSprites": 1,
+    "referencedSprites": 2,
+    "missingSpriteReferences": 1,
+    "palettes": 2,
+    "diagnostics": 1
+  }
+}

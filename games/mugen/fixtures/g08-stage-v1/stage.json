@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "haiyue-night-grid",
+  "displayName": "海岳夜幕格斗场",
+  "seed": "m08-g08-stage-v1",
+  "stageBounds": [-145, 145],
+  "spawn": [-34, 34],
+  "guardDistance": 72,
+  "camera": {
+    "localCoord": [320, 180],
+    "pixelsPerUnit": 3,
+    "groundRatio": 0.82
+  },
+  "presentation": {
+    "sky": "#11172f",
+    "horizon": "#34235f",
+    "floor": "#0a0b18",
+    "line": "#a581ff"
+  }
+}

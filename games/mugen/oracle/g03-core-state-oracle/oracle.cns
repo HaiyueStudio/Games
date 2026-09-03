@@ -1,0 +1,236 @@
+[Data]
+life = 1000
+power = 3000
+attack = 100
+defence = 100
+fall.defence_up = 50
+liedown.time = 60
+airjuggle = 15
+sparkno = 2
+guard.sparkno = 40
+ko.echo = 0
+volume = 0
+IntPersistIndex = 60
+FloatPersistIndex = 40
+
+[Size]
+xscale = 1
+yscale = 1
+ground.back = 15
+ground.front = 16
+air.back = 12
+air.front = 12
+height = 60
+attack.dist = 160
+proj.attack.dist = 90
+proj.doscale = 0
+head.pos = -5,-90
+mid.pos = -5,-60
+shadowoffset = 0
+draw.offset = 0,0
+
+[Velocity]
+walk.fwd = 2.4
+walk.back = -2.2
+run.fwd = 4.6,0
+run.back = -4.5,-3.8
+jump.neu = 0,-8.4
+jump.back = -2.55
+jump.fwd = 2.5
+runjump.back = -2.55,-8.1
+runjump.fwd = 4,-8.1
+airjump.neu = 0,-8.1
+airjump.back = -2.55
+airjump.fwd = 2.5
+
+[Movement]
+airjump.num = 1
+airjump.height = 35
+yaccel = .44
+stand.friction = .85
+crouch.friction = .82
+
+[Statedef 0]
+type = U
+movetype = I
+physics = N
+anim = 0
+ctrl = 1
+
+[State 0, seed]
+type = VarSet
+trigger1 = Time = 0
+v = 0
+value = 7
+
+[State 0, enter test state]
+type = ChangeState
+trigger1 = Time = 0
+value = 100
+ctrl = 0
+
+[Statedef 100]
+type = S
+movetype = A
+physics = N
+anim = (var(10) := StateNo) * 0
+velset = 2 + (var(11) := Time), 3
+ctrl = 0
+poweradd = 100 + (var(12) := Power) * 0
+juggle = 4
+facep2 = 1
+sprpriority = 3
+
+[State 100, deterministic random]
+type = VarRandom
+trigger1 = Time = 0
+v = 1
+range = 5,5
+
+[State 100, integer add]
+type = VarAdd
+trigger1 = Time = 0
+v = 0
+value = 0
+
+[State 100, range set]
+type = VarRangeSet
+trigger1 = Time = 0
+first = 2
+last = 4
+value = 9
+
+[State 100, velocity set]
+type = VelSet
+trigger1 = Time = 0
+x = 2
+y = 3
+
+[State 100, velocity add]
+type = VelAdd
+trigger1 = Time = 0
+x = 1
+y = 1
+
+[State 100, velocity multiply]
+type = VelMul
+trigger1 = Time = 0
+x = 2
+y = .5
+
+[State 100, gravity]
+type = Gravity
+trigger1 = Time = 0
+
+[State 100, absolute position]
+type = PosSet
+trigger1 = Time = 0
+x = 10
+y = -20
+
+[State 100, relative position]
+type = PosAdd
+trigger1 = Time = 0
+x = 3
+y = 4
+
+[State 100, freeze integration]
+type = PosFreeze
+trigger1 = Time = 0
+
+[State 100, turn]
+type = Turn
+trigger1 = Time = 0
+
+[State 100, life set]
+type = LifeSet
+trigger1 = Time = 0
+value = 900
+
+[State 100, life add]
+type = LifeAdd
+trigger1 = Time = 0
+value = -100
+kill = 0
+absolute = 1
+
+[State 100, power set]
+type = PowerSet
+trigger1 = Time = 0
+value = 100
+
+[State 100, power add]
+type = PowerAdd
+trigger1 = Time = 0
+value = 50
+
+[State 100, control]
+type = CtrlSet
+trigger1 = Time = 0
+value = 1
+
+[State 100, metadata]
+type = StateTypeSet
+trigger1 = Time = 0
+statetype = C
+movetype = I
+physics = N
+
+[State 100, animation owner]
+type = ChangeAnim
+trigger1 = Time = 0
+value = 0
+elem = 1
+
+[State 100, animation state owner]
+type = ChangeAnim2
+trigger1 = Time = 0
+value = 0
+elem = 1
+
+[State 100, self state syntax]
+type = SelfState
+trigger1 = 0
+value = 100
+
+[State 100, width]
+type = Width
+trigger1 = Time = 0
+value = 15,0
+
+[State 100, sprite priority]
+type = SprPriority
+trigger1 = Time = 0
+value = 3
+
+[State 100, contact reset]
+type = MoveHitReset
+trigger1 = Time = 0
+
+[State 100, delayed failure]
+type = ChangeState
+triggerall = Time >= 60
+trigger1 = var(0) != 7
+trigger2 = var(1) != 5
+trigger3 = var(2) != 9
+trigger4 = var(3) != 9
+trigger5 = var(4) != 9
+trigger6 = var(10) != 100
+trigger7 = var(11) != 0
+trigger8 = var(12) != 0
+trigger9 = Pos X != 13
+trigger10 = Pos Y != -16
+trigger11 = Facing != -1
+trigger12 = Life != 800
+trigger13 = Power != 150
+trigger14 = Ctrl != 1
+trigger15 = StateType != C
+trigger16 = MoveType != I
+trigger17 = Anim != 0
+value = 999999
+
+[State 100, pass marker]
+type = DisplayToClipboard
+trigger1 = Time >= 0
+text = "HAIYUE_G03_ORACLE state=%d entryTime=%d pos=%f,%f life=%d"
+params = var(10), var(11), Pos X, Pos Y, Life

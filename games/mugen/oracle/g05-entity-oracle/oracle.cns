@@ -1,0 +1,422 @@
+[Data]
+life = 1000
+power = 3000
+attack = 100
+defence = 100
+fall.defence_up = 50
+liedown.time = 60
+airjuggle = 15
+sparkno = 2
+guard.sparkno = 40
+ko.echo = 0
+volume = 0
+IntPersistIndex = 60
+FloatPersistIndex = 40
+
+[Size]
+xscale = 1
+yscale = 1
+ground.back = 15
+ground.front = 16
+air.back = 12
+air.front = 12
+height = 60
+attack.dist = 160
+proj.attack.dist = 160
+proj.doscale = 0
+head.pos = -5,-90
+mid.pos = -5,-60
+shadowoffset = 0
+draw.offset = 0,0
+
+[Velocity]
+walk.fwd = 2.4
+walk.back = -2.2
+run.fwd = 4.6,0
+run.back = -4.5,-3.8
+jump.neu = 0,-8.4
+jump.back = -2.55
+jump.fwd = 2.5
+runjump.back = -2.55,-8.1
+runjump.fwd = 4,-8.1
+airjump.neu = 0,-8.1
+airjump.back = -2.55
+airjump.fwd = 2.5
+
+[Movement]
+airjump.num = 1
+airjump.height = 35
+yaccel = .44
+stand.friction = .85
+crouch.friction = .82
+
+[Statedef 5900]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 5900, round intro]
+type = ChangeState
+trigger1 = 1
+value = 190
+
+[Statedef 190]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 190, begin oracle]
+type = ChangeState
+trigger1 = RoundState = 2
+value = 0
+
+[Statedef 0]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 0, first side orchestrates]
+type = ChangeState
+trigger1 = TeamSide = 1
+value = 200
+
+[State 0, second side remains available]
+type = ChangeState
+trigger1 = TeamSide = 2
+value = 100
+
+[Statedef 100]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 100, inert]
+type = Null
+trigger1 = 1
+
+[Statedef 200]
+type = S
+movetype = A
+physics = N
+anim = 200
+ctrl = 0
+
+[State 200, spawn explod]
+type = Explod
+trigger1 = RoundState != 0
+persistent = 0
+ID = 55
+anim = 191
+postype = p1
+pos = 260, -90
+velocity = -4.2, -7
+accel = 0, .32
+removetime = 48
+
+[State 200, spawn projectile]
+type = Projectile
+trigger1 = Time = 0
+persistent = 0
+ProjID = 77
+projanim = 200
+projhitanim = 201
+projremanim = 201
+projcancelanim = 201
+projremove = 1
+projremovetime = 30
+velocity = 0, 0
+offset = 20, 0
+projhits = 1
+projpriority = 2
+attr = S, NP
+damage = 0, 0
+hitflag = MAF
+guardflag = M
+pausetime = 0, 0
+ground.hittime = 1
+ground.velocity = 0, 0
+
+[State 200, spawn helper]
+type = Helper
+trigger1 = Time = 0
+persistent = 0
+name = "G05 child"
+ID = 42
+stateno = 3000
+pos = 10, 0
+keyctrl = 0
+
+[State 200, fail helper census]
+type = ChangeState
+triggerall = Time = 2
+trigger1 = NumHelper(42) != 1
+value = 999901
+
+[State 200, fail parent variable]
+type = ChangeState
+triggerall = Time = 2
+trigger1 = Var(0) != 123
+value = 999902
+
+[State 200, fail explod census]
+type = ChangeState
+triggerall = Time = 8
+trigger1 = NumExplod(55) != 1
+value = 999903
+
+[State 200, modify explod]
+type = ModifyExplod
+trigger1 = Time = 8
+ID = 55
+sprpriority = 7
+scale = 1.25, 1.25
+
+[State 200, remove explod]
+type = RemoveExplod
+trigger1 = Time = 9
+ID = 55
+
+[State 200, fail explod removal]
+type = ChangeState
+triggerall = Time = 10
+trigger1 = NumExplod(55) != 0
+value = 999904
+
+[State 200, fail projectile contact history]
+type = ChangeState
+triggerall = Time = 4
+trigger1 = ProjHitTime(77) < 0
+value = 999905
+
+[State 200, fail helper destroy]
+type = ChangeState
+triggerall = Time = 7
+trigger1 = NumHelper(42) != 0
+value = 999906
+
+[State 200, root target hit]
+type = HitDef
+trigger1 = Time = 12
+persistent = 0
+attr = S, NA
+damage = 0, 0
+hitflag = MAF
+priority = 1, Hit
+pausetime = 0, 0
+ground.hittime = 8
+ground.velocity = 0, 0
+id = 88
+hitonce = 1
+
+[State 200, capture target life]
+type = VarSet
+trigger1 = Time = 13
+v = 2
+value = Enemy, Life
+
+[State 200, mutate target life]
+type = TargetLifeAdd
+triggerall = Time = 14
+trigger1 = NumTarget(88) = 1
+ID = 88
+value = -100
+kill = 0
+absolute = 1
+
+[State 200, bind target]
+type = TargetBind
+triggerall = Time = 14
+trigger1 = NumTarget(88) = 1
+ID = 88
+time = 2
+pos = 30, 0
+
+[State 200, fail target ownership]
+type = ChangeState
+triggerall = Time = 15
+trigger1 = NumTarget(88) != 1
+value = 999907
+
+[State 200, fail target life mutation]
+type = ChangeState
+triggerall = Time = 15
+trigger1 = Enemy, Life != Var(2) - 100
+value = 999908
+
+[State 200, release target]
+type = TargetDrop
+trigger1 = Time = 16
+excludeID = -1
+keepone = 0
+
+[State 200, fail target release]
+type = ChangeState
+triggerall = Time = 17
+trigger1 = NumTarget != 0
+value = 999909
+
+[State 200, terminal success]
+type = ChangeState
+trigger1 = Time >= 18
+value = 888888
+
+[Statedef 3000]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 3000, write parent variable]
+type = ParentVarSet
+trigger1 = Time = 0
+v = 0
+value = 123
+
+[State 3000, bind to root]
+type = BindToRoot
+trigger1 = Time = 0
+time = 4
+pos = 10, 0
+
+[State 3000, destroy helper]
+type = DestroySelf
+trigger1 = Time >= 5
+
+[Statedef 888888]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 888888, green success signal]
+type = EnvColor
+trigger1 = 1
+value = 0,255,0
+time = 2
+under = 0
+
+[Statedef 999901]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999901, failure 1]
+type = EnvColor
+trigger1 = 1
+value = 255,20,0
+time = 2
+under = 0
+
+[Statedef 999902]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999902, failure 2]
+type = EnvColor
+trigger1 = 1
+value = 255,40,0
+time = 2
+under = 0
+
+[Statedef 999903]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999903, failure 3]
+type = EnvColor
+trigger1 = 1
+value = 255,60,0
+time = 2
+under = 0
+
+[Statedef 999904]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999904, failure 4]
+type = EnvColor
+trigger1 = 1
+value = 255,80,0
+time = 2
+under = 0
+
+[Statedef 999905]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999905, failure 5]
+type = EnvColor
+trigger1 = 1
+value = 255,100,0
+time = 2
+under = 0
+
+[Statedef 999906]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999906, failure 6]
+type = EnvColor
+trigger1 = 1
+value = 255,120,0
+time = 2
+under = 0
+
+[Statedef 999907]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999907, failure 7]
+type = EnvColor
+trigger1 = 1
+value = 255,140,0
+time = 2
+under = 0
+
+[Statedef 999908]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999908, failure 8]
+type = EnvColor
+trigger1 = 1
+value = 255,160,0
+time = 2
+under = 0
+
+[Statedef 999909]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+[State 999909, failure 9]
+type = EnvColor
+trigger1 = 1
+value = 255,180,0
+time = 2
+under = 0

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g03-generated-sff-v1",
+  "purpose": "G03 SFF v1/v2.00/v2.01, ACT, PCX, PNG, compression, link, palette and package golden tests",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": {
+    "spdx": "MIT",
+    "pathFromGamesRoot": "LICENSE",
+    "sha256": "fcab8ebffddcc8932ff412b247c81237c87438cda13d62167450a848385bcc2a"
+  },
+  "contractRevision": "m08-g01-2026-08-30.2",
+  "importerRevision": "m08-g03-sff-v1",
+  "profile": "mugen-1.1b1-strict",
+  "contentRole": "formal-fixture",
+  "storage": "generated-in-test-only",
+  "generator": "games/test/mugen-sff-g03.test.mjs",
+  "fuzz": {
+    "algorithm": "xorshift32",
+    "seedHex": "4d554745",
+    "truncationCases": 64,
+    "mutationCases": 128
+  },
+  "expected": {
+    "sffV201Sha256": "1c6e4997c008f290431155cf1425b6faa8e3f2a8146dc55c5e22afc0d2186a4c",
+    "packageSha256": "201a0a47197d3e03914b98422d7a829871b7ff266e46dd95c7f991bac5865cf1",
+    "sprites": 10,
+    "palettes": 2,
+    "compressions": ["linked", "lz5", "png24", "png32", "png8", "raw-indexed", "raw-rgb24", "raw-rgba32", "rle5", "rle8"]
+  }
+}

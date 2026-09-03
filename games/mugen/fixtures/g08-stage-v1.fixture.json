@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g08-stage-v1",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": "MIT",
+  "purpose": "single deterministic G08 stage/camera fixture",
+  "files": {
+    "stage.json": {
+      "bytes": 417,
+      "sha256": "8f011953950293cef9b641889438dfc37f5da552f35d9ed44e1c807d3af41910"
+    }
+  }
+}

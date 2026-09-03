@@ -1,0 +1,136 @@
+[Statedef 0]
+type = S
+movetype = I
+physics = S
+anim = 0
+velset = 0, 0
+ctrl = 1
+
+[Statedef 10]
+type = C
+movetype = I
+physics = C
+anim = 10
+velset = 0, 0
+ctrl = 1
+
+[State 10, stand]
+type = ChangeState
+trigger1 = command != "holddown"
+value = 0
+
+[Statedef 20]
+type = S
+movetype = I
+physics = N
+anim = 20
+velset = 1.8, 0
+ctrl = 1
+
+[State 20, stand]
+type = ChangeState
+trigger1 = command != "holdfwd"
+value = 0
+
+[Statedef 21]
+type = S
+movetype = I
+physics = N
+anim = 21
+velset = -1.4, 0
+ctrl = 1
+
+[State 21, stand]
+type = ChangeState
+trigger1 = command != "holdback"
+value = 0
+
+[Statedef 40]
+type = A
+movetype = I
+physics = A
+anim = 40
+velset = 0.5, -5
+ctrl = 0
+
+[State 40, land position]
+type = PosSet
+trigger1 = pos y >= 0 && time > 0
+y = 0
+
+[State 40, land]
+type = ChangeState
+trigger1 = pos y >= 0 && time > 0
+value = 0
+
+[Statedef 120]
+type = S
+movetype = H
+physics = N
+anim = 120
+velset = 0, 0
+ctrl = 0
+
+[Statedef 200]
+type = S
+movetype = A
+physics = N
+anim = 200
+velset = 0, 0
+ctrl = 0
+
+[State 200, voice]
+type = PlaySnd
+trigger1 = time = 0
+value = 2, 0
+channel = 0
+volume = 225
+pan = 0
+freqmul = 1.12
+
+[State 200, strike]
+type = HitDef
+trigger1 = AnimElem = 2
+attr = S, NA
+damage = 75, 10
+hitflag = MAF
+guardflag = HLM
+ground.type = high
+pausetime = 4, 5
+guard.pausetime = 3, 4
+ground.hittime = 10
+air.hittime = 14
+guard.ctrltime = 7
+ground.velocity = -4, 0
+air.velocity = -3, -3.5
+guard.velocity = -1.75, 0
+getpower = 55, 28
+givepower = 22, 9
+kill = 1
+guard.kill = 0
+
+[State 200, stop voice]
+type = StopSnd
+trigger1 = time = 10
+channel = 0
+
+[State 200, done]
+type = ChangeState
+trigger1 = time >= 11
+value = 0
+
+[Statedef 5000]
+type = S
+movetype = H
+physics = N
+anim = 5000
+velset = 0, 0
+ctrl = 0
+
+[Statedef 5020]
+type = A
+movetype = H
+physics = A
+anim = 5020
+velset = 0, 0
+ctrl = 0

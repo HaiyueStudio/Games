@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g01-snd-v1",
+  "generator": "games/mugen/fixtures/generate-g06-snd-v1.mjs",
+  "seed": "m08-g06-sine-v1",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": "MIT",
+  "files": {
+    "vertical.snd": {
+      "bytes": 12772,
+      "sha256": "e68afe4355efbc5840d358b5e34327717466a05764ab450401c3b95052068dee"
+    }
+  },
+  "expected": {
+    "version": [
+      4,
+      0,
+      0,
+      0
+    ],
+    "entries": 6,
+    "selectedKeys": 5,
+    "duplicatePolicy": "last-source-order-wins"
+  }
+}

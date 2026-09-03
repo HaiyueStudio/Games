@@ -1,0 +1,242 @@
+import type { MugenImportGraph } from '../text/DependencyGraph';
+import type { MugenAssignmentToken, MugenTextDocument, MugenTextSection } from '../text/MugenTextParser';
+import { asciiCaseFold, compareMugenStrings } from '../vfs/path';
+
+export type MugenViewerAudioCueTiming = Readonly<
+  | { kind: 'tick'; value: number }
+  | { kind: 'element'; value: number }
+>;
+
+export interface MugenScannedViewerAudioCue {
+  readonly actionNumber: number;
+  readonly group: number;
+  readonly item: number;
+  readonly timing: MugenViewerAudioCueTiming;
+  readonly channel: number;
+  readonly volume: number;
+  readonly pan: number;
+  readonly frequency: number;
+  readonly loop: boolean;
+  readonly sourcePath: string;
+  readonly sourceLine: number;
+}
+
+const MAX_SCANNED_CUES = 16_384;
+
+/**
+ * Viewer-only, loss-tolerant audio association pass. It intentionally understands
+ * only StateDef anim, PlaySnd, HitDef hitsound and static trigger timing, and
+ * never compiles the surrounding executable controller program.
+ */
+export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly MugenScannedViewerAudioCue[] {
+  const cues: MugenScannedViewerAudioCue[] = [];
+  const referencedStateScripts = stateScriptPaths(graph);
+  for (const resource of graph.resources) {
+    const document = resource.document;
+    if (document === undefined || (resource.kind !== 'cns' && resource.kind !== 'cmd'
+      && !referencedStateScripts.has(resource.foldedPath))) continue;
+    for (const block of viewerStateBlocks(document)) for (const controller of block.controllers) {
+      const assignments = sectionAssignments(document, controller);
+      const type = assignments.find(value => value.foldedKey === 'type');
+      const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
+      if (normalizedType !== 'playsnd' && normalizedType !== 'hitdef') continue;
+      const actionNumbers = block.actionNumber === null ? inferredActionNumbers(assignments) : Object.freeze([block.actionNumber]);
+      if (actionNumbers.length === 0) continue;
+      const values = new Map<string, MugenAssignmentToken>();
+      for (const assignment of assignments) if (!values.has(assignment.foldedKey)) values.set(assignment.foldedKey, assignment);
+      const sound = parseSoundKey(values.get(normalizedType === 'hitdef' ? 'hitsound' : 'value'), normalizedType === 'hitdef');
+      if (sound === null || sound.owner === 'fight') continue;
+      for (const actionNumber of actionNumbers) {
+        cues.push(Object.freeze({
+          actionNumber,
+          group: sound.group,
+          item: sound.item,
+          timing: scanTiming(assignments),
+          channel: staticInteger(values.get('channel')?.value) ?? -1,
+          volume: clamp(staticNumber(values.get('volume')?.value) ?? 255, 0, 255) / 255,
+          pan: clamp(staticNumber(values.get('pan')?.value) ?? 0, -127, 127) / 127,
+          frequency: clamp(staticNumber(values.get('freqmul')?.value) ?? 1, 0.01, 16),
+          loop: (staticNumber(values.get('loop')?.value) ?? 0) !== 0,
+          sourcePath: document.canonicalPath,
+          sourceLine: controller.header.span.line,
+        }));
+        if (cues.length >= MAX_SCANNED_CUES) return sortedCues(cues);
+      }
+    }
+  }
+  return sortedCues(cues);
+}
+
+/**
+ * Some legacy characters deliberately disguise CMD/CNS state files behind
+ * custom extensions such as .mai, .teo or .ini. The dependency graph has
+ * already classified those files by their [Files] role and decoded them as
+ * text, so use that authoritative relationship instead of the filename.
+ */
+function stateScriptPaths(graph: MugenImportGraph): ReadonlySet<string> {
+  const paths = new Set<string>();
+  for (const edge of graph.edges) {
+    if (asciiCaseFold(edge.section) !== 'files') continue;
+    const key = asciiCaseFold(edge.key);
+    if (key !== 'cmd' && key !== 'cns' && key !== 'st' && key !== 'stcommon' && !/^st\d+$/u.test(key)) continue;
+    paths.add(asciiCaseFold(edge.to));
+  }
+  return paths;
+}
+
+function viewerStateBlocks(document: MugenTextDocument): readonly Readonly<{ actionNumber: number | null; controllers: readonly MugenTextSection[] }>[] {
+  const result: Array<Readonly<{ actionNumber: number | null; controllers: readonly MugenTextSection[] }>> = [];
+  for (let index = 0; index < document.sections.length; index += 1) {
+    const definition = document.sections[index]!;
+    const stateMatch = /^statedef\s+(-?\d+)$/iu.exec(definition.name.trim());
+    if (!stateMatch) continue;
+    const stateNumber = staticInteger(stateMatch[1]);
+    const controllers: MugenTextSection[] = [];
+    let end = index + 1;
+    while (end < document.sections.length && !/^statedef\s+-?\d+$/iu.test(document.sections[end]!.name.trim())) {
+      if (/^state\s+-?\d+\s*,/iu.test(document.sections[end]!.name.trim())) controllers.push(document.sections[end]!);
+      end += 1;
+    }
+    const stateDefAnimation = sectionAssignments(document, definition).find(value => value.foldedKey === 'anim');
+    let actionNumber = staticInteger(stateDefAnimation?.value);
+    if (actionNumber === null && stateNumber !== null && stateNumber >= 0) {
+      for (const controller of controllers) {
+        const assignments = sectionAssignments(document, controller);
+        const type = assignments.find(value => value.foldedKey === 'type');
+        const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
+        if (normalizedType !== 'changeanim' && normalizedType !== 'changeanim2') continue;
+        actionNumber = staticInteger(assignments.find(value => value.foldedKey === 'value')?.value);
+        if (actionNumber !== null) break;
+      }
+    }
+    result.push(Object.freeze({ actionNumber, controllers: Object.freeze(controllers) }));
+    index = end - 1;
+  }
+  return Object.freeze(result);
+}
+
+/**
+ * StateDef -2/-3 controllers are global. Characters commonly put voices there
+ * and select the current action with `Anim = ...` (hurt voices in particular).
+ * Prefer explicit animation checks; StateNo is a useful fallback for the common
+ * one-state/one-action authoring style used by attack voices.
+ */
+function inferredActionNumbers(assignments: readonly MugenAssignmentToken[]): readonly number[] {
+  const triggers = assignments.filter(value => value.foldedKey === 'triggerall' || /^trigger\d+$/u.test(value.foldedKey));
+  const animations = equalityIntegers(triggers, 'anim');
+  if (animations.length > 0) return animations;
+  return equalityIntegers(triggers, 'stateno');
+}
+
+function equalityIntegers(assignments: readonly MugenAssignmentToken[], name: 'anim' | 'stateno'): readonly number[] {
+  const values = new Set<number>();
+  const pattern = new RegExp(`(?:^|[^a-z0-9_.!<>])${name}\\s*=\\s*(-?\\d+)(?=\\D|$)`, 'giu');
+  for (const assignment of assignments) for (const match of assignment.value.matchAll(pattern)) {
+    const value = staticInteger(match[1]);
+    if (value !== null && value >= 0) values.add(value);
+  }
+  return Object.freeze([...values].sort((left, right) => left - right));
+}
+
+function scanTiming(assignments: readonly MugenAssignmentToken[]): MugenViewerAudioCueTiming {
+  const triggers = assignments.filter(value => value.foldedKey === 'triggerall' || /^trigger\d+$/u.test(value.foldedKey));
+  for (const trigger of triggers) {
+    const match = /(?:^|[^a-z0-9_.])time\s*=\s*(-?\d+)(?:\D|$)/iu.exec(trigger.value);
+    const tick = staticInteger(match?.[1]);
+    if (tick !== null) return Object.freeze({ kind: 'tick', value: Math.max(0, tick) });
+  }
+  for (const trigger of triggers) {
+    const elementTime = /animelemtime\s*\(\s*(\d+)\s*\)\s*=\s*0(?:\D|$)/iu.exec(trigger.value);
+    const element = staticInteger(elementTime?.[1]);
+    if (element !== null && element > 0) return Object.freeze({ kind: 'element', value: element });
+    const animationElement = /(?:^|[^a-z0-9_.])animelem\s*=\s*(\d+)(?:\D|$)/iu.exec(trigger.value);
+    const directElement = staticInteger(animationElement?.[1]);
+    if (directElement !== null && directElement > 0) return Object.freeze({ kind: 'element', value: directElement });
+  }
+  return Object.freeze({ kind: 'tick', value: 0 });
+}
+
+function parseSoundKey(assignment: MugenAssignmentToken | undefined, unprefixedIsFight = false): Readonly<{ owner: 'self' | 'fight'; group: number; item: number }> | null {
+  if (assignment === undefined) return null;
+  const fields = splitTopLevel(assignment.value);
+  if (fields.length !== 2) return null;
+  const ownerMatch = /^([sf])?\s*(-?\d+)$/iu.exec(fields[0]!.trim());
+  const item = tolerantSoundItem(fields[1]!);
+  if (!ownerMatch || item === null) return null;
+  const group = staticInteger(ownerMatch[2]);
+  if (group === null) return null;
+  const prefix = asciiCaseFold(ownerMatch[1] ?? '');
+  const owner = prefix === 'f' || (prefix === '' && unprefixedIsFight) ? 'fight' : 'self';
+  return Object.freeze({ owner, group, item });
+}
+
+/**
+ * HitDef sound numbers are commonly randomized with a static ifelse tree, for
+ * example `S5, ifelse(Random < 333, 0, ifelse(Random < 666, 1, 2))`.
+ * The preview is deterministic, so use the first static branch. A leading
+ * integer also covers the widespread `2 + (Random % 2)` form without trying to
+ * evaluate arbitrary battle expressions.
+ */
+function tolerantSoundItem(value: string): number | null {
+  const exact = staticInteger(value);
+  if (exact !== null) return exact;
+  const ifElse = /^\s*ifelse\s*\(/iu.exec(value);
+  if (ifElse) {
+    const call = value.slice(ifElse[0].length, matchingClosingParenthesis(value, ifElse[0].length - 1));
+    const fields = splitTopLevel(call);
+    if (fields.length === 3) return tolerantSoundItem(fields[1]!) ?? tolerantSoundItem(fields[2]!);
+  }
+  const leading = /^\s*([+-]?\d+)\s*(?:[+\-*/%]|$)/u.exec(value);
+  return staticInteger(leading?.[1]);
+}
+
+function matchingClosingParenthesis(source: string, opening: number): number {
+  let depth = 0;
+  for (let index = opening; index < source.length; index += 1) {
+    if (source[index] === '(') depth += 1;
+    else if (source[index] === ')' && --depth === 0) return index;
+  }
+  return source.length;
+}
+
+function sectionAssignments(document: MugenTextDocument, section: MugenTextSection): readonly MugenAssignmentToken[] {
+  return document.tokens.slice(section.tokenStart + 1, section.tokenEnd).filter((token): token is MugenAssignmentToken => token.kind === 'assignment');
+}
+
+function splitTopLevel(source: string): readonly string[] {
+  const fields: string[] = [];
+  let start = 0; let depth = 0; let quote = '';
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]!;
+    if (quote !== '') { if (character === quote) quote = ''; continue; }
+    if (character === '"' || character === "'") { quote = character; continue; }
+    if (character === '(' || character === '[' || character === '{') depth += 1;
+    else if (character === ')' || character === ']' || character === '}') depth = Math.max(0, depth - 1);
+    else if (character === ',' && depth === 0) { fields.push(source.slice(start, index).trim()); start = index + 1; }
+  }
+  fields.push(source.slice(start).trim());
+  return Object.freeze(fields);
+}
+
+function staticInteger(value: string | undefined): number | null {
+  if (value === undefined || !/^[+-]?\d+$/u.test(value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function staticNumber(value: string | undefined): number | null {
+  if (value === undefined || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u.test(value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number { return Math.max(minimum, Math.min(maximum, value)); }
+
+function sortedCues(values: readonly MugenScannedViewerAudioCue[]): readonly MugenScannedViewerAudioCue[] {
+  return Object.freeze([...values].sort((left, right) => left.actionNumber - right.actionNumber
+    || timingOrder(left.timing) - timingOrder(right.timing)
+    || left.group - right.group || left.item - right.item
+    || compareMugenStrings(left.sourcePath, right.sourcePath) || left.sourceLine - right.sourceLine));
+}
+
+function timingOrder(value: MugenViewerAudioCueTiming): number { return value.kind === 'tick' ? value.value : 1_000_000 + value.value; }

@@ -1,0 +1,171 @@
+[Data]
+life = 1000
+power = 3000
+attack = 100
+defence = 100
+fall.defence_up = 50
+liedown.time = 60
+airjuggle = 15
+sparkno = 2
+guard.sparkno = 40
+ko.echo = 0
+volume = 0
+IntPersistIndex = 60
+FloatPersistIndex = 40
+
+[Size]
+xscale = 1
+yscale = 1
+ground.back = 15
+ground.front = 16
+air.back = 12
+air.front = 12
+height = 60
+attack.dist = 160
+proj.attack.dist = 90
+proj.doscale = 0
+head.pos = -5,-90
+mid.pos = -5,-60
+shadowoffset = 0
+draw.offset = 0,0
+
+[Velocity]
+walk.fwd = 2.4
+walk.back = -2.2
+run.fwd = 4.6,0
+run.back = -4.5,-3.8
+jump.neu = 0,-8.4
+jump.back = -2.55
+jump.fwd = 2.5
+runjump.back = -2.55,-8.1
+runjump.fwd = 4,-8.1
+airjump.neu = 0,-8.1
+airjump.back = -2.55
+airjump.fwd = 2.5
+
+[Movement]
+airjump.num = 1
+airjump.height = 35
+yaccel = .44
+stand.friction = .85
+crouch.friction = .82
+
+[Statedef -3]
+
+[State -3, initialize]
+type = VarRangeSet
+triggerall = RoundState = 2
+trigger1 = StateNo = 0
+trigger1 = Time = 0
+first = 0
+last = 12
+value = 0
+
+[State -3, order digit one]
+type = VarSet
+triggerall = RoundState = 2
+trigger1 = StateNo = 0
+trigger1 = Time = 0
+v = 0
+value = var(0) * 10 + 1
+
+[Statedef -2]
+
+[State -2, order digit two]
+type = VarSet
+triggerall = RoundState = 2
+trigger1 = StateNo = 0
+trigger1 = Time = 0
+v = 0
+value = var(0) * 10 + 2
+
+[State -2, enemy redirection]
+type = VarAdd
+triggerall = RoundState = 2
+trigger1 = StateNo = 0
+trigger1 = enemy, Life > 0
+persistent = 0
+v = 4
+value = 1
+
+[Statedef 0]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 1
+
+[State 0, forbidden old current]
+type = VarSet
+trigger1 = 1
+v = 8
+value = 1
+
+[Statedef 100]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 1
+
+[State 100, same tick reentry digit four]
+type = VarSet
+trigger1 = Time = 0
+persistent = 0
+v = 0
+value = var(0) * 10 + 4
+
+[State 100, persistent zero]
+type = VarAdd
+trigger1 = 1
+persistent = 0
+v = 1
+value = 1
+
+[State 100, persistent two]
+type = VarAdd
+trigger1 = 1
+persistent = 2
+v = 2
+value = 1
+
+[State 100, triggerall short circuit]
+type = Null
+triggerall = 0
+trigger1 = (var(10) := 1)
+
+[State 100, numbering gap ignores group three]
+type = VarAdd
+trigger1 = 1
+trigger3 = (var(11) := 1)
+persistent = 0
+v = 3
+value = 1
+
+[State 100, missing target is bottom]
+type = VarAdd
+trigger1 = target, Time
+persistent = 0
+v = 5
+value = 1
+
+[State 100, fail marker]
+type = ChangeState
+triggerall = Time >= 60
+trigger1 = var(0) != 1234
+trigger2 = var(1) != 1
+trigger3 = var(2) != 30
+trigger4 = var(3) != 1
+trigger5 = var(4) != 1
+trigger6 = var(8) != 0
+trigger7 = var(9) != 0
+trigger8 = var(10) != 0
+trigger9 = var(11) != 0
+trigger10 = var(5) != 0
+value = 999999
+
+[State 100, pass marker]
+type = DisplayToClipboard
+trigger1 = Time >= 0
+text = "HAIYUE_G02_ORACLE order=%d p0=%d p2=%d gap=%d enemy=%d"
+params = var(0), var(1), var(2), var(3), var(4)

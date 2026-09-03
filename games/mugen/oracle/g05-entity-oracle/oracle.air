@@ -1,0 +1,20 @@
+[Begin Action 0]
+Clsn2Default: 1
+  Clsn2[0] = -200, -200, 200, 50
+0, 0, 0, 0, -1
+
+[Begin Action 200]
+Clsn1Default: 1
+  Clsn1[0] = -200, -200, 200, 50
+Clsn2Default: 1
+  Clsn2[0] = -200, -200, 200, 50
+0, 0, 0, 0, -1
+
+[Begin Action 201]
+0, 0, 0, 0, 2
+
+[Begin Action 191]
+191, 3, 0, 0, 8
+191, 2, 0, 0, 8
+191, 1, 0, 0, 8
+191, 0, 0, 0, 8

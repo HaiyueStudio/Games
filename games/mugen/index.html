@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090914">
+  <title>Haiyue MUGEN · 本地双人对战</title>
+  <link rel="stylesheet" href="./game.css">
+</head>
+<body data-game-status="loading">
+  <main class="fight-shell">
+    <header class="fight-header">
+      <a class="brand" href="./index.html"><span>HY</span><div><small>HAIYUE ARENA</small><strong>MUGEN FIGHT</strong></div></a>
+      <nav>
+        <span id="runtime-status">正在装载内置角色…</span>
+        <a href="./charactorPreview.html">角色动画查看器</a>
+      </nav>
+    </header>
+
+    <section class="versus-panel" aria-label="角色与比赛设置">
+      <div class="fighter-card p1-card">
+        <div class="player-tag">PLAYER 1</div>
+        <label>角色<select id="p1-character"><option value="kfm">Kung Fu Man</option><option value="kfm720">Kung Fu Man 720</option></select></label>
+        <label>操作<select id="p1-control"><option value="0">玩家</option><option value="4">电脑 · 普通</option><option value="2">电脑 · 简单</option><option value="6">电脑 · 困难</option><option value="8">电脑 · 最高</option></select></label>
+        <p id="p1-control-hint">A D 移动 · W 跳跃 · S 蹲下 · U / I / J / K 攻击</p>
+      </div>
+      <div class="versus-mark">VS</div>
+      <div class="fighter-card p2-card">
+        <div class="player-tag">PLAYER 2</div>
+        <label>角色<select id="p2-character"><option value="kfm720">Kung Fu Man 720</option><option value="kfm">Kung Fu Man</option></select></label>
+        <label>操作<select id="p2-control"><option value="4">电脑 · 普通</option><option value="0">玩家</option><option value="2">电脑 · 简单</option><option value="6">电脑 · 困难</option><option value="8">电脑 · 最高</option></select></label>
+        <p id="p2-control-hint">方向键移动 · 小键盘 4 / 5 / 1 / 2 攻击</p>
+      </div>
+    </section>
+
+    <section id="arena" class="arena" aria-label="MUGEN 双人对战舞台">
+      <div class="hud">
+        <div class="hud-fighter left">
+          <div class="hud-name"><span id="p1-name">海岳·苍</span><b id="p1-wins">0</b></div>
+          <div class="life-track"><i id="p1-life"></i></div>
+          <div class="power-track"><i id="p1-power"></i></div>
+        </div>
+        <div class="round-clock"><small>ROUND</small><strong id="round-number">1</strong><span id="round-time">99</span></div>
+        <div class="hud-fighter right">
+          <div class="hud-name"><b id="p2-wins">0</b><span id="p2-name">海岳·绯</span></div>
+          <div class="life-track"><i id="p2-life"></i></div>
+          <div class="power-track"><i id="p2-power"></i></div>
+        </div>
+      </div>
+      <canvas id="fight-canvas" aria-label="WebGPU 格斗画面"></canvas>
+      <canvas id="fight-debug" aria-hidden="true"></canvas>
+      <div class="stage-floor" aria-hidden="true"></div>
+      <div id="phase-banner" class="phase-banner"><strong>LOADING</strong><span>正在准备比赛</span></div>
+      <div id="loading-error" class="loading-error" hidden></div>
+    </section>
+
+    <footer class="fight-controls">
+      <div class="control-hint"><kbd>WASD</kbd> 方向 <kbd>U</kbd><kbd>I</kbd><kbd>J</kbd><kbd>K</kbd> 攻击</div>
+      <div class="match-actions">
+        <label class="debug-toggle"><input id="debug-boxes" type="checkbox"> 显示碰撞框</label>
+        <div class="fightfx-loader"><button id="load-fightfx" type="button">载入 FightFX</button><small id="fightfx-status">可选：选择本地 MUGEN 根目录或 data 目录</small><input id="fightfx-directory" type="file" webkitdirectory multiple hidden></div>
+        <button id="open-key-settings" type="button">按键设置</button>
+        <button id="verify-device-loss" type="button" hidden>验证 GPU 恢复</button>
+        <button id="pause-match" type="button" disabled>暂停</button>
+        <button id="start-match" class="primary" type="button" disabled>开始对战</button>
+      </div>
+      <div class="control-hint right"><kbd>方向键</kbd> 方向 <kbd>4</kbd><kbd>5</kbd><kbd>1</kbd><kbd>2</kbd> 攻击</div>
+    </footer>
+  </main>
+  <dialog id="key-settings" class="key-settings" aria-labelledby="key-settings-title">
+    <form method="dialog">
+      <header><div><small>LOCAL CONTROLS</small><h2 id="key-settings-title">按键设置</h2></div><button id="cancel-key-settings" class="dialog-close" type="button" aria-label="关闭">×</button></header>
+      <p class="key-settings-note">四个攻击键当前分别映射到 MUGEN 的 X、Y、A、B；官方完整招式逻辑将在后续兼容层开放。</p>
+      <div class="binding-players">
+        <section><h3>PLAYER 1</h3><div class="binding-grid">
+          <span>上</span><button type="button" data-player="P1" data-action="up"></button><span>下</span><button type="button" data-player="P1" data-action="down"></button>
+          <span>左</span><button type="button" data-player="P1" data-action="left"></button><span>右</span><button type="button" data-player="P1" data-action="right"></button>
+          <span>攻击 1</span><button type="button" data-player="P1" data-action="attack1"></button><span>攻击 2</span><button type="button" data-player="P1" data-action="attack2"></button>
+          <span>攻击 3</span><button type="button" data-player="P1" data-action="attack3"></button><span>攻击 4</span><button type="button" data-player="P1" data-action="attack4"></button>
+        </div></section>
+        <section><h3>PLAYER 2</h3><div class="binding-grid">
+          <span>上</span><button type="button" data-player="P2" data-action="up"></button><span>下</span><button type="button" data-player="P2" data-action="down"></button>
+          <span>左</span><button type="button" data-player="P2" data-action="left"></button><span>右</span><button type="button" data-player="P2" data-action="right"></button>
+          <span>攻击 1</span><button type="button" data-player="P2" data-action="attack1"></button><span>攻击 2</span><button type="button" data-player="P2" data-action="attack2"></button>
+          <span>攻击 3</span><button type="button" data-player="P2" data-action="attack3"></button><span>攻击 4</span><button type="button" data-player="P2" data-action="attack4"></button>
+        </div></section>
+      </div>
+      <p id="key-settings-status" class="key-settings-status" aria-live="polite"></p>
+      <footer><button id="reset-key-settings" type="button">恢复默认</button><button id="save-key-settings" class="primary" type="button">保存并应用</button></footer>
+    </form>
+  </dialog>
+  <script type="module" src="./dist/bundle.js"></script>
+</body>
+</html>

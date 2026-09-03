@@ -1,0 +1,5 @@
+[Statedef 0]
+type = S
+movetype = I
+physics = S
+anim = 0

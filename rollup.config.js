@@ -15,6 +15,20 @@ const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
     sourcemap: true,
   },
   plugins: [cleanOutputDirectory('games/gravity-maze/dist'), ...haiyuePlugins({ declaration: false, tsconfig: './games/gravity-maze/tsconfig.ray-tracing-rollup.json' })],
+}) : entry.id === 'mugen' ? ({
+  input: {
+    bundle: 'games/mugen/main.ts',
+    charactorPreview: 'games/mugen/charactorPreview.ts',
+    'mugenImport.worker': 'games/mugen/import/worker/mugenImport.worker.ts',
+  },
+  output: {
+    dir: 'games/mugen/dist',
+    format: 'es',
+    entryFileNames: '[name].js',
+    chunkFileNames: 'chunks/[name]-[hash].js',
+    sourcemap: true,
+  },
+  plugins: [cleanOutputDirectory('games/mugen/dist'), ...haiyuePlugins({ declaration: false, tsconfig: './games/mugen/tsconfig.rollup.json' })],
 }) : ({
     input: `games/${entry.entry}`,
     output: {

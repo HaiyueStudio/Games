@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g01-text-paths-v1",
+  "purpose": "G02 VFS, loss-aware text, dependency graph, deterministic package and import report",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": {
+    "spdx": "MIT",
+    "pathFromGamesRoot": "LICENSE",
+    "sha256": "fcab8ebffddcc8932ff412b247c81237c87438cda13d62167450a848385bcc2a"
+  },
+  "contractRevision": "m08-g01-2026-08-30.2",
+  "importerRevision": "m08-g02-importer-v1",
+  "profile": "mugen-1.1b1-strict",
+  "selectedEncoding": "utf-8",
+  "entryDef": "hero.def",
+  "contentRole": "formal-fixture",
+  "files": [
+    {"path":"Hero.CMD","bytes":42,"sha256":"5fbf5e7a8c2c91c8ccd620fc1877b3801e3207d428752a5f2f65e26918886ef5"},
+    {"path":"README.md","bytes":540,"sha256":"79274c8330a2c9c3da79c026021f0b4f405208635185c968893d168e85a5a21a"},
+    {"path":"hero.act","bytes":50,"sha256":"c3af85b90625d597f28e206676c51ce572bb0f496b3aecebb47661d7dbf15cc0"},
+    {"path":"hero.air","bytes":31,"sha256":"ec5ceed9b2aeedb02589faad555f3dcc299e5f49a68ca749506c8a34ff4358da"},
+    {"path":"hero.cns","bytes":56,"sha256":"45ff6440552839c34ebd9b47e9bce21b68f4e30ae37678be142c9763c4dfaabd"},
+    {"path":"hero.def","bytes":206,"sha256":"7814a33de1167df74e961e310f8c79597ba7354814ae37bc061a5c0059971ee2"},
+    {"path":"hero.sff","bytes":50,"sha256":"8e95483c54d237a512deec92cafb888b8dfcf9a2a2ba79e8a71ab4db8aadebca"},
+    {"path":"hero.snd","bytes":50,"sha256":"abcd74de2e6adfd2d5291c5df8e25253b41739f73a6d75676444478709f214f9"}
+  ],
+  "expected": {
+    "sourceSetSha256": "3a23ee3dec27a1d1fc101a2d411c2fb06980ffc662bfb02b4bdeb460fac71355",
+    "dependencyGraphSha256": "a1b14fb1621d207eacf0feee281bb72f5b6cd709c8c0469fa2dc0750f2b821a6",
+    "packageSha256": "7c0320f2c5633e00750ce933fda9215ebb19404d2afdaa7c164984904e9f164f",
+    "resourceCount": 7,
+    "dependencyEdgeCount": 6,
+    "budgetUsage": {
+      "files": 8,
+      "rawBytes": 1025,
+      "dependencyEdges": 6,
+      "dependencyDepth": 1,
+      "textFiles": 4,
+      "textBytes": 335
+    }
+  }
+}

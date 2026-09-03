@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "hy-mugen-g04-generated-air-v1",
+  "purpose": "G04 AIR action timing, LoopStart, transforms, interpolation, collision inheritance, runtime snapshots and deterministic package golden tests",
+  "copyrightHolder": "Haiyue Engine contributors",
+  "license": {
+    "spdx": "MIT",
+    "pathFromGamesRoot": "LICENSE",
+    "sha256": "fcab8ebffddcc8932ff412b247c81237c87438cda13d62167450a848385bcc2a"
+  },
+  "contractRevision": "m08-g01-2026-08-30.2",
+  "importerRevision": "m08-g04-air-v1",
+  "profile": "mugen-1.1b1-strict",
+  "contentRole": "formal-fixture",
+  "storage": "generated-in-test-only",
+  "generator": "games/test/mugen-air-g04.test.mjs",
+  "fuzz": {
+    "algorithm": "xorshift32",
+    "seedHex": "41495234",
+    "mutationCases": 192,
+    "maxMutationsPerCase": 6
+  },
+  "expected": {
+    "packageSha256": "643944b84c77d6bc6ebbe59e5c237c0f872af3eb30dccfb59fb14ded8fc6391d",
+    "actions": 2,
+    "elements": 5,
+    "collisionBoxes": 7,
+    "officialKfmAirSha256": "a9ed7aae299fe25e79b7ccf2fe66c36dbe8d42063f430600cd38127c3250f825",
+    "officialKfmActions": 117,
+    "officialKfmElements": 655,
+    "officialKfmCollisionBoxes": 1439
+  }
+}

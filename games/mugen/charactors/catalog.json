@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "runtimeProfile": "m09-native-character-common-v1",
+  "commonState": "common1.cns",
+  "characters": [
+    {
+      "id": "kfm",
+      "label": "Kung Fu Man",
+      "directory": "kfm",
+      "entryDef": "kfm.def",
+      "airPath": "kfm.air",
+      "scriptProfile": "native-common-v1",
+      "contentLicense": "elecbyte-local-noncommercial",
+      "files": ["kfm.def", "kfm.cmd", "kfm.cns", "kfm.air", "kfm.sff", "kfm.snd", "kfm.ai"]
+    },
+    {
+      "id": "kfm720",
+      "label": "Kung Fu Man 720",
+      "directory": "kfm720",
+      "entryDef": "kfm720.def",
+      "airPath": "kfm720.air",
+      "scriptProfile": "native-common-v1",
+      "contentLicense": "elecbyte-local-noncommercial",
+      "files": ["kfm720.def", "kfm720.cmd", "kfm720.cns", "kfm720.air", "kfm720.sff", "kfm.snd", "kfm720.ai"]
+    },
+    {
+      "id": "petra-johanna-lagerkvist",
+      "label": "Petra Johanna Lagerkvist",
+      "directory": "Petra_Johanna_Lagerkvist",
+      "entryDef": "Petra_Johanna_Lagerkvist.def",
+      "airPath": "Petra_Johanna_Lagerkvist.air",
+      "scriptProfile": "native-common-v1",
+      "contentLicense": "user-local",
+      "files": [
+        "act/Petra_Johanna_Lagerkvist1.act",
+        "act/Petra_Johanna_Lagerkvist2.act",
+        "AI_1_0.txt",
+        "cns/helper.cns",
+        "cns/Intro&Win.cns",
+        "cns/Petra_Johanna_Lagerkvist.st",
+        "cns/system_mode.cns",
+        "EmanonAI/-2.cns",
+        "EmanonAI/Arcana.cns",
+        "EmanonAI/Emanon_helper.cns",
+        "EmanonAI/Petra_Johanna_Lagerkvist.cmd",
+        "EmanonAI/Petra_Johanna_Lagerkvist.cns",
+        "EmanonAI/Special.cns",
+        "EmanonAI/stcommon.cns",
+        "Petra_Johanna_Lagerkvist.air",
+        "Petra_Johanna_Lagerkvist.def",
+        "Petra_Johanna_Lagerkvist.sff",
+        "Petra_Johanna_Lagerkvist.snd",
+        "whip.st"
+      ]
+    }
+  ]
+}

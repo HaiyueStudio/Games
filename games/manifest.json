@@ -176,12 +176,17 @@
       "entry": "neon-circuit/main.ts",
       "capabilities": [
         "3d",
+        "asset-lifecycle",
         "game-workflow",
+        "gltf",
         "input",
         "particles",
+        "custom-shader",
         "procedural-geometry"
       ],
-      "assets": [],
+      "assets": [
+        "neon-circuit/assets/wraith-raider.glb"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -220,6 +225,28 @@
         "content-generation",
         "game-workflow",
         "input"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
+      "id": "mugen",
+      "thumbnail": "screenshots/mugen-viewer.svg",
+      "title": "Haiyue MUGEN Fight",
+      "entry": "mugen/main.ts",
+      "capabilities": [
+        "2d",
+        "gui",
+        "game-workflow",
+        "input",
+        "asset-lifecycle",
+        "worker",
+        "experimental-indexed-sprite"
       ],
       "assets": [],
       "screenshot": {
@@ -351,9 +378,19 @@
           "sky-strike/assets/boss-ion-seraph.png",
           "sky-strike/assets/boss-void-mantis.png",
           "sky-strike/assets/fx-burning-impact.png",
+          "sky-strike/assets/enemy-saucer.png",
+          "sky-strike/assets/enemy-kamikaze.png",
+          "sky-strike/assets/boss-star-carrier.png",
+          "sky-strike/assets/elite-prism-lancer.png",
+          "sky-strike/assets/boss-helios-prism.png",
+          "sky-strike/assets/enemy-space-train.png",
+          "sky-strike/assets/boss-iron-serpent.png",
           "sky-strike/levels/level-01.json",
           "sky-strike/levels/level-02.json",
-          "sky-strike/levels/level-03.json"
+          "sky-strike/levels/level-03.json",
+          "sky-strike/levels/level-04.json",
+          "sky-strike/levels/level-05.json",
+          "sky-strike/levels/level-06.json"
       ],
       "screenshot": {
         "required": false,

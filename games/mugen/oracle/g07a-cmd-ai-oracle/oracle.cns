@@ -1,0 +1,129 @@
+[Data]
+life = 1000
+power = 3000
+attack = 100
+defence = 100
+fall.defence_up = 50
+liedown.time = 60
+airjuggle = 15
+sparkno = 2
+guard.sparkno = 40
+ko.echo = 0
+volume = 0
+IntPersistIndex = 60
+FloatPersistIndex = 40
+
+[Size]
+xscale = 1
+yscale = 1
+ground.back = 15
+ground.front = 16
+air.back = 12
+air.front = 12
+height = 60
+attack.dist = 160
+proj.attack.dist = 90
+proj.doscale = 0
+head.pos = -5,-90
+mid.pos = -5,-60
+shadowoffset = 0
+draw.offset = 0,0
+
+[Velocity]
+walk.fwd = 2.4
+walk.back = -2.2
+run.fwd = 4.6,0
+run.back = -4.5,-3.8
+jump.neu = 0,-8.4
+jump.back = -2.55
+jump.fwd = 2.5
+runjump.back = -2.55,-8.1
+runjump.fwd = 4,-8.1
+airjump.neu = 0,-8.1
+airjump.back = -2.55
+airjump.fwd = 2.5
+
+[Movement]
+airjump.num = 1
+airjump.height = 35
+yaccel = .44
+stand.friction = .85
+crouch.friction = .82
+
+[Statedef 5900]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 5900, round intro]
+type = ChangeState
+trigger1 = 1
+value = 190
+
+[Statedef 190]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 190, begin combat]
+type = ChangeState
+trigger1 = RoundState = 2
+value = 0
+
+[Statedef 0]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 1
+
+[State 0, timeout]
+type = ChangeState
+trigger1 = Time >= 180
+value = 999901
+
+[Statedef 888888]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 888888, success]
+type = EnvColor
+trigger1 = 1
+value = 0,255,0
+time = 2
+under = 0
+
+[Statedef 999901]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 999901, timeout failure]
+type = EnvColor
+trigger1 = 1
+value = 255,20,0
+time = 2
+under = 0
+
+[Statedef 999902]
+type = S
+movetype = I
+physics = N
+anim = 0
+ctrl = 0
+
+[State 999902, physical time zero failure]
+type = EnvColor
+trigger1 = 1
+value = 255,40,0
+time = 2
+under = 0

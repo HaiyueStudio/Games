@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "goal": "g07b-petra-trigger-expression-closure",
+  "character": "Petra_Johanna_Lagerkvist",
+  "capturedAt": "2026-09-02",
+  "profile": "mugen-1.1b1-strict",
+  "total": 12267,
+  "accepted": 12267,
+  "failed": 0,
+  "groups": [],
+  "dependencyGraph": {
+    "stateDocuments": 13,
+    "legacyRoleBasedResources": ["AI_1_0.txt"],
+    "previousTotal": 10309,
+    "newlyCovered": 1958
+  },
+  "officialDocumentation": {
+    "path": "D:/mugen-1.1b1/docs/trigger.html",
+    "sha256": "9a6636b9e14edc1c91b38de7357aae43049d2a612313d10be55f6e6117ab121c"
+  },
+  "runner": {
+    "path": "Games/games/mugen/oracle/g07b-petra-expression-census/run-census.mjs",
+    "sha256": "c412ccc1478e9b8ed42b5cc7a9e440b3e128d122884b2347eafc21e35f14c475"
+  }
+}

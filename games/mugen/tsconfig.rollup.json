@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.g05.json",
+  "compilerOptions": {
+    "declaration": false,
+    "outDir": "./dist"
+  }
+}
