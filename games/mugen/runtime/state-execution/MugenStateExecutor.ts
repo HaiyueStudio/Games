@@ -54,6 +54,7 @@ export interface MugenStateExecutorSnapshot {
 }
 
 interface PersistentEntry { trueCount: number; firedOnce: boolean }
+const EMPTY_TRIGGER_TRACE: readonly MugenTriggerExpressionTrace[] = Object.freeze([]);
 
 export class MugenStateExecutor {
   readonly maxControllerEvaluationsPerTick: number;
@@ -99,31 +100,31 @@ export class MugenStateExecutor {
       const controller = state.controllers[controllerIndex]!; const snapshot = host.snapshot(); const controllerKey = `${snapshot.entityId}|${epoch}|${state.number}|${controllerIndex}|${controller.sourcePath}:${controller.sourceLine}`;
       if (snapshot.paused) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'paused', []); continue; }
       if (snapshot.hitPaused && !controller.ignoreHitPause) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'hitpause', []); continue; }
-      const triggerTrace: MugenTriggerExpressionTrace[] = []; const passed = evaluateTriggers(controller, host, triggerTrace, traceEnabled);
-      if (!passed) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'trigger-false', triggerTrace); continue; }
+      const triggerTrace: MugenTriggerExpressionTrace[] | undefined = traceEnabled ? [] : undefined; const passed = evaluateTriggers(controller, host, triggerTrace);
+      if (!passed) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'trigger-false', triggerTrace ?? EMPTY_TRIGGER_TRACE); continue; }
       const entry = this.#persistent.get(controllerKey) ?? { trueCount: 0, firedOnce: false }; entry.trueCount = controller.persistent === 0 ? 1 : entry.trueCount + 1; this.#persistent.set(controllerKey, entry);
       const fires = controller.persistent === 0 ? !entry.firedOnce : entry.trueCount === controller.persistent;
-      if (!fires) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'persistent-wait', triggerTrace); continue; }
+      if (!fires) { addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'persistent-wait', triggerTrace ?? EMPTY_TRIGGER_TRACE); continue; }
       entry.firedOnce = true; if (controller.persistent > 0) entry.trueCount = 0; counters.fired += 1; const beforeExecution = host.snapshot(); const result = host.execute(controller, Object.freeze({ pass, stateNumber: state.number, controllerIndex }));
-      if (result.transitioned) { const afterExecution = host.snapshot(); if (afterExecution.stateGeneration <= beforeExecution.stateGeneration) throw new Error('MUGEN state transition must advance stateGeneration.'); counters.transitions += 1; addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'transition', triggerTrace); return true; }
-      addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'fired', triggerTrace);
+      if (result.transitioned) { const afterExecution = host.snapshot(); if (afterExecution.stateGeneration <= beforeExecution.stateGeneration) throw new Error('MUGEN state transition must advance stateGeneration.'); counters.transitions += 1; addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'transition', triggerTrace ?? EMPTY_TRIGGER_TRACE); return true; }
+      addTrace(trace, traceEnabled, counters, pass, state.number, controllerIndex, controllerKey, 'fired', triggerTrace ?? EMPTY_TRIGGER_TRACE);
     }
     return false;
   }
 }
 
-function evaluateTriggers(controller: MugenStateController, host: MugenStateExecutorHost, trace: MugenTriggerExpressionTrace[], traceEnabled: boolean): boolean {
+function evaluateTriggers(controller: MugenStateController, host: MugenStateExecutorHost, trace?: MugenTriggerExpressionTrace[]): boolean {
   for (let index = 0; index < controller.triggerAll.length; index += 1) {
-    const outcome = condition(host.evaluate(controller.triggerAll[index]!)); if (traceEnabled) trace.push(Object.freeze({ kind: 'triggerall', group: null, index, outcome }));
-    if (outcome !== 'true') { if (traceEnabled) { for (let rest = index + 1; rest < controller.triggerAll.length; rest += 1) trace.push(Object.freeze({ kind: 'triggerall', group: null, index: rest, outcome: 'short-circuited' })); appendGroups(controller, trace, 'short-circuited'); } return false; }
+    const outcome = condition(host.evaluate(controller.triggerAll[index]!)); if (trace) trace.push(Object.freeze({ kind: 'triggerall', group: null, index, outcome }));
+    if (outcome !== 'true') { if (trace) { for (let rest = index + 1; rest < controller.triggerAll.length; rest += 1) trace.push(Object.freeze({ kind: 'triggerall', group: null, index: rest, outcome: 'short-circuited' })); appendGroups(controller, trace, 'short-circuited'); } return false; }
   }
   let expectedGroup = 1;
   for (let groupIndex = 0; groupIndex < controller.triggerGroups.length; groupIndex += 1) {
     const group = controller.triggerGroups[groupIndex]!;
-    if (group.group !== expectedGroup) { if (traceEnabled) for (let rest = groupIndex; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'ignored-gap' })); return false; }
+    if (group.group !== expectedGroup) { if (trace) for (let rest = groupIndex; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'ignored-gap' })); return false; }
     let groupPassed = true;
-    for (let index = 0; index < group.expressions.length; index += 1) { const outcome = condition(host.evaluate(group.expressions[index]!)); if (traceEnabled) trace.push(Object.freeze({ kind: 'group', group: group.group, index, outcome })); if (outcome !== 'true') { groupPassed = false; if (traceEnabled) for (let rest = index + 1; rest < group.expressions.length; rest += 1) trace.push(Object.freeze({ kind: 'group', group: group.group, index: rest, outcome: 'short-circuited' })); break; } }
-    if (groupPassed) { if (traceEnabled) for (let rest = groupIndex + 1; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'short-circuited' })); return true; }
+    for (let index = 0; index < group.expressions.length; index += 1) { const outcome = condition(host.evaluate(group.expressions[index]!)); if (trace) trace.push(Object.freeze({ kind: 'group', group: group.group, index, outcome })); if (outcome !== 'true') { groupPassed = false; if (trace) for (let rest = index + 1; rest < group.expressions.length; rest += 1) trace.push(Object.freeze({ kind: 'group', group: group.group, index: rest, outcome: 'short-circuited' })); break; } }
+    if (groupPassed) { if (trace) for (let rest = groupIndex + 1; rest < controller.triggerGroups.length; rest += 1) for (let index = 0; index < controller.triggerGroups[rest]!.expressions.length; index += 1) trace.push(Object.freeze({ kind: 'group', group: controller.triggerGroups[rest]!.group, index, outcome: 'short-circuited' })); return true; }
     expectedGroup += 1;
   }
   return false;

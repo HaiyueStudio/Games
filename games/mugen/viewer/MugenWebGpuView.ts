@@ -3,6 +3,8 @@ import type { MugenAirSnapshot } from '../import/air/MugenAirRuntime';
 import type { MugenCharacterModel, MugenRenderAssetModel, MugenViewerPalette, MugenViewerSprite } from './MugenCharacterModel';
 import { mugenRenderPixelRatio } from './MugenRenderBudget';
 
+const MAX_VIEWPORT_DIMENSION = 8192;
+
 export type MugenViewerBackground = 'checker' | 'dark' | 'light';
 
 export interface MugenViewerDebugSettings {
@@ -122,8 +124,8 @@ export class MugenWebGpuView {
 
   resize(): MugenViewerViewport {
     const ratio = mugenRenderPixelRatio(this.stage.clientWidth, this.stage.clientHeight, window.devicePixelRatio || 1);
-    const width = Math.max(1, Math.round(this.stage.clientWidth * ratio));
-    const height = Math.max(1, Math.round(this.stage.clientHeight * ratio));
+    const width = Math.max(1, Math.min(MAX_VIEWPORT_DIMENSION, Math.round(this.stage.clientWidth * ratio)));
+    const height = Math.max(1, Math.min(MAX_VIEWPORT_DIMENSION, Math.round(this.stage.clientHeight * ratio)));
     if (this.canvas.width !== width || this.canvas.height !== height) {
       this.canvas.width = width; this.canvas.height = height;
       this.overlay.width = width; this.overlay.height = height;

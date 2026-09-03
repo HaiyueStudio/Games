@@ -22,7 +22,10 @@ if (process.argv[2] === undefined || !statSync(root).isDirectory()) {
 }
 
 const quiet = process.argv.includes('--quiet');
-const requestedNames = new Set(process.argv.slice(3).filter(value => value !== '--quiet').map(value => value.toLocaleLowerCase('en')));
+const audioRangeArgument = process.argv.find(value => value.startsWith('--audio-range='));
+const audioRangeMatch = /^--audio-range=(-?\d+)-(-?\d+)$/u.exec(audioRangeArgument ?? '');
+const audioRange = audioRangeMatch === null ? null : [Number(audioRangeMatch[1]), Number(audioRangeMatch[2])];
+const requestedNames = new Set(process.argv.slice(3).filter(value => !value.startsWith('--')).map(value => value.toLocaleLowerCase('en')));
 const directories = readdirSync(root, { withFileTypes: true })
   .filter(entry => entry.isDirectory())
   .filter(entry => requestedNames.size === 0 || requestedNames.has(entry.name.toLocaleLowerCase('en')))
@@ -61,6 +64,11 @@ for (let directoryIndex = 0; directoryIndex < directories.length; directoryIndex
       const model = createMugenCharacterModel(imported.package, imported.metadata, { viewerAudioCues: imported.viewerAudioCues });
       totals.passed++;
       if (!quiet) console.log(`PASS\t${basename(directory)}\t${entryDef}\tactions=${model.actions.length}\tsprites=${model.sprites.length}\tsounds=${model.sounds.length}\taudible=${model.actions.filter(action => action.audioCues.length > 0).length}\tms=${Math.round(performance.now() - startedAt)}`);
+      if (audioRange !== null) {
+        const ranged = model.actions.filter(action => action.action.number >= audioRange[0] && action.action.number <= audioRange[1]);
+        const missing = ranged.filter(action => action.audioCues.length === 0).map(action => action.action.number);
+        console.log(`AUDIO_RANGE\t${basename(directory)}\t${entryDef}\trange=${audioRange.join('-')}\tactions=${ranged.length}\taudible=${ranged.length - missing.length}\tmissing=${missing.join(',')}`);
+      }
     } catch (error) {
       totals.failed++;
       reportFailure(directory, entryDef, error);

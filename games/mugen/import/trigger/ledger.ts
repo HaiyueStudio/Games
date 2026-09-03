@@ -69,5 +69,4 @@ export function findStrictImportFailureTrigger(source: string): string | null {
 }
 
 function native(names: readonly string[], owner: string): readonly MugenTriggerLedgerEntry[] { return names.map(name => Object.freeze({ name, implementation: 'native' as const, owner })); }
-function unsupported(names: readonly string[], owner: string): readonly MugenTriggerLedgerEntry[] { return names.map(name => Object.freeze({ name, implementation: 'strict-import-failure' as const, owner })); }
 function dispatch(name: string, syntax: 'reference' | 'call' | 'both', tokens: readonly string[]) { return Object.freeze({ name, syntax, tokens: Object.freeze(tokens) }); }

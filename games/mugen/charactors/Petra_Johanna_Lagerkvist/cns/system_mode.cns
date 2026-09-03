@@ -1,0 +1,31 @@
+;---------------------------------------------------------------------------
+;システムセレクト
+;---------------------------------------------------------------------------
+[Statedef 10101]
+velset = 0,0
+anim = 0
+
+[State 45]
+type = NotHitBy
+trigger1 = 1
+value = SCA
+
+[State 1000]
+type = AssertSpecial
+trigger1 = 1
+flag = invisible
+flag2 = noshadow
+
+[State 演出変更]
+type = ParentVarset
+Trigger1 = time = 0
+var(55) = 0
+
+;勝利演出セレクト
+;-1 = 特殊演出あり+特殊BGMあり
+;0  = 無し
+;1  = 特殊演出あり
+
+[State 1201,end]
+type = Destroyself
+trigger1 = time > 0

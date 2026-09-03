@@ -60,6 +60,28 @@ test('viewer audio scan associates global hurt voices with every explicitly sele
   ]);
 });
 
+test('viewer audio scan expands standard get-hit states across available AIR variants without stacking exclusive voices', async () => {
+  const actions = [5000, 5001, 5002, 5005, 5007, 5030, 5040, 5051, 5070, 5080, 5090, 5100, 5101, 5160, 5172, 5200];
+  const graph = await buildMugenImportGraph(await createMugenVfs([
+    input('hero.def', '[Info]\nname=GetHit Families\n[Files]\ncns=hero.cns\nanim=hero.air\n'),
+    input('hero.air', actions.map(action => `[Begin Action ${action}]\n0,0,0,0,1`).join('\n')),
+    input('hero.cns', [
+      '[Statedef -3]', 'type=S',
+      '[State -3]', 'type=PlaySnd', 'triggerall=Time=1', 'triggerall=GetHitVar(animtype)=0', 'trigger1=StateNo=5000', 'trigger2=StateNo=5010', 'trigger3=StateNo=5020', 'value=S10,0', 'channel=0',
+      '[State -3]', 'type=PlaySnd', 'triggerall=Time=1', 'triggerall=GetHitVar(animtype)=1', 'trigger1=StateNo=5000', 'trigger2=StateNo=5010', 'trigger3=StateNo=5020', 'value=S10,0', 'channel=0',
+      '[State -3]', 'type=PlaySnd', 'triggerall=Time=1', 'triggerall=GetHitVar(animtype)!=[0,1]', 'trigger1=StateNo=5000', 'trigger2=StateNo=5010', 'trigger3=StateNo=5020', 'value=S10,1', 'channel=0',
+      '[State -3]', 'type=PlaySnd', 'triggerall=Time=1', 'trigger1=StateNo=5070', 'value=S10,1', 'channel=0',
+      '[State -3]', 'type=PlaySnd', 'triggerall=Time=1', 'trigger1=StateNo=5100', 'value=S10,2', 'channel=0',
+      '[State -3]', 'type=PlaySnd', 'triggerall=Time=1', 'trigger1=StateNo=5000', 'trigger2=StateNo=5010', 'trigger3=StateNo=5020', 'trigger4=StateNo=5070', 'value=S10,3', 'channel=0',
+    ].join('\n')),
+  ]), { entryDef: 'hero.def', entryKind: 'character', encoding: 'utf-8' });
+
+  assert.deepEqual(scanMugenViewerAudioCues(graph).map(cue => [cue.actionNumber, cue.item]), [
+    [5000, 0], [5001, 0], [5002, 1], [5005, 0], [5007, 1], [5030, 1], [5040, 1], [5051, 1],
+    [5070, 1], [5080, 1], [5090, 1], [5100, 2], [5101, 2], [5160, 2], [5172, 2],
+  ]);
+});
+
 test('viewer audio scan follows DEF state-script roles when legacy scripts use custom extensions', async () => {
   const graph = await buildMugenImportGraph(await createMugenVfs([
     input('hero.def', '[Info]\nname=Custom Script Extensions\n[Files]\ncmd=hero.mai\ncns=hero.teo\nst1=attacks.ini\n'),

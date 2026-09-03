@@ -1,5 +1,6 @@
 import { evaluateMugenAirAction } from './import/air/MugenAirRuntime';
 import { createMugenImportWorkerClient, type MugenImportWorkerClient } from './import/worker/MugenImportWorkerClient';
+import { isAbortError } from './import/diagnostics';
 import { MugenAfterImageHistory, type MugenAfterImageSource, type MugenAfterImageTrail } from './game/MugenAfterImageHistory';
 import { loadMugenBuiltInGameFixtures, type MugenBuiltInGameFixture, type MugenFixtureLoadProgress } from './game/MugenGameFixture';
 import { MugenTransientAnimationLifecycle, type MugenTransientAnimationFrame, type MugenTransientAnimationSpawn } from './game/MugenTransientAnimationLifecycle';
@@ -39,6 +40,8 @@ interface MugenAfterImagePose {
   readonly output: MugenEntityOutputState;
 }
 const AFTER_IMAGE_BROWSER_VERIFICATION_EFFECT = Object.freeze({ remainingTicks: 2, length: 8, paletteColor: 256, paletteInvertAll: false, paletteBright: Object.freeze([30, 10, 0]) as readonly [number, number, number], paletteContrast: Object.freeze([180, 120, 60]) as readonly [number, number, number], palettePostBright: Object.freeze([0, 0, 0]) as readonly [number, number, number], paletteAdd: Object.freeze([-8, -4, 0]) as readonly [number, number, number], paletteMultiply: Object.freeze([.9, .8, .7]) as readonly [number, number, number], timeGap: 1, frameGap: 2, transparency: 'add' as const });
+const BROWSER_EFFECT_VERIFICATION_TICKS = 3600;
+const BROWSER_LIFECYCLE_RECEIPT_KEY = 'haiyue.mugen.lifecycle';
 
 class MugenFightApp {
   readonly #view: MugenWebGpuView;
@@ -80,6 +83,8 @@ class MugenFightApp {
   readonly #verifyAfterImage = new URLSearchParams(location.search).get('verifyAfterImage') === '1';
   readonly #verifyHitSpark = new URLSearchParams(location.search).get('verifyHitSpark') === '1';
   readonly #verifyFightSound = new URLSearchParams(location.search).get('verifyFightSound') === '1';
+  readonly #verificationMode = new URLSearchParams(location.search).get('verify') === '1';
+  readonly #verifyCapture = new URLSearchParams(location.search).get('verifyCapture') === '1';
 
   readonly #arena = element<HTMLElement>('arena');
   readonly #runtimeStatus = element<HTMLElement>('runtime-status');
@@ -131,6 +136,7 @@ class MugenFightApp {
 
   async init(): Promise<void> {
     try {
+      if (this.#verificationMode) { const previousLifecycle = readLifecycleReceipt(); if (previousLifecycle !== null) document.body.dataset.previousLifecycleStatus = previousLifecycle; writeLifecycleReceipt('active'); }
       this.#bindControls();
       document.body.classList.add('engine-flow'); this.#syncFlowUi();
       await this.#flow.init(); this.#setLoadingProgress(.03, '正在初始化图形…');
@@ -160,12 +166,17 @@ class MugenFightApp {
       document.body.dataset.packageSha256 = firstFixture.packageSha256; document.body.dataset.packageSha256s = fixtures.map(value => value.packageSha256).join(',');
       document.body.dataset.characterIds = fixtures.map(value => value.id).join(','); document.body.dataset.characterRuntimeProfile = firstFixture.runtimeProfile;
       document.body.dataset.deviceGeneration = String(this.#view.deviceGeneration);
-      if (new URLSearchParams(location.search).get('verify') === '1') this.#deviceLossButton.hidden = false;
+      if (this.#verificationMode) {
+        this.#deviceLossButton.hidden = false;
+        this.#setLoadingProgress(.995, '正在验证 GPU 设备恢复…');
+        await this.#verifyDeviceLoss();
+      }
       this.#stageSelect.disabled = false; this.#startButton.disabled = false;
       this.#setLoadingProgress(1, '载入完成'); this.#assetsReady = true; this.#setFlowScreen('title');
       document.body.dataset.gameStatus = 'ready';
       this.#animationFrame = requestAnimationFrame(time => this.#frame(time));
-    } catch (error) { this.#fail(error); }
+      if (this.#verifyCapture) { this.#chooseMode('ai'); this.#startMatch(); }
+    } catch (error) { if (!(this.#disposed && isAbortError(error))) this.#fail(error); }
   }
 
   dispose(): void {
@@ -176,6 +187,7 @@ class MugenFightApp {
     this.#afterImages.clear(); this.#transientAnimations.clear();
     this.#driver.dispose(); this.#worker.dispose(); this.#view.dispose(); this.#flow.dispose(); this.#audio.dispose();
     document.body.dataset.lifecycleStatus = 'disposed';
+    if (this.#verificationMode) writeLifecycleReceipt('disposed');
   }
 
   #bindControls(): void {
@@ -196,6 +208,7 @@ class MugenFightApp {
     this.#p1Control.addEventListener('change', () => this.#refreshInputDriver()); this.#p2Control.addEventListener('change', () => this.#refreshInputDriver());
     this.#stageSelect.addEventListener('change', () => { void this.#selectStage(); });
     window.addEventListener('beforeunload', () => this.dispose(), { once: true });
+    window.addEventListener('pagehide', () => this.dispose(), { once: true });
   }
 
   #preventDuplicateVariant(changed: HTMLSelectElement, other: HTMLSelectElement): void { if (changed.value === other.value) other.value = [...this.#fixtures.keys()].find(id => id !== changed.value) ?? changed.value; }
@@ -243,7 +256,7 @@ class MugenFightApp {
     if (before.phase === 'ready' && before.phaseTime >= 60) match.startFight();
     else if (before.phase === 'round-over' && before.phaseTime >= 90) { match.startNextRound(); this.#afterImages.clear(); this.#transientAnimations.clear(); }
     const trace = combat.step(match, input, this.#driver.input.history); const outputStats = this.#outputs.consume(trace.script.output); document.body.dataset.outputHash = trace.script.outputHash; document.body.dataset.forceFeedbackPolicy = outputStats.forceFeedbackEvents === 0 ? 'idle' : outputStats.forceFeedbackApplied > 0 ? 'applied' : 'unavailable'; document.body.dataset.clipboardPolicy = outputStats.clipboardDiagnostics === 0 ? 'idle' : 'internal-debug-buffer';
-    const result = match.endTick(); this.#captureAfterImages(result.state, trace.script.output); this.#captureTransientAnimations(trace.script.output); const audio = this.#audio.consume(result.events); document.body.dataset.mugenAudioRequested = String(audio.requested); document.body.dataset.mugenAudioPlayed = String(audio.played); document.body.dataset.mugenAudioMissing = String(audio.missing); if (this.#verifyFightSound && result.tick === 90) { const verification = this.#audio.consume([fightSoundVerificationEvent(result.tick)]); document.body.dataset.fightSoundVerification = verification.played === 1 && verification.missing === 0 ? 'played' : 'missing'; } this.#syncPhase(result.state);
+    const result = match.endTick(); this.#captureAfterImages(result.state, trace.script.output); this.#captureTransientAnimations(trace.script.output); const audio = this.#audio.consume(result.events); document.body.dataset.mugenAudioRequested = String(audio.requested); document.body.dataset.mugenAudioPlayed = String(audio.played); document.body.dataset.mugenAudioMissing = String(audio.missing); if (this.#verifyFightSound && result.tick === 90) { const verification = this.#audio.consume([fightSoundVerificationEvent(result.tick)]); document.body.dataset.fightSoundVerification = verification.played === 1 && verification.missing === 0 ? 'played' : 'missing'; } this.#syncPhase(result.state); this.#publishBrowserCaptureResult(result.state);
     if (result.state.phase === 'match-over') this.#finishMatch();
   }
 
@@ -307,7 +320,7 @@ class MugenFightApp {
     const outputByEntity = new Map(output.entities.map(entity => [entity.entityId, entity])); const sources: MugenAfterImageSource<MugenAfterImagePose>[] = [];
     for (const [index, fighter] of snapshot.fighters.entries()) {
       const entityOutput = outputByEntity.get(fighter.id) ?? (this.#verifyAfterImage && fighter.id === 'P1' ? this.#combat?.script.outputs.entity(fighter.id) : undefined);
-      const verificationEffect = this.#verifyAfterImage && fighter.id === 'P1' && output.tick < 300 ? AFTER_IMAGE_BROWSER_VERIFICATION_EFFECT : null; const effect = entityOutput?.afterImage ?? verificationEffect;
+      const verificationEffect = this.#verifyAfterImage && fighter.id === 'P1' && output.tick < BROWSER_EFFECT_VERIFICATION_TICKS ? AFTER_IMAGE_BROWSER_VERIFICATION_EFFECT : null; const effect = entityOutput?.afterImage ?? verificationEffect;
       if (entityOutput === undefined || effect === null || entityOutput.assertions.includes('invisible')) continue;
       const fixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value);
       sources.push(Object.freeze({ entityId: fighter.id, effect, value: Object.freeze({ animationOwnerId: fighter.id, animationNumber: fighter.actionNumber, actionTime: fighter.actionTime, position: fighter.position, facing: fighter.facing, verticalFacing: 1 as const, coordinateSpace: 'stage' as const, localCoordWidth: fixture.localCoord[0], localCoordHeight: fixture.localCoord[1], drawScale: fixture.drawScale, layer: 'fighters', order: fighter.spritePriority, paletteId: this.#paletteId(fixture, entityOutput.paletteRemap), output: entityOutput }) }));
@@ -340,7 +353,7 @@ class MugenFightApp {
       const animationOwnerId = event.kind === 'hit-spark' ? event.animationOwnerId : 'fight'; const source = this.#resolveTransientAnimation(animationOwnerId, event.animationNumber); if (source === null) { missing += 1; continue; }
       spawns.push(Object.freeze({ id: `mugen-transient-${String(output.tick).padStart(10, '0')}-${String(index).padStart(3, '0')}`, kind: event.kind, animationOwnerId, animationNumber: event.animationNumber, position: event.position, facing: event.facing, layer: event.layer, lifetimeTicks: Math.min(source.action.totalTicks ?? 600, 600) }));
     }
-    if (this.#verifyHitSpark && this.#fightFx !== null && output.tick < 300 && output.tick % 12 === 0) { const source = this.#resolveTransientAnimation('fight', 0); if (source !== null) spawns.push(Object.freeze({ id: `verify-hit-spark-${output.tick}`, kind: 'hit-spark', animationOwnerId: 'fight', animationNumber: 0, position: Object.freeze([0, -48]) as readonly [number, number], facing: 1, layer: 'above', lifetimeTicks: Math.min(source.action.totalTicks ?? 600, 600) })); }
+    if (this.#verifyHitSpark && this.#fightFx !== null && output.tick < BROWSER_EFFECT_VERIFICATION_TICKS && output.tick % 12 === 0) { const source = this.#resolveTransientAnimation('fight', 0); if (source !== null) spawns.push(Object.freeze({ id: `verify-hit-spark-${output.tick}`, kind: 'hit-spark', animationOwnerId: 'fight', animationNumber: 0, position: Object.freeze([0, -48]) as readonly [number, number], facing: 1, layer: 'above', lifetimeTicks: Math.min(source.action.totalTicks ?? 600, 600) })); }
     const visible = this.#transientAnimations.advance(output.tick, spawns); const sparks = visible.filter(value => value.kind === 'hit-spark').length; document.body.dataset.mugenTransientAnimations = String(visible.length); document.body.dataset.mugenHitSparks = String(sparks); document.body.dataset.mugenMissingTransientAnimations = String(missing); if (this.#verifyHitSpark && sparks > 0) document.body.dataset.hitSparkVerification = 'rendering';
   }
 
@@ -470,18 +483,27 @@ class MugenFightApp {
     finally { this.#deviceLossButton.disabled = false; }
   }
   #showBanner(title: string, subtitle: string): void { this.#phaseBanner.hidden = false; const strong = this.#phaseBanner.querySelector('strong'); const span = this.#phaseBanner.querySelector('span'); if (strong) strong.textContent = title; if (span) span.textContent = subtitle; }
-  #setLoadingProgress(progress: number, label: string): void { this.#loadingProgress = Math.max(0, Math.min(1, progress)); this.#loadingLabel = label; this.#runtimeStatus.textContent = label; document.body.dataset.loadingProgress = this.#loadingProgress.toFixed(3); document.body.dataset.loadingLabel = label; this.#syncFlowUi(); }
+  #setLoadingProgress(progress: number, label: string): void { this.#loadingProgress = Math.max(0, Math.min(1, progress)); this.#loadingLabel = label; this.#runtimeStatus.textContent = label; document.body.dataset.loadingProgress = this.#loadingProgress.toFixed(3); document.body.dataset.loadingLabel = label; if (this.#verifyCapture) element<HTMLElement>('progress').textContent = `${this.#loadingProgress.toFixed(3)} · ${label}`; this.#syncFlowUi(); }
   #recordPerformance(time: number, simulationMs: number, renderMs: number): void {
     this.#performanceFrames += 1; this.#performanceSimulationMs += simulationMs; this.#performanceRenderMs += renderMs;
     const elapsed = time - this.#performanceWindowStart; if (elapsed < 1000) return;
     document.body.dataset.performanceFps = (this.#performanceFrames * 1000 / elapsed).toFixed(1); document.body.dataset.performanceSimulationMs = (this.#performanceSimulationMs / this.#performanceFrames).toFixed(2); document.body.dataset.performanceRenderMs = (this.#performanceRenderMs / this.#performanceFrames).toFixed(2);
     this.#performanceWindowStart = time; this.#performanceFrames = 0; this.#performanceSimulationMs = 0; this.#performanceRenderMs = 0;
   }
+  #publishBrowserCaptureResult(snapshot: MugenMatchSnapshot): void {
+    if (!this.#verifyCapture || snapshot.tick < 180) return;
+    const data = document.body.dataset;
+    element<HTMLElement>('progress').textContent = JSON.stringify({ tick: snapshot.tick, phase: snapshot.phase, gameStatus: data.gameStatus, deviceLossStatus: data.deviceLossStatus, afterImageVerification: data.afterImageVerification, hitSparkVerification: data.hitSparkVerification, fightSoundVerification: data.fightSoundVerification, audioStatus: data.audioStatus, performanceFps: data.performanceFps, backlogTicks: data.performanceBacklogTicks });
+    if (data.deviceLossStatus !== 'recovered' || data.afterImageVerification !== 'rendering' || data.hitSparkVerification !== 'rendering' || data.fightSoundVerification !== 'played' || data.audioStatus !== 'running' || data.performanceFps === undefined || data.performanceBacklogTicks !== '0') return;
+    const result = element<HTMLElement>('result');
+    result.textContent = JSON.stringify({ status: data.gameStatus, phase: snapshot.phase, tick: snapshot.tick, outputHash: data.outputHash, adapter: data.webgpuAdapter, characters: data.characterIds, loadingProgress: data.loadingProgress, deviceGeneration: Number(data.deviceGeneration), deviceLossStatus: data.deviceLossStatus, afterImageTrails: Number(data.mugenAfterImageTrails), hitSparks: Number(data.mugenHitSparks), missingTransientAnimations: Number(data.mugenMissingTransientAnimations), fightSoundVerification: data.fightSoundVerification, fightSoundBank: data.fightSoundBank, fightSoundCount: Number(data.fightSoundCount), audioStatus: data.audioStatus, fps: Number(data.performanceFps), simulationMilliseconds: Number(data.performanceSimulationMs), renderMilliseconds: Number(data.performanceRenderMs), backlogTicks: Number(data.performanceBacklogTicks) });
+    result.dataset.status = 'passed';
+  }
   #requireFixture(id: string): MugenBuiltInGameFixture { const value = this.#fixtures.get(id); if (!value) throw new Error(`MUGEN 内置角色 ${id} 尚未装载。`); return value; }
   #requireStage(): MugenStageModel { if (!this.#stageFixture) throw new Error('MUGEN 内置舞台尚未装载。'); return this.#stageFixture; }
   #applyStage(stage: MugenStageModel): void { document.body.dataset.stageId = stage.id; document.body.dataset.stageName = stage.displayName; document.body.dataset.stageSha256 = stage.sourceSetSha256; document.body.dataset.stageBackgrounds = String(stage.backgrounds.length); document.body.dataset.stageStatus = 'ready'; document.body.dataset.stageLoaded = 'true'; this.#arena.setAttribute('aria-label', `${stage.displayName} · MUGEN 双人对战舞台`); }
 
-  #fail(error: unknown): void { const message = error instanceof Error ? error.message : String(error); const stack = error instanceof Error ? error.stack ?? message : message; console.error('[Haiyue MUGEN]', error); this.#running = false; this.#runtimeStatus.textContent = '启动失败'; this.#loadingError.hidden = false; this.#loadingError.textContent = `MUGEN 游戏启动失败\n\n${message}`; this.#showBanner('ERROR', '请检查浏览器 WebGPU 支持'); document.body.dataset.gameStatus = 'error'; document.body.dataset.gameError = message; document.body.dataset.gameErrorStack = stack; this.#syncFlowUi(); }
+  #fail(error: unknown): void { const message = error instanceof Error ? error.message : String(error); const stack = error instanceof Error ? error.stack ?? message : message; console.error('[Haiyue MUGEN]', error); this.#running = false; this.#runtimeStatus.textContent = '启动失败'; this.#loadingError.hidden = false; this.#loadingError.textContent = `MUGEN 游戏启动失败\n\n${message}`; this.#showBanner('ERROR', '请检查浏览器 WebGPU 支持'); document.body.dataset.gameStatus = 'error'; document.body.dataset.gameError = message; document.body.dataset.gameErrorStack = stack; if (this.#verifyCapture) { const result = element<HTMLElement>('result'); result.textContent = JSON.stringify({ status: 'error', message, stack }); result.dataset.status = 'failed'; } this.#syncFlowUi(); }
 }
 
 function setGauge(elementValue: HTMLElement, ratio: number): void { elementValue.style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`; }
@@ -489,6 +511,8 @@ function afterImageTransparency(mode: 'none' | 'add' | 'add1' | 'sub'): NonNulla
 function fightSoundVerificationEvent(tick: number): MugenMatchEvent { return Object.freeze({ id: `mugen-fight-sound-verification-${tick}`, tick, sequence: 0, kind: 'audio', fighterId: 'P1', resourceOwner: 'fight', operation: 'play', group: 0, item: 0, channel: -1, volume: 255, pan: 0, frequency: 1, loop: false, lowPriority: false }); }
 function element<T extends HTMLElement>(id: string): T { const value = document.getElementById(id); if (!value) throw new Error(`Missing MUGEN game element #${id}.`); return value as T; }
 async function fetchLocalBytes(relativeUrl: string): Promise<Uint8Array> { const response = await fetch(new URL(relativeUrl, import.meta.url)); if (!response.ok) throw new Error(`无法载入 FightFX 验证资源（HTTP ${response.status}）。`); return new Uint8Array(await response.arrayBuffer()); }
+function readLifecycleReceipt(): string | null { try { return sessionStorage.getItem(BROWSER_LIFECYCLE_RECEIPT_KEY); } catch { return null; } }
+function writeLifecycleReceipt(status: 'active' | 'disposed'): void { try { sessionStorage.setItem(BROWSER_LIFECYCLE_RECEIPT_KEY, status); } catch { /* Session storage is optional evidence, never a runtime dependency. */ } }
 
 const app = new MugenFightApp();
 void app.init();

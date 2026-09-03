@@ -1,0 +1,6070 @@
+;---------------------------------------------------------------------------
+;ゲージ
+;---------------------------------------------------------------------------
+[Statedef 10000]
+type = A
+ctrl = 0
+anim = 0
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+Flag2 = invisible
+IgnoreHitPause = 1
+
+[State 5120, 3]
+type = NotHitBy
+trigger1 = 1
+value = SCA
+time = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = Power != PowerMax
+fvar(0) = 0.0005*(power-(1000*ceil(power/1000)))
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = Power = PowerMax
+fvar(0) = 0.5
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = varadd
+trigger1 = 1
+var(0) = 1
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [0,999]
+var(1) = 0
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [1000,1999]
+var(1) = 1
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [2000,2999]
+var(1) = 2
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [3000,3999]
+var(1) = 3
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [4000,4999]
+var(1) = 4
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [5000,5999]
+var(1) = 5
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [6000,6999]
+var(1) = 6
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [7000,7999]
+var(1) = 7
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [8000,8999]
+var(1) = 8
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 5120, 3]
+type = VarSet
+trigger1 = power = [9000,9999]
+var(1) = 9
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10010)>=1
+trigger1 = var(0) = 30 || var(0) = 60 || var(0) = 120
+id =10010
+IgnoreHitPause = 1
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10011)>=1
+trigger1 = var(0) = 30 || var(0) = 60 || var(0) = 120
+id =10011
+IgnoreHitPause = 1
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10012)>=1
+trigger1 = var(0) = 30 || var(0) = 60 || var(0) = 120
+id =10012
+IgnoreHitPause = 1
+
+[State 5120, 3]
+type = varset
+trigger1 = var(0) = 120
+var(0) = 0
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+anim = ifelse(root,var(46)=4,10320,10300)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+anim = ifelse(root,var(46)=4,10321,10301)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+anim = ifelse(root,var(46)=4,10322,10302)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+anim = ifelse(root,var(46)=4,10323,10303)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 5 || root,var(58) = 17 || root,var(58) = 29
+anim = ifelse(root,var(46)=4,10324,10304)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+anim = ifelse(root,var(46)=4,10325,10305)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 7 || root,var(58) = 19 || root,var(58) = 31
+anim = ifelse(root,var(46)=4,10326,10306)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 8 || root,var(58) = 20 || root,var(58) = 32
+anim = ifelse(root,var(46)=4,10327,10307)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 9 || root,var(58) = 21 || root,var(58) = 33
+anim = ifelse(root,var(46)=4,10328,10308)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 10 || root,var(58) = 22 || root,var(58) = 34
+anim = ifelse(root,var(46)=4,10329,10309)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 11 || root,var(58) = 23 || root,var(58) = 35
+anim = ifelse(root,var(46)=4,10330,10310)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 12 || root,var(58) = 24 || root,var(58) = 36
+anim = ifelse(root,var(46)=4,10331,10311)
+pos = 2,207
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+anim = 10600
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+anim = 10601
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+anim = 10602
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+anim = 10603
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 5 || root,var(58) = 17 || root,var(58) = 29
+anim = 10604
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+anim = 10605
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 7 || root,var(58) = 19 || root,var(58) = 31
+anim = 10606
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 8 || root,var(58) = 20 || root,var(58) = 32
+anim = 10607
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 9 || root,var(58) = 21 || root,var(58) = 33
+anim = 10608
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 10 || root,var(58) = 22 || root,var(58) = 34
+anim = 10609
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 11 || root,var(58) = 23 || root,var(58) = 35
+anim = 10610
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = 12 || root,var(58) = 24 || root,var(58) = 36
+anim = 10611
+pos = 42,232
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+anim = ifelse((root,var(46)=[1,3]),10617,10615)
+pos = 42,232
+Scale = fvar(0),0.5
+postype = left
+BindTime = -1
+id = 10600
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+anim = ifelse(root,var(46)=4,10370,10350)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+anim = ifelse(root,var(46)=4,10371,10351)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+anim = ifelse(root,var(46)=4,10372,10352)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+anim = ifelse(root,var(46)=4,10373,10353)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 5 || root,var(58) = 17 || root,var(58) = 29
+anim = ifelse(root,var(46)=4,10374,10354)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+anim = ifelse(root,var(46)=4,10375,10355)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 7 || root,var(58) = 19 || root,var(58) = 31
+anim = ifelse(root,var(46)=4,10376,10356)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 8 || root,var(58) = 20 || root,var(58) = 32
+anim = ifelse(root,var(46)=4,10377,10357)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 9 || root,var(58) = 21 || root,var(58) = 33
+anim = ifelse(root,var(46)=4,10378,10358)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 10 || root,var(58) = 22 || root,var(58) = 34
+anim = ifelse(root,var(46)=4,10379,10359)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 11 || root,var(58) = 23 || root,var(58) = 35
+anim = ifelse(root,var(46)=4,10380,10360)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 12 || root,var(58) = 24 || root,var(58) = 36
+anim = ifelse(root,var(46)=4,10381,10361)
+pos = -2,207
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+anim = 10650
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+anim = 10651
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+anim = 10652
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+anim = 10653
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 5 || root,var(58) = 17 || root,var(58) = 29
+anim = 10654
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+anim = 10655
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 7 || root,var(58) = 19 || root,var(58) = 31
+anim = 10656
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 8 || root,var(58) = 20 || root,var(58) = 32
+anim = 10657
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 9 || root,var(58) = 21 || root,var(58) = 33
+anim = 10658
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 10 || root,var(58) = 22 || root,var(58) = 34
+anim = 10659
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 11 || root,var(58) = 23 || root,var(58) = 35
+anim = 10660
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = 12 || root,var(58) = 24 || root,var(58) = 36
+anim = 10661
+pos = -42,232
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+anim = ifelse((root,var(46)=[1,3]),10667,10665)
+pos = -42,232
+Scale = fvar(0),0.5
+postype = right
+BindTime = -1
+id = 10600
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+anim = ifelse(root,var(46)=0,10250+var(1),10260+var(1))
+pos = 32,227
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10250
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+anim = ifelse(root,var(46)=0,10250+var(1),10260+var(1))
+pos = -32,227
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10250
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+anim = 10119+root,var(59)
+pos = 55,55
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = [1,12]
+anim = 10120
+pos = 30,212
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = [13,24]
+anim = 10121
+pos = 30,212
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+trigger1 = root,var(58) = [25,36]
+anim = 10122
+pos = 30,212
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+anim = 10119+root,var(59)
+pos = -55,55
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10105
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = [1,12]
+anim = 10120
+pos = -30,212
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = [13,24]
+anim = 10121
+pos = -30,212
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+trigger1 = root,var(58) = [25,36]
+anim = 10122
+pos = -30,212
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10105
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+anim = 10000
+pos = 45,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10000
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+anim = 10000
+pos = 73,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10000
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 1
+anim = 10000
+pos = 101,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10000
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10040)=0
+trigger1 = root,var(30) = 0
+trigger1 = root,var(31) != 0
+trigger1 = TeamSide = 1
+anim = 10004
+pos = 45,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10040
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10041)=0
+trigger1 = root,var(30) <= 1000
+trigger1 = root,var(31) != 0
+trigger1 = TeamSide = 1
+anim = 10004
+pos = 73,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10041
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10042)=0
+trigger1 = root,var(30) <= 2000
+trigger1 = root,var(31) != 0
+trigger1 = TeamSide = 1
+anim = 10004
+pos = 101,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10042
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = root,var(30) >= 100
+trigger1 = root,var(30) < 999
+trigger1 = TeamSide = 1
+anim = 10000+ceil(root,var(30)/20)
+pos = 45,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10030
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = root,var(30) >= 1100
+trigger1 = root,var(30) < 1999
+trigger1 = TeamSide = 1
+anim = 10000+ceil((root,var(30)-1000)/20)
+pos = 73,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10031
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = root,var(30) >= 2100
+trigger1 = root,var(30) < 2999
+trigger1 = TeamSide = 1
+anim = 10000+ceil((root,var(30)-2000)/20)
+pos = 101,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10032
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10010)=0
+trigger1 = root,var(30) >= 1000
+trigger1 = TeamSide = 1
+anim = ifelse(var(0)<30,10001,ifelse(var(0)<60,10002,10003))
+pos = 45,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10010
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10011)=0
+trigger1 = root,var(30) >= 2000
+trigger1 = TeamSide = 1
+anim = ifelse(var(0)<30,10001,ifelse(var(0)<60,10002,10003))
+pos = 73,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10011
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10012)=0
+trigger1 = root,var(30) >= 3000
+trigger1 = TeamSide = 1
+anim = ifelse(var(0)<30,10001,ifelse(var(0)<60,10002,10003))
+pos = 101,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10012
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10020)=0
+trigger1 = NumExplod(10040)=0
+trigger1 = root,var(30) < 1000
+trigger1 = TeamSide = 1
+anim = 10050
+pos = 45,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10020
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10021)=0
+trigger1 = NumExplod(10041)=0
+trigger1 = root,var(30) < 2000
+trigger1 = TeamSide = 1
+anim = 10050
+pos = 73,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10021
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10022)=0
+trigger1 = NumExplod(10042)=0
+trigger1 = root,var(30) < 3000
+trigger1 = TeamSide = 1
+anim = 10050
+pos = 101,215
+Scale = 0.5,0.5
+postype = left
+BindTime = -1
+id = 10022
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+anim = 10000
+pos = -70,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10000
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+anim = 10000
+pos = -98,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10000
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = TeamSide = 2
+anim = 10000
+pos = -126,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10000
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10040)=0
+trigger1 = root,var(30) = 0
+trigger1 = root,var(31) != 0
+trigger1 = TeamSide = 2
+anim = 10004
+pos = -70,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10040
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10041)=0
+trigger1 = root,var(30) <= 1000
+trigger1 = root,var(31) != 0
+trigger1 = TeamSide = 2
+anim = 10004
+pos = -98,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10041
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10042)=0
+trigger1 = root,var(30) <= 2000
+trigger1 = root,var(31) != 0
+trigger1 = TeamSide = 2
+anim = 10004
+pos = -126,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10042
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = root,var(30) >= 100
+trigger1 = root,var(30) < 999
+trigger1 = TeamSide = 2
+anim = 10000+ceil(root,var(30)/20)
+pos = -70,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10030
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = root,var(30) >= 1100
+trigger1 = root,var(30) < 1999
+trigger1 = TeamSide = 2
+anim = 10000+ceil((root,var(30)-1000)/20)
+pos = -98,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10031
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = root,var(30) >= 2100
+trigger1 = root,var(30) < 2999
+trigger1 = TeamSide = 2
+anim = 10000+ceil((root,var(30)-2000)/20)
+pos = -126,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10032
+SprPriority = 20
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10010)=0
+trigger1 = root,var(30) >= 1000
+trigger1 = TeamSide = 2
+anim = ifelse(var(0)<30,10001,ifelse(var(0)<60,10002,10003))
+pos = -70,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10010
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10011)=0
+trigger1 = root,var(30) >= 2000
+trigger1 = TeamSide = 2
+anim = ifelse(var(0)<30,10001,ifelse(var(0)<60,10002,10003))
+pos = -98,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10011
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10012)=0
+trigger1 = root,var(30) >= 3000
+trigger1 = TeamSide = 2
+anim = ifelse(var(0)<30,10001,ifelse(var(0)<60,10002,10003))
+pos = -126,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10012
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10020)=0
+trigger1 = root,var(31) = 0
+trigger1 = root,var(30) < 1000
+trigger1 = TeamSide = 2
+anim = 10050
+pos = -70,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10020
+SprPriority = 15
+removetime = -1
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10021)=0
+trigger1 = root,var(31) = 0
+trigger1 = root,var(30) < 2000
+trigger1 = TeamSide = 2
+anim = 10050
+pos = -98,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10021
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = NumExplod(10022)=0
+trigger1 = root,var(31) = 0
+trigger1 = root,var(30) < 3000
+trigger1 = TeamSide = 2
+anim = 10050
+pos = -126,215
+Scale = 0.5,0.5
+postype = right
+BindTime = -1
+id = 10022
+removetime = -1
+SprPriority = 15
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2000]
+type = Explod
+trigger1 = TeamSide = 1
+anim = (10703-Root,Var(40))
+pos = 35,35
+Scale = 0.3,0.3
+postype = left
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2000]
+type = Explod
+trigger1 = TeamSide = 2
+anim = (10753-Root,Var(40))
+pos = -35,35
+Scale = 0.3,0.3
+postype = Right
+BindTime = -1
+id = 10300
+SprPriority = 10
+IgnoreHitPause = 1
+Persistent = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+Trigger1 = root,var(46) = [1,3]
+Flag = TimerFreeze
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 700]
+type = RemoveExplod
+trigger1 = Roundstate = 3
+id =10000
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10010)>=1
+trigger1 = root,var(30) < 1000
+trigger2 = Roundstate = 3
+id =10010
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10011)>=1
+trigger1 = root,var(30) < 2000
+trigger2 = Roundstate = 3
+id =10011
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10012)>=1
+trigger1 = root,var(30) < 3000
+trigger2 = Roundstate = 3
+id =10012
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10020)>=1
+trigger1 = root,var(30) >= 1000
+trigger2 = root,var(31) != 0
+trigger2 = root,var(30) = 0
+trigger3 = Roundstate = 3
+id =10020
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10021)>=1
+trigger1 = root,var(30) >= 2000
+trigger2 = root,var(31) != 0
+trigger2 = root,var(30) <= 1000
+trigger3 = Roundstate = 3
+id =10021
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10022)>=1
+trigger1 = root,var(30) >= 3000
+trigger2 = root,var(31) != 0
+trigger2 = root,var(30) <= 2000
+trigger3 = Roundstate = 3
+id =10022
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10040)>=1
+trigger1 = root,var(31) = 0
+trigger2 = Roundstate = 3
+id =10040
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10041)>=1
+trigger1 = root,var(31) = 0
+trigger2 = Roundstate = 3
+id =10041
+
+[State 700]
+type = RemoveExplod
+triggerall = NumExplod(10042)>=1
+trigger1 = root,var(31) = 0
+trigger2 = Roundstate = 3
+id =10042
+
+[State 10000]
+type = destroyself
+trigger1 = Roundstate = 3
+
+;---------------------------------------------------------------------------
+;モードセレクト(２アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 10500]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10105,10115)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75,0.75
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(59) = 4
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 10509
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 10505
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 10501
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;モードセレクト(２仕様)
+;---------------------------------------------------------------------------
+[Statedef 10501]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10103,10113)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75,0.75
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(59) = 5
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 10509
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 10500
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 10502
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;モードセレクト(すごカナ仕様)
+;---------------------------------------------------------------------------
+[Statedef 10502]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10104,10114)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75,0.75
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(59) = 6
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 10509
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 10501
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 10503
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;モードセレクト(アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 10503]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10102,10112)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(59) = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 10509
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 10502
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 10504
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;モードセレクト(初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 10504]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10100,10110)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(59) = 2
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 10509
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 10503
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 10505
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;モードセレクト(フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 10505]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10101,10111)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(59) = 3
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 10509
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 10504
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 10500
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;モード決定(アルカナセレクトへ)
+;---------------------------------------------------------------------------
+[Statedef 10509]
+type = A
+ctrl = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time = 0
+value = s9,0
+
+[state 300]
+type = varset
+trigger1 = (PrevStateNo=10500||PrevStateNo=10501||PrevStateNo=10502)
+fvar(0) = 0.25
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = fvar(0)+0.5,fvar(0)+0.5
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = var(0) >= 256
+value = 11000
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(パルティニアス:アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 11000]
+type = A
+ctrl = 0
+anim = 10400
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11024
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11012
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11001
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11005
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(ヴァンリー:アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 11001]
+type = A
+ctrl = 0
+anim = 10401
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 2
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11025
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11013
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11002
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11000
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(アヌトゥパーダ:アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 11002]
+type = A
+ctrl = 0
+anim = 10402
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 3
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11026
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11014
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11003
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11001
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(モリオモト:アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 11003]
+type = A
+ctrl = 0
+anim = 10403
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 4
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11027
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11015
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11005
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11002
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(テンペスタス:アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 11005]
+type = A
+ctrl = 0
+anim = 10405
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 6
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11029
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11017
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11000
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11003
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(パルティニアス:初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 11012]
+type = A
+ctrl = 0
+anim = 10400
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 13
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11000
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11024
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11013
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11017
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(ヴァンリー:初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 11013]
+type = A
+ctrl = 0
+anim = 10401
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 14
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11001
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11025
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11014
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11012
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(アヌトゥパーダ:初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 11014]
+type = A
+ctrl = 0
+anim = 10402
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 15
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11002
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11026
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11015
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11013
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(モリオモト:初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 11015]
+type = A
+ctrl = 0
+anim = 10403
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 16
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11003
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11027
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11017
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11014
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(テンペスタス:初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 11017]
+type = A
+ctrl = 0
+anim = 10405
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 18
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11005
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11029
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11012
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11015
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(パルティニアス:フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 11024]
+type = A
+ctrl = 0
+anim = 10400
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 25
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11012
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11000
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11025
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11029
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(ヴァンリー:フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 11025]
+type = A
+ctrl = 0
+anim = 10401
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 26
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11013
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11001
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11026
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11024
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(アヌトゥパーダ:フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 11026]
+type = A
+ctrl = 0
+anim = 10402
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 27
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11014
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11002
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11027
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11025
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(モリオモト:フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 11027]
+type = A
+ctrl = 0
+anim = 10403
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 28
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11015
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11003
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11029
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11026
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(テンペスタス:フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 11029]
+type = A
+ctrl = 0
+anim = 10405
+SprPriority = -2
+
+[State -2]
+Type = Helper
+Trigger1 = NumHelper(11150) = 0
+Trigger1 = time = 0
+StateNo = 11150
+ID = 11150
+name = "Arcana Mode select"
+scale = 0.5,0.5
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 6520]
+type = posset
+trigger1 = teamside = 1
+x = -130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = teamside = 2
+x = 130
+y = -175
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = Parentvarset
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+var(58) = 30
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "start"
+trigger2 = RoundState = 2
+value = 11100
+IgnoreHitPause = 1
+Persistent = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time >= 5
+trigger1 = Root,command = "U" || Root,command = "D" || Root,command = "F" || Root,command = "B"
+value = s9,1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "U"
+value = 11017
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "D"
+value = 11005
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "F"
+value = 11024
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = time >= 5
+trigger1 = Root,command = "B"
+value = 11027
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナ決定
+;---------------------------------------------------------------------------
+[Statedef 11100]
+type = A
+ctrl = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time = 0
+value = s9,0
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(アレンジ仕様)
+;---------------------------------------------------------------------------
+[Statedef 11150]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10102,10112)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = 11100
+trigger2 = RoundState = 2
+value = 11155
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = [11012,11023]
+value = 11151
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = [11024,11035]
+value = 11152
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(初代仕様)
+;---------------------------------------------------------------------------
+[Statedef 11151]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10100,10110)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = 11100
+trigger2 = RoundState = 2
+value = 11155
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = [11000,11011]
+value = 11150
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = [11024,11035]
+value = 11152
+IgnoreHitPause = 1
+Persistent = 0
+
+;---------------------------------------------------------------------------
+;アルカナセレクト(フル仕様)
+;---------------------------------------------------------------------------
+[Statedef 11152]
+type = A
+ctrl = 0
+anim = ifelse(teamside=1,10101,10111)
+SprPriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = 11100
+trigger2 = RoundState = 2
+value = 11155
+IgnoreHitPause = 1
+Persistent = 0
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = [11000,11011]
+value = 11150
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 300 , 7]
+type = ChangeState
+trigger1 = Parent,StateNo = [11012,11023]
+value = 11151
+IgnoreHitPause = 1
+Persistent = 1
+
+;---------------------------------------------------------------------------
+;アルカナ決定
+;---------------------------------------------------------------------------
+[Statedef 11155]
+type = A
+ctrl = 0
+
+[State -2, 1]
+type = PlaySnd
+trigger1 = time = 0
+value = s9,0
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5,0.5
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;ホーミングヘルパー(その1)
+;---------------------------------------------------------------------------
+[Statedef 355]
+type = A
+ctrl = 0
+anim = 365
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = varadd
+trigger1 = animelem = 3,>=0
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 291]
+type = angleset
+trigger1 = time = 0
+value = -floor(atan(ceil(P2dist y)/ceil(abs(P2dist x)))*180/pi)
+
+[state 800]
+type = angledraw
+trigger1 = 1
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;ホーミングヘルパー(その2)
+;---------------------------------------------------------------------------
+[Statedef 356]
+type = A
+ctrl = 0
+anim = 366
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = varadd
+trigger1 = animelem = 3,>=0
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 291]
+type = angleset
+trigger1 = time = 0
+value = -floor(atan(ceil(P2dist y)/ceil(abs(P2dist x)))*180/pi)
+
+[state 800]
+type = angledraw
+trigger1 = 1
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー
+;---------------------------------------------------------------------------
+[Statedef 10010]
+type = A
+ctrl = 0
+anim = ifelse(teamside = 1,10200,10201)
+sprpriority = -3
+
+[state 6520]
+type = posset
+trigger1 = time = 0
+trigger2 = time%40 = 0
+x = ifelse(teamside = 1,0,-320)
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10202
+pos = 0,150
+scale = 1,0.5
+postype = left
+id = 10202
+Bindtime = -1
+sprpriority = -2
+IgnoreHitPause = 1
+SuperMoveTime = 1000
+PauseMoveTime = 1000
+
+[State 2001]
+type = Explod
+trigger1 = teamside = 1
+trigger1 = time = 0
+anim = 10203
+pos = 0,0
+scale = 0.5,0.5
+postype = left
+id = 10203
+Bindtime = -1
+sprpriority = -1
+IgnoreHitPause = 1
+SuperMoveTime = 1000
+PauseMoveTime = 1000
+
+[State 2001]
+type = Explod
+trigger1 = teamside = 2
+trigger1 = time = 0
+anim = 10204
+pos = 0,0
+scale = 0.5,0.5
+postype = right
+id = 10203
+Bindtime = -1
+sprpriority = -1
+IgnoreHitPause = 1
+SuperMoveTime = 1000
+PauseMoveTime = 1000
+
+[state 6520]
+type = velset
+trigger1 = teamside = 1
+x = 15
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = velset
+trigger1 = teamside = 2
+x = -15
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = 1
+y = (Pos y - ScreenPos y)-5
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = varadd
+trigger1 = Root,StateNo != [500,539]
+trigger1 = Root,StateNo != [580,589]
+trigger2 = Root,StateNo = 500
+trigger2 = time >= 36
+trigger3 = Root,StateNo = [510,511]
+trigger3 = time >= 31
+trigger4 = (Root,StateNo = 520 && time >= 41) || Root,StateNo = 521
+trigger5 = Root,StateNo = 530
+trigger5 = time >= 200
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = var(0) > 0
+trans = addalpha
+alpha = 256-var(0),256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 5,1
+
+[State 2001]
+type = removeExplod
+trigger1 = var(0) > 0
+id = 10202
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナ時)
+;---------------------------------------------------------------------------
+[Statedef 10011]
+type = A
+ctrl = 0
+anim = ifelse(teamside = 1,10200,10201)
+sprpriority = -3
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10202
+pos = 0,150
+scale = 1,0.5
+postype = left
+id = 10202
+Bindtime = -1
+sprpriority = -2
+IgnoreHitPause = 1
+SuperMoveTime = 1000
+PauseMoveTime = 1000
+
+[state 6520]
+type = velset
+trigger1 = teamside = 1
+x = 15
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = velset
+trigger1 = teamside = 2
+x = -15
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = posset
+trigger1 = 1
+y = (Pos y - ScreenPos y)-5
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = varadd
+trigger1 = time >= 50
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = var(0) > 0
+trans = addalpha
+alpha = 256-var(0),256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 5,1
+
+[State 2001]
+type = removeExplod
+trigger1 = var(0) > 0
+id = 10202
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナ時)
+;---------------------------------------------------------------------------
+[Statedef 10012]
+type = A
+ctrl = 0
+sprpriority = 2
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+value = 1065
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+value = 1165
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+value = 1265
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+value = 1365
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+value = 1565
+
+[State 8000 , 0]
+type = varset
+trigger1 = time = 0
+fvar(0) = 1
+
+[State 8000 , 0]
+type = varadd
+trigger1 = time >= 20
+fvar(0) = 0.2
+
+[state 300]
+type = varadd
+trigger1 = time >= 25
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+scale = fvar(0),fvar(0)
+
+[state 6520]
+type = PosAdd
+trigger1 = Root,StateType = A
+trigger1 = time = 0
+y = -25
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナフォース展開時)
+;---------------------------------------------------------------------------
+[Statedef 10013]
+type = A
+ctrl = 0
+sprpriority = 2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[state 6520]
+type = posset
+trigger1 = 1
+x = Root,Pos x
+y = Root,Pos y-55
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+value = 1065
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+value = 1165
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+value = 1265
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+value = 1365
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+value = 1565
+
+[State 8000 , 0]
+type = varset
+trigger1 = time = 0
+fvar(0) = 1
+
+[State 8000 , 0]
+type = varadd
+trigger1 = time >= 70
+fvar(0) = 0.2
+
+[state 300]
+type = VarSet
+trigger1 = time = 0
+var(0) = 255
+
+[state 300]
+type = Varadd
+trigger1 = time <= 17
+var(0) = -15
+
+[state 300]
+type = varadd
+trigger1 = time >= 75
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+scale = fvar(0),fvar(0)
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナフォース展開時)
+;---------------------------------------------------------------------------
+[Statedef 10014]
+type = A
+ctrl = 0
+sprpriority = -15
+
+[state 6520]
+type = posset
+trigger1 = 1
+x = (Pos x - ScreenPos x)
+y = (Pos y - ScreenPos y)
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+Flag2 = NoBG
+Flag3 = NoFG
+IgnoreHitPause = 1
+
+[state -2]
+type = changeanim
+trigger1 = root,var(58) = 1 || root,var(58) = 13 || root,var(58) = 25
+value = 560
+
+[state -2]
+type = changeanim
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+value = 561
+
+[state -2]
+type = changeanim
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+value = 562
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+value = 563
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+value = 565
+
+[state 300]
+type = VarSet
+trigger1 = time = 0
+var(0) = 255
+
+[state 300]
+type = Varadd
+trigger1 = time <= 17
+var(0) = -15
+
+[state 300]
+type = varadd
+trigger1 = time >= 75
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),var(0)
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナブレイズ時)
+;---------------------------------------------------------------------------
+[Statedef 10015]
+type = A
+ctrl = 0
+anim = ifelse(teamside = 1,10200,10201)
+sprpriority = -3
+
+[state 6520]
+type = varset
+triggerall = time = 0
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+var(0) = 1
+
+[state 6520]
+type = varset
+triggerall = time = 0
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+var(0) = 2
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10202
+pos = 0,150
+scadle = 1,0.5
+postype = left
+id = 10202
+Bindtime = -1
+sprpriority = -2
+IgnoreHitPause = 1
+SuperMoveTime = 9999999999
+PauseMoveTime = 9999999999
+
+[state 6520]
+type = velset
+trigger1 = teamside = 1
+x = 15
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 6520]
+type = velset
+trigger1 = teamside = 2
+x = -15
+IgnoreHitPause = 1
+Persistent = 1
+
+[State 2001]
+type = PosSet
+trigger1 = time%40 = 0
+x = ifelse(teamside = 1,0,-150)
+
+[state 6520]
+type = posset
+trigger1 = 1
+y = (Pos y - ScreenPos y)
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = varadd
+trigger1 = time >= 230
+trigger1 = var(0) = 0
+trigger2 = Root,StateNo != [1280,1281]
+trigger2 = var(0) = 1
+trigger2 = Root,var(35) = 0
+trigger3 = var(0) = 2
+trigger3 = Root,StateNo != [1380,1381]
+var(1) = 25
+
+[state 800]
+type = Trans
+trigger1 = var(1) > 0
+trans = addalpha
+alpha = 256-var(1),256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 5,1
+
+[State 2001]
+type = removeExplod
+trigger1 = var(1) > 0
+id = 10202
+
+[State 10000]
+type = destroyself
+trigger1 = var(1) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナブレイズ時)
+;---------------------------------------------------------------------------
+[Statedef 10016]
+type = A
+ctrl = 0
+Anim = 590
+sprpriority = -2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10017
+ID = 10017
+name = "Blaze_Efect"
+PosType = P1
+Pos = 0,0
+bindtime = -1
+Ownpal = 1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10018
+ID = 10018
+name = "Blaze_Efect"
+PosType = P1
+Pos = 0,0
+bindtime = -1
+Ownpal = 1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 雷]
+type = PalFX
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+add = 0,0,128
+time = -1
+color = 0
+
+[State 時]
+type = PalFX
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+add = 96,96,0
+time = -1
+color = 0
+
+[State 樹]
+type = PalFX
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+add = -128,0,-128
+time = -1
+color = 0
+
+[State 風]
+type = PalFX
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+add = 0,96,0
+time = -1
+color = 0
+
+[State 8000 , 0]
+type = varadd
+trigger1 = time <= 20
+fvar(0) = 0.05
+
+[state 300]
+type = varadd
+trigger1 = time >= 100
+var(0) = 25
+
+[State 8000, 0]
+type = varadd
+trigger1 = time >= 100
+fvar(0) = 0.2
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+scale = fvar(0),fvar(0)
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナブレイズ時)
+;---------------------------------------------------------------------------
+[Statedef 10017]
+type = A
+ctrl = 0
+Anim = 591
+sprpriority = -2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[State 雷]
+type = PalFX
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+add = 0,0,128
+time = -1
+color = 0
+
+[State 時]
+type = PalFX
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+add = 96,96,0
+time = -1
+color = 0
+
+[State 樹]
+type = PalFX
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+add = -128,0,-128
+time = -1
+color = 0
+
+[State 風]
+type = PalFX
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+add = 0,96,0
+time = -1
+color = 0
+
+[State 8000 , 0]
+type = varadd
+trigger1 = time <= 20
+fvar(0) = 0.05
+
+[state 300]
+type = varadd
+trigger1 = time >= 100
+var(0) = 25
+
+[State 8000, 0]
+type = varadd
+trigger1 = time >= 100
+fvar(0) = 0.2
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+scale = fvar(0),fvar(0)
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;カットインヘルパー(アルカナブレイズ時)
+;---------------------------------------------------------------------------
+[Statedef 10018]
+type = A
+ctrl = 0
+Anim = 592
+sprpriority = -2
+
+[State 20005, AssertSpacial]
+Type = AssertSpecial
+Trigger1 = 1
+Flag = Noshadow
+IgnoreHitPause = 1
+
+[State 雷]
+type = PalFX
+trigger1 = root,var(58) = 2 || root,var(58) = 14 || root,var(58) = 26
+add = 0,0,128
+time = -1
+color = 0
+
+[State 時]
+type = PalFX
+trigger1 = root,var(58) = 3 || root,var(58) = 15 || root,var(58) = 27
+add = 96,96,0
+time = -1
+color = 0
+
+[State 樹]
+type = PalFX
+trigger1 = root,var(58) = 4 || root,var(58) = 16 || root,var(58) = 28
+add = -128,0,-128
+time = -1
+color = 0
+
+[State 風]
+type = PalFX
+trigger1 = root,var(58) = 6 || root,var(58) = 18 || root,var(58) = 30
+add = 0,96,0
+time = -1
+color = 0
+
+[State 8000 , 0]
+type = varadd
+trigger1 = time <= 20
+fvar(0) = 0.05
+
+[state 300]
+type = varadd
+trigger1 = time >= 100
+var(0) = 25
+
+[State 8000, 0]
+type = varadd
+trigger1 = time >= 100
+fvar(0) = 0.2
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[state 800]
+type = angledraw
+trigger1 = 1
+scale = fvar(0),fvar(0)
+
+[State 10000]
+type = destroyself
+trigger1 = var(0) >= 256
+
+;---------------------------------------------------------------------------
+;ヒットスパーク
+;---------------------------------------------------------------------------
+[Statedef 10020]
+type = A
+ctrl = 0
+anim = 10500
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = ishelper(10020)
+value = 10500
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = ishelper(10021)
+value = 10501
+
+[state -2]
+type = changeanim
+trigger1 = time = 0
+trigger1 = ishelper(10022)
+value = 10502
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10021
+ID = 10025
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10022
+ID = 10025
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10023
+ID = 10025
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10024
+ID = 10025
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散)
+;---------------------------------------------------------------------------
+[Statedef 10021]
+type = A
+ctrl = 0
+anim = 10503
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10500
+x = -10
+y = -10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10501
+x = -15
+y = -15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10502
+x = -20
+y = -20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10501
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10502
+fvar(0) = 0.25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 45
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5+fvar(0),0.5+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散2)
+;---------------------------------------------------------------------------
+[Statedef 10022]
+type = A
+ctrl = 0
+anim = 10503
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10500
+x = -10
+y = 10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10501
+x = -15
+y = 15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10502
+x = -20
+y = 20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10501
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10502
+fvar(0) = 0.25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 135
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5+fvar(0),0.5+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散3)
+;---------------------------------------------------------------------------
+[Statedef 10023]
+type = A
+ctrl = 0
+anim = Ifelse(IsHelper(10035),10508,10503)
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10500
+x = 10
+y = 10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10501
+x = 15
+y = 15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10502
+x = 20
+y = 20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10501
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10502
+fvar(0) = 0.25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 225
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5+fvar(0),0.5+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散4)
+;---------------------------------------------------------------------------
+[Statedef 10024]
+type = A
+ctrl = 0
+anim = Ifelse(IsHelper(10035),10508,10503)
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10500
+x = 10
+y = -10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10501
+x = 15
+y = -15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10502
+x = 20
+y = -20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10501
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10502
+fvar(0) = 0.25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 315
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.5+fvar(0),0.5+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;斬撃ヒットスパーク
+;---------------------------------------------------------------------------
+[Statedef 10030]
+type = A
+ctrl = 0
+anim = 10514
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state -2]
+type = VarSet
+trigger1 = Ishelper(10031)
+fvar(0) = 0.5
+
+[state -2]
+type = VarSet
+trigger1 = Ishelper(10032)
+fvar(0) = 1
+
+[State 250, 2]
+type = VarRandom
+trigger1 = time = 0
+v = 1
+range = 0,359
+
+[state 800]
+Type = AngleSet
+Trigger1 = 1
+value = var(1)
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 1+fvar(0),1+fvar(0)
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10031
+ID = 10031
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10031
+ID = 10032
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10031
+ID = 10033
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10031
+ID = 10034
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10035
+ID = 10035
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10036
+ID = 10035
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10037
+ID = 10035
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10038
+ID = 10035
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10032
+ID = 10030
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;斬撃ヒットスパーク
+;---------------------------------------------------------------------------
+[Statedef 10031]
+type = A
+ctrl = 0
+anim = 10505+random%3
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state -2]
+type = VarSet
+Trigger1 = Parent,IsHelper(10031)
+v = 1
+value = 1
+
+[state -2]
+type = VarSet
+Trigger1 = Parent,IsHelper(10032)
+v = 1
+value = 2
+
+[state -2]
+type = VelSet
+Trigger1 = IsHelper(10031)
+x = ceil(3+var(1)-(Random%(10+var(1)*10))/10)
+y = ceil(-3-var(1)+(Random%(10+var(1)*10))/10)
+
+[state -2]
+type = VelSet
+Trigger1 = IsHelper(10032)
+Trigger1 = Parent,IsHelper(10030)
+x = ceil(-3-var(1)+(Random%(10+var(1)*10))/10)
+y = ceil(-3-var(1)+(Random%(10+var(1)*10))/10)
+
+[state -2]
+type = VelSet
+Trigger1 = IsHelper(10033)
+x = ceil(-3-var(1)+(Random%(10+var(1)*10))/10)
+y = ceil(3+var(1)-(Random%(10+var(1)*10))/10)
+
+[state -2]
+type = VelSet
+Trigger1 = IsHelper(10034)
+x = ceil(3+var(1)-(Random%(10+var(1)*10))/10)
+y = ceil(3+var(1)-(Random%(10+var(1)*10))/10)
+
+[state -2]
+type = VelSet
+Trigger1 = abs(vel x) < 1
+x = 1
+
+[state -2]
+type = VarSet
+Trigger1 = vel x > 0
+Trigger1 = vel y <= 0
+v = 2
+value = floor(atan(abs(vel y)/abs(vel x))*180/pi)-90
+
+[state -2]
+type = VarSet
+Trigger1 = vel x < 0
+Trigger1 = vel y <= 0
+v = 2
+value = 90-floor(atan(abs(vel y)/abs(vel x))*180/pi)
+
+[state -2]
+type = VarSet
+Trigger1 = vel x < 0
+Trigger1 = vel y > 0
+v = 2
+value = -270+floor(atan(abs(vel y)/abs(vel x))*180/pi)
+
+[state -2]
+type = VarSet
+Trigger1 = vel x > 0
+Trigger1 = vel y > 0
+v = 2
+value = 270-floor(atan(abs(vel y)/abs(vel x))*180/pi)
+
+[state -2]
+type = VarAdd
+Trigger1 = 1
+fv = 0
+value = 0.05
+
+[state 800]
+Type = AngleSet
+Trigger1 = 1
+value = var(2)
+
+[State 800]
+Type = AngleDraw
+Trigger1 = 1
+Scale = (fvar(0)+var(1)*0.2),(fvar(0)+var(1)*0.2)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+Type = Destroyself
+Trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;斬撃ヒットスパーク
+;---------------------------------------------------------------------------
+[Statedef 10032]
+type = A
+ctrl = 0
+anim = 10514
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state -2]
+type = VarSet
+trigger1 = Parent,Ishelper(10031)
+fvar(0) = 0.5
+
+[state -2]
+type = VarSet
+trigger1 = Parent,Ishelper(10032)
+fvar(0) = 1
+
+[State 250, 2]
+type = VarRandom
+trigger1 = time = 0
+trigger2 = var(1) = Parent,Var(1)
+v = 1
+range = 0,359
+
+[state 800]
+Type = AngleSet
+Trigger1 = 1
+value = var(1)
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 1+fvar(0),1+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散)
+;---------------------------------------------------------------------------
+[Statedef 10035]
+type = A
+ctrl = 0
+anim = 10508
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10505
+x = -10
+y = -10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10506
+x = -15
+y = -15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10507
+x = -20
+y = -20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 45
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10506
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10507
+fvar(0) = 0.25
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75+fvar(0),0.75+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散2)
+;---------------------------------------------------------------------------
+[Statedef 10036]
+type = A
+ctrl = 0
+anim = 10508
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10505
+x = -10
+y = 10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10506
+x = -15
+y = 15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10507
+x = -20
+y = 20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 135
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10506
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10507
+fvar(0) = 0.25
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75+fvar(0),0.75+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散3)
+;---------------------------------------------------------------------------
+[Statedef 10037]
+type = A
+ctrl = 0
+anim = 10508
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10505
+x = 10
+y = 10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10506
+x = 15
+y = 15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10507
+x = 20
+y = 20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 225
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10506
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10507
+fvar(0) = 0.25
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75+fvar(0),0.75+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ヒットスパーク(拡散4)
+;---------------------------------------------------------------------------
+[Statedef 10038]
+type = A
+ctrl = 0
+anim = 10508
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10505
+x = 10
+y = -10
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10506
+x = 15
+y = -15
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 300]
+type = Posadd
+trigger1 = Parent,Anim = 10507
+x = 20
+y = -20
+IgnoreHitPause = 1
+Persistent = 0
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256,256
+IgnoreHitPause = 1
+Persistent = 1
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = 315
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10506
+fvar(0) = 0.125
+
+[state 300]
+type = varset
+trigger1 = Parent,Anim = 10507
+fvar(0) = 0.25
+
+[state 800]
+type = angledraw
+trigger1 = 1
+Scale = 0.75+fvar(0),0.75+fvar(0)
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;必殺技ヒットスパーク
+;---------------------------------------------------------------------------
+[Statedef 10040]
+type = A
+ctrl = 0
+anim = 10502
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10041
+ID = 10045
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10041
+ID = 10045
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10041
+ID = 10045
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State -2]
+Type = Helper
+trigger1 = time = 0
+StateNo = 10041
+ID = 10045
+name = "Hit_Spark"
+PosType = P1
+Pos = 0,0
+Ownpal = 1
+Bindtime = -1
+SprPriority = 2
+IgnoreHitPause = 1
+Persistent = 0
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10510
+pos = 0,0
+scale = 0.5,0.35
+postype = P1
+id = 10510
+bindtime = -1
+sprpriority = 2
+ontop = 1
+IgnoreHitPause = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10511
+pos = 0,0
+scale = 0.5,0.35
+postype = P1
+id = 10510
+bindtime = -1
+sprpriority = 2
+ontop = 1
+IgnoreHitPause = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10512
+pos = 0,0
+scale = 0.5,0.35
+postype = P1
+id = 10510
+bindtime = -1
+sprpriority = 2
+ontop = 1
+IgnoreHitPause = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[State 2001]
+type = Explod
+trigger1 = time = 0
+anim = 10513
+pos = 0,0
+scale = 0.5,0.35
+postype = P1
+id = 10510
+bindtime = -1
+sprpriority = 2
+ontop = 1
+IgnoreHitPause = 1
+SuperMoveTime = 999999999999
+PauseMoveTime = 999999999999
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 15
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;必殺ヒットスパーク(拡散)
+;---------------------------------------------------------------------------
+[Statedef 10041]
+type = A
+ctrl = 0
+anim = 10514
+sprpriority = 2
+
+[State 250, 2]
+type = VarRandom
+trigger1 = time = 0
+v = 1
+range = 0,359
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[state 800]
+type = angleset
+trigger1 = 1
+value = var(1)
+
+[state 800]
+type = angledraw
+trigger1 = 1
+scale = 2,2
+
+[state 300]
+type = varadd
+trigger1 = 1
+var(0) = 25
+
+[state 800]
+type = Trans
+trigger1 = 1
+trans = addalpha
+alpha = 256-var(0),256
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ガードスパーク
+;---------------------------------------------------------------------------
+[Statedef 10050]
+type = A
+ctrl = 0
+anim = 10520
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0
+
+;---------------------------------------------------------------------------
+;ガードブレイクスパーク
+;---------------------------------------------------------------------------
+[Statedef 10051]
+type = A
+ctrl = 0
+anim = 10521
+sprpriority = 2
+
+[state -2]
+type = AssertSpecial
+trigger1 = 1
+flag = noshadow
+
+[State 10000]
+type = destroyself
+trigger1 = Animtime = 0

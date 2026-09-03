@@ -30,6 +30,8 @@ const MAX_SCANNED_CUES = 16_384;
  */
 export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly MugenScannedViewerAudioCue[] {
   const cues: MugenScannedViewerAudioCue[] = [];
+  const availableActionNumbers = airActionNumbers(graph);
+  const claimedGlobalChannels = new Set<string>();
   const referencedStateScripts = stateScriptPaths(graph);
   for (const resource of graph.resources) {
     const document = resource.document;
@@ -40,19 +42,30 @@ export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly Muge
       const type = assignments.find(value => value.foldedKey === 'type');
       const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
       if (normalizedType !== 'playsnd' && normalizedType !== 'hitdef') continue;
-      const actionNumbers = block.actionNumber === null ? inferredActionNumbers(assignments) : Object.freeze([block.actionNumber]);
+      const actionNumbers = block.actionNumber === null ? inferredActionNumbers(assignments, availableActionNumbers) : Object.freeze([block.actionNumber]);
       if (actionNumbers.length === 0) continue;
       const values = new Map<string, MugenAssignmentToken>();
       for (const assignment of assignments) if (!values.has(assignment.foldedKey)) values.set(assignment.foldedKey, assignment);
       const sound = parseSoundKey(values.get(normalizedType === 'hitdef' ? 'hitsound' : 'value'), normalizedType === 'hitdef');
       if (sound === null || sound.owner === 'fight') continue;
       for (const actionNumber of actionNumbers) {
+        if (!matchesGetHitAnimationType(assignments, actionNumber)) continue;
+        const timing = scanTiming(assignments);
+        const channel = staticInteger(values.get('channel')?.value) ?? -1;
+        if (block.actionNumber === null && channel >= 0) {
+          // Mutually exclusive global hurt-voice controllers often target the
+          // same channel. Once their static AnimType branch selects a cue, do
+          // not make the preview play a later guard/random alternative too.
+          const channelKey = `${actionNumber}:${timing.kind}:${timing.value}:${channel}`;
+          if (claimedGlobalChannels.has(channelKey)) continue;
+          claimedGlobalChannels.add(channelKey);
+        }
         cues.push(Object.freeze({
           actionNumber,
           group: sound.group,
           item: sound.item,
-          timing: scanTiming(assignments),
-          channel: staticInteger(values.get('channel')?.value) ?? -1,
+          timing,
+          channel,
           volume: clamp(staticNumber(values.get('volume')?.value) ?? 255, 0, 255) / 255,
           pan: clamp(staticNumber(values.get('pan')?.value) ?? 0, -127, 127) / 127,
           frequency: clamp(staticNumber(values.get('freqmul')?.value) ?? 1, 0.01, 16),
@@ -94,7 +107,7 @@ function viewerStateBlocks(document: MugenTextDocument): readonly Readonly<{ act
     const controllers: MugenTextSection[] = [];
     let end = index + 1;
     while (end < document.sections.length && !/^statedef\s+-?\d+$/iu.test(document.sections[end]!.name.trim())) {
-      if (/^state\s+-?\d+\s*,/iu.test(document.sections[end]!.name.trim())) controllers.push(document.sections[end]!);
+      if (/^state\s+-?\d+(?:\s*,|$)/iu.test(document.sections[end]!.name.trim())) controllers.push(document.sections[end]!);
       end += 1;
     }
     const stateDefAnimation = sectionAssignments(document, definition).find(value => value.foldedKey === 'anim');
@@ -121,11 +134,76 @@ function viewerStateBlocks(document: MugenTextDocument): readonly Readonly<{ act
  * Prefer explicit animation checks; StateNo is a useful fallback for the common
  * one-state/one-action authoring style used by attack voices.
  */
-function inferredActionNumbers(assignments: readonly MugenAssignmentToken[]): readonly number[] {
+function inferredActionNumbers(assignments: readonly MugenAssignmentToken[], availableActionNumbers: ReadonlySet<number>): readonly number[] {
   const triggers = assignments.filter(value => value.foldedKey === 'triggerall' || /^trigger\d+$/u.test(value.foldedKey));
   const animations = equalityIntegers(triggers, 'anim');
   if (animations.length > 0) return animations;
-  return equalityIntegers(triggers, 'stateno');
+  const states = equalityIntegers(triggers, 'stateno');
+  if (availableActionNumbers.size === 0) return states;
+  const expanded = new Set<number>();
+  for (const state of states) {
+    const family = standardGetHitActionFamily(state);
+    if (family === null) {
+      if (availableActionNumbers.has(state)) expanded.add(state);
+      continue;
+    }
+    for (const action of availableActionNumbers) if (action >= family[0] && action <= family[1]) expanded.add(action);
+  }
+  return Object.freeze([...expanded].sort((left, right) => left - right));
+}
+
+function airActionNumbers(graph: MugenImportGraph): ReadonlySet<number> {
+  const result = new Set<number>();
+  for (const resource of graph.resources) {
+    if (resource.kind !== 'air' || resource.document === undefined) continue;
+    for (const section of resource.document.sections) {
+      const match = /^begin\s+action\s+([+-]?\d+)$/iu.exec(section.name.trim());
+      const value = staticInteger(match?.[1]);
+      if (value !== null && value >= 0) result.add(value);
+    }
+  }
+  return result;
+}
+
+function standardGetHitActionFamily(state: number): readonly [number, number] | null {
+  if (state === 5000 || state === 5010 || state === 5020 || state === 5030 || state === 5035 || state === 5040 || state === 5050) return Object.freeze([5000, 5069]);
+  if (state === 5070 || state === 5071 || state === 5080 || state === 5081) return Object.freeze([5070, 5099]);
+  if (state === 5100 || state === 5101 || state === 5110 || state === 5120 || state === 5150) return Object.freeze([5100, 5199]);
+  return null;
+}
+
+function matchesGetHitAnimationType(assignments: readonly MugenAssignmentToken[], actionNumber: number): boolean {
+  const animationType = getHitAnimationType(actionNumber);
+  if (animationType === null) return true;
+  for (const assignment of assignments) {
+    if (assignment.foldedKey !== 'triggerall') continue;
+    const pattern = /gethitvar\s*\(\s*animtype\s*\)\s*(!=|=)\s*(\[\s*-?\d+\s*,\s*-?\d+\s*\]|-?\d+)/giu;
+    for (const match of assignment.value.matchAll(pattern)) {
+      const expected = integerOrIntervalContains(match[2]!, animationType);
+      if (expected === null) continue;
+      if ((match[1] === '=' && !expected) || (match[1] === '!=' && expected)) return false;
+    }
+  }
+  return true;
+}
+
+function getHitAnimationType(actionNumber: number): number | null {
+  if (actionNumber < 5000 || actionNumber > 5069) return null;
+  const ones = actionNumber % 10;
+  if (actionNumber < 5030 && ones <= 2) return ones;
+  if (actionNumber < 5030 && ones >= 5 && ones <= 7) return ones - 5;
+  if ((actionNumber >= 5051 && actionNumber <= 5059) || (actionNumber >= 5061 && actionNumber <= 5069)) return ones + 3;
+  return 2;
+}
+
+function integerOrIntervalContains(source: string, value: number): boolean | null {
+  const interval = /^\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]$/u.exec(source);
+  if (interval) {
+    const minimum = staticInteger(interval[1]); const maximum = staticInteger(interval[2]);
+    return minimum === null || maximum === null ? null : value >= minimum && value <= maximum;
+  }
+  const integer = staticInteger(source);
+  return integer === null ? null : value === integer;
 }
 
 function equalityIntegers(assignments: readonly MugenAssignmentToken[], name: 'anim' | 'stateno'): readonly number[] {
