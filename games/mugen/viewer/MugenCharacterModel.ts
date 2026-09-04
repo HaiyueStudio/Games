@@ -97,6 +97,7 @@ export interface MugenCharacterModel extends MugenRenderAssetModel {
   readonly package: HaiyueMugenPackage;
   readonly actions: readonly MugenViewerAction[];
   readonly sounds: readonly MugenViewerSound[];
+  readonly inferredHitAudioCues: readonly MugenViewerAudioCue[];
   readonly referencedSpriteCount: number;
   readonly missingSpriteReferenceCount: number;
   readonly diagnostics: readonly MugenImportDiagnostic[];
@@ -198,6 +199,7 @@ export function createMugenCharacterModel(packageValue: HaiyueMugenPackage, meta
   const soundByKey = new Map(sounds.map(sound => [`${sound.group},${sound.item}`, sound]));
   const baseActions = packageValue.tables.actions.map(value => actionRecord(value, spriteById));
   const baseActionByNumber = new Map(baseActions.map(value => [value.action.number, value]));
+  const inferredHitAudioCues = scannedInferredHitAudioCues(options.viewerAudioCues ?? [], soundByKey);
   const audioCues = mergeAudioCues(
     audioCuesByAction(packageValue.tables.states, soundByKey, baseActionByNumber),
     scannedAudioCuesByAction(options.viewerAudioCues ?? [], soundByKey, baseActionByNumber),
@@ -226,6 +228,7 @@ export function createMugenCharacterModel(packageValue: HaiyueMugenPackage, meta
     palettes,
     actions,
     sounds,
+    inferredHitAudioCues,
     rendererSprites,
     rendererPalettes,
     spriteById,
@@ -234,6 +237,31 @@ export function createMugenCharacterModel(packageValue: HaiyueMugenPackage, meta
     missingSpriteReferenceCount,
     diagnostics: packageValue.diagnostics,
   });
+}
+
+function scannedInferredHitAudioCues(values: readonly MugenScannedViewerAudioCue[], sounds: ReadonlyMap<string, MugenViewerSound>): readonly MugenViewerAudioCue[] {
+  const result: MugenViewerAudioCue[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (value.inferredKind !== 'get-hit') continue;
+    const sound = sounds.get(`${value.group},${value.item}`);
+    if (sound === undefined) continue;
+    const key = `${value.group},${value.item}:${value.channel}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(Object.freeze({
+      sound,
+      tick: 0,
+      channel: value.channel,
+      volume: Math.max(0, Math.min(1, value.volume)),
+      pan: Math.max(-1, Math.min(1, value.pan)),
+      frequency: Math.max(0.01, Math.min(16, value.frequency)),
+      loop: false,
+      repeatOnLoop: false,
+    }));
+  }
+  return Object.freeze(result.sort((left, right) => left.sound.group - right.sound.group
+    || left.sound.item - right.sound.item || left.channel - right.channel));
 }
 
 export function spriteReferenceResolver(model: MugenCharacterModel): (id: string) => MugenAirSpriteReference | null {

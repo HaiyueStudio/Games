@@ -107,11 +107,11 @@ export class MugenCombatRuntime {
     const contacts: MugenCombatContactTrace[] = [];
     if (match.phase === 'fight' && !this.#order.some(id => match.fighter(id).hitPauseTicks > 0)) {
       animations = this.#animations(match);
-      this.#resolvePush(match, animations);
-      animations = this.#animations(match);
       const reversals = this.#collectReversals(match, animations);
+      const pending = reversals.length > 0 ? Object.freeze([]) : resolveContactPriority(this.#collectContacts(match, input, animations));
+      this.#resolvePush(match, animations);
       if (reversals.length > 0) for (const reversal of reversals) contacts.push(this.#applyReversal(match, reversal, scriptContext));
-      else { const pending = resolveContactPriority(this.#collectContacts(match, input, animations)); for (const contact of pending) if (!contact.guarded) match.markHitTarget(contact.attacker.id, contact.defender.id); for (const contact of pending) contacts.push(this.#applyContact(match, contact, scriptContext)); }
+      else { for (const contact of pending) if (!contact.guarded) match.markHitTarget(contact.attacker.id, contact.defender.id); for (const contact of pending) contacts.push(this.#applyContact(match, contact, scriptContext)); }
       for (const contact of this.#collectHelperRootContacts(match, input, animations)) contacts.push(this.#applyHelperRootContact(match, contact, scriptContext));
       for (const contact of this.#collectRootHelperContacts(match, input, animations)) contacts.push(this.#applyRootHelperContact(match, contact, scriptContext));
       for (const contact of this.#collectHelperHelperContacts(match, input)) contacts.push(this.#applyHelperHelperContact(match, contact));
@@ -149,10 +149,10 @@ export class MugenCombatRuntime {
     if (updateCamera && this.#camera !== null) this.#camera.update(this.#order.map(id => { const fighter = match.fighter(id); const screen = this.script.outputs.findEntity(id)?.screenBound; return Object.freeze({ id, position: fighter.position, moveCamera: screen?.moveCamera ?? Object.freeze([true, true]) as readonly [boolean, boolean] }); }));
     const bounds = this.camera.screenBounds;
     for (const id of this.#order) {
-      const fighter = match.fighter(id); const screenBound = this.script.outputs.findEntity(id)?.screenBound?.bound !== false; const x = this.#camera?.constrainX(fighter.position[0], screenBound) ?? Math.max(this.#stageBounds[0], Math.min(this.#stageBounds[1], screenBound ? Math.max(bounds[0], Math.min(bounds[1], fighter.position[0])) : fighter.position[0]));
-      if (x === fighter.position[0]) continue;
+      const fighter = match.fighter(id); const screenBound = this.script.outputs.findEntity(id)?.screenBound?.bound !== false; const x = this.#camera?.constrainX(fighter.position[0], screenBound) ?? Math.max(this.#stageBounds[0], Math.min(this.#stageBounds[1], screenBound ? Math.max(bounds[0], Math.min(bounds[1], fighter.position[0])) : fighter.position[0])); const y = fighter.physics === 'A' && fighter.position[1] > 0 ? 0 : fighter.position[1];
+      if (x === fighter.position[0] && y === fighter.position[1]) continue;
       const velocityX = (x === bounds[0] && fighter.velocity[0] < 0) || (x === bounds[1] && fighter.velocity[0] > 0) || (x === this.#stageBounds[0] && fighter.velocity[0] < 0) || (x === this.#stageBounds[1] && fighter.velocity[0] > 0) ? 0 : fighter.velocity[0];
-      match.setKinematics(id, { position: [x, fighter.position[1]], velocity: [velocityX, fighter.velocity[1]] });
+      match.setKinematics(id, { position: [x, y], velocity: [velocityX, fighter.velocity[1]] });
     }
   }
 

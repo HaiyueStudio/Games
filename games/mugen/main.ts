@@ -178,7 +178,7 @@ class MugenFightApp {
       this.#stageSelect.disabled = false; this.#startButton.disabled = false;
       this.#setLoadingProgress(1, '载入完成'); this.#assetsReady = true; this.#setFlowScreen('title');
       document.body.dataset.gameStatus = 'ready';
-      if (this.#verifyCapture) { const query = new URLSearchParams(location.search); const p1 = query.get('verifyP1'); const p2 = query.get('verifyP2'); if (p1 !== null && this.#characterCatalog.has(p1)) this.#p1Select.value = p1; if (p2 !== null && this.#characterCatalog.has(p2)) this.#p2Select.value = p2; this.#selectionChanged(this.#p1Select, this.#p2Select); }
+      if (this.#verifyCapture) { const query = new URLSearchParams(location.search); const p1 = query.get('verifyP1'); const p2 = query.get('verifyP2'); if (p1 !== null && this.#characterCatalog.has(p1)) this.#p1Select.value = p1; if (p2 !== null && this.#characterCatalog.has(p2)) this.#p2Select.value = p2; this.#selectionChanged(); }
       this.#animationFrame = requestAnimationFrame(time => this.#frame(time));
       if (this.#verifyCapture) { const mode = new URLSearchParams(location.search).get('verifyMode'); this.#chooseMode(mode === 'single' || mode === 'versus' ? mode : 'ai'); await this.#startMatch(); }
     } catch (error) { if (!(this.#disposed && isAbortError(error))) this.#fail(error); }
@@ -208,15 +208,13 @@ class MugenFightApp {
     this.#keySettingsDialog.addEventListener('cancel', event => { event.preventDefault(); void this.#closeKeySettings(false); });
     for (const button of this.#bindingButtons()) button.addEventListener('click', () => this.#beginBindingCapture(button));
     window.addEventListener('keydown', event => this.#captureBindingKey(event), { capture: true });
-    this.#p1Select.addEventListener('change', () => this.#selectionChanged(this.#p1Select, this.#p2Select));
-    this.#p2Select.addEventListener('change', () => this.#selectionChanged(this.#p2Select, this.#p1Select));
+    this.#p1Select.addEventListener('change', () => this.#selectionChanged());
+    this.#p2Select.addEventListener('change', () => this.#selectionChanged());
     this.#p1Control.addEventListener('change', () => this.#refreshInputDriver()); this.#p2Control.addEventListener('change', () => this.#refreshInputDriver());
     this.#stageSelect.addEventListener('change', () => { void this.#selectStage(); });
     window.addEventListener('beforeunload', () => this.dispose(), { once: true });
     window.addEventListener('pagehide', () => this.dispose(), { once: true });
   }
-
-  #preventDuplicateVariant(changed: HTMLSelectElement, other: HTMLSelectElement): void { if (changed.value === other.value) other.value = [...changed.options].map(option => option.value).find(id => id !== changed.value) ?? changed.value; }
 
   #createAuthority(): void {
     this.#afterImages.clear(); this.#transientAnimations.clear();
@@ -244,7 +242,7 @@ class MugenFightApp {
       for (const [index, id] of ids.entries()) { this.#fixtureLoadProgress = Object.freeze({ completed: index, total: ids.length, label: this.#catalogName(id) }); this.#loadingLabel = `正在载入完整角色 ${this.#catalogName(id)}…`; this.#syncFlowUi(); fixtures.push(await loader.load(id)); }
       this.#fixtureLoadProgress = null; for (const fixture of fixtures) this.#fixtures.set(fixture.id, fixture);
       this.#loadingLabel = '正在载入角色音频…'; this.#syncFlowUi(); await this.#audio.install(fixtures); this.#audio.retainFixtures(fixtures);
-      this.#loadingLabel = '正在上传战斗精灵到显存…'; this.#syncFlowUi(); await this.#installRenderModels();
+      this.#loadingLabel = '正在上传战斗精灵到显存…'; this.#syncFlowUi(); await this.#installRenderModels(); this.#setLoadingProgress(1, '战斗资源载入完成');
       this.#audio.reset(); this.#outputs.reset(); this.#createAuthority(); this.#driver.reset(); this.#running = true; this.#paused = false; this.#lastFrameTime = performance.now();
       const startedMatch = this.#match; void this.#audio.unlock().then(() => { if (!this.#running || this.#match !== startedMatch) return; this.#audio.startMusic(); this.#audio.playCues(initialMugenRoundAudioCues(1), 0); }).catch(() => undefined);
       this.#startButton.disabled = false; this.#startButton.textContent = '重新开始'; this.#pauseButton.disabled = false; this.#pauseButton.textContent = '暂停'; this.#runtimeStatus.textContent = '60 Hz MATCH RUNNING'; document.body.dataset.gameStatus = 'running'; document.body.dataset.characterLoadStatus = 'ready'; document.body.dataset.packageSha256s = fixtures.map(value => value.packageSha256).join(','); this.#showBanner('ROUND 1', 'GET READY');
@@ -284,11 +282,11 @@ class MugenFightApp {
     this.#gameMode = mode; this.#p1Control.value = mode === 'ai' ? '4' : '0'; this.#p2Control.value = mode === 'versus' ? '0' : '4'; this.#refreshInputDriver(); this.#setFlowScreen('select');
   }
   #moveCharacter(player: 0 | 1, deltaColumn: number, deltaRow: number): void {
-    const select = player === 0 ? this.#p1Select : this.#p2Select; const other = player === 0 ? this.#p2Select : this.#p1Select; if (select.options.length === 0 || select.disabled) return; select.selectedIndex = moveMugenCharacterSelection(select.selectedIndex, select.options.length, deltaColumn, deltaRow); this.#selectionChanged(select, other);
+    const select = player === 0 ? this.#p1Select : this.#p2Select; if (select.options.length === 0 || select.disabled) return; select.selectedIndex = moveMugenCharacterSelection(select.selectedIndex, select.options.length, deltaColumn, deltaRow); this.#selectionChanged();
   }
-  #selectCharacter(player: 0 | 1, characterId: string): void { const select = player === 0 ? this.#p1Select : this.#p2Select; const other = player === 0 ? this.#p2Select : this.#p1Select; if (!this.#characterCatalog.has(characterId) || select.disabled) return; select.value = characterId; this.#selectionChanged(select, other); }
-  #selectionChanged(changed: HTMLSelectElement, other: HTMLSelectElement): void {
-    if (this.#running || this.#fightLoading) return; this.#preventDuplicateVariant(changed, other); this.#syncNames(); this.#refreshInputDriver(); document.body.dataset.selectedCharacters = `${this.#p1Select.value},${this.#p2Select.value}`; this.#syncFlowUi();
+  #selectCharacter(player: 0 | 1, characterId: string): void { const select = player === 0 ? this.#p1Select : this.#p2Select; if (!this.#characterCatalog.has(characterId) || select.disabled) return; select.value = characterId; this.#selectionChanged(); }
+  #selectionChanged(): void {
+    if (this.#running || this.#fightLoading) return; this.#syncNames(); this.#refreshInputDriver(); document.body.dataset.selectedCharacters = `${this.#p1Select.value},${this.#p2Select.value}`; this.#syncFlowUi();
   }
   async #cycleStage(direction: -1 | 1): Promise<void> { if (this.#stageSelect.disabled || this.#stageSelect.options.length === 0) return; this.#stageSelect.selectedIndex = (this.#stageSelect.selectedIndex + direction + this.#stageSelect.options.length) % this.#stageSelect.options.length; await this.#selectStage(); }
   #exitFight(): void {

@@ -17,7 +17,7 @@ const [
   { importMugenCharacter },
   { createMugenCharacterModel, discoverMugenCharacterDefCandidates, spriteReferenceResolver },
   { MugenViewerController },
-  { MugenViewerAudio, cueOccurrences },
+  { MugenViewerAudio, cueOccurrences, inferMugenViewerHitAudio },
 ] = await Promise.all([
   import('../mugen/import/vfs/MugenVfs.ts'),
   import('../mugen/import/worker/MugenCharacterImport.ts'),
@@ -130,6 +130,7 @@ test('viewer playback is fixed-tick across 30/60/120 Hz and defines seek/loop/st
   controller.last(); assert.equal(controller.tick, 5);
   controller.select(model.actions[1]); controller.last(); assert.equal(controller.tick, 0, 'zero-time elements are skipped before the infinite final frame');
   assert.deepEqual(cueOccurrences(action, 2, 0, 14), [2, 6, 10, 14], 'audio cues inside LoopStart repeat on every visual loop');
+  assert.deepEqual(cueOccurrences(action, 0, 0, 14), [6, 10, 14], 'a selected intro cue is replayed once at every visual loop boundary');
   assert.deepEqual(cueOccurrences(action, 2, 0, 14, false), [2], 'state-time audio cues do not repeat with the AIR loop');
 });
 
@@ -151,6 +152,32 @@ test('viewer audio sends identifier-safe events for action ids containing paths 
   audio.dispose();
 });
 
+test('viewer audio list supports inferred, authored, manual override, and explicit silence choices', async () => {
+  const inferredSound = { id: 'hero.snd#sound:101,3', group: 101, item: 3, encodedSha256: 'b'.repeat(64), encodedBase64: 'UklGRgAAAAAAAAAA' };
+  const authoredSound = { id: 'hero.snd#sound:200,0', group: 200, item: 0, encodedSha256: 'c'.repeat(64), encodedBase64: 'UklGRgAAAAAAAAAA' };
+  const inferredSource = { id: 'hero.air#action:5000', action: { number: 5000 }, audioCues: [{ sound: inferredSound, tick: 1, channel: 2, volume: 0.8, pan: 0, frequency: 1, loop: false, repeatOnLoop: false }] };
+  const target = { id: 'hero.air#action:15150', action: { number: 15150 }, audioCues: [] };
+  const authored = { id: 'hero.air#action:200', action: { number: 200 }, audioCues: [{ sound: authoredSound, tick: 0, channel: 0, volume: 1, pan: 0, frequency: 1, loop: false, repeatOnLoop: false }] };
+  const inference = inferMugenViewerHitAudio({ actions: [inferredSource, target, authored] }, target);
+  assert.deepEqual({ key: [inference.cue.sound.group, inference.cue.sound.item], tick: inference.cue.tick, source: inference.sourceActionNumber }, { key: [101, 3], tick: 0, source: 5000 });
+  assert.equal(inferMugenViewerHitAudio({ actions: [inferredSource, target, authored] }, authored), null);
+
+  const requests = [];
+  const mixer = {
+    setMasterVolume() {}, async unlock() {}, async resume() {}, async suspend() {}, stop() { return 0; }, removeBuffer() { return true; },
+    async decodeAndInstall() {}, play(request) { requests.push(request); return `voice:${requests.length}`; }, dispose() {},
+  };
+  const audio = new MugenViewerAudio(mixer);
+  audio.select(target, false, inference.cue); audio.playAtTick(target, 0);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  audio.select(authored, false, inference.cue); audio.playAtTick(authored, 0);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  audio.select(authored, false, null); audio.playAtTick(authored, 0);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(requests.map(request => request.bufferId), [`mugen-viewer:snd:${'b'.repeat(64)}`, `mugen-viewer:snd:${'b'.repeat(64)}`]);
+  audio.dispose();
+});
+
 test('viewer product is manifest-backed and exposes required controls without private Engine imports', () => {
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
   const entry = manifest.entries.find(value => value.id === 'mugen');
@@ -162,13 +189,15 @@ test('viewer product is manifest-backed and exposes required controls without pr
   const htmlRevision = html.match(/dist\/charactorPreview\.js\?v=([A-Za-z0-9._-]+)/u)?.[1];
   assert.ok(htmlRevision, 'preview HTML must version its module entry');
   assert.match(html, /<hy-virtual-list[^>]+id="action-list"[^>]+item-height="58"[^>]+overscan="4"/u);
-  for (const id of ['entry-select', 'action-filter', 'speed-select', 'palette-select', 'background-select']) assert.match(html, new RegExp(`<hy-select[^>]+id="${id}"`));
+  for (const id of ['entry-select', 'action-filter', 'speed-select', 'audio-select', 'palette-select', 'background-select']) assert.match(html, new RegExp(`<hy-select[^>]+id="${id}"`));
   const previewSource = readFileSync(new URL('../mugen/charactorPreview.ts', import.meta.url), 'utf8');
   assert.match(previewSource, /value: 'audio', label: '携带音频'/u);
   assert.match(previewSource, /filter === 'audio' && value\.audioCues\.length === 0/u);
   assert.match(previewSource, /value: 'blank', label: '逻辑空动作'/u);
   assert.match(previewSource, /value: 'missing', label: '当前 SFF 无素材'/u);
   for (const id of ['loop-toggle', 'debug-origin', 'debug-axis', 'debug-bounds', 'debug-clsn1', 'debug-clsn2']) assert.match(html, new RegExp(`<hy-checkbox[^>]+id="${id}"`));
+  for (const id of ['workspace-split', 'viewer-split']) assert.match(html, new RegExp(`<hy-split[^>]+id="${id}"`));
+  assert.match(html, /id="character-avatar"/u);
   assert.match(html, /<hy-range[^>]+id="volume-control"/u);
   assert.doesNotMatch(html, /<select\b|type="checkbox"/u);
   const source = readFileSync(new URL('../mugen/charactorPreview.ts', import.meta.url), 'utf8');
@@ -181,7 +210,12 @@ test('viewer product is manifest-backed and exposes required controls without pr
   assert(source.indexOf('this.#bindImportControls()') < source.indexOf('await this.#view.init()'), 'directory import must remain available when WebGPU initialization fails');
   assert.match(source, /from '@haiyue\/ui\/virtual-list'/u);
   assert.match(source, /from '@haiyue\/ui\/(?:select|checkbox|range)'/u);
+  assert.match(source, /from '@haiyue\/ui\/split'/u);
   assert.match(source, /MugenViewerAudio/u);
+  assert.match(source, /推断音频 · 受击/u);
+  assert.match(source, /\[真实绑定\]|\[推断·受击\]|\[角色音库\]/u);
+  assert.doesNotMatch(source, /actionAudioSelections/u, 'switching back to an action must restore its inferred or authored default');
+  assert.match(source, /repeatOnLoop: true/u, 'the selected sound must follow animation playback loops');
   assert.match(source, /scriptProfile: 'none'/u);
   assert.doesNotMatch(source, /scriptProfile: 'g08-minimal'/u);
   assert.match(source, /this\.#actionList\.items = actions/u);

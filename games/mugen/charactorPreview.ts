@@ -2,6 +2,7 @@ import { defineVirtualListComponents, type HYVirtualList, type HYVirtualListItem
 import { defineSelectComponents, HYSelect, type HYSelectOption } from '@haiyue/ui/select';
 import { defineCheckboxComponents, HYCheckbox } from '@haiyue/ui/checkbox';
 import { defineRangeComponents, HYRange } from '@haiyue/ui/range';
+import { defineSplitComponents, HYSplit } from '@haiyue/ui/split';
 import { MugenImportFailure } from './import/diagnostics';
 import { collectMugenInputsFromDirectoryHandle, collectMugenInputsFromFileList } from './import/vfs/browserDirectory';
 import type { MugenVfsInput } from './import/vfs/MugenVfs';
@@ -14,20 +15,32 @@ import {
   spriteReferenceResolver,
   type MugenCharacterModel,
   type MugenViewerAction,
+  type MugenViewerAudioCue,
+  type MugenViewerSound,
+  type MugenViewerSprite,
 } from './viewer/MugenCharacterModel';
 import { firstDrawableTick, lastInspectableTick, MugenViewerController } from './viewer/MugenViewerController';
 import { MugenViewerPreferenceStore } from './viewer/MugenViewerPreferences';
 import { MugenWebGpuView, type MugenViewerBackground } from './viewer/MugenWebGpuView';
 import { createMugenActionListItem, defineMugenActionListItem } from './viewer/MugenActionListItem';
-import { MugenViewerAudio } from './viewer/MugenViewerAudio';
+import { listMugenViewerHitAudioCandidates, MugenViewerAudio, type MugenViewerInferredHitAudio } from './viewer/MugenViewerAudio';
 
 defineVirtualListComponents();
 defineSelectComponents();
 defineCheckboxComponents();
 defineRangeComponents();
+defineSplitComponents();
 defineMugenActionListItem();
 
-const VIEWER_BUILD_REVISION = '20260903-virtual-list-window-1';
+const VIEWER_BUILD_REVISION = '20260904-audio-loop-default-2';
+
+type PreviewAudioChoiceSource = 'none' | 'authored' | 'inferred' | 'library';
+interface PreviewAudioChoice {
+  readonly value: string;
+  readonly cue: MugenViewerAudioCue | null;
+  readonly source: PreviewAudioChoiceSource;
+  readonly inference: MugenViewerInferredHitAudio | null;
+}
 
 class MugenCharacterViewerApp {
   readonly #view: MugenWebGpuView;
@@ -49,6 +62,7 @@ class MugenCharacterViewerApp {
   #lastInspectorKey = '';
   #disposed = false;
   #longTaskObserver: PerformanceObserver | null = null;
+  readonly #audioChoices = new Map<string, PreviewAudioChoice>();
 
   readonly #directoryInput = element<HTMLInputElement>('directory-input');
   readonly #fileButton = element<HTMLButtonElement>('file-button');
@@ -60,6 +74,7 @@ class MugenCharacterViewerApp {
   readonly #importState = element<HTMLElement>('import-state');
   readonly #importProgress = element<HTMLElement>('import-progress');
   readonly #characterName = element<HTMLElement>('character-name');
+  readonly #characterAvatar = element<HTMLCanvasElement>('character-avatar');
   readonly #characterMeta = element<HTMLElement>('character-meta');
   readonly #summaryActions = element<HTMLElement>('summary-actions');
   readonly #summarySprites = element<HTMLElement>('summary-sprites');
@@ -81,6 +96,7 @@ class MugenCharacterViewerApp {
   readonly #speedSelect = element<HYSelect>('speed-select');
   readonly #volumeControl = element<HYRange>('volume-control');
   readonly #volumeValue = element<HTMLElement>('volume-value');
+  readonly #audioSelect = element<HYSelect>('audio-select');
   readonly #audioStatus = element<HTMLElement>('audio-status');
   readonly #zoomValue = element<HTMLElement>('zoom-value');
   readonly #paletteSelect = element<HYSelect>('palette-select');
@@ -89,6 +105,8 @@ class MugenCharacterViewerApp {
   readonly #actionLabel = element<HTMLElement>('action-label');
   readonly #diagnostics = element<HTMLElement>('diagnostics');
   readonly #diagnosticCount = element<HTMLElement>('diagnostic-count');
+  readonly #workspaceSplit = element<HYSplit>('workspace-split');
+  readonly #viewerSplit = element<HYSplit>('viewer-split');
 
   constructor() {
     const canvas = element<HTMLCanvasElement>('viewer-canvas');
@@ -109,6 +127,7 @@ class MugenCharacterViewerApp {
     replaceOptions(this.#paletteSelect, [{ value: '', label: '自动' }]);
     replaceOptions(this.#backgroundSelect, [{ value: 'checker', label: '棋盘' }, { value: 'dark', label: '深色' }, { value: 'light', label: '浅色' }]);
     this.#backgroundSelect.value = 'checker';
+    replaceOptions(this.#audioSelect, [{ value: 'none', label: '不播放音效' }]);
     this.#audio.setVolume(this.#volumeControl.value / 100);
   }
 
@@ -214,6 +233,9 @@ class MugenCharacterViewerApp {
     this.#speedSelect.addEventListener('value-change', () => { this.#controller?.setSpeed(Number(this.#speedSelect.value)); this.#savePreferences(); });
     this.#volumeControl.addEventListener('value-input', () => this.#setVolume(this.#volumeControl.value));
     this.#volumeControl.addEventListener('value-change', () => { this.#setVolume(this.#volumeControl.value); this.#savePreferences(); });
+    this.#audioSelect.addEventListener('value-change', () => this.#changePreviewAudio());
+    this.#workspaceSplit.addEventListener('ratio-change', () => this.#savePreferences());
+    this.#viewerSplit.addEventListener('ratio-change', () => this.#savePreferences());
     document.addEventListener('keydown', event => {
       if (event.code === 'Space' && !isInteractiveControl(event.target)) { event.preventDefault(); void this.#togglePlayback(); }
     });
@@ -295,6 +317,7 @@ class MugenCharacterViewerApp {
         audioCues: result.viewerAudioCues.length,
       });
       this.#audio.reset();
+      this.#audioChoices.clear();
       this.#model = model;
       this.#controller = new MugenViewerController(requireFirstAction(model));
       this.#controller.setLoop(this.#loopToggle.checked);
@@ -346,6 +369,7 @@ class MugenCharacterViewerApp {
     const model = this.#model!;
     const title = model.metadata.displayName ?? model.metadata.name ?? model.metadata.entryDef;
     this.#characterName.textContent = title;
+    this.#renderCharacterAvatar(model, title);
     this.#characterMeta.textContent = [model.metadata.author ? `作者 ${model.metadata.author}` : null, model.metadata.mugenVersion ? `MUGEN ${model.metadata.mugenVersion}` : null, model.metadata.localCoord ? `${model.metadata.localCoord[0]}×${model.metadata.localCoord[1]}` : null].filter(Boolean).join(' · ') || model.metadata.entryDef;
     this.#summaryActions.textContent = String(model.actions.length);
     this.#summarySprites.textContent = String(model.sprites.length);
@@ -402,13 +426,107 @@ class MugenCharacterViewerApp {
     if (!this.#controller) return;
     this.#controller.select(action);
     const firstVisible = firstDrawableTick(action); if (action.visualStatus === 'partial' && firstVisible !== null && firstVisible > 0) this.#controller.seek(firstVisible);
-    this.#audio.select(action, this.#controller.playing);
+    const audioChoice = this.#configureAudioChoices(action);
+    this.#audio.select(action, this.#controller.playing, audioChoice.cue);
     this.#actionLabel.textContent = action.label ?? '自定义动作';
-    this.#audioStatus.textContent = action.audioCues.length === 0 ? '未关联音频' : `${action.audioCues.length} 个音频触发`;
-    this.#audioStatus.classList.toggle('available', action.audioCues.length > 0);
+    this.#syncAudioStatus(audioChoice);
     this.#syncTransport();
     this.#syncVisualNotice(action);
     this.#lastInspectorKey = '';
+  }
+
+  #configureAudioChoices(action: MugenViewerAction): PreviewAudioChoice {
+    const model = this.#model!;
+    this.#audioChoices.clear();
+    const options: HYSelectOption[] = [];
+    const representedSounds = new Set<string>();
+    const add = (choice: PreviewAudioChoice, label: string): void => {
+      this.#audioChoices.set(choice.value, choice);
+      options.push({ value: choice.value, label });
+      if (choice.cue) representedSounds.add(choice.cue.sound.id);
+    };
+    add({ value: 'none', cue: null, source: 'none', inference: null }, '不播放音效');
+    action.audioCues.forEach((cue, index) => add(
+      { value: `authored:${index}`, cue: loopingPreviewCue(cue), source: 'authored', inference: null },
+      `[真实绑定] ${soundLabel(cue.sound)} · tick ${cue.tick}`,
+    ));
+    const inferred = listMugenViewerHitAudioCandidates(model);
+    inferred.forEach((value, index) => add(
+      { value: `inferred:${index}`, cue: loopingPreviewCue(value.cue), source: 'inferred', inference: value },
+      `[推断·受击] ${soundLabel(value.cue.sound)}`,
+    ));
+    for (const sound of model.sounds) {
+      if (representedSounds.has(sound.id)) continue;
+      add({ value: `library:${sound.id}`, cue: previewCue(sound), source: 'library', inference: null }, `[角色音库] ${soundLabel(sound)}`);
+    }
+    replaceOptions(this.#audioSelect, options);
+    this.#audioSelect.disabled = options.length <= 1;
+    const recommended = action.audioCues.length > 0
+      ? 'authored:0'
+      : isLikelyGetHitAction(action) && inferred.length > 0
+        ? `inferred:${Math.abs(action.action.number) % inferred.length}`
+        : 'none';
+    this.#audioSelect.value = recommended;
+    return this.#audioChoices.get(this.#audioSelect.value) ?? this.#audioChoices.get('none')!;
+  }
+
+  #changePreviewAudio(): void {
+    const action = this.#controller?.selected;
+    if (!action) return;
+    void this.#audio.unlock();
+    const choice = this.#audioChoices.get(this.#audioSelect.value) ?? this.#audioChoices.get('none');
+    if (!choice) return;
+    this.#controller!.first();
+    this.#audio.select(action, this.#controller!.playing, choice.cue);
+    this.#syncAudioStatus(choice);
+    this.#syncTransport();
+  }
+
+  #syncAudioStatus(choice: PreviewAudioChoice): void {
+    this.#audioStatus.classList.toggle('available', choice.source === 'authored' || choice.source === 'library');
+    this.#audioStatus.classList.toggle('inferred', choice.source === 'inferred');
+    if (choice.source === 'authored') {
+      this.#audioStatus.textContent = `真实绑定 · ${soundLabel(choice.cue!.sound)}`;
+      this.#audioStatus.title = '来自角色状态脚本中的真实音频绑定';
+      document.body.dataset.audioCueSource = 'authored';
+    } else if (choice.source === 'inferred') {
+      const inferred = choice.inference!;
+      this.#audioStatus.textContent = `推断音频 · 受击 ${soundLabel(choice.cue!.sound)}`;
+      this.#audioStatus.title = inferred.sourceActionNumber === null
+        ? '预览推断：取自角色的全局 MoveType=H 受击语音规则，不是当前 action 的真实 PlaySnd 绑定'
+        : `预览推断：取自标准受击 action ${inferred.sourceActionNumber}，不是当前 action 的真实 PlaySnd 绑定`;
+      document.body.dataset.audioCueSource = 'inferred';
+    } else if (choice.source === 'library') {
+      this.#audioStatus.textContent = `手动选择 · ${soundLabel(choice.cue!.sound)}`;
+      this.#audioStatus.title = '手动从角色音库选择，未声明为当前 action 的真实绑定';
+      document.body.dataset.audioCueSource = 'library';
+    } else {
+      this.#audioStatus.textContent = '不播放音效';
+      this.#audioStatus.title = '当前 action 预览保持静音';
+      document.body.dataset.audioCueSource = 'none';
+    }
+  }
+
+  #renderCharacterAvatar(model: MugenCharacterModel, title: string): void {
+    const standing = model.actions.find(value => value.action.number === 0);
+    const sprite = model.sprites.filter(value => value.group === 9000 && value.item === 0).at(-1)
+      ?? model.sprites.filter(value => value.group === 9000 && value.item === 1).at(-1)
+      ?? standing?.action.elements.map(value => value.spriteId === null ? undefined : model.spriteById.get(value.spriteId)).find((value): value is MugenViewerSprite => value !== undefined);
+    const context = this.#characterAvatar.getContext('2d');
+    if (!sprite || !context) { this.#characterAvatar.hidden = true; return; }
+    try {
+      const source = spriteCanvas(sprite, model);
+      context.clearRect(0, 0, this.#characterAvatar.width, this.#characterAvatar.height);
+      context.imageSmoothingEnabled = false;
+      const scale = Math.min(this.#characterAvatar.width / source.width, this.#characterAvatar.height / source.height);
+      const width = Math.max(1, Math.round(source.width * scale)); const height = Math.max(1, Math.round(source.height * scale));
+      context.drawImage(source, Math.floor((this.#characterAvatar.width - width) / 2), Math.floor((this.#characterAvatar.height - height) / 2), width, height);
+      this.#characterAvatar.hidden = false;
+      this.#characterAvatar.setAttribute('aria-label', `${title} 头像`);
+    } catch (error) {
+      this.#characterAvatar.hidden = true;
+      console.warn('[MUGEN viewer] Character portrait could not be rendered.', error);
+    }
   }
 
   #syncTransport(): void {
@@ -528,6 +646,8 @@ class MugenCharacterViewerApp {
     this.#loopToggle.checked = value.loop;
     this.#speedSelect.value = String(value.speed);
     this.#setVolume((value.volume ?? 0.8) * 100);
+    this.#workspaceSplit.ratio = value.workspaceSplitRatio ?? this.#workspaceSplit.ratio;
+    this.#viewerSplit.ratio = value.viewerSplitRatio ?? this.#viewerSplit.ratio;
     element<HYCheckbox>('debug-origin').checked = value.origin;
     element<HYCheckbox>('debug-axis').checked = value.axis;
     element<HYCheckbox>('debug-bounds').checked = value.spriteBounds;
@@ -541,6 +661,8 @@ class MugenCharacterViewerApp {
       loop: this.#loopToggle.checked,
       speed: Number(this.#speedSelect.value),
       volume: this.#volumeControl.value / 100,
+      workspaceSplitRatio: this.#workspaceSplit.ratio,
+      viewerSplitRatio: this.#viewerSplit.ratio,
       origin: checked('debug-origin'),
       axis: checked('debug-axis'),
       spriteBounds: checked('debug-bounds'),
@@ -559,7 +681,10 @@ class MugenCharacterViewerApp {
     this.#syncTransport();
   }
 
-  #stopPreviewAudio(): void { this.#audio.stop(); if (this.#controller) this.#audio.select(this.#controller.selected, false); }
+  #stopPreviewAudio(): void {
+    this.#audio.stop();
+    if (this.#controller) this.#audio.select(this.#controller.selected, false, this.#audioChoices.get(this.#audioSelect.value)?.cue ?? null);
+  }
 
   #setVolume(percent: number): void {
     const normalized = Math.max(0, Math.min(100, Math.round(percent)));
@@ -602,6 +727,35 @@ class MugenCharacterViewerApp {
 
 function checked(id: string): boolean { return element<HYCheckbox>(id).checked; }
 function requireFirstAction(model: MugenCharacterModel): MugenViewerAction { const action = model.actions[0]; if (!action) throw new Error('角色 AIR 没有可查看的 action。'); return action; }
+function soundLabel(sound: MugenViewerSound): string { return `S${sound.group},${sound.item}`; }
+function previewCue(sound: MugenViewerSound): MugenViewerAudioCue { return Object.freeze({ sound, tick: 0, channel: -1, volume: 1, pan: 0, frequency: 1, loop: false, repeatOnLoop: true }); }
+function loopingPreviewCue(cue: MugenViewerAudioCue): MugenViewerAudioCue { return Object.freeze({ ...cue, loop: false, repeatOnLoop: true }); }
+function isLikelyGetHitAction(action: MugenViewerAction): boolean {
+  const number = action.action.number;
+  if (number >= 5_000 && number <= 5_999) return true;
+  if (number >= 5_000 && action.clsn1Count === 0 && action.clsn2Count > 0) return true;
+  return /(?:get.?hit|hurt|damage|knock|受击|挨打|击飞|倒地|やられ|喰ら|食ら|ダメージ)/iu.test(action.label ?? '');
+}
+function spriteCanvas(sprite: MugenViewerSprite, model: MugenCharacterModel): HTMLCanvasElement {
+  const canvas = document.createElement('canvas'); canvas.width = sprite.width; canvas.height = sprite.height;
+  const context = canvas.getContext('2d'); if (!context) throw new Error('无法创建角色头像画布。');
+  const rgba = new Uint8ClampedArray(sprite.width * sprite.height * 4);
+  if (sprite.format === 'rgba8') rgba.set(sprite.pixels);
+  else if (sprite.format === 'rgb8') {
+    for (let source = 0, target = 0; source < sprite.pixels.length; source += 3, target += 4) {
+      rgba[target] = sprite.pixels[source]!; rgba[target + 1] = sprite.pixels[source + 1]!; rgba[target + 2] = sprite.pixels[source + 2]!; rgba[target + 3] = 255;
+    }
+  } else {
+    const palette = (sprite.defaultPaletteId === null ? undefined : model.paletteById.get(sprite.defaultPaletteId)) ?? model.palettes[0];
+    if (!palette) throw new Error('索引色角色头像缺少调色板。');
+    for (let source = 0, target = 0; source < sprite.pixels.length; source += 1, target += 4) {
+      const color = sprite.pixels[source]! * 4;
+      rgba[target] = palette.rgba[color]!; rgba[target + 1] = palette.rgba[color + 1]!; rgba[target + 2] = palette.rgba[color + 2]!; rgba[target + 3] = palette.rgba[color + 3]!;
+    }
+  }
+  context.putImageData(new ImageData(rgba, sprite.width, sprite.height), 0, 0);
+  return canvas;
+}
 function formatNumber(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, ''); }
 function formatBytes(value: number): string { return value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KiB` : `${(value / 1024 / 1024).toFixed(1)} MiB`; }
 function isPickerCancel(error: unknown): boolean { return error instanceof DOMException && (error.name === 'AbortError' || error.name === 'NotAllowedError'); }

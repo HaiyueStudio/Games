@@ -2,6 +2,7 @@ import { OwnerSafeAudioMixer, type AudioMixerPlayRequest } from '@haiyue/engine/
 import type { MugenBuiltInGameFixture, MugenGameSound } from './MugenGameFixture';
 import type { MugenMatchEvent } from '../runtime/match/MugenMatchState';
 import type { MugenRoundAudioCue } from './MugenRoundAudio';
+import { createMugenDefaultFightSounds, MUGEN_DEFAULT_FIGHT_SOUND_PACKAGE } from './MugenDefaultFightSounds';
 
 export interface MugenGameAudioConsumeResult { readonly requested: number; readonly played: number; readonly missing: number }
 
@@ -13,6 +14,7 @@ export class MugenGameAudio {
   #ready = false;
 
   async install(fixtures: readonly MugenBuiltInGameFixture[]): Promise<void> {
+    if (!this.#ownerPackages.has('system')) await this.#installDefaultFightSounds();
     for (const fixture of fixtures) for (const sound of fixture.sounds) if (sound.selectedByKey) { const key = soundKey(fixture.packageSha256, sound.group, sound.item); if (!this.#sounds.has(key)) await this.#mixer.decodeAndInstall(bufferId(sound), decodeBase64(sound.encodedBase64)); this.#sounds.set(key, sound); }
     this.#ready = true; this.#syncEvidence();
   }
@@ -27,11 +29,12 @@ export class MugenGameAudio {
   }
 
   async installFightSounds(soundBankSha256: string | null, sounds: readonly MugenGameSound[]): Promise<void> {
-    this.#ownerPackages.delete('system'); this.#fightSoundCount = 0;
-    if (soundBankSha256 !== null) {
+    const priorPackage = this.#ownerPackages.get('system'); this.#ownerPackages.delete('system'); this.#fightSoundCount = 0;
+    if (soundBankSha256 !== null && sounds.some(sound => sound.selectedByKey)) {
       for (const sound of sounds) if (sound.selectedByKey) { await this.#mixer.decodeAndInstall(bufferId(sound), decodeBase64(sound.encodedBase64)); this.#sounds.set(soundKey(soundBankSha256, sound.group, sound.item), sound); }
       this.#ownerPackages.set('system', soundBankSha256); this.#fightSoundCount = sounds.filter(sound => sound.selectedByKey).length;
-    }
+    } else await this.#installDefaultFightSounds();
+    if (priorPackage !== undefined && priorPackage !== this.#ownerPackages.get('system')) this.#removeUnownedPackage(priorPackage);
     this.#syncEvidence();
   }
 
@@ -77,6 +80,18 @@ export class MugenGameAudio {
 
   dispose(): void { this.#mixer.dispose(); this.#sounds.clear(); this.#ownerPackages.clear(); this.#ready = false; this.#syncEvidence(); }
   get stats() { return this.#mixer.stats; }
+
+  async #installDefaultFightSounds(): Promise<void> {
+    const sounds = await createMugenDefaultFightSounds();
+    for (const sound of sounds) { const key = soundKey(MUGEN_DEFAULT_FIGHT_SOUND_PACKAGE, sound.group, sound.item); if (!this.#sounds.has(key)) await this.#mixer.decodeAndInstall(bufferId(sound), decodeBase64(sound.encodedBase64)); this.#sounds.set(key, sound); }
+    this.#ownerPackages.set('system', MUGEN_DEFAULT_FIGHT_SOUND_PACKAGE); this.#fightSoundCount = sounds.length;
+  }
+
+  #removeUnownedPackage(packageSha256: string): void {
+    if ([...this.#ownerPackages.values()].includes(packageSha256)) return;
+    const removedBufferIds = new Set<string>(); for (const [key, sound] of this.#sounds) if (key.startsWith(`${packageSha256}:`)) { this.#sounds.delete(key); removedBufferIds.add(bufferId(sound)); }
+    const retainedBufferIds = new Set([...this.#sounds.values()].map(bufferId)); for (const id of removedBufferIds) if (!retainedBufferIds.has(id)) this.#mixer.removeBuffer(id);
+  }
 
   #play(eventId: string, owner: string, voiceChannel: string, group: number, item: number, startTick: number, volume: number, pan: number, frequency: number, loop: boolean, priority: number, bus: AudioMixerPlayRequest['bus'] = 'sfx', replaceChannel = true): boolean {
     const packageSha256 = this.#ownerPackages.get(owner); if (!packageSha256) return false;

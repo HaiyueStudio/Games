@@ -428,6 +428,8 @@ export class MugenScriptRuntime {
     commit(match, { kind: 'state-entry-resets', fighterId: id, preserveHitDefinition, preserveMoveContact, preserveHitCount });
     if (state.spritePriority !== null) commit(match, { kind: 'sprite-priority', fighterId: id, value: integer(evaluate(state.spritePriority, context), 'StateDef.sprpriority') });
     const control = controlOverride ?? stateControl; if (control !== undefined) commit(match, { kind: 'control', fighterId: id, value: control });
+    const groundedRecovery = ownerId === id && control === true && state.moveType === 'I' && (state.stateType === 'S' || state.stateType === 'C');
+    if (groundedRecovery) { const fighter = match.fighter(id); match.setHitFall(id, { fall: false }); match.setJuggleRemaining(id, fighter.juggleCapacity); }
     if (animationOverride !== undefined) commit(match, { kind: 'change-action', fighterId: id, actionNumber: animationOverride, element: 1, ownerId });
   }
 }

@@ -12,10 +12,11 @@ registerHooks({
   },
 });
 
-const [{ createMugenVfs }, { importMugenCharacter }, { createMugenCharacterModel }, { buildMugenImportGraph }, { parseMugenExpression }, { MugenInputHistory, MugenLegacyAiInput }, { MugenHeadlessMatch }, { MugenScriptRuntime }, { MugenCombatRuntime }] = await Promise.all([
+const [{ createMugenVfs }, { importMugenCharacter }, { createMugenCharacterModel }, { inferMugenViewerHitAudio }, { buildMugenImportGraph }, { parseMugenExpression }, { MugenInputHistory, MugenLegacyAiInput }, { MugenHeadlessMatch }, { MugenScriptRuntime }, { MugenCombatRuntime }] = await Promise.all([
   import('../mugen/import/vfs/MugenVfs.ts'),
   import('../mugen/import/worker/MugenCharacterImport.ts'),
   import('../mugen/viewer/MugenCharacterModel.ts'),
+  import('../mugen/viewer/MugenViewerAudio.ts'),
   import('../mugen/import/text/DependencyGraph.ts'),
   import('../mugen/import/cns/ExpressionParser.ts'),
   import('../mugen/runtime/input/index.ts'),
@@ -70,6 +71,14 @@ test('local Petra package completes the asset-viewer pipeline with official dupl
   for (const actionNumber of [373, 374, 375, 376, 377]) {
     const action = model.actions.find(value => value.action.number === actionNumber);
     assert(action?.audioCues.some(cue => cue.sound.group === 2 && cue.sound.item === 0), `Petra action ${actionNumber} is missing its shared hover entry sound`);
+  }
+  for (const actionNumber of [15150, 15155]) {
+    const action = model.actions.find(value => value.action.number === actionNumber);
+    assert(action && action.audioCues.length === 0, `Petra action ${actionNumber} unexpectedly has an authored cue`);
+    const inferred = inferMugenViewerHitAudio(model, action);
+    assert(inferred, `Petra action ${actionNumber} has no simulated get-hit voice candidate`);
+    assert.equal(inferred.cue.sound.group, 101);
+    assert.equal(inferred.cue.tick, 0);
   }
 });
 

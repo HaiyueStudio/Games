@@ -82,6 +82,24 @@ test('viewer audio scan expands standard get-hit states across available AIR var
   ]);
 });
 
+test('viewer audio scan preserves unbound global get-hit voices as explicit inference candidates', async () => {
+  const graph = await buildMugenImportGraph(await createMugenVfs([
+    input('hero.def', '[Info]\nname=Global Hit Voice\n[Files]\ncns=hero.cns\n'),
+    input('hero.cns', [
+      '[Statedef -2]', 'type=S',
+      '[State -2, hurt voice]', 'type=PlaySnd',
+      'triggerall=MoveType = H', 'trigger1=GetHitVar(animtype) = 1', 'trigger1=GetHitVar(damage) > 0',
+      'value=S101,3', 'channel=2',
+    ].join('\n')),
+  ]), { entryDef: 'hero.def', entryKind: 'character', encoding: 'utf-8' });
+
+  assert.deepEqual(scanMugenViewerAudioCues(graph), [{
+    actionNumber: -1, inferredKind: 'get-hit', group: 101, item: 3,
+    timing: { kind: 'tick', value: 0 }, channel: 2, volume: 1, pan: 0, frequency: 1, loop: false,
+    sourcePath: 'hero.cns', sourceLine: 3,
+  }]);
+});
+
 test('viewer audio scan follows DEF state-script roles when legacy scripts use custom extensions', async () => {
   const graph = await buildMugenImportGraph(await createMugenVfs([
     input('hero.def', '[Info]\nname=Custom Script Extensions\n[Files]\ncmd=hero.mai\ncns=hero.teo\nst1=attacks.ini\n'),

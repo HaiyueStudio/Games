@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 2,
+  "revision": "m09-g08-browser-lifecycle-evidence-v1",
+  "result": "pass",
+  "browser": {
+    "identity": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "adapter": "nvidia · pascal"
+  },
+  "loading": {
+    "interrupted": {
+      "progress": 0.2,
+      "label": "正在解析角色资源…"
+    },
+    "reloadStatus": "ready"
+  },
+  "ready": {
+    "status": "ready",
+    "adapter": "nvidia · pascal",
+    "characters": "kfm,kfm720,petra-johanna-lagerkvist",
+    "p2AiLevel": "4",
+    "deviceGeneration": 2,
+    "previousLifecycleStatus": "disposed"
+  },
+  "normalGameplayPerformance": [
+    {
+      "tick": 180,
+      "fps": 60,
+      "simulationMilliseconds": 3.97,
+      "renderMilliseconds": 0.82,
+      "backlogTicks": 0
+    },
+    {
+      "tick": 243,
+      "fps": 60,
+      "simulationMilliseconds": 5.06,
+      "renderMilliseconds": 1.04,
+      "backlogTicks": 0
+    },
+    {
+      "tick": 308,
+      "fps": 60,
+      "simulationMilliseconds": 3.75,
+      "renderMilliseconds": 0.86,
+      "backlogTicks": 0
+    },
+    {
+      "tick": 371,
+      "fps": 60,
+      "simulationMilliseconds": 2.97,
+      "renderMilliseconds": 0.58,
+      "backlogTicks": 0
+    },
+    {
+      "tick": 433,
+      "fps": 60,
+      "simulationMilliseconds": 3.55,
+      "renderMilliseconds": 0.74,
+      "backlogTicks": 0
+    }
+  ],
+  "running": {
+    "status": "running",
+    "phase": "fight",
+    "tick": 183,
+    "p1State": 0,
+    "p2State": 0,
+    "outputHash": "fnv1a64:9c304aa63459cb99",
+    "afterImage": {
+      "status": "rendering",
+      "trails": 4,
+      "entities": 1
+    },
+    "hitSpark": {
+      "status": "rendering",
+      "active": 2,
+      "missing": 0
+    },
+    "fightSound": {
+      "status": "played",
+      "bank": "e68afe4355efbc5840d358b5e34327717466a05764ab450401c3b95052068dee",
+      "count": 5
+    },
+    "audio": {
+      "starts": 3,
+      "paramWrites": 13,
+      "panWrites": 13
+    }
+  },
+  "screenshot": {
+    "path": "Games/site/screenshots/mugen-g08-browser-lifecycle-current.png",
+    "bytes": 231712,
+    "sha256": "37aa809e024706eefc89c97edbe11c7dd085cc825b718bc025af24d5366b3434"
+  },
+  "deviceLoss": {
+    "generationBefore": 2,
+    "generationAfter": 3,
+    "status": "recovered"
+  },
+  "restart": {
+    "status": "running",
+    "tick": 206,
+    "phase": "fight"
+  },
+  "teardown": {
+    "interruptedPreviousLifecycleStatus": "disposed",
+    "lifecycleStatus": "disposed"
+  },
+  "browserErrors": []
+}

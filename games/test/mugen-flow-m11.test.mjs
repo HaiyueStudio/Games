@@ -38,7 +38,7 @@ test('M11 game flow is rendered through Haiyue GUI from title to fight', () => {
 });
 
 test('M11 character select exposes portraits, two keyboard schemes, and wrapped grid navigation', () => {
-  const flow = read('../mugen/game/MugenFlowUi.ts'); const fixture = read('../mugen/game/MugenGameFixture.ts'); const importer = read('../mugen/import/worker/MugenCharacterImport.ts');
+  const flow = read('../mugen/game/MugenFlowUi.ts'); const fixture = read('../mugen/game/MugenGameFixture.ts'); const importer = read('../mugen/import/worker/MugenCharacterImport.ts'); const main = read('../mugen/main.ts');
   assert.match(flow, /new GuiImage/u); assert.match(flow, /new KeyboardComponent/u);
   assert.match(flow, /onClick: \(\) => queueMicrotask\(\(\) => this\.#callbacks\.selectCharacter/u);
   for (const key of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']) assert.match(flow, new RegExp(key, 'u'));
@@ -50,6 +50,8 @@ test('M11 character select exposes portraits, two keyboard schemes, and wrapped 
   assert.equal(moveMugenCharacterSelection(11, 12, 0, 1), 1);
   assert.equal(mugenCharacterPreviewScale(3, [100, 100], { width: 1280, height: 720 }), 3);
   assert.equal(mugenCharacterPreviewScale(1.5, [400, 400], { width: 1280, height: 720 }), .81);
+  assert.doesNotMatch(main, /preventDuplicateVariant/u, 'P1 and P2 may select the same character package');
+  assert.match(main, /new Set\(\[this\.#p1Select\.value, this\.#p2Select\.value\]\)/u, 'same-character data is loaded only once');
 });
 
 test('M11 round audio maps motif announcements and character-specific KO voices', () => {

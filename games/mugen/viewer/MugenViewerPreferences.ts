@@ -6,6 +6,9 @@ export interface MugenViewerPreferences {
   readonly loop: boolean;
   readonly speed: number;
   readonly volume?: number;
+  readonly simulateHitAudio?: boolean;
+  readonly workspaceSplitRatio?: number;
+  readonly viewerSplitRatio?: number;
   readonly origin: boolean;
   readonly axis: boolean;
   readonly spriteBounds: boolean;
@@ -31,6 +34,9 @@ export function isMugenViewerPreferences(value: unknown): value is MugenViewerPr
     && typeof value.loop === 'boolean'
     && isFiniteNumber(value.speed) && value.speed > 0 && value.speed <= 16
     && (value.volume === undefined || (isFiniteNumber(value.volume) && value.volume >= 0 && value.volume <= 1))
+    && (value.simulateHitAudio === undefined || typeof value.simulateHitAudio === 'boolean')
+    && (value.workspaceSplitRatio === undefined || (isFiniteNumber(value.workspaceSplitRatio) && value.workspaceSplitRatio >= 0 && value.workspaceSplitRatio <= 1))
+    && (value.viewerSplitRatio === undefined || (isFiniteNumber(value.viewerSplitRatio) && value.viewerSplitRatio >= 0 && value.viewerSplitRatio <= 1))
     && typeof value.origin === 'boolean'
     && typeof value.axis === 'boolean'
     && typeof value.spriteBounds === 'boolean'

@@ -72,7 +72,7 @@ export class MugenFlowUi {
   constructor(canvas: HTMLCanvasElement, callbacks: MugenFlowCallbacks) { this.#canvas = canvas; this.#callbacks = callbacks; }
 
   async init(): Promise<void> {
-    const engine = new HaiyueEngine({ canvas: this.#canvas, clearColor: { r: 0, g: 0, b: 0, a: 0 }, alphaMode: 'premultiplied', msaaSamples: 1 }); await engine.init(); engine.resizeToDisplaySize(true);
+    const engine = new HaiyueEngine({ canvas: this.#canvas, clearColor: { r: 0, g: 0, b: 0, a: 0 }, alphaMode: 'premultiplied', msaaSamples: 4 }); await engine.init(); engine.resizeToDisplaySize(true);
     const world = new World('MUGEN Flow UI'); const entity = new Entity('MUGEN Flow Root'); const root = new GuiRoot({ theme: { fontFamily: 'Inter, "Microsoft YaHei", sans-serif', fontSize: 18, radius: 8, colors: { text: '#fff8df', textMuted: '#aaa3c3', primary: '#e6a64f', danger: '#d94c68', background: 'rgba(0,0,0,0)', surface: 'rgba(10,9,22,.82)', border: '#665587', hover: '#493966', active: '#b87638', disabled: '#514c60' } } }); entity.addComponent(root); world.addEntity(entity);
     const inputEntity = new Entity('MUGEN Character Select Input'); const keyboard = new KeyboardComponent(); inputEntity.addComponent(keyboard); world.addEntity(inputEntity);
     const gui = new GuiSystem(engine, { loadOp: 'clear', font: { chars: FLOW_FONT_CHARACTERS, fontFamily: '"Microsoft YaHei", sans-serif', atlasSize: 1024 } }); world.addSystem(gui); const integration = new RenderIntegration(engine, { label: 'MugenFlowUi.render' }); world.addRuntimeIntegration(integration); integration.registerAll(world, () => ({ pass: 'shared' }));

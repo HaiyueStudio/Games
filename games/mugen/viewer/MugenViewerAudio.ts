@@ -1,5 +1,5 @@
 import { OwnerSafeAudioMixer, type AudioMixerPlayRequest } from '@haiyue/engine/experimental/audio';
-import type { MugenViewerAction, MugenViewerAudioCue, MugenViewerSound } from './MugenCharacterModel';
+import type { MugenCharacterModel, MugenViewerAction, MugenViewerAudioCue, MugenViewerSound } from './MugenCharacterModel';
 
 const OWNER = 'mugen-viewer';
 
@@ -20,6 +20,7 @@ export class MugenViewerAudio {
   readonly #installed = new Set<string>();
   readonly #decodeJobs = new Map<string, Promise<void>>();
   #activeActionId: string | null = null;
+  #selectedCues: readonly MugenViewerAudioCue[] | null = null;
   #generation = 0;
   #modelGeneration = 0;
   #eventSequence = 0;
@@ -40,15 +41,16 @@ export class MugenViewerAudio {
   }
 
   reset(): void {
-    this.#modelGeneration += 1; this.#generation += 1; this.#activeActionId = null;
+    this.#modelGeneration += 1; this.#generation += 1; this.#activeActionId = null; this.#selectedCues = null;
     this.#mixer.stop(OWNER);
     for (const id of this.#installed) this.#mixer.removeBuffer(id);
     this.#installed.clear(); this.#decodeJobs.clear();
   }
 
-  select(action: MugenViewerAction, playFromStart: boolean): void {
+  select(action: MugenViewerAction, playFromStart: boolean, selectedCue?: MugenViewerAudioCue | null): void {
     this.#generation += 1;
     this.#activeActionId = action.id;
+    this.#selectedCues = selectedCue === undefined ? null : selectedCue === null ? Object.freeze([]) : Object.freeze([selectedCue]);
     this.#mixer.stop(OWNER);
     if (playFromStart) this.playAtTick(action, 0);
   }
@@ -60,20 +62,24 @@ export class MugenViewerAudio {
 
   playAtTick(action: MugenViewerAction, tick: number): void {
     if (this.#disposed || action.id !== this.#activeActionId) return;
-    for (const cue of action.audioCues) if (cue.tick === tick) void this.#play(action.id, cue, tick);
+    for (const cue of this.#activeCues(action)) if (cue.tick === tick) void this.#play(action.id, cue, tick);
   }
 
   advance(action: MugenViewerAction, previousTick: number, currentTick: number): void {
     if (this.#disposed || action.id !== this.#activeActionId || currentTick <= previousTick) return;
-    for (const cue of action.audioCues) {
+    for (const cue of this.#activeCues(action)) {
       for (const tick of cueOccurrences(action, cue.tick, previousTick, currentTick, cue.repeatOnLoop)) void this.#play(action.id, cue, tick);
     }
   }
 
   dispose(): void {
     if (this.#disposed) return;
-    this.#disposed = true; this.#generation += 1; this.#activeActionId = null;
+    this.#disposed = true; this.#generation += 1; this.#activeActionId = null; this.#selectedCues = null;
     this.#mixer.dispose(); this.#installed.clear(); this.#decodeJobs.clear();
+  }
+
+  #activeCues(action: MugenViewerAction): readonly MugenViewerAudioCue[] {
+    return this.#selectedCues ?? action.audioCues;
   }
 
   async #play(actionId: string, cue: MugenViewerAudioCue, startTick: number): Promise<void> {
@@ -103,13 +109,68 @@ export class MugenViewerAudio {
   }
 }
 
+export interface MugenViewerInferredHitAudio {
+  readonly cue: MugenViewerAudioCue;
+  readonly sourceActionNumber: number | null;
+  readonly candidateCount: number;
+}
+
+export function listMugenViewerHitAudioCandidates(model: MugenCharacterModel): readonly MugenViewerInferredHitAudio[] {
+  const globalCandidates = model.inferredHitAudioCues ?? [];
+  if (globalCandidates.length > 0) return Object.freeze(globalCandidates.map(cue => Object.freeze({
+    cue,
+    sourceActionNumber: null,
+    candidateCount: globalCandidates.length,
+  })));
+  const candidates = new Map<string, { cue: MugenViewerAudioCue; sourceActionNumber: number; occurrences: number }>();
+  for (const source of model.actions) {
+    if (source.action.number < 5_000 || source.action.number > 5_199) continue;
+    for (const cue of source.audioCues) {
+      if (cue.loop) continue;
+      const key = `${cue.sound.group},${cue.sound.item}`;
+      const existing = candidates.get(key);
+      if (existing) existing.occurrences += 1;
+      else candidates.set(key, { cue, sourceActionNumber: source.action.number, occurrences: 1 });
+    }
+  }
+  const ranked = [...candidates.values()].sort((left, right) => right.occurrences - left.occurrences
+    || left.cue.sound.group - right.cue.sound.group || left.cue.sound.item - right.cue.sound.item
+    || left.sourceActionNumber - right.sourceActionNumber);
+  if (ranked.length === 0) return Object.freeze([]);
+  const strongestCoverage = ranked[0]!.occurrences;
+  const pool = ranked.filter(value => value.occurrences >= Math.max(1, strongestCoverage - 1));
+  return Object.freeze(pool.map(value => Object.freeze({
+    cue: Object.freeze({ ...value.cue, tick: 0, loop: false, repeatOnLoop: false }),
+    sourceActionNumber: value.sourceActionNumber,
+    candidateCount: pool.length,
+  })));
+}
+
+/**
+ * Selects a deterministic preview-only hurt voice from cues that the character
+ * already binds to MUGEN's standard get-hit actions. This never mutates or
+ * masquerades as an authored PlaySnd association on the selected action.
+ */
+export function inferMugenViewerHitAudio(model: MugenCharacterModel, action: MugenViewerAction): MugenViewerInferredHitAudio | null {
+  if (action.audioCues.length > 0) return null;
+  const candidates = listMugenViewerHitAudioCandidates(model);
+  return candidates[Math.abs(action.action.number) % candidates.length] ?? null;
+}
+
 export function cueOccurrences(action: MugenViewerAction, cueTick: number, previousTick: number, currentTick: number, repeatOnLoop = true): readonly number[] {
   if (cueTick < 0 || currentTick <= previousTick) return Object.freeze([]);
   const result: number[] = [];
   if (cueTick > previousTick && cueTick <= currentTick) result.push(cueTick);
   if (!repeatOnLoop) return Object.freeze(result);
   const { totalTicks, preLoopTicks, loopTicks } = action.action;
-  if (totalTicks === null || loopTicks === null || cueTick < preLoopTicks) return Object.freeze(result);
+  if (totalTicks === null || loopTicks === null || loopTicks <= 0) return Object.freeze(result);
+  if (cueTick < preLoopTicks) {
+    const firstCycle = Math.max(0, Math.floor((previousTick - totalTicks) / loopTicks) + 1);
+    for (let cycle = firstCycle, tick = totalTicks + firstCycle * loopTicks; tick <= currentTick; cycle += 1, tick = totalTicks + cycle * loopTicks) {
+      if (tick > previousTick) result.push(tick);
+    }
+    return Object.freeze(result);
+  }
   const firstCycle = Math.max(1, Math.floor((previousTick - cueTick) / loopTicks) + 1);
   for (let cycle = firstCycle, tick = cueTick + firstCycle * loopTicks; tick <= currentTick; cycle += 1, tick = cueTick + cycle * loopTicks) result.push(tick);
   return Object.freeze(result);

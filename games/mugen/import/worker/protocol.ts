@@ -130,6 +130,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isViewerAudioCue(value: unknown): value is MugenScannedViewerAudioCue {
   if (!isRecord(value) || !Number.isSafeInteger(value.actionNumber) || !Number.isSafeInteger(value.group) || !Number.isSafeInteger(value.item)
+    || (value.inferredKind !== undefined && value.inferredKind !== 'get-hit')
     || !Number.isSafeInteger(value.channel) || typeof value.volume !== 'number' || !Number.isFinite(value.volume)
     || typeof value.pan !== 'number' || !Number.isFinite(value.pan) || typeof value.frequency !== 'number' || !Number.isFinite(value.frequency)
     || typeof value.loop !== 'boolean' || typeof value.sourcePath !== 'string' || !Number.isSafeInteger(value.sourceLine)

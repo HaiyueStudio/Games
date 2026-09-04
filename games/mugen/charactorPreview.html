@@ -29,11 +29,14 @@
       <button id="entry-import" class="button primary" type="button">导入所选入口</button>
     </section>
 
-    <div class="workspace">
-      <aside class="sidebar left-panel">
+    <hy-split id="workspace-split" class="workspace" direction="horizontal" ratio="0.22" min-first="240" min-second="620" bar-size="5">
+      <aside class="sidebar left-panel" slot="first">
         <section class="panel summary-panel">
           <div class="panel-heading"><span>CHARACTER</span><small id="import-state">等待选择目录</small></div>
-          <h2 id="character-name">尚未载入角色</h2>
+          <div class="character-identity">
+            <canvas id="character-avatar" width="64" height="64" aria-label="角色头像" hidden></canvas>
+            <h2 id="character-name">尚未载入角色</h2>
+          </div>
           <p id="character-meta" class="muted">本地素材不会上传或自动保存。</p>
           <dl class="summary-grid">
             <div><dt>ACTIONS</dt><dd id="summary-actions">—</dd></div>
@@ -56,7 +59,8 @@
         </section>
       </aside>
 
-      <section class="viewer-column">
+      <hy-split id="viewer-split" slot="second" direction="horizontal" ratio="0.75" min-first="380" min-second="240" bar-size="5">
+      <section class="viewer-column" slot="first">
         <div id="viewer-stage" class="viewer-stage" data-background="checker">
           <canvas id="viewer-canvas" aria-label="MUGEN 动画 WebGPU 预览"></canvas>
           <canvas id="debug-canvas" aria-hidden="true"></canvas>
@@ -91,6 +95,7 @@
             <hy-checkbox id="loop-toggle" checked label="循环"></hy-checkbox>
             <label class="compact-field">速度 <hy-select id="speed-select" aria-label="播放速度"></hy-select></label>
             <label class="volume-field">音量 <hy-range id="volume-control" min="0" max="100" step="5" value="80" aria-label="预览音量"></hy-range><span id="volume-value">80%</span></label>
+            <label class="audio-field">音效 <hy-select id="audio-select" searchable aria-label="动作预览音效"></hy-select></label>
             <span id="audio-status" class="audio-status">未关联音频</span>
             <button id="reset-view" type="button">重置视图</button>
             <span id="zoom-value">200%</span>
@@ -98,7 +103,7 @@
         </section>
       </section>
 
-      <aside class="sidebar right-panel">
+      <aside class="sidebar right-panel" slot="second">
         <section class="panel inspector-panel">
           <div class="panel-heading"><span>FRAME INSPECTOR</span><small id="action-label">—</small></div>
           <dl id="frame-details" class="details-list">
@@ -128,8 +133,9 @@
           <div id="diagnostics" class="diagnostics"><p class="muted">尚无导入报告。</p></div>
         </details>
       </aside>
-    </div>
+      </hy-split>
+    </hy-split>
   </main>
-  <script type="module" src="./dist/charactorPreview.js?v=20260903-virtual-list-window-1"></script>
+  <script type="module" src="./dist/charactorPreview.js?v=20260904-audio-loop-default-2"></script>
 </body>
 </html>

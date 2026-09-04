@@ -9,6 +9,7 @@ export type MugenViewerAudioCueTiming = Readonly<
 
 export interface MugenScannedViewerAudioCue {
   readonly actionNumber: number;
+  readonly inferredKind?: 'get-hit';
   readonly group: number;
   readonly item: number;
   readonly timing: MugenViewerAudioCueTiming;
@@ -49,12 +50,18 @@ export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly Muge
       const type = assignments.find(value => value.foldedKey === 'type');
       const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
       if (normalizedType !== 'playsnd' && normalizedType !== 'hitdef') continue;
-      const actionNumbers = block.actionNumbers.length === 0 ? inferredActionNumbers(assignments, availableActionNumbers) : block.actionNumbers;
-      if (actionNumbers.length === 0) continue;
       const values = new Map<string, MugenAssignmentToken>();
       for (const assignment of assignments) if (!values.has(assignment.foldedKey)) values.set(assignment.foldedKey, assignment);
       const sound = parseSoundKey(values.get(normalizedType === 'hitdef' ? 'hitsound' : 'value'), normalizedType === 'hitdef');
       if (sound === null || sound.owner === 'fight') continue;
+      const actionNumbers = block.actionNumbers.length === 0 ? inferredActionNumbers(assignments, availableActionNumbers) : block.actionNumbers;
+      if (actionNumbers.length === 0) {
+        if (normalizedType === 'playsnd' && isGlobalGetHitVoice(block, assignments)) {
+          cues.push(createCue(-1, sound, values, assignments, document, controller, 'get-hit'));
+          if (cues.length >= MAX_SCANNED_CUES) return sortedCues(cues);
+        }
+        continue;
+      }
       for (const actionNumber of actionNumbers) {
         if (!matchesGetHitAnimationType(assignments, actionNumber)) continue;
         const timing = scanTiming(assignments);
@@ -67,24 +74,44 @@ export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly Muge
           if (claimedGlobalChannels.has(channelKey)) continue;
           claimedGlobalChannels.add(channelKey);
         }
-        cues.push(Object.freeze({
-          actionNumber,
-          group: sound.group,
-          item: sound.item,
-          timing,
-          channel,
-          volume: clamp(staticNumber(values.get('volume')?.value) ?? 255, 0, 255) / 255,
-          pan: clamp(staticNumber(values.get('pan')?.value) ?? 0, -127, 127) / 127,
-          frequency: clamp(staticNumber(values.get('freqmul')?.value) ?? 1, 0.01, 16),
-          loop: (staticNumber(values.get('loop')?.value) ?? 0) !== 0,
-          sourcePath: document.canonicalPath,
-          sourceLine: controller.header.span.line,
-        }));
+        cues.push(createCue(actionNumber, sound, values, assignments, document, controller));
         if (cues.length >= MAX_SCANNED_CUES) return sortedCues(cues);
       }
     }
   }
   return sortedCues(cues);
+}
+
+function createCue(
+  actionNumber: number,
+  sound: Readonly<{ owner: 'self' | 'fight'; group: number; item: number }>,
+  values: ReadonlyMap<string, MugenAssignmentToken>,
+  assignments: readonly MugenAssignmentToken[],
+  document: MugenTextDocument,
+  controller: MugenTextSection,
+  inferredKind?: 'get-hit',
+): MugenScannedViewerAudioCue {
+  return Object.freeze({
+    actionNumber,
+    ...(inferredKind === undefined ? {} : { inferredKind }),
+    group: sound.group,
+    item: sound.item,
+    timing: scanTiming(assignments),
+    channel: staticInteger(values.get('channel')?.value) ?? -1,
+    volume: clamp(staticNumber(values.get('volume')?.value) ?? 255, 0, 255) / 255,
+    pan: clamp(staticNumber(values.get('pan')?.value) ?? 0, -127, 127) / 127,
+    frequency: clamp(staticNumber(values.get('freqmul')?.value) ?? 1, 0.01, 16),
+    loop: (staticNumber(values.get('loop')?.value) ?? 0) !== 0,
+    sourcePath: document.canonicalPath,
+    sourceLine: controller.header.span.line,
+  });
+}
+
+function isGlobalGetHitVoice(block: ViewerStateBlock, assignments: readonly MugenAssignmentToken[]): boolean {
+  if (block.stateNumber !== -2 && block.stateNumber !== -3) return false;
+  const triggers = assignments.filter(value => value.foldedKey === 'triggerall' || /^trigger\d+$/u.test(value.foldedKey));
+  const source = triggers.map(value => value.value).join(' ');
+  return /\bmovetype\s*=\s*h\b/iu.test(source) && /\bgethitvar\s*\(\s*(?:animtype|damage)\s*\)/iu.test(source);
 }
 
 /**
