@@ -63,6 +63,14 @@ test('local Petra package completes the asset-viewer pipeline with official dupl
   });
   assert(imported.viewerAudioCues.length > 0);
   assert(model.actions.filter(value => value.audioCues.length > 0).length >= 100);
+  for (const actionNumber of [400, 401, 410, 411, 412, 413, 415, 416, 417, 418]) {
+    const action = model.actions.find(value => value.action.number === actionNumber);
+    assert(action?.audioCues.some(cue => cue.sound.group === 103), `Petra action ${actionNumber} is missing its character voice`);
+  }
+  for (const actionNumber of [373, 374, 375, 376, 377]) {
+    const action = model.actions.find(value => value.action.number === actionNumber);
+    assert(action?.audioCues.some(cue => cue.sound.group === 2 && cue.sound.item === 0), `Petra action ${actionNumber} is missing its shared hover entry sound`);
+  }
 });
 
 test('Petra executable audit has no remaining strict import gap in the legacy G08 profile', { skip: !existsSync(join(directory, entryDef)), timeout: 30_000 }, async () => {

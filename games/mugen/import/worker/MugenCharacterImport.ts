@@ -10,7 +10,7 @@ import type { MugenVfs } from '../vfs/MugenVfs';
 import { compareMugenStrings, unquoteMugenValue } from '../vfs/path';
 import { createMugenImportReport, createMugenPackage, type MugenPackageContributions } from '../../package/builder';
 import { encodeMugenPackage } from '../../package/codec';
-import type { EncodedMugenPackage, HaiyueMugenPackage, MugenDeterministicImportReport } from '../../package/types';
+import type { EncodedMugenPackage, HaiyueMugenPackage, MugenCanonicalValue, MugenDeterministicImportReport } from '../../package/types';
 import type { MugenWorkerImportOptions } from './protocol';
 
 export interface MugenCharacterMetadata {
@@ -53,7 +53,8 @@ export async function importMugenCharacter(
   });
   const sounds = await importMugenSoundContributions(graph, signal);
   const scripts = options.scriptProfile === 'g08-minimal' || options.scriptProfile === 'm09-native-common' ? compileMugenCharacterScripts(graph, options.scriptProfile).contributions : undefined;
-  const contributions = mergeContributions(sprites.contributions, actions.contributions, sounds.contributions, ...(scripts === undefined ? [] : [scripts]));
+  const mergedContributions = mergeContributions(sprites.contributions, actions.contributions, sounds.contributions, ...(scripts === undefined ? [] : [scripts]));
+  const contributions = options.assetProfile === 'selection-preview' ? selectionPreviewContributions(mergedContributions) : mergedContributions;
   const packageValue = createMugenPackage(graph, { contentRole: options.contentRole, contributions });
   const encoded = await encodeMugenPackage(packageValue);
   const report = createMugenImportReport(packageValue, encoded.packageSha256);
@@ -72,6 +73,49 @@ function mergeContributions(...values: readonly MugenPackageContributions[]): Mu
     featureUsage: Object.freeze([...new Set(values.flatMap(value => value.featureUsage ?? []))].sort(compareMugenStrings)),
     diagnostics: Object.freeze(values.flatMap(value => value.diagnostics ?? [])),
   });
+}
+
+function selectionPreviewContributions(value: MugenPackageContributions): MugenPackageContributions {
+  const actions = (value.actions ?? []).filter(action => canonicalInteger(action, 'number') === 0);
+  if (actions.length === 0) throw new TypeError('MUGEN selection preview requires AIR action 0.');
+  const wantedSpriteIds = new Set<string>();
+  for (const action of actions) {
+    const elements = canonicalRecord(action, 'selection action').elements;
+    if (!Array.isArray(elements)) throw new TypeError('MUGEN selection action elements are invalid.');
+    for (const element of elements) { const spriteId = canonicalRecord(element, 'selection action element').spriteId; if (typeof spriteId === 'string') wantedSpriteIds.add(spriteId); }
+  }
+  const spriteRecords = new Map<string, Readonly<Record<string, MugenCanonicalValue>>>();
+  for (const sprite of value.sprites ?? []) {
+    const record = canonicalRecord(sprite, 'selection sprite'); const id = record.id;
+    if (typeof id !== 'string') throw new TypeError('MUGEN selection sprite id is invalid.');
+    spriteRecords.set(id, record);
+    if (canonicalInteger(sprite, 'group') === 9000 && canonicalInteger(sprite, 'item') === 0) wantedSpriteIds.add(id);
+  }
+  const pending = [...wantedSpriteIds];
+  for (let index = 0; index < pending.length; index += 1) {
+    const linkedId = spriteRecords.get(pending[index]!)?.dataSpriteId;
+    if (typeof linkedId === 'string' && !wantedSpriteIds.has(linkedId)) { wantedSpriteIds.add(linkedId); pending.push(linkedId); }
+  }
+  const sprites = (value.sprites ?? []).filter(sprite => wantedSpriteIds.has(String(canonicalRecord(sprite, 'selection sprite').id)));
+  const wantedPaletteIds = new Set<string>();
+  for (const sprite of sprites) { const paletteId = canonicalRecord(sprite, 'selection sprite').paletteId; if (typeof paletteId === 'string') wantedPaletteIds.add(paletteId); }
+  const paletteRecords = new Map<string, Readonly<Record<string, MugenCanonicalValue>>>();
+  for (const palette of value.palettes ?? []) { const record = canonicalRecord(palette, 'selection palette'); if (typeof record.id === 'string') paletteRecords.set(record.id, record); }
+  const pendingPalettes = [...wantedPaletteIds];
+  for (let index = 0; index < pendingPalettes.length; index += 1) { const linkedId = paletteRecords.get(pendingPalettes[index]!)?.linkedPaletteId; if (typeof linkedId === 'string' && !wantedPaletteIds.has(linkedId)) { wantedPaletteIds.add(linkedId); pendingPalettes.push(linkedId); } }
+  const palettes = (value.palettes ?? []).filter(palette => wantedPaletteIds.has(String(canonicalRecord(palette, 'selection palette').id)));
+  return Object.freeze({ ...value, palettes: Object.freeze(palettes), sprites: Object.freeze(sprites), actions: Object.freeze(actions), sounds: Object.freeze([]), commands: Object.freeze([]), states: Object.freeze([]) });
+}
+
+function canonicalRecord(value: MugenCanonicalValue, label: string): Readonly<Record<string, MugenCanonicalValue>> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`MUGEN ${label} is invalid.`);
+  return value as Readonly<Record<string, MugenCanonicalValue>>;
+}
+
+function canonicalInteger(value: MugenCanonicalValue, key: string): number {
+  const field = canonicalRecord(value, key)[key];
+  if (!Number.isSafeInteger(field)) throw new TypeError(`MUGEN ${key} is invalid.`);
+  return field as number;
 }
 
 function merged<K extends 'strings' | 'palettes' | 'sprites' | 'actions' | 'sounds' | 'commands' | 'states'>(

@@ -609,6 +609,43 @@ value=Const(size.mid.pos.y)
   assert.equal(runtime.entities.explods('P1', 80).length, 0); assert.equal(trace.output.entities.some(value => value.entityId === explod.entityId), false);
 });
 
+test('Helper PosFreeze suppresses velocity integration for one tick without stopping velocity or state time', async () => {
+  const commands = parseMugenCommandDocument(await textDocument('helper-posfreeze.cmd', '[Command]\nname="dummy"\ncommand=s\n'));
+  const states = parseMugenStateDocuments([await textDocument('helper-posfreeze.cns', `[Statedef 0]
+type=S
+movetype=I
+physics=N
+ctrl=1
+[State 0, spawn]
+type=Helper
+trigger1=Time=0
+persistent=0
+id=5100
+stateno=5100
+[Statedef 5100]
+type=A
+movetype=H
+physics=N
+velset=3,-2
+[State 5100, Petra common-state freeze]
+type=PosFreeze
+trigger1=Time=0
+value=4
+`)]);
+  const runtime = new MugenScriptRuntime([{ fighterId: 'P1', commands, states }, { fighterId: 'P2', commands, states }]);
+  const inputs = inputBuilder(); const match = createMatch();
+  const step = () => { const input = inputs.push([]); match.beginTick(input); if (input.tick === 1) match.startFight(); const trace = runtime.step(match, input, inputs.history); match.endTick(); return trace; };
+
+  step();
+  assert.deepEqual(runtime.entities.helpers('P1', 5100)[0].position, [-20, 0]);
+  const frozenTrace = step(); const frozen = runtime.entities.helpers('P1', 5100)[0];
+  assert(frozenTrace.executedControllers.some(value => value.endsWith(':5100:0:pos-freeze')));
+  assert.deepEqual([frozen.position, frozen.velocity, frozen.stateTime], [[-20, 0], [3, -2], 1]);
+
+  step(); const moving = runtime.entities.helpers('P1', 5100)[0];
+  assert.deepEqual([moving.position, moving.velocity, moving.stateTime], [[-17, -2], [3, -2], 2]);
+});
+
 test('G05 keyctrl Helpers consume their root player command stream while ordinary Helpers do not', async () => {
   const commands = parseMugenCommandDocument(await textDocument('g05-keyctrl.cmd', '[Command]\nname="x"\ncommand=x\n'));
   const states = parseMugenStateDocuments([await textDocument('g05-keyctrl.cns', `[Statedef -1]

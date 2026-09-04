@@ -1,6 +1,7 @@
 import { OwnerSafeAudioMixer, type AudioMixerPlayRequest } from '@haiyue/engine/experimental/audio';
 import type { MugenBuiltInGameFixture, MugenGameSound } from './MugenGameFixture';
 import type { MugenMatchEvent } from '../runtime/match/MugenMatchState';
+import type { MugenRoundAudioCue } from './MugenRoundAudio';
 
 export interface MugenGameAudioConsumeResult { readonly requested: number; readonly played: number; readonly missing: number }
 
@@ -59,6 +60,17 @@ export class MugenGameAudio {
     if (!this.#ready) return Object.freeze({ requested, played, missing });
     for (const event of events) {
       if (event.kind === 'audio') { const owner = event.resourceOwner === 'fight' ? 'system' : event.fighterId; if (event.operation === 'stop') this.#mixer.stop(owner, channel(event.channel)); else if (event.operation === 'pan') this.#mixer.setPan(owner, channel(event.channel), event.pan / 127); else { requested += 1; if (this.#play(event.id, owner, channel(event.channel, event.id), event.group, event.item, event.tick, event.volume / 255, event.pan / 127, event.frequency, event.loop, 20, 'sfx', !event.lowPriority)) played += 1; else missing += 1; } }
+    }
+    this.#syncEvidence(); return Object.freeze({ requested, played, missing });
+  }
+
+  playCues(cues: readonly MugenRoundAudioCue[], tick: number): MugenGameAudioConsumeResult {
+    let requested = 0; let played = 0; let missing = 0;
+    if (!this.#ready) return Object.freeze({ requested, played, missing });
+    for (const [index, cue] of cues.entries()) {
+      requested += 1;
+      const eventId = `mugen-round-cue-${tick}-${index}-${cue.kind}-${cue.owner}`;
+      if (this.#play(eventId, cue.owner, cue.channel, cue.group, cue.item, tick, 1, 0, 1, false, cue.priority)) played += 1; else missing += 1;
     }
     this.#syncEvidence(); return Object.freeze({ requested, played, missing });
   }

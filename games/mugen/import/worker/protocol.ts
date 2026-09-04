@@ -16,6 +16,7 @@ export interface MugenWorkerImportOptions {
   readonly encoding?: MugenSourceEncoding;
   readonly contentRole: 'formal-fixture' | 'local-content';
   readonly scriptProfile?: 'none' | 'g08-minimal' | 'm09-native-common';
+  readonly assetProfile?: 'full' | 'selection-preview';
 }
 
 export interface MugenWorkerFileDescriptor {
@@ -142,5 +143,6 @@ function isWorkerImportOptions(value: unknown): value is MugenWorkerImportOption
   if (value.entryDef !== undefined && typeof value.entryDef !== 'string') return false;
   if (value.entryKind !== undefined && !['character', 'stage', 'motif', 'storyboard'].includes(String(value.entryKind))) return false;
   if (value.encoding !== undefined && !['utf-8', 'windows-1252', 'shift_jis', 'gbk', 'big5', 'euc-kr'].includes(String(value.encoding))) return false;
+  if (value.assetProfile !== undefined && value.assetProfile !== 'full' && value.assetProfile !== 'selection-preview') return false;
   return value.scriptProfile === undefined || value.scriptProfile === 'none' || value.scriptProfile === 'g08-minimal' || value.scriptProfile === 'm09-native-common';
 }

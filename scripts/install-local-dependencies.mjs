@@ -8,6 +8,7 @@ const candidates = [
   '../Engine/.artifacts/packages/haiyue-engine-0.1.0.tgz',
   '../Engine/.artifacts/packages/haiyue-animation-spec-0.1.0.tgz',
   '../Engine/.artifacts/packages/haiyue-extensions-0.1.0.tgz',
+  '../UI/.artifacts/packages/haiyue-ui-0.1.2.tgz',
 ];
 
 const missing = candidates.filter(candidate => !existsSync(resolve(repositoryRoot, candidate)));
@@ -15,7 +16,7 @@ if (missing.length > 0) {
   throw new Error([
     'Missing local package candidates:',
     ...missing.map(candidate => `- ${candidate}`),
-    'Run `npm run pack:candidates` in ../Engine first.',
+    'Run `npm run pack:candidates` in ../Engine and `npm run pack:candidate` in ../UI first.',
   ].join('\n'));
 }
 

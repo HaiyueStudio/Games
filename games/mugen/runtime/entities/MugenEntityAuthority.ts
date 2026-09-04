@@ -347,6 +347,7 @@ export class MugenEntityAuthority {
   readonly #pendingModify: PendingModify[] = [];
   readonly #diagnostics: MugenEntityDiagnostic[] = [];
   readonly #projectileContacts = new Map<string, Writable<MugenProjectileContactRecord>>();
+  readonly #positionFrozenHelpers = new Set<string>();
   #tick = 0;
   #open = false;
   #nextPlayerId = 1;
@@ -395,7 +396,7 @@ export class MugenEntityAuthority {
   beginTick(tick: number): this {
     if (this.#open) throw new Error('MUGEN entity tick is already open.');
     if (!Number.isSafeInteger(tick) || tick !== this.#tick + 1) throw new RangeError(`MUGEN entity tick must advance from ${this.#tick} to ${this.#tick + 1}.`);
-    this.#tick = tick; this.#open = true; this.#commandCount = 0; this.#diagnostics.length = 0; return this;
+    this.#tick = tick; this.#open = true; this.#commandCount = 0; this.#diagnostics.length = 0; this.#positionFrozenHelpers.clear(); return this;
   }
 
   spawnHelper(value: MugenHelperSpawn): string | null {
@@ -438,6 +439,12 @@ export class MugenEntityAuthority {
     return this;
   }
   removeExplodsOnOwnerGetHit(ownerId: string): this { this.#assertOpen(); for (const entity of this.#entities.values()) if (entity.kind === 'explod' && entity.ownerId === ownerId && entity.removeOnGetHit) this.#pendingDestroy.add(entity.entityId); return this; }
+
+  setHelperPositionFrozen(entityId: string, value: boolean): this {
+    this.#assertOpen(); this.#requireHelper(entityId);
+    if (value) this.#positionFrozenHelpers.add(entityId); else this.#positionFrozenHelpers.delete(entityId);
+    return this;
+  }
 
   registerTarget(ownerId: string, targetEntityId: string, targetId: number): this { this.#assertOpen(); this.#registerTarget(ownerId, targetEntityId, targetId); return this; }
   recordTarget(ownerId: string, targetEntityId: string, targetId: number): this { if (this.#open) throw new Error('MUGEN committed target registration requires a closed entity transaction.'); this.#registerTarget(ownerId, targetEntityId, targetId); return this; }
@@ -510,7 +517,7 @@ export class MugenEntityAuthority {
       if (!canMove) continue;
       entity.age = boundedInteger(entity.age + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.age`);
       if (entity.kind === 'root' && entity.bindTargetId !== null) { if (entity.bindTime === 0) entity.bindTargetId = null; else { const target = this.#entities.get(entity.bindTargetId); if (target?.kind === 'helper') { entity.position = [finite(target.position[0] + entity.bindOffset[0] * target.facing, `${entity.entityId}.bind.x`), finite(target.position[1] + entity.bindOffset[1], `${entity.entityId}.bind.y`)]; if (entity.bindTime > 0) entity.bindTime -= 1; } else { entity.bindTargetId = null; entity.bindTime = 0; } } }
-      if (entity.kind === 'helper') { if (entity.bindTargetId !== null && entity.bindTime !== 0) { const target = this.#entities.get(entity.bindTargetId); if (target !== undefined && 'position' in target) { const targetFacing = 'facing' in target ? target.facing : 1; entity.position = [finite(target.position[0] + entity.bindOffset[0] * targetFacing, `${entity.entityId}.bind.x`), finite(target.position[1] + entity.bindOffset[1], `${entity.entityId}.bind.y`)]; } else { entity.bindTargetId = null; entity.bindTime = 0; } if (entity.bindTime > 0 && --entity.bindTime === 0) entity.bindTargetId = null; } else { entity.bindTargetId = null; entity.position[0] = finite(entity.position[0] + entity.velocity[0], `${entity.entityId}.position.x`); entity.position[1] = finite(entity.position[1] + entity.velocity[1], `${entity.entityId}.position.y`); } if (entity.stunTicks > 0) { entity.stunTicks -= 1; if (entity.stunTicks === 0) entity.stunKind = null; } decrementHelperCombatTimers(entity); if (entity.moveContact !== 'none') entity.moveContactTime = boundedInteger(entity.moveContactTime + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.moveContactTime`); if (entity.moveType === 'H') entity.hitElapsedTicks = boundedInteger(entity.hitElapsedTicks + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.hitElapsedTicks`); entity.stateTime = boundedInteger(entity.stateTime + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.stateTime`); entity.actionTime = boundedInteger(entity.actionTime + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.actionTime`); }
+      if (entity.kind === 'helper') { if (entity.bindTargetId !== null && entity.bindTime !== 0) { const target = this.#entities.get(entity.bindTargetId); if (target !== undefined && 'position' in target) { const targetFacing = 'facing' in target ? target.facing : 1; entity.position = [finite(target.position[0] + entity.bindOffset[0] * targetFacing, `${entity.entityId}.bind.x`), finite(target.position[1] + entity.bindOffset[1], `${entity.entityId}.bind.y`)]; } else { entity.bindTargetId = null; entity.bindTime = 0; } if (entity.bindTime > 0 && --entity.bindTime === 0) entity.bindTargetId = null; } else { entity.bindTargetId = null; if (!this.#positionFrozenHelpers.has(entity.entityId)) { entity.position[0] = finite(entity.position[0] + entity.velocity[0], `${entity.entityId}.position.x`); entity.position[1] = finite(entity.position[1] + entity.velocity[1], `${entity.entityId}.position.y`); } } if (entity.stunTicks > 0) { entity.stunTicks -= 1; if (entity.stunTicks === 0) entity.stunKind = null; } decrementHelperCombatTimers(entity); if (entity.moveContact !== 'none') entity.moveContactTime = boundedInteger(entity.moveContactTime + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.moveContactTime`); if (entity.moveType === 'H') entity.hitElapsedTicks = boundedInteger(entity.hitElapsedTicks + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.hitElapsedTicks`); entity.stateTime = boundedInteger(entity.stateTime + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.stateTime`); entity.actionTime = boundedInteger(entity.actionTime + 1, 0, Number.MAX_SAFE_INTEGER, `${entity.entityId}.actionTime`); }
       if (entity.kind === 'projectile' || entity.kind === 'explod') {
         if (entity.kind === 'explod' && entity.bindTargetId !== null && entity.bindTime !== 0) { const target = this.#entities.get(entity.bindTargetId); if (target !== undefined && 'position' in target) { const targetFacing = 'facing' in target ? target.facing : 1; entity.position = [finite(target.position[0] + entity.bindOffset[0] * targetFacing, `${entity.entityId}.bind.x`), finite(target.position[1] + entity.bindOffset[1], `${entity.entityId}.bind.y`)]; } else { entity.bindTargetId = null; entity.bindTime = 0; } if (entity.bindTime > 0 && --entity.bindTime === 0) entity.bindTargetId = null; }
         else { entity.velocity[0] = finite(entity.velocity[0] * entity.velocityMultiplier[0] + entity.acceleration[0], `${entity.entityId}.velocity.x`); entity.velocity[1] = finite(entity.velocity[1] * entity.velocityMultiplier[1] + entity.acceleration[1], `${entity.entityId}.velocity.y`); entity.position[0] = finite(entity.position[0] + entity.velocity[0], `${entity.entityId}.position.x`); entity.position[1] = finite(entity.position[1] + entity.velocity[1], `${entity.entityId}.position.y`); }
@@ -521,6 +528,7 @@ export class MugenEntityAuthority {
       }
     }
     for (const entity of this.#orderedEntities()) if (entity.kind === 'explod' && entity.removeTime === 0) this.#entities.delete(entity.entityId);
+    this.#positionFrozenHelpers.clear();
     return this;
   }
 

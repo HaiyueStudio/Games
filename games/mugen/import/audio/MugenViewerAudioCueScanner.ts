@@ -23,6 +23,13 @@ export interface MugenScannedViewerAudioCue {
 
 const MAX_SCANNED_CUES = 16_384;
 
+interface ViewerStateBlock {
+  readonly stateNumber: number | null;
+  readonly actionNumbers: readonly number[];
+  readonly immediateTargets: readonly number[];
+  readonly controllers: readonly MugenTextSection[];
+}
+
 /**
  * Viewer-only, loss-tolerant audio association pass. It intentionally understands
  * only StateDef anim, PlaySnd, HitDef hitsound and static trigger timing, and
@@ -42,7 +49,7 @@ export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly Muge
       const type = assignments.find(value => value.foldedKey === 'type');
       const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
       if (normalizedType !== 'playsnd' && normalizedType !== 'hitdef') continue;
-      const actionNumbers = block.actionNumber === null ? inferredActionNumbers(assignments, availableActionNumbers) : Object.freeze([block.actionNumber]);
+      const actionNumbers = block.actionNumbers.length === 0 ? inferredActionNumbers(assignments, availableActionNumbers) : block.actionNumbers;
       if (actionNumbers.length === 0) continue;
       const values = new Map<string, MugenAssignmentToken>();
       for (const assignment of assignments) if (!values.has(assignment.foldedKey)) values.set(assignment.foldedKey, assignment);
@@ -52,7 +59,7 @@ export function scanMugenViewerAudioCues(graph: MugenImportGraph): readonly Muge
         if (!matchesGetHitAnimationType(assignments, actionNumber)) continue;
         const timing = scanTiming(assignments);
         const channel = staticInteger(values.get('channel')?.value) ?? -1;
-        if (block.actionNumber === null && channel >= 0) {
+        if (block.actionNumbers.length === 0 && channel >= 0) {
           // Mutually exclusive global hurt-voice controllers often target the
           // same channel. Once their static AnimType branch selects a cue, do
           // not make the preview play a later guard/random alternative too.
@@ -97,8 +104,8 @@ function stateScriptPaths(graph: MugenImportGraph): ReadonlySet<string> {
   return paths;
 }
 
-function viewerStateBlocks(document: MugenTextDocument): readonly Readonly<{ actionNumber: number | null; controllers: readonly MugenTextSection[] }>[] {
-  const result: Array<Readonly<{ actionNumber: number | null; controllers: readonly MugenTextSection[] }>> = [];
+function viewerStateBlocks(document: MugenTextDocument): readonly ViewerStateBlock[] {
+  const result: ViewerStateBlock[] = [];
   for (let index = 0; index < document.sections.length; index += 1) {
     const definition = document.sections[index]!;
     const stateMatch = /^statedef\s+(-?\d+)$/iu.exec(definition.name.trim());
@@ -111,21 +118,61 @@ function viewerStateBlocks(document: MugenTextDocument): readonly Readonly<{ act
       end += 1;
     }
     const stateDefAnimation = sectionAssignments(document, definition).find(value => value.foldedKey === 'anim');
-    let actionNumber = staticInteger(stateDefAnimation?.value);
-    if (actionNumber === null && stateNumber !== null && stateNumber >= 0) {
+    let actionNumbers = staticIntegerAlternatives(stateDefAnimation?.value);
+    if (actionNumbers.length === 0 && stateNumber !== null && stateNumber >= 0) {
       for (const controller of controllers) {
         const assignments = sectionAssignments(document, controller);
         const type = assignments.find(value => value.foldedKey === 'type');
         const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
         if (normalizedType !== 'changeanim' && normalizedType !== 'changeanim2') continue;
-        actionNumber = staticInteger(assignments.find(value => value.foldedKey === 'value')?.value);
-        if (actionNumber !== null) break;
+        actionNumbers = staticIntegerAlternatives(assignments.find(value => value.foldedKey === 'value')?.value);
+        if (actionNumbers.length > 0) break;
       }
     }
-    result.push(Object.freeze({ actionNumber, controllers: Object.freeze(controllers) }));
+    const immediateTargets = new Set<number>();
+    for (const controller of controllers) {
+      const assignments = sectionAssignments(document, controller);
+      const type = assignments.find(value => value.foldedKey === 'type');
+      const normalizedType = type === undefined ? '' : asciiCaseFold(type.value).replace(/[\s_-]+/gu, '');
+      if (normalizedType !== 'changestate' || !canRunAtStateEntry(assignments)) continue;
+      for (const target of staticIntegerAlternatives(assignments.find(value => value.foldedKey === 'value')?.value)) immediateTargets.add(target);
+    }
+    result.push(Object.freeze({ stateNumber, actionNumbers, immediateTargets: Object.freeze([...immediateTargets].sort((left, right) => left - right)), controllers: Object.freeze(controllers) }));
     index = end - 1;
   }
-  return Object.freeze(result);
+  const byState = new Map(result.flatMap(block => block.stateNumber === null ? [] : [[block.stateNumber, block] as const]));
+  return Object.freeze(result.map(block => {
+    if (block.actionNumbers.length > 0 || block.stateNumber === null || block.stateNumber < 0) return block;
+    const inherited = new Set<number>();
+    for (const target of block.immediateTargets) for (const actionNumber of byState.get(target)?.actionNumbers ?? []) inherited.add(actionNumber);
+    return inherited.size === 0 ? block : Object.freeze({ ...block, actionNumbers: Object.freeze([...inherited].sort((left, right) => left - right)) });
+  }));
+}
+
+function canRunAtStateEntry(assignments: readonly MugenAssignmentToken[]): boolean {
+  const triggers = assignments.filter(value => value.foldedKey === 'triggerall' || /^trigger\d+$/u.test(value.foldedKey));
+  return triggers.every(trigger => !/\b(?:animtime|animelem|animelemtime)\b/iu.test(trigger.value)
+    && !/\btime\b/iu.test(trigger.value.replace(/\btime\s*=\s*0\b/giu, '')));
+}
+
+/**
+ * Accept a literal animation number or the literal result branches of a MUGEN
+ * IfElse expression. The condition is deliberately ignored so comparison
+ * constants such as `var(59) = 2` cannot leak into the action catalog.
+ */
+function staticIntegerAlternatives(value: string | undefined, depth = 0): readonly number[] {
+  if (value === undefined || depth > 16) return Object.freeze([]);
+  const exact = staticInteger(value);
+  if (exact !== null && exact >= 0) return Object.freeze([exact]);
+  const ifElse = /^\s*ifelse\s*\(/iu.exec(value);
+  if (!ifElse) return Object.freeze([]);
+  const opening = ifElse[0].length - 1;
+  const closing = matchingClosingParenthesis(value, opening);
+  if (closing >= value.length || value.slice(closing + 1).trim() !== '') return Object.freeze([]);
+  const fields = splitTopLevel(value.slice(opening + 1, closing));
+  if (fields.length !== 3) return Object.freeze([]);
+  const result = new Set([...staticIntegerAlternatives(fields[1], depth + 1), ...staticIntegerAlternatives(fields[2], depth + 1)]);
+  return Object.freeze([...result].sort((left, right) => left - right));
 }
 
 /**

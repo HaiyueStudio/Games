@@ -105,7 +105,7 @@ test('viewer model resolves linked sprite data once and reports catalog inventor
   assert.deepEqual({ actions: model.actions.length, sprites: model.sprites.length, rendererSprites: model.rendererSprites.length, palettes: model.palettes.length, used: model.referencedSpriteCount, missing: model.missingSpriteReferenceCount }, { actions: 2, sprites: 2, rendererSprites: 1, palettes: 2, used: 2, missing: 1 });
   assert.equal(model.sprites[1].renderSpriteId, model.sprites[0].renderSpriteId);
   assert.strictEqual(model.sprites[1].pixels, model.sprites[0].pixels);
-  assert.deepEqual(model.actions.map(value => [value.action.number, value.elementCount, value.action.totalTicks, value.warningCount]), [[0, 3, 6, 1], [10, 2, null, 0]]);
+  assert.deepEqual(model.actions.map(value => [value.action.number, value.elementCount, value.action.totalTicks, value.warningCount, value.visualStatus]), [[0, 3, 6, 1, 'partial'], [10, 2, null, 0, 'drawable']]);
   assert.deepEqual(spriteReferenceResolver(model)(model.sprites[1].id), { id: model.sprites[1].id, axisX: 7, axisY: -8 });
 });
 
@@ -157,7 +157,7 @@ test('viewer product is manifest-backed and exposes required controls without pr
   assert.equal(entry.entry, 'mugen/main.ts');
   assert.equal(entry.capabilities.includes('experimental-indexed-sprite'), true);
   const html = readFileSync(new URL('../mugen/charactorPreview.html', import.meta.url), 'utf8');
-  for (const id of ['directory-input', 'entry-select', 'action-search', 'action-filter', 'timeline', 'palette-select', 'debug-clsn1', 'debug-clsn2', 'viewer-canvas']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['directory-input', 'entry-select', 'action-search', 'action-filter', 'timeline', 'palette-select', 'debug-clsn1', 'debug-clsn2', 'viewer-canvas', 'visual-notice']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /href="\.\/index\.html"/u);
   const htmlRevision = html.match(/dist\/charactorPreview\.js\?v=([A-Za-z0-9._-]+)/u)?.[1];
   assert.ok(htmlRevision, 'preview HTML must version its module entry');
@@ -166,6 +166,8 @@ test('viewer product is manifest-backed and exposes required controls without pr
   const previewSource = readFileSync(new URL('../mugen/charactorPreview.ts', import.meta.url), 'utf8');
   assert.match(previewSource, /value: 'audio', label: '携带音频'/u);
   assert.match(previewSource, /filter === 'audio' && value\.audioCues\.length === 0/u);
+  assert.match(previewSource, /value: 'blank', label: '逻辑空动作'/u);
+  assert.match(previewSource, /value: 'missing', label: '当前 SFF 无素材'/u);
   for (const id of ['loop-toggle', 'debug-origin', 'debug-axis', 'debug-bounds', 'debug-clsn1', 'debug-clsn2']) assert.match(html, new RegExp(`<hy-checkbox[^>]+id="${id}"`));
   assert.match(html, /<hy-range[^>]+id="volume-control"/u);
   assert.doesNotMatch(html, /<select\b|type="checkbox"/u);
@@ -192,13 +194,21 @@ test('viewer product is manifest-backed and exposes required controls without pr
   assert.match(source, /console\.error\('\[MUGEN viewer\] Preview initialization failed\.'/u);
   assert.match(source, /console\.error\('\[MUGEN viewer\] WebGPU initialization failed/u);
   assert.doesNotMatch(source, /querySelectorAll<MugenActionListItem>\('mugen-action-list-item'\)/u);
-  assert.match(source, /#selectAction[\s\S]*?this\.#actionList\.refresh\(\)/u);
+  const selectActionSource = source.match(/#selectAction\(action: MugenViewerAction\): void \{[\s\S]*?\n {2}\}/u)?.[0] ?? '';
+  assert.doesNotMatch(selectActionSource, /actionList\.refresh\(\)/u, 'selection must not rebuild the focused virtual window');
   assert.doesNotMatch(source, /for \(const action of actions\).*append/u);
   const itemSource = readFileSync(new URL('../mugen/viewer/MugenActionListItem.ts', import.meta.url), 'utf8');
   assert.match(itemSource, /class MugenActionListItem extends HTMLElement/u);
+  assert.match(itemSource, /const selection: \{ current: MugenActionListItem \| null \} = \{ current: null \}/u);
+  assert.match(itemSource, /this\.#button\.addEventListener\('click', \(\) => this\.select\(\)\)/u);
+  assert.match(itemSource, /selection\.current\.deselect\(\)/u);
+  assert.match(itemSource, /if \(selection\.current === this\) selection\.current = null/u);
   assert.match(itemSource, /attachShadow\(\{ mode: 'open' \}\)/u);
   assert.match(itemSource, /set selected\(value: boolean\)/u);
   assert.match(itemSource, /customElements\.define\(ELEMENT_NAME, MugenActionListItem\)/u);
+  const virtualListSource = readFileSync(new URL('../../node_modules/@haiyue/ui/dist/virtual-list.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(virtualListSource, /row\.slot\s*=\s*['"]items['"]/u, 'virtual rows must not use asynchronously distributed light DOM slots');
+  assert.match(virtualListSource, /this\._window\.replaceChildren\(\.\.\.rows\)/u, 'virtual rows must be replaced synchronously inside the shadow window');
   const preferences = readFileSync(new URL('../mugen/viewer/MugenViewerPreferences.ts', import.meta.url), 'utf8');
   assert.match(preferences, /SingleSlotGameSave/);
   assert.doesNotMatch(preferences, /entryDef|sourcePath|packageBytes/);

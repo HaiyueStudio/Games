@@ -1,6 +1,7 @@
 import type { MugenViewerAction } from './MugenCharacterModel';
 
 const ELEMENT_NAME = 'mugen-action-list-item';
+const selection: { current: MugenActionListItem | null } = { current: null };
 
 /** Business-specific catalog row used inside the shared virtual list. */
 export class MugenActionListItem extends HTMLElement {
@@ -41,6 +42,7 @@ export class MugenActionListItem extends HTMLElement {
       .flags { display: flex; align-items: center; gap: 3px; }
       .flag { padding: 2px 4px; border: 1px solid #394154; border-radius: 3px; color: #9099aa; font-size: 8px; }
       .flag.warning { border-color: #76552d; color: #ffbe69; }
+      .flag.blank { border-color: #46516a; color: #aeb8ca; }
     `;
     this.#button.type = 'button';
     this.#button.className = 'action-item';
@@ -51,29 +53,46 @@ export class MugenActionListItem extends HTMLElement {
     copy.append(this.#title, this.#meta);
     this.#flags.className = 'flags';
     this.#button.append(this.#number, copy, this.#flags);
+    this.#button.addEventListener('click', () => this.select());
     root.append(style, this.#button);
   }
+
+  disconnectedCallback(): void { if (selection.current === this) selection.current = null; }
 
   get actionId(): string { return this.dataset.actionId ?? ''; }
 
   get selected(): boolean { return this.#button.ariaSelected === 'true'; }
 
-  set selected(value: boolean) {
-    this.#button.ariaSelected = String(value);
+  set selected(value: boolean) { if (value) this.select(); else this.deselect(); }
+
+  select(): void {
+    if (this.actionId === '') return;
+    if (selection.current !== null && selection.current !== this) selection.current.deselect();
+    selection.current = this;
+    this.#setSelected(true);
+  }
+
+  deselect(): void {
+    if (selection.current === this) selection.current = null;
+    this.#setSelected(false);
   }
 
   configure(action: MugenViewerAction, selected: boolean): void {
     this.dataset.actionId = action.id;
     this.selected = selected;
-    this.#button.setAttribute('aria-label', `Action ${action.action.number} · ${action.label ?? '自定义动作'}`);
+    this.#button.setAttribute('aria-label', `Action ${action.action.number} · ${action.label ?? '自定义动作'} · ${visualStatusLabel(action.visualStatus)}`);
     this.#number.textContent = String(action.action.number);
     this.#title.textContent = action.label ?? '自定义动作';
     this.#meta.textContent = `${action.elementCount} elements · ${action.action.totalTicks === null ? '∞' : `${action.action.totalTicks} ticks`} · ${action.referencedSpriteIds.length} sprites`;
     this.#flags.replaceChildren();
     if (action.action.loopStart > 0) this.#flags.append(createFlag('LOOP'));
     if (action.clsn1Count + action.clsn2Count > 0) this.#flags.append(createFlag('CLSN'));
-    if (action.warningCount > 0) this.#flags.append(createFlag(String(action.warningCount), true));
+    if (action.visualStatus === 'blank') this.#flags.append(createFlag('LOGIC', false, 'blank'));
+    else if (action.visualStatus === 'missing') this.#flags.append(createFlag('NO SFF', true));
+    else if (action.visualStatus === 'partial') this.#flags.append(createFlag(`PARTIAL ${action.warningCount}`, true));
   }
+
+  #setSelected(value: boolean): void { this.#button.ariaSelected = String(value); }
 }
 
 export function createMugenActionListItem(action: MugenViewerAction, selected: boolean): MugenActionListItem {
@@ -86,9 +105,11 @@ export function defineMugenActionListItem(): void {
   if (!customElements.get(ELEMENT_NAME)) customElements.define(ELEMENT_NAME, MugenActionListItem);
 }
 
-function createFlag(value: string, warning = false): HTMLElement {
+function createFlag(value: string, warning = false, className = ''): HTMLElement {
   const flag = document.createElement('span');
-  flag.className = `flag${warning ? ' warning' : ''}`;
+  flag.className = `flag${warning ? ' warning' : ''}${className ? ` ${className}` : ''}`;
   flag.textContent = value;
   return flag;
 }
+
+function visualStatusLabel(value: MugenViewerAction['visualStatus']): string { return ({ drawable: '可绘制', partial: '部分素材未解析', missing: '当前 SFF 无素材', blank: '逻辑空动作' } as const)[value]; }

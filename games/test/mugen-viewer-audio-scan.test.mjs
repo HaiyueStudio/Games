@@ -97,4 +97,49 @@ test('viewer audio scan follows DEF state-script roles when legacy scripts use c
   ]);
 });
 
+test('viewer audio scan associates PlaySnd with every static IfElse animation branch', async () => {
+  const graph = await buildMugenImportGraph(await createMugenVfs([
+    input('hero.def', '[Info]\nname=Branched Anim Audio\n[Files]\ncns=hero.cns\n'),
+    input('hero.cns', [
+      '[Statedef 400]', 'type=S',
+      '[State 400, mode animation]', 'type=ChangeAnim', 'trigger1=Time=0', 'value=IfElse((var(59)=2||var(59)=5),400,401)',
+      '[State 400, voice]', 'type=PlaySnd', 'trigger1=AnimElem=3', 'value=S103,0',
+      '[Statedef 410]', 'type=A',
+      '[State 410, nested mode animation]', 'type=ChangeAnim', 'trigger1=Time=0', 'value=IfElse(var(59)=2,410,IfElse(var(59)=5,415,418))',
+      '[State 410, voice]', 'type=PlaySnd', 'trigger1=AnimElem=7', 'value=S103,1',
+    ].join('\n')),
+  ]), { entryDef: 'hero.def', entryKind: 'character', encoding: 'utf-8' });
+
+  assert.deepEqual(scanMugenViewerAudioCues(graph).map(cue => [cue.actionNumber, cue.group, cue.item, cue.timing]), [
+    [400, 103, 0, { kind: 'element', value: 3 }],
+    [401, 103, 0, { kind: 'element', value: 3 }],
+    [410, 103, 1, { kind: 'element', value: 7 }],
+    [415, 103, 1, { kind: 'element', value: 7 }],
+    [418, 103, 1, { kind: 'element', value: 7 }],
+  ]);
+});
+
+test('viewer audio scan carries an entry sound through an immediate ChangeState dispatcher', async () => {
+  const graph = await buildMugenImportGraph(await createMugenVfs([
+    input('hero.def', '[Info]\nname=State Dispatcher Audio\n[Files]\ncns=hero.cns\n'),
+    input('hero.cns', [
+      '[Statedef 370]', 'type=A',
+      '[State 370, entry sound]', 'type=PlaySnd', 'trigger1=Time=0', 'value=S2,0',
+      '[State 370, down branch]', 'type=ChangeState', 'trigger1=command="down"', 'value=374',
+      '[State 370, back branch]', 'type=ChangeState', 'trigger1=command="back"', 'value=375',
+      '[State 370, delayed exit]', 'type=ChangeState', 'trigger1=AnimTime=0', 'value=999',
+      '[Statedef 374]', 'type=A',
+      '[State 374, animation]', 'type=ChangeAnim', 'trigger1=Time=0', 'value=373',
+      '[Statedef 375]', 'type=A',
+      '[State 375, animation]', 'type=ChangeAnim', 'trigger1=Time=0', 'value=374',
+      '[Statedef 999]', 'type=S', 'anim=999',
+    ].join('\n')),
+  ]), { entryDef: 'hero.def', entryKind: 'character', encoding: 'utf-8' });
+
+  assert.deepEqual(scanMugenViewerAudioCues(graph).map(cue => [cue.actionNumber, cue.group, cue.item, cue.timing]), [
+    [373, 2, 0, { kind: 'tick', value: 0 }],
+    [374, 2, 0, { kind: 'tick', value: 0 }],
+  ]);
+});
+
 function input(path, source) { return { path, bytes: UTF8.encode(source) }; }

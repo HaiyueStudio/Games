@@ -87,6 +87,9 @@ dd { margin: 3px 0 0; font: 800 14px ui-monospace, SFMono-Regular, Consolas, mon
 .drop-hint strong { color: #dce1ea; font-size: 15px; }
 .drop-hint span { font-size: 11px; }
 .drop-icon { display: grid; width: 64px; height: 64px; margin-bottom: 7px; place-items: center; border: 1px dashed #596276; border-radius: 17px; color: var(--lime); font-size: 31px; }
+.visual-notice { position: absolute; z-index: 3; top: 50%; left: 50%; width: min(430px, 76%); padding: 14px 18px; border: 1px solid #76552d; border-radius: 7px; color: #ffd39a; text-align: center; background: rgba(24,18,12,.9); transform: translate(-50%,-50%); pointer-events: none; font-size: 11px; line-height: 1.6; }
+.visual-notice[data-kind="blank"] { border-color: #46516a; color: #c4ccda; background: rgba(12,16,24,.9); }
+.visual-notice[hidden] { display: none; }
 .viewport-badges { position: absolute; z-index: 4; right: 12px; bottom: 12px; left: 12px; display: flex; justify-content: space-between; pointer-events: none; }
 .viewport-badges span { padding: 5px 8px; border: 1px solid rgba(120,130,150,.22); border-radius: 4px; color: #929bad; background: rgba(8,10,15,.72); font: 700 9px ui-monospace, monospace; backdrop-filter: blur(6px); }
 .transport { padding: 10px 14px 12px; border-top: 1px solid var(--line); border-bottom: 0; }

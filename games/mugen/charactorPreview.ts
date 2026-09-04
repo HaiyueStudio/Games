@@ -15,7 +15,7 @@ import {
   type MugenCharacterModel,
   type MugenViewerAction,
 } from './viewer/MugenCharacterModel';
-import { lastInspectableTick, MugenViewerController } from './viewer/MugenViewerController';
+import { firstDrawableTick, lastInspectableTick, MugenViewerController } from './viewer/MugenViewerController';
 import { MugenViewerPreferenceStore } from './viewer/MugenViewerPreferences';
 import { MugenWebGpuView, type MugenViewerBackground } from './viewer/MugenWebGpuView';
 import { createMugenActionListItem, defineMugenActionListItem } from './viewer/MugenActionListItem';
@@ -27,7 +27,7 @@ defineCheckboxComponents();
 defineRangeComponents();
 defineMugenActionListItem();
 
-const VIEWER_BUILD_REVISION = '20260903-athena02-audio-1';
+const VIEWER_BUILD_REVISION = '20260903-virtual-list-window-1';
 
 class MugenCharacterViewerApp {
   readonly #view: MugenWebGpuView;
@@ -70,6 +70,7 @@ class MugenCharacterViewerApp {
   readonly #actionList = element<HYVirtualList<MugenViewerAction>>('action-list');
   readonly #catalogCount = element<HTMLElement>('catalog-count');
   readonly #dropHint = element<HTMLElement>('drop-hint');
+  readonly #visualNotice = element<HTMLElement>('visual-notice');
   readonly #frameBadge = element<HTMLElement>('frame-badge');
   readonly #gpuBadge = element<HTMLElement>('gpu-badge');
   readonly #playToggle = element<HTMLButtonElement>('play-toggle');
@@ -98,7 +99,8 @@ class MugenCharacterViewerApp {
     replaceOptions(this.#actionFilter, [
       { value: 'all', label: '全部动作' }, { value: 'loop', label: '带 LoopStart' },
       { value: 'audio', label: '携带音频' }, { value: 'infinite', label: '无限末帧' },
-      { value: 'collision', label: '含碰撞框' }, { value: 'warning', label: '有警告' },
+      { value: 'collision', label: '含碰撞框' }, { value: 'drawable', label: '完整可显示' },
+      { value: 'blank', label: '逻辑空动作' }, { value: 'missing', label: '当前 SFF 无素材' }, { value: 'warning', label: '有警告' },
     ]);
     replaceOptions(this.#speedSelect, [
       { value: '0.25', label: '0.25×' }, { value: '0.5', label: '0.5×' }, { value: '1', label: '1×' },
@@ -366,6 +368,9 @@ class MugenCharacterViewerApp {
       if (filter === 'audio' && value.audioCues.length === 0) return false;
       if (filter === 'infinite' && value.action.totalTicks !== null) return false;
       if (filter === 'collision' && value.clsn1Count + value.clsn2Count === 0) return false;
+      if (filter === 'drawable' && value.visualStatus !== 'drawable') return false;
+      if (filter === 'blank' && value.visualStatus !== 'blank') return false;
+      if (filter === 'missing' && value.visualStatus !== 'missing' && value.visualStatus !== 'partial') return false;
       if (filter === 'warning' && value.warningCount === 0) return false;
       return true;
     });
@@ -396,14 +401,13 @@ class MugenCharacterViewerApp {
   #selectAction(action: MugenViewerAction): void {
     if (!this.#controller) return;
     this.#controller.select(action);
+    const firstVisible = firstDrawableTick(action); if (action.visualStatus === 'partial' && firstVisible !== null && firstVisible > 0) this.#controller.seek(firstVisible);
     this.#audio.select(action, this.#controller.playing);
     this.#actionLabel.textContent = action.label ?? '自定义动作';
     this.#audioStatus.textContent = action.audioCues.length === 0 ? '未关联音频' : `${action.audioCues.length} 个音频触发`;
     this.#audioStatus.classList.toggle('available', action.audioCues.length > 0);
-    // Virtual rows live inside the list's shadow window. Re-rendering the
-    // current range updates their selected state without changing scrollTop.
-    this.#actionList.refresh();
     this.#syncTransport();
+    this.#syncVisualNotice(action);
     this.#lastInspectorKey = '';
   }
 
@@ -426,7 +430,8 @@ class MugenCharacterViewerApp {
     this.#diagnosticCount.textContent = `${diagnostics.length} diagnostics`;
     this.#diagnostics.replaceChildren();
     const facts = document.createElement('div'); facts.className = 'diagnostic';
-    facts.textContent = `入口 ${model.metadata.entryDef} · 依赖 ${model.metadata.dependencies.length} · SHA ${packageSha256.slice(0, 12)}… · 缺失 sprite 引用 ${model.missingSpriteReferenceCount}`;
+    const blankActions = model.actions.filter(action => action.visualStatus === 'blank').length; const missingActions = model.actions.filter(action => action.visualStatus === 'missing').length; const partialActions = model.actions.filter(action => action.visualStatus === 'partial').length;
+    facts.textContent = `入口 ${model.metadata.entryDef} · 依赖 ${model.metadata.dependencies.length} · SHA ${packageSha256.slice(0, 12)}… · 逻辑空动作 ${blankActions} · 完全缺图 ${missingActions} · 部分缺帧 ${partialActions} · 缺失 sprite 引用 ${model.missingSpriteReferenceCount}`;
     this.#diagnostics.append(facts);
     for (const diagnostic of diagnostics) {
       const item = document.createElement('div'); item.className = `diagnostic ${diagnostic.severity}`;
@@ -475,6 +480,7 @@ class MugenCharacterViewerApp {
     this.#lastInspectorKey = key;
     const elementValue = snapshot.element;
     this.#frameBadge.textContent = `ACTION ${snapshot.actionNumber} · ELEMENT ${snapshot.frameIndex} · TICK ${displayTick}`;
+    this.#syncVisualNotice(this.#controller!.selected, snapshot);
     const blend = snapshot.render.blend;
     replaceDetails(this.#frameDetails, [
       ['Sprite', `${elementValue.spriteGroup},${elementValue.spriteItem}${snapshot.render.missingSprite ? ' · MISSING' : ''}`],
@@ -487,6 +493,13 @@ class MugenCharacterViewerApp {
       ['Collision', `Clsn1 ${snapshot.clsn1.length} · Clsn2 ${snapshot.clsn2.length}`],
       ['Palette', selectedLabel(this.#paletteSelect) || '自动'],
     ]);
+  }
+
+  #syncVisualNotice(action: MugenViewerAction, snapshot?: ReturnType<MugenViewerController['snapshot']>): void {
+    const currentMissing = snapshot?.render.missingSprite === true;
+    if (action.visualStatus === 'blank') { this.#visualNotice.dataset.kind = 'blank'; this.#visualNotice.textContent = '这是合法的逻辑空动作：AIR 只保留碰撞框、占位或控制时序，因此没有角色画面。'; this.#visualNotice.hidden = false; return; }
+    if (action.visualStatus === 'missing' || currentMissing) { const element = snapshot?.element ?? action.action.elements.find(value => value.spriteGroup !== -1 && value.spriteItem !== -1 && value.spriteId === null); this.#visualNotice.dataset.kind = 'missing'; this.#visualNotice.textContent = `当前角色的 SFF 中没有精灵 ${element === undefined ? '引用' : `${element.spriteGroup},${element.spriteItem}`}。它可能是为 ChangeAnim2 跨角色动作预留的引用，也可能是角色包残留的缺图；不是 WebGPU 渲染失败。`; this.#visualNotice.hidden = false; return; }
+    this.#visualNotice.hidden = true; delete this.#visualNotice.dataset.kind;
   }
 
   #resetViewForModel(model: MugenCharacterModel): void {

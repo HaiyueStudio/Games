@@ -105,6 +105,16 @@ export function lastInspectableTick(action: MugenViewerAction): number {
   return tick;
 }
 
+/** First observable frame backed by a real SFF sprite, used to avoid opening a partial action on a long missing frame. */
+export function firstDrawableTick(action: MugenViewerAction): number | null {
+  let tick = 0;
+  for (const element of action.action.elements) {
+    if (element.durationTicks !== 0 && element.spriteId !== null) return tick;
+    if (element.durationTicks > 0) tick += element.durationTicks;
+  }
+  return null;
+}
+
 function observableElementStarts(action: MugenViewerAction): readonly { readonly elementIndex: number; readonly tick: number }[] {
   const starts: Array<{ readonly elementIndex: number; readonly tick: number }> = [];
   let tick = 0;

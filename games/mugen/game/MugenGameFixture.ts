@@ -4,7 +4,7 @@ import type { MugenAirBank } from '../import/air/types';
 import { decodeMugenPackage } from '../package/codec';
 import type { MugenVfsInput } from '../import/vfs/MugenVfs';
 import type { MugenImportWorkerClient } from '../import/worker/MugenImportWorkerClient';
-import { createMugenCharacterModel, type MugenCharacterModel } from '../viewer/MugenCharacterModel';
+import { createMugenCharacterModel, type MugenCharacterModel, type MugenViewerSprite } from '../viewer/MugenCharacterModel';
 import { resolveMugenDrawScale, type MugenDrawScale } from './MugenCharacterScale';
 
 export interface MugenBuiltInGameFixture {
@@ -17,12 +17,24 @@ export interface MugenBuiltInGameFixture {
   readonly states: MugenStateProgram;
   readonly air: MugenAirBank;
   readonly actionsByNumber: ReadonlyMap<number, MugenAirBank['actions'][number]>;
+  readonly spritesByGroupItem: ReadonlyMap<string, MugenViewerSprite>;
   readonly sounds: readonly MugenGameSound[];
   readonly packageSha256: string;
   readonly localCoord: readonly [number, number];
   readonly drawScale: MugenDrawScale;
   readonly runtimeProfile: 'm09-native-character-common-v1' | 'g08-basic-fighter-adapter-v1';
   readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local';
+}
+
+export interface MugenCharacterSelectionPreview {
+  readonly id: string;
+  readonly displayName: string;
+  readonly model: MugenCharacterModel;
+  readonly action: MugenAirBank['actions'][number];
+  readonly portrait: MugenViewerSprite;
+  readonly localCoord: readonly [number, number];
+  readonly drawScale: MugenDrawScale;
+  readonly standingSize: readonly [number, number];
 }
 
 export interface MugenGameSound { readonly id: string; readonly group: number; readonly item: number; readonly selectedByKey: boolean; readonly encodedBase64: string; readonly encodedSha256: string; readonly channels: number; readonly sampleRate: number; readonly frameLength: number; }
@@ -49,25 +61,58 @@ export async function loadMugenBuiltInGameFixture(worker: MugenImportWorkerClien
 export class MugenBuiltInGameFixtureLoader {
   readonly entries: readonly MugenCharacterCatalogEntry[];
   readonly #worker: MugenImportWorkerClient;
-  readonly #commonState: MugenVfsInput;
+  readonly #commonStatePath: string;
   readonly #descriptors: ReadonlyMap<string, CharacterDescriptor>;
   readonly #inflight = new Map<string, Promise<MugenBuiltInGameFixture>>();
+  readonly #loaded = new Map<string, MugenBuiltInGameFixture>();
+  readonly #previewInflight = new Map<string, Promise<MugenCharacterSelectionPreview>>();
+  readonly #previews = new Map<string, MugenCharacterSelectionPreview>();
+  #commonState: Promise<MugenVfsInput> | null = null;
   #adapter: Promise<RuntimeAdapter> | null = null;
 
-  private constructor(worker: MugenImportWorkerClient, catalog: CharacterCatalog, commonState: MugenVfsInput) {
-    this.#worker = worker; this.#commonState = commonState; this.#descriptors = new Map(catalog.characters.map(value => [value.id, value])); this.entries = Object.freeze(catalog.characters.map(value => Object.freeze({ id: value.id, label: value.label })));
+  private constructor(worker: MugenImportWorkerClient, catalog: CharacterCatalog) {
+    this.#worker = worker; this.#commonStatePath = catalog.commonState; this.#descriptors = new Map(catalog.characters.map(value => [value.id, value])); this.entries = Object.freeze(catalog.characters.map(value => Object.freeze({ id: value.id, label: value.label })));
   }
 
   static async create(worker: MugenImportWorkerClient, signal?: AbortSignal): Promise<MugenBuiltInGameFixtureLoader> {
-    const catalog = await loadCatalog(signal); const commonState = Object.freeze({ path: catalog.commonState, bytes: await fetchBytes(`../common/${catalog.commonState}`, `公共状态 ${catalog.commonState}`, signal) }); return new MugenBuiltInGameFixtureLoader(worker, catalog, commonState);
+    return new MugenBuiltInGameFixtureLoader(worker, await loadCatalog(signal));
   }
 
   load(id: string, signal?: AbortSignal): Promise<MugenBuiltInGameFixture> {
+    const loaded = this.#loaded.get(id); if (loaded !== undefined) return Promise.resolve(loaded);
     const existing = this.#inflight.get(id); if (existing !== undefined) return existing;
     const descriptor = this.#descriptors.get(id); if (descriptor === undefined) return Promise.reject(new RangeError(`未知 MUGEN 内置角色：${id}。`));
-    const pending = (async () => { if (descriptor.scriptProfile === 'adapter-v1') this.#adapter ??= loadRuntimeAdapter(this.#worker, signal); const adapter = descriptor.scriptProfile === 'adapter-v1' ? await this.#adapter : null; return loadCharacter(this.#worker, descriptor, this.#commonState, adapter, signal); })();
+    const pending = (async () => { if (descriptor.scriptProfile === 'adapter-v1') this.#adapter ??= loadRuntimeAdapter(this.#worker, signal); const adapter = descriptor.scriptProfile === 'adapter-v1' ? await this.#adapter : null; const fixture = await loadCharacter(this.#worker, descriptor, await this.#loadCommonState(signal), adapter, signal); this.#loaded.set(id, fixture); return fixture; })();
     this.#inflight.set(id, pending); void pending.finally(() => { if (this.#inflight.get(id) === pending) this.#inflight.delete(id); }).catch(() => undefined); return pending;
   }
+
+  loadPreview(id: string, signal?: AbortSignal): Promise<MugenCharacterSelectionPreview> {
+    const loaded = this.#previews.get(id); if (loaded !== undefined) return Promise.resolve(loaded);
+    const existing = this.#previewInflight.get(id); if (existing !== undefined) return existing;
+    const descriptor = this.#descriptors.get(id); if (descriptor === undefined) return Promise.reject(new RangeError(`未知 MUGEN 内置角色：${id}。`));
+    const pending = loadSelectionPreview(this.#worker, descriptor, signal).then(preview => { this.#previews.set(id, preview); return preview; });
+    this.#previewInflight.set(id, pending); void pending.finally(() => { if (this.#previewInflight.get(id) === pending) this.#previewInflight.delete(id); }).catch(() => undefined); return pending;
+  }
+
+  #loadCommonState(signal?: AbortSignal): Promise<MugenVfsInput> { this.#commonState ??= fetchBytes(`../common/${this.#commonStatePath}`, `公共状态 ${this.#commonStatePath}`, signal).then(bytes => Object.freeze({ path: this.#commonStatePath, bytes })); return this.#commonState; }
+}
+
+async function loadSelectionPreview(worker: MugenImportWorkerClient, descriptor: CharacterDescriptor, signal?: AbortSignal): Promise<MugenCharacterSelectionPreview> {
+  const spritePath = descriptor.files.find(path => path.toLowerCase().endsWith('.sff')); if (spritePath === undefined) throw new TypeError(`${descriptor.label} 缺少选人预览所需的 SFF。`);
+  const palettePaths = descriptor.files.filter(path => path.toLowerCase().endsWith('.act'));
+  const entryInput = Object.freeze({ path: descriptor.entryDef, bytes: await fetchBytes(`../charactors/${descriptor.directory}/${descriptor.entryDef}`, `角色预览文件 ${descriptor.directory}/${descriptor.entryDef}`, signal) });
+  const cnsReference = asciiFileReference(entryInput.bytes, 'cns'); const cnsPath = cnsReference === null ? undefined : descriptor.files.find(path => path.replaceAll('\\', '/').toLowerCase() === cnsReference.replaceAll('\\', '/').toLowerCase());
+  const sourcePaths = [descriptor.airPath, spritePath, ...palettePaths];
+  const [sourceInputs, cnsBytes] = await Promise.all([Promise.all(sourcePaths.map(async path => Object.freeze({ path, bytes: await fetchBytes(`../charactors/${descriptor.directory}/${path}`, `角色预览文件 ${descriptor.directory}/${path}`, signal) }))), cnsPath === undefined ? Promise.resolve(null) : fetchBytes(`../charactors/${descriptor.directory}/${cnsPath}`, `角色尺寸文件 ${descriptor.directory}/${cnsPath}`, signal)]);
+  const localCoord = asciiLocalCoord(entryInput.bytes); const drawScale = cnsBytes === null ? resolveMugenDrawScale({}) : asciiDrawScale(cnsBytes);
+  const definition = new TextEncoder().encode(`[Info]\nname = ${descriptor.id}\nlocalcoord = ${localCoord[0]},${localCoord[1]}\n[Files]\nsprite = ${spritePath}\nanim = ${descriptor.airPath}\n${palettePaths.map((path, index) => `pal${index + 1} = ${path}`).join('\n')}\n`);
+  const inputs = Object.freeze([Object.freeze({ path: 'selection.def', bytes: definition }), ...sourceInputs]);
+  const imported = await worker.import(inputs, { contentRole: 'local-content', entryDef: 'selection.def', entryKind: 'character', scriptProfile: 'none', assetProfile: 'selection-preview' }, signal);
+  const decoded = await decodeMugenPackage(imported.packageBytes); const model = createMugenCharacterModel(decoded.package, imported.metadata); const action = model.actions.find(value => value.action.number === 0)?.action;
+  if (action === undefined) throw new TypeError(`${descriptor.label} 缺少站立动作 Action 0。`);
+  const portraits = model.sprites.filter(sprite => sprite.group === 9000 && sprite.item === 0); const portrait = portraits.at(-1) ?? action.elements.map(element => element.spriteId === null ? undefined : model.spriteById.get(element.spriteId)).find((sprite): sprite is MugenViewerSprite => sprite !== undefined);
+  if (portrait === undefined) throw new TypeError(`${descriptor.label} 没有可显示的头像或站立精灵。`);
+  return Object.freeze({ id: descriptor.id, displayName: descriptor.label, model, action, portrait, localCoord, drawScale, standingSize: actionVisualSize(action, model.spriteById) });
 }
 
 async function loadCharacter(worker: MugenImportWorkerClient, descriptor: CharacterDescriptor, commonState: MugenVfsInput, adapter: RuntimeAdapter | null, signal?: AbortSignal): Promise<MugenBuiltInGameFixture> {
@@ -87,8 +132,9 @@ async function loadCharacter(worker: MugenImportWorkerClient, descriptor: Charac
     collisionBoxCount: model.actions.reduce((total, value) => total + value.action.elements.reduce((sum, element) => sum + element.clsn1.length + element.clsn2.length, 0), 0),
   });
   const actionsByNumber = new Map(air.actions.map(action => [action.number, action]));
+  const spritesByGroupItem = new Map(model.sprites.map(sprite => [`${sprite.group},${sprite.item}`, sprite]));
   return Object.freeze({
-    id: descriptor.id, displayName: descriptor.label, characterName: imported.metadata.name ?? descriptor.label, authorName: imported.metadata.author ?? '', model, commands, states, air, actionsByNumber, sounds,
+    id: descriptor.id, displayName: descriptor.label, characterName: imported.metadata.name ?? descriptor.label, authorName: imported.metadata.author ?? '', model, commands, states, air, actionsByNumber, spritesByGroupItem, sounds,
     packageSha256: imported.packageSha256, localCoord: imported.metadata.localCoord ?? Object.freeze([320, 240]), drawScale: resolveMugenDrawScale(states.constants), runtimeProfile: descriptor.scriptProfile === 'native-common-v1' ? 'm09-native-character-common-v1' : 'g08-basic-fighter-adapter-v1',
     contentLicense: descriptor.contentLicense,
   });
@@ -130,3 +176,8 @@ function text(value: unknown): value is string { return typeof value === 'string
 function fileName(value: unknown, extension?: string): value is string { return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(value) && (extension === undefined || value.toLowerCase().endsWith(extension)); }
 function relativeFilePath(value: unknown): value is string { return typeof value === 'string' && value.length <= 384 && value.split('/').length <= 8 && value.split('/').every(segment => /^[A-Za-z0-9_-][A-Za-z0-9_.&-]{0,127}$/u.test(segment)); }
 function isRecord(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value); }
+function actionVisualSize(action: MugenAirBank['actions'][number], sprites: ReadonlyMap<string, MugenViewerSprite>): readonly [number, number] { let width = 1; let height = 1; for (const element of action.elements) { if (element.spriteId === null) continue; const sprite = sprites.get(element.spriteId); if (sprite === undefined) continue; const angle = element.angleDegrees * Math.PI / 180; const cosine = Math.abs(Math.cos(angle)); const sine = Math.abs(Math.sin(angle)); const scaledWidth = sprite.width * Math.abs(element.scaleX); const scaledHeight = sprite.height * Math.abs(element.scaleY); width = Math.max(width, scaledWidth * cosine + scaledHeight * sine); height = Math.max(height, scaledWidth * sine + scaledHeight * cosine); } return Object.freeze([width, height]); }
+function asciiLocalCoord(bytes: Uint8Array): readonly [number, number] { const text = new TextDecoder('windows-1252').decode(bytes); const match = /^\s*localcoord\s*=\s*(\d+)\s*,\s*(\d+)/imu.exec(text); const width = Number(match?.[1] ?? 320); const height = Number(match?.[2] ?? 240); return Object.freeze([width > 0 ? width : 320, height > 0 ? height : 240]); }
+function asciiFileReference(bytes: Uint8Array, key: string): string | null { const section = asciiSection(bytes, 'files'); const match = new RegExp(`^\\s*${key}\\s*=\\s*([^;]+)`, 'imu').exec(section); const value = match?.[1]?.trim().replace(/^['"]|['"]$/gu, '') ?? ''; return value === '' ? null : value; }
+function asciiDrawScale(bytes: Uint8Array): MugenDrawScale { const section = asciiSection(bytes, 'size'); const value = (key: string) => { const match = new RegExp(`^\\s*${key}\\s*=\\s*([+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+))`, 'imu').exec(section); return match === null ? undefined : Number(match[1]); }; const x = value('xscale'); const y = value('yscale'); return resolveMugenDrawScale({ ...(x === undefined ? {} : { 'size.xscale': x }), ...(y === undefined ? {} : { 'size.yscale': y }) }); }
+function asciiSection(bytes: Uint8Array, name: string): string { const text = new TextDecoder('windows-1252').decode(bytes); const header = new RegExp(`^\\s*\\[${name}\\]\\s*$`, 'imu').exec(text); if (header === null) return ''; const body = text.slice(header.index + header[0].length); const next = /^\s*\[/mu.exec(body); return next === null ? body : body.slice(0, next.index); }

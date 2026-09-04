@@ -43,6 +43,10 @@ export interface MugenViewerAction {
   readonly clsn2Count: number;
   readonly warningCount: number;
   readonly errorCount: number;
+  readonly visualStatus: 'drawable' | 'partial' | 'missing' | 'blank';
+  readonly drawableElementCount: number;
+  readonly missingSpriteElementCount: number;
+  readonly blankElementCount: number;
   readonly audioCues: readonly MugenViewerAudioCue[];
 }
 
@@ -257,6 +261,9 @@ function actionRecord(value: MugenCanonicalValue, sprites: ReadonlyMap<string, M
   });
   const referencedSpriteIds = Object.freeze([...new Set(elements.flatMap(element => element.spriteId === null ? [] : [element.spriteId]))].sort(compareMugenStrings));
   const missing = elements.filter(element => element.spriteGroup !== -1 && element.spriteItem !== -1 && (element.spriteId === null || !sprites.has(element.spriteId))).length;
+  const blank = elements.filter(element => element.spriteGroup === -1 || element.spriteItem === -1).length;
+  const drawable = elements.length - missing - blank;
+  const visualStatus = drawable === 0 ? (missing > 0 ? 'missing' : 'blank') : (missing > 0 ? 'partial' : 'drawable');
   return Object.freeze({
     id,
     sourcePath: fieldString(record, 'sourcePath'),
@@ -268,6 +275,10 @@ function actionRecord(value: MugenCanonicalValue, sprites: ReadonlyMap<string, M
     clsn2Count: elements.reduce((sum, element) => sum + element.clsn2.length, 0),
     warningCount: missing,
     errorCount: 0,
+    visualStatus,
+    drawableElementCount: drawable,
+    missingSpriteElementCount: missing,
+    blankElementCount: blank,
   });
 }
 

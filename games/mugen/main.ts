@@ -2,15 +2,18 @@ import { evaluateMugenAirAction } from './import/air/MugenAirRuntime';
 import { createMugenImportWorkerClient, type MugenImportWorkerClient } from './import/worker/MugenImportWorkerClient';
 import { isAbortError } from './import/diagnostics';
 import { MugenAfterImageHistory, type MugenAfterImageSource, type MugenAfterImageTrail } from './game/MugenAfterImageHistory';
-import { MugenBuiltInGameFixtureLoader, type MugenBuiltInGameFixture, type MugenCharacterCatalogEntry, type MugenFixtureLoadProgress } from './game/MugenGameFixture';
+import { MugenBuiltInGameFixtureLoader, type MugenBuiltInGameFixture, type MugenCharacterCatalogEntry, type MugenCharacterSelectionPreview, type MugenFixtureLoadProgress } from './game/MugenGameFixture';
+import { moveMugenCharacterSelection, mugenCharacterPreviewScale } from './game/MugenCharacterSelection';
 import { MugenTransientAnimationLifecycle, type MugenTransientAnimationFrame, type MugenTransientAnimationSpawn } from './game/MugenTransientAnimationLifecycle';
-import { MugenGameAudio } from './game/MugenGameAudio';
+import { MugenGameAudio, type MugenGameAudioConsumeResult } from './game/MugenGameAudio';
+import { initialMugenRoundAudioCues, planMugenRoundAudioCues } from './game/MugenRoundAudio';
 import { MugenBrowserOutput } from './game/MugenBrowserOutput';
 import { applyMugenOutputTransform } from './game/MugenOutputRender';
 import { loadMugenFightFx, loadMugenFightFxFromDirectoryHandle, loadMugenFightFxFromFileList, type MugenFightFxModel } from './game/MugenFightFx';
 import { assignMugenKey, createMugenBrowserPlayerBindings, loadMugenKeyBindings, MUGEN_BINDABLE_ACTIONS, MUGEN_DEFAULT_KEY_BINDINGS, mugenKeyLabel, saveMugenKeyBindings, type MugenBindableAction, type MugenBindingPlayer, type MugenKeyBindings } from './game/MugenKeyBindings';
 import { loadMugenBuiltInStage, loadMugenStageCatalog, type MugenStageCatalogEntry } from './game/MugenStageCatalog';
 import { MugenStageRenderCache } from './game/MugenStageRenderer';
+import { bindMugenSnapshotToSpriteOwner } from './game/MugenAnimationOwnership';
 import { mugenCharacterToStageScale, mugenStageViewportTransform } from './game/MugenCharacterScale';
 import { MugenFlowUi, type MugenFlowScreen, type MugenGameMode } from './game/MugenFlowUi';
 import type { MugenStageModel } from './import/stage/MugenStageParser';
@@ -58,9 +61,11 @@ class MugenFightApp {
   #capturingBinding: Readonly<{ player: MugenBindingPlayer; action: MugenBindableAction }> | null = null;
   #resumeAfterKeySettings = false;
   #fixtures = new Map<string, MugenBuiltInGameFixture>();
+  #selectionPreviews = new Map<string, MugenCharacterSelectionPreview>();
+  #portraitImages = new Map<string, HTMLCanvasElement>();
+  #previewVersion = 0;
   #characterLoader: MugenBuiltInGameFixtureLoader | null = null;
   #characterCatalog = new Map<string, MugenCharacterCatalogEntry>();
-  #selectionLoadGeneration = 0;
   #stageFixture: MugenStageModel | null = null;
   #stageCatalog = new Map<string, MugenStageCatalogEntry>();
   #fightFx: MugenFightFxModel | null = null;
@@ -72,6 +77,7 @@ class MugenFightApp {
   #running = false;
   #paused = false;
   #assetsReady = false;
+  #fightLoading = false;
   #loadingProgress = 0;
   #loadingLabel = '正在初始化图形…';
   #fixtureLoadProgress: MugenFixtureLoadProgress | null = null;
@@ -128,7 +134,7 @@ class MugenFightApp {
     this.#driver = this.#createInputDriver(this.#keyBindings);
     this.#view = new MugenWebGpuView(element<HTMLCanvasElement>('fight-canvas'), element<HTMLCanvasElement>('fight-debug'), this.#arena, error => this.#fail(error));
     this.#flow = new MugenFlowUi(element<HTMLCanvasElement>('flow-canvas'), {
-      chooseMode: mode => this.#chooseMode(mode), cycleCharacter: (player, direction) => { void this.#cycleCharacter(player, direction); }, confirmCharacters: () => { if (this.#assetsReady) this.#setFlowScreen('stage'); }, cycleStage: direction => { void this.#cycleStage(direction); }, startFight: () => this.#startMatch(), togglePause: () => { void this.#togglePause(); }, exitFight: () => this.#exitFight(), showSettings: () => this.#setFlowScreen('settings'), openKeySettings: () => { void this.#openKeySettings(); }, resetKeys: () => this.#resetKeys(), goTitle: () => this.#setFlowScreen('title'),
+      chooseMode: mode => this.#chooseMode(mode), moveCharacter: (player, deltaColumn, deltaRow) => this.#moveCharacter(player, deltaColumn, deltaRow), selectCharacter: (player, characterId) => this.#selectCharacter(player, characterId), confirmCharacters: () => { if (this.#assetsReady) this.#setFlowScreen('stage'); }, cycleStage: direction => { void this.#cycleStage(direction); }, startFight: () => { void this.#startMatch(); }, togglePause: () => { void this.#togglePause(); }, exitFight: () => this.#exitFight(), showSettings: () => this.#setFlowScreen('settings'), openKeySettings: () => { void this.#openKeySettings(); }, resetKeys: () => this.#resetKeys(), goTitle: () => this.#setFlowScreen('title'),
     });
     this.#worker = createMugenImportWorkerClient({ workerUrl: new URL('./mugenImport.worker.js', import.meta.url), onProgress: progress => {
       const fixture = this.#fixtureLoadProgress; const local = progress.total <= 0 ? 0 : progress.completed / progress.total;
@@ -151,24 +157,18 @@ class MugenFightApp {
       const catalog = await loadMugenStageCatalog(); this.#stageCatalog = new Map(catalog.map(entry => [entry.id, entry])); this.#installStageOptions(catalog); this.#setLoadingProgress(.12, '正在解析舞台资源…');
       const stage = await loadMugenBuiltInStage(catalog[0]!); this.#stageFixture = stage; this.#applyStage(stage); this.#setLoadingProgress(.2, '正在解析角色资源…');
       const characterLoader = await MugenBuiltInGameFixtureLoader.create(this.#worker); this.#characterLoader = characterLoader; this.#characterCatalog = new Map(characterLoader.entries.map(entry => [entry.id, entry])); this.#installCharacterOptions(characterLoader.entries);
-      const initialEntries = characterLoader.entries.slice(0, 2); const fixtures: MugenBuiltInGameFixture[] = [];
-      for (const [index, entry] of initialEntries.entries()) { const progress = Object.freeze({ completed: index, total: initialEntries.length, label: entry.label }); this.#fixtureLoadProgress = progress; this.#setLoadingProgress(.2 + index / initialEntries.length * .52, `正在解析角色 ${entry.label}…`); fixtures.push(await characterLoader.load(entry.id)); }
-      this.#fixtureLoadProgress = null; this.#setLoadingProgress(.73, '正在载入角色音频…');
-      await this.#audio.install(fixtures); this.#setLoadingProgress(.78, '正在上传精灵到显存…');
-      this.#fixtures = new Map(fixtures.map(fixture => [fixture.id, fixture]));
-      await this.#installRenderModels(progress => this.#setLoadingProgress(.78 + progress.ratio * .21, `正在上传精灵到显存 ${Math.round(progress.ratio * 100)}%`));
+      const previews: MugenCharacterSelectionPreview[] = [];
+      for (const [index, entry] of characterLoader.entries.entries()) { const progress = Object.freeze({ completed: index, total: characterLoader.entries.length, label: entry.label }); this.#fixtureLoadProgress = progress; this.#setLoadingProgress(.2 + index / characterLoader.entries.length * .55, `正在准备角色头像 ${entry.label}…`); const preview = await characterLoader.loadPreview(entry.id); previews.push(preview); this.#selectionPreviews.set(preview.id, preview); this.#portraitImages.set(preview.id, createPortraitCanvas(preview)); this.#previewVersion += 1; this.#syncFlowUi(); }
+      this.#fixtureLoadProgress = null; this.#setLoadingProgress(.78, '正在上传选人预览到显存…');
+      await this.#view.installModels([...previews.map(preview => preview.model), this.#requireStage().renderModel], undefined, progress => this.#setLoadingProgress(.78 + progress.ratio * .21, `正在上传选人预览 ${Math.round(progress.ratio * 100)}%`));
       this.#refreshInputDriver();
       const verifyFightFx = new URLSearchParams(location.search).get('verifyFightFx') === '1';
       if (verifyFightFx) { await this.#installFightFx(this.#loadVerificationFightFx()); if (this.#fightFx === null) throw new Error(this.#fightFxStatus.textContent || 'FightFX verification resource installation failed.'); }
-      this.#createAuthority();
       if (verifyFightFx) this.#spawnFightFxVerificationEntity();
       this.#syncNames(); this.#syncKeySettingsUi();
-      this.#syncHud(this.#match!.snapshot());
       this.#showBanner('READY?', '选择角色后开始本地双人对战');
-      this.#runtimeStatus.textContent = `WEBGPU READY · ${fixtures.map(value => value.packageSha256.slice(0, 6)).join(' + ')}`;
-      const firstFixture = fixtures[0]; if (!firstFixture) throw new Error('MUGEN 角色目录为空。');
-      document.body.dataset.packageSha256 = firstFixture.packageSha256; document.body.dataset.packageSha256s = fixtures.map(value => value.packageSha256).join(',');
-      document.body.dataset.characterIds = fixtures.map(value => value.id).join(','); document.body.dataset.characterRuntimeProfile = firstFixture.runtimeProfile;
+      this.#runtimeStatus.textContent = `WEBGPU READY · ${previews.length} CHARACTER PREVIEWS`;
+      document.body.dataset.characterIds = previews.map(value => value.id).join(','); document.body.dataset.characterPreviewCount = String(previews.length);
       document.body.dataset.deviceGeneration = String(this.#view.deviceGeneration);
       if (this.#verificationMode) {
         this.#deviceLossButton.hidden = false;
@@ -178,9 +178,9 @@ class MugenFightApp {
       this.#stageSelect.disabled = false; this.#startButton.disabled = false;
       this.#setLoadingProgress(1, '载入完成'); this.#assetsReady = true; this.#setFlowScreen('title');
       document.body.dataset.gameStatus = 'ready';
-      if (this.#verifyCapture) { const query = new URLSearchParams(location.search); const p1 = query.get('verifyP1'); const p2 = query.get('verifyP2'); if (p1 !== null && this.#characterCatalog.has(p1)) this.#p1Select.value = p1; if (p2 !== null && this.#characterCatalog.has(p2)) this.#p2Select.value = p2; if (!this.#fixtures.has(this.#p1Select.value) || !this.#fixtures.has(this.#p2Select.value)) await this.#selectionChanged(this.#p1Select, this.#p2Select); }
+      if (this.#verifyCapture) { const query = new URLSearchParams(location.search); const p1 = query.get('verifyP1'); const p2 = query.get('verifyP2'); if (p1 !== null && this.#characterCatalog.has(p1)) this.#p1Select.value = p1; if (p2 !== null && this.#characterCatalog.has(p2)) this.#p2Select.value = p2; this.#selectionChanged(this.#p1Select, this.#p2Select); }
       this.#animationFrame = requestAnimationFrame(time => this.#frame(time));
-      if (this.#verifyCapture) { const mode = new URLSearchParams(location.search).get('verifyMode'); this.#chooseMode(mode === 'single' || mode === 'versus' ? mode : 'ai'); this.#startMatch(); }
+      if (this.#verifyCapture) { const mode = new URLSearchParams(location.search).get('verifyMode'); this.#chooseMode(mode === 'single' || mode === 'versus' ? mode : 'ai'); await this.#startMatch(); }
     } catch (error) { if (!(this.#disposed && isAbortError(error))) this.#fail(error); }
   }
 
@@ -196,7 +196,7 @@ class MugenFightApp {
   }
 
   #bindControls(): void {
-    this.#startButton.addEventListener('click', () => this.#startMatch());
+    this.#startButton.addEventListener('click', () => { void this.#startMatch(); });
     this.#pauseButton.addEventListener('click', () => { void this.#togglePause(); });
     this.#deviceLossButton.addEventListener('click', () => { void this.#verifyDeviceLoss(); });
     this.#fightFxButton.addEventListener('click', () => { void this.#chooseFightFxDirectory(); });
@@ -208,8 +208,8 @@ class MugenFightApp {
     this.#keySettingsDialog.addEventListener('cancel', event => { event.preventDefault(); void this.#closeKeySettings(false); });
     for (const button of this.#bindingButtons()) button.addEventListener('click', () => this.#beginBindingCapture(button));
     window.addEventListener('keydown', event => this.#captureBindingKey(event), { capture: true });
-    this.#p1Select.addEventListener('change', () => { void this.#selectionChanged(this.#p1Select, this.#p2Select); });
-    this.#p2Select.addEventListener('change', () => { void this.#selectionChanged(this.#p2Select, this.#p1Select); });
+    this.#p1Select.addEventListener('change', () => this.#selectionChanged(this.#p1Select, this.#p2Select));
+    this.#p2Select.addEventListener('change', () => this.#selectionChanged(this.#p2Select, this.#p1Select));
     this.#p1Control.addEventListener('change', () => this.#refreshInputDriver()); this.#p2Control.addEventListener('change', () => this.#refreshInputDriver());
     this.#stageSelect.addEventListener('change', () => { void this.#selectStage(); });
     window.addEventListener('beforeunload', () => this.dispose(), { once: true });
@@ -235,11 +235,21 @@ class MugenFightApp {
     this.#combat = new MugenCombatRuntime(script, { fighters: [{ fighterId: 'P1', air: p1Fixture.air, coordinateScale: this.#characterStageScale(p1Fixture)[0] }, { fighterId: 'P2', air: p2Fixture.air, coordinateScale: this.#characterStageScale(p2Fixture)[0] }], ...(this.#fightFx === null ? {} : { fightAir: this.#fightFx.air, fightCoordinateScale: stage.localCoord[0] / this.#fightFx.localCoord[0] }), stageBounds: stage.playerBounds, camera: { start: stage.camera.start, horizontalBounds: stage.camera.horizontalBounds, verticalBounds: stage.camera.verticalBounds, localCoord: stage.localCoord, tension: stage.camera.tension, verticalFollow: stage.camera.verticalFollow, floorTension: stage.camera.floorTension, screenMargins: stage.camera.screenMargins, playerBounds: stage.playerBounds }, guardDistance: 90, koHoldTicks: 60 });
   }
 
-  #startMatch(): void {
-    if (!this.#assetsReady || !this.#fixtures.has(this.#p1Select.value) || !this.#fixtures.has(this.#p2Select.value)) return;
-    this.#flowScreen = 'fight'; document.body.dataset.flowScreen = 'fight';
-    this.#audio.reset(); this.#outputs.reset(); void this.#audio.unlock().then(() => this.#audio.startMusic()).catch(() => undefined); this.#createAuthority(); this.#driver.reset(); this.#running = true; this.#paused = false; this.#lastFrameTime = performance.now();
-    this.#p1Select.disabled = true; this.#p2Select.disabled = true; this.#p1Control.disabled = true; this.#p2Control.disabled = true; this.#stageSelect.disabled = true; this.#fightFxButton.disabled = true; this.#startButton.disabled = false; this.#startButton.textContent = '重新开始'; this.#pauseButton.disabled = false; this.#pauseButton.textContent = '暂停'; this.#runtimeStatus.textContent = '60 Hz MATCH RUNNING'; document.body.dataset.gameStatus = 'running'; this.#showBanner('READY', 'ROUND 1'); this.#syncFlowUi();
+  async #startMatch(): Promise<void> {
+    const loader = this.#characterLoader; if (!this.#assetsReady || loader === null || this.#fightLoading) return;
+    this.#flowScreen = 'fight'; document.body.dataset.flowScreen = 'fight'; this.#fightLoading = true; this.#running = false; this.#loadingLabel = '正在载入完整角色数据…'; document.body.dataset.characterLoadStatus = 'loading'; this.#syncFlowUi();
+    this.#p1Select.disabled = true; this.#p2Select.disabled = true; this.#p1Control.disabled = true; this.#p2Control.disabled = true; this.#stageSelect.disabled = true; this.#fightFxButton.disabled = true; this.#startButton.disabled = true; this.#pauseButton.disabled = true;
+    try {
+      const ids = [...new Set([this.#p1Select.value, this.#p2Select.value])]; const fixtures: MugenBuiltInGameFixture[] = [];
+      for (const [index, id] of ids.entries()) { this.#fixtureLoadProgress = Object.freeze({ completed: index, total: ids.length, label: this.#catalogName(id) }); this.#loadingLabel = `正在载入完整角色 ${this.#catalogName(id)}…`; this.#syncFlowUi(); fixtures.push(await loader.load(id)); }
+      this.#fixtureLoadProgress = null; for (const fixture of fixtures) this.#fixtures.set(fixture.id, fixture);
+      this.#loadingLabel = '正在载入角色音频…'; this.#syncFlowUi(); await this.#audio.install(fixtures); this.#audio.retainFixtures(fixtures);
+      this.#loadingLabel = '正在上传战斗精灵到显存…'; this.#syncFlowUi(); await this.#installRenderModels();
+      this.#audio.reset(); this.#outputs.reset(); this.#createAuthority(); this.#driver.reset(); this.#running = true; this.#paused = false; this.#lastFrameTime = performance.now();
+      const startedMatch = this.#match; void this.#audio.unlock().then(() => { if (!this.#running || this.#match !== startedMatch) return; this.#audio.startMusic(); this.#audio.playCues(initialMugenRoundAudioCues(1), 0); }).catch(() => undefined);
+      this.#startButton.disabled = false; this.#startButton.textContent = '重新开始'; this.#pauseButton.disabled = false; this.#pauseButton.textContent = '暂停'; this.#runtimeStatus.textContent = '60 Hz MATCH RUNNING'; document.body.dataset.gameStatus = 'running'; document.body.dataset.characterLoadStatus = 'ready'; document.body.dataset.packageSha256s = fixtures.map(value => value.packageSha256).join(','); this.#showBanner('ROUND 1', 'GET READY');
+    } catch (error) { this.#fail(error); }
+    finally { this.#fightLoading = false; this.#fixtureLoadProgress = null; this.#syncFlowUi(); }
   }
 
   #frame(time: number): void {
@@ -249,7 +259,7 @@ class MugenFightApp {
       const simulationStart = performance.now();
       if (this.#running && !this.#paused && this.#match && this.#combat) { const advance = this.#driver.advance(delta, () => this.#facings(), input => this.#step(input)); document.body.dataset.performanceBacklogTicks = String(advance.backlogTicks); document.body.dataset.performanceDroppedMs = advance.totalDroppedMs.toFixed(1); }
       const simulationEnd = performance.now();
-      if (this.#assetsReady && this.#match && document.body.dataset.gameStatus !== 'error') { const snapshot = this.#match.snapshot(); this.#render(snapshot); if (time - this.#lastHudUpdateTime >= 50) { this.#lastHudUpdateTime = time; this.#syncHud(snapshot); } }
+      if (this.#assetsReady && document.body.dataset.gameStatus !== 'error') { if ((this.#flowScreen === 'select' || this.#flowScreen === 'stage') && !this.#running) this.#renderSelectionPreview(time); else if (this.#match !== null) { const snapshot = this.#match.snapshot(); this.#render(snapshot); if (time - this.#lastHudUpdateTime >= 50) { this.#lastHudUpdateTime = time; this.#syncHud(snapshot); } } }
       this.#recordPerformance(time, simulationEnd - simulationStart, performance.now() - simulationEnd);
     } catch (error) { this.#fail(error); }
     this.#animationFrame = requestAnimationFrame(next => this.#frame(next));
@@ -258,10 +268,12 @@ class MugenFightApp {
   #step(input: Parameters<MugenHeadlessMatch['beginTick']>[0]): void {
     const match = this.#match!; const combat = this.#combat!; match.beginTick(input);
     const before = match.snapshot();
-    if (before.phase === 'ready' && before.phaseTime >= 60) match.startFight();
+    if (before.phase === 'ready' && before.phaseTime >= 120) match.startFight();
     else if (before.phase === 'round-over' && before.phaseTime >= 90) { match.startNextRound(); this.#afterImages.clear(); this.#transientAnimations.clear(); }
     const trace = combat.step(match, input, this.#driver.input.history); const outputStats = this.#outputs.consume(trace.script.output); document.body.dataset.outputHash = trace.script.outputHash; document.body.dataset.forceFeedbackPolicy = outputStats.forceFeedbackEvents === 0 ? 'idle' : outputStats.forceFeedbackApplied > 0 ? 'applied' : 'unavailable'; document.body.dataset.clipboardPolicy = outputStats.clipboardDiagnostics === 0 ? 'idle' : 'internal-debug-buffer';
-    const result = match.endTick(); this.#captureAfterImages(result.state, trace.script.output); this.#captureTransientAnimations(trace.script.output); const audio = this.#audio.consume(result.events); document.body.dataset.mugenAudioRequested = String(audio.requested); document.body.dataset.mugenAudioPlayed = String(audio.played); document.body.dataset.mugenAudioMissing = String(audio.missing); if (this.#verifyFightSound && result.tick === 90) { const verification = this.#audio.consume([fightSoundVerificationEvent(result.tick)]); document.body.dataset.fightSoundVerification = verification.played === 1 && verification.missing === 0 ? 'played' : 'missing'; } this.#syncPhase(result.state); this.#publishBrowserCaptureResult(result.state);
+    const result = match.endTick(); this.#captureAfterImages(result.state, trace.script.output); this.#captureTransientAnimations(trace.script.output);
+    const suppressedKoSounds = new Set(trace.script.output.entities.filter(entity => entity.assertions.includes('nokosnd')).map(entity => entity.entityId));
+    const audio = mergeAudioResults(this.#audio.consume(result.events), this.#audio.playCues(planMugenRoundAudioCues(result.state, result.events, suppressedKoSounds), result.tick)); document.body.dataset.mugenAudioRequested = String(audio.requested); document.body.dataset.mugenAudioPlayed = String(audio.played); document.body.dataset.mugenAudioMissing = String(audio.missing); if (this.#verifyFightSound && result.tick === 90) { const verification = this.#audio.consume([fightSoundVerificationEvent(result.tick)]); document.body.dataset.fightSoundVerification = verification.played === 1 && verification.missing === 0 ? 'played' : 'missing'; } this.#syncPhase(result.state); this.#publishBrowserCaptureResult(result.state);
     if (result.state.phase === 'match-over') this.#finishMatch();
   }
 
@@ -271,22 +283,16 @@ class MugenFightApp {
   #chooseMode(mode: MugenGameMode): void {
     this.#gameMode = mode; this.#p1Control.value = mode === 'ai' ? '4' : '0'; this.#p2Control.value = mode === 'versus' ? '0' : '4'; this.#refreshInputDriver(); this.#setFlowScreen('select');
   }
-  async #cycleCharacter(player: 0 | 1, direction: -1 | 1): Promise<void> {
-    const select = player === 0 ? this.#p1Select : this.#p2Select; const other = player === 0 ? this.#p2Select : this.#p1Select; if (select.options.length === 0 || select.disabled) return; select.selectedIndex = (select.selectedIndex + direction + select.options.length) % select.options.length; await this.#selectionChanged(select, other);
+  #moveCharacter(player: 0 | 1, deltaColumn: number, deltaRow: number): void {
+    const select = player === 0 ? this.#p1Select : this.#p2Select; const other = player === 0 ? this.#p2Select : this.#p1Select; if (select.options.length === 0 || select.disabled) return; select.selectedIndex = moveMugenCharacterSelection(select.selectedIndex, select.options.length, deltaColumn, deltaRow); this.#selectionChanged(select, other);
   }
-  async #selectionChanged(changed: HTMLSelectElement, other: HTMLSelectElement): Promise<void> {
-    if (this.#running) return; this.#preventDuplicateVariant(changed, other); this.#syncNames(); const loader = this.#characterLoader; if (loader === null) return;
-    const generation = ++this.#selectionLoadGeneration; const ids = [...new Set([this.#p1Select.value, this.#p2Select.value])]; this.#assetsReady = false; this.#p1Select.disabled = true; this.#p2Select.disabled = true; this.#startButton.disabled = true; this.#loadingLabel = `正在按需载入 ${this.#catalogName(ids.find(id => !this.#fixtures.has(id)) ?? ids[0]!)}…`; document.body.dataset.characterLoadStatus = 'loading'; this.#syncFlowUi();
-    try {
-      const fixtures = await Promise.all(ids.map(id => this.#fixtures.get(id) ?? loader.load(id))); if (generation !== this.#selectionLoadGeneration || this.#disposed) return;
-      this.#fixtures = new Map(fixtures.map(fixture => [fixture.id, fixture])); await this.#audio.install(fixtures); this.#audio.retainFixtures(fixtures); await this.#installRenderModels(); this.#createAuthority(); this.#refreshInputDriver(); this.#syncNames(); this.#syncHud(this.#match!.snapshot());
-      document.body.dataset.characterIds = fixtures.map(value => value.id).join(','); document.body.dataset.packageSha256s = fixtures.map(value => value.packageSha256).join(','); document.body.dataset.characterLoadStatus = 'ready'; this.#assetsReady = true; this.#setLoadingProgress(1, '角色载入完成'); this.#runtimeStatus.textContent = `CHARACTERS READY · ${fixtures.map(value => value.displayName).join(' VS ')}`;
-    } catch (error) { if (generation === this.#selectionLoadGeneration) this.#fail(error); }
-    finally { if (generation === this.#selectionLoadGeneration && document.body.dataset.gameStatus !== 'error') { this.#p1Select.disabled = false; this.#p2Select.disabled = false; this.#startButton.disabled = false; } this.#syncFlowUi(); }
+  #selectCharacter(player: 0 | 1, characterId: string): void { const select = player === 0 ? this.#p1Select : this.#p2Select; const other = player === 0 ? this.#p2Select : this.#p1Select; if (!this.#characterCatalog.has(characterId) || select.disabled) return; select.value = characterId; this.#selectionChanged(select, other); }
+  #selectionChanged(changed: HTMLSelectElement, other: HTMLSelectElement): void {
+    if (this.#running || this.#fightLoading) return; this.#preventDuplicateVariant(changed, other); this.#syncNames(); this.#refreshInputDriver(); document.body.dataset.selectedCharacters = `${this.#p1Select.value},${this.#p2Select.value}`; this.#syncFlowUi();
   }
   async #cycleStage(direction: -1 | 1): Promise<void> { if (this.#stageSelect.disabled || this.#stageSelect.options.length === 0) return; this.#stageSelect.selectedIndex = (this.#stageSelect.selectedIndex + direction + this.#stageSelect.options.length) % this.#stageSelect.options.length; await this.#selectStage(); }
   #exitFight(): void {
-    this.#audio.stopMusic(); this.#running = false; this.#paused = false; this.#afterImages.clear(); this.#transientAnimations.clear(); this.#p1Select.disabled = false; this.#p2Select.disabled = false; this.#p1Control.disabled = false; this.#p2Control.disabled = false; this.#stageSelect.disabled = false; this.#fightFxButton.disabled = false; this.#pauseButton.disabled = true; this.#createAuthority(); this.#refreshInputDriver(); document.body.dataset.gameStatus = 'ready'; this.#setFlowScreen('title');
+    this.#audio.stopMusic(); this.#running = false; this.#paused = false; this.#fightLoading = false; this.#match = null; this.#combat = null; this.#afterImages.clear(); this.#transientAnimations.clear(); this.#p1Select.disabled = false; this.#p2Select.disabled = false; this.#p1Control.disabled = false; this.#p2Control.disabled = false; this.#stageSelect.disabled = false; this.#fightFxButton.disabled = false; this.#pauseButton.disabled = true; this.#refreshInputDriver(); document.body.dataset.gameStatus = 'ready'; this.#setFlowScreen('title');
   }
   #resetKeys(): void { this.#keyBindings = saveMugenKeyBindings(MUGEN_DEFAULT_KEY_BINDINGS); this.#draftKeyBindings = this.#keyBindings; this.#refreshInputDriver(); this.#syncKeySettingsUi(); this.#syncFlowUi(); }
   #characterStageScale(fixture: MugenBuiltInGameFixture): readonly [number, number] { return mugenCharacterToStageScale(this.#requireStage().localCoord, fixture.localCoord, fixture.drawScale); }
@@ -294,19 +300,31 @@ class MugenFightApp {
   #syncFlowUi(snapshot = this.#match?.snapshot() ?? null): void {
     const p1 = snapshot?.fighters[0]; const p2 = snapshot?.fighters[1]; const p1Fixture = this.#fixtures.get(this.#p1Select.value); const p2Fixture = this.#fixtures.get(this.#p2Select.value); const time = snapshot?.roundTimeRemainingTicks === null ? '∞' : String(Math.max(0, Math.ceil((snapshot?.roundTimeRemainingTicks ?? 99 * 60) / 60))).padStart(2, '0');
     const result = snapshot?.phase !== 'match-over' ? '' : snapshot.matchWinnerId === 'P1' ? 'PLAYER 1 WINS' : snapshot.matchWinnerId === 'P2' ? 'PLAYER 2 WINS' : 'DRAW';
-    this.#flow.update(Object.freeze({ screen: this.#flowScreen, ready: this.#assetsReady && document.body.dataset.stageStatus !== 'loading', loadingProgress: this.#loadingProgress, loadingLabel: this.#loadingLabel, mode: this.#gameMode, p1Name: p1Fixture?.displayName ?? this.#catalogName(this.#p1Select.value), p2Name: p2Fixture?.displayName ?? this.#catalogName(this.#p2Select.value), stageName: this.#stageFixture?.displayName ?? '载入中', p1Life: p1 === undefined ? 1 : p1.life / p1.maxLife, p2Life: p2 === undefined ? 1 : p2.life / p2.maxLife, round: snapshot?.roundNumber ?? 1, time, paused: this.#paused, result, p1Keys: this.#flowKeySummary('P1'), p2Keys: this.#flowKeySummary('P2') }));
+    const characters = [...this.#characterCatalog.values()].map(character => Object.freeze({ id: character.id, label: character.label, portrait: this.#portraitImages.get(character.id) ?? null }));
+    this.#flow.update(Object.freeze({ screen: this.#flowScreen, ready: this.#assetsReady && document.body.dataset.stageStatus !== 'loading' && !this.#fightLoading, loadingProgress: this.#loadingProgress, loadingLabel: this.#loadingLabel, mode: this.#gameMode, characters: Object.freeze(characters), p1CharacterId: this.#p1Select.value, p2CharacterId: this.#p2Select.value, previewVersion: this.#previewVersion, p1Name: p1Fixture?.displayName ?? this.#catalogName(this.#p1Select.value), p2Name: p2Fixture?.displayName ?? this.#catalogName(this.#p2Select.value), stageName: this.#stageFixture?.displayName ?? '载入中', p1Life: p1 === undefined ? 1 : p1.life / p1.maxLife, p2Life: p2 === undefined ? 1 : p2.life / p2.maxLife, p1Power: p1 === undefined ? 0 : p1.power / p1.maxPower, p2Power: p2 === undefined ? 0 : p2.power / p2.maxPower, p1Wins: p1?.roundsWon ?? 0, p2Wins: p2?.roundsWon ?? 0, round: snapshot?.roundNumber ?? 1, phase: snapshot?.phase ?? 'ready', phaseTime: flowPhaseTime(snapshot), roundWinnerId: snapshot?.roundWinnerId ?? null, time, paused: this.#paused, fightLoading: this.#fightLoading, result, p1Keys: this.#flowKeySummary('P1'), p2Keys: this.#flowKeySummary('P2') }));
   }
   #flowKeySummary(player: MugenBindingPlayer): string { const value = this.#keyBindings.players[player]; return `方向 ${mugenKeyLabel(value.left)} ${mugenKeyLabel(value.right)} ${mugenKeyLabel(value.up)} ${mugenKeyLabel(value.down)}\n攻击 ${[value.attack1, value.attack2, value.attack3, value.attack4].map(mugenKeyLabel).join(' / ')}`; }
+
+  #renderSelectionPreview(time: number): void {
+    const viewport = this.#view.resize(); const stage = this.#requireStage(); const viewportTransform = mugenStageViewportTransform(viewport, stage.localCoord); const tick = Math.floor(time / (1000 / 60));
+    const selections = [this.#p1Select.value, this.#p2Select.value] as const;
+    const actors = selections.flatMap((id, index) => {
+      const preview = this.#selectionPreviews.get(id); if (preview === undefined) return [];
+      const naturalScale = viewportTransform.scale * mugenCharacterToStageScale(stage.localCoord, preview.localCoord, preview.drawScale)[0]; const coordinateScale = mugenCharacterPreviewScale(naturalScale, preview.standingSize, viewport);
+      return [Object.freeze({ snapshot: evaluateMugenAirAction(preview.action, tick, { x: viewport.width * (index === 0 ? .18 : .82), y: viewport.height * .9, facing: index === 0 ? 1 : -1, coordinateScale }), paletteId: preview.model.palettes[0]?.id ?? null })];
+    });
+    this.#view.renderActors(actors, { background: 'dark', backgroundColor: [.025, .02, .075, 1], paletteId: null, originX: viewport.width / 2, originY: viewport.height * .9, debug: { origin: false, axis: false, spriteBounds: false, clsn1: false, clsn2: false } });
+  }
 
   #render(snapshot: MugenMatchSnapshot): void {
     const stage = this.#requireStage(); const viewport = this.#view.resize(); const camera = this.#combat?.camera; if (camera === undefined) return; const viewportTransform = mugenStageViewportTransform(viewport, stage.localCoord); const scale = viewportTransform.scale; const inFight = this.#flowScreen === 'fight'; const output = inFight ? this.#combat?.script.outputs.snapshot() : undefined; const menuTick = Math.floor(performance.now() / (1000 / 60)); const cameraPosition = camera.position; const originX = viewportTransform.offsetX + stage.localCoord[0] * scale / 2 - cameraPosition[0] * scale; const groundY = viewportTransform.offsetY + (stage.zOffset - cameraPosition[1]) * scale + mugenShakeOffset(output?.cameraShake ?? null) * scale;
     const displayFighters = inFight ? snapshot.fighters : snapshot.fighters.map((fighter, index) => Object.freeze({ ...fighter, actionNumber: 0, actionTime: menuTick, position: Object.freeze([(index === 0 ? -.22 : .22) * stage.localCoord[0], 0]) as readonly [number, number], facing: (index === 0 ? 1 : -1) as -1 | 1 }));
     const outputByEntity = new Map(output?.entities.map(entity => [entity.entityId, entity]) ?? []); const fighters = displayFighters.flatMap((fighter, index) => {
       const effect = outputByEntity.get(fighter.id); if (effect?.assertions.includes('invisible')) return [];
-      const fixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); const action = fixture.actionsByNumber.get(fighter.actionNumber); if (!action) throw new RangeError(`角色动作 ${fighter.actionNumber} 不存在。`);
-      const renderScale = scale * this.#characterStageScale(fixture)[0];
-      const air = evaluateMugenAirAction(action, fighter.actionTime, { x: originX + fighter.position[0] * scale, y: groundY + fighter.position[1] * scale, facing: fighter.facing, coordinateScale: renderScale });
-      return [Object.freeze({ layer: 'fighters' as const, order: fighter.spritePriority, entityId: fighter.id, actor: Object.freeze({ snapshot: applyMugenOutputTransform(air, effect, renderScale, fighter.facing), paletteId: this.#paletteId(fixture, effect?.paletteRemap ?? null), transparency: effect?.transparency ?? null, colorMatrix: mugenPaletteColorMatrix(effect?.palette ?? output?.allPalette ?? null) }) })];
+      const spriteFixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); const animationFixture = this.#fixtureForFighterId(snapshot, fighter.animationOwnerId); const action = animationFixture.actionsByNumber.get(fighter.actionNumber); if (!action) throw new RangeError(`角色动作 ${fighter.actionNumber} 不存在（动画所有者：${animationFixture.displayName}）。`);
+      const animationScale = scale * this.#characterStageScale(animationFixture)[0]; const spriteScale = scale * this.#characterStageScale(spriteFixture)[0];
+      const evaluated = evaluateMugenAirAction(action, fighter.actionTime, { x: originX + fighter.position[0] * scale, y: groundY + fighter.position[1] * scale, facing: fighter.facing, coordinateScale: animationScale }); const air = bindMugenSnapshotToSpriteOwner(evaluated, spriteFixture.spritesByGroupItem, spriteScale / animationScale);
+      return [Object.freeze({ layer: 'fighters' as const, order: fighter.spritePriority, entityId: fighter.id, actor: Object.freeze({ snapshot: applyMugenOutputTransform(air, effect, spriteScale, fighter.facing), paletteId: this.#paletteId(spriteFixture, effect?.paletteRemap ?? null), transparency: effect?.transparency ?? null, colorMatrix: mugenPaletteColorMatrix(effect?.palette ?? output?.allPalette ?? null) }) })];
     });
     const entityActors = !inFight ? [] : this.#combat?.script.entities.snapshot().entities.flatMap(entity => {
       if (entity.kind !== 'helper' && entity.kind !== 'explod' && entity.kind !== 'projectile' || outputByEntity.get(entity.entityId)?.assertions.includes('invisible')) return [];
@@ -395,7 +413,8 @@ class MugenFightApp {
   #catalogName(id: string): string { return this.#characterCatalog.get(id)?.label ?? '载入中'; }
 
   #syncPhase(snapshot: MugenMatchSnapshot): void {
-    if (snapshot.phase === 'ready') this.#showBanner('READY', `ROUND ${snapshot.roundNumber}`);
+    if (snapshot.phase === 'ready' && snapshot.phaseTime < 45) this.#showBanner(`ROUND ${snapshot.roundNumber}`, 'GET READY');
+    else if (snapshot.phase === 'ready') this.#showBanner('READY', '');
     else if (snapshot.phase === 'fight' && snapshot.phaseTime < 30) this.#showBanner('FIGHT!', '');
     else if (snapshot.phase === 'fight') this.#phaseBanner.hidden = true;
     else if (snapshot.phase === 'ko') this.#showBanner('K.O.', snapshot.roundWinnerId === null ? 'DOUBLE K.O.' : `${snapshot.roundWinnerId} TAKES THE ROUND`);
@@ -418,7 +437,7 @@ class MugenFightApp {
       const model = await pending;
       this.#fightFx = model; await this.#installRenderModels();
       await this.#audio.installFightSounds(model.soundBankSha256, model.sounds);
-      this.#createAuthority(); this.#syncHud(this.#match!.snapshot());
+      if (this.#match !== null && this.#fixtures.has(this.#p1Select.value) && this.#fixtures.has(this.#p2Select.value)) { this.#createAuthority(); this.#syncHud(this.#match.snapshot()); }
       this.#fightFxStatus.textContent = `${model.air.actions.length} 个动作 · ${model.sprites.length} 张精灵 · ${model.sounds.filter(value => value.selectedByKey).length} 个公共音效`;
       this.#fightFxButton.textContent = '重新载入 FightFX'; document.body.dataset.fightFxStatus = 'ready'; document.body.dataset.fightFxSha256 = model.sourceSetSha256;
     } catch (error) { this.#reportFightFxError(error); }
@@ -448,11 +467,16 @@ class MugenFightApp {
     if (this.#running || this.#stageSelect.disabled) return;
     const entry = this.#stageCatalog.get(this.#stageSelect.value); if (entry === undefined) return;
     this.#stageSelect.disabled = true; this.#startButton.disabled = true; this.#runtimeStatus.textContent = `正在载入舞台 ${entry.displayName}…`; document.body.dataset.stageStatus = 'loading'; this.#syncFlowUi();
-    try { const stage = await loadMugenBuiltInStage(entry); this.#stageFixture = stage; await this.#installRenderModels(); this.#applyStage(stage); this.#createAuthority(); this.#refreshInputDriver(); this.#syncHud(this.#match!.snapshot()); this.#runtimeStatus.textContent = `STAGE READY · ${stage.displayName}`; document.body.dataset.stageStatus = 'ready'; this.#syncFlowUi(); }
+    try { const stage = await loadMugenBuiltInStage(entry); this.#stageFixture = stage; await this.#installRenderModels(); this.#applyStage(stage); this.#refreshInputDriver(); this.#runtimeStatus.textContent = `STAGE READY · ${stage.displayName}`; document.body.dataset.stageStatus = 'ready'; this.#syncFlowUi(); }
     catch (error) { document.body.dataset.stageStatus = 'error'; this.#fail(error); }
     finally { if (!this.#running && document.body.dataset.gameStatus !== 'error') { this.#stageSelect.disabled = false; this.#startButton.disabled = false; } this.#syncFlowUi(); }
   }
-  async #installRenderModels(onProgress?: Parameters<MugenWebGpuView['installModels']>[2]): Promise<void> { const stage = this.#requireStage(); const models: MugenRenderAssetModel[] = [...this.#fixtures.values()].map(value => value.model); models.push(stage.renderModel); if (this.#fightFx !== null) models.push(this.#fightFx); await this.#view.installModels(models, undefined, onProgress); }
+  async #installRenderModels(onProgress?: Parameters<MugenWebGpuView['installModels']>[2]): Promise<void> {
+    const stage = this.#requireStage(); const selectedIds = new Set([this.#p1Select.value, this.#p2Select.value]); const models: MugenRenderAssetModel[] = [];
+    for (const preview of this.#selectionPreviews.values()) if (!selectedIds.has(preview.id) || !this.#fixtures.has(preview.id)) models.push(preview.model);
+    for (const id of selectedIds) { const fixture = this.#fixtures.get(id); if (fixture !== undefined) models.push(fixture.model); }
+    models.push(stage.renderModel); if (this.#fightFx !== null) models.push(this.#fightFx); await this.#view.installModels(models, undefined, onProgress);
+  }
   #bindingButtons(): HTMLButtonElement[] { return [...this.#keySettingsDialog.querySelectorAll<HTMLButtonElement>('button[data-player][data-action]')]; }
   #beginBindingCapture(button: HTMLButtonElement): void {
     const player = button.dataset.player; const action = button.dataset.action;
@@ -516,6 +540,7 @@ class MugenFightApp {
     result.dataset.status = 'passed';
   }
   #requireFixture(id: string): MugenBuiltInGameFixture { const value = this.#fixtures.get(id); if (!value) throw new Error(`MUGEN 内置角色 ${id} 尚未装载。`); return value; }
+  #fixtureForFighterId(snapshot: MugenMatchSnapshot, fighterId: string): MugenBuiltInGameFixture { const index = snapshot.fighters.findIndex(fighter => fighter.id === fighterId); if (index < 0) throw new RangeError(`MUGEN 动画所有者 ${fighterId} 不存在。`); return this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); }
   #requireStage(): MugenStageModel { if (!this.#stageFixture) throw new Error('MUGEN 内置舞台尚未装载。'); return this.#stageFixture; }
   #applyStage(stage: MugenStageModel): void { document.body.dataset.stageId = stage.id; document.body.dataset.stageName = stage.displayName; document.body.dataset.stageSha256 = stage.sourceSetSha256; document.body.dataset.stageBackgrounds = String(stage.backgrounds.length); document.body.dataset.stageStatus = 'ready'; document.body.dataset.stageLoaded = 'true'; this.#arena.setAttribute('aria-label', `${stage.displayName} · MUGEN 双人对战舞台`); }
 
@@ -525,6 +550,21 @@ class MugenFightApp {
 function setGauge(elementValue: HTMLElement, ratio: number): void { elementValue.style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`; }
 function afterImageTransparency(mode: 'none' | 'add' | 'add1' | 'sub'): NonNullable<MugenViewerActorFrame['transparency']> { return Object.freeze({ mode, alpha: Object.freeze([256, mode === 'none' ? 0 : 256]) as readonly [number, number] }); }
 function fightSoundVerificationEvent(tick: number): MugenMatchEvent { return Object.freeze({ id: `mugen-fight-sound-verification-${tick}`, tick, sequence: 0, kind: 'audio', fighterId: 'P1', resourceOwner: 'fight', operation: 'play', group: 0, item: 0, channel: -1, volume: 255, pan: 0, frequency: 1, loop: false, lowPriority: false }); }
+function mergeAudioResults(...results: readonly MugenGameAudioConsumeResult[]): MugenGameAudioConsumeResult { return Object.freeze({ requested: results.reduce((sum, value) => sum + value.requested, 0), played: results.reduce((sum, value) => sum + value.played, 0), missing: results.reduce((sum, value) => sum + value.missing, 0) }); }
+function flowPhaseTime(snapshot: MugenMatchSnapshot | null): number { if (snapshot?.phase === 'ready') return snapshot.phaseTime < 45 ? 0 : 45; if (snapshot?.phase === 'fight') return snapshot.phaseTime < 30 ? 0 : 30; return 0; }
+function createPortraitCanvas(preview: MugenCharacterSelectionPreview): HTMLCanvasElement {
+  const sprite = preview.portrait; const canvas = document.createElement('canvas'); canvas.width = sprite.width; canvas.height = sprite.height;
+  const context = canvas.getContext('2d'); if (context === null) throw new Error(`无法为 ${preview.displayName} 创建头像画布。`);
+  const rgba = new Uint8ClampedArray(sprite.width * sprite.height * 4);
+  if (sprite.format === 'rgba8') rgba.set(sprite.pixels);
+  else if (sprite.format === 'rgb8') { for (let source = 0, target = 0; source < sprite.pixels.length; source += 3, target += 4) { rgba[target] = sprite.pixels[source]!; rgba[target + 1] = sprite.pixels[source + 1]!; rgba[target + 2] = sprite.pixels[source + 2]!; rgba[target + 3] = 255; } }
+  else {
+    const palette = (sprite.defaultPaletteId === null ? undefined : preview.model.paletteById.get(sprite.defaultPaletteId)) ?? preview.model.palettes[0];
+    if (palette === undefined) throw new Error(`${preview.displayName} 的索引色头像缺少调色板。`);
+    for (let source = 0, target = 0; source < sprite.pixels.length; source += 1, target += 4) { const color = sprite.pixels[source]! * 4; rgba[target] = palette.rgba[color]!; rgba[target + 1] = palette.rgba[color + 1]!; rgba[target + 2] = palette.rgba[color + 2]!; rgba[target + 3] = palette.rgba[color + 3]!; }
+  }
+  context.putImageData(new ImageData(rgba, sprite.width, sprite.height), 0, 0); return canvas;
+}
 function element<T extends HTMLElement>(id: string): T { const value = document.getElementById(id); if (!value) throw new Error(`Missing MUGEN game element #${id}.`); return value as T; }
 async function fetchLocalBytes(relativeUrl: string): Promise<Uint8Array> { const response = await fetch(new URL(relativeUrl, import.meta.url)); if (!response.ok) throw new Error(`无法载入 FightFX 验证资源（HTTP ${response.status}）。`); return new Uint8Array(await response.arrayBuffer()); }
 function readLifecycleReceipt(): string | null { try { return sessionStorage.getItem(BROWSER_LIFECYCLE_RECEIPT_KEY); } catch { return null; } }
