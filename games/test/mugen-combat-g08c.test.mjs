@@ -17,8 +17,8 @@ test('G08-C parser emits typed HitDef IR and rejects fields outside the explicit
   assert.deepEqual({ attr: [hitDef.attributeState, hitDef.attackAttribute], flags: [hitDef.hitFlags, hitDef.guardFlags], type: hitDef.groundHitType }, { attr: ['S', 'NA'], flags: ['AFM', 'HLM'], type: 'high' });
   const evaluate = expression => evaluateMugenExpression(expression, new BasicMugenExpressionVmContext()).value.value;
   assert.equal(evaluate(hitDef.damage[0]), 100); assert.equal(evaluate(hitDef.damage[1]), 10); assert.equal(evaluate(hitDef.kill), 1);
-  const outputStates = await parseStates(`${CNS}\n[State 200, typed output]\ntype=HitDef\ntrigger1=1\nattr=S,NA\ndamage=1\nsparkno=S2\nhitsound=S1,0\npalfx.time=7\npalfx.mul=128,192,256\npalfx.add=1,2,3\n`); const output = outputStates.states.find(value => value.number === 200).controllers.at(-1).hitDefinition.output; assert.equal(output.sparkFromPlayer, true); assert.equal(output.hitSoundFromPlayer, true);
-  assert.equal(evaluate(output.defenderPalette.time), 7); assert.deepEqual(output.defenderPalette.multiply.map(evaluate), [128, 192, 256]); assert.deepEqual(output.defenderPalette.add.map(evaluate), [1, 2, 3]);
+  const outputStates = await parseStates(`${CNS}\n[State 200, typed output]\ntype=HitDef\ntrigger1=1\nattr=S,NA\ndamage=1\nsparkno=S2\nhitsound=S1,0\npalfx.time=7\npalfx.mul=128,192,256\npalfx.add=1,2,3\npalfx.sinadd=80,40,0,10\npalfx.invertall=1\n`); const output = outputStates.states.find(value => value.number === 200).controllers.at(-1).hitDefinition.output; assert.equal(output.sparkFromPlayer, true); assert.equal(output.hitSoundFromPlayer, true);
+  assert.equal(evaluate(output.defenderPalette.time), 7); assert.deepEqual(output.defenderPalette.multiply.map(evaluate), [128, 192, 256]); assert.deepEqual(output.defenderPalette.add.map(evaluate), [1, 2, 3]); assert.deepEqual(output.defenderPalette.sineAdd.map(evaluate), [80, 40, 0, 10]);
   const projectileStates = await parseStates(`${CNS}\n[State 200, typed projectile afterimage]\ntype=Projectile\ntrigger1=1\nprojanim=200\nafterimage.time=9\nafterimage.length=4\nafterimage.palcolor=128\nafterimage.palinvertall=1\nafterimage.palbright=1,2,3\nafterimage.palcontrast=4,5,6\nafterimage.palpostbright=7,8,9\nafterimage.paladd=10,11,12\nafterimage.palmul=13,14,15\nafterimage.timegap=2\nafterimage.framegap=3\nafterimage.trans=add\n`); const projectile = projectileStates.states.find(value => value.number === 200).controllers.at(-1); assert.equal(projectile.literalParameters['afterimage.trans'], 'add'); assert.deepEqual(['palbright', 'palcontrast', 'palpostbright', 'paladd', 'palmul'].flatMap(key => [0, 1, 2].map(index => evaluate(projectile.parameters[`afterimage.${key}.${index}`]))), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
   await assert.rejects(() => parseStates(`${CNS}\n[State 200, unsupported]\ntype=HitDef\ntrigger1=1\nattr=S,NA\ndamage=1\npalfx.color=128\n`), error => error.diagnostics?.[0]?.code === 'E_MUGEN_CNS_SYNTAX');
 });
@@ -28,12 +28,24 @@ test('G04 official KFM and KFM720 HitDef inventories compile without dropping th
 });
 
 test('G08 HitDef contact commits sound, spark, environment shake and defender PalFX output', async () => {
-  const states = await parseStates(CNS.replace('kill=1', 'sparkno=S2\nsparkxy=-3,-4\nhitsound=S5,7\nenvshake.time=8\nenvshake.freq=120\nenvshake.ampl=-6\nenvshake.phase=30\npalfx.time=7\npalfx.mul=128,192,256\npalfx.add=1,2,3\nkill=1'));
+  const states = await parseStates(CNS.replace('kill=1', 'sparkno=S2\nsparkxy=-3,-4\nhitsound=S5,7\nenvshake.time=8\nenvshake.freq=120\nenvshake.ampl=-6\nenvshake.phase=30\npalfx.time=7\npalfx.mul=128,192,256\npalfx.add=1,2,3\npalfx.sinadd=80,40,0,10\npalfx.invertall=1\nkill=1'));
   const fixture = await createFixture({ firstStates: states }); tick(fixture, {}, true); const contact = tick(fixture, { P1: ['x'] }); assert.equal(contact.combat.contacts.length, 1);
   const audio = contact.result.events.find(value => value.kind === 'audio'); assert.deepEqual([audio.resourceOwner, audio.group, audio.item], ['self', 5, 7]);
-  const output = fixture.combat.script.outputs.snapshot(); const defender = output.entities.find(value => value.entityId === 'P2'); assert.deepEqual(defender.palette, { remainingTicks: 7, elapsedTicks: 0, add: [1, 2, 3], multiply: [128, 192, 256], sineAdd: [0, 0, 0, 1], invertAll: false, color: 256 }); assert.deepEqual(output.cameraShake, { remainingTicks: 8, elapsedTicks: 0, frequency: 120, amplitude: -6, phase: 30 });
+  const output = fixture.combat.script.outputs.snapshot(); const defender = output.entities.find(value => value.entityId === 'P2'); assert.deepEqual(defender.palette, { remainingTicks: 7, elapsedTicks: 0, add: [1, 2, 3], multiply: [128, 192, 256], sineAdd: [80, 40, 0, 10], invertAll: true, color: 256 }); assert.deepEqual(output.cameraShake, { remainingTicks: 8, elapsedTicks: 0, frequency: 120, amplitude: -6, phase: 30 });
   const spark = output.events.find(value => value.kind === 'hit-spark'); assert.deepEqual(spark, { kind: 'hit-spark', policy: 'character-or-fightfx-render-event', entityId: 'P1', animationOwnerId: 'P1', animationNumber: 2, position: [23, -4], facing: 1, layer: 'above' });
   const execution = fixture.combat.script.executionSnapshot(); const commands = parseMugenCommandDocument(await textDocument('fixture.cmd', CMD)); const restored = new MugenScriptRuntime([{ fighterId: 'P1', commands, states }, { fighterId: 'P2', commands, states: await stateProgram() }]); restored.restoreExecution(JSON.parse(JSON.stringify(execution))); assert.deepEqual(restored.executionSnapshot(), execution);
+});
+
+test('GetHitVar damage and animtype let the defender select distinct light and hard hurt voices', async () => {
+  const defenderStates = await parseStates(`${CNS}\n${HURT_VOICE_CNS}`);
+  const strike = async (animationType, damage, expectedVoiceItem) => {
+    const attackerStates = await parseStates(CNS.replace('damage=100,10', `animtype=${animationType}\ndamage=${damage},10\nhitsound=5,0`)); const fixture = await createFixture({ firstStates: attackerStates, secondStates: defenderStates }); tick(fixture, {}, true);
+    const contact = tick(fixture, { P1: ['x'] }); assert.equal(contact.combat.contacts.length, 1); assert.deepEqual(contact.result.events.filter(value => value.kind === 'audio').map(value => [value.resourceOwner, value.group, value.item]), [['fight', 5, 0]]);
+    const hit = fixture.match.fighter('P2'); assert.deepEqual([hit.getHitDamage, hit.getHitAnimationType], [damage, animationType.toLowerCase()]);
+    const response = tick(fixture, {}); assert.deepEqual(response.result.events.filter(value => value.kind === 'audio').map(value => [value.fighterId, value.resourceOwner, value.group, value.item, value.channel]), [['P2', 'self', 101, expectedVoiceItem, 2]]);
+    for (let index = 0; index < 3; index += 1) assert.equal(tick(fixture, {}).result.events.filter(value => value.kind === 'audio' && value.fighterId === 'P2' && value.group === 101).length, 0, 'one hit must not retrigger the global hurt voice on later ticks');
+  };
+  await strike('Light', 20, 0); await strike('Hard', 80, 6);
 });
 
 test('G04 HitBy and NotHitBy compile to two timed attribute slots that gate contact', async () => {
@@ -127,11 +139,28 @@ test('Clsn1 versus Clsn2 produces one hit, freezes authoritative time, then reco
   assert.equal(fixture.match.fighter('P2').stateNumber, 0); assert.equal(fixture.match.fighter('P2').control, true); assert.match(traces.join(':'), /fnv1a64:/u);
 });
 
+test('the contact frame uses the authored get-hit animation instead of flashing the generic hit pose', async () => {
+  const lowHardStates = await parseStates(CNS.replace('ground.type=high', 'ground.type=low\nanimtype=hard'));
+  const lowHard = await createFixture({ firstStates: lowHardStates, air: reactionAirBank() }); tick(lowHard, {}, true); const lowContact = tick(lowHard, { P1: ['x'] });
+  assert.deepEqual(lowContact.combat.contacts.map(value => value.result), ['hit']); assert.deepEqual([lowHard.match.fighter('P2').stateNumber, lowHard.match.fighter('P2').actionNumber], [5000, 5012]);
+
+  const launchedStates = await parseStates(CNS.replace('ground.type=high', 'ground.type=high\nanimtype=hard').replace('ground.velocity=-3,0', 'ground.velocity=-3,-2'));
+  const launched = await createFixture({ firstStates: launchedStates, air: reactionAirBank() }); tick(launched, {}, true); tick(launched, { P1: ['x'] });
+  assert.deepEqual([launched.match.fighter('P2').stateNumber, launched.match.fighter('P2').actionNumber], [5020, 5002]);
+});
+
 test('holding back selects guard damage/stun and AIR body boxes provide deterministic push', async () => {
   const fixture = await createFixture(); tick(fixture, {}, true); const guarded = tick(fixture, { P1: ['x'], P2: ['right'] });
   assert.deepEqual(guarded.combat.contacts.map(value => [value.result, value.damage]), [['guarded', 10]]); assert.equal(fixture.match.fighter('P2').stateNumber, 120); assert.equal(fixture.match.fighter('P1').moveContact, 'guarded');
   const pushed = await createFixture({ spawn: [-5, 5] }); tick(pushed, {}, true); assert.deepEqual(pushed.match.snapshot().fighters.map(value => value.position[0]), [-10, 10]);
   const repeated = await createFixture({ spawn: [-5, 5] }); tick(repeated, {}, true); assert.equal(repeated.match.snapshot().hash, pushed.match.snapshot().hash);
+});
+
+test('P2BodyDist uses character front widths so a close throw remains reachable after player push', async () => {
+  const closeThrowStates = await parseStates(`[Size]\nground.back=10\nground.front=10\nair.back=8\nair.front=8\n[Statedef -1]\n[State -1, close throw]\ntype=ChangeState\ntriggerall=ctrl\ntrigger1=command="x"\ntrigger1=p2bodydist x < 3\nvalue=800\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=S\nanim=0\nctrl=1\n[Statedef 800]\ntype=S\nmovetype=A\nphysics=N\nanim=0\nctrl=0\n`);
+  const fixture = await createFixture({ firstStates: closeThrowStates, secondStates: closeThrowStates, spawn: [-5, 5] });
+  tick(fixture, {}, true); assert.deepEqual(fixture.match.snapshot().fighters.map(value => value.position[0]), [-10, 10]);
+  tick(fixture, { P1: ['x'] }); assert.equal(fixture.match.fighter('P1').stateNumber, 800);
 });
 
 test('attack contact is captured before body push separates a marginal overlap', async () => {
@@ -468,7 +497,7 @@ movetype=I
 physics=N
 anim=0
 `));
-  const fixture = await createFixture({ firstStates: projectileStates, secondStates: helperStates, spawn: [-100, 100] }); const contact = tick(fixture, {}, true); const helper = fixture.combat.script.entities.helpers('P2', 95)[0]; const projectile = fixture.combat.script.entities.projectiles('P1', 94)[0];
+  const fixture = await createFixture({ firstStates: projectileStates, secondStates: helperStates, spawn: [-100, 100] }); tick(fixture, {}, true); const contact = tick(fixture, {}); const helper = fixture.combat.script.entities.helpers('P2', 95)[0]; const projectile = fixture.combat.script.entities.projectiles('P1', 94)[0];
   assert.equal(contact.combat.contacts.some(value => value.activationId === projectile.entityId && value.defenderId === helper.entityId && value.damage === 35), true); assert.equal(helper.life, 965); assert.equal(projectile.contact, 'hit'); assert.equal(projectile.remainingHits, 0); assert.equal(fixture.combat.script.entities.latestProjectileContact('P1').entityId, projectile.entityId);
 });
 
@@ -489,7 +518,7 @@ anim=21
 type=DestroySelf
 trigger1=AnimTime=0
 `));
-  const fixture = await createFixture({ firstStates: states }); tick(fixture, {}, true); assert.equal(fixture.combat.script.entities.helpers('P1', 96).length, 1); tick(fixture, {}); tick(fixture, {}); assert.equal(fixture.combat.script.entities.helpers('P1', 96).length, 1); tick(fixture, {}); assert.equal(fixture.combat.script.entities.helpers('P1', 96).length, 0);
+  const fixture = await createFixture({ firstStates: states }); tick(fixture, {}, true); assert.equal(fixture.combat.script.entities.helpers('P1', 96).length, 1); tick(fixture, {}); tick(fixture, {}); tick(fixture, {}); assert.equal(fixture.combat.script.entities.helpers('P1', 96).length, 1); tick(fixture, {}); assert.equal(fixture.combat.script.entities.helpers('P1', 96).length, 0);
 });
 
 test('G05 fight AIR owner supplies F-prefixed Projectile collision actions', async () => {
@@ -590,6 +619,17 @@ test('G04 throw creates a target, runs attacker-owned custom states, binds, dama
   tick(fixture, {}); assert.deepEqual(fixture.match.fighter('P1').targets, []);
 });
 
+test('throw contact scales TargetBind offsets for a high-resolution character coordinate space', async () => {
+  const attackerStates = await parseStates(THROW_CNS); const defenderStates = await parseStates(`[Statedef -1]\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=S\nanim=0\nctrl=1\n`); const fixture = await createFixture({ firstStates: attackerStates, secondStates: defenderStates, coordinateScale: .25, spawn: [-5, 5] });
+  tick(fixture, {}, true); const contact = tick(fixture, { P1: ['x'] }); assert.deepEqual(contact.combat.contacts.map(value => value.result), ['hit']);
+  tick(fixture, {}); const p1 = fixture.match.fighter('P1'); const p2 = fixture.match.fighter('P2'); assert.deepEqual(p2.position, [p1.position[0] + 3.75 * p1.facing, p1.position[1] - 1.25]);
+});
+
+test('BindToTarget Head anchor adds the target character head.pos constants', async () => {
+  const binderStates = await parseStates(`[Statedef -1]\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\nanim=0\nctrl=0\n[State 0, bind self]\ntype=BindToTarget\ntrigger1=time=0\ntime=2\nid=7\npos=15,-5,Head\n`); const targetStates = await parseStates(`[Size]\nhead.pos=4,-20\n[Statedef -1]\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\nanim=0\nctrl=0\n`); const fixture = await createFixture({ firstStates: binderStates, secondStates: targetStates });
+  const input = fixture.inputs.push({}); fixture.match.beginTick(input).startFight().registerTarget('P1', 'P2', 7); fixture.combat.step(fixture.match, input, fixture.inputs.history); fixture.match.endTick(); const p1 = fixture.match.fighter('P1'); const p2 = fixture.match.fighter('P2'); assert.deepEqual(p1.position, [p2.position[0] + 19 * p2.facing, p2.position[1] - 25]);
+});
+
 test('1000-tick combat replay is byte-exact across independent authorities', async () => {
   const first = await runSoak(); const second = await runSoak(); assert.deepEqual(first, second); assert.equal(first.hashes.length, 1000); assert.equal(first.snapshot.tick, 1000);
 });
@@ -597,6 +637,23 @@ test('1000-tick combat replay is byte-exact across independent authorities', asy
 test('expired round timer resolves life lead and equal-life draw deterministically', async () => {
   const lead = await createFixture({ roundTimeTicks: 1 }); const firstInput = lead.inputs.push({}); lead.match.beginTick(firstInput).startFight().setLife('P2', 500); lead.combat.step(lead.match, firstInput, lead.inputs.history); lead.match.endTick(); tick(lead, {}); assert.equal(lead.match.snapshot().phase, 'match-over'); assert.equal(lead.match.snapshot().matchWinnerId, 'P1');
   const draw = await createFixture({ roundTimeTicks: 1 }); tick(draw, {}, true); tick(draw, {}); assert.equal(draw.match.snapshot().phase, 'round-over'); assert.equal(draw.match.snapshot().roundResultReason, 'draw');
+});
+
+test('time over enters standard MUGEN win, lose, and draw states while result animations keep advancing', async () => {
+  const resultStates = await parseStates(`${CNS}\n${RESULT_CNS}`); const lead = await createFixture({ roundTimeTicks: 1, firstStates: resultStates, secondStates: resultStates });
+  const firstInput = lead.inputs.push({}); lead.match.beginTick(firstInput).startFight().setLife('P2', 500); lead.combat.step(lead.match, firstInput, lead.inputs.history); lead.match.endTick(); tick(lead, {});
+  assert.deepEqual(lead.match.snapshot().fighters.map(fighter => [fighter.stateNumber, fighter.actionNumber, fighter.control]), [[181, 181, false], [170, 170, false]]);
+  const winnerActionTime = lead.match.fighter('P1').actionTime; tick(lead, {}); assert(lead.match.fighter('P1').actionTime > winnerActionTime);
+  const draw = await createFixture({ roundTimeTicks: 1, firstStates: resultStates, secondStates: resultStates }); tick(draw, {}, true); tick(draw, {});
+  assert.deepEqual(draw.match.snapshot().fighters.map(fighter => [fighter.stateNumber, fighter.actionNumber, fighter.control]), [[175, 175, false], [175, 175, false]]);
+});
+
+test('ScreenBound off may cross the gameplay margin but cannot launch a root fighter outside the visible stage', async () => {
+  const unboundedStates = await parseStates(`${CNS}\n[Statedef -2]\n[State -2, cinematic screen freedom]\ntype=ScreenBound\ntrigger1=1\nvalue=0\n`);
+  const camera = { start: [0, 0], horizontalBounds: [-150, 150], verticalBounds: [-25, 0], localCoord: [320, 240], tension: 50, verticalFollow: .2, floorTension: 0, screenMargins: [15, 15], playerBounds: [-1000, 1000] };
+  const fixture = await createFixture({ firstStates: unboundedStates, secondStates: unboundedStates, stageBounds: [-1000, 1000], camera }); const input = fixture.inputs.push({});
+  fixture.match.beginTick(input).startFight().setKinematics('P1', { position: [500, 0], velocity: [30, 0] }); fixture.combat.step(fixture.match, input, fixture.inputs.history); fixture.match.endTick();
+  assert.deepEqual([fixture.match.fighter('P1').position[0], fixture.match.fighter('P1').velocity[0]], [160, 0]);
 });
 
 test('G04 official executable oracle pass is content-addressed and machine-observed', () => {
@@ -608,9 +665,9 @@ async function runDoubleKo() { const fixture = await createFixture({ maxLife: 10
 async function runSoak() { const fixture = await createFixture({ maxLife: 100_000, koHoldTicks: 2, roundTimeTicks: null }); const hashes = []; for (let index = 1; index <= 1000; index += 1) { const held = index % 24 === 2 ? { P1: ['x'] } : index % 31 === 2 ? { P2: ['x'] } : index % 31 === 3 ? { P1: ['right'] } : {}; const value = tick(fixture, held, index === 1); hashes.push(`${value.combat.hash}:${value.result.traceHash}`); } return Object.freeze({ hashes: Object.freeze(hashes), snapshot: fixture.match.snapshot() }); }
 
 async function createFixture(options = {}) {
-  const commands = parseMugenCommandDocument(await textDocument('fixture.cmd', CMD)); const states = await stateProgram(); const script = new MugenScriptRuntime([{ fighterId: 'P1', commands, states: options.firstStates ?? states }, { fighterId: 'P2', commands, states: options.secondStates ?? states }]); const air = options.air ?? airBank(); const spawn = options.spawn ?? [-20, 20];
+  const commands = parseMugenCommandDocument(await textDocument('fixture.cmd', CMD)); const states = await stateProgram(); const coordinateScale = options.coordinateScale ?? 1; const script = new MugenScriptRuntime([{ fighterId: 'P1', commands, states: options.firstStates ?? states, coordinateScale }, { fighterId: 'P2', commands, states: options.secondStates ?? states, coordinateScale }]); const air = options.air ?? airBank(); const spawn = options.spawn ?? [-20, 20];
   const matchConfig = { seed: 'g08c', roundsToWin: 1, roundTimeTicks: options.roundTimeTicks === undefined ? 600 : options.roundTimeTicks, maxEventsPerTick: 512, fighters: [{ id: 'P1', displayName: 'P1', packageSha256: SHA, maxLife: options.maxLife, spawn: [spawn[0], 0], facing: 1, initialControl: true }, { id: 'P2', displayName: 'P2', packageSha256: 'd'.repeat(64), maxLife: options.maxLife, spawn: [spawn[1], 0], facing: -1, initialControl: true }] };
-  const match = new MugenHeadlessMatch(matchConfig); const combat = new MugenCombatRuntime(script, { fighters: [{ fighterId: 'P1', air }, { fighterId: 'P2', air }], fightAir: options.fightAir, koHoldTicks: options.koHoldTicks ?? 2, stageBounds: options.stageBounds }); return { match, matchConfig, combat, inputs: inputBuilder(match) };
+  const match = new MugenHeadlessMatch(matchConfig); const combat = new MugenCombatRuntime(script, { fighters: [{ fighterId: 'P1', air, coordinateScale }, { fighterId: 'P2', air, coordinateScale }], fightAir: options.fightAir, koHoldTicks: options.koHoldTicks ?? 2, stageBounds: options.stageBounds, camera: options.camera }); return { match, matchConfig, combat, inputs: inputBuilder(match) };
 }
 
 function tick(fixture, held = {}, start = false) { const input = fixture.inputs.push(held); fixture.match.beginTick(input); if (start) fixture.match.startFight(); const combat = fixture.combat.step(fixture.match, input, fixture.inputs.history); const result = fixture.match.endTick(); return { combat, result }; }
@@ -620,11 +677,14 @@ async function stateProgram() { return parseStates(CNS); }
 async function parseStates(source) { return parseMugenStateDocuments([await textDocument('fixture.cns', source)]); }
 async function textDocument(path, source) { const vfs = await createMugenVfs([{ path, bytes: UTF8.encode(source) }]); return parseMugenTextFile(vfs.require(path), 'utf-8'); }
 
-function airBank(hitBox = box(0, 0, -30, 40, -5)) { const actions = [action(0, false), action(20, true), action(21, false, 2), action(120, false), action(200, true, -1, hitBox), action(5000, false), action(5020, false)]; return Object.freeze({ canonicalPath: 'fixture.air', sourceSha256: SHA, actions: Object.freeze(actions), diagnostics: Object.freeze([]), elementCount: actions.length, collisionBoxCount: actions.length + 1 }); }
+function airBank(hitBox = box(0, 0, -30, 40, -5)) { const actions = [action(0, false), action(20, true), action(21, false, 2), action(120, false), action(170, false), action(175, false), action(181, false), action(200, true, -1, hitBox), action(5000, false), action(5020, false)]; return Object.freeze({ canonicalPath: 'fixture.air', sourceSha256: SHA, actions: Object.freeze(actions), diagnostics: Object.freeze([]), elementCount: actions.length, collisionBoxCount: actions.length + 1 }); }
+function reactionAirBank() { const base = airBank(); const actions = [...base.actions, action(5001, false), action(5002, false), action(5010, false), action(5011, false), action(5012, false), action(5030, false), action(5051, false), action(5052, false)]; return Object.freeze({ ...base, actions: Object.freeze(actions), elementCount: actions.length, collisionBoxCount: actions.length + 1 }); }
 function action(number, attack, durationTicks = -1, hit = box(0, 0, -30, 40, -5)) { const body = box(0, -10, -40, 10, 0); const element = Object.freeze({ index: 0, byteOffset: 0, line: 1, column: 1, spriteGroup: -1, spriteItem: -1, spriteId: null, offsetX: 0, offsetY: 0, durationTicks, flipX: false, flipY: false, blend: Object.freeze({ mode: 'opaque', sourceAlpha: 1, destinationAlpha: 0 }), scaleX: 1, scaleY: 1, angleDegrees: 0, interpolateToThis: Object.freeze([]), clsn1: Object.freeze(attack ? [hit] : []), clsn2: Object.freeze([body]) }); return Object.freeze({ number, byteOffset: 0, line: 1, column: 1, loopStart: 0, elements: Object.freeze([element]), totalTicks: durationTicks < 0 ? null : durationTicks, preLoopTicks: 0, loopTicks: durationTicks < 0 ? null : durationTicks }); }
 function box(index, left, top, right, bottom) { return Object.freeze({ index, left, top, right, bottom, byteOffset: 0, line: 1, column: 1 }); }
 
 const CMD = `[Command]\nname="x"\ncommand=x\n`;
+const HURT_VOICE_CNS = `[Statedef -2]\n[State -2, light hurt voice]\ntype=PlaySnd\ntriggerall=MoveType=H\ntrigger1=GetHitVar(animtype)=0\ntrigger1=GetHitVar(damage)=[1,30]\nvalue=S101,0\nchannel=2\nignorehitpause=1\n[State -2, hard hurt voice]\ntype=PlaySnd\ntriggerall=MoveType=H\ntrigger1=GetHitVar(animtype)=2\ntrigger1=GetHitVar(damage)>=61\nvalue=S101,6\nchannel=2\nignorehitpause=1\n`;
 const REVERSAL_CNS = `[Statedef -1]\n[State -1, reversal]\ntype=ChangeState\ntriggerall=ctrl\ntrigger1=command="x"\nvalue=1300\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=S\nanim=0\nctrl=1\n[Statedef 1300]\ntype=S\nmovetype=I\nphysics=N\nanim=200\nctrl=0\n[State 1300, reversal]\ntype=ReversalDef\ntrigger1=time=0\npersistent=0\nreversal.attr=S,NA\npausetime=1,2\np1stateno=1310\np2stateno=1320\np1sprpriority=2\np2sprpriority=1\n[Statedef 1310]\ntype=S\nmovetype=A\nphysics=N\nanim=200\nctrl=0\n[Statedef 1320]\ntype=S\nmovetype=H\nphysics=N\nanim=5000\nctrl=0\n`;
 const CNS = `[Statedef -1]\n[State -1, attack]\ntype=ChangeState\ntriggerall=ctrl\ntrigger1=command="x"\nvalue=200\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=S\nanim=0\nctrl=1\n[Statedef 120]\ntype=S\nmovetype=H\nphysics=N\nanim=120\nctrl=0\n[Statedef 5000]\ntype=S\nmovetype=H\nphysics=N\nanim=5000\nctrl=0\n[Statedef 5020]\ntype=A\nmovetype=H\nphysics=A\nanim=5020\nctrl=0\n[Statedef 200]\ntype=S\nmovetype=A\nphysics=N\nanim=200\nctrl=0\n[State 200, hit]\ntype=HitDef\ntrigger1=time=0\npersistent=0\nattr=S,NA\ndamage=100,10\nhitflag=MAF\nguardflag=HLM\nground.type=high\npausetime=3,3\nguard.pausetime=2,2\nground.hittime=4\nair.hittime=6\nguard.ctrltime=3\nground.velocity=-3,0\nair.velocity=-2,-3\nguard.velocity=-1,0\ngetpower=50,20\ngivepower=25,10\nkill=1\nguard.kill=0\n[State 200, done]\ntype=ChangeState\ntrigger1=time>=3\nvalue=0\n`;
+const RESULT_CNS = `[Statedef 170]\ntype=S\nmovetype=I\nphysics=S\nanim=170\nctrl=0\n[Statedef 175]\ntype=S\nmovetype=I\nphysics=S\nanim=175\nctrl=0\n[Statedef 180]\ntype=S\nmovetype=I\nphysics=S\nctrl=0\n[State 180, choose win pose]\ntype=ChangeState\ntrigger1=time=0\nvalue=181\n[Statedef 181]\ntype=S\nmovetype=I\nphysics=S\nanim=181\nctrl=0\n`;
 const THROW_CNS = `[Statedef -1]\n[State -1, throw]\ntype=ChangeState\ntriggerall=ctrl\ntrigger1=command="x"\nvalue=800\n[Statedef 0]\ntype=S\nmovetype=I\nphysics=S\nanim=0\nctrl=1\n[Statedef 800]\ntype=S\nmovetype=A\nphysics=N\nanim=200\nctrl=0\n[State 800, grab]\ntype=HitDef\ntrigger1=time=0\npersistent=0\nattr=S,NT\nhitflag=M-\npriority=1,Miss\np1stateno=810\np2stateno=820\np2getp1state=1\nid=7\nfall=1\n[Statedef 810]\ntype=S\nmovetype=A\nphysics=N\nanim=200\nctrl=0\n[State 810, bind]\ntype=TargetBind\ntrigger1=time=0\ntime=2\nid=7\npos=15,-5\n[State 810, damage]\ntype=TargetLifeAdd\ntrigger1=time=0\nvalue=-78\nid=7\nabsolute=1\n[State 810, face]\ntype=TargetFacing\ntrigger1=time=0\nvalue=-1\nid=7\n[State 810, custom release]\ntype=TargetState\ntrigger1=time=1\nvalue=821\nid=7\n[State 810, velocity set]\ntype=TargetVelSet\ntrigger1=time=2\nx=2\ny=-3\nid=7\n[State 810, velocity add]\ntype=TargetVelAdd\ntrigger1=time=2\nx=1\ny=1\nid=7\n[State 810, power]\ntype=TargetPowerAdd\ntrigger1=time=2\nvalue=100\nid=7\n[State 810, drop]\ntype=TargetDrop\ntrigger1=time=3\nexcludeid=-1\n[Statedef 820]\ntype=S\nmovetype=H\nphysics=N\nanim=5000\nctrl=0\n[Statedef 821]\ntype=A\nmovetype=H\nphysics=A\nanim=5020\nctrl=0\n[State 821, return]\ntype=SelfState\ntrigger1=time=1\nvalue=0\nctrl=1\n`;

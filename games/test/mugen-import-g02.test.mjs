@@ -262,7 +262,7 @@ test('HYMUGEN v1 is byte-exact, round-trips canonically, excludes raw source byt
   assert.equal(headerView.getUint16(10, true), 0);
   assert.equal(headerView.getUint32(12, true), first.encoded.bytes.byteLength - WIRE_CONTRACT.headerBytes);
   assert.equal(WIRE_CONTRACT.maxPackageBytes, MUGEN_LIMITS.worker.maxMessageBytes);
-  assert.equal(Object.keys(MUGEN_DIAGNOSTIC_CATALOG).length, 55);
+  assert.equal(Object.keys(MUGEN_DIAGNOSTIC_CATALOG).length, 56);
   assert.equal(canonicalJson(first.report), canonicalJson(second.report));
   assert.match(first.encoded.packageSha256, /^[0-9a-f]{64}$/);
   assert.equal(new TextDecoder().decode(first.encoded.bytes).includes('G02 Fighter'), false);

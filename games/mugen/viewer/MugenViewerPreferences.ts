@@ -9,6 +9,11 @@ export interface MugenViewerPreferences {
   readonly simulateHitAudio?: boolean;
   readonly workspaceSplitRatio?: number;
   readonly viewerSplitRatio?: number;
+  readonly stageSplitRatio?: number;
+  readonly stageZoom?: number;
+  readonly stagePanX?: number;
+  readonly stagePanY?: number;
+  readonly previewTab?: 'character' | 'stage';
   readonly origin: boolean;
   readonly axis: boolean;
   readonly spriteBounds: boolean;
@@ -37,6 +42,11 @@ export function isMugenViewerPreferences(value: unknown): value is MugenViewerPr
     && (value.simulateHitAudio === undefined || typeof value.simulateHitAudio === 'boolean')
     && (value.workspaceSplitRatio === undefined || (isFiniteNumber(value.workspaceSplitRatio) && value.workspaceSplitRatio >= 0 && value.workspaceSplitRatio <= 1))
     && (value.viewerSplitRatio === undefined || (isFiniteNumber(value.viewerSplitRatio) && value.viewerSplitRatio >= 0 && value.viewerSplitRatio <= 1))
+    && (value.stageSplitRatio === undefined || (isFiniteNumber(value.stageSplitRatio) && value.stageSplitRatio >= 0 && value.stageSplitRatio <= 1))
+    && (value.stageZoom === undefined || (isFiniteNumber(value.stageZoom) && value.stageZoom >= .25 && value.stageZoom <= 4))
+    && (value.stagePanX === undefined || (isFiniteNumber(value.stagePanX) && Math.abs(value.stagePanX) <= 100_000))
+    && (value.stagePanY === undefined || (isFiniteNumber(value.stagePanY) && Math.abs(value.stagePanY) <= 100_000))
+    && (value.previewTab === undefined || value.previewTab === 'character' || value.previewTab === 'stage')
     && typeof value.origin === 'boolean'
     && typeof value.axis === 'boolean'
     && typeof value.spriteBounds === 'boolean'

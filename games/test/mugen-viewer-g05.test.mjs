@@ -18,12 +18,14 @@ const [
   { createMugenCharacterModel, discoverMugenCharacterDefCandidates, spriteReferenceResolver },
   { MugenViewerController },
   { MugenViewerAudio, cueOccurrences, inferMugenViewerHitAudio },
+  { MugenStageAudio },
 ] = await Promise.all([
   import('../mugen/import/vfs/MugenVfs.ts'),
   import('../mugen/import/worker/MugenCharacterImport.ts'),
   import('../mugen/viewer/MugenCharacterModel.ts'),
   import('../mugen/viewer/MugenViewerController.ts'),
   import('../mugen/viewer/MugenViewerAudio.ts'),
+  import('../mugen/viewer/MugenStageAudio.ts'),
 ]);
 
 const UTF8 = new TextEncoder();
@@ -184,7 +186,7 @@ test('viewer product is manifest-backed and exposes required controls without pr
   assert.equal(entry.entry, 'mugen/main.ts');
   assert.equal(entry.capabilities.includes('experimental-indexed-sprite'), true);
   const html = readFileSync(new URL('../mugen/charactorPreview.html', import.meta.url), 'utf8');
-  for (const id of ['directory-input', 'entry-select', 'action-search', 'action-filter', 'timeline', 'palette-select', 'debug-clsn1', 'debug-clsn2', 'viewer-canvas', 'visual-notice']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['directory-input', 'entry-select', 'action-search', 'action-filter', 'timeline', 'palette-select', 'debug-clsn1', 'debug-clsn2', 'viewer-canvas', 'visual-notice', 'preview-tabs', 'stage-directory-input', 'stage-entry-select', 'stage-canvas', 'stage-diagnostics', 'stage-zoom-control', 'stage-zoom-value', 'stage-reset-view']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /href="\.\/index\.html"/u);
   const htmlRevision = html.match(/dist\/charactorPreview\.js\?v=([A-Za-z0-9._-]+)/u)?.[1];
   assert.ok(htmlRevision, 'preview HTML must version its module entry');
@@ -197,6 +199,8 @@ test('viewer product is manifest-backed and exposes required controls without pr
   assert.match(previewSource, /value: 'missing', label: '当前 SFF 无素材'/u);
   for (const id of ['loop-toggle', 'debug-origin', 'debug-axis', 'debug-bounds', 'debug-clsn1', 'debug-clsn2']) assert.match(html, new RegExp(`<hy-checkbox[^>]+id="${id}"`));
   for (const id of ['workspace-split', 'viewer-split']) assert.match(html, new RegExp(`<hy-split[^>]+id="${id}"`));
+  assert.match(html, /<hy-split[^>]+id="stage-split"/u);
+  assert.match(html, /<hy-tabs[^>]+id="preview-tabs"/u);
   assert.match(html, /id="character-avatar"/u);
   assert.match(html, /<hy-range[^>]+id="volume-control"/u);
   assert.doesNotMatch(html, /<select\b|type="checkbox"/u);
@@ -211,6 +215,16 @@ test('viewer product is manifest-backed and exposes required controls without pr
   assert.match(source, /from '@haiyue\/ui\/virtual-list'/u);
   assert.match(source, /from '@haiyue\/ui\/(?:select|checkbox|range)'/u);
   assert.match(source, /from '@haiyue\/ui\/split'/u);
+  assert.match(source, /from '@haiyue\/ui\/tabs'/u);
+  assert.match(source, /importMugenStage/u);
+  assert.match(source, /MugenStageRenderCache/u);
+  const webGpuSource = readFileSync(new URL('../mugen/viewer/MugenWebGpuView.ts', import.meta.url), 'utf8');
+  assert.match(webGpuSource, /transparency\.mode === 'sub' \? 'subtractive'/u);
+  assert.match(webGpuSource, /pass\.setScissorRect\(clipRect\.x, clipRect\.y, clipRect\.width, clipRect\.height\)/u);
+  assert.match(source, /transformMugenStageRenderActors/u);
+  assert.match(source, /overlay\.addEventListener\('pointermove'/u);
+  assert.match(source, /this\.#stagePanX \+= event\.clientX/u);
+  assert.match(source, /Stage operation failed/u);
   assert.match(source, /MugenViewerAudio/u);
   assert.match(source, /推断音频 · 受击/u);
   assert.match(source, /\[真实绑定\]|\[推断·受击\]|\[角色音库\]/u);
@@ -246,6 +260,29 @@ test('viewer product is manifest-backed and exposes required controls without pr
   const preferences = readFileSync(new URL('../mugen/viewer/MugenViewerPreferences.ts', import.meta.url), 'utf8');
   assert.match(preferences, /SingleSlotGameSave/);
   assert.doesNotMatch(preferences, /entryDef|sourcePath|packageBytes/);
+});
+
+test('stage preview audio decodes one BGM and loops it on the music bus', async () => {
+  const calls = { decoded: [], played: [], stopped: [] };
+  const mixer = {
+    unlock: async () => {},
+    stop: (owner, channel) => { calls.stopped.push([owner, channel]); return 1; },
+    removeBuffer: () => true,
+    decodeAndInstall: async (id, bytes) => { calls.decoded.push([id, bytes.byteLength]); },
+    play: request => { calls.played.push(request); return 'voice-1'; },
+    dispose: () => {},
+  };
+  const audio = new MugenStageAudio(mixer);
+  const music = { path: 'AcademyGrounds.ogg', sha256: 'a'.repeat(64), bytes: new Uint8Array([1, 2, 3]), volume: 1 };
+  await audio.play(music);
+  await audio.play(music);
+  assert.deepEqual(calls.decoded, [[`mugen-stage-bgm:${'a'.repeat(64)}`, 3]]);
+  assert.equal(calls.played.length, 1);
+  assert.equal(calls.played[0].bus, 'music');
+  assert.equal(calls.played[0].loop, true);
+  assert.equal(calls.played[0].volume, 1);
+  audio.stop();
+  assert.deepEqual(calls.stopped.at(-1), ['mugen-stage-preview', 'bgm']);
 });
 
 function characterFixtureInputs() {

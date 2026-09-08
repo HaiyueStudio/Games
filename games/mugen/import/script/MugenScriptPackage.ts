@@ -1,6 +1,6 @@
 import type { MugenPackageContributions } from '../../package/builder';
 import type { MugenCanonicalValue } from '../../package/types';
-import { parseMugenCommandDocument } from '../cmd/CmdParser';
+import { parseMugenCommandDocumentWithDiagnostics } from '../cmd/CmdParser';
 import type { MugenCommandProgram } from '../cmd/types';
 import { parseMugenStateDocuments } from '../cns/CnsParser';
 import type { MugenStateProgram } from '../cns/types';
@@ -19,12 +19,14 @@ export function compileMugenCharacterScripts(graph: MugenImportGraph, profile: '
   if (commandDocuments.length !== 1) failMugen(mugenDiagnostic('E_MUGEN_CMD_SYNTAX', 'cmd', 'error', 'release-resource', `Executable MUGEN script profile requires exactly one CMD document; received ${commandDocuments.length}.`));
   const stateResourcePaths = new Set(graph.edges.filter(edge => asciiCaseFold(edge.section) === 'files' && isStateFileKey(asciiCaseFold(edge.key))).map(edge => asciiCaseFold(edge.to)));
   const stateDocuments = graph.resources.filter(resource => resource.document !== undefined && (resource.kind === 'cmd' || stateResourcePaths.has(resource.foldedPath))).map(resource => resource.document!);
-  const commands = parseMugenCommandDocument(commandDocuments[0]!);
+  const parsedCommands = parseMugenCommandDocumentWithDiagnostics(commandDocuments[0]!);
+  const commands = parsedCommands.program;
   const commonStatePaths = new Set(graph.edges.filter(edge => edge.section.toLowerCase() === 'files' && edge.key.toLowerCase() === 'stcommon').map(edge => edge.to));
   const states = parseMugenStateDocuments(stateDocuments, { commonStatePaths });
   const contributions = Object.freeze({
     commands: Object.freeze([commands as unknown as MugenCanonicalValue]),
     states: Object.freeze([states as unknown as MugenCanonicalValue]),
+    diagnostics: parsedCommands.diagnostics,
     featureUsage: Object.freeze(profile === 'm09-native-common'
       ? ['m09.cmd.native-common-v1', 'm09.cns.character-common-override-v1', 'm09.expression.bytecode-v1', 'm09.vm.typed-no-eval-v1']
       : ['g08.cmd.basic-v1', 'g08.cns.minimal-v1', 'g08.vm.typed-no-eval-v1', 'm09.expression.bytecode-v1']),

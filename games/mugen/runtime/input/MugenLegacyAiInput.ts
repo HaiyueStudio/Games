@@ -24,7 +24,7 @@ export class MugenLegacyAiInput {
       if ((typeof config.seed !== 'string' && typeof config.seed !== 'number') || (typeof config.seed === 'number' && !Number.isSafeInteger(config.seed)) || String(config.seed).length < 1 || String(config.seed).length > 128) throw new TypeError('MUGEN legacy AI seed is invalid.');
       if (!config.commands || config.commands.schemaVersion !== 1 || config.commands.revision !== 'm08-g08b-command-v1' || !Array.isArray(config.commands.commands) || config.commands.commands.length < 1) throw new TypeError('MUGEN legacy AI command program is invalid.');
       const program: MugenCommandProgram = config.commands;
-      const commands: readonly string[] = Object.freeze([...new Set<string>(program.commands.map(command => command.foldedName))]);
+      const commands: readonly string[] = Object.freeze([...new Set<string>(program.commands.map(command => command.name))]);
       return [config.playerId, Object.freeze({ aiLevel: config.aiLevel, seed: String(config.seed), commands })] as const;
     });
     if (new Set(entries.map(entry => entry[0])).size !== entries.length) throw new TypeError('MUGEN legacy AI player id is duplicated.');

@@ -22,7 +22,7 @@
         <div class="player-tag">PLAYER 1</div>
         <label>角色<select id="p1-character"><option value="kfm">Kung Fu Man</option><option value="kfm720">Kung Fu Man 720</option></select></label>
         <label>操作<select id="p1-control"><option value="0">玩家</option><option value="4">电脑 · 普通</option><option value="2">电脑 · 简单</option><option value="6">电脑 · 困难</option><option value="8">电脑 · 最高</option></select></label>
-        <p id="p1-control-hint">A D 移动 · W 跳跃 · S 蹲下 · U / I / J / K 攻击</p>
+        <p id="p1-control-hint">A D 移动 · W 跳跃 · S 蹲下 · U / I / O / J / K / L 攻击</p>
       </div>
       <div class="versus-center"><div class="versus-mark">VS</div><label>舞台<select id="stage-select" aria-label="舞台选择" disabled><option>正在载入…</option></select></label></div>
       <div class="fighter-card p2-card">
@@ -56,7 +56,7 @@
     </section>
 
     <footer class="fight-controls">
-      <div class="control-hint"><kbd>WASD</kbd> 方向 <kbd>U</kbd><kbd>I</kbd><kbd>J</kbd><kbd>K</kbd> 攻击</div>
+      <div class="control-hint"><kbd>WASD</kbd> 方向 <kbd>U</kbd><kbd>I</kbd><kbd>O</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> 攻击</div>
       <div class="match-actions">
         <label class="debug-toggle"><input id="debug-boxes" type="checkbox"> 显示碰撞框</label>
         <div class="fightfx-loader"><button id="load-fightfx" type="button">载入 FightFX</button><small id="fightfx-status">可选：选择本地 MUGEN 根目录或 data 目录</small><input id="fightfx-directory" type="file" webkitdirectory multiple hidden></div>
@@ -65,25 +65,27 @@
         <button id="pause-match" type="button" disabled>暂停</button>
         <button id="start-match" class="primary" type="button" disabled>开始对战</button>
       </div>
-      <div class="control-hint right"><kbd>方向键</kbd> 方向 <kbd>4</kbd><kbd>5</kbd><kbd>1</kbd><kbd>2</kbd> 攻击</div>
+      <div class="control-hint right"><kbd>方向键</kbd> 方向 <kbd>4</kbd><kbd>5</kbd><kbd>6</kbd><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 攻击</div>
     </footer>
   </main>
   <dialog id="key-settings" class="key-settings" aria-labelledby="key-settings-title">
     <form method="dialog">
       <header><div><small>LOCAL CONTROLS</small><h2 id="key-settings-title">按键设置</h2></div><button id="cancel-key-settings" class="dialog-close" type="button" aria-label="关闭">×</button></header>
-      <p class="key-settings-note">四个攻击键当前分别映射到 MUGEN 的 X、Y、A、B；官方完整招式逻辑将在后续兼容层开放。</p>
+      <p class="key-settings-note">六个攻击键依次映射到 MUGEN 的 X、Y、Z、A、B、C，并支持角色 CMD 中的组合输入。</p>
       <div class="binding-players">
         <section><h3>PLAYER 1</h3><div class="binding-grid">
           <span>上</span><button type="button" data-player="P1" data-action="up"></button><span>下</span><button type="button" data-player="P1" data-action="down"></button>
           <span>左</span><button type="button" data-player="P1" data-action="left"></button><span>右</span><button type="button" data-player="P1" data-action="right"></button>
           <span>攻击 1</span><button type="button" data-player="P1" data-action="attack1"></button><span>攻击 2</span><button type="button" data-player="P1" data-action="attack2"></button>
           <span>攻击 3</span><button type="button" data-player="P1" data-action="attack3"></button><span>攻击 4</span><button type="button" data-player="P1" data-action="attack4"></button>
+          <span>攻击 5</span><button type="button" data-player="P1" data-action="attack5"></button><span>攻击 6</span><button type="button" data-player="P1" data-action="attack6"></button>
         </div></section>
         <section><h3>PLAYER 2</h3><div class="binding-grid">
           <span>上</span><button type="button" data-player="P2" data-action="up"></button><span>下</span><button type="button" data-player="P2" data-action="down"></button>
           <span>左</span><button type="button" data-player="P2" data-action="left"></button><span>右</span><button type="button" data-player="P2" data-action="right"></button>
           <span>攻击 1</span><button type="button" data-player="P2" data-action="attack1"></button><span>攻击 2</span><button type="button" data-player="P2" data-action="attack2"></button>
           <span>攻击 3</span><button type="button" data-player="P2" data-action="attack3"></button><span>攻击 4</span><button type="button" data-player="P2" data-action="attack4"></button>
+          <span>攻击 5</span><button type="button" data-player="P2" data-action="attack5"></button><span>攻击 6</span><button type="button" data-player="P2" data-action="attack6"></button>
         </div></section>
       </div>
       <p id="key-settings-status" class="key-settings-status" aria-live="polite"></p>
@@ -92,6 +94,6 @@
   </dialog>
   <pre id="progress" hidden></pre>
   <pre id="result" hidden></pre>
-  <script type="module" src="./dist/bundle.js?v=m11-character-select1"></script>
+  <script type="module" src="./dist/bundle.js?v=20260905-arrange-source-y-1"></script>
 </body>
 </html>

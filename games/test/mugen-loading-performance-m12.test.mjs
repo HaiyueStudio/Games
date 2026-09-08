@@ -16,7 +16,7 @@ test('M12 caps high-DPI render work to a 1080p-class pixel budget', () => {
 });
 
 test('M12 reuses immutable stage actors until a visible input changes', () => {
-  const stage = { backgrounds: [], localCoord: [320, 240], stageScale: [1, 1] };
+  const stage = { backgrounds: [], localCoord: [320, 240], legacyHighResolution: false, stageScale: [1, 1] };
   const camera = { position: [0, 0] };
   const cache = new MugenStageRenderCache();
   const first = cache.actors(stage, camera, 1, { width: 1280, height: 720 });

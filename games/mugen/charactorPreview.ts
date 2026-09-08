@@ -3,9 +3,12 @@ import { defineSelectComponents, HYSelect, type HYSelectOption } from '@haiyue/u
 import { defineCheckboxComponents, HYCheckbox } from '@haiyue/ui/checkbox';
 import { defineRangeComponents, HYRange } from '@haiyue/ui/range';
 import { defineSplitComponents, HYSplit } from '@haiyue/ui/split';
+import { defineTabsComponents, HYTabs } from '@haiyue/ui/tabs';
 import { MugenImportFailure } from './import/diagnostics';
+import { importMugenStage, type MugenStageModel } from './import/stage/MugenStageParser';
+import { prepareMugenStageSourceSet } from './import/stage/MugenStageDefinitionFallback';
 import { collectMugenInputsFromDirectoryHandle, collectMugenInputsFromFileList } from './import/vfs/browserDirectory';
-import type { MugenVfsInput } from './import/vfs/MugenVfs';
+import { createMugenVfs, type MugenVfsInput } from './import/vfs/MugenVfs';
 import { createMugenImportWorkerClient, isMugenWorkerAbort, type MugenImportWorkerClient, type MugenWorkerImportResult } from './import/worker/MugenImportWorkerClient';
 import type { MugenWorkerProgressReply } from './import/worker/protocol';
 import { decodeMugenPackage } from './package/codec';
@@ -24,15 +27,19 @@ import { MugenViewerPreferenceStore } from './viewer/MugenViewerPreferences';
 import { MugenWebGpuView, type MugenViewerBackground } from './viewer/MugenWebGpuView';
 import { createMugenActionListItem, defineMugenActionListItem } from './viewer/MugenActionListItem';
 import { listMugenViewerHitAudioCandidates, MugenViewerAudio, type MugenViewerInferredHitAudio } from './viewer/MugenViewerAudio';
+import { MugenStageAudio } from './viewer/MugenStageAudio';
+import { mugenStageClipRect, MugenStageRenderCache, transformMugenStageRenderActors } from './game/MugenStageRenderer';
+import { MugenStageCamera } from './runtime/stage/MugenStageCamera';
 
 defineVirtualListComponents();
 defineSelectComponents();
 defineCheckboxComponents();
 defineRangeComponents();
 defineSplitComponents();
+defineTabsComponents();
 defineMugenActionListItem();
 
-const VIEWER_BUILD_REVISION = '20260904-audio-loop-default-2';
+const VIEWER_BUILD_REVISION = '20260905-legacy-hires-1';
 
 type PreviewAudioChoiceSource = 'none' | 'authored' | 'inferred' | 'library';
 interface PreviewAudioChoice {
@@ -44,8 +51,10 @@ interface PreviewAudioChoice {
 
 class MugenCharacterViewerApp {
   readonly #view: MugenWebGpuView;
+  readonly #stageView: MugenWebGpuView;
   readonly #preferences = new MugenViewerPreferenceStore();
   readonly #audio = new MugenViewerAudio();
+  readonly #stageAudio = new MugenStageAudio();
   #worker: MugenImportWorkerClient | null = null;
   #activeImport: AbortController | null = null;
   #pendingInputs: readonly MugenVfsInput[] | null = null;
@@ -55,6 +64,17 @@ class MugenCharacterViewerApp {
   #spriteById: ReturnType<typeof spriteReferenceResolver> | null = null;
   #animationFrame: number | null = null;
   #lastFrameTime = performance.now();
+  #stageTick = 0;
+  #stageZoom = 1;
+  #stagePanX = 0;
+  #stagePanY = 0;
+  #stageDrag: { pointerId: number; x: number; y: number } | null = null;
+  #stageModel: MugenStageModel | null = null;
+  #stageCamera: MugenStageCamera | null = null;
+  readonly #stageRenderCache = new MugenStageRenderCache();
+  #stagePendingInputs: readonly MugenVfsInput[] | null = null;
+  #stageImportGeneration = 0;
+  #stageImportAbort: AbortController | null = null;
   #zoom = 2;
   #panX = 0;
   #panY = 0;
@@ -68,6 +88,7 @@ class MugenCharacterViewerApp {
   readonly #fileButton = element<HTMLButtonElement>('file-button');
   readonly #pickerButton = element<HTMLButtonElement>('picker-button');
   readonly #cancelImportButton = element<HTMLButtonElement>('cancel-import');
+  readonly #characterImportActions = element<HTMLElement>('character-import-actions');
   readonly #entryChoice = element<HTMLElement>('entry-choice');
   readonly #entrySelect = element<HYSelect>('entry-select');
   readonly #entryImport = element<HTMLButtonElement>('entry-import');
@@ -107,12 +128,40 @@ class MugenCharacterViewerApp {
   readonly #diagnosticCount = element<HTMLElement>('diagnostic-count');
   readonly #workspaceSplit = element<HYSplit>('workspace-split');
   readonly #viewerSplit = element<HYSplit>('viewer-split');
+  readonly #previewTabs = element<HYTabs>('preview-tabs');
+  readonly #stageDirectoryInput = element<HTMLInputElement>('stage-directory-input');
+  readonly #stageFileButton = element<HTMLButtonElement>('stage-file-button');
+  readonly #stagePickerButton = element<HTMLButtonElement>('stage-picker-button');
+  readonly #stageEntryChoice = element<HTMLElement>('stage-entry-choice');
+  readonly #stageEntrySelect = element<HYSelect>('stage-entry-select');
+  readonly #stageEntryImport = element<HTMLButtonElement>('stage-entry-import');
+  readonly #stageImportState = element<HTMLElement>('stage-import-state');
+  readonly #stageDropHint = element<HTMLElement>('stage-drop-hint');
+  readonly #stageFrameBadge = element<HTMLElement>('stage-frame-badge');
+  readonly #stageGpuBadge = element<HTMLElement>('stage-gpu-badge');
+  readonly #stageName = element<HTMLElement>('stage-name');
+  readonly #stageMeta = element<HTMLElement>('stage-meta');
+  readonly #stageEntryLabel = element<HTMLElement>('stage-entry-label');
+  readonly #stageDetails = element<HTMLElement>('stage-details');
+  readonly #stageDiagnostics = element<HTMLElement>('stage-diagnostics');
+  readonly #stageDiagnosticCount = element<HTMLElement>('stage-diagnostic-count');
+  readonly #stageSplit = element<HYSplit>('stage-split');
+  readonly #stageZoomControl = element<HYRange>('stage-zoom-control');
+  readonly #stageZoomValue = element<HTMLElement>('stage-zoom-value');
+  readonly #stageResetView = element<HTMLButtonElement>('stage-reset-view');
 
   constructor() {
     const canvas = element<HTMLCanvasElement>('viewer-canvas');
     const overlay = element<HTMLCanvasElement>('debug-canvas');
     const stage = element<HTMLElement>('viewer-stage');
     this.#view = new MugenWebGpuView(canvas, overlay, stage, error => this.#showError(error));
+    this.#stageView = new MugenWebGpuView(
+      element<HTMLCanvasElement>('stage-canvas'),
+      element<HTMLCanvasElement>('stage-debug-canvas'),
+      element<HTMLElement>('stage-viewer'),
+      error => this.#showStageError(error),
+    );
+    this.#previewTabs.options = [{ value: 'character', label: '角色动画' }, { value: 'stage', label: '舞台场景' }];
     this.#actionList.renderItem = action => createMugenActionListItem(action, action.id === this.#controller?.selected.id);
     replaceOptions(this.#actionFilter, [
       { value: 'all', label: '全部动作' }, { value: 'loop', label: '带 LoopStart' },
@@ -139,6 +188,7 @@ class MugenCharacterViewerApp {
     this.#bindCatalogControls();
     this.#bindPlaybackControls();
     this.#bindViewportControls();
+    this.#bindStageControls();
     this.#bindBrowserVerificationControls();
     await this.#restorePreferences();
     try {
@@ -153,6 +203,14 @@ class MugenCharacterViewerApp {
       console.error('[MUGEN viewer] WebGPU initialization failed; action parsing remains available.', error);
       this.#importState.textContent = 'WebGPU 初始化失败，仍可导入并查看 action 列表';
     }
+    try {
+      await this.#stageView.init();
+      this.#stageGpuBadge.textContent = 'WEBGPU READY';
+    } catch (error) {
+      this.#stageGpuBadge.textContent = 'WEBGPU UNAVAILABLE';
+      this.#stageImportState.textContent = 'WebGPU 初始化失败，仍可检查 Stage 解析信息';
+      console.error('[MUGEN viewer] Stage WebGPU initialization failed.', error);
+    }
     document.body.dataset.renderStatus = 'ready';
     this.#animationFrame = requestAnimationFrame(time => this.#frame(time));
   }
@@ -161,14 +219,18 @@ class MugenCharacterViewerApp {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#activeImport?.abort(); this.#activeImport = null;
+    this.#stageImportAbort?.abort(); this.#stageImportAbort = null;
     this.#worker?.dispose(); this.#worker = null;
     if (this.#animationFrame !== null) cancelAnimationFrame(this.#animationFrame);
     this.#animationFrame = null;
     this.#view.dispose();
+    this.#stageView.dispose();
     this.#audio.dispose();
+    this.#stageAudio.dispose();
     void this.#preferences.flush();
     this.#longTaskObserver?.disconnect(); this.#longTaskObserver = null;
     this.#pendingInputs = null; this.#model = null; this.#controller = null; this.#spriteById = null;
+    this.#stagePendingInputs = null; this.#stageModel = null; this.#stageCamera = null;
   }
 
   #bindImportControls(): void {
@@ -196,6 +258,171 @@ class MugenCharacterViewerApp {
     this.#entryImport.addEventListener('click', () => {
       if (this.#pendingInputs) void this.#startImport(this.#pendingInputs, this.#entrySelect.value);
     });
+  }
+
+  #bindStageControls(): void {
+    this.#previewTabs.addEventListener('tab-change', () => {
+      this.#lastFrameTime = performance.now();
+      if (this.#previewTabs.value === 'stage') {
+        this.#audio.stop();
+        void this.#stageAudio.unlock().then(() => this.#syncStageAudio());
+      } else this.#stageAudio.stop();
+      this.#syncTabChrome();
+      this.#savePreferences();
+    });
+    this.#stageSplit.addEventListener('ratio-change', () => this.#savePreferences());
+    this.#stageFileButton.addEventListener('click', () => { void this.#stageAudio.unlock(); this.#stageDirectoryInput.click(); });
+    this.#stageDirectoryInput.addEventListener('change', () => {
+      const files = this.#stageDirectoryInput.files;
+      if (!files || files.length === 0) return;
+      void collectMugenInputsFromFileList(files).then(inputs => this.#prepareStageInputs(inputs)).catch(error => this.#showStageError(error));
+      this.#stageDirectoryInput.value = '';
+    });
+    const pickerWindow = window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> };
+    if (!pickerWindow.showDirectoryPicker) this.#stagePickerButton.hidden = true;
+    this.#stagePickerButton.addEventListener('click', () => {
+      void this.#stageAudio.unlock();
+      void (async () => {
+        try {
+          const handle = await pickerWindow.showDirectoryPicker?.();
+          if (handle) this.#prepareStageInputs(await collectMugenInputsFromDirectoryHandle(handle));
+        } catch (error) { if (!isPickerCancel(error)) this.#showStageError(error); }
+      })();
+    });
+    this.#stageEntryImport.addEventListener('click', () => {
+      if (this.#stagePendingInputs) void this.#startStageImport(this.#stagePendingInputs, this.#stageEntrySelect.value);
+    });
+    this.#stageZoomControl.addEventListener('value-input', () => this.#setStageZoom(this.#stageZoomControl.value / 100));
+    this.#stageZoomControl.addEventListener('value-change', () => { this.#setStageZoom(this.#stageZoomControl.value / 100); this.#savePreferences(); });
+    this.#stageResetView.addEventListener('click', () => { this.#stageZoom = 1; this.#stagePanX = 0; this.#stagePanY = 0; this.#syncStageViewControls(); this.#savePreferences(); });
+    const overlay = this.#stageView.overlay;
+    overlay.addEventListener('pointerdown', event => {
+      if (this.#stageModel === null || event.button !== 0) return;
+      overlay.setPointerCapture(event.pointerId);
+      this.#stageDrag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+      overlay.dataset.dragging = 'true';
+    });
+    overlay.addEventListener('pointermove', event => {
+      if (this.#stageDrag?.pointerId !== event.pointerId) return;
+      this.#stagePanX += event.clientX - this.#stageDrag.x;
+      this.#stagePanY += event.clientY - this.#stageDrag.y;
+      this.#stageDrag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    });
+    const stopDrag = (event: PointerEvent) => {
+      if (this.#stageDrag?.pointerId !== event.pointerId) return;
+      this.#stageDrag = null; delete overlay.dataset.dragging; this.#savePreferences();
+    };
+    overlay.addEventListener('pointerup', stopDrag); overlay.addEventListener('pointercancel', stopDrag);
+    overlay.addEventListener('wheel', event => {
+      event.preventDefault();
+      this.#setStageZoom(this.#stageZoom * Math.exp(-event.deltaY * .001));
+      this.#savePreferences();
+    }, { passive: false });
+  }
+
+  #prepareStageInputs(inputs: readonly MugenVfsInput[]): void {
+    const prepared = prepareMugenStageSourceSet(inputs); const candidates = prepared.entryDefs;
+    console.info('[MUGEN viewer] Stage entry candidates discovered.', { files: inputs.length, candidates, generatedEntryDefs: prepared.generatedEntryDefs });
+    if (candidates.length === 0) { this.#showStageError(new Error('所选目录中没有找到 Stage DEF 或可用于自动补全的 SFF 文件。')); return; }
+    this.#stagePendingInputs = prepared.inputs;
+    replaceOptions(this.#stageEntrySelect, candidates.map(path => ({ value: path, label: path })));
+    if (candidates.length > 1) {
+      this.#stageEntryChoice.hidden = false;
+      this.#stageImportState.textContent = prepared.generatedEntryDefs.length > 0 ? `缺少 DEF，已从 ${candidates.length} 个 SFF 生成推断入口，请选择` : `请选择 ${candidates.length} 个舞台入口之一`;
+      return;
+    }
+    this.#stageEntryChoice.hidden = true;
+    if (prepared.generatedEntryDefs.length > 0) this.#stageImportState.textContent = '未找到 DEF，正在根据 SFF 自动补全推断舞台';
+    void this.#startStageImport(prepared.inputs, candidates[0]!);
+  }
+
+  async #startStageImport(inputs: readonly MugenVfsInput[], entryDef: string): Promise<void> {
+    this.#stageImportAbort?.abort();
+    this.#stageAudio.stop();
+    const abortController = new AbortController(); this.#stageImportAbort = abortController;
+    const generation = ++this.#stageImportGeneration;
+    this.#stageEntryChoice.hidden = true;
+    this.#stageImportState.textContent = `正在解析 ${entryDef}`;
+    console.info('[MUGEN viewer] Stage import started.', { entryDef, files: inputs.length, generation });
+    try {
+      const vfs = await createMugenVfs(inputs, abortController.signal);
+      const model = await importMugenStage(vfs, 'uploaded-stage', entryDef, abortController.signal);
+      if (generation !== this.#stageImportGeneration) return;
+      this.#stageModel = model;
+      this.#stageCamera = new MugenStageCamera({
+        start: model.camera.start,
+        horizontalBounds: model.camera.horizontalBounds,
+        verticalBounds: model.camera.verticalBounds,
+        localCoord: model.localCoord,
+        tension: model.camera.tension,
+        verticalFollow: model.camera.verticalFollow,
+        floorTension: model.camera.floorTension,
+        screenMargins: model.camera.screenMargins,
+        playerBounds: model.playerBounds,
+      });
+      this.#stageTick = 0;
+      this.#stagePanX = 0; this.#stagePanY = 0; this.#syncStageViewControls();
+      this.#stagePendingInputs = null;
+      this.#renderStageModel(model);
+      this.#stageDropHint.hidden = true;
+      this.#stageImportState.textContent = '舞台解析完成，正在上传 WebGPU atlas';
+      try {
+        const stats = await this.#stageView.installModels([model.renderModel], abortController.signal);
+        if (generation !== this.#stageImportGeneration) return;
+        this.#stageGpuBadge.textContent = `${stats.pageCount} ATLAS · ${formatBytes(stats.gpuBytes)}`;
+        this.#stageImportState.textContent = model.music === null ? '舞台载入完成 · 未找到 BGM' : '舞台载入完成 · 动画与 BGM 播放中';
+        this.#syncStageAudio();
+        console.info('[MUGEN viewer] Stage WebGPU atlas installed.', stats);
+      } catch (error) {
+        if (!abortController.signal.aborted) this.#showStageError(error, true);
+      }
+    } catch (error) {
+      if (generation === this.#stageImportGeneration && !abortController.signal.aborted) this.#showStageError(error);
+    } finally {
+      if (generation === this.#stageImportGeneration) this.#stageImportAbort = null;
+    }
+  }
+
+  #renderStageModel(model: MugenStageModel): void {
+    this.#stageName.textContent = model.displayName;
+    this.#stageMeta.textContent = model.definitionSource === 'inferred' ? '自动补全 DEF · 图层、动画与镜头参数为 SFF 推断值' : [model.authorName ? `作者 ${model.authorName}` : null, model.mugenVersion ? `MUGEN ${model.mugenVersion}` : null].filter(Boolean).join(' · ') || model.entryDef;
+    this.#stageEntryLabel.textContent = model.entryDef;
+    replaceDetails(this.#stageDetails, [
+      ['Size', `${model.localCoord[0]} × ${model.localCoord[1]}`],
+      ['Layers', `${model.backgrounds.length} 个背景元素 · BG ${model.backgrounds.filter(value => value.layer === 0).length} / FG ${model.backgrounds.filter(value => value.layer === 1).length}`],
+      ['Animation', `${model.backgrounds.filter(value => value.animation !== null).length} 个动态背景`],
+      ['Music', model.music === null ? '无可用 BGM' : `${model.music.path} · ${Math.round(model.music.volume * 100)}%`],
+      ['Camera', `X ${model.camera.horizontalBounds.join(' … ')} · Y ${model.camera.verticalBounds.join(' … ')}`],
+      ['Ground', `zoffset ${formatNumber(model.zOffset)}`],
+    ]);
+    this.#stageDiagnosticCount.textContent = model.definitionSource === 'inferred' ? '1 diagnostic' : '0 diagnostics';
+    this.#stageDiagnostics.replaceChildren();
+    if (model.definitionSource === 'inferred') {
+      const warning = document.createElement('div'); warning.className = 'diagnostic warning';
+      warning.textContent = '原素材缺少 Stage DEF：已根据 SFF 分组、尺寸和轴点生成可预览舞台；原作者的精确镜头、层级及动画时序无法从 SFF 完整恢复。';
+      this.#stageDiagnostics.append(warning);
+    }
+    const facts = document.createElement('div'); facts.className = 'diagnostic';
+    facts.textContent = `入口 ${model.entryDef} · SHA ${model.sourceSetSha256.slice(0, 12)}… · Sprite ${model.renderModel.sprites.length} · 背景元素 ${model.backgrounds.length}`;
+    this.#stageDiagnostics.append(facts);
+    this.#stageFrameBadge.textContent = `STAGE ${model.localCoord[0]}×${model.localCoord[1]} · BG ${model.backgrounds.length}`;
+    document.body.dataset.stagePreviewStatus = 'ready';
+  }
+
+  #syncStageAudio(): void {
+    const music = this.#stageModel?.music;
+    if (this.#previewTabs.value !== 'stage' || music === null || music === undefined) { this.#stageAudio.stop(); return; }
+    void this.#stageAudio.play(music);
+  }
+
+  #showStageError(error: unknown, keepModel = false): void {
+    console.error('[MUGEN viewer] Stage operation failed.', error);
+    const message = error instanceof Error ? error.message : String(error);
+    this.#stageImportState.textContent = message;
+    this.#stageDiagnosticCount.textContent = '1 diagnostic';
+    const item = document.createElement('div'); item.className = 'diagnostic error'; item.textContent = message;
+    this.#stageDiagnostics.replaceChildren(item);
+    if (!keepModel) { this.#stageAudio.stop(); document.body.dataset.stagePreviewStatus = 'error'; }
   }
 
   #bindCatalogControls(): void {
@@ -563,7 +790,8 @@ class MugenCharacterViewerApp {
     if (this.#disposed) return;
     const elapsed = Math.max(0, (time - this.#lastFrameTime) / 1000); this.#lastFrameTime = time;
     const model = this.#model; const controller = this.#controller;
-    if (model && controller && this.#spriteById) {
+    if (this.#previewTabs.value === 'stage') this.#renderStageFrame(elapsed);
+    else if (model && controller && this.#spriteById) {
       try {
         const previousTick = controller.tick;
         const advanced = controller.advanceSeconds(elapsed);
@@ -590,6 +818,24 @@ class MugenCharacterViewerApp {
       }
     }
     this.#animationFrame = requestAnimationFrame(next => this.#frame(next));
+  }
+
+  #renderStageFrame(elapsed: number): void {
+    const stage = this.#stageModel; const camera = this.#stageCamera;
+    if (!stage || !camera) return;
+    this.#stageTick += Math.min(elapsed, .25) * 60;
+    const viewport = this.#stageView.resize();
+    const transformed = transformMugenStageRenderActors(this.#stageRenderCache.actors(stage, camera.snapshot(), Math.floor(this.#stageTick), viewport), viewport, {
+      scale: this.#stageZoom,
+      offset: Object.freeze([this.#stagePanX * viewport.devicePixelRatio, this.#stagePanY * viewport.devicePixelRatio]),
+    });
+    const actors = [...transformed]
+      .sort((left, right) => left.layer - right.layer || left.order - right.order || left.id.localeCompare(right.id, 'en'))
+      .map(value => value.actor);
+    this.#stageView.renderActors(actors, {
+      background: 'dark', clipRect: mugenStageClipRect(viewport, stage.localCoord), paletteId: null, originX: viewport.width / 2, originY: viewport.height * .8,
+      debug: { origin: false, axis: false, spriteBounds: false, clsn1: false, clsn2: false },
+    });
   }
 
   #updateInspector(snapshot: ReturnType<MugenViewerController['snapshot']>, displayTick: number): void {
@@ -626,6 +872,16 @@ class MugenCharacterViewerApp {
     this.#zoomValue.textContent = `${Math.round(this.#zoom * 100)}%`;
   }
 
+  #setStageZoom(value: number): void {
+    this.#stageZoom = Math.max(.25, Math.min(4, value));
+    this.#syncStageViewControls();
+  }
+
+  #syncStageViewControls(): void {
+    this.#stageZoomControl.value = Math.round(this.#stageZoom * 100);
+    this.#stageZoomValue.textContent = `${Math.round(this.#stageZoom * 100)}%`;
+  }
+
   #showError(error: unknown): void {
     const diagnostics = error instanceof MugenImportFailure ? error.diagnostics : [];
     console.error('[MUGEN viewer] Operation failed.', error, diagnostics);
@@ -648,6 +904,13 @@ class MugenCharacterViewerApp {
     this.#setVolume((value.volume ?? 0.8) * 100);
     this.#workspaceSplit.ratio = value.workspaceSplitRatio ?? this.#workspaceSplit.ratio;
     this.#viewerSplit.ratio = value.viewerSplitRatio ?? this.#viewerSplit.ratio;
+    this.#stageSplit.ratio = value.stageSplitRatio ?? this.#stageSplit.ratio;
+    this.#stageZoom = value.stageZoom ?? 1;
+    this.#stagePanX = value.stagePanX ?? 0;
+    this.#stagePanY = value.stagePanY ?? 0;
+    this.#syncStageViewControls();
+    this.#previewTabs.value = value.previewTab ?? 'character';
+    this.#syncTabChrome();
     element<HYCheckbox>('debug-origin').checked = value.origin;
     element<HYCheckbox>('debug-axis').checked = value.axis;
     element<HYCheckbox>('debug-bounds').checked = value.spriteBounds;
@@ -663,6 +926,11 @@ class MugenCharacterViewerApp {
       volume: this.#volumeControl.value / 100,
       workspaceSplitRatio: this.#workspaceSplit.ratio,
       viewerSplitRatio: this.#viewerSplit.ratio,
+      stageSplitRatio: this.#stageSplit.ratio,
+      stageZoom: this.#stageZoom,
+      stagePanX: this.#stagePanX,
+      stagePanY: this.#stagePanY,
+      previewTab: this.#previewTabs.value === 'stage' ? 'stage' : 'character',
       origin: checked('debug-origin'),
       axis: checked('debug-axis'),
       spriteBounds: checked('debug-bounds'),
@@ -670,6 +938,8 @@ class MugenCharacterViewerApp {
       clsn2: checked('debug-clsn2'),
     });
   }
+
+  #syncTabChrome(): void { this.#characterImportActions.hidden = this.#previewTabs.value === 'stage'; }
 
   async #togglePlayback(): Promise<void> {
     const controller = this.#controller; if (!controller) return;

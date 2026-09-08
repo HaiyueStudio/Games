@@ -1,0 +1,364 @@
+ ;--------------------------------------------------------
+[Info]
+Name = "Clock Tower"
+Author = "EXShadow"
+
+;--------------------------------------------------------
+[Camera]
+startx = 0
+starty = 0
+boundleft = -170
+boundright = 170
+boundhigh = -232
+verticalfollow = .95
+floortension = 54
+tension = 50
+
+;--------------------------------------------------------
+[PlayerInfo]
+p1startx = -70          ;Starting x coordinates
+p1starty = 0            ;Starting y coordinates
+p1startz = 0            ;Starting z coordinates
+p1facing = 1            ;Direction player faces: 1=right, -1=left
+
+;--- Player 2 ---
+p2startx = 70
+p2starty = 0
+p2startz = 0
+p2facing = -1
+
+;--- Common ---
+leftbound  = -1000 ;Left bound (x-movement)
+rightbound =  1000 ;Right bound
+topbound  =  0     ;Top bound (z-movement)
+botbound  =  0     ;Bottom bound
+
+;--------------------------------------------------------
+[Scaling]
+topz     = 0       ;Top z-coordinate for scaling
+botz     = 50      ;Bottom z-coordinate for scaling
+topscale = 1      ;Scale to use at top
+botscale = 1.2     ;Scale to use at bottom
+
+;--------------------------------------------------------
+[Bound]
+screenleft = 15    ;Dist from left of screen that player can move to
+screenright = 15   ;Right edge
+
+;--------------------------------------------------------
+[StageInfo]
+zoffset = 220
+autoturn = 1
+resetBG = 0
+hires = 1
+
+;--------------------------------------------------------
+[Shadow]
+intensity = 120
+color = 0,0,0
+yscale = .3
+fade.range = 0,0
+
+;--------------------------------------------------------
+[Reflection]
+intensity = 0
+
+;--------------------------------------------------------
+[Music]
+bgmusic = stages/XX'CLOCK'2'XX/XX'CLOCK'2'XX.mp3
+bgvolume = 0
+
+;--------------------------------------------------------Main background definition
+[BGdef]
+spr = XX'CLOCK'2'XX.sff
+debugbg = 0
+
+[BG Black]
+type  = normal
+spriteno = 0, 0
+delta = 0, 0
+mask = 0
+layerno = 0
+
+[BG Sky]
+type = normal
+spriteno = 5, 0
+start = 0, -10
+delta = 1, 1.10
+mask = 1
+tile = 1,0
+velocity = .2
+layerno = 0
+
+[BG Mountains]
+type = normal
+spriteno = 5, 1
+start = 0,3
+delta = 1.10, 1.17
+mask = 1
+tile = 1,0
+layerno = 0
+
+[BG Buildings]
+type = normal
+spriteno = 4, 0
+delta = 1.25, 1.30
+mask = 1
+layerno = 0
+
+[BG Buildings002]
+type = normal
+spriteno = 4, 1
+delta = 1.25, 1.30
+mask = 1
+trans = add
+layerno = 0
+
+[BG Buildings003]
+type = normal
+spriteno = 4, 2
+delta = 1.25, 1.30
+mask = 1
+trans = add
+layerno = 0
+
+[BG BlimpBack]
+type = normal
+spriteno = 1, 8
+delta = 1.35, 1.40
+mask = 1
+trans = sub
+velocity = .5,-.1
+layerno = 0
+
+[BG Blimp]
+type = normal
+spriteno = 1, 7
+delta = 1.35, 1.40
+mask = 1
+trans = add
+velocity = .5,-.1
+layerno = 0
+
+[BG FloorBack]
+type = normal
+spriteno = 1, 3
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG FloorPartAnim002]
+type = anim
+actionno = 2
+spriteno = 3, 0
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG Floor]
+type = normal
+spriteno = 1, 0
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG Floor002]
+type = normal
+spriteno = 1, 1
+start = 62,0
+delta = 2, 2
+mask = 1
+trans = add
+layerno = 0
+
+[BG Floor003]
+type = normal
+spriteno = 1, 2
+start = 62,0
+delta = 2, 2
+mask = 1
+trans = add
+layerno = 0
+
+[BG FloorPartAnim]
+type = anim
+actionno = 1
+spriteno = 2, 0
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG Flag]
+type = anim
+actionno = 3
+spriteno = 10, 0
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG FloorC]
+type = normal
+spriteno = 1, 6
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG FloorC]
+type = normal
+spriteno = 1, 11
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG FloorC002]
+type = normal
+spriteno = 1, 9
+start = 62,0
+delta = 2, 2
+mask = 1
+layerno = 0
+
+[BG Hue]
+type = normal
+spriteno = 1, 10
+start = 62,0
+delta = 2, 2
+mask = 1
+trans = addalpha
+alpha = 256,250
+layerno = 1
+
+;--------------------------------------------------------Animations
+[Begin Action 1]
+2,0, 0,0, 3
+2,1, 0,0, 3
+2,2, 0,0, 3
+2,3, 0,0, 3
+2,4, 0,0, 3
+2,5, 0,0, 3
+2,6, 0,0, 3
+2,7, 0,0, 3
+2,8, 0,0, 3
+2,9, 0,0, 3
+2,10, 0,0, 3
+2,11, 0,0, 3
+2,12, 0,0, 3
+2,13, 0,0, 3
+2,14, 0,0, 3
+2,15, 0,0, 3
+2,16, 0,0, 3
+2,17, 0,0, 3
+2,18, 0,0, 3
+2,19, 0,0, 3
+2,20, 0,0, 3
+2,21, 0,0, 3
+2,22, 0,0, 3
+2,23, 0,0, 3
+2,24, 0,0, 3
+2,25, 0,0, 3
+2,26, 0,0, 3
+2,27, 0,0, 3
+2,28, 0,0, 3
+2,29, 0,0, 3
+2,30, 0,0, 3
+2,31, 0,0, 3
+2,32, 0,0, 3
+2,33, 0,0, 3
+2,34, 0,0, 3
+2,35, 0,0, 3
+2,36, 0,0, 3
+2,37, 0,0, 3
+2,38, 0,0, 3
+2,39, 0,0, 3
+2,40, 0,0, 3
+2,41, 0,0, 3
+2,42, 0,0, 3
+2,43, 0,0, 3
+2,44, 0,0, 3
+2,45, 0,0, 3
+2,46, 0,0, 3
+2,47, 0,0, 3
+
+[Begin Action 2]
+3,0, 0,0, 3
+3,1, 0,0, 3
+3,2, 0,0, 3
+3,3, 0,0, 3
+3,4, 0,0, 3
+3,5, 0,0, 3
+3,6, 0,0, 3
+3,7, 0,0, 3
+3,8, 0,0, 3
+3,9, 0,0, 3
+3,10, 0,0, 3
+3,11, 0,0, 3
+3,12, 0,0, 3
+3,13, 0,0, 3
+3,14, 0,0, 3
+3,15, 0,0, 3
+3,16, 0,0, 3
+3,17, 0,0, 3
+3,18, 0,0, 3
+3,19, 0,0, 3
+3,20, 0,0, 3
+3,21, 0,0, 3
+3,22, 0,0, 3
+3,23, 0,0, 3
+3,24, 0,0, 3
+3,25, 0,0, 3
+3,26, 0,0, 3
+3,27, 0,0, 3
+3,28, 0,0, 3
+3,29, 0,0, 3
+3,30, 0,0, 3
+3,31, 0,0, 3
+3,32, 0,0, 3
+3,33, 0,0, 3
+3,34, 0,0, 3
+3,35, 0,0, 3
+3,36, 0,0, 3
+3,37, 0,0, 3
+3,38, 0,0, 3
+3,39, 0,0, 3
+3,40, 0,0, 3
+3,41, 0,0, 3
+3,42, 0,0, 3
+3,43, 0,0, 3
+3,44, 0,0, 3
+3,45, 0,0, 3
+3,46, 0,0, 3
+3,47, 0,0, 3
+
+[Begin Action 3]
+10,0, 0,0, 3
+10,1, 0,0, 3
+10,2, 0,0, 3
+10,3, 0,0, 3
+10,4, 0,0, 3
+10,5, 0,0, 3
+10,6, 0,0, 3
+10,7, 0,0, 3
+10,8, 0,0, 3
+10,9, 0,0, 3
+10,10, 0,0, 3
+10,11, 0,0, 3
+10,12, 0,0, 3
+10,13, 0,0, 3
+10,14, 0,0, 3
+10,15, 0,0, 3
+10,16, 0,0, 3
+10,17, 0,0, 3
+10,18, 0,0, 3
+10,19, 0,0, 3
+10,20, 0,0, 3
+10,21, 0,0, 3
+10,22, 0,0, 3
+10,23, 0,0, 3
+10,24, 0,0, 3

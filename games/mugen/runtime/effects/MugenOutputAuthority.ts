@@ -60,7 +60,7 @@ export type MugenRgbAffineColorMatrix = readonly [number, number, number, number
 export type MugenOutputEvent =
   | Readonly<{ kind: 'force-feedback'; policy: 'browser-gamepad-best-effort'; entityId: string; rootId: string; target: 'self' | 'opponent'; waveform: MugenForceFeedbackWaveform; time: number; frequency: readonly [number, number, number, number]; amplitude: readonly [number, number, number, number] }>
   | Readonly<{ kind: 'clipboard-debug'; policy: 'internal-debug-buffer'; entityId: string; mode: 'replace' | 'append' | 'clear'; text: string; paramsSource: string }>
-  | Readonly<{ kind: 'legacy-animation'; policy: 'fightfx-render-event'; entityId: string; animationNumber: number; position: readonly [number, number]; facing: -1 | 1; layer: 'below' | 'above' }>
+  | Readonly<{ kind: 'legacy-animation'; policy: 'character-or-fightfx-render-event'; entityId: string; animationOwnerId: string | 'fight'; animationNumber: number; position: readonly [number, number]; facing: -1 | 1; layer: 'below' | 'above' }>
   | Readonly<{ kind: 'hit-spark'; policy: 'character-or-fightfx-render-event'; entityId: string; animationOwnerId: string | 'fight'; animationNumber: number; position: readonly [number, number]; facing: -1 | 1; layer: 'above' }>
   | Readonly<{ kind: 'dust'; policy: 'fightfx-render-event'; entityId: string; positions: readonly (readonly [number, number])[]; spacing: number }>;
 

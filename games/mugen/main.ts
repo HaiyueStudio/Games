@@ -8,11 +8,11 @@ import { MugenTransientAnimationLifecycle, type MugenTransientAnimationFrame, ty
 import { MugenGameAudio, type MugenGameAudioConsumeResult } from './game/MugenGameAudio';
 import { initialMugenRoundAudioCues, planMugenRoundAudioCues } from './game/MugenRoundAudio';
 import { MugenBrowserOutput } from './game/MugenBrowserOutput';
-import { applyMugenOutputTransform } from './game/MugenOutputRender';
+import { applyMugenOutputTransform, isMugenHelperAnimationReady, placeMugenScreenExplod, projectMugenScreenExplod, resolveMugenSpritePaletteId, selectMugenCharacterPaletteId } from './game/MugenOutputRender';
 import { loadMugenFightFx, loadMugenFightFxFromDirectoryHandle, loadMugenFightFxFromFileList, type MugenFightFxModel } from './game/MugenFightFx';
 import { assignMugenKey, createMugenBrowserPlayerBindings, loadMugenKeyBindings, MUGEN_BINDABLE_ACTIONS, MUGEN_DEFAULT_KEY_BINDINGS, mugenKeyLabel, saveMugenKeyBindings, type MugenBindableAction, type MugenBindingPlayer, type MugenKeyBindings } from './game/MugenKeyBindings';
 import { loadMugenBuiltInStage, loadMugenStageCatalog, type MugenStageCatalogEntry } from './game/MugenStageCatalog';
-import { MugenStageRenderCache } from './game/MugenStageRenderer';
+import { mugenStageClipRect, MugenStageRenderCache } from './game/MugenStageRenderer';
 import { bindMugenSnapshotToSpriteOwner } from './game/MugenAnimationOwnership';
 import { mugenCharacterToStageScale, mugenStageViewportTransform } from './game/MugenCharacterScale';
 import { MugenFlowUi, type MugenFlowScreen, type MugenGameMode } from './game/MugenFlowUi';
@@ -20,6 +20,7 @@ import type { MugenStageModel } from './import/stage/MugenStageParser';
 import { MugenCombatRuntime } from './runtime/combat/MugenCombatRuntime';
 import { MugenFixedStepInputDriver, MugenLegacyAiInput } from './runtime/input/index';
 import { MugenHeadlessMatch, type MugenMatchConfig, type MugenMatchEvent, type MugenMatchSnapshot } from './runtime/match/MugenMatchState';
+import { MugenStageCamera } from './runtime/stage/MugenStageCamera';
 import { MugenScriptRuntime } from './runtime/script/MugenScriptRuntime';
 import { mugenAfterImageColorMatrix, mugenPaletteColorMatrix, mugenShakeOffset, type MugenEntityOutputState, type MugenOutputAuthoritySnapshot } from './runtime/effects/MugenOutputAuthority';
 import type { MugenRenderAssetModel } from './viewer/MugenCharacterModel';
@@ -45,6 +46,7 @@ interface MugenAfterImagePose {
 const AFTER_IMAGE_BROWSER_VERIFICATION_EFFECT = Object.freeze({ remainingTicks: 2, length: 8, paletteColor: 256, paletteInvertAll: false, paletteBright: Object.freeze([30, 10, 0]) as readonly [number, number, number], paletteContrast: Object.freeze([180, 120, 60]) as readonly [number, number, number], palettePostBright: Object.freeze([0, 0, 0]) as readonly [number, number, number], paletteAdd: Object.freeze([-8, -4, 0]) as readonly [number, number, number], paletteMultiply: Object.freeze([.9, .8, .7]) as readonly [number, number, number], timeGap: 1, frameGap: 2, transparency: 'add' as const });
 const BROWSER_EFFECT_VERIFICATION_TICKS = 3600;
 const BROWSER_LIFECYCLE_RECEIPT_KEY = 'haiyue.mugen.lifecycle';
+const MATCH_RESULT_HOLD_TICKS = 180;
 
 class MugenFightApp {
   readonly #view: MugenWebGpuView;
@@ -63,10 +65,13 @@ class MugenFightApp {
   #fixtures = new Map<string, MugenBuiltInGameFixture>();
   #selectionPreviews = new Map<string, MugenCharacterSelectionPreview>();
   #portraitImages = new Map<string, HTMLCanvasElement>();
+  readonly #characterConfirmed = [false, false];
+  readonly #characterPaletteSlots = [0, 0];
   #previewVersion = 0;
   #characterLoader: MugenBuiltInGameFixtureLoader | null = null;
   #characterCatalog = new Map<string, MugenCharacterCatalogEntry>();
   #stageFixture: MugenStageModel | null = null;
+  #stagePreviewCamera: MugenStageCamera | null = null;
   #stageCatalog = new Map<string, MugenStageCatalogEntry>();
   #fightFx: MugenFightFxModel | null = null;
   #fightFxVerificationActor = false;
@@ -134,7 +139,7 @@ class MugenFightApp {
     this.#driver = this.#createInputDriver(this.#keyBindings);
     this.#view = new MugenWebGpuView(element<HTMLCanvasElement>('fight-canvas'), element<HTMLCanvasElement>('fight-debug'), this.#arena, error => this.#fail(error));
     this.#flow = new MugenFlowUi(element<HTMLCanvasElement>('flow-canvas'), {
-      chooseMode: mode => this.#chooseMode(mode), moveCharacter: (player, deltaColumn, deltaRow) => this.#moveCharacter(player, deltaColumn, deltaRow), selectCharacter: (player, characterId) => this.#selectCharacter(player, characterId), confirmCharacters: () => { if (this.#assetsReady) this.#setFlowScreen('stage'); }, cycleStage: direction => { void this.#cycleStage(direction); }, startFight: () => { void this.#startMatch(); }, togglePause: () => { void this.#togglePause(); }, exitFight: () => this.#exitFight(), showSettings: () => this.#setFlowScreen('settings'), openKeySettings: () => { void this.#openKeySettings(); }, resetKeys: () => this.#resetKeys(), goTitle: () => this.#setFlowScreen('title'),
+      chooseMode: mode => this.#chooseMode(mode), moveCharacter: (player, deltaColumn, deltaRow) => this.#moveCharacter(player, deltaColumn, deltaRow), selectCharacter: (player, characterId) => this.#selectCharacter(player, characterId), confirmCharacter: (player, paletteSlot) => this.#confirmCharacter(player, paletteSlot), confirmCharacters: () => this.#confirmCharacters(), cycleStage: direction => { void this.#cycleStage(direction); }, startFight: () => { void this.#startMatch(); }, togglePause: () => { void this.#togglePause(); }, exitFight: () => this.#exitFight(), showSettings: () => this.#setFlowScreen('settings'), openKeySettings: () => { void this.#openKeySettings(); }, resetKeys: () => this.#resetKeys(), goTitle: () => this.#setFlowScreen('title'),
     });
     this.#worker = createMugenImportWorkerClient({ workerUrl: new URL('./mugenImport.worker.js', import.meta.url), onProgress: progress => {
       const fixture = this.#fixtureLoadProgress; const local = progress.total <= 0 ? 0 : progress.completed / progress.total;
@@ -228,7 +233,7 @@ class MugenFightApp {
       seed: stage.seed, roundsToWin: 1, roundTimeTicks: 99 * 60, maxEventsPerTick: 512,
       fighters,
     });
-    const script = new MugenScriptRuntime([{ fighterId: 'P1', name: p1Fixture.characterName, authorName: p1Fixture.authorName, sourceHash: p1Fixture.packageSha256, commands: p1Fixture.commands, states: p1Fixture.states, localCoord: p1Fixture.localCoord, engineControlTransitions: p1Fixture.runtimeProfile === 'm09-native-character-common-v1' }, { fighterId: 'P2', name: p2Fixture.characterName, authorName: p2Fixture.authorName, sourceHash: p2Fixture.packageSha256, commands: p2Fixture.commands, states: p2Fixture.states, localCoord: p2Fixture.localCoord, engineControlTransitions: p2Fixture.runtimeProfile === 'm09-native-character-common-v1' }]);
+    const script = new MugenScriptRuntime([{ fighterId: 'P1', name: p1Fixture.characterName, authorName: p1Fixture.authorName, sourceHash: p1Fixture.packageSha256, commands: p1Fixture.commands, states: p1Fixture.states, localCoord: p1Fixture.localCoord, coordinateScale: stage.localCoord[0] / p1Fixture.localCoord[0], engineControlTransitions: p1Fixture.runtimeProfile === 'm09-native-character-common-v1' }, { fighterId: 'P2', name: p2Fixture.characterName, authorName: p2Fixture.authorName, sourceHash: p2Fixture.packageSha256, commands: p2Fixture.commands, states: p2Fixture.states, localCoord: p2Fixture.localCoord, coordinateScale: stage.localCoord[0] / p2Fixture.localCoord[0], engineControlTransitions: p2Fixture.runtimeProfile === 'm09-native-character-common-v1' }]);
     this.#match = new MugenHeadlessMatch(config);
     this.#combat = new MugenCombatRuntime(script, { fighters: [{ fighterId: 'P1', air: p1Fixture.air, coordinateScale: this.#characterStageScale(p1Fixture)[0] }, { fighterId: 'P2', air: p2Fixture.air, coordinateScale: this.#characterStageScale(p2Fixture)[0] }], ...(this.#fightFx === null ? {} : { fightAir: this.#fightFx.air, fightCoordinateScale: stage.localCoord[0] / this.#fightFx.localCoord[0] }), stageBounds: stage.playerBounds, camera: { start: stage.camera.start, horizontalBounds: stage.camera.horizontalBounds, verticalBounds: stage.camera.verticalBounds, localCoord: stage.localCoord, tension: stage.camera.tension, verticalFollow: stage.camera.verticalFollow, floorTension: stage.camera.floorTension, screenMargins: stage.camera.screenMargins, playerBounds: stage.playerBounds }, guardDistance: 90, koHoldTicks: 60 });
   }
@@ -272,19 +277,25 @@ class MugenFightApp {
     const result = match.endTick(); this.#captureAfterImages(result.state, trace.script.output); this.#captureTransientAnimations(trace.script.output);
     const suppressedKoSounds = new Set(trace.script.output.entities.filter(entity => entity.assertions.includes('nokosnd')).map(entity => entity.entityId));
     const audio = mergeAudioResults(this.#audio.consume(result.events), this.#audio.playCues(planMugenRoundAudioCues(result.state, result.events, suppressedKoSounds), result.tick)); document.body.dataset.mugenAudioRequested = String(audio.requested); document.body.dataset.mugenAudioPlayed = String(audio.played); document.body.dataset.mugenAudioMissing = String(audio.missing); if (this.#verifyFightSound && result.tick === 90) { const verification = this.#audio.consume([fightSoundVerificationEvent(result.tick)]); document.body.dataset.fightSoundVerification = verification.played === 1 && verification.missing === 0 ? 'played' : 'missing'; } this.#syncPhase(result.state); this.#publishBrowserCaptureResult(result.state);
-    if (result.state.phase === 'match-over') this.#finishMatch();
+    if (result.state.phase === 'match-over' && result.state.phaseTime >= MATCH_RESULT_HOLD_TICKS) this.#finishMatch();
   }
 
   #facings(): Readonly<Record<string, 1 | -1>> { const match = this.#match!; return Object.freeze(Object.fromEntries(match.config.fighters.map(fighter => [fighter.id, match.fighter(fighter.id).facing])) as Record<string, 1 | -1>); }
 
   #setFlowScreen(screen: MugenFlowScreen): void { this.#flowScreen = screen; document.body.dataset.flowScreen = screen; this.#syncFlowUi(); }
   #chooseMode(mode: MugenGameMode): void {
-    this.#gameMode = mode; this.#p1Control.value = mode === 'ai' ? '4' : '0'; this.#p2Control.value = mode === 'versus' ? '0' : '4'; this.#refreshInputDriver(); this.#setFlowScreen('select');
+    this.#gameMode = mode; this.#characterConfirmed[0] = false; this.#characterConfirmed[1] = false; this.#p1Control.value = mode === 'ai' ? '4' : '0'; this.#p2Control.value = mode === 'versus' ? '0' : '4'; this.#refreshInputDriver(); this.#setFlowScreen('select');
   }
   #moveCharacter(player: 0 | 1, deltaColumn: number, deltaRow: number): void {
-    const select = player === 0 ? this.#p1Select : this.#p2Select; if (select.options.length === 0 || select.disabled) return; select.selectedIndex = moveMugenCharacterSelection(select.selectedIndex, select.options.length, deltaColumn, deltaRow); this.#selectionChanged();
+    const select = player === 0 ? this.#p1Select : this.#p2Select; if (select.options.length === 0 || select.disabled) return; select.selectedIndex = moveMugenCharacterSelection(select.selectedIndex, select.options.length, deltaColumn, deltaRow); this.#characterConfirmed[player] = false; this.#characterPaletteSlots[player] = 0; this.#selectionChanged();
   }
-  #selectCharacter(player: 0 | 1, characterId: string): void { const select = player === 0 ? this.#p1Select : this.#p2Select; if (!this.#characterCatalog.has(characterId) || select.disabled) return; select.value = characterId; this.#selectionChanged(); }
+  #selectCharacter(player: 0 | 1, characterId: string): void { const select = player === 0 ? this.#p1Select : this.#p2Select; if (!this.#characterCatalog.has(characterId) || select.disabled) return; select.value = characterId; this.#characterConfirmed[player] = false; this.#characterPaletteSlots[player] = 0; this.#selectionChanged(); }
+  #confirmCharacter(player: 0 | 1, paletteSlot: number): void {
+    if (!this.#assetsReady || this.#flowScreen !== 'select' || !Number.isSafeInteger(paletteSlot) || paletteSlot < 0 || paletteSlot > 5) return;
+    this.#characterPaletteSlots[player] = paletteSlot; this.#characterConfirmed[player] = true; this.#syncFlowUi();
+    if (this.#gameMode === 'single' && player === 0 || this.#characterConfirmed[0] && this.#characterConfirmed[1]) this.#setFlowScreen('stage');
+  }
+  #confirmCharacters(): void { if (!this.#assetsReady) return; this.#characterConfirmed[0] = true; this.#characterConfirmed[1] = true; this.#setFlowScreen('stage'); }
   #selectionChanged(): void {
     if (this.#running || this.#fightLoading) return; this.#syncNames(); this.#refreshInputDriver(); document.body.dataset.selectedCharacters = `${this.#p1Select.value},${this.#p2Select.value}`; this.#syncFlowUi();
   }
@@ -299,17 +310,28 @@ class MugenFightApp {
     const p1 = snapshot?.fighters[0]; const p2 = snapshot?.fighters[1]; const p1Fixture = this.#fixtures.get(this.#p1Select.value); const p2Fixture = this.#fixtures.get(this.#p2Select.value); const time = snapshot?.roundTimeRemainingTicks === null ? '∞' : String(Math.max(0, Math.ceil((snapshot?.roundTimeRemainingTicks ?? 99 * 60) / 60))).padStart(2, '0');
     const result = snapshot?.phase !== 'match-over' ? '' : snapshot.matchWinnerId === 'P1' ? 'PLAYER 1 WINS' : snapshot.matchWinnerId === 'P2' ? 'PLAYER 2 WINS' : 'DRAW';
     const characters = [...this.#characterCatalog.values()].map(character => Object.freeze({ id: character.id, label: character.label, portrait: this.#portraitImages.get(character.id) ?? null }));
-    this.#flow.update(Object.freeze({ screen: this.#flowScreen, ready: this.#assetsReady && document.body.dataset.stageStatus !== 'loading' && !this.#fightLoading, loadingProgress: this.#loadingProgress, loadingLabel: this.#loadingLabel, mode: this.#gameMode, characters: Object.freeze(characters), p1CharacterId: this.#p1Select.value, p2CharacterId: this.#p2Select.value, previewVersion: this.#previewVersion, p1Name: p1Fixture?.displayName ?? this.#catalogName(this.#p1Select.value), p2Name: p2Fixture?.displayName ?? this.#catalogName(this.#p2Select.value), stageName: this.#stageFixture?.displayName ?? '载入中', p1Life: p1 === undefined ? 1 : p1.life / p1.maxLife, p2Life: p2 === undefined ? 1 : p2.life / p2.maxLife, p1Power: p1 === undefined ? 0 : p1.power / p1.maxPower, p2Power: p2 === undefined ? 0 : p2.power / p2.maxPower, p1Wins: p1?.roundsWon ?? 0, p2Wins: p2?.roundsWon ?? 0, round: snapshot?.roundNumber ?? 1, phase: snapshot?.phase ?? 'ready', phaseTime: flowPhaseTime(snapshot), roundWinnerId: snapshot?.roundWinnerId ?? null, time, paused: this.#paused, fightLoading: this.#fightLoading, result, p1Keys: this.#flowKeySummary('P1'), p2Keys: this.#flowKeySummary('P2') }));
+    this.#flow.update(Object.freeze({ screen: this.#flowScreen, ready: this.#assetsReady && document.body.dataset.stageStatus !== 'loading' && !this.#fightLoading, loadingProgress: this.#loadingProgress, loadingLabel: this.#loadingLabel, mode: this.#gameMode, characters: Object.freeze(characters), p1CharacterId: this.#p1Select.value, p2CharacterId: this.#p2Select.value, p1Confirmed: this.#characterConfirmed[0]!, p2Confirmed: this.#characterConfirmed[1]!, p1AttackKeys: this.#attackKeys('P1'), p2AttackKeys: this.#attackKeys('P2'), previewVersion: this.#previewVersion, p1Name: p1Fixture?.displayName ?? this.#catalogName(this.#p1Select.value), p2Name: p2Fixture?.displayName ?? this.#catalogName(this.#p2Select.value), stageName: this.#stageFixture?.displayName ?? '载入中', p1Life: p1 === undefined ? 1 : p1.life / p1.maxLife, p2Life: p2 === undefined ? 1 : p2.life / p2.maxLife, p1Power: p1 === undefined ? 0 : p1.power / p1.maxPower, p2Power: p2 === undefined ? 0 : p2.power / p2.maxPower, p1Wins: p1?.roundsWon ?? 0, p2Wins: p2?.roundsWon ?? 0, round: snapshot?.roundNumber ?? 1, phase: snapshot?.phase ?? 'ready', phaseTime: flowPhaseTime(snapshot), roundWinnerId: snapshot?.roundWinnerId ?? null, roundResultReason: snapshot?.roundResultReason ?? null, time, paused: this.#paused, fightLoading: this.#fightLoading, result, p1Keys: this.#flowKeySummary('P1'), p2Keys: this.#flowKeySummary('P2') }));
   }
-  #flowKeySummary(player: MugenBindingPlayer): string { const value = this.#keyBindings.players[player]; return `方向 ${mugenKeyLabel(value.left)} ${mugenKeyLabel(value.right)} ${mugenKeyLabel(value.up)} ${mugenKeyLabel(value.down)}\n攻击 ${[value.attack1, value.attack2, value.attack3, value.attack4].map(mugenKeyLabel).join(' / ')}`; }
+  #attackKeys(player: MugenBindingPlayer): readonly string[] { const value = this.#keyBindings.players[player]; return Object.freeze([value.attack1, value.attack2, value.attack3, value.attack4, value.attack5, value.attack6]); }
+  #flowKeySummary(player: MugenBindingPlayer): string { const value = this.#keyBindings.players[player]; return `方向 ${mugenKeyLabel(value.left)} ${mugenKeyLabel(value.right)} ${mugenKeyLabel(value.up)} ${mugenKeyLabel(value.down)}\n攻击 ${[value.attack1, value.attack2, value.attack3, value.attack4, value.attack5, value.attack6].map(mugenKeyLabel).join(' / ')}`; }
 
   #renderSelectionPreview(time: number): void {
     const viewport = this.#view.resize(); const stage = this.#requireStage(); const viewportTransform = mugenStageViewportTransform(viewport, stage.localCoord); const tick = Math.floor(time / (1000 / 60));
+    if (this.#flowScreen === 'stage') {
+      const camera = this.#stagePreviewCamera;
+      if (camera === null) return;
+      const actors = [...this.#stageRenderCache.actors(stage, camera.snapshot(), tick, viewport)]
+        .sort((left, right) => left.layer - right.layer || left.order - right.order || left.id.localeCompare(right.id, 'en'))
+        .map(value => value.actor);
+      document.body.dataset.stagePreviewActors = String(actors.length);
+      this.#view.renderActors(actors, { background: 'dark', clipRect: mugenStageClipRect(viewport, stage.localCoord), paletteId: null, originX: viewport.width / 2, originY: viewportTransform.offsetY + stage.zOffset * viewportTransform.scale, debug: { origin: false, axis: false, spriteBounds: false, clsn1: false, clsn2: false } });
+      return;
+    }
     const selections = [this.#p1Select.value, this.#p2Select.value] as const;
     const actors = selections.flatMap((id, index) => {
       const preview = this.#selectionPreviews.get(id); if (preview === undefined) return [];
       const naturalScale = viewportTransform.scale * mugenCharacterToStageScale(stage.localCoord, preview.localCoord, preview.drawScale)[0]; const coordinateScale = mugenCharacterPreviewScale(naturalScale, preview.standingSize, viewport);
-      return [Object.freeze({ snapshot: evaluateMugenAirAction(preview.action, tick, { x: viewport.width * (index === 0 ? .18 : .82), y: viewport.height * .9, facing: index === 0 ? 1 : -1, coordinateScale }), paletteId: preview.model.palettes[0]?.id ?? null })];
+      return [Object.freeze({ snapshot: evaluateMugenAirAction(preview.action, tick, { x: viewport.width * (index === 0 ? .18 : .82), y: viewport.height * .9, facing: index === 0 ? 1 : -1, coordinateScale }), paletteId: this.#selectedPaletteId(preview.model, index) })];
     });
     this.#view.renderActors(actors, { background: 'dark', backgroundColor: [.025, .02, .075, 1], paletteId: null, originX: viewport.width / 2, originY: viewport.height * .9, debug: { origin: false, axis: false, spriteBounds: false, clsn1: false, clsn2: false } });
   }
@@ -321,20 +343,27 @@ class MugenFightApp {
       const effect = outputByEntity.get(fighter.id); if (effect?.assertions.includes('invisible')) return [];
       const spriteFixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); const animationFixture = this.#fixtureForFighterId(snapshot, fighter.animationOwnerId); const action = animationFixture.actionsByNumber.get(fighter.actionNumber); if (!action) throw new RangeError(`角色动作 ${fighter.actionNumber} 不存在（动画所有者：${animationFixture.displayName}）。`);
       const animationScale = scale * this.#characterStageScale(animationFixture)[0]; const spriteScale = scale * this.#characterStageScale(spriteFixture)[0];
-      const evaluated = evaluateMugenAirAction(action, fighter.actionTime, { x: originX + fighter.position[0] * scale, y: groundY + fighter.position[1] * scale, facing: fighter.facing, coordinateScale: animationScale }); const air = bindMugenSnapshotToSpriteOwner(evaluated, spriteFixture.spritesByGroupItem, spriteScale / animationScale);
-      return [Object.freeze({ layer: 'fighters' as const, order: fighter.spritePriority, entityId: fighter.id, actor: Object.freeze({ snapshot: applyMugenOutputTransform(air, effect, spriteScale, fighter.facing), paletteId: this.#paletteId(spriteFixture, effect?.paletteRemap ?? null), transparency: effect?.transparency ?? null, colorMatrix: mugenPaletteColorMatrix(effect?.palette ?? output?.allPalette ?? null) }) })];
+      const evaluated = evaluateMugenAirAction(action, fighter.actionTime, { x: originX + fighter.position[0] * scale, y: groundY + fighter.position[1] * scale, facing: fighter.facing, coordinateScale: animationScale }); const air = bindMugenSnapshotToSpriteOwner(evaluated, spriteFixture.spritesByGroupItem, spriteScale / animationScale); const transformed = applyMugenOutputTransform(air, effect, spriteScale, fighter.facing);
+      return [Object.freeze({ layer: 'fighters' as const, order: fighter.spritePriority, entityId: fighter.id, actor: Object.freeze({ snapshot: transformed, paletteId: this.#paletteIdForSprite(spriteFixture, index, transformed.render.spriteId, effect?.paletteRemap ?? null), transparency: effect?.transparency ?? null, colorMatrix: mugenPaletteColorMatrix(effect?.palette ?? output?.allPalette ?? null) }) })];
     });
     const entityActors = !inFight ? [] : this.#combat?.script.entities.snapshot().entities.flatMap(entity => {
-      if (entity.kind !== 'helper' && entity.kind !== 'explod' && entity.kind !== 'projectile' || outputByEntity.get(entity.entityId)?.assertions.includes('invisible')) return [];
+      if (
+        (entity.kind !== 'helper' && entity.kind !== 'explod' && entity.kind !== 'projectile')
+        || outputByEntity.get(entity.entityId)?.assertions.includes('invisible')
+      ) return [];
       const animationOwnerId = entity.kind === 'helper' ? entity.rootId : entity.animationOwnerId; const animationNumber = entity.kind === 'helper' ? entity.actionNumber : entity.animationNumber;
       const fighterIndex = snapshot.fighters.findIndex(fighter => fighter.id === animationOwnerId); const fightFx = animationOwnerId === 'fight' ? this.#fightFx : null;
       if (fightFx === null && fighterIndex < 0) return [];
       const fixture = fightFx === null ? this.#requireFixture(fighterIndex === 0 ? this.#p1Select.value : this.#p2Select.value) : null;
+      if (entity.kind === 'helper') {
+        const stateOwnerIndex = snapshot.fighters.findIndex(fighter => fighter.id === entity.stateDataOwnerId); const stateOwnerFixture = stateOwnerIndex < 0 ? fixture : this.#requireFixture(stateOwnerIndex === 0 ? this.#p1Select.value : this.#p2Select.value); const stateDefinition = stateOwnerFixture?.states.states.find(state => state.number === entity.stateNumber); const stateDefinesAnimation = stateDefinition !== undefined && stateDefinition.animation !== null;
+        if (!isMugenHelperAnimationReady(entity, stateDefinesAnimation)) return [];
+      }
       const action = fightFx?.air.actions.find(value => value.number === animationNumber) ?? fixture!.actionsByNumber.get(animationNumber); if (!action) return [];
       const root = snapshot.fighters.find(fighter => fighter.id === entity.rootId); if (!root) return [];
-      const localCoord = fightFx?.localCoord ?? fixture!.localCoord; const ownerStageScale = fightFx === null ? this.#characterStageScale(fixture!)[0] : stage.localCoord[0] / localCoord[0]; const renderScale = scale * ownerStageScale; const layer = entity.kind === 'explod' ? entity.layer : 'fighters'; const order = entity.spritePriority; const actionTime = entity.kind === 'helper' ? entity.actionTime : entity.age; const entityFacing = entity.kind === 'helper' || entity.kind === 'projectile' || entity.kind === 'explod' ? entity.facing : root.facing; const entityOutput = outputByEntity.get(entity.entityId); const rootOutput = outputByEntity.get(root.id); const inheritedRemap = entityOutput?.paletteIsolated ? null : rootOutput?.paletteRemap ?? null; const paletteId = fightFx?.palettes[0]?.id ?? this.#paletteId(fixture!, entityOutput?.paletteRemap ?? inheritedRemap);
-      const screenSpace = entity.kind === 'explod' && entity.coordinateSpace === 'screen'; const x = screenSpace ? viewportTransform.offsetX + stage.localCoord[0] * scale / 2 + (entity.position[0] - localCoord[0] / 2) * renderScale : originX + entity.position[0] * scale; const y = screenSpace ? viewportTransform.offsetY + entity.position[1] * renderScale : groundY + entity.position[1] * scale;
-      const air = evaluateMugenAirAction(action, actionTime, { x, y, facing: entityFacing, coordinateScale: renderScale }); const inheritedPalette = entityOutput?.paletteIsolated ? null : rootOutput?.palette ?? null;
+      const localCoord = fightFx?.localCoord ?? fixture!.localCoord; const ownerStageScale = fightFx === null ? this.#characterStageScale(fixture!)[0] : stage.localCoord[0] / localCoord[0]; const renderScale = scale * ownerStageScale; const layer = entity.kind === 'explod' ? entity.layer : 'fighters'; const order = entity.spritePriority; const actionTime = entity.kind === 'helper' ? entity.actionTime : entity.age; const entityFacing = entity.kind === 'helper' || entity.kind === 'projectile' || entity.kind === 'explod' ? entity.facing : root.facing; const entityOutput = outputByEntity.get(entity.entityId); const rootOutput = outputByEntity.get(root.id); const inheritedRemap = entityOutput?.paletteIsolated ? null : rootOutput?.paletteRemap ?? null;
+      const screenSpace = entity.kind === 'explod' && entity.coordinateSpace === 'screen'; const screenPosition = screenSpace && fixture !== null ? placeMugenScreenExplod(entity.position, entity.explodId, localCoord, fixture.screenExplodLayout) : entity.position; const projectedScreenPosition = screenSpace ? projectMugenScreenExplod(screenPosition, localCoord, stage.localCoord, viewportTransform) : null; const x = projectedScreenPosition?.[0] ?? originX + entity.position[0] * scale; const y = projectedScreenPosition?.[1] ?? groundY + entity.position[1] * scale;
+      const air = evaluateMugenAirAction(action, actionTime, { x, y, facing: entityFacing, coordinateScale: renderScale }); const inheritedPalette = entityOutput?.paletteIsolated ? null : rootOutput?.palette ?? null; const paletteId = fightFx === null ? this.#paletteIdForSprite(fixture!, fighterIndex, air.render.spriteId, entityOutput?.paletteRemap ?? inheritedRemap) : null;
       return [Object.freeze({ layer, order, entityId: entity.entityId, actor: Object.freeze({ snapshot: applyMugenOutputTransform(air, entityOutput, renderScale, entityFacing, entity.kind === 'explod' ? entity.verticalFacing : 1), paletteId, transparency: entityOutput?.transparency ?? entityOutput?.baseTransparency ?? null, colorMatrix: mugenPaletteColorMatrix(entityOutput?.palette ?? inheritedPalette ?? output?.allPalette ?? null) }) })];
     }) ?? [];
     const afterImageActors = !inFight ? [] : this.#afterImages.visibleTrails().flatMap(trail => this.#renderAfterImageTrail(trail, originX, groundY, scale, viewportTransform.offsetX, viewportTransform.offsetY));
@@ -344,7 +373,7 @@ class MugenFightApp {
     const debug = this.#debugBoxes.checked;
     const noBackground = output?.entities.some(entity => entity.assertions.includes('nobg')) ?? false; const noForeground = output?.entities.some(entity => entity.assertions.includes('nofg')) ?? false; const stageActors = this.#stageRenderCache.actors(stage, camera, inFight ? snapshot.tick : menuTick, viewport); const backgroundActors = noBackground || envColor !== null && !envColor.under ? [] : stageActors.filter(value => value.layer === 0).sort((left, right) => left.order - right.order || left.id.localeCompare(right.id, 'en')).map(value => value.actor); const foregroundActors = noForeground ? [] : stageActors.filter(value => value.layer === 1).sort((left, right) => left.order - right.order || left.id.localeCompare(right.id, 'en')).map(value => value.actor); const ordered = [...backgroundActors, ...actors.filter(value => visibleLayers.has(value.layer) && value.layer === 'below').sort((left, right) => left.order - right.order || left.entityId.localeCompare(right.entityId, 'en')).map(value => value.actor), ...actors.filter(value => visibleLayers.has(value.layer) && value.layer === 'fighters').sort((left, right) => left.order - right.order || left.entityId.localeCompare(right.entityId, 'en')).map(value => value.actor), ...foregroundActors, ...actors.filter(value => visibleLayers.has(value.layer) && value.layer === 'above').sort((left, right) => left.order - right.order || left.entityId.localeCompare(right.entityId, 'en')).map(value => value.actor)];
     document.body.dataset.mugenNoBackground = String(noBackground); document.body.dataset.mugenNoForeground = String(noForeground); document.body.dataset.mugenPaletteEffects = String((output?.entities.filter(entity => entity.palette !== null).length ?? 0) + Number(output?.backgroundPalette !== null)); document.body.dataset.cameraX = String(camera.position[0]); document.body.dataset.cameraY = String(camera.position[1]); document.body.dataset.cameraScreenBounds = camera.screenBounds.join(','); document.body.dataset.stageActors = String(stageActors.length);
-    this.#view.renderActors(ordered, { background: 'dark', ...(envColor === null ? {} : { backgroundColor: [envColor.color[0] / 255, envColor.color[1] / 255, envColor.color[2] / 255, 1] as const }), paletteId: null, originX, originY: groundY, debug: { origin: false, axis: debug, spriteBounds: false, clsn1: debug, clsn2: debug } });
+    this.#view.renderActors(ordered, { background: 'dark', ...(envColor === null ? {} : { backgroundColor: [envColor.color[0] / 255, envColor.color[1] / 255, envColor.color[2] / 255, 1] as const }), clipRect: mugenStageClipRect(viewport, stage.localCoord), paletteId: null, originX, originY: groundY, debug: { origin: false, axis: debug, spriteBounds: false, clsn1: debug, clsn2: debug } });
   }
 
   #captureAfterImages(snapshot: MugenMatchSnapshot, output: MugenOutputAuthoritySnapshot): void {
@@ -354,7 +383,7 @@ class MugenFightApp {
       const verificationEffect = this.#verifyAfterImage && fighter.id === 'P1' && output.tick < BROWSER_EFFECT_VERIFICATION_TICKS ? AFTER_IMAGE_BROWSER_VERIFICATION_EFFECT : null; const effect = entityOutput?.afterImage ?? verificationEffect;
       if (entityOutput === undefined || effect === null || entityOutput.assertions.includes('invisible')) continue;
       const fixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value);
-      sources.push(Object.freeze({ entityId: fighter.id, effect, value: Object.freeze({ animationOwnerId: fighter.id, animationNumber: fighter.actionNumber, actionTime: fighter.actionTime, position: fighter.position, facing: fighter.facing, verticalFacing: 1 as const, coordinateSpace: 'stage' as const, localCoordWidth: fixture.localCoord[0], localCoordHeight: fixture.localCoord[1], drawScale: fixture.drawScale, layer: 'fighters', order: fighter.spritePriority, paletteId: this.#paletteId(fixture, entityOutput.paletteRemap), output: entityOutput }) }));
+      sources.push(Object.freeze({ entityId: fighter.id, effect, value: Object.freeze({ animationOwnerId: fighter.id, animationNumber: fighter.actionNumber, actionTime: fighter.actionTime, position: fighter.position, facing: fighter.facing, verticalFacing: 1 as const, coordinateSpace: 'stage' as const, localCoordWidth: fixture.localCoord[0], localCoordHeight: fixture.localCoord[1], drawScale: fixture.drawScale, layer: 'fighters', order: fighter.spritePriority, paletteId: this.#paletteId(fixture, index, entityOutput.paletteRemap), output: entityOutput }) }));
     }
     for (const entity of this.#combat?.script.entities.snapshot().entities ?? []) {
       if (entity.kind !== 'helper' && entity.kind !== 'explod' && entity.kind !== 'projectile') continue;
@@ -363,7 +392,7 @@ class MugenFightApp {
       const effect = entityOutput.afterImage;
       const animationOwnerId = entity.kind === 'helper' ? entity.rootId : entity.animationOwnerId; const animationNumber = entity.kind === 'helper' ? entity.actionNumber : entity.animationNumber; const fighterIndex = snapshot.fighters.findIndex(fighter => fighter.id === animationOwnerId); const fightFx = animationOwnerId === 'fight' ? this.#fightFx : null;
       if (fightFx === null && fighterIndex < 0) continue;
-      const fixture = fightFx === null ? this.#requireFixture(fighterIndex === 0 ? this.#p1Select.value : this.#p2Select.value) : null; const rootOutput = outputByEntity.get(entity.rootId); const paletteId = fightFx?.palettes[0]?.id ?? this.#paletteId(fixture!, entityOutput.paletteRemap ?? rootOutput?.paletteRemap ?? null);
+      const fixture = fightFx === null ? this.#requireFixture(fighterIndex === 0 ? this.#p1Select.value : this.#p2Select.value) : null; const rootOutput = outputByEntity.get(entity.rootId); const paletteId = fightFx?.palettes[0]?.id ?? this.#paletteId(fixture!, fighterIndex, entityOutput.paletteRemap ?? rootOutput?.paletteRemap ?? null);
       sources.push(Object.freeze({ entityId: entity.entityId, effect, value: Object.freeze({ animationOwnerId, animationNumber, actionTime: entity.kind === 'helper' ? entity.actionTime : entity.age, position: entity.position, facing: entity.kind === 'helper' || entity.kind === 'projectile' || entity.kind === 'explod' ? entity.facing : 1, verticalFacing: entity.kind === 'explod' ? entity.verticalFacing : 1, coordinateSpace: entity.kind === 'explod' ? entity.coordinateSpace : 'stage', localCoordWidth: fightFx?.localCoord[0] ?? fixture!.localCoord[0], localCoordHeight: fightFx?.localCoord[1] ?? fixture!.localCoord[1], drawScale: fixture?.drawScale ?? Object.freeze([1, 1]), layer: entity.kind === 'explod' ? entity.layer : 'fighters', order: entity.spritePriority, paletteId, output: entityOutput }) }));
     }
     const trails = this.#afterImages.advance(output.tick, sources); document.body.dataset.mugenAfterImageTrails = String(trails.length); document.body.dataset.mugenAfterImageEntities = String(this.#afterImages.trackedEntityCount); if (this.#verifyAfterImage && trails.length > 0) document.body.dataset.afterImageVerification = 'rendering';
@@ -381,7 +410,7 @@ class MugenFightApp {
     const spawns: MugenTransientAnimationSpawn[] = []; let missing = 0;
     for (const [index, event] of output.events.entries()) {
       if (event.kind !== 'hit-spark' && event.kind !== 'legacy-animation') continue;
-      const animationOwnerId = event.kind === 'hit-spark' ? event.animationOwnerId : 'fight'; const source = this.#resolveTransientAnimation(animationOwnerId, event.animationNumber); if (source === null) { missing += 1; continue; }
+      const animationOwnerId = event.animationOwnerId; const source = this.#resolveTransientAnimation(animationOwnerId, event.animationNumber); if (source === null) { missing += 1; continue; }
       spawns.push(Object.freeze({ id: `mugen-transient-${String(output.tick).padStart(10, '0')}-${String(index).padStart(3, '0')}`, kind: event.kind, animationOwnerId, animationNumber: event.animationNumber, position: event.position, facing: event.facing, layer: event.layer, lifetimeTicks: Math.min(source.action.totalTicks ?? 600, 600) }));
     }
     if (this.#verifyHitSpark && this.#fightFx !== null && output.tick < BROWSER_EFFECT_VERIFICATION_TICKS && output.tick % 12 === 0) { const source = this.#resolveTransientAnimation('fight', 0); if (source !== null) spawns.push(Object.freeze({ id: `verify-hit-spark-${output.tick}`, kind: 'hit-spark', animationOwnerId: 'fight', animationNumber: 0, position: Object.freeze([0, -48]) as readonly [number, number], facing: 1, layer: 'above', lifetimeTicks: Math.min(source.action.totalTicks ?? 600, 600) })); }
@@ -396,10 +425,12 @@ class MugenFightApp {
 
   #resolveTransientAnimation(animationOwnerId: string | 'fight', animationNumber: number): Readonly<{ action: MugenBuiltInGameFixture['air']['actions'][number]; stageScale: number; paletteId: string | null }> | null {
     if (animationOwnerId === 'fight') { const fightFx = this.#fightFx; if (fightFx === null) return null; const action = fightFx.air.actions.find(value => value.number === animationNumber); return action === undefined ? null : Object.freeze({ action, stageScale: this.#requireStage().localCoord[0] / fightFx.localCoord[0], paletteId: fightFx.palettes[0]?.id ?? null }); }
-    const index = this.#match?.snapshot().fighters.findIndex(fighter => fighter.id === animationOwnerId) ?? -1; if (index < 0) return null; const fixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); const action = fixture.actionsByNumber.get(animationNumber); return action === undefined ? null : Object.freeze({ action, stageScale: this.#characterStageScale(fixture)[0], paletteId: this.#paletteId(fixture) });
+    const index = this.#match?.snapshot().fighters.findIndex(fighter => fighter.id === animationOwnerId) ?? -1; if (index < 0) return null; const fixture = this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); const action = fixture.actionsByNumber.get(animationNumber); return action === undefined ? null : Object.freeze({ action, stageScale: this.#characterStageScale(fixture)[0], paletteId: this.#paletteId(fixture, index) });
   }
 
-  #paletteId(fixture: MugenBuiltInGameFixture, remap: Readonly<{ destination: readonly [number, number] }> | null = null): string | null { if (remap !== null) { const palette = fixture.model.palettes.find(value => value.group === remap.destination[0] && value.item === remap.destination[1]); if (palette !== undefined) return palette.id; } return fixture.model.palettes[0]?.id ?? null; }
+  #paletteId(fixture: MugenBuiltInGameFixture, player: number, remap: Readonly<{ destination: readonly [number, number] }> | null = null): string | null { if (remap !== null) { const palette = fixture.model.palettes.find(value => value.group === remap.destination[0] && value.item === remap.destination[1]); if (palette !== undefined) return palette.id; } return this.#selectedPaletteId(fixture.model, player); }
+  #paletteIdForSprite(fixture: MugenBuiltInGameFixture, player: number, spriteId: string | null, remap: Readonly<{ destination: readonly [number, number] }> | null = null): string | null { return resolveMugenSpritePaletteId(fixture.model, spriteId, this.#selectedPaletteId(fixture.model, player), remap); }
+  #selectedPaletteId(model: MugenRenderAssetModel, player: number): string | null { return selectMugenCharacterPaletteId(model, this.#characterPaletteSlots[player] ?? 0); }
 
   #syncHud(snapshot: MugenMatchSnapshot): void {
     const [p1, p2] = snapshot.fighters; setGauge(this.#p1Life, p1.life / p1.maxLife); setGauge(this.#p2Life, p2.life / p2.maxLife); setGauge(this.#p1Power, p1.power / p1.maxPower); setGauge(this.#p2Power, p2.power / p2.maxPower);
@@ -416,8 +447,8 @@ class MugenFightApp {
     else if (snapshot.phase === 'fight' && snapshot.phaseTime < 30) this.#showBanner('FIGHT!', '');
     else if (snapshot.phase === 'fight') this.#phaseBanner.hidden = true;
     else if (snapshot.phase === 'ko') this.#showBanner('K.O.', snapshot.roundWinnerId === null ? 'DOUBLE K.O.' : `${snapshot.roundWinnerId} TAKES THE ROUND`);
-    else if (snapshot.phase === 'round-over') this.#showBanner('DRAW', 'NEXT ROUND');
-    else if (snapshot.phase === 'match-over') this.#showBanner(snapshot.matchWinnerId === 'P1' ? 'P1 WINS' : snapshot.matchWinnerId === 'P2' ? 'P2 WINS' : 'DRAW', 'MATCH OVER');
+    else if (snapshot.phase === 'round-over') this.#showBanner(snapshot.roundWinnerId === null ? 'DRAW' : `${snapshot.roundWinnerId} WINS`, snapshot.roundResultReason === 'time-over' ? 'TIME OVER' : 'NEXT ROUND');
+    else if (snapshot.phase === 'match-over') this.#showBanner(snapshot.matchWinnerId === 'P1' ? 'P1 WINS' : snapshot.matchWinnerId === 'P2' ? 'P2 WINS' : 'DRAW', snapshot.roundResultReason === 'time-over' ? 'TIME OVER' : 'MATCH OVER');
   }
 
   #finishMatch(): void { this.#audio.stopMusic(); this.#running = false; this.#paused = false; this.#p1Select.disabled = false; this.#p2Select.disabled = false; this.#p1Control.disabled = false; this.#p2Control.disabled = false; this.#stageSelect.disabled = false; this.#fightFxButton.disabled = false; this.#startButton.disabled = false; this.#startButton.textContent = '重新对战'; this.#pauseButton.disabled = true; this.#pauseButton.textContent = '暂停'; this.#runtimeStatus.textContent = 'MATCH COMPLETE'; document.body.dataset.gameStatus = 'complete'; this.#syncFlowUi(); }
@@ -465,12 +496,12 @@ class MugenFightApp {
     if (this.#running || this.#stageSelect.disabled) return;
     const entry = this.#stageCatalog.get(this.#stageSelect.value); if (entry === undefined) return;
     this.#stageSelect.disabled = true; this.#startButton.disabled = true; this.#runtimeStatus.textContent = `正在载入舞台 ${entry.displayName}…`; document.body.dataset.stageStatus = 'loading'; this.#syncFlowUi();
-    try { const stage = await loadMugenBuiltInStage(entry); this.#stageFixture = stage; await this.#installRenderModels(); this.#applyStage(stage); this.#refreshInputDriver(); this.#runtimeStatus.textContent = `STAGE READY · ${stage.displayName}`; document.body.dataset.stageStatus = 'ready'; this.#syncFlowUi(); }
+    try { const stage = await loadMugenBuiltInStage(entry); await this.#installRenderModels(undefined, stage); this.#stageFixture = stage; this.#applyStage(stage); this.#refreshInputDriver(); this.#runtimeStatus.textContent = `STAGE READY · ${stage.displayName}`; document.body.dataset.stageStatus = 'ready'; this.#syncFlowUi(); }
     catch (error) { document.body.dataset.stageStatus = 'error'; this.#fail(error); }
     finally { if (!this.#running && document.body.dataset.gameStatus !== 'error') { this.#stageSelect.disabled = false; this.#startButton.disabled = false; } this.#syncFlowUi(); }
   }
-  async #installRenderModels(onProgress?: Parameters<MugenWebGpuView['installModels']>[2]): Promise<void> {
-    const stage = this.#requireStage(); const selectedIds = new Set([this.#p1Select.value, this.#p2Select.value]); const models: MugenRenderAssetModel[] = [];
+  async #installRenderModels(onProgress?: Parameters<MugenWebGpuView['installModels']>[2], stage = this.#requireStage()): Promise<void> {
+    const selectedIds = new Set([this.#p1Select.value, this.#p2Select.value]); const models: MugenRenderAssetModel[] = [];
     for (const preview of this.#selectionPreviews.values()) if (!selectedIds.has(preview.id) || !this.#fixtures.has(preview.id)) models.push(preview.model);
     for (const id of selectedIds) { const fixture = this.#fixtures.get(id); if (fixture !== undefined) models.push(fixture.model); }
     models.push(stage.renderModel); if (this.#fightFx !== null) models.push(this.#fightFx); await this.#view.installModels(models, undefined, onProgress);
@@ -510,7 +541,7 @@ class MugenFightApp {
   #refreshInputDriver(): void { if (this.#running) return; const previous = this.#driver; this.#driver = this.#createInputDriver(this.#keyBindings); previous.dispose(); this.#syncKeySettingsUi(); }
   #syncKeySettingsUi(): void {
     for (const button of this.#bindingButtons()) { const player = button.dataset.player as MugenBindingPlayer; const action = button.dataset.action as MugenBindableAction; const capture = this.#capturingBinding; button.textContent = capture?.player === player && capture.action === action ? '请按键…' : mugenKeyLabel(this.#draftKeyBindings.players[player][action]); button.classList.toggle('capturing', capture?.player === player && capture.action === action); }
-    const summary = (player: MugenBindingPlayer, control: HTMLSelectElement) => { const aiLevel = Number(control.value); if (aiLevel > 0) return `电脑操作 · AI 等级 ${aiLevel} · 优先使用角色包内置 AI`; const value = this.#keyBindings.players[player]; return `${mugenKeyLabel(value.left)} ${mugenKeyLabel(value.right)} 移动 · ${mugenKeyLabel(value.up)} 跳跃 · ${mugenKeyLabel(value.down)} 蹲下 · ${[value.attack1, value.attack2, value.attack3, value.attack4].map(mugenKeyLabel).join(' / ')} 攻击`; };
+    const summary = (player: MugenBindingPlayer, control: HTMLSelectElement) => { const aiLevel = Number(control.value); if (aiLevel > 0) return `电脑操作 · AI 等级 ${aiLevel} · 优先使用角色包内置 AI`; const value = this.#keyBindings.players[player]; return `${mugenKeyLabel(value.left)} ${mugenKeyLabel(value.right)} 移动 · ${mugenKeyLabel(value.up)} 跳跃 · ${mugenKeyLabel(value.down)} 蹲下 · ${[value.attack1, value.attack2, value.attack3, value.attack4, value.attack5, value.attack6].map(mugenKeyLabel).join(' / ')} 攻击`; };
     this.#p1ControlHint.textContent = summary('P1', this.#p1Control); this.#p2ControlHint.textContent = summary('P2', this.#p2Control); document.body.dataset.p1AiLevel = this.#p1Control.value; document.body.dataset.p2AiLevel = this.#p2Control.value; document.body.dataset.p1KeyBindings = MUGEN_BINDABLE_ACTIONS.map(action => this.#keyBindings.players.P1[action]).join(','); document.body.dataset.p2KeyBindings = MUGEN_BINDABLE_ACTIONS.map(action => this.#keyBindings.players.P2[action]).join(',');
   }
   async #verifyDeviceLoss(): Promise<void> {
@@ -540,7 +571,10 @@ class MugenFightApp {
   #requireFixture(id: string): MugenBuiltInGameFixture { const value = this.#fixtures.get(id); if (!value) throw new Error(`MUGEN 内置角色 ${id} 尚未装载。`); return value; }
   #fixtureForFighterId(snapshot: MugenMatchSnapshot, fighterId: string): MugenBuiltInGameFixture { const index = snapshot.fighters.findIndex(fighter => fighter.id === fighterId); if (index < 0) throw new RangeError(`MUGEN 动画所有者 ${fighterId} 不存在。`); return this.#requireFixture(index === 0 ? this.#p1Select.value : this.#p2Select.value); }
   #requireStage(): MugenStageModel { if (!this.#stageFixture) throw new Error('MUGEN 内置舞台尚未装载。'); return this.#stageFixture; }
-  #applyStage(stage: MugenStageModel): void { document.body.dataset.stageId = stage.id; document.body.dataset.stageName = stage.displayName; document.body.dataset.stageSha256 = stage.sourceSetSha256; document.body.dataset.stageBackgrounds = String(stage.backgrounds.length); document.body.dataset.stageStatus = 'ready'; document.body.dataset.stageLoaded = 'true'; this.#arena.setAttribute('aria-label', `${stage.displayName} · MUGEN 双人对战舞台`); }
+  #applyStage(stage: MugenStageModel): void {
+    this.#stagePreviewCamera = new MugenStageCamera({ start: stage.camera.start, horizontalBounds: stage.camera.horizontalBounds, verticalBounds: stage.camera.verticalBounds, localCoord: stage.localCoord, tension: stage.camera.tension, verticalFollow: stage.camera.verticalFollow, floorTension: stage.camera.floorTension, screenMargins: stage.camera.screenMargins, playerBounds: stage.playerBounds });
+    document.body.dataset.stageId = stage.id; document.body.dataset.stageName = stage.displayName; document.body.dataset.stageSha256 = stage.sourceSetSha256; document.body.dataset.stageBackgrounds = String(stage.backgrounds.length); document.body.dataset.stageStatus = 'ready'; document.body.dataset.stageLoaded = 'true'; this.#arena.setAttribute('aria-label', `${stage.displayName} · MUGEN 双人对战舞台`);
+  }
 
   #fail(error: unknown): void { const message = error instanceof Error ? error.message : String(error); const stack = error instanceof Error ? error.stack ?? message : message; console.error('[Haiyue MUGEN]', error); this.#running = false; this.#runtimeStatus.textContent = '启动失败'; this.#loadingError.hidden = false; this.#loadingError.textContent = `MUGEN 游戏启动失败\n\n${message}`; this.#showBanner('ERROR', '请检查浏览器 WebGPU 支持'); document.body.dataset.gameStatus = 'error'; document.body.dataset.gameError = message; document.body.dataset.gameErrorStack = stack; if (this.#verifyCapture) { const result = element<HTMLElement>('result'); result.textContent = JSON.stringify({ status: 'error', message, stack }); result.dataset.status = 'failed'; } this.#syncFlowUi(); }
 }

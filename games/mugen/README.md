@@ -1,17 +1,19 @@
 # Haiyue MUGEN Fight 与角色动画查看器
 
-`index.html` 是 M08/G08 的本地双人对战入口。选人列表来自 `charactors/catalog.json`，当前接入 Elecbyte 官方的 Kung Fu Man 与 Kung Fu Man 720；两名玩家可以任意互换，但同一局不能选择相同角色。原 G05 只读查看器保留在 `charactorPreview.html`；它打开本地角色目录，在专用 Worker 中解析 DEF、SFF/ACT 与 AIR，素材不会上传、缓存或自动保存。
+`index.html` 是 M08/G08 的本地双人对战入口。选人列表来自 `charactors/catalog.json`，当前接入 Elecbyte 官方的 Kung Fu Man 与 Kung Fu Man 720；两名玩家可以任意互换，也可以选择相同角色。原 G05 只读查看器保留在 `charactorPreview.html`；它打开本地角色目录，在专用 Worker 中解析 DEF、SFF/ACT 与 AIR，素材不会上传、缓存或自动保存。
 
 角色的 DEF/SFF/AIR/SND/CMD/CNS 会经过同一正式导入链路。内置 KFM 与 KFM720 现在执行各自角色包的 37 条 CMD 命令和角色 StateDef；DEF 声明的 `common1.cns` 只补齐角色没有覆盖的公共状态。同编号 StateDef 以角色文件为准，公共文件的 controller 不会混入角色覆盖状态。`game/g08-runtime-adapter.cmd` 仍保留为可显式选择的 `adapter-v1` 兼容 profile，但产品目录不会在角色脚本失败时静默替换它。
 
 ## 使用
 
 1. 在 `Games` 目录运行 `npm run dev`，从预览页打开 `mugen`；也可以运行 `npm run build:target -- game:mugen` 构建独立目标。默认进入双人对战，页面右上角可进入角色动画查看器。
-2. 玩家一默认用 `W/A/S/D` 控制方向，`U/I/J/K` 是四个攻击键；玩家二默认用方向键控制方向，小键盘 `4/5/1/2` 是四个攻击键。
+2. 玩家一默认用 `W/A/S/D` 控制方向，`U/I/O/J/K/L` 依次对应 MUGEN 的 `X/Y/Z/A/B/C`；玩家二默认用方向键控制方向，小键盘 `4/5/6/1/2/3` 对应同一套六键。
+   KFM 的投技为贴近对手时“前或后 + 强拳”（玩家一为方向键 + `I`，玩家二为方向键 + 小键盘 `5`）；角色 CMD 中的四分之一圈、升龙、双击方向和同时按键组合均由同一输入匹配器识别。
 3. 点击“按键设置”后，先点需要修改的动作，再按新按键。玩家内部发生按键冲突时会交换两个动作的按键；“保存并应用”会写入浏览器本地设置并立即重开当前对局，“恢复默认”可恢复上述布局。
 4. 查看器中使用“选择角色目录”或 Chromium 的“打开目录”。目录应至少包含角色入口 `.def` 及其引用的 `.sff`、`.air`，`.act` 可选。
 5. 如果根目录存在多个 `.def`，先选择正确入口。成功后左侧显示 action catalog 与素材数量，中间播放动画，右侧检查当前 element、变换、palette、碰撞框和导入诊断。
 6. 时间轴与逐 tick/element 控件遵循 60 tick/s；`time = -1` 显示为无限末帧，循环动作的时间轴显示循环内 tick。拖动画布平移，滚轮缩放。
+7. “舞台场景”页可直接选择 Stage 目录。标准素材使用 DEF 中的镜头、图层、动画和音乐声明；如果目录只有 SFF，查看器会在只读 VFS 中自动生成带“推断”标记的临时 DEF，根据 SFF 分组、尺寸和轴点恢复可预览图层及循环动画，并自动关联同目录音频。该模式不会改写用户素材，也无法还原原 DEF 中未保存在 SFF 里的精确参数。
 
 测试夹具位于 `games/mugen/fixtures/g05-viewer-v1`，由仓库自有的 MIT 生成器创建，不含第三方角色素材。`charactors/kfm` 与 `charactors/kfm720` 是本地体验内容，不属于 Haiyue 自制测试夹具，不能替代可进入 CI/正式发布物的许可素材。给 URL 添加 `?verify=1` 会显示设备丢失验证按钮，仅用于本地浏览器验收。
 

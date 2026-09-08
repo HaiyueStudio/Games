@@ -61,6 +61,7 @@ export const MUGEN_DIAGNOSTIC_CATALOG = Object.freeze({
   E_MUGEN_AIR_SPRITE_MISSING: ['air', 'warning', 'ignore'],
   E_MUGEN_AIR_CLSN_COUNT: ['air', 'error', 'release-resource'],
   E_MUGEN_CMD_SYNTAX: ['cmd', 'error', 'release-resource'],
+  W_MUGEN_CMD_BUTTON_FOUR_WAY_IGNORED: ['cmd', 'warning', 'ignore'],
   E_MUGEN_CNS_SYNTAX: ['cns', 'error', 'release-resource'],
   E_MUGEN_EXPRESSION_DEPTH: ['compiler', 'fatal', 'release-resource'],
   E_MUGEN_EXPRESSION_TYPE: ['compiler', 'error', 'release-resource'],

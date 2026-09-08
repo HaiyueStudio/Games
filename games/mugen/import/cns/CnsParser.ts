@@ -30,7 +30,8 @@ export interface ParseMugenStateDocumentsOptions { readonly commonStatePaths?: R
 
 export function parseMugenStateDocuments(documents: readonly MugenTextDocument[], options: ParseMugenStateDocumentsOptions = {}): MugenStateProgram {
   const definitions = new Map<number, Omit<MugenStateDefinition, 'controllers'>>();
-  const controllers: Array<Readonly<{ controller: MugenStateController; common: boolean }>> = [];
+  const definitionKeys = new Map<number, string>();
+  const controllers: Array<Readonly<{ controller: MugenStateController; definitionKey: string }>> = [];
   const commonPaths = new Set([...(options.commonStatePaths ?? [])].map(asciiCaseFold));
   const characterAttributes = parseCharacterAttributes(documents);
   const characterPhysics = parseCharacterPhysics(documents);
@@ -38,19 +39,21 @@ export function parseMugenStateDocuments(documents: readonly MugenTextDocument[]
   for (const document of documents) {
     const commonDocument = commonPaths.has(asciiCaseFold(document.canonicalPath));
     let currentStateNumber: number | null = null;
+    let currentDefinitionKey: string | null = null;
     for (const section of document.sections) {
       const stateDefMatch = /^statedef\s+(-?\d+)$/iu.exec(section.name.trim());
       if (stateDefMatch) {
         const number = stateNumber(stateDefMatch[1]!, document, section);
         currentStateNumber = number;
+        currentDefinitionKey = `${asciiCaseFold(document.canonicalPath)}:${section.header.span.startByte}`;
         if (number < -3) failUnsupportedSection(document, section, `StateDef ${number} is outside the official MUGEN special-state range.`);
         const existing = definitions.get(number);
         if (existing !== undefined) {
           const existingCommon = commonPaths.has(asciiCaseFold(existing.sourcePath));
-          if (existingCommon && !commonDocument) definitions.set(number, parseStateDef(document, section, number));
+          if (existingCommon && !commonDocument) { definitions.set(number, parseStateDef(document, section, number)); definitionKeys.set(number, currentDefinitionKey); }
           else if (!existingCommon && commonDocument) continue;
-          else failSection(document, section, `Duplicate MUGEN StateDef ${number}.`);
-        } else definitions.set(number, parseStateDef(document, section, number));
+          else { definitions.set(number, parseStateDef(document, section, number)); definitionKeys.set(number, currentDefinitionKey); }
+        } else { definitions.set(number, parseStateDef(document, section, number)); definitionKeys.set(number, currentDefinitionKey); }
         continue;
       }
       const controllerMatch = /^state\s+([^,]+?)(?:\s*,\s*(.*))?$/iu.exec(section.name.trim());
@@ -61,7 +64,8 @@ export function parseMugenStateDocuments(documents: readonly MugenTextDocument[]
         // non-numeric shorthand such as [State a].
         if (currentStateNumber === null) failSection(document, section, 'MUGEN state controller must follow a StateDef in the same document.');
         const label = controllerMatch[1]!.trim(); const name = controllerMatch[2]?.trim() || label;
-        controllers.push(Object.freeze({ controller: parseController(document, section, currentStateNumber, name), common: commonDocument }));
+        if (currentDefinitionKey === null) throw new TypeError('MUGEN internal StateDef ownership is missing.');
+        controllers.push(Object.freeze({ controller: parseController(document, section, currentStateNumber, name), definitionKey: currentDefinitionKey }));
       }
     }
   }
@@ -69,7 +73,7 @@ export function parseMugenStateDocuments(documents: readonly MugenTextDocument[]
   const activeControllers = controllers.flatMap(entry => {
     const definition = definitions.get(entry.controller.stateNumber);
     if (definition === undefined) failMugen(mugenDiagnostic('E_MUGEN_CNS_SYNTAX', 'cns', 'error', 'release-resource', `MUGEN controller references missing StateDef ${entry.controller.stateNumber}.`, { canonicalPath: entry.controller.sourcePath, line: entry.controller.sourceLine, section: `State ${entry.controller.stateNumber}` }));
-    return entry.common && asciiCaseFold(definition.sourcePath) !== asciiCaseFold(entry.controller.sourcePath) ? [] : [entry.controller];
+    return definitionKeys.get(entry.controller.stateNumber) !== entry.definitionKey ? [] : [entry.controller];
   });
   const states = [...definitions.values()].sort((left, right) => left.number - right.number).map(definition => Object.freeze({ ...definition, controllers: Object.freeze(activeControllers.filter(controller => controller.stateNumber === definition.number)) }));
   if (!definitions.has(0)) failMugen(mugenDiagnostic('E_MUGEN_CNS_SYNTAX', 'cns', 'error', 'release-resource', 'MUGEN state program requires StateDef 0.'));
@@ -126,7 +130,7 @@ function parseCharacterPhysics(documents: readonly MugenTextDocument[]): MugenSt
 }
 
 function parseStateDef(document: MugenTextDocument, section: MugenTextSection, number: number): Omit<MugenStateDefinition, 'controllers'> {
-  const values = unique(document, sectionAssignments(document, section), STATE_DEF_KEYS, 'StateDef');
+  const values = unique(document, sectionAssignments(document, section).filter(value => !KNOWN_IGNORED_STATE_DEF_KEYS.has(value.foldedKey)), STATE_DEF_KEYS, 'StateDef');
   if (number < 0 && values.size === 0) return emptyStateDefinition(number, document.canonicalPath, section.header.span.line);
   const stateType = optionalEnumAssignment(values.get('type'), STATE_TYPES, 'S', document, 'type') as MugenStateType | 'U';
   const moveType = optionalEnumAssignment(values.get('movetype'), MOVE_TYPES, 'I', document, 'movetype') as MugenMoveType | 'U';
@@ -166,13 +170,125 @@ function parseController(document: MugenTextDocument, section: MugenTextSection,
   for (const assignment of assignments) {
     if (assignment === typeAssignment) continue;
     if (assignment.foldedKey === 'triggerall') { triggerAll.push(parseMugenExpression(assignment.value, document, assignment)); continue; }
+    if (assignment.foldedKey === 'trggierall' || assignment.foldedKey === 'trigggerall') { triggerAll.push(parseMugenExpression(assignment.value, document, assignment)); literalParameters[`compat.alias.${assignment.foldedKey}`] = assignment.value.trim(); continue; }
     const trigger = /^trigger(\d+)$/u.exec(assignment.foldedKey);
     if (trigger) { const group = Number(trigger[1]); if (!Number.isSafeInteger(group) || group < 1 || group > 64) failAssignment(document, assignment, 'MUGEN trigger group must be from 1 to 64.'); const values = groups.get(group) ?? []; values.push(parseMugenExpression(assignment.value, document, assignment)); groups.set(group, values); continue; }
+    const negatedLegacyTrigger = /^trigger(\d+)\s*!$/u.exec(assignment.foldedKey);
+    if (negatedLegacyTrigger) {
+      const group = Number(negatedLegacyTrigger[1]);
+      if (!Number.isSafeInteger(group) || group < 1 || group > 64) failAssignment(document, assignment, 'MUGEN trigger group must be from 1 to 64.');
+      const values = groups.get(group) ?? [];
+      values.push(parseMugenExpression(`!(${assignment.value})`, document, assignment));
+      groups.set(group, values);
+      literalParameters[`compat.alias.trigger${group}!`] = assignment.value.trim();
+      continue;
+    }
+    const misspelledLegacyTrigger = /^trggier(\d+)$/u.exec(assignment.foldedKey);
+    if (misspelledLegacyTrigger) {
+      const group = Number(misspelledLegacyTrigger[1]);
+      if (!Number.isSafeInteger(group) || group < 1 || group > 64) failAssignment(document, assignment, 'MUGEN trigger group must be from 1 to 64.');
+      const values = groups.get(group) ?? [];
+      values.push(parseMugenExpression(assignment.value, document, assignment));
+      groups.set(group, values);
+      literalParameters[`compat.alias.trggier${group}`] = assignment.value.trim();
+      continue;
+    }
     if (assignment.foldedKey === 'persistent') { persistent = boundedInteger(assignment, 0, 65_535, document, 'persistent'); continue; }
     if (assignment.foldedKey === 'ignorehitpause' || assignment.foldedKey === 'ignorehitpose') { ignoreHitPause = booleanAssignment(assignment, document); continue; }
+    if (assignment.foldedKey === 'ignorehipause') { ignoreHitPause = booleanAssignment(assignment, document); literalParameters['compat.alias.ignorehipause'] = assignment.value.trim(); continue; }
+    if (assignment.foldedKey === 'ignonrehitpause') { ignoreHitPause = booleanAssignment(assignment, document); literalParameters['compat.alias.ignonrehitpause'] = assignment.value.trim(); continue; }
+    if (assignment.foldedKey === 'ignoreitpause') { ignoreHitPause = booleanAssignment(assignment, document); literalParameters['compat.alias.ignoreitpause'] = assignment.value.trim(); continue; }
     if (type === 'helper' && assignment.foldedKey === 'pausermovetime') { if (parameters.pausemovetime !== undefined) failAssignment(document, assignment, 'Duplicate MUGEN Helper pausemovetime parameter.'); parameters.pausemovetime = parseMugenExpression(assignment.value, document, assignment); continue; }
     if (KNOWN_IGNORED_PARAMETER_TYPOS.has(assignment.foldedKey)) { literalParameters[`compat.ignored.${assignment.foldedKey}`] = assignment.value.trim(); continue; }
     if (KNOWN_IGNORED_CONTROLLER_PARAMETERS[type]?.has(assignment.foldedKey)) { literalParameters[`compat.ignored.${assignment.foldedKey}`] = assignment.value.trim(); continue; }
+    if (type === 'projectile' && assignment.foldedKey === 'sprpriority') {
+      literalParameters['compat.alias.sprpriority'] = assignment.value.trim();
+      parameters.projsprpriority = parseMugenExpression(assignment.value, document, assignment);
+      continue;
+    }
+    if (type === 'hit-def' && assignment.foldedKey === 'sprpriority') {
+      literalParameters['compat.alias.sprpriority'] = assignment.value.trim();
+      hitDefAssignments.set('p1sprpriority', assignment);
+      continue;
+    }
+    if ((type === 'hit-def' || type === 'projectile') && assignment.foldedKey === 'ir.hittime') {
+      literalParameters['compat.alias.ir.hittime'] = assignment.value.trim();
+      hitDefAssignments.set('air.hittime', assignment);
+      continue;
+    }
+    if ((type === 'hit-def' || type === 'projectile') && assignment.foldedKey === 'air.recover') {
+      literalParameters['compat.alias.air.recover'] = assignment.value.trim();
+      hitDefAssignments.set('fall.recover', assignment);
+      continue;
+    }
+    if ((type === 'hit-def' || type === 'projectile') && (assignment.foldedKey === 'hittime' || assignment.foldedKey === 'slidetime')) {
+      const target = assignment.foldedKey === 'hittime' ? 'ground.hittime' : 'ground.slidetime';
+      literalParameters[`compat.alias.${assignment.foldedKey}`] = assignment.value.trim();
+      hitDefAssignments.set(target, assignment);
+      continue;
+    }
+    if ((type === 'hit-def' || type === 'projectile') && assignment.foldedKey === 'air.guard.velocity') {
+      literalParameters['compat.alias.air.guard.velocity'] = assignment.value.trim();
+      hitDefAssignments.set('airguard.velocity', assignment);
+      continue;
+    }
+    if (type === 'after-image' && assignment.foldedKey === 'flamegap') {
+      literalParameters['compat.alias.flamegap'] = assignment.value.trim();
+      parameters.framegap = parseMugenExpression(assignment.value, document, assignment);
+      continue;
+    }
+    if (type === 'env-shake' && assignment.foldedKey === 'ampe') {
+      literalParameters['compat.alias.ampe'] = assignment.value.trim();
+      parameters.ampl = parseMugenExpression(assignment.value, document, assignment);
+      continue;
+    }
+    if (type === 'state-type-set' && assignment.foldedKey === 'type') {
+      literalParameters['compat.alias.type'] = assignment.value.trim();
+      parameters.statetype = parseMugenExpression(assignment.value, document, assignment);
+      continue;
+    }
+    if (type === 'projectile' && assignment.foldedKey === 'sparkky') {
+      literalParameters['compat.alias.sparkky'] = assignment.value.trim();
+      hitDefAssignments.set('sparkxy', assignment);
+      continue;
+    }
+    if (type === 'projectile' && assignment.foldedKey === 'projshadow' && splitTopLevel(assignment.value).length > 1) {
+      const values = splitTopLevel(assignment.value);
+      if (values.length !== 3 || values.some(value => value === '')) failAssignment(document, assignment, 'MUGEN legacy Projectile projshadow must contain three color expressions.');
+      for (const value of values) parseMugenExpression(value, document, assignment);
+      parameters.projshadow = parseMugenExpression(values[0]!, document, assignment);
+      literalParameters['compat.legacy.projshadow.rgb'] = assignment.value.trim();
+      continue;
+    }
+    if ((type === 'explod' || type === 'modify-explod') && assignment.foldedKey === 'removepngethit') {
+      literalParameters['compat.alias.removepngethit'] = assignment.value.trim();
+      parameters.removeongethit = parseMugenExpression(assignment.value, document, assignment);
+      continue;
+    }
+    if ((type === 'explod' || type === 'modify-explod') && assignment.foldedKey === 'removegethit') {
+      literalParameters['compat.alias.removegethit'] = assignment.value.trim();
+      parameters.removeongethit = parseMugenExpression(assignment.value, document, assignment);
+      continue;
+    }
+    if ((type === 'explod' || type === 'modify-explod') && assignment.foldedKey === 'velset') {
+      const values = splitTopLevel(assignment.value);
+      if (values.length < 1 || values.length > 2 || values.some(value => value === '')) failAssignment(document, assignment, 'MUGEN legacy Explod velset must contain one or two expressions.');
+      parameters['vel.0'] = parseMugenExpression(values[0]!, document, assignment);
+      parameters['vel.1'] = values[1] === undefined ? numberExpression(0) : parseMugenExpression(values[1], document, assignment);
+      literalParameters['compat.alias.velset'] = assignment.value.trim();
+      continue;
+    }
+    if ((type === 'explod' || type === 'modify-explod') && (assignment.foldedKey === 'pausepausetime' || assignment.foldedKey === 'superpausetime')) {
+      const target = assignment.foldedKey === 'pausepausetime' ? 'pausemovetime' : 'supermovetime';
+      parameters[target] = parseMugenExpression(assignment.value, document, assignment);
+      literalParameters[`compat.alias.${assignment.foldedKey}`] = assignment.value.trim();
+      continue;
+    }
+    if (type === 'helper' && assignment.foldedKey === 'posttype') {
+      literalParameters['compat.alias.posttype'] = assignment.value.trim();
+      literalParameters.postype = assignment.value.trim().replace(/^['"]|['"]$/gu, '');
+      continue;
+    }
     const systemVariable = /^(?:sysvar)\(\s*([0-4])\s*\)$/u.exec(assignment.foldedKey);
     if ((type === 'var-set' || type === 'var-add') && systemVariable !== null) { if (parameters.sv !== undefined || parameters.value !== undefined) failAssignment(document, assignment, `Duplicate MUGEN system variable assignment: ${assignment.key}.`); parameters.sv = numberExpression(Number(systemVariable[1])); parameters.value = parseMugenExpression(assignment.value, document, assignment); continue; }
     const standardVariable = /^(f?var)\(\s*(\d+)\s*\)$/u.exec(assignment.foldedKey);
@@ -204,11 +320,27 @@ function parseController(document: MugenTextDocument, section: MugenTextSection,
     }
     if ((type === 'display-to-clipboard' || type === 'append-to-clipboard' || type === 'null') && assignment.foldedKey === 'params') { literalParameters.params = assignment.value.trim(); continue; }
     if ((type === 'display-to-clipboard' || type === 'append-to-clipboard') && assignment.foldedKey === 'text' && !/^"(?:[^"\\]|\\.)*"$/u.test(assignment.value.trim())) failAssignment(document, assignment, `MUGEN ${typeAssignment.value} text must be a double-quoted format string.`);
+    if (type === 'super-pause' && assignment.foldedKey === 'anim' && /^s\s*(?:-?\d|\()/iu.test(assignment.value.trim())) { const source = assignment.value.trim(); literalParameters['anim.owner'] = 'self'; parameters.anim = parseMugenExpression(source.slice(1).trim(), document, assignment); continue; }
+    if (type === 'super-pause' && assignment.foldedKey === 'sound') { const values = splitTopLevel(assignment.value); if (values.length === 1 && values[0]?.trim() === '-1') { literalParameters['sound.owner'] = 'fight'; parameters['sound.0'] = numberExpression(-1); parameters['sound.1'] = numberExpression(0); continue; } if (values.length !== 2) failAssignment(document, assignment, 'MUGEN SuperPause sound must contain group,item or the disabled value -1.'); const group = values[0]!.trim(); const owner = /^s\s*(.*)$/iu.exec(group); literalParameters['sound.owner'] = owner ? 'self' : 'fight'; parameters['sound.0'] = parseMugenExpression(owner?.[1] ?? group, document, assignment); parameters['sound.1'] = parseMugenExpression(values[1]!, document, assignment); continue; }
     if (type === 'force-feedback' && assignment.foldedKey !== 'waveform') {
       const constants = splitTopLevel(assignment.value); const integerConstant = /^[+-]?\d+$/u; const numericConstant = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/u;
       if (constants.length === 0 || constants.some(value => !(assignment.foldedKey === 'time' || assignment.foldedKey === 'self' ? integerConstant : numericConstant).test(value.trim()))) failAssignment(document, assignment, `MUGEN ForceFeedback ${assignment.key} requires numeric constants.`);
     }
     if (LITERAL_PARAMETERS.has(assignment.foldedKey) || type === 'projectile' && assignment.foldedKey === 'afterimage.trans') { literalParameters[assignment.foldedKey] = assignment.value.trim().replace(/^['"]|['"]$/gu, ''); continue; }
+    if (type === 'bind-to-target' && assignment.foldedKey === 'pos') {
+      const values = splitTopLevel(assignment.value);
+      if (values.length < 2 || values.length > 3 || values[0] === '' || values[1] === '') failAssignment(document, assignment, 'MUGEN BindToTarget pos must contain x, y and an optional Foot, Mid or Head anchor.');
+      parameters['pos.0'] = parseMugenExpression(values[0]!, document, assignment);
+      parameters['pos.1'] = parseMugenExpression(values[1]!, document, assignment);
+      if (values[2] !== undefined) {
+        const rawAnchor = asciiCaseFold(values[2].trim().replace(/^['"]|['"]$/gu, ''));
+        const anchor = rawAnchor === 'food' ? 'foot' : rawAnchor;
+        if (!new Set(['foot', 'mid', 'head']).has(anchor)) failAssignment(document, assignment, `Unsupported MUGEN BindToTarget position anchor: ${values[2]}.`);
+        literalParameters['pos.postype'] = anchor;
+        if (rawAnchor !== anchor) literalParameters['compat.alias.pos.postype'] = rawAnchor;
+      }
+      continue;
+    }
     const tupleArity = tupleParameterArity(type, assignment.foldedKey);
     if (tupleArity !== null) { const values = splitTopLevel(assignment.value); if (values.length < tupleArity[0] || values.length > tupleArity[1] || values.some(value => value === '')) failAssignment(document, assignment, `MUGEN ${assignment.key} must contain ${tupleArity[0] === tupleArity[1] ? tupleArity[0] : `${tupleArity[0]} to ${tupleArity[1]}`} expressions.`); for (let index = 0; index < tupleArity[1]; index += 1) delete parameters[`${assignment.foldedKey}.${index}`]; for (let index = 0; index < values.length; index += 1) parameters[`${assignment.foldedKey}.${index}`] = parseMugenExpression(values[index]!, document, assignment); continue; }
     if (PREFIXED_RESOURCE_PARAMETERS.has(assignment.foldedKey) && /^f\s*(?:-?\d|\()/iu.test(assignment.value.trim())) { const source = assignment.value.trim(); literalParameters[`${assignment.foldedKey}.owner`] = 'fight'; parameters[assignment.foldedKey] = parseMugenExpression(source.slice(1).trim(), document, assignment); continue; }
@@ -238,7 +370,7 @@ function parseController(document: MugenTextDocument, section: MugenTextSection,
   if (type === 'after-image' && literalParameters.trans !== undefined && !AFTER_IMAGE_TRANSPARENCY_MODES.has(asciiCaseFold(literalParameters.trans))) failSection(document, section, `Unsupported MUGEN AfterImage transparency mode: ${literalParameters.trans}.`);
   if (type === 'projectile' && literalParameters['afterimage.trans'] !== undefined && !AFTER_IMAGE_TRANSPARENCY_MODES.has(asciiCaseFold(literalParameters['afterimage.trans']))) failSection(document, section, `Unsupported MUGEN Projectile afterimage.trans mode: ${literalParameters['afterimage.trans']}.`);
   if (type === 'state-type-set' && parameters.statetype === undefined && parameters.movetype === undefined && parameters.physics === undefined) failSection(document, section, 'MUGEN StateTypeSet requires statetype, movetype or physics.');
-  if ((type === 'vel-set' || type === 'vel-add' || type === 'vel-mul' || type === 'pos-set' || type === 'pos-add') && parameters.x === undefined && parameters.y === undefined) failSection(document, section, `MUGEN ${typeAssignment.value} requires x or y.`);
+  if ((type === 'vel-set' || type === 'vel-add' || type === 'vel-mul' || type === 'pos-set' || type === 'pos-add') && parameters.x === undefined && parameters.y === undefined && literalParameters['compat.ignored.z'] === undefined) failSection(document, section, `MUGEN ${typeAssignment.value} requires x or y.`);
   if ((type === 'target-vel-set' || type === 'target-vel-add') && parameters.x === undefined && parameters.y === undefined) failSection(document, section, `MUGEN ${typeAssignment.value} requires x or y.`);
   if (type === 'width' && parameters['value.0'] !== undefined && (parameters['edge.0'] !== undefined || parameters['player.0'] !== undefined)) failSection(document, section, 'MUGEN Width value cannot be combined with edge or player.');
   const hitDefinition = type === 'hit-def' || type === 'projectile' ? parseHitDef(document, section, hitDefAssignments, type === 'hit-def') : null;
@@ -292,7 +424,7 @@ function parseHitDef(document: MugenTextDocument, section: MugenTextSection, val
   const airAnimationType = hitAnimationType(values.get('air.animtype'), animationType, document);
   const fallAnimationType = hitAnimationType(values.get('fall.animtype'), airAnimationType === 'up' ? 'up' : 'back', document);
   const envShake = Object.freeze([optionalExpression(values.get('envshake.time'), document, 0), optionalExpression(values.get('envshake.freq'), document, 60), optionalExpression(values.get('envshake.ampl'), document, -4), optionalExpression(values.get('envshake.phase'), document, 0)]) as MugenHitDefTemplate['output']['envShake']; const fallEnvShake = Object.freeze([optionalExpression(values.get('fall.envshake.time'), document, 0), optionalExpression(values.get('fall.envshake.freq'), document, 60), optionalExpression(values.get('fall.envshake.ampl'), document, -4), optionalExpression(values.get('fall.envshake.phase'), document, 0)]) as MugenHitDefTemplate['output']['fallEnvShake'];
-  const defenderPalette = Object.freeze({ time: optionalExpression(values.get('palfx.time'), document, 0), multiply: optionalExpressionTriple(values.get('palfx.mul'), document, [256, 256, 256]), add: optionalExpressionTriple(values.get('palfx.add'), document, [0, 0, 0]) });
+  const defenderPalette = Object.freeze({ time: optionalExpression(values.get('palfx.time'), document, 0), multiply: optionalExpressionTriple(values.get('palfx.mul'), document, [256, 256, 256]), add: optionalExpressionTriple(values.get('palfx.add'), document, [0, 0, 0]), sineAdd: optionalExpressionQuad(values.get('palfx.sinadd'), document, [0, 0, 0, 1]), invertAll: optionalExpression(values.get('palfx.invertall'), document, 0) });
   const output = Object.freeze({ sparkNumber: prefixedExpression(values.get('sparkno'), document).expression, sparkFromPlayer: prefixedExpression(values.get('sparkno'), document).prefixed, guardSparkNumber: prefixedExpression(values.get('guard.sparkno'), document).expression, guardSparkFromPlayer: prefixedExpression(values.get('guard.sparkno'), document).prefixed, sparkPosition: optionalExpressionPair(values.get('sparkxy'), document, [0, 0]), hitSound: prefixedExpressionPair(values.get('hitsound'), document).expressions, hitSoundFromPlayer: prefixedExpressionPair(values.get('hitsound'), document).prefixed, guardSound: prefixedExpressionPair(values.get('guardsound'), document).expressions, guardSoundFromPlayer: prefixedExpressionPair(values.get('guardsound'), document).prefixed, envShake, fallEnvShake, defenderPalette });
   return Object.freeze({
     attributeState: attributeState as MugenHitDefTemplate['attributeState'], attackAttribute: attackAttribute as MugenHitDefTemplate['attackAttribute'], affectTeam: hitAffectTeam(values.get('affectteam'), document), damage: damagePair,
@@ -315,8 +447,10 @@ function optionalExpression(assignment: MugenAssignmentToken | undefined, docume
 function expressionPair(assignment: MugenAssignmentToken, document: MugenTextDocument, secondDefault: number): readonly [MugenExpression, MugenExpression] { const fields = splitTopLevel(assignment.value); if (fields.length < 1 || fields.length > 2 || fields.some(field => field.trim() === '')) failAssignment(document, assignment, `MUGEN ${assignment.key} must contain one or two expressions.`); return Object.freeze([parseMugenExpression(fields[0]!, document, assignment), fields[1] === undefined ? numberExpression(secondDefault) : parseMugenExpression(fields[1], document, assignment)]); }
 function optionalExpressionPair(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument, fallback: readonly [number, number] | readonly [MugenExpression, MugenExpression]): readonly [MugenExpression, MugenExpression] { if (assignment !== undefined) return expressionPair(assignment, document, 0); return Object.freeze([typeof fallback[0] === 'number' ? numberExpression(fallback[0]) : fallback[0], typeof fallback[1] === 'number' ? numberExpression(fallback[1]) : fallback[1]]); }
 function optionalExpressionTriple(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument, fallback: readonly [number, number, number]): readonly [MugenExpression, MugenExpression, MugenExpression] { if (assignment === undefined) return Object.freeze(fallback.map(numberExpression)) as readonly [MugenExpression, MugenExpression, MugenExpression]; const fields = splitTopLevel(assignment.value); if (fields.length !== 3 || fields.some(field => field.trim() === '')) failAssignment(document, assignment, `MUGEN ${assignment.key} must contain three expressions.`); return Object.freeze(fields.map(field => parseMugenExpression(field, document, assignment))) as readonly [MugenExpression, MugenExpression, MugenExpression]; }
+function optionalExpressionQuad(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument, fallback: readonly [number, number, number, number]): readonly [MugenExpression, MugenExpression, MugenExpression, MugenExpression] { if (assignment === undefined) return Object.freeze(fallback.map(numberExpression)) as readonly [MugenExpression, MugenExpression, MugenExpression, MugenExpression]; const fields = splitTopLevel(assignment.value); if (fields.length !== 4 || fields.some(field => field.trim() === '')) failAssignment(document, assignment, `MUGEN ${assignment.key} must contain four expressions.`); return Object.freeze(fields.map(field => parseMugenExpression(field, document, assignment))) as readonly [MugenExpression, MugenExpression, MugenExpression, MugenExpression]; }
 function numberExpression(value: number): MugenExpression { const literal = Number.isInteger(value) ? mugenInt(value) : mugenFloat(value); if (literal.kind === 'bottom') throw new TypeError('Invalid internal expression fallback.'); return compileMugenExpression(Object.freeze({ kind: 'literal', value: literal })); }
-function splitTopLevel(value: string): readonly string[] { const result: string[] = []; let depth = 0; let quote = ''; let start = 0; for (let index = 0; index < value.length; index += 1) { const character = value[index]!; if (quote !== '') { if (character === quote && value[index - 1] !== '\\') quote = ''; continue; } if (character === '"' || character === "'") quote = character; else if (character === '(') depth += 1; else if (character === ')') depth -= 1; else if (character === ',' && depth === 0) { result.push(value.slice(start, index).trim()); start = index + 1; } if (depth < 0) return Object.freeze([]); } if (depth !== 0 || quote !== '') return Object.freeze([]); result.push(value.slice(start).trim()); return Object.freeze(result); }
+function splitTopLevel(value: string): readonly string[] { const result: string[] = []; let depth = 0; let quote = ''; let start = 0; for (let index = 0; index < value.length; index += 1) { const character = value[index]!; if (quote !== '') { if (character === quote && value[index - 1] !== '\\') quote = ''; continue; } if (character === '"' || character === "'") quote = character; else if (character === '(') depth += 1; else if (character === ')') depth -= 1; else if (character === ',' && depth === 0) { if (isRedirectionComma(value.slice(start, index))) continue; result.push(value.slice(start, index).trim()); start = index + 1; } if (depth < 0) return Object.freeze([]); } if (depth !== 0 || quote !== '') return Object.freeze([]); result.push(value.slice(start).trim()); return Object.freeze(result); }
+function isRedirectionComma(prefix: string): boolean { return /(?:^|[^a-z0-9_.])(?:parent|root|partner|enemy|helper\s*\([^()]*\)|target\s*\([^()]*\)|enemynear\s*\([^()]*\)|playerid\s*\([^()]*\))\s*$/iu.test(prefix); }
 
 function tupleParameterArity(type: MugenControllerType, key: string): readonly [minimum: number, maximum: number] | null {
   if (type === 'remap-pal' && (key === 'source' || key === 'dest')) return [2, 2];
@@ -335,24 +469,34 @@ function tupleParameterArity(type: MugenControllerType, key: string): readonly [
 
 function flags(assignment: MugenAssignmentToken | undefined, fallback: string, allowed: ReadonlySet<string>, document: MugenTextDocument, label: string): string { const value = (assignment?.value ?? fallback).trim().toUpperCase(); if ([...value].some(flag => !allowed.has(flag))) { if (assignment) failAssignment(document, assignment, `Unsupported MUGEN HitDef ${label}: ${assignment.value}.`); throw new TypeError(`Invalid internal HitDef ${label} fallback.`); } return [...new Set(value)].sort().join(''); }
 function groundHitType(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument, fallback: MugenHitDefTemplate['groundHitType'] = 'high'): MugenHitDefTemplate['groundHitType'] { const value = asciiCaseFold(assignment?.value.trim() ?? fallback); if (value === 'high' || value === 'low' || value === 'trip' || value === 'none') return value; if (assignment) failAssignment(document, assignment, `Unsupported MUGEN hit type: ${assignment.value}.`); throw new TypeError('Invalid internal hit type fallback.'); }
-function hitAnimationType(assignment: MugenAssignmentToken | undefined, fallback: MugenHitDefTemplate['animationType'], document: MugenTextDocument): MugenHitDefTemplate['animationType'] { const value = asciiCaseFold(assignment?.value.trim() ?? fallback); const normalized = value === 'med' ? 'medium' : value === 'diag-up' ? 'diagup' : value; if (normalized === 'light' || normalized === 'medium' || normalized === 'hard' || normalized === 'back' || normalized === 'up' || normalized === 'diagup') return normalized; if (assignment) failAssignment(document, assignment, `Unsupported MUGEN animation type: ${assignment.value}.`); throw new TypeError('Invalid internal animation type fallback.'); }
+function hitAnimationType(assignment: MugenAssignmentToken | undefined, fallback: MugenHitDefTemplate['animationType'], document: MugenTextDocument): MugenHitDefTemplate['animationType'] { const value = asciiCaseFold(assignment?.value.trim() ?? fallback); const normalized = value === 'med' ? 'medium' : value === 'heavy' ? 'hard' : value === 'diag-up' ? 'diagup' : value; if (normalized === 'light' || normalized === 'medium' || normalized === 'hard' || normalized === 'back' || normalized === 'up' || normalized === 'diagup') return normalized; if (assignment) failAssignment(document, assignment, `Unsupported MUGEN animation type: ${assignment.value}.`); throw new TypeError('Invalid internal animation type fallback.'); }
 function prefixedExpression(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument): Readonly<{ expression: MugenExpression | null; prefixed: boolean }> { if (assignment === undefined) return Object.freeze({ expression: null, prefixed: false }); const source = assignment.value.trim(); const prefixed = /^s/iu.test(source); return Object.freeze({ expression: parseMugenExpression(prefixed ? source.slice(1).trim() : source, document, assignment), prefixed }); }
-function prefixedExpressionPair(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument): Readonly<{ expressions: readonly [MugenExpression, MugenExpression] | null; prefixed: boolean }> { if (assignment === undefined) return Object.freeze({ expressions: null, prefixed: false }); const fields = splitTopLevel(assignment.value); if (fields.length !== 2) failAssignment(document, assignment, `MUGEN ${assignment.key} must contain group,item.`); const first = fields[0]!.trim(); const prefixed = /^s/iu.test(first); const expressions = Object.freeze([parseMugenExpression(prefixed ? first.slice(1).trim() : first, document, assignment), parseMugenExpression(fields[1]!, document, assignment)]) as readonly [MugenExpression, MugenExpression]; return Object.freeze({ expressions, prefixed }); }
+function prefixedExpressionPair(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument): Readonly<{ expressions: readonly [MugenExpression, MugenExpression] | null; prefixed: boolean }> { if (assignment === undefined) return Object.freeze({ expressions: null, prefixed: false }); const fields = splitTopLevel(assignment.value); if (fields.length === 1 && fields[0]?.trim() === '-1') return Object.freeze({ expressions: Object.freeze([numberExpression(-1), numberExpression(0)]) as readonly [MugenExpression, MugenExpression], prefixed: false }); if (fields.length !== 2) failAssignment(document, assignment, `MUGEN ${assignment.key} must contain group,item or the disabled value -1.`); const first = fields[0]!.trim(); const prefixed = /^s/iu.test(first); const expressions = Object.freeze([parseMugenExpression(prefixed ? first.slice(1).trim() : first, document, assignment), parseMugenExpression(fields[1]!, document, assignment)]) as readonly [MugenExpression, MugenExpression]; return Object.freeze({ expressions, prefixed }); }
 
 function sectionAssignments(document: MugenTextDocument, section: MugenTextSection): readonly MugenAssignmentToken[] { return document.tokens.slice(section.tokenStart + 1, section.tokenEnd).filter((token): token is MugenAssignmentToken => token.kind === 'assignment'); }
-function unique(document: MugenTextDocument, assignments: readonly MugenAssignmentToken[], allowed: ReadonlySet<string>, label: string): Map<string, MugenAssignmentToken> { const result = new Map<string, MugenAssignmentToken>(); for (const assignment of assignments) { if (!allowed.has(assignment.foldedKey)) failAssignment(document, assignment, `Unsupported MUGEN ${label} key: ${assignment.key}.`); if (result.has(assignment.foldedKey)) failAssignment(document, assignment, `Duplicate MUGEN ${label} key: ${assignment.key}.`); result.set(assignment.foldedKey, assignment); } return result; }
+function unique(document: MugenTextDocument, assignments: readonly MugenAssignmentToken[], allowed: ReadonlySet<string>, label: string): Map<string, MugenAssignmentToken> { const result = new Map<string, MugenAssignmentToken>(); for (const assignment of assignments) { if (!allowed.has(assignment.foldedKey)) failAssignment(document, assignment, `Unsupported MUGEN ${label} key: ${assignment.key}.`); result.set(assignment.foldedKey, assignment); } return result; }
 function parsedExpression(assignment: MugenAssignmentToken | undefined, document: MugenTextDocument): MugenExpression | null { return assignment === undefined ? null : parseMugenExpression(assignment.value, document, assignment); }
-function expressionTuple(assignment: MugenAssignmentToken, document: MugenTextDocument, label: string): readonly [MugenExpression, MugenExpression] { const values = splitTopLevel(assignment.value); if (values.length < 1 || values.length > 2 || values.some(value => value === '')) failAssignment(document, assignment, `MUGEN ${label} must contain one or two expressions.`); return Object.freeze([parseMugenExpression(values[0]!, document, assignment), values[1] === undefined ? numberExpression(0) : parseMugenExpression(values[1], document, assignment)]); }
+function expressionTuple(assignment: MugenAssignmentToken, document: MugenTextDocument, label: string): readonly [MugenExpression, MugenExpression] { const values = splitTopLevel(assignment.value); if (values.length < 1 || values.length > 3 || values.some(value => value === '')) failAssignment(document, assignment, `MUGEN ${label} must contain one to three expressions.`); if (values[2] !== undefined) parseMugenExpression(values[2], document, assignment); return Object.freeze([parseMugenExpression(values[0]!, document, assignment), values[1] === undefined ? numberExpression(0) : parseMugenExpression(values[1], document, assignment)]); }
 function optionalEnumAssignment(assignment: MugenAssignmentToken | undefined, allowed: ReadonlySet<string>, fallback: string, document: MugenTextDocument, key: string): string { if (!assignment) return fallback; const value = assignment.value.trim().toUpperCase(); if (!allowed.has(value)) failAssignment(document, assignment, `Invalid MUGEN StateDef ${key}: ${assignment.value}.`); return value; }
 function booleanAssignment(assignment: MugenAssignmentToken, document: MugenTextDocument): boolean { const value = asciiCaseFold(assignment.value.trim()); if (value === '1' || value === 'true') return true; if (value === '0' || value === 'false') return false; failAssignment(document, assignment, `MUGEN boolean must be 0 or 1: ${assignment.value}.`); }
 function boundedInteger(assignment: MugenAssignmentToken, minimum: number, maximum: number, document: MugenTextDocument, label: string): number { const value = Number(assignment.value); if (!Number.isSafeInteger(value) || value < minimum || value > maximum) failAssignment(document, assignment, `MUGEN ${label} must be an integer from ${minimum} to ${maximum}.`); return value; }
 function stateNumber(value: string, document: MugenTextDocument, section: MugenTextSection): number { const number = Number(value); if (!Number.isSafeInteger(number) || number < -2_147_483_648 || number > 2_147_483_647) failSection(document, section, `Invalid MUGEN state number: ${value}.`); return number; }
 
-const KNOWN_IGNORED_PARAMETER_TYPOS = new Set(['scadle', 'triggeeall', 'troggerall', 'trrigge5']);
+const KNOWN_IGNORED_PARAMETER_TYPOS = new Set(['scadle', 'triggearll', 'triggeeall', 'troggerall', 'trrigge5']);
+const KNOWN_IGNORED_STATE_DEF_KEYS = new Set(['ownpal']);
 const KNOWN_IGNORED_CONTROLLER_PARAMETERS: Partial<Readonly<Record<MugenControllerType, ReadonlySet<string>>>> = Object.freeze({
-  'assert-special': new Set(['pausemovetime', 'supermovetime']),
-  helper: new Set(['bindtime', 'removetime']),
+  'assert-special': new Set(['pausemovetime', 'supermovetime', 'time']),
+  'destroy-self': new Set(['ctrl', 'value']),
+  explod: new Set(['helpertype', 'keyctrl']),
+  helper: new Set(['bindtime', 'removetime', 'supermove']),
+  'hit-def': new Set(['air.slidetime']),
+  'not-hit-by': new Set(['pausemovetime', 'supermovetime']),
+  projectile: new Set(['air.slidetime']),
+  'reversal-def': new Set(['attr', 'p2facing']),
   'remove-explod': new Set(['pausemovetime', 'supermovetime']),
+  'super-pause': new Set(['ownpal']),
+  'vel-mul': new Set(['z']),
+  'vel-set': new Set(['z']),
 });
 function failAssignment(document: MugenTextDocument, assignment: MugenAssignmentToken, message: string): never { failMugen(mugenDiagnostic('E_MUGEN_CNS_SYNTAX', 'cns', 'error', 'release-resource', message, { canonicalPath: document.canonicalPath, sourceSha256: document.sourceSha256, byteOffset: assignment.valueSpan.startByte, line: assignment.valueSpan.line, column: assignment.valueSpan.column, key: assignment.key })); }
 function failUnsupported(document: MugenTextDocument, assignment: MugenAssignmentToken, message: string): never { failMugen(mugenDiagnostic('E_MUGEN_UNSUPPORTED_FEATURE', 'classification', 'error', 'release-resource', message, { canonicalPath: document.canonicalPath, sourceSha256: document.sourceSha256, byteOffset: assignment.valueSpan.startByte, line: assignment.valueSpan.line, column: assignment.valueSpan.column, key: assignment.key })); }
@@ -377,10 +521,10 @@ const CONTROLLER_TYPES = new Map<string, MugenControllerType>([
   ['parentvaradd', 'parent-var-add'], ['parentvarset', 'parent-var-set'], ['projectile', 'projectile'], ['removeexplod', 'remove-explod'],
   ['movehitreset', 'move-hit-reset'], ['gravity', 'gravity'], ['playsnd', 'play-snd'], ['stopsnd', 'stop-snd'], ['null', 'null'],
 ]);
-const HITDEF_PARAMETERS = new Set<string>(['attr', 'affectteam', 'damage', 'hitflag', 'guardflag', 'priority', 'animtype', 'air.animtype', 'fall.animtype', 'ground.type', 'air.type', 'pausetime', 'guard.pausetime', 'ground.slidetime', 'guard.slidetime', 'ground.hittime', 'guard.hittime', 'air.hittime', 'airguard.hittime', 'guard.ctrltime', 'airguard.ctrltime', 'guard.dist', 'yaccel', 'ground.velocity', 'air.velocity', 'guard.velocity', 'airguard.velocity', 'down.velocity', 'down.hittime', 'down.bounce', 'ground.cornerpush.veloff', 'air.cornerpush.veloff', 'down.cornerpush.veloff', 'guard.cornerpush.veloff', 'airguard.cornerpush.veloff', 'air.juggle', 'mindist', 'maxdist', 'snap', 'p1sprpriority', 'p2sprpriority', 'p1facing', 'p1getp2facing', 'p2facing', 'p1stateno', 'p2stateno', 'p2getp1state', 'forcestand', 'fall', 'air.fall', 'forcenofall', 'fall.xvelocity', 'fall.yvelocity', 'fall.recover', 'fall.recovertime', 'fall.damage', 'fall.kill', 'id', 'chainid', 'nochainid', 'hitonce', 'numhits', 'getpower', 'givepower', 'kill', 'guard.kill', 'sparkno', 'guard.sparkno', 'sparkxy', 'hitsound', 'guardsound', 'envshake.time', 'envshake.freq', 'envshake.ampl', 'envshake.phase', 'fall.envshake.time', 'fall.envshake.freq', 'fall.envshake.ampl', 'fall.envshake.phase', 'palfx.time', 'palfx.mul', 'palfx.add']);
-const EXPLOD_PARAMETERS = new Set<string>(['anim', 'id', 'space', 'pos', 'facing', 'vfacing', 'bindid', 'bindtime', 'vel', 'velocity', 'accel', 'removetime', 'supermove', 'supermovetime', 'pausemovetime', 'scale', 'angle', 'yangle', 'xangle', 'sprpriority', 'ontop', 'shadow', 'ownpal', 'remappal', 'removeongethit', 'trans', 'alpha', 'postype', 'random']);
-const HELPER_PARAMETERS = new Set<string>(['helpertype', 'name', 'id', 'pos', 'postype', 'facing', 'stateno', 'keyctrl', 'ownpal', 'remappal', 'supermovetime', 'pausemovetime', 'scale', 'sprpriority', 'size.xscale', 'size.yscale', 'size.ground.back', 'size.ground.front', 'size.air.back', 'size.air.front', 'size.height', 'size.proj.doscale', 'size.head.pos', 'size.mid.pos', 'size.shadowoffset']);
-const PROJECTILE_PARAMETERS = new Set<string>([...HITDEF_PARAMETERS, 'projid', 'projanim', 'projhitanim', 'projremanim', 'projcancelanim', 'projscale', 'projremove', 'projremovetime', 'velocity', 'remvelocity', 'accel', 'velmul', 'projhits', 'projmisstime', 'projpriority', 'projsprpriority', 'projedgebound', 'projstagebound', 'projheightbound', 'offset', 'postype', 'projshadow', 'supermovetime', 'pausemovetime', 'ownpal', 'remappal', 'afterimage.time', 'afterimage.length', 'afterimage.palcolor', 'afterimage.palinvertall', 'afterimage.palbright', 'afterimage.palcontrast', 'afterimage.palpostbright', 'afterimage.paladd', 'afterimage.palmul', 'afterimage.timegap', 'afterimage.framegap', 'afterimage.trans']);
+const HITDEF_PARAMETERS = new Set<string>(['attr', 'affectteam', 'damage', 'hitflag', 'guardflag', 'priority', 'animtype', 'air.animtype', 'fall.animtype', 'ground.type', 'air.type', 'pausetime', 'guard.pausetime', 'ground.slidetime', 'slidetime', 'guard.slidetime', 'ground.hittime', 'hittime', 'guard.hittime', 'air.hittime', 'ir.hittime', 'airguard.hittime', 'guard.ctrltime', 'airguard.ctrltime', 'guard.dist', 'yaccel', 'ground.velocity', 'air.velocity', 'guard.velocity', 'airguard.velocity', 'air.guard.velocity', 'down.velocity', 'down.hittime', 'down.bounce', 'ground.cornerpush.veloff', 'air.cornerpush.veloff', 'down.cornerpush.veloff', 'guard.cornerpush.veloff', 'airguard.cornerpush.veloff', 'air.juggle', 'mindist', 'maxdist', 'snap', 'p1sprpriority', 'p2sprpriority', 'sprpriority', 'p1facing', 'p1getp2facing', 'p2facing', 'p1stateno', 'p2stateno', 'p2getp1state', 'forcestand', 'fall', 'air.fall', 'air.recover', 'forcenofall', 'fall.xvelocity', 'fall.yvelocity', 'fall.recover', 'fall.recovertime', 'fall.damage', 'fall.kill', 'id', 'chainid', 'nochainid', 'hitonce', 'numhits', 'getpower', 'givepower', 'kill', 'guard.kill', 'sparkno', 'guard.sparkno', 'sparkxy', 'sparkky', 'hitsound', 'guardsound', 'envshake.time', 'envshake.freq', 'envshake.ampl', 'envshake.phase', 'fall.envshake.time', 'fall.envshake.freq', 'fall.envshake.ampl', 'fall.envshake.phase', 'palfx.time', 'palfx.mul', 'palfx.add', 'palfx.sinadd', 'palfx.invertall']);
+const EXPLOD_PARAMETERS = new Set<string>(['anim', 'id', 'space', 'pos', 'facing', 'vfacing', 'bindid', 'bindtime', 'vel', 'velset', 'velocity', 'accel', 'removetime', 'supermove', 'supermovetime', 'superpausetime', 'pausemovetime', 'pausepausetime', 'scale', 'angle', 'yangle', 'xangle', 'sprpriority', 'ontop', 'shadow', 'ownpal', 'remappal', 'removeongethit', 'removegethit', 'removepngethit', 'trans', 'alpha', 'postype', 'random']);
+const HELPER_PARAMETERS = new Set<string>(['helpertype', 'name', 'id', 'pos', 'postype', 'posttype', 'facing', 'stateno', 'keyctrl', 'ownpal', 'remappal', 'supermovetime', 'pausemovetime', 'scale', 'sprpriority', 'size.xscale', 'size.yscale', 'size.ground.back', 'size.ground.front', 'size.air.back', 'size.air.front', 'size.height', 'size.proj.doscale', 'size.head.pos', 'size.mid.pos', 'size.shadowoffset']);
+const PROJECTILE_PARAMETERS = new Set<string>([...HITDEF_PARAMETERS, 'projid', 'projanim', 'projhitanim', 'projremanim', 'projcancelanim', 'projscale', 'projremove', 'projremovetime', 'velocity', 'remvelocity', 'accel', 'velmul', 'projhits', 'projmisstime', 'projpriority', 'projsprpriority', 'sprpriority', 'projedgebound', 'projstagebound', 'projheightbound', 'offset', 'postype', 'projshadow', 'supermovetime', 'pausemovetime', 'ownpal', 'remappal', 'afterimage.time', 'afterimage.length', 'afterimage.palcolor', 'afterimage.palinvertall', 'afterimage.palbright', 'afterimage.palcontrast', 'afterimage.palpostbright', 'afterimage.paladd', 'afterimage.palmul', 'afterimage.timegap', 'afterimage.framegap', 'afterimage.trans']);
 const PAIR_PARAMETERS = new Set<string>(['pos', 'vel', 'accel', 'scale', 'remappal', 'random', 'size.head.pos', 'size.mid.pos', 'velocity', 'remvelocity', 'velmul', 'projscale', 'projheightbound', 'offset']);
 const LITERAL_PARAMETERS = new Set<string>(['space', 'postype', 'helpertype', 'name', 'trans', 'text', 'waveform']);
 const PREFIXED_RESOURCE_PARAMETERS = new Set<string>(['anim', 'projanim', 'projhitanim', 'projremanim', 'projcancelanim']);
@@ -390,7 +534,7 @@ const FORCE_FEEDBACK_WAVEFORMS = new Set<string>(['sine', 'square', 'sinesquare'
 const TRANSPARENCY_MODES = new Set<string>(['default', 'none', 'add', 'addalpha', 'add1', 'sub']);
 const AFTER_IMAGE_TRANSPARENCY_MODES = new Set<string>(['none', 'add', 'add1', 'sub']);
 const PALETTE_EFFECT_PARAMETERS = new Set<string>(['time', 'add', 'mul', 'sinadd', 'invertall', 'color']);
-const AFTER_IMAGE_PARAMETERS = new Set<string>(['time', 'length', 'palcolor', 'palinvertall', 'palbright', 'palcontrast', 'palpostbright', 'paladd', 'palmul', 'timegap', 'framegap', 'trans']);
+const AFTER_IMAGE_PARAMETERS = new Set<string>(['time', 'length', 'palcolor', 'palinvertall', 'palbright', 'palcontrast', 'palpostbright', 'paladd', 'palmul', 'timegap', 'framegap', 'flamegap', 'trans']);
 const CHARACTER_ATTRIBUTE_KEYS = new Set(['defence', 'airjuggle']);
 const CHARACTER_CONSTANT_SECTIONS = new Set(['data', 'size', 'velocity', 'movement']);
 const CONTROLLER_PARAMETERS: Readonly<Record<MugenControllerType, ReadonlySet<string>>> = Object.freeze({
@@ -398,14 +542,14 @@ const CONTROLLER_PARAMETERS: Readonly<Record<MugenControllerType, ReadonlySet<st
   'change-anim': new Set(['value', 'elem', 'ctrl']), 'change-anim2': new Set(['value', 'elem', 'ctrl']),
   'vel-set': new Set(['x', 'y']), 'vel-add': new Set(['x', 'y']), 'vel-mul': new Set(['x', 'y']),
   'pos-set': new Set(['x', 'y']), 'pos-add': new Set(['x', 'y', 'value']), 'pos-freeze': new Set(['value', 'x', 'y']),
-  'ctrl-set': new Set(['value']), 'state-type-set': new Set(['statetype', 'movetype', 'physics']), turn: new Set<string>(), width: new Set(['value', 'edge', 'player']), 'spr-priority': new Set(['value']),
+  'ctrl-set': new Set(['value']), 'state-type-set': new Set(['type', 'statetype', 'movetype', 'physics']), turn: new Set<string>(), width: new Set(['value', 'edge', 'player']), 'spr-priority': new Set(['value']),
   'var-set': new Set(['v', 'fv', 'value']), 'var-add': new Set(['v', 'fv', 'value']), 'var-random': new Set(['v', 'range']), 'var-range-set': new Set(['first', 'last', 'value', 'fvalue']),
   'assert-special': ASSERT_SPECIAL_PARAMETERS,
   'after-image': AFTER_IMAGE_PARAMETERS, 'after-image-time': new Set(['time', 'value']),
   'append-to-clipboard': new Set(['text', 'params']), 'display-to-clipboard': new Set(['text', 'params']),
   'all-pal-fx': PALETTE_EFFECT_PARAMETERS, 'angle-add': new Set(['value']), 'angle-draw': new Set(['value', 'scale']), 'angle-mul': new Set(['value']), 'angle-set': new Set(['value']),
   'bg-pal-fx': PALETTE_EFFECT_PARAMETERS, 'clear-clipboard': new Set<string>(), 'env-color': new Set(['value', 'time', 'under']), offset: new Set(['x', 'y']), 'pal-fx': PALETTE_EFFECT_PARAMETERS, pause: new Set(['time', 'movetime', 'endcmdbuftime', 'pausebg']), 'remap-pal': new Set(['source', 'dest']), 'snd-pan': new Set(['channel', 'pan', 'abspan']), 'super-pause': new Set(['time', 'movetime', 'anim', 'sound', 'pos', 'darken', 'p2defmul', 'poweradd', 'unhittable']), 'victory-quote': new Set(['value']),
-  'env-shake': new Set(['time', 'freq', 'ampl', 'phase']), 'fall-env-shake': new Set<string>(),
+  'env-shake': new Set(['time', 'freq', 'ampl', 'ampe', 'phase']), 'fall-env-shake': new Set<string>(),
   'force-feedback': new Set(['waveform', 'time', 'freq', 'ampl', 'self']),
   'game-make-anim': new Set(['value', 'under', 'pos', 'random']), 'make-dust': new Set(['pos', 'pos2', 'spacing']),
   'screen-bound': new Set(['value', 'movecamera']), trans: new Set(['trans', 'alpha']),

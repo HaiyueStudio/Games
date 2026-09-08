@@ -20,8 +20,8 @@ export class MugenCommandMatcher {
     const names: string[] = [];
     const seen = new Set<string>();
     for (const command of this.program.commands) {
-      if (seen.has(command.foldedName) || !matchesBuffered(command, frames)) continue;
-      seen.add(command.foldedName); names.push(command.foldedName);
+      if (seen.has(command.name) || !matchesBuffered(command, frames)) continue;
+      seen.add(command.name); names.push(command.name);
     }
     const base = Object.freeze({ tick: frames.at(-1)!.tick, playerId, names: Object.freeze(names) });
     return Object.freeze({ ...base, hash: hashSimulationState(base as unknown as SimulationStateValue) });
@@ -33,7 +33,7 @@ function matchesBuffered(command: MugenCommandDefinition, frames: readonly Mugen
   const earliestEnd = Math.max(0, last - command.bufferTime + 1);
   for (let end = last; end >= earliestEnd; end -= 1) {
     const frame = frames[end]!;
-    if (frame.aiLevel > 0 && frame.aiCommands.includes(command.foldedName)) return true;
+    if (frame.aiLevel > 0 && frame.aiCommands.includes(command.name)) return true;
     if (matchesAt(command, frames, end)) return true;
   }
   return false;
@@ -50,7 +50,13 @@ function matchesAt(command: MugenCommandDefinition, frames: readonly MugenPlayer
     const searchMinimum = step === command.steps.length - 1 ? cursor : minimum;
     for (let index = cursor; index >= searchMinimum; index -= 1) if (matchesStep(command.steps[step]!.tokens, frames, index)) { matched = index; break; }
     if (matched < 0) return false;
-    indices[step] = matched; cursor = matched - 1;
+    indices[step] = matched;
+    const previousTokens = command.steps[step - 1]?.tokens;
+    const sharesDirectionalEdge = previousTokens !== undefined && (
+      previousTokens.every(token => token.targetType === 'direction' && token.mode === 'release')
+      || command.steps[step]!.tokens.every(token => token.targetType === 'button') && previousTokens.every(token => token.targetType === 'direction')
+    );
+    cursor = matched - (sharesDirectionalEdge ? 0 : 1);
   }
   for (let step = 1; step < command.steps.length; step += 1) {
     if (!command.steps[step]!.tokens.some(token => token.noOtherInput)) continue;
@@ -59,7 +65,18 @@ function matchesAt(command: MugenCommandDefinition, frames: readonly MugenPlayer
   return true;
 }
 
-function matchesStep(tokens: readonly MugenCommandToken[], frames: readonly MugenPlayerInputFrame[], index: number): boolean { return tokens.every(token => matchesToken(token, frames, index)); }
+function matchesStep(tokens: readonly MugenCommandToken[], frames: readonly MugenPlayerInputFrame[], index: number): boolean {
+  const simultaneousButtons = tokens.length > 1 && tokens.every(token => token.targetType === 'button' && token.mode === 'press');
+  if (!simultaneousButtons) return tokens.every(token => matchesToken(token, frames, index));
+  return tokens.every(token => {
+    const target = token.target as MugenCommandButton;
+    if (!frames[index]!.held.includes(target)) return false;
+    for (let candidate = index; candidate >= Math.max(0, index - MUGEN_SIMULTANEOUS_BUTTON_GRACE_TICKS); candidate -= 1) {
+      if (frames[candidate]!.pressed.includes(target)) return true;
+    }
+    return false;
+  });
+}
 
 function matchesToken(token: MugenCommandToken, frames: readonly MugenPlayerInputFrame[], index: number): boolean {
   const frame = frames[index]!;
@@ -99,3 +116,9 @@ function directionMatches(actual: string, expected: MugenCommandDirection, fourW
 
 function hasInputEdge(frames: readonly MugenPlayerInputFrame[], index: number): boolean { const frame = frames[index]!; const previous = frames[index - 1]; return frame.pressed.length > 0 || frame.released.length > 0 || (previous !== undefined && frame.facingDirection !== previous.facingDirection); }
 function validateProgram(program: MugenCommandProgram): MugenCommandProgram { if (!program || program.schemaVersion !== 1 || program.revision !== 'm08-g08b-command-v1' || !Array.isArray(program.commands) || program.commands.length === 0) throw new TypeError('MUGEN command program is invalid.'); return program; }
+
+// Browser keyboards report two physical keydown events sequentially even when the
+// player intended a simultaneous MUGEN button chord. One simulation tick is the
+// narrowest deterministic tolerance that preserves that chord without turning a
+// deliberately held button into a later two-button command.
+const MUGEN_SIMULTANEOUS_BUTTON_GRACE_TICKS = 1;

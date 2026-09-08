@@ -24,47 +24,47 @@
   "normalGameplayPerformance": [
     {
       "tick": 180,
-      "fps": 60,
-      "simulationMilliseconds": 3.97,
-      "renderMilliseconds": 0.82,
+      "fps": 55,
+      "simulationMilliseconds": 3.8,
+      "renderMilliseconds": 0.8,
       "backlogTicks": 0
     },
     {
-      "tick": 243,
-      "fps": 60,
-      "simulationMilliseconds": 5.06,
-      "renderMilliseconds": 1.04,
-      "backlogTicks": 0
-    },
-    {
-      "tick": 308,
-      "fps": 60,
-      "simulationMilliseconds": 3.75,
+      "tick": 241,
+      "fps": 59.1,
+      "simulationMilliseconds": 3.9,
       "renderMilliseconds": 0.86,
       "backlogTicks": 0
     },
     {
-      "tick": 371,
+      "tick": 303,
       "fps": 60,
-      "simulationMilliseconds": 2.97,
-      "renderMilliseconds": 0.58,
+      "simulationMilliseconds": 3.59,
+      "renderMilliseconds": 0.81,
       "backlogTicks": 0
     },
     {
-      "tick": 433,
+      "tick": 368,
+      "fps": 54,
+      "simulationMilliseconds": 3.85,
+      "renderMilliseconds": 0.81,
+      "backlogTicks": 0
+    },
+    {
+      "tick": 431,
       "fps": 60,
-      "simulationMilliseconds": 3.55,
-      "renderMilliseconds": 0.74,
+      "simulationMilliseconds": 3.6,
+      "renderMilliseconds": 0.84,
       "backlogTicks": 0
     }
   ],
   "running": {
     "status": "running",
     "phase": "fight",
-    "tick": 183,
-    "p1State": 0,
+    "tick": 179,
+    "p1State": 200,
     "p2State": 0,
-    "outputHash": "fnv1a64:9c304aa63459cb99",
+    "outputHash": "fnv1a64:9c3446a6345dada4",
     "afterImage": {
       "status": "rendering",
       "trails": 4,
@@ -81,15 +81,15 @@
       "count": 5
     },
     "audio": {
-      "starts": 3,
-      "paramWrites": 13,
-      "panWrites": 13
+      "starts": 7,
+      "paramWrites": 25,
+      "panWrites": 25
     }
   },
   "screenshot": {
     "path": "Games/site/screenshots/mugen-g08-browser-lifecycle-current.png",
-    "bytes": 231712,
-    "sha256": "37aa809e024706eefc89c97edbe11c7dd085cc825b718bc025af24d5366b3434"
+    "bytes": 174891,
+    "sha256": "ee7f3f8918462399eb5651c3a71d753908d1ddc1dabf15b9557a93c44743dda4"
   },
   "deviceLoss": {
     "generationBefore": 2,

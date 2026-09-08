@@ -465,48 +465,83 @@ function createRuntimeApiFactory(runtime: PlayerRuntime) {
     const entity = target instanceof Entity ? target : findEntity(runtime.world, target);
     return entity?.getComponent(Physics2DBody) ?? null;
   };
+  const getPhysicsEntity = (body: Physics2DBody): Entity | null => {
+    for (const entity of runtime.world.entities.values()) if (entity.getComponent(Physics2DBody) === body) return entity;
+    return null;
+  };
   const getPhysicsSystem = (): Physics2DSystem | null => runtime.world.getSystem(Physics2DSystem) as Physics2DSystem | null;
+  const vector2 = (value: unknown, legacyY?: number): Readonly<{ x: number; y: number }> => {
+    if (typeof value === 'number') return Object.freeze({ x: value, y: Number(legacyY ?? 0) });
+    if (Array.isArray(value)) return Object.freeze({ x: Number(value[0] ?? 0), y: Number(value[1] ?? 0) });
+    if (value !== null && typeof value === 'object') {
+      const candidate = value as Readonly<{ x?: unknown; y?: unknown }>;
+      return Object.freeze({ x: Number(candidate.x ?? 0), y: Number(candidate.y ?? 0) });
+    }
+    return Object.freeze({ x: 0, y: 0 });
+  };
   const physicsApi = Object.freeze({
     getSystem: getPhysicsSystem,
-    body: getPhysicsBody,
-    hitTest: (x: number, y: number) => getPhysicsSystem()?.hitTest(runtime.world, x, y) ?? null,
-    applyImpulse: (target: Entity | Physics2DBody | number | string, x: number, y: number) => {
-      const physics = getPhysicsSystem();
-      const body = getPhysicsBody(target);
-      return !!physics && !!body && physics.applyLinearImpulse(body, x, y);
+    status: () => getPhysicsSystem()?.resourceSnapshot() ?? null,
+    body: (target?: Entity | Physics2DBody | number | string) => target === undefined ? null : getPhysicsBody(target),
+    hitTest: (point: unknown, legacyY?: number) => {
+      const value = vector2(point, legacyY);
+      return getPhysicsSystem()?.hitTest(runtime.world, value.x, value.y) ?? null;
     },
-    applyForce: (target: Entity | Physics2DBody | number | string, x: number, y: number) => {
+    applyImpulse: (target: Entity | Physics2DBody | number | string, impulse: unknown, legacyY?: number) => {
       const physics = getPhysicsSystem();
       const body = getPhysicsBody(target);
-      return !!physics && !!body && physics.applyForce(body, x, y);
+      const value = vector2(impulse, legacyY);
+      return !!physics && !!body && physics.applyLinearImpulse(body, value.x, value.y);
+    },
+    applyForce: (target: Entity | Physics2DBody | number | string, force: unknown, legacyY?: number) => {
+      const physics = getPhysicsSystem();
+      const body = getPhysicsBody(target);
+      const value = vector2(force, legacyY);
+      return !!physics && !!body && physics.applyForce(body, value.x, value.y);
     },
     getVelocity: (
-      target: Entity | Physics2DBody | number | string,
+      target?: Entity | Physics2DBody | number | string,
       out: { x: number; y: number } = { x: 0, y: 0 },
     ) => {
+      if (target === undefined) return null;
       const physics = getPhysicsSystem();
       const body = getPhysicsBody(target);
       return physics && body && physics.getLinearVelocity(body, out) ? out : null;
     },
-    getMass: (target: Entity | Physics2DBody | number | string) => {
+    getMass: (target?: Entity | Physics2DBody | number | string) => {
+      if (target === undefined) return null;
       const physics = getPhysicsSystem();
       const body = getPhysicsBody(target);
       return physics && body ? physics.getBodyMass(body) : null;
     },
-    setVelocity: (target: Entity | Physics2DBody | number | string, x: number, y: number) => {
-      const physics = getPhysicsSystem();
-      const body = getPhysicsBody(target);
-      return !!physics && !!body && physics.setLinearVelocity(body, x, y);
+    events: () => getPhysicsSystem()?.events() ?? Object.freeze([]),
+    grounded: (target?: Entity | Physics2DBody | number | string) => {
+      if (target === undefined) return false;
+      const physics = getPhysicsSystem(); const body = getPhysicsBody(target); const velocity = { x: 0, y: 0 };
+      if (!physics || !body || !physics.getLinearVelocity(body, velocity) || Math.abs(velocity.y) > 1e-4) return false;
+      const entity = getPhysicsEntity(body);
+      return entity !== null && physics.events().some(event => event.entityA === entity || event.entityB === entity);
     },
-    setAngularVelocity: (target: Entity | Physics2DBody | number | string, velocity: number) => {
+    setVelocity: (target: Entity | Physics2DBody | number | string, velocity: unknown, legacyY?: number) => {
       const physics = getPhysicsSystem();
       const body = getPhysicsBody(target);
-      return !!physics && !!body && physics.setAngularVelocity(body, velocity);
+      const value = vector2(velocity, legacyY);
+      return !!physics && !!body && physics.setLinearVelocity(body, value.x, value.y);
     },
-    teleport: (target: Entity | Physics2DBody | number | string, x: number, y: number, angle?: number) => {
+    setAngularVelocity: (target: Entity | Physics2DBody | number | string, velocity: unknown) => {
       const physics = getPhysicsSystem();
       const body = getPhysicsBody(target);
-      return !!physics && !!body && physics.teleportBody(body, x, y, angle);
+      return !!physics && !!body && physics.setAngularVelocity(body, Number(velocity));
+    },
+    wake: (target: Entity | Physics2DBody | number | string, awake = true) => {
+      const physics = getPhysicsSystem(); const body = getPhysicsBody(target);
+      return !!physics && !!body && physics.setBodyAwake(body, awake);
+    },
+    teleport: (target: Entity | Physics2DBody | number | string, position: unknown, legacyY?: number, legacyAngle?: number) => {
+      const physics = getPhysicsSystem();
+      const body = getPhysicsBody(target);
+      const value = vector2(position, legacyY);
+      return !!physics && !!body && physics.teleportBody(body, value.x, value.y, legacyAngle);
     },
     stop: (target: Entity | Physics2DBody | number | string) => {
       const physics = getPhysicsSystem();
@@ -514,10 +549,21 @@ function createRuntimeApiFactory(runtime: PlayerRuntime) {
       if (!physics || !body) return false;
       return physics.setLinearVelocity(body, 0, 0) && physics.setAngularVelocity(body, 0);
     },
+    raycast: (dimension: '2d' | '3d', origin: unknown, direction: unknown, maxDistance?: number) => {
+      if (dimension !== '2d') return null;
+      const start = vector2(origin); const ray = vector2(direction);
+      return getPhysicsSystem()?.castRay([start.x, start.y], [ray.x, ray.y], maxDistance) ?? null;
+    },
+    overlap: (dimension: '2d' | '3d', center: unknown, size: unknown, limit?: number) => {
+      if (dimension !== '2d') return Object.freeze([]);
+      const position = vector2(center); const extent = vector2(size);
+      const entities = getPhysicsSystem()?.queryAabb([position.x - extent.x * .5, position.y - extent.y * .5], [position.x + extent.x * .5, position.y + extent.y * .5], limit === undefined ? {} : { limit }) ?? [];
+      return Object.freeze(entities.map(entity => entity.name));
+    },
   });
   return (baseApi: ScriptRuntimeApi, _context: ScriptRuntimeContext): ScriptRuntimeApi => ({
     ...baseApi,
-    input: KeyboardComponent,
+    input: baseApi.input!,
     read: Object.freeze({
       ...baseApi.read!,
       find: worldFacade.find,

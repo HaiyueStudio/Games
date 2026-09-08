@@ -54,7 +54,7 @@ export class MugenStageCamera {
   }
 
   constrainX(position: number, screenBound: boolean): number {
-    const visible = this.snapshot().screenBounds; const minimum = Math.max(this.config.playerBounds[0], screenBound ? visible[0] : -Infinity); const maximum = Math.min(this.config.playerBounds[1], screenBound ? visible[1] : Infinity);
+    const snapshot = this.snapshot(); const safetyBounds = screenBound ? snapshot.screenBounds : snapshot.visibleBounds; const minimum = Math.max(this.config.playerBounds[0], safetyBounds[0]); const maximum = Math.min(this.config.playerBounds[1], safetyBounds[1]);
     return f32(clamp(position, minimum, maximum));
   }
 

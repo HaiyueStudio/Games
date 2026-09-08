@@ -67,7 +67,7 @@ export async function buildMugenImportGraph(vfs: MugenVfs, options: BuildMugenIm
   let maxDepth = 0;
   let textBytes = 0;
 
-  const visit = async (file: MugenVfsFile, depth: number, forceText = false): Promise<void> => {
+  const visit = async (file: MugenVfsFile, depth: number, forceText = false, forcedKind?: MugenResourceKind): Promise<void> => {
     throwIfAborted(options.signal);
     if (depth > MUGEN_LIMITS.directoryAndArchive.maxDependencyDepth) {
       failMugen(mugenDiagnostic(
@@ -88,7 +88,10 @@ export async function buildMugenImportGraph(vfs: MugenVfs, options: BuildMugenIm
       failMugen(mugenDiagnostic('E_MUGEN_DEPENDENCY_CYCLE', 'dependency', 'fatal', 'release-resource', `MUGEN dependency cycle: ${cycle}`, { canonicalPath: file.canonicalPath }));
     }
     visiting.push(file.foldedPath);
-    const kind = resourceKind(file.canonicalPath);
+    // MUGEN assigns the command role through DEF [Files] cmd, not through a
+    // required filename extension. A large amount of 1.0/WinMUGEN content uses
+    // AI_1_0.txt as the executable CMD document.
+    const kind = forcedKind ?? resourceKind(file.canonicalPath);
     let document: MugenTextDocument | undefined;
     if (isTextResource(kind, file) || forceText) {
       textBytes = checkedBudgetAdd(textBytes, file.byteLength, 'textBytes', MUGEN_LIMITS.directoryAndArchive.maxRawBytes, file.canonicalPath);
@@ -122,7 +125,7 @@ export async function buildMugenImportGraph(vfs: MugenVfs, options: BuildMugenIm
           ));
         }
         const targetPath = resolveReferenceWithLocation(document, reference.assignment, reference.path);
-        const target = vfs.get(targetPath);
+        const target = vfs.get(targetPath) ?? stageAssetFallback(vfs, options.entryKind, reference.path);
         if (!target) {
           if (isEngineProvidedExternalReference(document, reference.assignment) || isOptionalStageAudioReference(options.entryKind, document, reference.assignment)) continue;
           failMugen(mugenDiagnostic(
@@ -143,7 +146,12 @@ export async function buildMugenImportGraph(vfs: MugenVfs, options: BuildMugenIm
           line: reference.assignment.valueSpan.line,
           column: reference.assignment.valueSpan.column,
         }));
-        await visit(target, depth + 1, isStateScriptReference(document, reference.assignment));
+        await visit(
+          target,
+          depth + 1,
+          isStateScriptReference(document, reference.assignment),
+          isCommandScriptReference(document, reference.assignment) ? 'cmd' : undefined,
+        );
       }
     }
     visiting.pop();
@@ -260,9 +268,22 @@ function isOptionalStageAudioReference(entryKind: MugenEntryKind | undefined, do
   return entryKind === 'stage' && asciiCaseFold(sectionName(document, assignment)) === 'music' && assignment.foldedKey === 'bgmusic';
 }
 
+function stageAssetFallback(vfs: MugenVfs, entryKind: MugenEntryKind | undefined, reference: string): MugenVfsFile | undefined {
+  if (entryKind !== 'stage') return undefined;
+  const normalized = unquoteMugenValue(reference).trim().replace(/\\/gu, '/');
+  const basename = asciiCaseFold(normalized.slice(normalized.lastIndexOf('/') + 1));
+  if (basename === '') return undefined;
+  const candidates = vfs.files.filter(file => file.foldedPath === basename || file.foldedPath.endsWith(`/${basename}`));
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
 function isStateScriptReference(document: MugenTextDocument, assignment: MugenAssignmentToken): boolean {
   if (asciiCaseFold(sectionName(document, assignment)) !== 'files') return false;
   return assignment.foldedKey === 'cmd' || assignment.foldedKey === 'cns' || assignment.foldedKey === 'st' || assignment.foldedKey === 'stcommon' || /^st\d+$/u.test(assignment.foldedKey);
+}
+
+function isCommandScriptReference(document: MugenTextDocument, assignment: MugenAssignmentToken): boolean {
+  return asciiCaseFold(sectionName(document, assignment)) === 'files' && assignment.foldedKey === 'cmd';
 }
 
 function firstCommaSeparatedValue(value: string): string {
@@ -297,7 +318,7 @@ function resolveReferenceWithLocation(document: MugenTextDocument, assignment: M
 
 function detectEntryKind(document: MugenTextDocument): MugenEntryKind {
   const sections = new Set(document.sections.map(section => section.foldedName));
-  if (sections.has('stagedef') || sections.has('camera') || sections.has('playerinfo')) return 'stage';
+  if (sections.has('stagedef') || sections.has('stageinfo') || sections.has('bgdef') || sections.has('camera') || sections.has('playerinfo')) return 'stage';
   if (sections.has('scenedef') || sections.has('scene 0')) return 'storyboard';
   const files = assignmentsInSection(document, 'Files');
   const fileKeys = new Set(files.map(token => token.foldedKey));

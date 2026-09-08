@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07090f">
-  <title>MUGEN 角色动画查看器 · Haiyue</title>
+  <title>MUGEN 素材预览器 · Haiyue</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body data-render-status="starting">
@@ -12,9 +12,9 @@
     <header class="topbar">
       <div class="brand">
         <span class="brand-mark">HY</span>
-        <div><p>HAIYUE LAB</p><h1>MUGEN 角色动画查看器</h1></div>
+        <div><p>HAIYUE LAB</p><h1>MUGEN 素材预览器</h1></div>
       </div>
-      <div class="import-actions">
+      <div id="character-import-actions" class="import-actions">
         <a class="button secondary" href="./index.html">进入格斗游戏</a>
         <input id="directory-input" type="file" webkitdirectory multiple hidden>
         <button id="file-button" class="button secondary" type="button">选择角色目录</button>
@@ -23,6 +23,8 @@
       </div>
     </header>
 
+    <hy-tabs id="preview-tabs" class="preview-tabs" value="character">
+    <div class="character-tab-page" slot="character">
     <section id="entry-choice" class="entry-choice" hidden>
       <div><strong>发现多个 DEF 入口</strong><span>请选择要查看的角色定义。</span></div>
       <hy-select id="entry-select" aria-label="角色 DEF 入口"></hy-select>
@@ -135,7 +137,61 @@
       </aside>
       </hy-split>
     </hy-split>
+    </div>
+
+    <section class="stage-tab-page" slot="stage">
+      <header class="stage-toolbar">
+        <div>
+          <strong>舞台场景预览</strong>
+          <span id="stage-import-state">等待选择 Stage 文件夹</span>
+        </div>
+        <div class="stage-actions">
+          <label class="stage-zoom-field">缩放 <hy-range id="stage-zoom-control" min="25" max="400" step="5" value="100" aria-label="舞台背景缩放"></hy-range><span id="stage-zoom-value">100%</span></label>
+          <button id="stage-reset-view" class="button secondary" type="button">重置视图</button>
+          <input id="stage-directory-input" type="file" webkitdirectory multiple hidden>
+          <button id="stage-file-button" class="button secondary" type="button">选择 Stage 目录</button>
+          <button id="stage-picker-button" class="button primary" type="button">打开目录</button>
+        </div>
+      </header>
+      <section id="stage-entry-choice" class="entry-choice" hidden>
+        <div><strong>发现多个 Stage DEF</strong><span>请选择需要渲染的舞台定义。</span></div>
+        <hy-select id="stage-entry-select" aria-label="舞台 DEF 入口"></hy-select>
+        <button id="stage-entry-import" class="button primary" type="button">载入舞台</button>
+      </section>
+      <hy-split id="stage-split" class="stage-workspace" direction="horizontal" ratio="0.78" min-first="420" min-second="240" bar-size="5">
+        <div id="stage-viewer" class="viewer-stage stage-viewer" data-background="dark" slot="first">
+          <canvas id="stage-canvas" aria-label="MUGEN 舞台 WebGPU 预览"></canvas>
+          <canvas id="stage-debug-canvas" aria-hidden="true"></canvas>
+          <div id="stage-drop-hint" class="drop-hint">
+            <div class="drop-icon">▧</div>
+            <strong>选择一个 MUGEN Stage 文件夹</strong>
+            <span>解析 Stage DEF 与 SFF，在本机渲染背景层和前景层</span>
+          </div>
+          <div class="viewport-badges">
+            <span id="stage-frame-badge">STAGE — · BG —</span>
+            <span id="stage-gpu-badge">WEBGPU INIT</span>
+          </div>
+        </div>
+        <aside class="sidebar stage-info-panel" slot="second">
+          <section class="panel">
+            <div class="panel-heading"><span>STAGE</span><small id="stage-entry-label">—</small></div>
+            <h2 id="stage-name">尚未载入舞台</h2>
+            <p id="stage-meta" class="muted">舞台素材只在本地解析。</p>
+            <dl id="stage-details" class="details-list">
+              <div><dt>Size</dt><dd>—</dd></div>
+              <div><dt>Layers</dt><dd>—</dd></div>
+              <div><dt>Camera</dt><dd>—</dd></div>
+            </dl>
+          </section>
+          <details class="panel diagnostics-panel" open>
+            <summary><span>STAGE REPORT</span><small id="stage-diagnostic-count">0 diagnostics</small></summary>
+            <div id="stage-diagnostics" class="diagnostics"><p class="muted">尚无舞台导入报告。</p></div>
+          </details>
+        </aside>
+      </hy-split>
+    </section>
+    </hy-tabs>
   </main>
-  <script type="module" src="./dist/charactorPreview.js?v=20260904-audio-loop-default-2"></script>
+  <script type="module" src="./dist/charactorPreview.js?v=20260905-legacy-hires-1"></script>
 </body>
 </html>

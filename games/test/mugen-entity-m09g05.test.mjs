@@ -74,6 +74,33 @@ test('G05 projectile contact, explod mutation, binding and pause move time are d
   assert.deepEqual(entities.entity(projectile).position, [3, 0]);
 });
 
+test('G05 newly spawned visual entities expose age zero before their first advance', () => {
+  const entities = new MugenEntityAuthority(roots);
+  entities.beginTick(1);
+  const projectile = entities.spawnProjectile({ ownerId: 'P1', projectileId: 61, velocity: [2, 0], removeTime: 2 });
+  const explod = entities.spawnExplod({ ownerId: 'P1', explodId: 62, animationNumber: 620, velocity: [3, 0], bindTime: 0, removeTime: 2 });
+  entities.commit();
+  entities.advance();
+  assert.deepEqual([entities.entity(projectile).age, entities.entity(projectile).position, entities.entity(projectile).removeTime], [0, [0, 0], 2]);
+  assert.deepEqual([entities.entity(explod).age, entities.entity(explod).position, entities.entity(explod).removeTime], [0, [0, 0], 2]);
+  entities.beginTick(2); entities.commit(); entities.advance();
+  assert.deepEqual([entities.entity(projectile).age, entities.entity(projectile).position, entities.entity(projectile).removeTime], [1, [2, 0], 1]);
+  assert.deepEqual([entities.entity(explod).age, entities.entity(explod).position, entities.entity(explod).removeTime], [1, [3, 0], 1]);
+});
+
+test('G05 a newly initialized Helper presents action tick zero once', () => {
+  const entities = new MugenEntityAuthority(roots);
+  entities.beginTick(1);
+  const helper = entities.spawnHelper({ ownerId: 'P1', helperId: 63 });
+  entities.commit(); entities.advance();
+  assert.deepEqual([entities.entity(helper).stateDefinitionPending, entities.entity(helper).actionTime], [true, 0]);
+  entities.beginTick(2).updateHelper(helper, { stateDefinitionPending: false, actionNumber: 1222, actionTime: 0 });
+  entities.commit(); entities.advance();
+  assert.deepEqual([entities.entity(helper).stateDefinitionPending, entities.entity(helper).actionNumber, entities.entity(helper).actionTime], [false, 1222, 0]);
+  entities.beginTick(3); entities.commit(); entities.advance();
+  assert.equal(entities.entity(helper).actionTime, 1);
+});
+
 test('G05 projectile collision cancels ties and decrements the surviving higher priority', () => {
   const entities = new MugenEntityAuthority(roots);
   entities.beginTick(1);
@@ -112,6 +139,8 @@ test('G05 projectile hit, timeout and bounds enter their typed terminal animatio
   const bounded = entities.spawnProjectile({ ownerId: 'P2', projectileId: 53, position: [1001, 0], stageBound: 0, edgeBound: 1000, removeAnimationNumber: 504 });
   const screenBounded = entities.spawnProjectile({ ownerId: 'P2', projectileId: 54, position: [101, 0], stageBound: 1000, edgeBound: 0, removeAnimationNumber: 505 });
   entities.commit(); entities.recordProjectileContact(hit, 'hit'); entities.removeProjectilesOutsideBounds(-1000, 1000, -100, 100); entities.advance();
+  assert.equal(entities.entity(timeout).terminalReason, null);
+  entities.beginTick(2); entities.commit(); entities.advance();
   assert.deepEqual([entities.entity(hit).terminalReason, entities.entity(hit).animationNumber, entities.entity(hit).velocity], ['hit', 501, [2, -1]]);
   assert.deepEqual([entities.entity(timeout).terminalReason, entities.entity(timeout).animationNumber], ['removed', 503]);
   assert.deepEqual([entities.entity(bounded).terminalReason, entities.entity(bounded).animationNumber], ['removed', 504]);

@@ -27,21 +27,27 @@ test('M11 game flow is rendered through Haiyue GUI from title to fight', () => {
   assert.match(html, /id="flow-canvas"/u);
   for (const text of ['单人模式', '双人模式', 'AI 对战', '设置', '选择角色', '选择舞台', '进入战斗']) assert.match(flow, new RegExp(text, 'u'));
   for (const field of ['p1Life', 'p2Life', 'p1Power', 'p2Power', 'p1Wins', 'p2Wins']) assert.match(flow, new RegExp(`readonly ${field}: number`, 'u'));
-  for (const field of ['phase', 'phaseTime', 'roundWinnerId']) assert.match(flow, new RegExp(`readonly ${field}:`, 'u'));
+  for (const field of ['phase', 'phaseTime', 'roundWinnerId', 'roundResultReason']) assert.match(flow, new RegExp(`readonly ${field}:`, 'u'));
   assert.match(flow, /hudGauge\(root, model\.p1Life, 'left'/u);
   assert.match(flow, /hudGauge\(root, model\.p2Power, 'right'/u);
-  for (const text of ['GET READY', 'READY', 'FIGHT!', 'K.O.']) assert.match(flow, new RegExp(text.replace('.', '\\.'), 'u'));
+  for (const text of ['GET READY', 'READY', 'FIGHT!', 'K.O.', 'TIME OVER']) assert.match(flow, new RegExp(text.replace('.', '\\.'), 'u'));
   assert.doesNotMatch(flow, /function gauge\(|█.*░/u);
   assert.match(main, /p1Power: p1 === undefined \? 0 : p1\.power \/ p1\.maxPower/u);
   assert.match(main, /before\.phaseTime >= 120/u);
+  assert.match(main, /phaseTime >= MATCH_RESULT_HOLD_TICKS/u);
   assert.match(flow, /HaiyueEngine/u); assert.match(flow, /GuiSystem/u); assert.match(main, /#flowScreen/u); assert.match(main, /mugenCharacterToStageScale/u); assert.match(main, /preview\.action/u);
 });
 
 test('M11 character select exposes portraits, two keyboard schemes, and wrapped grid navigation', () => {
-  const flow = read('../mugen/game/MugenFlowUi.ts'); const fixture = read('../mugen/game/MugenGameFixture.ts'); const importer = read('../mugen/import/worker/MugenCharacterImport.ts'); const main = read('../mugen/main.ts');
+  const flow = read('../mugen/game/MugenFlowUi.ts'); const fixture = read('../mugen/game/MugenGameFixture.ts'); const importer = read('../mugen/import/worker/MugenCharacterImport.ts'); const main = read('../mugen/main.ts'); const outputRender = read('../mugen/game/MugenOutputRender.ts');
   assert.match(flow, /new GuiImage/u); assert.match(flow, /new KeyboardComponent/u);
   assert.match(flow, /onClick: \(\) => queueMicrotask\(\(\) => this\.#callbacks\.selectCharacter/u);
+  assert.match(flow, /const cellSize =/u); assert.doesNotMatch(flow, /character\.label\.toLocaleUpperCase/u, 'portrait cells stay square and do not render character names');
+  assert.match(flow, /playerMarkerSource\('P1'/u); assert.match(flow, /#45c8ff24/u, 'player markers use a visible layered glow');
+  assert.match(flow, /x: x \+ cellSize - markerInset - markerSize, y: y \+ markerInset/u, 'P2 marker stays in the top-right corner');
+  assert.match(flow, /context\.font = '900 39px/u); assert.match(flow, /context\.shadowBlur = confirmed/u);
   for (const key of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']) assert.match(flow, new RegExp(key, 'u'));
+  assert.match(flow, /model\.p1AttackKeys\.entries\(\)/u); assert.match(flow, /confirmCharacter\(0, paletteSlot\)/u);
   assert.match(fixture, /loadPreview\(/u); assert.match(fixture, /assetProfile: 'selection-preview'/u); assert.match(importer, /selectionPreviewContributions/u);
   assert.equal(mugenCharacterGridColumns(12), 5);
   assert.equal(moveMugenCharacterSelection(0, 12, 1, 0), 1);
@@ -52,6 +58,16 @@ test('M11 character select exposes portraits, two keyboard schemes, and wrapped 
   assert.equal(mugenCharacterPreviewScale(1.5, [400, 400], { width: 1280, height: 720 }), .81);
   assert.doesNotMatch(main, /preventDuplicateVariant/u, 'P1 and P2 may select the same character package');
   assert.match(main, /new Set\(\[this\.#p1Select\.value, this\.#p2Select\.value\]\)/u, 'same-character data is loaded only once');
+  assert.match(main, /#characterPaletteSlots = \[0, 0\]/u); assert.match(main, /this\.#selectedPaletteId\(preview\.model, index\)/u); assert.match(main, /selectMugenCharacterPaletteId/u);
+  assert.match(outputRender, /palette\.source === 'act'/u); assert.match(outputRender, /spritePaletteId === baseCharacterPaletteId/u, 'costume selection does not overwrite independent effect palettes');
+});
+
+test('M11 stage selection renders the selected stage before entering a fight', () => {
+  const main = read('../mugen/main.ts');
+  assert.match(main, /this\.#flowScreen === 'stage'/u);
+  assert.match(main, /this\.#stageRenderCache\.actors\(stage, camera\.snapshot\(\), tick, viewport\)/u);
+  assert.match(main, /await this\.#installRenderModels\(undefined, stage\); this\.#stageFixture = stage/u, 'a replacement stage becomes visible only after its GPU assets are ready');
+  assert.match(main, /this\.#stagePreviewCamera = new MugenStageCamera/u);
 });
 
 test('M11 round audio maps motif announcements and character-specific KO voices', () => {

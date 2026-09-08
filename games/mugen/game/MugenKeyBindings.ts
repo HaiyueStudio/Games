@@ -1,10 +1,10 @@
 import type { MugenFixedStepInputDriverOptions } from '../runtime/input/MugenInputRuntime';
 
-export const MUGEN_BINDABLE_ACTIONS = Object.freeze(['up', 'down', 'left', 'right', 'attack1', 'attack2', 'attack3', 'attack4'] as const);
+export const MUGEN_BINDABLE_ACTIONS = Object.freeze(['up', 'down', 'left', 'right', 'attack1', 'attack2', 'attack3', 'attack4', 'attack5', 'attack6'] as const);
 export type MugenBindableAction = typeof MUGEN_BINDABLE_ACTIONS[number];
 export type MugenBindingPlayer = 'P1' | 'P2';
 
-export interface MugenPlayerKeyBindings { readonly up: string; readonly down: string; readonly left: string; readonly right: string; readonly attack1: string; readonly attack2: string; readonly attack3: string; readonly attack4: string; }
+export interface MugenPlayerKeyBindings { readonly up: string; readonly down: string; readonly left: string; readonly right: string; readonly attack1: string; readonly attack2: string; readonly attack3: string; readonly attack4: string; readonly attack5: string; readonly attack6: string; }
 export interface MugenKeyBindings { readonly schemaVersion: 1; readonly players: Readonly<Record<MugenBindingPlayer, MugenPlayerKeyBindings>>; }
 
 const STORAGE_KEY = 'haiyue.mugen.key-bindings.v1';
@@ -13,8 +13,8 @@ const VALID_CODE = /^[A-Za-z0-9]{1,32}$/u;
 export const MUGEN_DEFAULT_KEY_BINDINGS: MugenKeyBindings = freezeBindings({
   schemaVersion: 1,
   players: {
-    P1: { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', attack1: 'KeyU', attack2: 'KeyI', attack3: 'KeyJ', attack4: 'KeyK' },
-    P2: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', attack1: 'Numpad4', attack2: 'Numpad5', attack3: 'Numpad1', attack4: 'Numpad2' },
+    P1: { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', attack1: 'KeyU', attack2: 'KeyI', attack3: 'KeyO', attack4: 'KeyJ', attack5: 'KeyK', attack6: 'KeyL' },
+    P2: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', attack1: 'Numpad4', attack2: 'Numpad5', attack3: 'Numpad6', attack4: 'Numpad1', attack5: 'Numpad2', attack6: 'Numpad3' },
   },
 });
 
@@ -46,9 +46,8 @@ export function createMugenBrowserPlayerBindings(value: MugenKeyBindings): NonNu
         down: { keys: [keys.down], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
         left: { keys: [keys.left], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
         right: { keys: [keys.right], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
-        x: { keys: [keys.attack1], gamepadButtons: [3] }, y: { keys: [keys.attack2], gamepadButtons: [4] },
-        a: { keys: [keys.attack3], gamepadButtons: [0] }, b: { keys: [keys.attack4], gamepadButtons: [1] },
-        z: { keys: [], gamepadButtons: [5] }, c: { keys: [], gamepadButtons: [2] },
+        x: { keys: [keys.attack1], gamepadButtons: [3] }, y: { keys: [keys.attack2], gamepadButtons: [4] }, z: { keys: [keys.attack3], gamepadButtons: [5] },
+        a: { keys: [keys.attack4], gamepadButtons: [0] }, b: { keys: [keys.attack5], gamepadButtons: [1] }, c: { keys: [keys.attack6], gamepadButtons: [2] },
         start: { keys: [index === 0 ? 'Enter' : 'Numpad0'], gamepadButtons: [9] },
       }),
     });
@@ -68,7 +67,16 @@ function parseBindings(value: unknown): MugenKeyBindings {
   for (const id of ['P1', 'P2'] as const) {
     const source = value.players[id]; if (!isRecord(source)) throw new TypeError(`MUGEN ${id} key bindings are missing.`);
     const result = {} as Record<MugenBindableAction, string>; const used = new Set<string>();
-    for (const action of MUGEN_BINDABLE_ACTIONS) { const code = keyboardCode(source[action]); if (used.has(code)) throw new TypeError(`MUGEN ${id} key ${code} is duplicated.`); used.add(code); result[action] = code; }
+    const legacyFourAttackLayout = source.attack5 === undefined && source.attack6 === undefined;
+    for (const action of MUGEN_BINDABLE_ACTIONS) {
+      // Version 1 originally exposed only four attacks. Preserve existing remaps and
+      // move its old A/B slots after the newly exposed Z slot.
+      const legacyAction = action === 'attack4' ? 'attack3' : action === 'attack5' ? 'attack4' : action;
+      const candidate = legacyFourAttackLayout && (action === 'attack3' || action === 'attack6')
+        ? MUGEN_DEFAULT_KEY_BINDINGS.players[id][action]
+        : source[legacyFourAttackLayout ? legacyAction : action] ?? MUGEN_DEFAULT_KEY_BINDINGS.players[id][action];
+      const code = keyboardCode(candidate); if (used.has(code)) throw new TypeError(`MUGEN ${id} key ${code} is duplicated.`); used.add(code); result[action] = code;
+    }
     players[id] = result;
   }
   return freezeBindings({ schemaVersion: 1, players });

@@ -18,6 +18,8 @@ export interface MugenViewerDebugSettings {
 export interface MugenViewerFrameSettings {
   readonly background: MugenViewerBackground;
   readonly backgroundColor?: readonly [number, number, number, number];
+  /** Restricts all sprite drawing to the MUGEN viewport, excluding letterbox/out-of-stage pixels. */
+  readonly clipRect?: Readonly<{ x: number; y: number; width: number; height: number }>;
   readonly paletteId: string | null;
   readonly originX: number;
   readonly originY: number;
@@ -33,6 +35,8 @@ export interface MugenViewerViewport {
 export interface MugenViewerActorFrame {
   readonly snapshot: MugenAirSnapshot;
   readonly paletteId: string | null;
+  /** Uses palette index zero as a transparent mask, as required by MUGEN BG mask=1. */
+  readonly mask?: boolean;
   readonly transparency?: Readonly<{ mode: 'default' | 'none' | 'add' | 'addalpha' | 'add1' | 'sub'; alpha: readonly [number, number] }> | null;
   readonly colorMatrix?: readonly [number, number, number, number, number, number, number, number, number, number, number, number] | null;
 }
@@ -143,7 +147,7 @@ export class MugenWebGpuView {
     const showOverlay = settings.debug.origin || settings.debug.axis || settings.debug.spriteBounds || settings.debug.clsn1 || settings.debug.clsn2;
     const actorCommands: Array<Readonly<{ actor: MugenViewerActorFrame; command: IndexedSpriteDrawCommand | null }>> = [];
     const commands: IndexedSpriteDrawCommand[] = [];
-    for (const actor of actors) { const command = this.#drawCommand(actor.snapshot, actor.paletteId, actor.transparency, actor.colorMatrix); if (command !== null) commands.push(command); if (showOverlay) actorCommands.push({ actor, command }); }
+    for (const actor of actors) { const command = this.#drawCommand(actor.snapshot, actor.paletteId, actor.mask === true, actor.transparency, actor.colorMatrix); if (command !== null) commands.push(command); if (showOverlay) actorCommands.push({ actor, command }); }
     const encoder = this.#device.createCommandEncoder({ label: 'MugenViewer.frame' });
     const pass = encoder.beginRenderPass({
       label: 'MugenViewer.pass',
@@ -154,7 +158,9 @@ export class MugenWebGpuView {
         clearValue: settings.backgroundColor ?? backgroundColor(settings.background),
       }],
     });
-    const stats = this.#renderer.render(pass, commands, viewport.width, viewport.height);
+    const clipRect = normalizeClipRect(settings.clipRect, viewport);
+    if (clipRect !== null) pass.setScissorRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+    const stats = this.#renderer.render(pass, settings.clipRect === undefined || clipRect !== null ? commands : [], viewport.width, viewport.height);
     pass.end();
     this.#device.queue.submit([encoder.finish()]);
     if (showOverlay) { this.#drawOverlay(actorCommands, settings, viewport.devicePixelRatio); this.#overlayVisible = true; }
@@ -191,14 +197,15 @@ export class MugenWebGpuView {
     this.clearOverlay();
   }
 
-  #drawCommand(snapshot: MugenAirSnapshot, selectedPaletteId: string | null, transparency?: MugenViewerActorFrame['transparency'], colorMatrix?: MugenViewerActorFrame['colorMatrix']): IndexedSpriteDrawCommand | null {
+  #drawCommand(snapshot: MugenAirSnapshot, selectedPaletteId: string | null, mask: boolean, transparency?: MugenViewerActorFrame['transparency'], colorMatrix?: MugenViewerActorFrame['colorMatrix']): IndexedSpriteDrawCommand | null {
     if (snapshot.render.spriteId === null) return null;
     const sprite = this.#spriteById.get(snapshot.render.spriteId);
     if (!sprite) return null;
     const paletteId = sprite.format === 'indexed8' ? this.#paletteFor(sprite, selectedPaletteId) : undefined;
     if (sprite.format === 'indexed8' && paletteId === undefined) return null;
     const sourceAlpha = transparency === null || transparency === undefined || transparency.mode === 'default' ? snapshot.render.blend.sourceAlpha : transparency.alpha[0];
-    const blend = transparency === null || transparency === undefined || transparency.mode === 'default' ? renderBlend(snapshot.render.blend.mode, snapshot.render.blend.destinationAlpha) : transparency.mode === 'none' ? 'opaque' : transparency.mode === 'add' || transparency.mode === 'addalpha' || transparency.mode === 'add1' ? 'additive' : 'alpha';
+    const requestedBlend = transparency === null || transparency === undefined || transparency.mode === 'default' ? renderBlend(snapshot.render.blend.mode, snapshot.render.blend.destinationAlpha) : transparency.mode === 'none' ? 'opaque' : transparency.mode === 'sub' ? 'subtractive' : transparency.mode === 'add' || transparency.mode === 'addalpha' || transparency.mode === 'add1' ? 'additive' : 'alpha';
+    const blend = mask && requestedBlend === 'opaque' ? 'alpha' : requestedBlend;
     return Object.freeze({
       spriteId: sprite.renderSpriteId,
       ...(paletteId === undefined ? {} : { paletteId }),
@@ -266,10 +273,19 @@ export class MugenWebGpuView {
   #assertAlive(): void { if (this.#disposed) throw new Error('MUGEN WebGPU view is disposed.'); }
 }
 
-function renderBlend(mode: MugenAirSnapshot['render']['blend']['mode'], destinationAlpha: number): 'alpha' | 'additive' | 'opaque' {
+function renderBlend(mode: MugenAirSnapshot['render']['blend']['mode'], destinationAlpha: number): 'alpha' | 'additive' | 'subtractive' | 'opaque' {
   if (mode === 'opaque') return 'alpha';
   if (mode === 'add' && destinationAlpha > 0) return 'additive';
+  if (mode === 'subtract') return 'subtractive';
   return 'alpha';
+}
+
+function normalizeClipRect(rect: MugenViewerFrameSettings['clipRect'], viewport: Readonly<{ width: number; height: number }>): Readonly<{ x: number; y: number; width: number; height: number }> | null {
+  if (rect === undefined) return Object.freeze({ x: 0, y: 0, width: viewport.width, height: viewport.height });
+  if (![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite) || rect.width < 0 || rect.height < 0) throw new RangeError('MUGEN viewer clip rectangle must be finite and non-negative.');
+  const left = Math.max(0, Math.floor(rect.x)); const top = Math.max(0, Math.floor(rect.y));
+  const right = Math.min(viewport.width, Math.ceil(rect.x + rect.width)); const bottom = Math.min(viewport.height, Math.ceil(rect.y + rect.height));
+  return right <= left || bottom <= top ? null : Object.freeze({ x: left, y: top, width: right - left, height: bottom - top });
 }
 
 function backgroundColor(value: MugenViewerBackground): GPUColor {

@@ -3,7 +3,7 @@ import { KeyboardComponent } from '@haiyue/engine/components';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { GuiButton, GuiImage, GuiLabel, GuiProgress, GuiRoot, GuiSystem, type GuiImageSource } from '@haiyue/engine/gui';
 import { mugenCharacterGridColumns } from './MugenCharacterSelection';
-import type { MugenRoundPhase } from '../runtime/match/MugenMatchState';
+import type { MugenRoundPhase, MugenRoundResultReason } from '../runtime/match/MugenMatchState';
 
 export type MugenGameMode = 'single' | 'versus' | 'ai';
 export type MugenFlowScreen = 'title' | 'select' | 'stage' | 'fight' | 'settings';
@@ -12,6 +12,7 @@ export interface MugenFlowCallbacks {
   readonly chooseMode: (mode: MugenGameMode) => void;
   readonly moveCharacter: (player: 0 | 1, deltaColumn: number, deltaRow: number) => void;
   readonly selectCharacter: (player: 0 | 1, characterId: string) => void;
+  readonly confirmCharacter: (player: 0 | 1, paletteSlot: number) => void;
   readonly confirmCharacters: () => void;
   readonly cycleStage: (direction: -1 | 1) => void;
   readonly startFight: () => void;
@@ -32,6 +33,10 @@ export interface MugenFlowViewModel {
   readonly characters: readonly Readonly<{ id: string; label: string; portrait: GuiImageSource }>[];
   readonly p1CharacterId: string;
   readonly p2CharacterId: string;
+  readonly p1Confirmed: boolean;
+  readonly p2Confirmed: boolean;
+  readonly p1AttackKeys: readonly string[];
+  readonly p2AttackKeys: readonly string[];
   readonly previewVersion: number;
   readonly p1Name: string;
   readonly p2Name: string;
@@ -46,6 +51,7 @@ export interface MugenFlowViewModel {
   readonly phase: MugenRoundPhase;
   readonly phaseTime: number;
   readonly roundWinnerId: string | null;
+  readonly roundResultReason: MugenRoundResultReason | null;
   readonly time: string;
   readonly paused: boolean;
   readonly fightLoading: boolean;
@@ -108,14 +114,15 @@ export class MugenFlowUi {
   #select(root: GuiRoot, model: MugenFlowViewModel): void {
     label(root, MODE_NAMES[model.mode], '3%', '4%', '18%', 40, 14, '#d5b16b', 'left'); label(root, '选择角色 · SELECT FIGHTER', '13%', '4%', '74%', 48, 24, '#fff0b5'); label(root, 'PLAYER 1 · WASD', '3%', '15%', '30%', 28, 13, '#65ceff', 'left'); label(root, 'PLAYER 2 · ARROW KEYS', '67%', '15%', '30%', 28, 13, '#ff718d', 'right');
     label(root, model.p1Name, '3%', '21%', '27%', 54, 22, '#ffffff'); label(root, model.p2Name, '70%', '21%', '27%', 54, 22, '#ffffff');
-    const columns = mugenCharacterGridColumns(model.characters.length); const rows = Math.ceil(model.characters.length / columns); const gridWidth = Math.min(54, columns * 11); const left = (100 - gridWidth) / 2; const cellWidth = gridWidth / columns; const rowHeight = Math.min(16, 54 / rows); const cellHeight = Math.max(8, rowHeight - 2);
+    const columns = mugenCharacterGridColumns(model.characters.length); const rows = Math.ceil(model.characters.length / columns); const viewportWidth = Math.max(320, this.#canvas.clientWidth); const viewportHeight = Math.max(360, this.#canvas.clientHeight); const gap = 6; const cellSize = Math.max(36, Math.min(84, Math.floor((viewportWidth * .58 - gap * (columns - 1)) / columns), Math.floor((viewportHeight * .5 - gap * (rows - 1)) / rows))); const gridWidth = columns * cellSize + (columns - 1) * gap; const left = Math.round((viewportWidth - gridWidth) / 2); const top = Math.round(viewportHeight * .31);
     for (const [index, character] of model.characters.entries()) {
-      const column = index % columns; const row = Math.floor(index / columns); const x = left + column * cellWidth; const y = 31 + row * rowHeight; const p1 = character.id === model.p1CharacterId; const p2 = character.id === model.p2CharacterId; const border = p1 && p2 ? '#ffe36f' : p1 ? '#45c8ff' : p2 ? '#ff6684' : '#665587';
-      rect(root, `${x + .35}%`, `${y}%`, `${cellWidth - .7}%`, `${cellHeight}%`, p1 || p2 ? '#1b2038ee' : '#0b0b17d9', border, 3);
-      if (character.portrait !== null) root.add(new GuiImage({ x: `${x + .8}%`, y: `${y + .5}%`, width: `${cellWidth - 1.6}%`, height: `${Math.max(4, cellHeight - 4)}%`, source: character.portrait, sourceKey: `mugen-portrait:${character.id}:${model.previewVersion}`, onClick: () => queueMicrotask(() => this.#callbacks.selectCharacter(0, character.id)) }));
-      label(root, character.label.toLocaleUpperCase(), `${x + .4}%`, `${y + cellHeight - 3.3}%`, `${cellWidth - .8}%`, 24, 9, '#ffffff');
-      if (p1) label(root, 'P1', `${x + .5}%`, `${y + .3}%`, '3%', 20, 10, '#65ceff', 'left');
-      if (p2) label(root, 'P2', `${x + cellWidth - 3.5}%`, `${y + .3}%`, '3%', 20, 10, '#ff718d', 'right');
+      const column = index % columns; const row = Math.floor(index / columns); const x = left + column * (cellSize + gap); const y = top + row * (cellSize + gap); const p1 = character.id === model.p1CharacterId; const p2 = character.id === model.p2CharacterId; const border = p1 && p2 ? '#ffe36f' : p1 ? '#45c8ff' : p2 ? '#ff6684' : '#665587'; const selected = p1 || p2; const inset = selected ? 4 : 1;
+      if (selected) { rect(root, x - 8, y - 8, cellSize + 16, cellSize + 16, p1 && p2 ? '#ffe36f24' : p1 ? '#45c8ff24' : '#ff668424', 'rgba(0,0,0,0)', 8); rect(root, x - 4, y - 4, cellSize + 8, cellSize + 8, p1 && p2 ? '#ffe36f66' : p1 ? '#45c8ff66' : '#ff668466', 'rgba(0,0,0,0)', 6); }
+      rect(root, x, y, cellSize, cellSize, border, border, 4); rect(root, x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2, selected ? '#141a2a' : '#0b0b17', '#0b0b17', 2);
+      if (character.portrait !== null) root.add(new GuiImage({ x: x + inset + 2, y: y + inset + 2, width: cellSize - inset * 2 - 4, height: cellSize - inset * 2 - 4, source: character.portrait, sourceKey: `mugen-portrait:${character.id}:${model.previewVersion}`, onClick: () => queueMicrotask(() => this.#callbacks.selectCharacter(0, character.id)) }));
+      const markerInset = 4; const markerSize = Math.min(36, Math.max(15, Math.floor((cellSize - markerInset * 2 - 2) / 2)));
+      if (p1) root.add(new GuiImage({ x: x + markerInset, y: y + markerInset, width: markerSize, height: markerSize, source: playerMarkerSource('P1', '#65dcff', model.p1Confirmed), sourceKey: `mugen-player-marker:p1:${model.p1Confirmed ? 'ready' : 'selecting'}` }));
+      if (p2) root.add(new GuiImage({ x: x + cellSize - markerInset - markerSize, y: y + markerInset, width: markerSize, height: markerSize, source: playerMarkerSource('P2', '#ff7895', model.p2Confirmed), sourceKey: `mugen-player-marker:p2:${model.p2Confirmed ? 'ready' : 'selecting'}` }));
     }
     button(root, '返回', '5%', '92%', '16%', 42, this.#callbacks.goTitle); button(root, model.ready ? '确认阵容' : '角色载入中…', '39%', '90%', '22%', 48, this.#callbacks.confirmCharacters, true, !model.ready);
   }
@@ -150,7 +157,7 @@ export class MugenFlowUi {
       if (callout.subtitle !== '') label(root, callout.subtitle, '25%', '49%', '50%', 30, 14, '#ffffff');
     }
     if (model.paused) label(root, 'PAUSED', '42%', 83, '16%', 26, 16, '#ffd96c');
-    if (!model.fightLoading && model.result !== '') label(root, model.result, '20%', '36%', '60%', 90, 54, '#fff1a8');
+    if (!model.fightLoading && model.result !== '' && callout === null) label(root, model.result, '20%', '36%', '60%', 90, 54, '#fff1a8');
     if (model.fightLoading) { rect(root, '20%', '38%', '60%', 120, '#05070ce8', '#d7b865', 3); label(root, 'LOADING FIGHTERS', '20%', '41%', '60%', 50, 24, '#fff0a6'); label(root, model.loadingLabel, '22%', '49%', '56%', 32, 13, '#ffffff'); }
     button(root, model.paused ? '继续' : '暂停', '77%', '91%', '9%', 38, this.#callbacks.togglePause, false, model.fightLoading);
     button(root, '主菜单', '87%', '91%', '10%', 38, this.#callbacks.exitFight, false, model.fightLoading);
@@ -165,6 +172,8 @@ export class MugenFlowUi {
     const keyboard = this.#keyboard; const model = this.#model; if (keyboard === null || model?.screen !== 'select' || !model.ready) return;
     if (keyboard.wasPressed('KeyA')) this.#callbacks.moveCharacter(0, -1, 0); else if (keyboard.wasPressed('KeyD')) this.#callbacks.moveCharacter(0, 1, 0); else if (keyboard.wasPressed('KeyW')) this.#callbacks.moveCharacter(0, 0, -1); else if (keyboard.wasPressed('KeyS')) this.#callbacks.moveCharacter(0, 0, 1);
     if (keyboard.wasPressed('ArrowLeft')) this.#callbacks.moveCharacter(1, -1, 0); else if (keyboard.wasPressed('ArrowRight')) this.#callbacks.moveCharacter(1, 1, 0); else if (keyboard.wasPressed('ArrowUp')) this.#callbacks.moveCharacter(1, 0, -1); else if (keyboard.wasPressed('ArrowDown')) this.#callbacks.moveCharacter(1, 0, 1);
+    for (const [paletteSlot, key] of model.p1AttackKeys.entries()) if (keyboard.wasPressed(key)) { this.#callbacks.confirmCharacter(0, paletteSlot); break; }
+    for (const [paletteSlot, key] of model.p2AttackKeys.entries()) if (keyboard.wasPressed(key)) { this.#callbacks.confirmCharacter(1, paletteSlot); break; }
     if (keyboard.wasPressed('Enter') || keyboard.wasPressed('Space')) this.#callbacks.confirmCharacters();
   }
 
@@ -202,6 +211,15 @@ function rect(root: GuiRoot, x: number | `${number}%`, y: number | `${number}%`,
   return root.add(new GuiLabel({ x, y, width, height, text: '', style: { backgroundColor, borderColor, radius, padding: 0 } }));
 }
 
+const PLAYER_MARKER_SOURCES = new Map<string, HTMLCanvasElement>();
+function playerMarkerSource(player: 'P1' | 'P2', color: string, confirmed: boolean): HTMLCanvasElement {
+  const key = `${player}:${color}:${confirmed}`; const cached = PLAYER_MARKER_SOURCES.get(key); if (cached !== undefined) return cached;
+  const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 96; const context = canvas.getContext('2d'); if (context === null) throw new Error('无法创建玩家选择标记。');
+  context.shadowColor = color; context.shadowBlur = confirmed ? 22 : 15; context.fillStyle = '#050712ee'; context.strokeStyle = color; context.lineWidth = confirmed ? 10 : 8; context.fillRect(12, 12, 72, 72); context.strokeRect(12, 12, 72, 72);
+  context.shadowBlur = confirmed ? 18 : 11; context.fillStyle = '#ffffff'; context.font = '900 39px Impact, Arial Black, sans-serif'; context.textAlign = 'center'; context.textBaseline = 'middle'; context.fillText(player, 48, 50);
+  PLAYER_MARKER_SOURCES.set(key, canvas); return canvas;
+}
+
 function clampRatio(value: number): number { return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)); }
 function formatGaugePercent(value: number): string { return `${String(Math.round(clampRatio(value) * 100)).padStart(3, '0')}%`; }
 
@@ -210,5 +228,7 @@ function fightCallout(model: MugenFlowViewModel): Readonly<{ title: string; subt
   if (model.phase === 'ready') return Object.freeze({ title: 'READY', subtitle: '' });
   if (model.phase === 'fight' && model.phaseTime < 30) return Object.freeze({ title: 'FIGHT!', subtitle: '' });
   if (model.phase === 'ko') return Object.freeze({ title: model.roundWinnerId === null ? 'DOUBLE K.O.' : 'K.O.', subtitle: model.roundWinnerId === null ? '' : `${model.roundWinnerId} TAKES THE ROUND` });
+  if (model.phase === 'round-over') return Object.freeze({ title: model.roundResultReason === 'time-over' ? 'TIME OVER' : model.roundWinnerId === null ? 'DRAW' : 'ROUND OVER', subtitle: model.roundWinnerId === null ? 'NEXT ROUND' : `${model.roundWinnerId} TAKES THE ROUND` });
+  if (model.phase === 'match-over') return Object.freeze({ title: model.roundResultReason === 'time-over' ? 'TIME OVER' : 'MATCH OVER', subtitle: model.result });
   return null;
 }

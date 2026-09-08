@@ -67,6 +67,20 @@ test('unchanged writes do not create events and completed state/action time adva
   assert.equal(first.state.phaseTime, 1);
 });
 
+test('a script-processed state transition still presents AIR action tick zero once', () => {
+  const { next } = inputFactory();
+  const match = new MugenHeadlessMatch(matchConfig());
+  match.beginTick(next())
+    .setFighterState('P1', 1222, false)
+    .setFighterAction('P1', 1222)
+    .markFighterStateProcessed('P1');
+  const entered = match.endTick();
+  assert.deepEqual([entered.state.fighters[0].stateTime, entered.state.fighters[0].actionTime], [1, 0]);
+  match.beginTick(next());
+  const advanced = match.endTick();
+  assert.deepEqual([advanced.state.fighters[0].stateTime, advanced.state.fighters[0].actionTime], [2, 1]);
+});
+
 test('fighter identity order stays stable when positions cross and facing flips', () => {
   const { next } = inputFactory();
   const match = new MugenHeadlessMatch(matchConfig());

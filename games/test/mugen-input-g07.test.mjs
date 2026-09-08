@@ -141,10 +141,30 @@ test('MUGEN browser adapter consumes the packed Engine sampler and tears down id
   assert.throws(() => input.sample(2, { P1: 1, P2: -1 }), /disposed/u);
 });
 
+test('MUGEN browser adapter replays every fast keyboard transition instead of collapsing to the final held keys', () => {
+  const target = new EventTarget();
+  const input = new MugenBrowserInput({ eventTarget: target, visibilityTarget: target });
+  for (const [type, code] of [
+    ['keydown', 'KeyS'],
+    ['keydown', 'KeyD'],
+    ['keyup', 'KeyS'],
+    ['keydown', 'KeyU'],
+    ['keyup', 'KeyU'],
+    ['keyup', 'KeyD'],
+  ]) target.dispatchEvent(keyboardEvent(type, code));
+
+  const frames = [];
+  for (let tick = 1; tick <= 6; tick += 1) frames.push(input.sample(tick, { P1: 1, P2: -1 }).players[0]);
+  assert.deepEqual(frames.map(frame => frame.facingDirection), ['D', 'DF', 'F', 'F', 'F', 'N']);
+  assert.deepEqual(frames.map(frame => frame.pressed), [['down'], ['right'], [], ['x'], [], []]);
+  assert.deepEqual(frames.map(frame => frame.released), [[], [], ['down'], [], ['x'], ['right']]);
+  input.dispose();
+});
+
 test('G08 product input seam records CPU AILevel and package command injection in authoritative history', () => {
   const target = new EventTarget(); const commands = Object.freeze({ schemaVersion: 1, revision: 'm08-g08b-command-v1', commands: Object.freeze([Object.freeze({ name: 'AI0', foldedName: 'ai0', steps: Object.freeze([]), time: 0, bufferTime: 1, sourcePath: 'ai.cmd', sourceLine: 1 })]) });
   const ai = new MugenLegacyAiInput([{ playerId: 'P2', aiLevel: 8, seed: 'product-ai', commands }]); const input = new MugenBrowserInput({ eventTarget: target, visibilityTarget: target, transformSource: source => ai.apply(source) });
-  const tick = input.sample(1, { P1: 1, P2: -1 }); assert.equal(tick.players[0].aiLevel, 0); assert.equal(tick.players[1].aiLevel, 8); assert.deepEqual(tick.players[1].held, []); assert.deepEqual(tick.players[1].aiCommands, ['ai0']); input.dispose();
+  const tick = input.sample(1, { P1: 1, P2: -1 }); assert.equal(tick.players[0].aiLevel, 0); assert.equal(tick.players[1].aiLevel, 8); assert.deepEqual(tick.players[1].held, []); assert.deepEqual(tick.players[1].aiCommands, ['AI0']); input.dispose();
 });
 
 test('MUGEN fixed-step driver pauses while hidden and discards the resume-frame wall delta', () => {
@@ -204,6 +224,11 @@ function runHeadlessRound(ticks) {
 function source(tick, players) { return { tick, players }; }
 function player(id, actions) { return { id, actions: Object.entries(actions).map(([action, value]) => ({ action, ...value })) }; }
 function state(value, held, pressed = false, released = false) { return { value, held, pressed, released }; }
+function keyboardEvent(type, code) {
+  const event = new Event(type, { cancelable: true });
+  Object.defineProperty(event, 'code', { value: code });
+  return event;
+}
 
 function variableSchedule(totalMs) {
   const pattern = [5, 11, 27, 8, 19, 33, 7, 15];

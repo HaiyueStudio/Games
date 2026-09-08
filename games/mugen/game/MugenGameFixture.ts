@@ -6,6 +6,7 @@ import type { MugenVfsInput } from '../import/vfs/MugenVfs';
 import type { MugenImportWorkerClient } from '../import/worker/MugenImportWorkerClient';
 import { createMugenCharacterModel, type MugenCharacterModel, type MugenViewerSprite } from '../viewer/MugenCharacterModel';
 import { resolveMugenDrawScale, type MugenDrawScale } from './MugenCharacterScale';
+import type { MugenScreenExplodLayoutRule } from './MugenOutputRender';
 
 export interface MugenBuiltInGameFixture {
   readonly id: string;
@@ -24,6 +25,7 @@ export interface MugenBuiltInGameFixture {
   readonly drawScale: MugenDrawScale;
   readonly runtimeProfile: 'm09-native-character-common-v1' | 'g08-basic-fighter-adapter-v1';
   readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local';
+  readonly screenExplodLayout: readonly MugenScreenExplodLayoutRule[];
 }
 
 export interface MugenCharacterSelectionPreview {
@@ -40,7 +42,7 @@ export interface MugenCharacterSelectionPreview {
 export interface MugenGameSound { readonly id: string; readonly group: number; readonly item: number; readonly selectedByKey: boolean; readonly encodedBase64: string; readonly encodedSha256: string; readonly channels: number; readonly sampleRate: number; readonly frameLength: number; }
 
 interface CharacterCatalog { readonly schemaVersion: 2; readonly runtimeProfile: 'm09-native-character-common-v1'; readonly commonState: string; readonly characters: readonly CharacterDescriptor[]; }
-interface CharacterDescriptor { readonly id: string; readonly label: string; readonly directory: string; readonly entryDef: string; readonly airPath: string; readonly scriptProfile: 'native-common-v1' | 'adapter-v1'; readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local'; readonly files: readonly string[]; }
+interface CharacterDescriptor { readonly id: string; readonly label: string; readonly directory: string; readonly entryDef: string; readonly airPath: string; readonly scriptProfile: 'native-common-v1' | 'adapter-v1'; readonly contentLicense: 'elecbyte-local-noncommercial' | 'user-local'; readonly files: readonly string[]; readonly screenExplodLayout: readonly MugenScreenExplodLayoutRule[]; }
 export interface MugenCharacterCatalogEntry { readonly id: string; readonly label: string; }
 interface RuntimeAdapter { readonly commands: MugenCommandProgram; readonly states: MugenStateProgram; }
 export interface MugenFixtureLoadProgress { readonly completed: number; readonly total: number; readonly label: string; }
@@ -136,7 +138,7 @@ async function loadCharacter(worker: MugenImportWorkerClient, descriptor: Charac
   return Object.freeze({
     id: descriptor.id, displayName: descriptor.label, characterName: imported.metadata.name ?? descriptor.label, authorName: imported.metadata.author ?? '', model, commands, states, air, actionsByNumber, spritesByGroupItem, sounds,
     packageSha256: imported.packageSha256, localCoord: imported.metadata.localCoord ?? Object.freeze([320, 240]), drawScale: resolveMugenDrawScale(states.constants), runtimeProfile: descriptor.scriptProfile === 'native-common-v1' ? 'm09-native-character-common-v1' : 'g08-basic-fighter-adapter-v1',
-    contentLicense: descriptor.contentLicense,
+    contentLicense: descriptor.contentLicense, screenExplodLayout: descriptor.screenExplodLayout,
   });
 }
 
@@ -152,7 +154,7 @@ async function loadRuntimeAdapter(worker: MugenImportWorkerClient, signal?: Abor
 }
 
 async function loadCatalog(signal?: AbortSignal): Promise<CharacterCatalog> {
-  const bytes = await fetchBytes('../charactors/catalog.json', '角色目录 catalog.json', signal); let value: unknown;
+  const bytes = await fetchBytes('../charactors/catalog.json', '角色目录 catalog.json', signal, 'no-store'); let value: unknown;
   try { value = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new TypeError('MUGEN 角色目录 catalog.json 不是有效 JSON。'); }
   if (!isRecord(value) || value.schemaVersion !== 2 || value.runtimeProfile !== 'm09-native-character-common-v1' || !fileName(value.commonState, '.cns') || !Array.isArray(value.characters) || value.characters.length < 2 || value.characters.length > 32) throw new TypeError('MUGEN 角色目录 catalog.json 结构无效。');
   const ids = new Set<string>(); const characters = value.characters.map((entry, index) => validateDescriptor(entry, index, ids));
@@ -163,10 +165,16 @@ function validateDescriptor(value: unknown, index: number, ids: Set<string>): Ch
   if (!isRecord(value) || !identifier(value.id) || !text(value.label) || !directoryName(value.directory) || !fileName(value.entryDef, '.def') || !fileName(value.airPath, '.air') || (value.scriptProfile !== 'native-common-v1' && value.scriptProfile !== 'adapter-v1') || (value.contentLicense !== 'elecbyte-local-noncommercial' && value.contentLicense !== 'user-local') || !Array.isArray(value.files) || value.files.length < 5 || value.files.length > 32 || !value.files.every(file => relativeFilePath(file))) throw new TypeError(`MUGEN 角色目录第 ${index + 1} 项无效。`);
   if (ids.has(value.id)) throw new TypeError(`MUGEN 角色 id 重复：${value.id}。`); ids.add(value.id);
   if (!value.files.includes(value.entryDef) || !value.files.includes(value.airPath)) throw new TypeError(`MUGEN 角色 ${value.id} 的入口文件未列入 files。`);
-  return Object.freeze({ id: value.id, label: value.label, directory: value.directory, entryDef: value.entryDef, airPath: value.airPath, scriptProfile: value.scriptProfile, contentLicense: value.contentLicense, files: Object.freeze([...value.files]) });
+  const screenExplodLayout = value.screenExplodLayout === undefined ? [] : value.screenExplodLayout;
+  if (!Array.isArray(screenExplodLayout) || screenExplodLayout.length > 32 || !screenExplodLayout.every(rule => isRecord(rule) && Number.isSafeInteger(rule.explodId) && (rule.sourceY === undefined || typeof rule.sourceY === 'number' && Number.isFinite(rule.sourceY)) && finitePair(rule.positionScale, true) && finitePair(rule.positionOffset, false))) throw new TypeError(`MUGEN 角色 ${value.id} 的屏幕 Explod 布局无效。`);
+  const layoutKeys = new Set<string>(); for (const rule of screenExplodLayout) { const layoutKey = `${String(rule.explodId)}:${rule.sourceY === undefined ? '*' : String(rule.sourceY)}`; if (layoutKeys.has(layoutKey)) throw new TypeError(`MUGEN 角色 ${value.id} 的屏幕 Explod 布局重复：${layoutKey}。`); layoutKeys.add(layoutKey); }
+  return Object.freeze({ id: value.id, label: value.label, directory: value.directory, entryDef: value.entryDef, airPath: value.airPath, scriptProfile: value.scriptProfile, contentLicense: value.contentLicense, files: Object.freeze([...value.files]), screenExplodLayout: Object.freeze(screenExplodLayout.map(freezeScreenExplodLayoutRule)) });
 }
 
-async function fetchBytes(relativeUrl: string, label: string, signal?: AbortSignal): Promise<Uint8Array> { const response = await fetch(new URL(relativeUrl, import.meta.url), signal === undefined ? {} : { signal }); if (!response.ok) throw new Error(`无法载入${label}（HTTP ${response.status}）。`); return new Uint8Array(await response.arrayBuffer()); }
+function freezeScreenExplodLayoutRule(value: Record<string, unknown>): MugenScreenExplodLayoutRule { const scale = freezeLayoutPair(value.positionScale); const offset = freezeLayoutPair(value.positionOffset); return Object.freeze({ explodId: value.explodId as number, ...(value.sourceY === undefined ? {} : { sourceY: value.sourceY as number }), positionScale: scale, positionOffset: offset }); }
+function freezeLayoutPair(value: unknown): readonly [number, number] { const pair = value as readonly [number, number]; return Object.freeze([pair[0], pair[1]]); }
+
+async function fetchBytes(relativeUrl: string, label: string, signal?: AbortSignal, cache?: RequestCache): Promise<Uint8Array> { const response = await fetch(new URL(relativeUrl, import.meta.url), { ...(signal === undefined ? {} : { signal }), ...(cache === undefined ? {} : { cache }) }); if (!response.ok) throw new Error(`无法载入${label}（HTTP ${response.status}）。`); return new Uint8Array(await response.arrayBuffer()); }
 function requireCommandProgram(value: unknown, label = '基础战斗适配器'): MugenCommandProgram { if (!isRecord(value) || value.schemaVersion !== 1 || value.revision !== 'm08-g08b-command-v1' || !Array.isArray(value.commands)) throw new TypeError(`${label} 缺少兼容的 CMD program。`); return value as unknown as MugenCommandProgram; }
 function requireStateProgram(value: unknown, label = '基础战斗适配器'): MugenStateProgram { if (!isRecord(value) || value.schemaVersion !== 1 || value.revision !== 'm09-g03-core-state-v1' || !Array.isArray(value.states) || !isRecord(value.constants)) throw new TypeError(`${label} 缺少兼容的 CNS program。`); return value as unknown as MugenStateProgram; }
 function requireSound(value: unknown): MugenGameSound { if (!isRecord(value) || value.kind !== 'snd-wav-v1' || typeof value.id !== 'string' || !Number.isSafeInteger(value.group) || !Number.isSafeInteger(value.item) || typeof value.selectedByKey !== 'boolean' || typeof value.encodedBase64 !== 'string' || typeof value.encodedSha256 !== 'string' || !Number.isSafeInteger(value.channels) || !Number.isSafeInteger(value.sampleRate) || !Number.isSafeInteger(value.frameLength)) throw new TypeError('角色包含无效的声音描述。'); return value as unknown as MugenGameSound; }
@@ -176,6 +184,7 @@ function text(value: unknown): value is string { return typeof value === 'string
 function fileName(value: unknown, extension?: string): value is string { return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(value) && (extension === undefined || value.toLowerCase().endsWith(extension)); }
 function relativeFilePath(value: unknown): value is string { return typeof value === 'string' && value.length <= 384 && value.split('/').length <= 8 && value.split('/').every(segment => /^[A-Za-z0-9_-][A-Za-z0-9_.&-]{0,127}$/u.test(segment)); }
 function isRecord(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value); }
+function finitePair(value: unknown, positive: boolean): value is readonly [number, number] { return Array.isArray(value) && value.length === 2 && value.every(item => typeof item === 'number' && Number.isFinite(item) && (!positive || item > 0)); }
 function actionVisualSize(action: MugenAirBank['actions'][number], sprites: ReadonlyMap<string, MugenViewerSprite>): readonly [number, number] { let width = 1; let height = 1; for (const element of action.elements) { if (element.spriteId === null) continue; const sprite = sprites.get(element.spriteId); if (sprite === undefined) continue; const angle = element.angleDegrees * Math.PI / 180; const cosine = Math.abs(Math.cos(angle)); const sine = Math.abs(Math.sin(angle)); const scaledWidth = sprite.width * Math.abs(element.scaleX); const scaledHeight = sprite.height * Math.abs(element.scaleY); width = Math.max(width, scaledWidth * cosine + scaledHeight * sine); height = Math.max(height, scaledWidth * sine + scaledHeight * cosine); } return Object.freeze([width, height]); }
 function asciiLocalCoord(bytes: Uint8Array): readonly [number, number] { const text = new TextDecoder('windows-1252').decode(bytes); const match = /^\s*localcoord\s*=\s*(\d+)\s*,\s*(\d+)/imu.exec(text); const width = Number(match?.[1] ?? 320); const height = Number(match?.[2] ?? 240); return Object.freeze([width > 0 ? width : 320, height > 0 ? height : 240]); }
 function asciiFileReference(bytes: Uint8Array, key: string): string | null { const section = asciiSection(bytes, 'files'); const match = new RegExp(`^\\s*${key}\\s*=\\s*([^;]+)`, 'imu').exec(section); const value = match?.[1]?.trim().replace(/^['"]|['"]$/gu, '') ?? ''; return value === '' ? null : value; }

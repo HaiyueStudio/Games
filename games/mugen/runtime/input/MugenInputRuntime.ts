@@ -115,15 +115,46 @@ export interface MugenFixedStepInputDriverOptions extends MugenBrowserInputOptio
   readonly maxBacklogTicks?: number;
 }
 
+interface KeyboardPlayerRuntime {
+  readonly id: string;
+  readonly keysByAction: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
 /** Product adapter that owns the public Engine sampler and MUGEN-facing tick history together. */
 export class MugenBrowserInput {
   readonly source: BrowserMultiplayerInput;
   readonly history: MugenInputHistory;
   readonly #transformSource: (source: MugenSourceInputSnapshot) => MugenSourceInputSnapshot;
+  readonly #players: readonly KeyboardPlayerRuntime[];
+  readonly #eventTarget: EventTarget | null;
+  readonly #visibilityTarget: (EventTarget & Readonly<{ hidden?: boolean }>) | null;
+  readonly #mappedKeys = new Set<string>();
+  readonly #keys = new Set<string>();
+  readonly #queuedKeyStates: Set<string>[] = [];
+  readonly #previousHeld = new Map<string, Map<string, boolean>>();
+
+  readonly #onKeyDown = (event: Event): void => {
+    const code = keyboardEventCode(event);
+    if (code === null || !this.#mappedKeys.has(code) || this.#keys.has(code)) return;
+    this.#keys.add(code);
+    this.#enqueueKeyState();
+  };
+
+  readonly #onKeyUp = (event: Event): void => {
+    const code = keyboardEventCode(event);
+    if (code === null || !this.#mappedKeys.has(code) || !this.#keys.delete(code)) return;
+    this.#enqueueKeyState();
+  };
+
+  readonly #onRelease = (): void => { this.#releaseKeyboard(false); };
+  readonly #onVisibilityChange = (): void => {
+    if (this.#visibilityTarget?.hidden === true) this.#releaseKeyboard(false);
+  };
 
   constructor(options: MugenBrowserInputOptions = {}) {
+    const players = options.players ?? MUGEN_DEFAULT_PLAYER_BINDINGS;
     this.source = new BrowserMultiplayerInput({
-      players: options.players ?? MUGEN_DEFAULT_PLAYER_BINDINGS,
+      players,
       preventDefault: options.preventDefault ?? true,
       ...(options.eventTarget === undefined ? {} : { eventTarget: options.eventTarget }),
       ...(options.visibilityTarget === undefined ? {} : { visibilityTarget: options.visibilityTarget }),
@@ -131,26 +162,93 @@ export class MugenBrowserInput {
     });
     this.history = new MugenInputHistory(options.historyTicks);
     this.#transformSource = options.transformSource ?? (source => source);
+    this.#players = Object.freeze(players.map(player => {
+      const keysByAction = new Map<string, ReadonlySet<string>>();
+      const bindings = Object.entries(player.bindings) as readonly [string, Readonly<{ keys?: readonly string[] }>][];
+      for (const [action, binding] of bindings) {
+        const keys = new Set(binding.keys ?? []);
+        keysByAction.set(action, keys);
+        for (const code of keys) this.#mappedKeys.add(code);
+      }
+      this.#previousHeld.set(player.id, new Map<string, boolean>());
+      return Object.freeze({ id: player.id, keysByAction });
+    }));
+    this.#eventTarget = options.eventTarget ?? defaultMugenEventTarget();
+    this.#visibilityTarget = options.visibilityTarget ?? defaultMugenVisibilityTarget();
+    this.#eventTarget?.addEventListener('keydown', this.#onKeyDown);
+    this.#eventTarget?.addEventListener('keyup', this.#onKeyUp);
+    this.#eventTarget?.addEventListener('blur', this.#onRelease);
+    this.#visibilityTarget?.addEventListener('visibilitychange', this.#onVisibilityChange);
+    this.#onVisibilityChange();
   }
 
   get suspended(): boolean { return this.source.suspended; }
   get disposed(): boolean { return this.source.disposed; }
 
   sample(tick: number, facingByPlayer: Readonly<Record<string, MugenFacing>>): MugenTickInput {
-    return this.history.push(this.#transformSource(this.source.sample(tick)), facingByPlayer);
+    const sampled = this.source.sample(tick);
+    const queuedKeys = this.#queuedKeyStates.shift() ?? null;
+    return this.history.push(this.#transformSource(this.#normalizeSource(sampled, queuedKeys)), facingByPlayer);
   }
 
-  release(): this { this.source.release(); return this; }
+  release(): this {
+    this.source.release();
+    this.#releaseKeyboard(true);
+    return this;
+  }
 
   reset(): this {
     this.source.reset();
     this.history.reset();
+    this.#keys.clear();
+    this.#queuedKeyStates.length = 0;
+    for (const previous of this.#previousHeld.values()) previous.clear();
     return this;
   }
 
   dispose(): void {
+    this.#eventTarget?.removeEventListener('keydown', this.#onKeyDown);
+    this.#eventTarget?.removeEventListener('keyup', this.#onKeyUp);
+    this.#eventTarget?.removeEventListener('blur', this.#onRelease);
+    this.#visibilityTarget?.removeEventListener('visibilitychange', this.#onVisibilityChange);
     this.source.dispose();
     this.history.reset();
+    this.#keys.clear();
+    this.#queuedKeyStates.length = 0;
+    for (const previous of this.#previousHeld.values()) previous.clear();
+  }
+
+  #enqueueKeyState(): void {
+    this.#queuedKeyStates.push(new Set(this.#keys));
+    if (this.#queuedKeyStates.length > MUGEN_MAX_PENDING_KEY_STATES) this.#queuedKeyStates.shift();
+  }
+
+  #releaseKeyboard(discardPending: boolean): void {
+    const hadKeys = this.#keys.size > 0;
+    this.#keys.clear();
+    if (discardPending) this.#queuedKeyStates.length = 0;
+    if (hadKeys && !discardPending) this.#enqueueKeyState();
+  }
+
+  #normalizeSource(source: MugenSourceInputSnapshot, queuedKeys: ReadonlySet<string> | null): MugenSourceInputSnapshot {
+    const players = source.players.map(player => {
+      const keyboard = this.#players.find(candidate => candidate.id === player.id);
+      const previous = this.#previousHeld.get(player.id) ?? new Map<string, boolean>();
+      this.#previousHeld.set(player.id, previous);
+      const actions = player.actions.map(action => {
+        const actionKeys = keyboard?.keysByAction.get(action.action);
+        const currentKeyboardHeld = actionKeys !== undefined && intersects(actionKeys, this.#keys);
+        const replayKeyboardHeld = queuedKeys !== null && actionKeys !== undefined && intersects(actionKeys, queuedKeys);
+        const externalHeld = action.held && !currentKeyboardHeld;
+        const held = queuedKeys === null ? action.held : replayKeyboardHeld || externalHeld;
+        const wasHeld = previous.get(action.action) ?? false;
+        previous.set(action.action, held);
+        const value = queuedKeys === null ? action.value : replayKeyboardHeld ? 1 : externalHeld ? action.value : 0;
+        return Object.freeze({ action: action.action, value, held, pressed: held && !wasHeld, released: !held && wasHeld });
+      });
+      return Object.freeze({ id: player.id, actions: Object.freeze(actions) });
+    });
+    return Object.freeze({ tick: source.tick, players: Object.freeze(players) });
   }
 }
 
@@ -349,11 +447,25 @@ function facingDirection(forward: number, vertical: number): MugenFacingDirectio
 }
 
 function isMugenControl(value: string): value is MugenControl { return MUGEN_CONTROL_SET.has(value); }
+function intersects(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  for (const value of left) if (right.has(value)) return true;
+  return false;
+}
+function keyboardEventCode(event: Event): string | null {
+  const code = (event as Event & Readonly<{ code?: unknown }>).code;
+  return typeof code === 'string' && code.length > 0 ? code : null;
+}
+function defaultMugenEventTarget(): EventTarget | null {
+  return typeof globalThis.addEventListener === 'function' ? globalThis : null;
+}
+function defaultMugenVisibilityTarget(): (EventTarget & Readonly<{ hidden?: boolean }>) | null {
+  return typeof document === 'undefined' ? null : document;
+}
 function normalizeAiCommands(values: readonly string[]): readonly string[] {
   if (!Array.isArray(values) || values.length > 1_024) throw new TypeError('MUGEN AI command inventory is invalid.');
   const result = [...new Set(values.map(value => {
     if (typeof value !== 'string' || value.length < 1 || value.length > 128 || [...value].some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) throw new TypeError('MUGEN AI command name is invalid.');
-    return value.toLowerCase();
+    return value;
   }))].sort();
   return Object.freeze(result);
 }
@@ -362,3 +474,4 @@ function integerRange(value: number, minimum: number, maximum: number, label: st
 
 const MUGEN_CONTROLS: readonly MugenControl[] = Object.freeze(['up', 'down', 'left', 'right', 'a', 'b', 'c', 'x', 'y', 'z', 'start']);
 const MUGEN_CONTROL_SET = new Set<string>(MUGEN_CONTROLS);
+const MUGEN_MAX_PENDING_KEY_STATES = 32;

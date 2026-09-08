@@ -22,7 +22,7 @@
     "vertical.snd": { "source": "g06-generated-snd-v1", "bytes": 12772, "sha256": "e68afe4355efbc5840d358b5e34327717466a05764ab450401c3b95052068dee" }
   },
   "expected": {
-    "packageSha256": "26e7e20dca8fdc260e05290f2ebd30018b4a9e33714b2991c7e646008372a39b",
+    "packageSha256": "2d2b216df1ce90f0cdc35bd8b51f34a385988a5ebf246dcba1611b008533ce39",
     "actions": 9,
     "commands": 5,
     "states": 10,

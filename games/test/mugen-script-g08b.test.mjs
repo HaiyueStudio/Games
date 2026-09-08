@@ -8,7 +8,7 @@ import test from 'node:test';
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? `${specifier}.ts` : specifier, context); } });
 
 const [
-  { parseMugenCommandDocument },
+  { parseMugenCommandDocument, parseMugenCommandDocumentWithDiagnostics },
   { parseMugenStateDocuments },
   { compileMugenCharacterScripts },
   { isMugenWorkerRequest, MUGEN_WORKER_PROTOCOL, MUGEN_WORKER_PROTOCOL_VERSION },
@@ -67,6 +67,25 @@ test('DEF stN dependencies are compiled as state scripts regardless of legacy fi
   assert.equal(compiled.states.states.find(state => state.number === -3).controllers[0].name, 'AI marker');
 });
 
+test('DEF cmd role classifies an extensionless or TXT command document as executable script', async () => {
+  const inputs = [
+    { path: 'legacy.def', bytes: UTF8.encode('[Info]\nname=Legacy AI\n[Files]\ncmd=AI_1_0.txt\ncns=legacy.cns\n') },
+    { path: 'AI_1_0.txt', bytes: UTF8.encode('[Command]\nname="x"\ncommand=x\n[Statedef -1]\n') },
+    { path: 'legacy.cns', bytes: UTF8.encode('[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n') },
+  ];
+  const graph = await buildMugenImportGraph(await createMugenVfs(inputs), { entryDef: 'legacy.def', entryKind: 'character', encoding: 'utf-8' });
+  assert.equal(graph.resources.find(resource => resource.canonicalPath === 'AI_1_0.txt').kind, 'cmd');
+  const compiled = compileMugenCharacterScripts(graph, 'm09-native-common');
+  assert.equal(compiled.commands.commands[0].name, 'x');
+});
+
+test('legacy direction-only dollar modifier on a button is ignored with an explicit CMD warning', async () => {
+  const document = await textDocument('legacy-button.cmd', '[Command]\nname="holdx"\ncommand=/$x\ntime=1\n');
+  const parsed = parseMugenCommandDocumentWithDiagnostics(document);
+  assert.deepEqual(parsed.program.commands[0].steps[0].tokens[0], { target: 'x', targetType: 'button', mode: 'hold', fourWay: false, noOtherInput: false, chargeTicks: 0 });
+  assert.deepEqual(parsed.diagnostics.map(value => [value.code, value.severity, value.line, value.details.normalizedToken]), [['W_MUGEN_CMD_BUTTON_FOUR_WAY_IGNORED', 'warning', 3, '/x']]);
+});
+
 test('legacy Helper pausermovetime spelling is normalized to pausemovetime', async () => {
   const states = parseMugenStateDocuments([await textDocument('legacy-helper.cns', '[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, helper]\ntype=Helper\ntrigger1=1\nstateno=0\npausermovetime=99\n')]);
   const helper = states.states.find(state => state.number === 0).controllers[0];
@@ -98,9 +117,243 @@ pos=100,0
   assert.equal(state.controllers[0].hitAttributeFilter.attributes.length, 27);
 });
 
-test('known Petra trigger-key typos remain explicit ignored compatibility fields', async () => {
-  const states = parseMugenStateDocuments([await textDocument('legacy-trigger-typo.cns', '[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, typo]\ntype=ChangeState\ntrigger1=0\nTrrigge5=Time>5\nTroggerAll=Time>6\nTriggeeAll=Time>7\nvalue=0\n')]);
-  assert.deepEqual(states.states.find(state => state.number === 0).controllers[0].literalParameters, { 'compat.ignored.triggeeall': 'Time>7', 'compat.ignored.troggerall': 'Time>6', 'compat.ignored.trrigge5': 'Time>5' });
+test('known legacy trigger-key typos remain explicit ignored compatibility fields', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-trigger-typo.cns', '[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, typo]\ntype=ChangeState\ntrigger1=0\nTrrigge5=Time>5\nTroggerAll=Time>6\nTriggeeAll=Time>7\nTriggearll=Random>500\nvalue=0\n')]);
+  assert.deepEqual(states.states.find(state => state.number === 0).controllers[0].literalParameters, { 'compat.ignored.triggearll': 'Random>500', 'compat.ignored.triggeeall': 'Time>7', 'compat.ignored.troggerall': 'Time>6', 'compat.ignored.trrigge5': 'Time>5' });
+});
+
+test('legacy Projectile sprpriority aliases projsprpriority without losing rendering semantics', async () => {
+  const states = parseMugenStateDocuments([await textDocument('projectile-priority.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, projectile]\ntype=Projectile\ntrigger1=1\nprojanim=100\nsprpriority=7\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.parameters.projsprpriority.instructions, [{ op: 'push-int', value: 7 }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.alias.sprpriority'], '7');
+});
+
+test('legacy HitDef sprpriority aliases attacker p1sprpriority and Explod keyctrl is explicitly ignored', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-controller-fields.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, hit]\ntype=HitDef\ntrigger1=1\nattr=S,ST\nsprpriority=6\n[State 0, effect]\ntype=Explod\ntrigger1=1\nanim=10\nhelpertype=normal\nkeyctrl=0\n`)]);
+  const [hit, effect] = states.states.find(state => state.number === 0).controllers;
+  assert.deepEqual(hit.hitDefinition.attackerSpritePriority.instructions, [{ op: 'push-int', value: 6 }, { op: 'return' }]);
+  assert.equal(hit.literalParameters['compat.alias.sprpriority'], '6');
+  assert.equal(effect.literalParameters['compat.ignored.helpertype'], 'normal');
+  assert.equal(effect.literalParameters['compat.ignored.keyctrl'], '0');
+});
+
+test('BindToTarget accepts an anchored third pos field and legacy food spelling', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-bind.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, bind]\ntype=BindToTarget\ntrigger1=1\npos=0,20,food\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.equal(controller.literalParameters['pos.postype'], 'foot');
+  assert.equal(controller.literalParameters['compat.alias.pos.postype'], 'food');
+});
+
+test('legacy Explod removepngethit aliases removeongethit', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-explod.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, effect]\ntype=Explod\ntrigger1=1\nanim=10\nremovepngethit=0\nremovegethit=1\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.parameters.removeongethit.instructions, [{ op: 'push-int', value: 1 }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.alias.removepngethit'], '0');
+  assert.equal(controller.literalParameters['compat.alias.removegethit'], '1');
+});
+
+test('legacy Helper posttype aliases postype', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-helper-postype.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, helper]\ntype=Helper\ntrigger1=1\nstateno=0\nposttype=p1\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.equal(controller.literalParameters.postype, 'p1');
+  assert.equal(controller.literalParameters['compat.alias.posttype'], 'p1');
+});
+
+test('legacy triggerN != typo is normalized to a negated trigger expression', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-negated-trigger.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, fallback]\ntype=ChangeAnim2\ntrigger1 != SelfAnimExist(19230) = 0\nvalue=3641\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.triggerGroups[0].expressions[0].instructions, [
+    { op: 'push-int', value: 19230 },
+    { name: 'selfanimexist', op: 'call', argumentCount: 1 },
+    { op: 'push-int', value: 0 },
+    { op: 'binary', operator: '=' },
+    { op: 'unary', operator: '!' },
+    { op: 'return' },
+  ]);
+  assert.equal(controller.literalParameters['compat.alias.trigger1!'], 'SelfAnimExist(19230) = 0');
+});
+
+test('legacy HitDef air.slidetime is explicit no-op and ir.hittime aliases air.hittime', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-air-hit-time.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, hit]\ntype=HitDef\ntrigger1=1\nattr=S,NA\nair.slidetime=5\nir.hittime=11\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.hitDefinition.airHitTime.instructions, [{ op: 'push-int', value: 11 }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.ignored.air.slidetime'], '5');
+  assert.equal(controller.literalParameters['compat.alias.ir.hittime'], '11');
+});
+
+test('legacy StateDef duplicate fields use the final value and hit-pause typos preserve semantics', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-state-fields.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\nvelset=1,2\nvelset=3,4\n[State 0, voice]\ntype=PlaySnd\ntrigger1=1\nvalue=1,7\nignoreitpause=1\n[State 0, value]\ntype=VarSet\ntrigger1=1\nv=0\nvalue=1\nignorehipause=1\n[State 0, armor]\ntype=NotHitBy\ntrigger1=1\nvalue=SCA\nignonrehitpause=1\n`)]);
+  const state = states.states.find(value => value.number === 0);
+  assert.deepEqual(state.velocity.map(value => value.instructions), [
+    [{ op: 'push-int', value: 3 }, { op: 'return' }],
+    [{ op: 'push-int', value: 4 }, { op: 'return' }],
+  ]);
+  assert.equal(state.controllers[0].ignoreHitPause, true);
+  assert.equal(state.controllers[0].literalParameters['compat.alias.ignoreitpause'], '1');
+  assert.equal(state.controllers[1].ignoreHitPause, true);
+  assert.equal(state.controllers[1].literalParameters['compat.alias.ignorehipause'], '1');
+  assert.equal(state.controllers[2].ignoreHitPause, true);
+  assert.equal(state.controllers[2].literalParameters['compat.alias.ignonrehitpause'], '1');
+});
+
+test('duplicate StateDef numbers use the final definition without merging stale controllers', async () => {
+  const states = parseMugenStateDocuments([await textDocument('duplicate-state.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\nanim=1\n[State 0, stale]\ntype=CtrlSet\ntrigger1=1\nvalue=0\n[Statedef 0]\ntype=A\nmovetype=A\nphysics=A\nanim=2\n[State 0, active]\ntype=CtrlSet\ntrigger1=1\nvalue=1\n`)]);
+  const state = states.states.find(value => value.number === 0);
+  assert.equal(state.stateType, 'A');
+  assert.deepEqual(state.controllers.map(value => value.name), ['active']);
+});
+
+test('legacy Helper supermove is explicit no-op and HitDef heavy aliases hard', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-heavy-hit.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, helper]\ntype=Helper\ntrigger1=1\nstateno=1\nsupermove=1\n[State 0, hit]\ntype=HitDef\ntrigger1=1\nattr=S,NA\nanimtype=heavy\n`)]);
+  const [helper, hit] = states.states.find(state => state.number === 0).controllers;
+  assert.equal(helper.literalParameters['compat.ignored.supermove'], '1');
+  assert.equal(hit.hitDefinition.animationType, 'hard');
+});
+
+test('legacy StateDef ownpal and ReversalDef attr are explicit compatibility no-ops', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-reversal.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\nownpal=1\n[State 0, reversal]\ntype=ReversalDef\ntrigger1=1\nattr=S,SA\nreversal.attr=SCA,NP\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.reversalDefinition.attributes, ['A:NP', 'C:NP', 'S:NP']);
+  assert.equal(controller.literalParameters['compat.ignored.attr'], 'S,SA');
+});
+
+test('legacy StateDef z velocity is discarded and hitsound -1 remains disabled', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-z-and-sound.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\nvelset=3,4,0\n[State 0, reversal]\ntype=ReversalDef\ntrigger1=1\nreversal.attr=SCA,NP\nhitsound=-1\n`)]);
+  const state = states.states.find(value => value.number === 0);
+  assert.deepEqual(state.velocity.map(value => value.instructions), [
+    [{ op: 'push-int', value: 3 }, { op: 'return' }],
+    [{ op: 'push-int', value: 4 }, { op: 'return' }],
+  ]);
+  assert.deepEqual(state.controllers[0].reversalDefinition.hitSound.map(value => value.instructions), [
+    [{ op: 'push-int', value: -1 }, { op: 'return' }],
+    [{ op: 'push-int', value: 0 }, { op: 'return' }],
+  ]);
+});
+
+test('legacy air.recover aliases fall.recover and SuperPause ownpal is explicit no-op', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-air-recover.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, hit]\ntype=HitDef\ntrigger1=1\nattr=S,NA\nair.recover=0\n[State 0, pause]\ntype=SuperPause\ntrigger1=1\nownpal=1\n`)]);
+  const [hit, pause] = states.states.find(state => state.number === 0).controllers;
+  assert.deepEqual(hit.hitDefinition.fallRecover.instructions, [{ op: 'push-int', value: 0 }, { op: 'return' }]);
+  assert.equal(hit.literalParameters['compat.alias.air.recover'], '0');
+  assert.equal(pause.literalParameters['compat.ignored.ownpal'], '1');
+});
+
+test('legacy AfterImage flamegap aliases framegap and SuperPause S resources use the character owner', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-super-resources.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, trail]\ntype=AfterImage\ntrigger1=1\nflamegap=2\n[State 0, pause]\ntype=SuperPause\ntrigger1=1\nanim=S8999\nsound=S20,0\n[State 0, silent pause]\ntype=SuperPause\ntrigger1=1\nsound=-1\n`)]);
+  const [trail, pause, silentPause] = states.states.find(state => state.number === 0).controllers;
+  assert.deepEqual(trail.parameters.framegap.instructions, [{ op: 'push-int', value: 2 }, { op: 'return' }]);
+  assert.equal(trail.literalParameters['compat.alias.flamegap'], '2');
+  assert.deepEqual(pause.parameters.anim.instructions, [{ op: 'push-int', value: 8999 }, { op: 'return' }]);
+  assert.equal(pause.literalParameters['anim.owner'], 'self');
+  assert.equal(pause.literalParameters['sound.owner'], 'self');
+  assert.deepEqual(silentPause.parameters['sound.0'].instructions, [{ op: 'push-int', value: -1 }, { op: 'return' }]);
+});
+
+test('legacy Projectile sparkky aliases sparkxy and RGB projshadow remains deterministic', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-projectile-output.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, shot]\ntype=Projectile\ntrigger1=1\nprojanim=100\nsparkky=4,-8\nprojshadow=0,0,0\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.hitDefinition.output.sparkPosition.map(value => value.instructions), [
+    [{ op: 'push-int', value: 4 }, { op: 'return' }],
+    [{ op: 'push-int', value: 8 }, { op: 'unary', operator: '-' }, { op: 'return' }],
+  ]);
+  assert.equal(controller.literalParameters['compat.alias.sparkky'], '4,-8');
+  assert.equal(controller.literalParameters['compat.legacy.projshadow.rgb'], '0,0,0');
+});
+
+test('legacy trggierN aliases triggerN and ReversalDef p2facing is explicit no-op', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-trigger-spelling.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, reversal]\ntype=ReversalDef\ntrggier1=time>=10\ntrigger1=1\nreversal.attr=SCA,NP\np2facing=1\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.equal(controller.triggerGroups[0].expressions.length, 2);
+  assert.equal(controller.literalParameters['compat.alias.trggier1'], 'time>=10');
+  assert.equal(controller.literalParameters['compat.ignored.p2facing'], '1');
+});
+
+test('legacy triggerall misspellings alias triggerall and obsolete z velocity is explicit no-op', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-depth.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, set]\ntype=VelSet\ntrggierall=time>=10\ntrigger1=1\nx=2\nz=-7\n[State 0, scale]\ntype=VelMul\ntrigggerall=time<20\ntrigger1=1\nz=.8\n`)]);
+  const [set, scale] = states.states.find(state => state.number === 0).controllers;
+  assert.equal(set.triggerAll.length, 1);
+  assert.equal(set.literalParameters['compat.alias.trggierall'], 'time>=10');
+  assert.equal(set.literalParameters['compat.ignored.z'], '-7');
+  assert.equal(scale.literalParameters['compat.alias.trigggerall'], 'time<20');
+  assert.equal(scale.literalParameters['compat.ignored.z'], '.8');
+});
+
+test('legacy Explod velset aliases velocity without losing motion', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-explod-velocity.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, effect]\ntype=Explod\ntrigger1=1\nanim=760\nvelset=3,-2\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.parameters['vel.0'].instructions, [{ op: 'push-int', value: 3 }, { op: 'return' }]);
+  assert.deepEqual(controller.parameters['vel.1'].instructions, [{ op: 'push-int', value: 2 }, { op: 'unary', operator: '-' }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.alias.velset'], '3,-2');
+});
+
+test('legacy HitDef hittime and slidetime alias their ground fields', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-ground-time.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, hit]\ntype=HitDef\ntrigger1=1\nattr=A,HP\nhittime=50\nslidetime=40\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.hitDefinition.groundHitTime.instructions, [{ op: 'push-int', value: 50 }, { op: 'return' }]);
+  assert.deepEqual(controller.hitDefinition.groundSlideTime.instructions, [{ op: 'push-int', value: 40 }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.alias.hittime'], '50');
+  assert.equal(controller.literalParameters['compat.alias.slidetime'], '40');
+});
+
+test('legacy air.guard.velocity aliases airguard.velocity', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-air-guard.cns', `[Statedef 0]\ntype=S\nmovetype=A\nphysics=N\n[State 0, hit]\ntype=HitDef\ntrigger1=1\nattr=A,HP\nair.guard.velocity=-13,-20\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.hitDefinition.airGuardVelocity.map(value => value.instructions), [
+    [{ op: 'push-int', value: 13 }, { op: 'unary', operator: '-' }, { op: 'return' }],
+    [{ op: 'push-int', value: 20 }, { op: 'unary', operator: '-' }, { op: 'return' }],
+  ]);
+  assert.equal(controller.literalParameters['compat.alias.air.guard.velocity'], '-13,-20');
+});
+
+test('legacy Explod pausepausetime and superpausetime preserve movement during pauses', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-explod-pauses.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, effect]\ntype=Explod\ntrigger1=1\nanim=1310\npausepausetime=2000\nsuperpausetime=1999\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.parameters.pausemovetime.instructions, [{ op: 'push-int', value: 2000 }, { op: 'return' }]);
+  assert.deepEqual(controller.parameters.supermovetime.instructions, [{ op: 'push-int', value: 1999 }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.alias.pausepausetime'], '2000');
+  assert.equal(controller.literalParameters['compat.alias.superpausetime'], '1999');
+});
+
+test('legacy NotHitBy pause movement fields are explicit no-ops', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-filter-pauses.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, armor]\ntype=NotHitBy\ntrigger1=1\nvalue=SCA\ntime=300\npausemovetime=200\nsupermovetime=200\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.equal(controller.literalParameters['compat.ignored.pausemovetime'], '200');
+  assert.equal(controller.literalParameters['compat.ignored.supermovetime'], '200');
+});
+
+test('legacy EnvShake ampe aliases amplitude', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-shake.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, shake]\ntype=EnvShake\ntrigger1=1\ntime=10\nampe=3\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.deepEqual(controller.parameters.ampl.instructions, [{ op: 'push-int', value: 3 }, { op: 'return' }]);
+  assert.equal(controller.literalParameters['compat.alias.ampe'], '3');
+});
+
+test('legacy AssertSpecial time is an explicit per-tick no-op', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-assert-time.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, freeze]\ntype=AssertSpecial\ntrigger1=1\ntime=30\nflag=timerfreeze\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.equal(controller.literalParameters['compat.ignored.time'], '30');
+});
+
+test('legacy StateTypeSet second type field aliases statetype', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-state-type.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, air]\ntype=StateTypeSet\ntrigger1=1\ntype=A\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.ok(controller.parameters.statetype);
+  assert.equal(controller.literalParameters['compat.alias.type'], 'A');
+});
+
+test('tuple parameters preserve top-level MUGEN redirection commas inside expressions', async () => {
+  const states = parseMugenStateDocuments([await textDocument('redirected-tuple.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, effect]\ntype=Explod\ntrigger1=1\nanim=7502\npos=ifelse(teamside=1,40,185),217+parent,var(58)\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.ok(controller.parameters['pos.0']);
+  assert.deepEqual(controller.parameters['pos.1'].redirections.map(value => value.selector), ['parent']);
+});
+
+test('legacy DestroySelf value and ctrl are explicit no-ops', async () => {
+  const states = parseMugenStateDocuments([await textDocument('legacy-destroy.cns', `[Statedef 0]\ntype=S\nmovetype=I\nphysics=N\n[State 0, done]\ntype=DestroySelf\ntrigger1=1\nvalue=0\nctrl=1\n`)]);
+  const controller = states.states.find(state => state.number === 0).controllers[0];
+  assert.equal(controller.literalParameters['compat.ignored.value'], '0');
+  assert.equal(controller.literalParameters['compat.ignored.ctrl'], '1');
 });
 
 test('legacy duplicate controller parameters deterministically use the final value', async () => {
@@ -129,7 +382,7 @@ test('command matcher supports hold/four-way, release charge, simultaneous butto
   const document = await textDocument('commands.cmd', source);
   const matcher = new MugenCommandMatcher(parseMugenCommandDocument(document));
   const inputs = inputBuilder();
-  for (let tick = 1; tick <= 3; tick += 1) { inputs.push(['down']); assert(matcher.match(inputs.history, 'P1').names.includes('holddown')); }
+  for (let tick = 1; tick <= 3; tick += 1) { inputs.push(['down']); assert(matcher.match(inputs.history, 'P1').names.includes('holdDown')); }
   inputs.push([]); inputs.push(['x']); assert(matcher.match(inputs.history, 'P1').names.includes('charge'));
   inputs.push(['a', 'b']); assert(matcher.match(inputs.history, 'P1').names.includes('combo'));
   inputs.push([]); assert(matcher.match(inputs.history, 'P1').names.includes('combo'));
@@ -138,12 +391,34 @@ test('command matcher supports hold/four-way, release charge, simultaneous butto
   assert.equal(matcher.match(inputs.history, 'P1').names.includes('clean'), false);
 });
 
+test('command matcher accepts browser-sequential keydown events as one simultaneous button chord', async () => {
+  const document = await textDocument('chord.cmd', '[Command]\nname="combo"\ncommand=a+b\ntime=3\n');
+  const matcher = new MugenCommandMatcher(parseMugenCommandDocument(document));
+  const inputs = inputBuilder();
+  inputs.push(['a']);
+  inputs.push(['a', 'b']);
+  assert.equal(matcher.match(inputs.history, 'P1').names.includes('combo'), true);
+
+  const stale = inputBuilder();
+  stale.push(['a']);
+  stale.push(['a']);
+  stale.push(['a', 'b']);
+  assert.equal(matcher.match(stale.history, 'P1').names.includes('combo'), false);
+});
+
+test('command names preserve MUGEN case so button b and back direction B remain distinct', async () => {
+  const document = await textDocument('case-sensitive.cmd', '[Command]\nname="b"\ncommand=b\ntime=1\n[Command]\nname="B"\ncommand=B\ntime=1\n');
+  const matcher = new MugenCommandMatcher(parseMugenCommandDocument(document)); const inputs = inputBuilder();
+  inputs.push(['left']); assert.deepEqual(matcher.match(inputs.history, 'P1').names, ['B']);
+  inputs.push(['b']); assert.deepEqual(matcher.match(inputs.history, 'P1').names, ['b']);
+});
+
 test('official time=0 and AI.Cheat command activation share the tick command matcher', async () => {
   const document = await textDocument('legacy-ai.cmd', '[Command]\nname="singleZero"\ncommand=a\ntime=0\n[Command]\nname="impossible"\ncommand=a,a,a\ntime=0\nbuffer.time=2\n');
   const program = parseMugenCommandDocument(document); const matcher = new MugenCommandMatcher(program); const history = new MugenInputHistory();
   history.push({ tick: 1, players: [{ ...sourcePlayer('P1', new Set(['a']), new Set()), aiLevel: 0 }, sourcePlayer('P2', new Set(), new Set())] }, { P1: 1, P2: -1 });
-  assert.deepEqual(matcher.match(history, 'P1').names, ['singlezero']);
-  const aiInput = history.push({ tick: 2, players: [{ ...sourcePlayer('P1', new Set(), new Set(['a'])), aiLevel: 4, aiCommands: ['Impossible'] }, sourcePlayer('P2', new Set(), new Set())] }, { P1: 1, P2: -1 });
+  assert.deepEqual(matcher.match(history, 'P1').names, ['singleZero']);
+  const aiInput = history.push({ tick: 2, players: [{ ...sourcePlayer('P1', new Set(), new Set(['a'])), aiLevel: 4, aiCommands: ['impossible'] }, sourcePlayer('P2', new Set(), new Set())] }, { P1: 1, P2: -1 });
   assert.deepEqual(matcher.match(history, 'P1').names, ['impossible']);
   history.push({ tick: 3, players: [{ ...sourcePlayer('P1', new Set(), new Set()), aiLevel: 4 }, sourcePlayer('P2', new Set(), new Set())] }, { P1: 1, P2: -1 });
   assert.deepEqual(matcher.match(history, 'P1').names, ['impossible']);
@@ -366,6 +641,7 @@ type=Projectile
 trigger1=Time=0
 projid=8
 projanim=20
+sprpriority=7
 attr=S,NP
 damage=20,5
 offset=12,-6
@@ -472,7 +748,7 @@ pos=5,-2
   assert.deepEqual(trace.entityCommit.spawned, ['helper:0000000001', 'projectile:0000000002', 'explod:0000000003', 'helper:0000000004', 'projectile:0000000005', 'explod:0000000006']);
   assert.deepEqual(runtime.entities.helpers('P1').map(value => [value.helperId, value.name, value.stateNumber]), [[7, 'child', 1000]]);
   assert.equal(runtime.entities.helpers('P1')[0].pauseMoveTime, 2_147_483_647);
-  assert.deepEqual(runtime.entities.projectiles('P1').map(value => [value.projectileId, value.position]), [[8, [-5, -6]]]);
+  assert.deepEqual(runtime.entities.projectiles('P1').map(value => [value.projectileId, value.position, value.spritePriority]), [[8, [-8, -6], 7]]);
   assert.deepEqual(trace.output.entities.find(value => value.entityId === 'projectile:0000000002').afterImage, { remainingTicks: 9, length: 4, paletteColor: 128, paletteInvertAll: true, paletteBright: [1, 2, 3], paletteContrast: [4, 5, 6], palettePostBright: [7, 8, 9], paletteAdd: [10, 11, 12], paletteMultiply: [.5, Math.fround(.6), Math.fround(.7)], timeGap: 2, frameGap: 3, transparency: 'add' });
   assert.deepEqual(runtime.entities.explods('P1').map(value => [value.explodId, value.animationOwnerId, value.layer]), [[9, 'fight', 'above']]);
   assert.equal(runtime.entities.explods('P1')[0].superMoveTime, 2_147_483_647);
@@ -492,8 +768,8 @@ pos=5,-2
 test('G08 Petra entity parameters drive postype, persistent scale, palette ownership, binding and get-hit removal', async () => {
   const commands = parseMugenCommandDocument(await textDocument('g08-entity-params.cmd', '[Command]\nname="dummy"\ncommand=s\n'));
   const states = parseMugenStateDocuments([await textDocument('g08-entity-params.cns', `[Size]
-xscale=1
-yscale=1
+xscale=.5
+yscale=.5
 ground.front=12
 height=60
 head.pos=-5,-90
@@ -595,18 +871,18 @@ value=Const(size.mid.pos.y)
   const programs = [{ fighterId: 'P1', paletteNumber: 4, commands, states }, { fighterId: 'P2', paletteNumber: 5, commands, states }]; const runtime = new MugenScriptRuntime(programs); const inputs = inputBuilder(); const match = createMatch(); const context = { opponentByFighter: new Map([['P1', 'P2'], ['P2', 'P1']]), animationDurationByOwner: new Map([['P1', new Map([[0, 2]])], ['P2', new Map([[0, 2]])]]), screenBounds: [-100, 100] };
   let input = inputs.push([]); match.beginTick(input).startFight(); let trace = runtime.step(match, input, inputs.history, context); match.endTick();
   const helper = runtime.entities.helpers('P1', 70)[0]; assert.deepEqual([helper.position, helper.facing, helper.spritePriority], [[15, -2], 1, 7]);
-  const explod = runtime.entities.explods('P1', 80)[0]; assert.deepEqual([explod.position, explod.facing, explod.verticalFacing, explod.bindTargetId, explod.bindTime, explod.removeOnGetHit], [[-10, -5], -1, -1, 'P1', 1, true]);
+  const explod = runtime.entities.explods('P1', 80)[0]; assert.deepEqual([explod.position, explod.facing, explod.verticalFacing, explod.bindTargetId, explod.bindTime, explod.removeOnGetHit], [[-10, -5], -1, -1, 'P1', 2, true]);
   const screen = runtime.entities.explods('P1', 81)[0]; assert.deepEqual([screen.coordinateSpace, screen.position], ['screen', [312, 12]]);
   assert.equal(runtime.entities.explods('P1', 82).length, 1);
   let helperOutput = trace.output.entities.find(value => value.entityId === helper.entityId); let explodOutput = trace.output.entities.find(value => value.entityId === explod.entityId);
   assert.deepEqual([helperOutput.paletteIsolated, helperOutput.paletteRemap.destination, helperOutput.baseDrawingTransform.scale], [true, [2, 3], [.5, .75]]);
   assert.deepEqual(helper.constantOverrides, { 'size.ground.front': 19, 'size.head.pos': -7, 'size.head.pos.x': -7, 'size.head.pos.y': -81, 'size.xscale': .625 });
   assert.deepEqual([explodOutput.paletteIsolated, explodOutput.paletteRemap.destination, explodOutput.baseDrawingTransform, explodOutput.baseTransparency], [true, [2, 3], { angle: 30, scale: [2, .5] }, { mode: 'addalpha', alpha: [200, 50] }]);
-  input = inputs.push([]); match.beginTick(input); trace = runtime.step(match, input, inputs.history, context); match.endTick(); explodOutput = trace.output.entities.find(value => value.entityId === explod.entityId); assert.deepEqual(explodOutput.baseDrawingTransform, { angle: 30, scale: [.25, .75] }); assert.equal(runtime.entities.explods('P1', 82).length, 0);
+  input = inputs.push([]); match.beginTick(input); trace = runtime.step(match, input, inputs.history, context); match.endTick(); explodOutput = trace.output.entities.find(value => value.entityId === explod.entityId); assert.deepEqual(explodOutput.baseDrawingTransform, { angle: 30, scale: [.25, .75] }); assert.equal(runtime.entities.explods('P1', 82).length, 1);
   const updatedHelper = runtime.entities.helpers('P1', 70)[0]; assert.deepEqual(updatedHelper.floatVariables.slice(0, 1), [.625]); assert.deepEqual(updatedHelper.integerVariables.slice(1, 6), [19, -7, -81, 60, -40]);
   const execution = runtime.executionSnapshot(); const restored = new MugenScriptRuntime(programs); restored.restoreExecution(JSON.parse(JSON.stringify(execution))); assert.deepEqual(restored.entities.helpers('P1', 70)[0].constantOverrides, updatedHelper.constantOverrides); assert.deepEqual(restored.executionSnapshot(), execution);
   input = inputs.push([]); match.beginTick(input).setFighterStateMetadata('P1', { moveType: 'H' }); trace = runtime.step(match, input, inputs.history, context); match.endTick();
-  assert.equal(runtime.entities.explods('P1', 80).length, 0); assert.equal(trace.output.entities.some(value => value.entityId === explod.entityId), false);
+  assert.equal(runtime.entities.explods('P1', 80).length, 0); assert.equal(runtime.entities.explods('P1', 82).length, 0); assert.equal(trace.output.entities.some(value => value.entityId === explod.entityId), false);
 });
 
 test('Helper PosFreeze suppresses velocity integration for one tick without stopping velocity or state time', async () => {

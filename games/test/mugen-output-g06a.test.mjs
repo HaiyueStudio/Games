@@ -4,7 +4,7 @@ import test from 'node:test';
 
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? `${specifier}.ts` : specifier, context); } });
 
-const [{ parseMugenCommandDocument }, { parseMugenStateDocuments }, { parseMugenTextFile }, { createMugenVfs }, { MugenInputHistory }, { MugenHeadlessMatch }, { MugenScriptRuntime }, { MugenOutputAuthority, mugenAfterImageColorMatrix, mugenPaletteColorMatrix, mugenShakeOffset }, { MugenBrowserOutput }, { applyMugenOutputTransform }] = await Promise.all([
+const [{ parseMugenCommandDocument }, { parseMugenStateDocuments }, { parseMugenTextFile }, { createMugenVfs }, { MugenInputHistory }, { MugenHeadlessMatch }, { MugenScriptRuntime }, { MugenOutputAuthority, mugenAfterImageColorMatrix, mugenPaletteColorMatrix, mugenShakeOffset }, { MugenBrowserOutput }, { applyMugenOutputTransform, isMugenHelperAnimationReady, placeMugenScreenExplod, projectMugenScreenExplod, resolveMugenSpritePaletteId, selectMugenCharacterPaletteId }] = await Promise.all([
   import('../mugen/import/cmd/index.ts'), import('../mugen/import/cns/index.ts'), import('../mugen/import/text/MugenTextParser.ts'), import('../mugen/import/vfs/MugenVfs.ts'), import('../mugen/runtime/input/index.ts'), import('../mugen/runtime/match/index.ts'), import('../mugen/runtime/script/index.ts'), import('../mugen/runtime/effects/index.ts'), import('../mugen/game/MugenBrowserOutput.ts'),
   import('../mugen/game/MugenOutputRender.ts'),
 ]);
@@ -75,6 +75,42 @@ test('G08 Offset and AngleDraw alter rendering while collision authority remains
   const snapshot = Object.freeze({ actionNumber: 0, actionTick: 0, frameIndex: 0, frameTick: 0, completedLoops: 0, generation: 0, element: Object.freeze({}), clsn1: Object.freeze([{ kind: 'clsn1', sourceIndex: 0, left: 1, top: 2, right: 3, bottom: 4 }]), clsn2: Object.freeze([]), render: Object.freeze({ spriteId: '0,0', spriteGroup: 0, spriteItem: 0, missingSprite: false, positionX: 100, positionY: 200, axisX: 0, axisY: 0, flipX: false, flipY: false, scaleX: 2, scaleY: 3, rotationRadians: .25, blend: Object.freeze({ mode: 'none', sourceAlpha: 256, destinationAlpha: 0 }), interpolationProgress: 0, interpolated: Object.freeze([]) }) });
   const output = Object.freeze({ displayOffset: [3, -4], drawingTransform: Object.freeze({ angle: 90, scale: [.5, 2] }) }); const transformed = applyMugenOutputTransform(snapshot, output, 2, -1);
   assert.deepEqual([transformed.render.positionX, transformed.render.positionY, transformed.render.scaleX, transformed.render.scaleY], [106, 192, 1, 6]); assert(Math.abs(transformed.render.rotationRadians - (.25 - Math.PI / 2)) < 1e-6); assert.strictEqual(transformed.clsn1, snapshot.clsn1);
+});
+
+test('G08 pending Helpers stay hidden until their StateDef supplies the intended action', () => {
+  assert.equal(isMugenHelperAnimationReady({ stateDefinitionPending: true, actionNumber: 0 }), false);
+  assert.equal(isMugenHelperAnimationReady({ stateDefinitionPending: false, actionNumber: 0 }), false);
+  assert.equal(isMugenHelperAnimationReady({ stateDefinitionPending: false, actionNumber: 0 }, true), true);
+  assert.equal(isMugenHelperAnimationReady({ stateDefinitionPending: false, actionNumber: 1101 }), true);
+});
+
+test('screen Explod compatibility layout transforms a multipart HUD as one centered group', () => {
+  const rules = Object.freeze([...([10000, 10010, 10011, 10012, 10020, 10021, 10022, 10030, 10031, 10032, 10040, 10041, 10042, 10250, 10300, 10600].map(explodId => Object.freeze({ explodId, positionScale: Object.freeze([.5, .5]), positionOffset: Object.freeze([0, 110]) }))), Object.freeze({ explodId: 10105, sourceY: 55, positionScale: Object.freeze([.5, .5]), positionOffset: Object.freeze([0, 185]) }), Object.freeze({ explodId: 10105, positionScale: Object.freeze([.5, .5]), positionOffset: Object.freeze([0, 110]) })]);
+  assert.deepEqual(placeMugenScreenExplod([55, 55], 10105, [320, 240], rules), [107.5, 212.5]);
+  assert.deepEqual(placeMugenScreenExplod([265, 55], 10105, [320, 240], rules), [212.5, 212.5]);
+  assert.deepEqual(placeMugenScreenExplod([2, 207], 10300, [320, 240], rules), [81, 213.5]);
+  assert.deepEqual(placeMugenScreenExplod([318, 207], 10300, [320, 240], rules), [239, 213.5]);
+  const unrelated = Object.freeze([80, 40]); assert.strictEqual(placeMugenScreenExplod(unrelated, 999, [320, 240], rules), unrelated);
+});
+
+test('screen Explod projection follows MUGEN screen space independently of camera and character sprite scale', () => {
+  const viewport = Object.freeze({ scale: 2, offsetX: 0, offsetY: 10 });
+  assert.deepEqual(projectMugenScreenExplod([55, 212], [320, 240], [320, 240], viewport), [110, 434]);
+  assert.deepEqual(projectMugenScreenExplod([530, 424], [640, 480], [320, 240], viewport), [530, 434]);
+});
+
+test('MUGEN character palettes do not overwrite independent effect palettes', () => {
+  const base = Object.freeze({ id: 'base', renderPaletteId: 'base', source: 'sff-v1', group: 0, item: 4 });
+  const effect = Object.freeze({ id: 'effect', renderPaletteId: 'effect', source: 'sff-v1', group: 0, item: 12 });
+  const costume1 = Object.freeze({ id: 'costume-1', renderPaletteId: 'costume-1', source: 'act', group: 1, item: 1 });
+  const costume2 = Object.freeze({ id: 'costume-2', renderPaletteId: 'costume-2', source: 'act', group: 1, item: 4 });
+  const baseSprite = Object.freeze({ id: '0,0', group: 0, item: 0, defaultPaletteId: 'base' });
+  const effectSprite = Object.freeze({ id: '294,0', group: 294, item: 0, defaultPaletteId: 'effect' });
+  const model = Object.freeze({ sprites: Object.freeze([baseSprite, effectSprite]), palettes: Object.freeze([base, effect, costume1, costume2]), spriteById: new Map([['0,0', baseSprite], ['294,0', effectSprite]]) });
+  assert.equal(selectMugenCharacterPaletteId(model, 1), 'costume-2');
+  assert.equal(resolveMugenSpritePaletteId(model, '0,0', 'costume-2'), 'costume-2');
+  assert.equal(resolveMugenSpritePaletteId(model, '294,0', 'costume-2'), null);
+  assert.equal(resolveMugenSpritePaletteId(model, '294,0', 'costume-2', { destination: [0, 12] }), 'effect');
 });
 
 async function document(path, source) { const vfs = await createMugenVfs([{ path, bytes: UTF8.encode(source) }]); return parseMugenTextFile(vfs.require(path), 'utf-8'); }

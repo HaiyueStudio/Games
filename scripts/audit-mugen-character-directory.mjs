@@ -22,6 +22,7 @@ if (process.argv[2] === undefined || !statSync(root).isDirectory()) {
 }
 
 const quiet = process.argv.includes('--quiet');
+const strict = process.argv.includes('--strict');
 const audioRangeArgument = process.argv.find(value => value.startsWith('--audio-range='));
 const audioRangeMatch = /^--audio-range=(-?\d+)-(-?\d+)$/u.exec(audioRangeArgument ?? '');
 const audioRange = audioRangeMatch === null ? null : [Number(audioRangeMatch[1]), Number(audioRangeMatch[2])];
@@ -59,11 +60,11 @@ for (let directoryIndex = 0; directoryIndex < directories.length; directoryIndex
         contentRole: 'local-content',
         entryDef,
         entryKind: 'character',
-        scriptProfile: 'none',
+        scriptProfile: strict ? 'm09-native-common' : 'none',
       });
       const model = createMugenCharacterModel(imported.package, imported.metadata, { viewerAudioCues: imported.viewerAudioCues });
       totals.passed++;
-      if (!quiet) console.log(`PASS\t${basename(directory)}\t${entryDef}\tactions=${model.actions.length}\tsprites=${model.sprites.length}\tsounds=${model.sounds.length}\taudible=${model.actions.filter(action => action.audioCues.length > 0).length}\tms=${Math.round(performance.now() - startedAt)}`);
+      if (!quiet) console.log(`PASS\t${basename(directory)}\t${entryDef}\tprofile=${strict ? 'm09-native-common' : 'assets-only'}\tactions=${model.actions.length}\tsprites=${model.sprites.length}\tsounds=${model.sounds.length}\taudible=${model.actions.filter(action => action.audioCues.length > 0).length}\tms=${Math.round(performance.now() - startedAt)}`);
       if (audioRange !== null) {
         const ranged = model.actions.filter(action => action.action.number >= audioRange[0] && action.action.number <= audioRange[1]);
         const missing = ranged.filter(action => action.audioCues.length === 0).map(action => action.action.number);

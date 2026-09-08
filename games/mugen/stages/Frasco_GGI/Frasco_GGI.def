@@ -1,0 +1,220 @@
+[Info]
+name = Frasco_GGI
+author = Unknown
+
+[Camera]
+startx = 0
+starty = 0
+boundleft = -220
+boundright = 220
+boundhigh = -248
+boundlow = 0
+verticalfollow = 0.85
+floortension = 70
+tension = 60
+
+[PlayerInfo]
+p1startx = -70
+p1starty = 0
+p1startz = 0
+p1facing = 1
+p2startx = 70
+p2starty = 0
+p2startz = 0
+p2facing = -1
+leftbound = -1000
+rightbound = 1000
+topbound = 0
+botbound = 0
+
+[Scaling]
+topz = 0
+botz = 50
+topscale = 1
+botscale = 1.2
+
+[Bound]
+screenleft = 10
+screenright = 10
+
+[StageInfo]
+zoffset = 216
+autoturn = 1
+hires = 1
+
+[Shadow]
+color = 100,100,100
+yscale = 0.25
+
+[Music]
+bgmusic = QuickSilver.mp3
+bgvolume = 255
+
+[BGDef]
+spr = Frasco_GGI.sff
+debugbg = 1
+
+[BG distant-background]
+type = normal
+spriteno = 0,22
+layerno = 0
+start = -382,-67
+delta = 0.2,0.2
+trans = none
+mask = 0
+
+[BG mid-background]
+type = normal
+spriteno = 0,19
+layerno = 0
+start = -512,-168
+delta = 0.8,0.8
+trans = none
+mask = 1
+
+[BG machinery-back]
+type = anim
+actionno = 6
+layerno = 0
+start = 382,-44
+delta = 0.8,0.8
+trans = none
+mask = 1
+
+[Begin Action 6]
+0,20,0,0,2
+0,21,0,0,2
+
+[BG building]
+type = normal
+spriteno = 0,0
+layerno = 0
+start = -768,-524
+delta = 2,2
+trans = none
+mask = 1
+
+[BG ground]
+type = normal
+spriteno = 0,23
+layerno = 0
+start = -427,148
+delta = 2,2
+trans = none
+mask = 0
+
+[BG machinery-front]
+type = anim
+actionno = 1
+layerno = 0
+start = 408,-336
+delta = 2,2
+trans = none
+mask = 1
+
+[Begin Action 1]
+0,1,0,0,2
+0,2,0,0,2
+
+[BG light-a]
+type = anim
+actionno = 2
+layerno = 0
+start = 533,-141
+delta = 2,2
+trans = add
+mask = 1
+
+[Begin Action 2]
+0,3,0,0,2,,a
+0,4,0,0,2,,a
+0,5,0,0,2,,a
+
+[BG light-b]
+type = anim
+actionno = 3
+layerno = 0
+start = 644,-113
+delta = 2,2
+trans = add
+mask = 1
+
+[Begin Action 3]
+0,6,0,0,2,,a
+0,7,0,0,2,,a
+0,8,0,0,2,,a
+
+[BG lamp-a]
+type = anim
+actionno = 4
+layerno = 0
+start = -684,196
+delta = 2,2
+trans = add
+mask = 1
+
+[Begin Action 4]
+0,9,0,0,30,,a
+0,10,0,0,30,,a
+0,9,0,0,30,,a
+0,10,0,0,30,,a
+0,9,0,0,30,,a
+0,10,0,0,30,,a
+0,9,0,0,30,,a
+0,10,0,0,30,,a
+0,11,0,0,30,,a
+
+[BG moving-part]
+type = anim
+actionno = 5
+layerno = 0
+start = 71,-180
+delta = 2,2
+trans = none
+mask = 1
+
+[Begin Action 5]
+0,12,0,0,20
+0,13,0,0,20
+0,12,0,0,20
+0,13,0,0,20
+0,12,0,0,20
+0,13,0,0,20
+0,12,0,0,20
+0,14,0,0,30
+
+[BG glow]
+type = normal
+spriteno = 0,15
+layerno = 0
+start = -342,-364
+delta = 2,2
+trans = add
+mask = 1
+
+[BG lamp-b]
+type = normal
+spriteno = 0,18
+layerno = 0
+start = 552,22
+delta = 2,2
+trans = add
+mask = 1
+
+[BG stairs]
+type = normal
+spriteno = 0,16
+layerno = 0
+start = 512,-12
+delta = 2,2
+trans = none
+mask = 1
+
+[BG foreground]
+type = normal
+spriteno = 0,17
+layerno = 0
+start = 56,-254
+delta = 2,2
+trans = none
+mask = 1
