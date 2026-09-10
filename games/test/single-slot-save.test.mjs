@@ -86,3 +86,25 @@ test('every manifest game uses the engine save facade with no direct storage acc
     );
   }
 });
+
+test('autosave status follows the newest queued write and recovers after a storage failure', async () => {
+  const { MemorySaveBackend } = await import('@haiyue/engine/save');
+  const { SingleSlotGameSave } = await import('../save/SingleSlotGameSave.ts');
+  const backend = new MemorySaveBackend();
+  const write = backend.write.bind(backend);
+  let fail = true;
+  backend.write = async data => { if (fail) throw new Error('storage unavailable'); await write(data); };
+  const statuses = [];
+  const save = new SingleSlotGameSave({ gameId: 'autosave-status', name: 'test', backend,
+    validateData: value => isRecord(value) && isNonNegativeInteger(value.turn), onStatus: status => statuses.push(status) });
+  await assert.rejects(save.saveNow({ turn: 1 }), /storage unavailable/);
+  await save.flush();
+  assert.deepEqual(statuses, ['saving', 'error']);
+  fail = false; statuses.length = 0;
+  save.save({ turn: 2 }); save.save({ turn: 3 });
+  await save.flush();
+  assert.deepEqual(statuses, ['saving', 'saving', 'saved']);
+  const reopened = new SingleSlotGameSave({ gameId: 'autosave-status', name: 'test', backend,
+    validateData: value => isRecord(value) && isNonNegativeInteger(value.turn) });
+  assert.deepEqual(await reopened.load(), { turn: 3 });
+});

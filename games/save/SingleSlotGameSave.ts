@@ -1,11 +1,15 @@
-import { GameSaveError, GameSaveService, LocalStorageSaveBackend } from '@haiyue/engine/save';
+import { GameSaveError, GameSaveService, LocalStorageSaveBackend, type GameSaveBackend } from '@haiyue/engine/save';
 
 export const SINGLE_SLOT_SAVE_ID = 'autosave';
 export const SINGLE_SLOT_SAVE_DATA_VERSION = 1;
 
+export type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export interface SingleSlotGameSaveOptions<T> {
+  onStatus?: (status: AutoSaveStatus) => void;
   gameId: string;
   name: string;
+  backend?: GameSaveBackend;
   validateData(value: unknown): value is T;
 }
 
@@ -13,6 +17,7 @@ export interface SingleSlotGameSaveOptions<T> {
 export class SingleSlotGameSave<T> {
   private readonly service: GameSaveService<T>;
   private readonly options: SingleSlotGameSaveOptions<T>;
+  private writeRevision = 0;
   private pendingWrite: Promise<void> = Promise.resolve();
 
   constructor(options: SingleSlotGameSaveOptions<T>) {
@@ -20,7 +25,7 @@ export class SingleSlotGameSave<T> {
     this.service = new GameSaveService<T>({
       gameId: options.gameId,
       dataVersion: SINGLE_SLOT_SAVE_DATA_VERSION,
-      backend: new LocalStorageSaveBackend({ namespace: 'haiyue-games' }),
+      backend: options.backend ?? new LocalStorageSaveBackend({ namespace: 'haiyue-games' }),
       maxSlots: 1,
       validateData: options.validateData,
     });
@@ -29,7 +34,9 @@ export class SingleSlotGameSave<T> {
   async load(): Promise<T | null> {
     await this.flush();
     try {
-      return (await this.service.load(SINGLE_SLOT_SAVE_ID))?.data ?? null;
+      const data = (await this.service.load(SINGLE_SLOT_SAVE_ID))?.data ?? null;
+      this.options.onStatus?.(data ? 'saved' : 'idle');
+      return data;
     } catch (error) {
       this.report('读取存档失败，存档槽将被清理。', error);
       try {
@@ -41,15 +48,21 @@ export class SingleSlotGameSave<T> {
     }
   }
 
-  save(data: T): void {
-    this.pendingWrite = this.pendingWrite
-      .then(() => this.write(data))
-      .catch(error => this.report('自动保存失败。', error));
-  }
+  save(data: T): void { void this.enqueue(data).catch(() => {}); }
 
-  async saveNow(data: T): Promise<void> {
-    await this.flush();
-    await this.write(data);
+  async saveNow(data: T): Promise<void> { await this.enqueue(data); }
+
+  private enqueue(data: T): Promise<void> {
+    const revision = ++this.writeRevision;
+    this.options.onStatus?.('saving');
+    const write = this.pendingWrite.then(() => this.write(data)).then(() => {
+      if (revision === this.writeRevision) this.options.onStatus?.('saved');
+    });
+    this.pendingWrite = write.catch(error => {
+      if (revision === this.writeRevision) this.options.onStatus?.('error');
+      this.report('自动保存失败。', error);
+    });
+    return write;
   }
 
   async clear(): Promise<void> {

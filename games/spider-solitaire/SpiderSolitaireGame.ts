@@ -1,18 +1,22 @@
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createPlane3D, type Geometry3D } from '@haiyue/engine';
 import { Interactive, KeyboardComponent, type InteractiveEvent } from '@haiyue/engine/components';
+import type { GameSaveBackend } from '@haiyue/engine/save';
+import type { MaterialTextureSource } from '@haiyue/engine/material';
 import { BlinnPhongMaterial } from '@haiyue/engine/material';
 import { InteractionSystem, Render3DSystem } from '@haiyue/engine/systems';
 import { Ray } from '@haiyue/engine/math';
 import {
   GuiButton,
+  GuiLabel,
+  type GuiFontOptions,
   GuiRoot,
   GuiSystem,
 } from '@haiyue/engine/gui';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../arrayAccess';
-import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
+import { SingleSlotGameSave, type AutoSaveStatus } from '../save/SingleSlotGameSave';
 
 import {
   cloneSpiderCard as cloneCard,
@@ -92,7 +96,23 @@ interface SceneVisual {
   mesh: Mesh3D;
 }
 
-type UiAction = 'deal' | 'undo' | 'new' | Difficulty;
+export type SpiderAction = 'deal' | 'undo' | 'new' | Difficulty;
+type UiAction = SpiderAction;
+
+export interface SpiderControlsState { difficulty: Difficulty; canDeal: boolean; canUndo: boolean; animating: boolean; moves: number; completedRuns: number; }
+export interface SpiderSolitairePlatform {
+  engine?: HaiyueEngine;
+  orbitCanvas?: HTMLCanvasElement;
+  guiFont?: GuiFontOptions;
+  isPinching?: () => boolean;
+  autoRun?: boolean;
+  keyboard?: boolean;
+  createCanvas2D?: (width: number, height: number) => HTMLCanvasElement;
+  textureFromCanvas?: (canvas: HTMLCanvasElement, key: string) => MaterialTextureSource;
+  saveBackend?: GameSaveBackend;
+  onControlsChanged?: (state: SpiderControlsState) => void;
+}
+
 type GuiActionButton = { action: UiAction; button: GuiButton; label: string; difficulty: Difficulty | undefined };
 
 const TABLE_WIDTH = 1080;
@@ -118,7 +138,7 @@ const RUN_COLLECT_ANIMATION_MS = 760;
 const ANIMATION_STAGGER_MS = 42;
 
 const GUI_BUTTONS = [
-  { action: 'easy' as UiAction, difficulty: 'easy' as Difficulty, label: 'Easy · 1 Suit', width: 116 },
+  { action: 'easy' as UiAction, difficulty: 'easy' as Difficulty, label: 'Easy · 1', width: 116 },
   { action: 'normal' as UiAction, difficulty: 'normal' as Difficulty, label: 'Normal · 2', width: 116 },
   { action: 'hard' as UiAction, difficulty: 'hard' as Difficulty, label: 'Hard · 4', width: 104 },
   { action: 'deal' as UiAction, label: 'Deal', width: 92 },
@@ -136,12 +156,51 @@ const COLORS = {
   run: [0.82, 0.78, 0.68, 1] as Color,
 };
 
-class SpiderSolitaire {
-  private readonly saves = new SingleSlotGameSave<Snapshot>({
-    gameId: 'spider-solitaire',
-    name: 'Spider Solitaire 自动存档',
-    validateData: isSpiderSaveData,
-  });
+export class SpiderSolitaire {
+  private autoSaveStatus: AutoSaveStatus = 'idle';
+  private readonly saves: SingleSlotGameSave<Snapshot>;
+  private disposed = false;
+  private readonly updateFrame = ({ detail: { time, delta } }: { detail: { time: number; delta: number } }): void => this.tick(time, delta);
+
+  constructor(private readonly platform: SpiderSolitairePlatform = {}) {
+    this.saves = new SingleSlotGameSave<Snapshot>({
+      onStatus: status => { this.autoSaveStatus = status; this.guiDirty = true; },
+      gameId: 'spider-solitaire', name: 'Spider Solitaire 自动存档', validateData: isSpiderSaveData,
+      ...(platform.saveBackend ? { backend: platform.saveBackend } : {}),
+    });
+  }
+
+  performAction(action: SpiderAction): void { if (!this.disposed) this.runAction(action); }
+  cancelInteraction(): void {
+    if (!this.world || !this.orbitControl) return;
+    if (this.drag) this.canvas.releasePointerCapture?.(this.drag.pointerId);
+    this.drag = null;
+    this.selection = null;
+    this.resumeOrbitControl();
+    this.render();
+  }
+  snapshot() {
+    return { autoSaveStatus: this.autoSaveStatus, difficulty: this.difficulty, moves: this.moves, stock: this.stock.length,
+      camera: this.orbitTransform && { radius: this.orbitTransform.radius, phi: this.orbitTransform.phi },
+      completedRuns: this.completedRuns, columns: cloneColumns(this.columns), dragging: !!this.drag,
+      animating: this.isAnimating(), history: this.history.length, visuals: this.sceneVisuals.length };
+  }
+  async flushSave(): Promise<void> { await this.saves.flush(); }
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.cancelInteraction();
+    this.engine?.off('update', this.updateFrame);
+    this.orbitControl?.dispose();
+    this.world?.destroy();
+    if (!this.platform.engine) this.engine?.destroy();
+    this.flights = [];
+    this.sceneVisuals = [];
+    this.geometryCache.clear();
+    this.solidMaterials.clear();
+    this.textureMaterials.clear();
+    this.dynamicTextMaterials.clear();
+  }
   private columns: Card[][] = [];
   private stock: Card[] = [];
   private difficulty: Difficulty = 'easy';
@@ -170,6 +229,8 @@ class SpiderSolitaire {
   private dynamicTextMaterials = new Map<string, { text: string; material: BasicMaterial }>();
   private toastMessage = 'Drag a face-up descending stack to a destination column.';
   private savedOrbitState: { rotate: boolean; pan: boolean; zoom: boolean } | null = null;
+  private statsLabel: GuiLabel | null = null;
+  private toastLabel: GuiLabel | null = null;
   private guiButtons: GuiActionButton[] = [];
   private flights: CardFlight[] = [];
   private hiddenAnimatedCardIds = new Set<number>();
@@ -179,13 +240,13 @@ class SpiderSolitaire {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = new HaiyueEngine({
+    this.engine = this.platform.engine ?? new HaiyueEngine({
       canvas,
       clearColor: { r: 0.04, g: 0.11, b: 0.09, a: 1 },
       msaaSamples: 4,
       devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2),
     });
-    await this.engine.init();
+    if (!this.platform.engine) await this.engine.init();
     this.engine.reverseZ = true;
     this.world = new World('SpiderSolitaireWebGPU');
     this.setupCamera();
@@ -200,8 +261,8 @@ class SpiderSolitaire {
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
     await this.loadOrStart();
     this.flushRender();
-    this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
-    this.engine.run();
+    this.engine.on('update', this.updateFrame);
+    if (this.platform.autoRun !== false) this.engine.run();
   }
 
   private tick(time: number, delta: number): void {
@@ -220,19 +281,21 @@ class SpiderSolitaire {
     const camera = new Camera3D({ type: 'perspective', fov: Math.PI / 4.2, near: 1, far: 2400 });
     camera.reverseZ = true;
     this.orbitTransform = new SphericalTransform3D({
-      radius: 820,
+      radius: 720,
       theta: 0,
-      phi: Math.PI * 0.24,
-      target: [0, 0, 44],
+      phi: Math.PI * 0.15,
+      target: [0, 0, -15],
     });
     this.cameraEntity = new Entity('Camera');
     this.cameraEntity.addComponent(camera);
     this.cameraEntity.addComponent(this.orbitTransform);
     this.world.addEntity(this.cameraEntity);
-    this.orbitControl = new OrbitControl(this.canvas, this.orbitTransform, {
-      minRadius: 620,
+    const inputHeight = Math.max(160, this.canvas.getBoundingClientRect().height);
+    this.orbitControl = new OrbitControl(this.platform.orbitCanvas ?? this.canvas, this.orbitTransform, {
+      inputRegion: { x: 0, y: 84 / inputHeight, width: 1, height: 1 - 124 / inputHeight },
+      minRadius: 540,
       maxRadius: 1080,
-      minPhi: Math.PI * 0.12,
+      minPhi: Math.PI * 0.025,
       maxPhi: Math.PI * 0.42,
       enablePan: true,
       rotateSpeed: 0.42,
@@ -253,6 +316,7 @@ class SpiderSolitaire {
   }
 
   private setupInput(): void {
+    if (this.platform.keyboard === false) return;
     KeyboardComponent.defineAction('spider.new-game', ['KeyN']);
     KeyboardComponent.defineAction('spider.undo', ['KeyZ']);
     KeyboardComponent.defineAction('spider.deal', ['KeyD', 'Space']);
@@ -284,32 +348,38 @@ class SpiderSolitaire {
       },
     });
 
-    let right = 18;
-    for (let i = GUI_BUTTONS.length - 1; i >= 0; i--) {
-      const item = requiredItemAt(GUI_BUTTONS, i, 'Spider GUI buttons');
-      right += item.width;
-      const offsetRight = right;
+    let index = 0;
+    for (const item of GUI_BUTTONS) {
+      const position = index++;
       const button = guiRoot.add(new GuiButton({
-        x: `100%`,
-        y: 16,
-        width: item.width,
-        height: 38,
-        text: item.label,
-        variant: 'primary',
-        style: { radius: 7, padding: 8 },
+        x: 0, y: 12, width: item.width, height: 36, text: item.label,
+        variant: 'primary', style: { radius: 8, padding: 6 },
         onClick: () => this.runAction(item.action),
       }));
       button.layout = ((original) => (parentRect) => {
         original.call(button, parentRect);
-        button.rect.x = parentRect.width - offsetRight;
+        const gap = 8, totalWidth = Math.min(740, parentRect.width - 28);
+        const width = (totalWidth - gap * 5) / 6;
+        button.rect.x = (parentRect.width - totalWidth) / 2 + position * (width + gap);
+        button.rect.width = width;
       })(button.layout);
       this.guiButtons.push({ action: item.action, button, label: item.label, difficulty: item.difficulty });
-      right += 10;
+    }
+    this.statsLabel = guiRoot.add(new GuiLabel({ x: 14, y: 55, width: '100%', height: 25,
+      fontSize: 14, textAlign: 'center', style: { color: '#e9f7dc' } }));
+    this.toastLabel = guiRoot.add(new GuiLabel({ x: 14, y: 0, width: '100%', height: 28,
+      fontSize: 13, textAlign: 'center', style: { color: '#e5f5e8', backgroundColor: 'rgba(3,24,17,0.8)', radius: 10 } }));
+    for (const label of [this.statsLabel, this.toastLabel]) {
+      label.layout = ((original) => (parentRect) => {
+        original.call(label, parentRect);
+        label.rect.width = parentRect.width - 28;
+        if (label === this.toastLabel) label.rect.y = parentRect.height - 38;
+      })(label.layout);
     }
 
     rootEntity.addComponent(guiRoot);
     this.world.addEntity(rootEntity);
-    this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
+    this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { chars: Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join('') + '✓·', ...this.platform.guiFont } }));
   }
 
   private newGame(save = true, message = 'Drag a face-up, same-suit descending stack to another column.'): void {
@@ -378,6 +448,7 @@ class SpiderSolitaire {
   }
 
   private handleKeyboardInput(): void {
+    if (!this.keyboard) return;
     if (this.keyboard.wasPressed('spider.new-game')) this.newGame();
     if (this.isAnimating()) {
       return;
@@ -393,6 +464,7 @@ class SpiderSolitaire {
   }
 
   private handlePointerDown(event: PointerEvent): void {
+    if (this.platform.isPinching?.()) return;
     if (this.guiHitFromPoint(event.clientX, event.clientY)) {
       event.preventDefault();
       return;
@@ -502,15 +574,15 @@ class SpiderSolitaire {
   }
 
   private handleInteractivePointerDown(event: InteractiveEvent): void {
-    if (event.nativeEvent instanceof PointerEvent) this.handlePointerDown(event.nativeEvent);
+    if (event.nativeEvent && 'pointerId' in event.nativeEvent) this.handlePointerDown(event.nativeEvent);
   }
 
   private handleInteractivePointerMove(event: InteractiveEvent): void {
-    if (event.nativeEvent instanceof PointerEvent) this.handlePointerMove(event.nativeEvent);
+    if (event.nativeEvent && 'pointerId' in event.nativeEvent) this.handlePointerMove(event.nativeEvent);
   }
 
   private handleInteractivePointerUp(event: InteractiveEvent): void {
-    if (event.nativeEvent instanceof PointerEvent) this.handlePointerUp(event.nativeEvent);
+    if (event.nativeEvent && 'pointerId' in event.nativeEvent) this.handlePointerUp(event.nativeEvent);
   }
 
   private columnHitFromPoint(clientX: number, clientY: number): PointerColumnHit | null {
@@ -556,22 +628,8 @@ class SpiderSolitaire {
 
   private guiHitFromPoint(clientX: number, clientY: number): boolean {
     const rect = this.canvas.getBoundingClientRect();
-    const x = clientX - rect.left;
     const y = clientY - rect.top;
-    const top = 16;
-    const height = 38;
-    const right = rect.width - 18;
-    if (y < top || y > top + height) return false;
-
-    let cursor = right;
-    for (let i = GUI_BUTTONS.length - 1; i >= 0; i--) {
-      const button = requiredItemAt(GUI_BUTTONS, i, 'Spider GUI buttons');
-      const width = button.width;
-      const left = cursor - width;
-      if (x >= left && x <= cursor) return true;
-      cursor = left - 10;
-    }
-    return false;
+    return y <= 84 || y >= rect.height - 40;
   }
 
   private runAction(action: UiAction): void {
@@ -759,6 +817,11 @@ class SpiderSolitaire {
   }
 
   private syncGui(): void {
+    const saveText = { idle: 'Autosave on', saving: 'Saving...', saved: 'Autosaved', error: 'Save failed' }[this.autoSaveStatus];
+    this.statsLabel?.setText(`Spider   ${DIFFICULTY_LABELS[this.difficulty]}   Moves ${this.moves}   Runs ${this.completedRuns} / 8   Stock ${this.stock.length}   · ${saveText}`);
+    this.toastLabel?.setText(this.toastMessage);
+    this.platform.onControlsChanged?.({ difficulty: this.difficulty, canDeal: this.stock.length >= COLUMN_COUNT,
+      canUndo: this.history.length > 0, animating: this.isAnimating(), moves: this.moves, completedRuns: this.completedRuns });
     for (const item of this.guiButtons) {
       const disabled = (item.action === 'deal' && this.stock.length < COLUMN_COUNT) ||
         (item.action === 'undo' && this.history.length === 0) ||
@@ -773,7 +836,6 @@ class SpiderSolitaire {
     this.sceneVisualCursor = 0;
     this.hiddenAnimatedCardIds = new Set(this.flights.map(flight => flight.hideCardId).filter((id): id is number => id != null));
     this.addTable();
-    this.addHud();
     this.addStock();
     this.addFoundation();
     this.addColumns();
@@ -785,39 +847,20 @@ class SpiderSolitaire {
   }
 
   private addTable(): void {
-    this.addBox('Table', 0, -3, 58, TABLE_WIDTH, 6, TABLE_DEPTH, this.solidMaterial('table', COLORS.table, 18));
-  }
-
-  private addHud(): void {
-    this.addTextPlane('Title', -320, HUD_Z, 240, 42, this.textMaterial('title', 'Spider Solitaire', {
-      width: 512,
-      height: 128,
-      fontSize: 54,
-      fontWeight: 900,
-      color: '#f8fff9',
-      align: 'left',
-    }), HUD_Y);
-
-    const stats = `${DIFFICULTY_LABELS[this.difficulty]}     Moves ${this.moves}     Runs ${this.completedRuns} / 8     Stock ${this.stock.length}`;
-    this.addTextPlane('Stats', -228, HUD_Z + 43, 420, 30, this.dynamicTextMaterial('stats', stats, {
-      width: 900,
-      height: 96,
-      fontSize: 34,
-      fontWeight: 800,
-      color: 'rgba(247,251,248,0.82)',
-      align: 'left',
-    }), HUD_Y);
-
-    this.addTextPlane('Toast', 0, 334, 560, 38, this.dynamicTextMaterial('toast', this.toastMessage, {
-      width: 1200,
-      height: 128,
-      fontSize: 34,
-      fontWeight: 800,
-      color: 'rgba(255,255,255,0.86)',
-      background: 'rgba(4,15,12,0.78)',
-      border: 'rgba(255,255,255,0.16)',
-      radius: 22,
-    }), 6.8);
+    this.addBox('Table', 0, -3, 58, TABLE_WIDTH, 6, TABLE_DEPTH, this.solidMaterial('table-edge', COLORS.tableEdge, 18));
+    let felt = this.textureMaterials.get('felt');
+    if (!felt) {
+      const canvas = this.createDrawingCanvas(1024, 1024);
+      const context = canvas.getContext('2d')!;
+      const gradient = context.createRadialGradient(512, 440, 40, 512, 512, 710);
+      gradient.addColorStop(0, '#08742a');
+      gradient.addColorStop(0.48, '#044c1a');
+      gradient.addColorStop(1, '#01260d');
+      context.fillStyle = gradient; context.fillRect(0, 0, 1024, 1024);
+      felt = new BasicMaterial({ texture: this.platform.textureFromCanvas?.(canvas, 'felt') ?? canvas, cullMode: 'none' });
+      this.textureMaterials.set('felt', felt);
+    }
+    this.addTextPlane('TableFelt', 0, 58, TABLE_WIDTH, TABLE_DEPTH, felt, 0.02);
   }
 
   private addStock(): void {
@@ -1245,7 +1288,7 @@ class SpiderSolitaire {
   private textMaterial(key: string, text: string, options: TextMaterialOptions): BasicMaterial {
     let material = this.textureMaterials.get(key);
     if (!material) {
-      material = new BasicMaterial({ texture: this.createTextCanvas(text, options), cullMode: 'none', blending: 'normal', depthWrite: false });
+      material = new BasicMaterial({ texture: this.createTextCanvas(text, options, key), cullMode: 'none', blending: 'normal', depthWrite: false });
       this.textureMaterials.set(key, material);
     }
     return material;
@@ -1254,15 +1297,13 @@ class SpiderSolitaire {
   private dynamicTextMaterial(key: string, text: string, options: TextMaterialOptions): BasicMaterial {
     const cached = this.dynamicTextMaterials.get(key);
     if (cached?.text === text) return cached.material;
-    const material = new BasicMaterial({ texture: this.createTextCanvas(text, options), cullMode: 'none', blending: 'normal', depthWrite: false });
+    const material = new BasicMaterial({ texture: this.createTextCanvas(text, options, key), cullMode: 'none', blending: 'normal', depthWrite: false });
     this.dynamicTextMaterials.set(key, { text, material });
     return material;
   }
 
-  private createCardCanvas(rank: Rank, suit: Suit): HTMLCanvasElement {
-    const canvas = document.createElement('canvas');
-    canvas.width = 384;
-    canvas.height = 528;
+  private createCardCanvas(rank: Rank, suit: Suit): MaterialTextureSource {
+    const canvas = this.createDrawingCanvas(384, 528);
     const context = canvas.getContext('2d')!;
     this.roundRect(context, 10, 10, 364, 508, 28);
     context.fillStyle = '#fffdf5';
@@ -1298,13 +1339,11 @@ class SpiderSolitaire {
     context.font = '900 72px ui-sans-serif, system-ui, sans-serif';
     context.fillText(suitSymbol, 0, 78);
     context.restore();
-    return canvas;
+    return this.platform.textureFromCanvas?.(canvas, `card:${rank}:${suit}`) ?? canvas;
   }
 
-  private createBackCanvas(): HTMLCanvasElement {
-    const canvas = document.createElement('canvas');
-    canvas.width = 384;
-    canvas.height = 528;
+  private createBackCanvas(): MaterialTextureSource {
+    const canvas = this.createDrawingCanvas(384, 528);
     const context = canvas.getContext('2d')!;
     const gradient = context.createLinearGradient(0, 0, 384, 528);
     gradient.addColorStop(0, '#3d68bb');
@@ -1332,13 +1371,11 @@ class SpiderSolitaire {
       context.lineTo(i, 528);
       context.stroke();
     }
-    return canvas;
+    return this.platform.textureFromCanvas?.(canvas, 'card-back') ?? canvas;
   }
 
-  private createTextCanvas(text: string, options: TextMaterialOptions): HTMLCanvasElement {
-    const canvas = document.createElement('canvas');
-    canvas.width = options.width;
-    canvas.height = options.height;
+  private createTextCanvas(text: string, options: TextMaterialOptions, key: string): MaterialTextureSource {
+    const canvas = this.createDrawingCanvas(options.width, options.height);
     const context = canvas.getContext('2d')!;
     context.clearRect(0, 0, canvas.width, canvas.height);
     if (options.background || options.border) {
@@ -1360,6 +1397,14 @@ class SpiderSolitaire {
     context.font = `${options.fontWeight ?? 800} ${options.fontSize}px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
     const x = context.textAlign === 'left' ? 20 : context.textAlign === 'right' ? canvas.width - 20 : canvas.width / 2;
     context.fillText(text, x, canvas.height / 2, canvas.width - 40);
+    return this.platform.textureFromCanvas?.(canvas, `text:${key}`) ?? canvas;
+  }
+
+  private createDrawingCanvas(width: number, height: number): HTMLCanvasElement {
+    if (this.platform.createCanvas2D) return this.platform.createCanvas2D(width, height);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
     return canvas;
   }
 
