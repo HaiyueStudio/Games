@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
+import { readMugenTestArtifact } from './mugen-test-artifacts.mjs';
 
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? `${specifier}.ts` : specifier, context); } });
 
@@ -657,7 +658,7 @@ test('ScreenBound off may cross the gameplay margin but cannot launch a root fig
 });
 
 test('G04 official executable oracle pass is content-addressed and machine-observed', () => {
-  const evidence = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/g04-official-oracle-evidence.json', import.meta.url), 'utf8')); assert.equal(evidence.result, 'pass'); assert.deepEqual(evidence.run.observedColor, { r: 0, g: 255, b: 0 }); assert.equal(evidence.run.sampleCount, 5); assert.equal(evidence.run.allSamplesMatched, true); assert.equal(evidence.run.originalConfigurationRestored, true);
+  const evidence = readMugenTestArtifact('m09-mugen-character-runtime-parity/g04-official-oracle-evidence.json'); assert.equal(evidence.result, 'pass'); assert.deepEqual(evidence.run.observedColor, { r: 0, g: 255, b: 0 }); assert.equal(evidence.run.sampleCount, 5); assert.equal(evidence.run.allSamplesMatched, true); assert.equal(evidence.run.originalConfigurationRestored, true);
   for (const source of evidence.sources.filter(value => value.path.startsWith('Games/'))) { const relative = source.path.slice('Games/'.length); const bytes = readFileSync(new URL(`../../${relative}`, import.meta.url)); assert.equal(createHash('sha256').update(bytes).digest('hex'), source.sha256, source.path); }
 });
 

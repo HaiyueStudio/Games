@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "result": "pass",
+  "officialLoadEvidence": {
+    "expressions": 98,
+    "triggerLineExpressions": 45
+  },
+  "sources": [
+    {
+      "path": "Games/games/mugen/oracle/g03-core-state-oracle/oracle.def",
+      "sha256": "c0cd40687294bdc9172dc9adf5ffc96043a7cffc6d0d615783dadb7bdf6540c5"
+    },
+    {
+      "path": "Games/games/mugen/oracle/g03-core-state-oracle/oracle.cmd",
+      "sha256": "6d9e12a9fbb9890135a7fa02bd45ff1ba5e0a16bd3ad0a84ba0ba6c5a23e5869"
+    },
+    {
+      "path": "Games/games/mugen/oracle/g03-core-state-oracle/oracle.cns",
+      "sha256": "49ab6f82c9e452b59995c20f3ec3f02f9f37c1bf797ccfa8f14babdb30946707"
+    }
+  ]
+}
