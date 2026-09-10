@@ -22,7 +22,9 @@
         box-shadow: 0 0 90px rgba(38, 106, 191, 0.2), 0 0 0 1px rgba(124, 201, 255, 0.14);
       }
       canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-      #engine-canvas { z-index: 0; }
+      #engine-canvas { z-index: 3; opacity: 0; pointer-events: none; touch-action: none; transition: opacity 180ms ease; }
+      #engine-canvas.level-carousel-active { opacity: 1; pointer-events: auto; cursor: grab; }
+      #engine-canvas.level-carousel-active:active { cursor: grabbing; }
       #game-canvas { z-index: 1; touch-action: none; cursor: crosshair; }
       #ui { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
       #top-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 18px 0; }
@@ -107,7 +109,7 @@
         <div id="controls-hint">WASD / 方向键移动 · J 射击 · K / B / 鼠标右键投放炸弹</div>
         <div id="bomb-readout"><button id="bomb-button" type="button" aria-label="投放炸弹">BOMB</button><span>× <strong id="bomb-count">3</strong></span></div>
         <button id="pause-button" type="button">暂停</button>
-        <div id="status" class="visible">
+        <div id="status">
           <div class="status-card">
             <h1 id="status-title">SKY STRIKE</h1>
             <p id="status-copy">移动：WASD / 方向键　射击：J / 按住屏幕　炸弹：K / B / 鼠标右键</p>

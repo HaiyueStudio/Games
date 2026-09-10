@@ -73,6 +73,13 @@ export function resolveSpawnX(position: SpawnPosition, random: () => number): nu
   return position.minX + (position.maxX - position.minX) * random();
 }
 
+export function wrapLevelIndex(index: number, levelCount: number): number {
+  const count = Math.max(0, Math.floor(Number.isFinite(levelCount) ? levelCount : 0));
+  if (count === 0) return 0;
+  const safeIndex = Math.floor(Number.isFinite(index) ? index : 0);
+  return (safeIndex % count + count) % count;
+}
+
 export function mixHexColor(from: string, to: string, amount: number): string {
   const progress = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 0));
   const fromValue = Number.parseInt(from.slice(1), 16);

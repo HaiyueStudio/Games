@@ -106,6 +106,11 @@ export const SPACE_TRAIN_SEGMENT_HIT_POINTS = 16;
 export const SPACE_TRAIN_CAR_COUNT = 7;
 export const SERPENT_SEGMENT_COUNT = 9;
 export const SERPENT_CHARGE_HEALTH_RATIO = 0.35;
+export const SERPENT_CRUISE_AMPLITUDE = 112;
+export const SERPENT_CRUISE_SPEED = 0.00115;
+export const SERPENT_SEGMENT_PHASE_LAG = 0.58;
+export const SERPENT_SEGMENT_SPACING = 46;
+export const SERPENT_SEGMENT_VERTICAL_SPACING = 24;
 
 export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'scout', sprite: 'assets/enemy-scout.png', tier: 'normal', hitPoints: 5, speed: 116, score: 100, size: 58, fireIntervalMs: 1800, bulletPattern: 'aimed', flightPattern: 'straight' },
@@ -285,6 +290,43 @@ export function serpentTurretFireIntervalMs(
 export function shouldSerpentCharge(hitPoints: number, maximumHitPoints: number): boolean {
   if (!Number.isFinite(hitPoints) || !Number.isFinite(maximumHitPoints) || maximumHitPoints <= 0) return false;
   return hitPoints > 0 && hitPoints / maximumHitPoints < SERPENT_CHARGE_HEALTH_RATIO;
+}
+
+export function serpentCruiseX(ageMs: number, segmentOrder = 0): number {
+  const safeAgeMs = Number.isFinite(ageMs) ? ageMs : 0;
+  const safeOrder = Math.max(0, Number.isFinite(segmentOrder) ? segmentOrder : 0);
+  return LOGICAL_WIDTH / 2 + Math.sin(
+    safeAgeMs * SERPENT_CRUISE_SPEED - safeOrder * SERPENT_SEGMENT_PHASE_LAG,
+  ) * SERPENT_CRUISE_AMPLITUDE;
+}
+
+export function serpentSegmentPosition(
+  ownerX: number,
+  ownerY: number,
+  ageMs: number,
+  segmentOrder: number,
+  charging: boolean,
+  velocityX = 0,
+  velocityY = 1,
+): Velocity {
+  const order = Math.max(1, Math.floor(Number.isFinite(segmentOrder) ? segmentOrder : 1));
+  if (charging) {
+    const speed = Math.hypot(velocityX, velocityY) || 1;
+    return {
+      x: ownerX - velocityX / speed * SERPENT_SEGMENT_SPACING * order,
+      y: ownerY - velocityY / speed * SERPENT_SEGMENT_SPACING * order,
+    };
+  }
+  const wavePhase = ageMs * SERPENT_CRUISE_SPEED - order * SERPENT_SEGMENT_PHASE_LAG;
+  return {
+    x: serpentCruiseX(ageMs, order),
+    y: ownerY - SERPENT_SEGMENT_VERTICAL_SPACING * order + Math.sin(wavePhase * 1.65) * 7,
+  };
+}
+
+export function shouldRecycleSerpentCharge(x: number, y: number, size: number): boolean {
+  const margin = Math.max(72, Math.abs(Number.isFinite(size) ? size : 0) * 0.55);
+  return y > LOGICAL_HEIGHT + margin || x < -margin || x > LOGICAL_WIDTH + margin;
 }
 
 export function regeneratePlayerHealth(health: number, deltaSeconds: number): number {

@@ -1,4 +1,5 @@
 import { HaiyueEngine, World } from '@haiyue/engine';
+import { RenderIntegration } from '@haiyue/engine/experimental';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 import {
   BLUE_ENEMY_BULLET_DAMAGE,
@@ -36,7 +37,10 @@ import {
   resolveEnemyDamage,
   requiredEnemyDefinition,
   selectLaserTarget,
+  serpentCruiseX,
+  serpentSegmentPosition,
   serpentTurretFireIntervalMs,
+  shouldRecycleSerpentCharge,
   shouldTriggerMaxLevelPickupBurst,
   shouldSerpentCharge,
   isInsideBombArea,
@@ -59,6 +63,7 @@ import {
   type LevelBackground,
   type SkyStrikeLevel,
 } from './levels/loader';
+import { SkyStrikeLevelCarousel } from './levelCarousel';
 
 type GamePhase = 'ready' | 'playing' | 'paused' | 'game-over';
 
@@ -282,6 +287,7 @@ class SkyStrikeGame {
   private elapsedMs = 0;
   private levels: readonly SkyStrikeLevel[] = [];
   private levelIndex = 0;
+  private selectedLevelIndex = 0;
   private levelElapsedMs = 0;
   private levelTimeline: readonly CompiledLevelSpawn[] = [];
   private nextLevelSpawnIndex = 0;
@@ -303,6 +309,7 @@ class SkyStrikeGame {
   private spiralAngle = 0;
   private bombs = INITIAL_BOMBS;
   private bombBlast: BombBlast | null = null;
+  private levelCarousel: SkyStrikeLevelCarousel | null = null;
 
   private readonly scoreElement = document.querySelector('#score')!;
   private readonly bestElement = document.querySelector('#best')!;
@@ -325,6 +332,9 @@ class SkyStrikeGame {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly context: CanvasRenderingContext2D,
+    private readonly engineCanvas: HTMLCanvasElement,
+    private readonly engine: HaiyueEngine,
+    private readonly world: World,
   ) {}
 
   async init(): Promise<void> {
@@ -337,10 +347,13 @@ class SkyStrikeGame {
       this.sorties = saved.sorties;
       this.bossesDefeated = saved.bossesDefeated;
     }
+    this.selectedLevelIndex = Math.min(this.levels.length - 1, Math.max(0, this.bestWave - 1));
+    this.setupLevelCarousel();
     this.createStars();
     this.setupInput();
     this.syncHud();
-    this.showStatus('SKY STRIKE', '移动：WASD / 方向键　射击：J / 按住屏幕　炸弹：K / B / 鼠标右键', '开始出击');
+    this.hideStatus();
+    this.levelCarousel?.show(this.selectedLevelIndex);
     this.render();
   }
 
@@ -407,9 +420,54 @@ class SkyStrikeGame {
     }
   }
 
+  private setupLevelCarousel(): void {
+    this.levelCarousel = new SkyStrikeLevelCarousel({
+      engine: this.engine,
+      world: this.world,
+      canvas: this.engineCanvas,
+      levels: this.levels,
+      initialIndex: this.selectedLevelIndex,
+      resolveBoss: level => {
+        const definition = requiredEnemyDefinition(level.bossId);
+        return {
+          source: this.images.get(definition.sprite) ?? null,
+          sourceKey: definition.sprite,
+          label: definition.id.replaceAll('-', ' ').toUpperCase(),
+          aspect: definition.renderAspect ?? 1.18,
+        };
+      },
+      onSelectionChange: index => {
+        this.selectedLevelIndex = index;
+        document.body.dataset.selectedLevel = this.levels[index]?.id ?? 'unloaded';
+      },
+      onStart: index => {
+        this.selectedLevelIndex = index;
+        this.startSortie();
+      },
+    });
+    document.body.dataset.selectedLevel = this.levels[this.selectedLevelIndex]?.id ?? 'unloaded';
+  }
+
   private setupInput(): void {
     window.addEventListener('keydown', event => {
       const key = event.key.toLowerCase();
+      if (this.levelCarousel?.isVisible) {
+        if (!event.repeat && (key === 'arrowleft' || key === 'a')) {
+          event.preventDefault();
+          this.levelCarousel.changeSelection(-1);
+          return;
+        }
+        if (!event.repeat && (key === 'arrowright' || key === 'd')) {
+          event.preventDefault();
+          this.levelCarousel.changeSelection(1);
+          return;
+        }
+        if (!event.repeat && (key === 'j' || key === 'enter')) {
+          event.preventDefault();
+          this.startSortie();
+          return;
+        }
+      }
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', 'j', 'k', 'b'].includes(key)) {
         event.preventDefault();
         this.keys.add(key);
@@ -472,6 +530,7 @@ class SkyStrikeGame {
   }
 
   private startSortie(): void {
+    this.levelCarousel?.hide();
     this.phase = 'playing';
     this.score = 0;
     this.wave = 1;
@@ -502,7 +561,7 @@ class SkyStrikeGame {
     this.bombs = INITIAL_BOMBS;
     this.bombBlast = null;
     this.levelAdvanceMs = 0;
-    this.beginLevel(0);
+    this.beginLevel(this.selectedLevelIndex);
     this.sorties++;
     this.applyBrowserFixture();
     this.hideStatus();
@@ -560,6 +619,7 @@ class SkyStrikeGame {
     this.backgroundTo = level.background;
     this.backgroundTransitionMs = 0;
     this.levelIndex = index;
+    this.selectedLevelIndex = index;
     this.wave = index + 1;
     this.levelElapsedMs = 0;
     this.nextLevelSpawnIndex = 0;
@@ -857,7 +917,8 @@ class SkyStrikeGame {
       }
 
       if (enemy.y > LOGICAL_HEIGHT + enemy.definition.size
-        && enemy.definition.segmentedPart !== 'serpent-turret') {
+        && enemy.definition.segmentedPart !== 'serpent-turret'
+        && enemy.definition.id !== 'iron-serpent') {
         this.enemies.splice(index, 1);
         if (this.boss === enemy) this.boss = null;
       }
@@ -869,10 +930,10 @@ class SkyStrikeGame {
     if (enemy.charging) {
       enemy.x += enemy.velocityX * seconds;
       enemy.y += enemy.velocityY * seconds;
-      if (enemy.y > LOGICAL_HEIGHT + 180 || enemy.x < -180 || enemy.x > LOGICAL_WIDTH + 180) {
+      if (shouldRecycleSerpentCharge(enemy.x, enemy.y, enemy.definition.size)) {
         enemy.charging = false;
         enemy.entered = false;
-        enemy.x = clampToPlayfield(this.player.x, 70, LOGICAL_WIDTH);
+        enemy.x = serpentCruiseX(enemy.ageMs);
         enemy.originX = enemy.x;
         enemy.y = -enemy.definition.size * 0.72;
         enemy.chargeCooldownMs = 4_200;
@@ -881,10 +942,11 @@ class SkyStrikeGame {
     }
     if (enemy.y < 360) {
       enemy.y = Math.min(360, enemy.y + enemy.definition.speed * seconds);
+      enemy.x = serpentCruiseX(enemy.ageMs);
       enemy.entered = enemy.y >= 360;
     } else {
       enemy.entered = true;
-      enemy.x = LOGICAL_WIDTH / 2 + Math.sin(enemy.ageMs * 0.00115) * 112;
+      enemy.x = serpentCruiseX(enemy.ageMs);
     }
     if (!enemy.entered || !shouldSerpentCharge(enemy.hitPoints, enemy.definition.hitPoints)) return;
     enemy.chargeCooldownMs -= deltaMs;
@@ -902,15 +964,17 @@ class SkyStrikeGame {
   private updateSerpentTurretPosition(enemy: EnemyState): boolean {
     const owner = enemy.segmentOwner;
     if (!owner || !this.enemies.includes(owner)) return false;
-    const spacing = 44;
-    if (owner.charging) {
-      const speed = Math.hypot(owner.velocityX, owner.velocityY) || 1;
-      enemy.x = owner.x - owner.velocityX / speed * spacing * enemy.segmentOrder;
-      enemy.y = owner.y - owner.velocityY / speed * spacing * enemy.segmentOrder;
-    } else {
-      enemy.x = owner.x + Math.sin(owner.ageMs * 0.0024 - enemy.segmentOrder * 0.58) * (18 + enemy.segmentOrder * 1.8);
-      enemy.y = owner.y - spacing * enemy.segmentOrder;
-    }
+    const position = serpentSegmentPosition(
+      owner.x,
+      owner.y,
+      owner.ageMs,
+      enemy.segmentOrder,
+      owner.charging,
+      owner.velocityX,
+      owner.velocityY,
+    );
+    enemy.x = position.x;
+    enemy.y = position.y;
     enemy.entered = owner.entered;
     return true;
   }
@@ -1486,7 +1550,8 @@ class SkyStrikeGame {
     this.highScore = Math.max(this.highScore, this.score);
     this.pauseButton.disabled = true;
     this.saveProgress();
-    this.showStatus('任务失败', `得分 ${this.score.toLocaleString()} · 抵达第 ${this.wave} 波`, '再次出击');
+    this.hideStatus();
+    this.levelCarousel?.show(this.levelIndex, '再次出击', '任务失败 · 选择关卡');
   }
 
   private saveProgress(): void {
@@ -1732,6 +1797,11 @@ class SkyStrikeGame {
   }
 
   private drawEnemies(): void {
+    const serpentSegments = this.enemies
+      .filter(enemy => enemy.definition.segmentedPart === 'serpent-turret')
+      .sort((left, right) => right.segmentOrder - left.segmentOrder);
+    for (const segment of serpentSegments) this.drawIronSerpentTurret(segment);
+
     for (const enemy of this.enemies) {
       if (enemy.definition.id === 'helios-emitter') {
         this.drawHeliosEmitter(enemy);
@@ -1742,7 +1812,6 @@ class SkyStrikeGame {
         continue;
       }
       if (enemy.definition.segmentedPart === 'serpent-turret') {
-        this.drawIronSerpentTurret(enemy);
         continue;
       }
       const image = this.images.get(enemy.definition.sprite);
@@ -2333,8 +2402,11 @@ async function main(): Promise<void> {
   });
   await engine.init();
   const world = new World('Sky Strike');
-  const game = new SkyStrikeGame(gameCanvas, context);
+  const game = new SkyStrikeGame(gameCanvas, context, engineCanvas, engine, world);
   await game.init();
+  const renderIntegration = new RenderIntegration(engine, { label: 'SkyStrike.gui' });
+  world.addRuntimeIntegration(renderIntegration);
+  renderIntegration.registerAll(world, () => ({ pass: 'shared' }));
   document.body.dataset.renderStatus = 'passed';
 
   const resize = () => resizeGameCanvas(gameCanvas);

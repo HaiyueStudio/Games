@@ -25,7 +25,9 @@ import {
   RED_ENEMY_BULLET_DAMAGE,
   SAUCER_DEATH_BULLET_COUNT,
   SERPENT_CHARGE_HEALTH_RATIO,
+  SERPENT_CRUISE_AMPLITUDE,
   SERPENT_SEGMENT_COUNT,
+  SERPENT_SEGMENT_SPACING,
   SPACE_TRAIN_CAR_COUNT,
   SPACE_TRAIN_SEGMENT_HIT_POINTS,
   aimedVelocity,
@@ -45,7 +47,10 @@ import {
   regeneratePlayerHealth,
   resolveEnemyDamage,
   selectLaserTarget,
+  serpentCruiseX,
+  serpentSegmentPosition,
   serpentTurretFireIntervalMs,
+  shouldRecycleSerpentCharge,
   shouldSerpentCharge,
   shouldTriggerMaxLevelPickupBurst,
   stepFireCooldown,
@@ -58,6 +63,7 @@ import {
   mixHexColor,
   mixLevelBackground,
   resolveSpawnX,
+  wrapLevelIndex,
 } from '../sky-strike/levels/loader.ts';
 
 test('Sky Strike defines ten regular enemies, three elites, six bosses, and segmented devices', () => {
@@ -107,6 +113,21 @@ test('space train cars and mechanical serpent segments follow the requested comb
   assert.equal(SERPENT_CHARGE_HEALTH_RATIO, 0.35);
   assert.equal(shouldSerpentCharge(770, 2_200), false);
   assert.equal(shouldSerpentCharge(769, 2_200), true);
+
+  const headX = serpentCruiseX(2_500);
+  assert.ok(headX >= LOGICAL_WIDTH / 2 - SERPENT_CRUISE_AMPLITUDE);
+  assert.ok(headX <= LOGICAL_WIDTH / 2 + SERPENT_CRUISE_AMPLITUDE);
+  const body = Array.from({ length: SERPENT_SEGMENT_COUNT }, (_, index) => (
+    serpentSegmentPosition(headX, 360, 2_500, index + 1, false)
+  ));
+  assert.ok(Math.max(...body.map(segment => segment.x)) - Math.min(...body.map(segment => segment.x)) > 150);
+  assert.ok(body.every(segment => segment.y < 360));
+  assert.deepEqual(
+    serpentSegmentPosition(100, 100, 0, 2, true, 0, 10),
+    { x: 100, y: 100 - SERPENT_SEGMENT_SPACING * 2 },
+  );
+  assert.equal(shouldRecycleSerpentCharge(240, LOGICAL_HEIGHT, 154), false);
+  assert.equal(shouldRecycleSerpentCharge(240, LOGICAL_HEIGHT + 100, 154), true);
 });
 
 test('enemy selection is deterministic for a seeded sortie', () => {
@@ -256,6 +277,7 @@ test('level timelines expand grouped spawns and resolve deterministic positions'
   const levels = await Promise.all(levelUrls.map(async url => JSON.parse(await readFile(url, 'utf8'))));
   assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier', 'helios-prism', 'iron-serpent']);
   assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307', '#031317', '#020d0a']);
+  assert.ok(levels.every(level => typeof level.name === 'string' && level.name.length >= 4));
   for (const level of levels) {
     const timeline = compileLevelTimeline(level);
     assert.ok(timeline.length >= level.spawns.length);
@@ -275,6 +297,9 @@ test('level timelines expand grouped spawns and resolve deterministic positions'
     mixLevelBackground(levels[0].background, levels[1].background, 1),
     levels[1].background,
   );
+  assert.equal(wrapLevelIndex(6, levels.length), 0);
+  assert.equal(wrapLevelIndex(-1, levels.length), 5);
+  assert.equal(wrapLevelIndex(3, 0), 0);
 });
 
 test('manifest assets, one-slot save, and keyboard/pointer controls are wired', async () => {
@@ -287,6 +312,7 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   }
 
   const source = await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8');
+  const carouselSource = await readFile(new URL('../sky-strike/levelCarousel.ts', import.meta.url), 'utf8');
   const html = await readFile(new URL('../sky-strike/index.html', import.meta.url), 'utf8');
   assert.match(source, /new SingleSlotGameSave<SkyStrikeSaveData>/);
   assert.match(source, /'arrowup'.*'arrowdown'.*'arrowleft'.*'arrowright'.*'w'.*'a'.*'s'.*'d'.*'j'.*'k'.*'b'/s);
@@ -315,9 +341,24 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(source, /SPACE_TRAIN_CAR_COUNT/);
   assert.match(source, /updateIronSerpent\(/);
   assert.match(source, /updateSerpentTurretPosition\(/);
+  assert.match(source, /shouldRecycleSerpentCharge\(/);
+  assert.match(source, /definition\.id !== 'iron-serpent'/);
   assert.match(source, /compactSerpentSegments\(/);
   assert.match(source, /drawSpaceTrainCar\(/);
   assert.match(source, /drawIronSerpentTurret\(/);
+  assert.match(source, /new SkyStrikeLevelCarousel\(/);
+  assert.match(source, /new RenderIntegration\(engine, \{ label: 'SkyStrike\.gui' \}\)/);
+  assert.match(source, /renderIntegration\.registerAll\(world, \(\) => \(\{ pass: 'shared' \}\)\)/);
+  assert.match(source, /beginLevel\(this\.selectedLevelIndex\)/);
+  assert.match(source, /key === 'arrowleft'.*key === 'a'/s);
+  assert.match(source, /key === 'arrowright'.*key === 'd'/s);
+  assert.match(carouselSource, /GuiRoot/);
+  assert.match(carouselSource, /GuiImage/);
+  assert.match(carouselSource, /GuiButton/);
+  assert.match(carouselSource, /GuiSystem/);
+  assert.match(carouselSource, /addEventListener\('pointerdown'/);
+  assert.match(carouselSource, /addEventListener\('pointerup'/);
+  assert.match(carouselSource, /SWIPE_THRESHOLD/);
   assert.doesNotMatch(source, /definition\.tier === 'boss'\) this\.enemyBullets\.length = 0/);
   assert.match(html, /height:\s*100dvh/);
   assert.match(html, /width:\s*min\(100vw,\s*50dvh\)/);
