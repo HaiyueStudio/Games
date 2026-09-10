@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -35,6 +35,7 @@ function findCandidate({ directory, prefix }) {
   if (!existsSync(packagesDirectory)) return { directory, prefix, path: null };
   const matches = readdirSync(packagesDirectory)
     .filter(entry => entry.startsWith(prefix) && entry.endsWith('.tgz'))
-    .sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
-  return { directory, prefix, path: matches.length > 0 ? join(directory, matches[0]) : null };
+    .map(entry => ({ entry, modifiedAtMs: statSync(resolve(packagesDirectory, entry)).mtimeMs }))
+    .sort((left, right) => right.modifiedAtMs - left.modifiedAtMs || right.entry.localeCompare(left.entry, undefined, { numeric: true }));
+  return { directory, prefix, path: matches.length > 0 ? join(directory, matches[0].entry) : null };
 }
