@@ -365,3 +365,14 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.doesNotMatch(html, /<button|id="ui"|id="engine-canvas"/);
   assert.doesNotMatch(source, /CanvasRenderingContext2D|getContext\('2d'/);
 });
+
+
+test('serpent shares conserve damage across living parts and redistribute overkill', async () => {
+  const {shareSerpentDamage} = await import('../sky-strike/rules.ts');
+  assert.deepEqual(shareSerpentDamage(90, [120,120,120]), [30,30,30]);
+  assert.deepEqual(shareSerpentDamage(90, [10,120,120]), [10,40,40]);
+  assert.deepEqual(shareSerpentDamage(90, [0,120,120]), [0,45,45]);
+  assert.deepEqual(shareSerpentDamage(420, [10,20]), [10,20]);
+  assert.deepEqual(shareSerpentDamage(90, []), []);
+  assert.deepEqual(shareSerpentDamage(NaN, [120]), [0]);
+});

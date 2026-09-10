@@ -6,6 +6,12 @@ import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/Sing
 import {
   BLUE_ENEMY_BULLET_DAMAGE,
   BOMB_DAMAGE,
+  BOSS_BOMB_DAMAGE_MULTIPLIER,
+  CARRIER_DEPLOY_INTERVAL_MS,
+  CARRIER_ELITE_WAVE_INTERVAL,
+  CARRIER_MAX_ELITES,
+  ELITE_ENEMIES,
+  shareSerpentDamage,
   BOSS_LASER_DAMAGE,
   BOSS_ENEMY,
   ENEMY_DEFINITIONS,
@@ -125,6 +131,7 @@ interface EnemyState {
   segmentOrder: number;
   charging: boolean;
   chargeCooldownMs: number;
+  deploymentWaves: number;
 }
 
 interface WeaponPowerup {
@@ -824,7 +831,7 @@ export class SkyStrikeGame {
       fireCooldownMs: enemyFireIntervalMs(definition.fireIntervalMs, 0) * (0.45 + this.levelRandom() * 0.5),
       phaseOffset: this.levelRandom() * Math.PI * 2,
       entered: false,
-      laserCooldownMs: definition.bossAttack === 'emitter-grid' ? 650 : definition.tier === 'boss' ? 3_600 : 0,
+      laserCooldownMs: definition.bossAttack === 'carrier-deploy' ? CARRIER_DEPLOY_INTERVAL_MS : definition.bossAttack === 'emitter-grid' ? 650 : definition.tier === 'boss' ? 3_600 : 0,
       velocityX: 0,
       velocityY: definition.speed,
       rotation: 0,
@@ -832,6 +839,7 @@ export class SkyStrikeGame {
       segmentOwner: null,
       segmentOrder: 0,
       charging: false,
+      deploymentWaves: 0,
       chargeCooldownMs: definition.id === 'iron-serpent' ? 4_200 : 0,
     };
     this.enemies.push(enemy);
@@ -1085,14 +1093,20 @@ export class SkyStrikeGame {
       return;
     }
     if (enemy.definition.bossAttack === 'carrier-deploy') {
-      enemy.laserCooldownMs = 4_600;
+      enemy.laserCooldownMs = CARRIER_DEPLOY_INTERVAL_MS;
       const activeSummons = this.enemies.filter(candidate => candidate.definition.id === 'saucer' || candidate.definition.id === 'kamikaze').length;
-      if (activeSummons < 10) {
+      if (activeSummons <= 7) {
         const saucer = requiredEnemyDefinition('saucer');
         const kamikaze = requiredEnemyDefinition('kamikaze');
         this.spawnEnemy(saucer, enemy.x, enemy.y + enemy.definition.size * 0.22);
         this.spawnEnemy(kamikaze, enemy.x - 92, enemy.y + enemy.definition.size * 0.12);
         this.spawnEnemy(kamikaze, enemy.x + 92, enemy.y + enemy.definition.size * 0.12);
+        enemy.deploymentWaves++;
+        if (enemy.deploymentWaves % CARRIER_ELITE_WAVE_INTERVAL === 0
+          && this.enemies.filter(candidate => candidate.definition.tier === 'elite').length < CARRIER_MAX_ELITES) {
+          const elite = ELITE_ENEMIES[Math.floor(this.levelRandom() * ELITE_ENEMIES.length)]!;
+          this.spawnEnemy(elite, enemy.x, enemy.y + enemy.definition.size * 0.3);
+        }
         this.addSparks(enemy.x, enemy.y + enemy.definition.size * 0.18, 42, '#70eaff');
         this.shakeMs = Math.max(this.shakeMs, 220);
       }
@@ -1140,14 +1154,7 @@ export class SkyStrikeGame {
     const desiredCount = heliosEmitterCount(boss.hitPoints, boss.definition.hitPoints);
     const activeEmitters = this.enemies.filter(enemy => enemy.definition.id === emitterDefinition.id);
     if (activeEmitters.length >= desiredCount) return;
-    const slots = [
-      { x: 78, y: 292 },
-      { x: 240, y: 326 },
-      { x: 402, y: 292 },
-      { x: 122, y: 468 },
-      { x: 358, y: 468 },
-      { x: 240, y: 562 },
-    ];
+    const slots = this.heliosSlots();
     const availableSlots = slots.filter(slot => !activeEmitters.some(emitter => (
       Math.hypot(emitter.x - slot.x, emitter.y - slot.y) < 48
     )));
@@ -1161,6 +1168,26 @@ export class SkyStrikeGame {
       this.addLaserImpact(slot.x, slot.y, 42);
     }
     this.shakeMs = Math.max(this.shakeMs, 240);
+  }
+
+  private heliosSlots(): { x: number; y: number }[] {
+    return [292, 420, 548].flatMap(y => [78, 186, 294, 402].map(x => ({ x, y })));
+  }
+
+  private relocateHeliosEmitter(emitter: EnemyState): void {
+    const available = this.heliosSlots().filter(slot =>
+      Math.hypot(slot.x - emitter.x, slot.y - emitter.y) >= 100
+      && Math.hypot(slot.x - this.player.x, slot.y - this.player.y) >= 90
+      && !this.enemies.some(other => other !== emitter && other.definition.id === 'helios-emitter'
+        && Math.hypot(slot.x - other.x, slot.y - other.y) < 70));
+    const slot = available[Math.floor(this.levelRandom() * available.length)];
+    if (!slot) return;
+    this.addLaserImpact(emitter.x, emitter.y, 36);
+    emitter.x = emitter.originX = slot.x;
+    emitter.y = slot.y;
+    emitter.fireCooldownMs = enemyFireIntervalMs(emitter.definition.fireIntervalMs, this.wave);
+    this.addLaserImpact(slot.x, slot.y, 42);
+    this.addSparks(slot.x, slot.y, 18, '#72efff');
   }
 
   private startBossLaser(enemy: EnemyState): void {
@@ -1244,7 +1271,10 @@ export class SkyStrikeGame {
           this.damagePlayer(laser.source.definition.laserDamage ?? BLUE_ENEMY_BULLET_DAMAGE);
         }
       }
-      if (laser.timerMs <= 0) this.hostileLasers.splice(index, 1);
+      if (laser.timerMs <= 0) {
+        this.hostileLasers.splice(index, 1);
+        if (laser.source.definition.id === 'helios-emitter') this.relocateHeliosEmitter(laser.source);
+      }
     }
   }
 
@@ -1368,13 +1398,16 @@ export class SkyStrikeGame {
       this.addSparks(bullet.x, bullet.y, 4, '#fff0a6');
       this.enemyBullets.splice(index, 1);
     }
-    for (let index = this.enemies.length - 1; index >= 0; index--) {
-      const enemy = this.enemies[index];
-      if (!enemy) continue;
-      if (!isInsideBombArea(area, enemy)) continue;
+    const hitSerpents = new Set<EnemyState>();
+    for (const enemy of [...this.enemies].reverse()) {
+      if (!this.enemies.includes(enemy) || !isInsideBombArea(area, enemy)) continue;
+      const serpent = enemy.definition.id === 'iron-serpent' ? enemy
+        : enemy.definition.segmentedPart === 'serpent-turret' ? enemy.segmentOwner : null;
+      if (serpent && hitSerpents.has(serpent)) continue;
+      if (serpent) hitSerpents.add(serpent);
       if (enemy.definition.directDamageImmune) this.addLaserImpact(enemy.x, enemy.y, 92);
       else this.addImpact(enemy.x, enemy.y, enemy.definition.tier === 'boss' ? 130 : 74);
-      this.damageEnemy(index, enemy, BOMB_DAMAGE, true);
+      this.damageEnemy(this.enemies.indexOf(enemy), enemy, BOMB_DAMAGE, true, 'bomb');
     }
     this.addSparks(area.x, area.y, 120, '#ffe672');
     this.player.invulnerableMs = Math.max(this.player.invulnerableMs, 850);
@@ -1497,17 +1530,34 @@ export class SkyStrikeGame {
     }
   }
 
-  private damageEnemy(index: number, enemy: EnemyState, damage: number, suppressDeathBurst = false): boolean {
+  private damageEnemy(index: number, enemy: EnemyState, damage: number, suppressDeathBurst = false, source: 'weapon' | 'bomb' = 'weapon'): boolean {
     if (!this.enemies.includes(enemy)) return true;
-    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage);
+    const boss = this.boss;
+    const bossScale = source === 'bomb' ? BOSS_BOMB_DAMAGE_MULTIPLIER : 1;
+    if (boss?.definition.id === 'iron-serpent'
+      && (enemy === boss || enemy.segmentOwner === boss)) {
+      const totalDamage = Math.max(0, Number.isFinite(damage) ? damage : 0) * bossScale;
+      const parts = this.enemies.filter(part => part.segmentOwner === boss && part.hitPoints > 0);
+      const shares = shareSerpentDamage(totalDamage, parts.map(part => part.hitPoints));
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]!;
+        part.hitPoints -= shares[i]!;
+        if (shares[i]! > 0) this.addLaserImpact(part.x, part.y, 22);
+        if (part.hitPoints <= 1e-8) this.destroyEnemy(this.enemies.indexOf(part), part, suppressDeathBurst);
+      }
+      // Body HP is distributed armor; the boss pool receives this hit exactly once.
+      boss.hitPoints -= totalDamage;
+      if (boss.hitPoints <= 0) this.destroyEnemy(this.enemies.indexOf(boss), boss, suppressDeathBurst);
+      return !this.enemies.includes(enemy);
+    }
+    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage * (enemy.definition.tier === 'boss' ? bossScale : 1));
     if (resolvedDamage.targetDamage <= 0) return false;
     const effectiveDamage = Math.min(resolvedDamage.targetDamage, Math.max(0, enemy.hitPoints));
     enemy.hitPoints -= effectiveDamage;
-    const boss = this.boss;
     if (resolvedDamage.relayedBossDamage > 0
       && boss
       && enemy.definition.damageProxyBossAttack === boss.definition.bossAttack) {
-      const relayedDamage = effectiveDamage * (enemy.definition.damageProxyMultiplier ?? 0);
+      const relayedDamage = effectiveDamage * (enemy.definition.damageProxyMultiplier ?? 0) * bossScale;
       boss.hitPoints -= relayedDamage;
       this.addLaserImpact(boss.x, boss.y, 30 + Math.min(28, relayedDamage * 0.08));
       this.addSparks(boss.x, boss.y, 5, '#7cecff');

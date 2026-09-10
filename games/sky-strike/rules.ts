@@ -94,6 +94,10 @@ export const ENEMY_FIRE_INTERVAL_MULTIPLIER = 2;
 export const INITIAL_BOMBS = 3;
 export const MAX_BOMBS = 5;
 export const BOMB_DAMAGE = 420;
+export const BOSS_BOMB_DAMAGE_MULTIPLIER = 0.3;
+export const CARRIER_DEPLOY_INTERVAL_MS = 3_000;
+export const CARRIER_ELITE_WAVE_INTERVAL = 3;
+export const CARRIER_MAX_ELITES = 2;
 export const BOMB_RADIUS = 265;
 export const BOMB_FORWARD_OFFSET = 235;
 export const KAMIKAZE_COLLISION_DAMAGE = 90;
@@ -458,4 +462,21 @@ export function distancePointToSegment(
   if (lengthSquared <= 1e-8) return Math.hypot(pointX - startX, pointY - startY);
   const t = Math.max(0, Math.min(1, ((pointX - startX) * dx + (pointY - startY) * dy) / lengthSquared));
   return Math.hypot(pointX - (startX + dx * t), pointY - (startY + dy * t));
+}
+
+/** Water-fill a single hit across living body parts without losing overkill damage. */
+export function shareSerpentDamage(damage: number, health: readonly number[]): number[] {
+  const shares = health.map(() => 0);
+  let remaining = Math.max(0, Number.isFinite(damage) ? damage : 0);
+  let active = health.map((hp, i) => i).filter(i => health[i]! > 0);
+  while (remaining > 1e-8 && active.length) {
+    const portion = remaining / active.length;
+    for (const i of active) {
+      const applied = Math.min(portion, health[i]! - shares[i]!);
+      shares[i]! += applied;
+      remaining -= applied;
+    }
+    active = active.filter(i => health[i]! - shares[i]! > 1e-8);
+  }
+  return shares;
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-const module = async name => import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(readFileSync(new URL(`../sky-strike/${name}.ts`,import.meta.url),'utf8'),{mode:'transform'})).toString('base64')}`);
+const module = async name => import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(readFileSync(new URL(`../sky-strike/${name}.ts`,import.meta.url),'utf8'),{mode:'transform'}).replaceAll("'./rules'", JSON.stringify(new URL('../sky-strike/rules.ts',import.meta.url).href))).toString('base64')}`);
 const {SkyStrikeLocale,SKY_TEXT,SKY_FONT_CHARACTERS,SKY_LANGUAGE_KEY} = await module('i18n');
 const {SkyStrikeCombatEffects,bossShake,BOSS_BLAST_MS} = await module('combatEffects');
 test('Chinese defaults and language survives restart independently of career save',()=>{
@@ -38,7 +38,7 @@ test('boss shake is deterministic, strongest at impact, bounded and fully settle
 const {drawShipDetails} = await module('shipDetails');
 test('elite/Boss attachment animation follows hull translation and changes over time',()=>{
  const capture=(age,x)=>{const commands=[];const renderer=new Proxy({}, {get:(_,kind)=>(...args)=>commands.push([kind,...args])});
- const enemy={definition:{id:'star-carrier',size:350,tier:'boss',bulletPattern:'aimed',bossAttack:'carrier-deploy',fireIntervalMs:1450},x,y:200,ageMs:age,rotation:0,fireCooldownMs:500,laserCooldownMs:4300,charging:false};
+ const enemy={definition:{id:'star-carrier',size:350,tier:'boss',bulletPattern:'aimed',bossAttack:'carrier-deploy',fireIntervalMs:1450},x,y:200,ageMs:age,rotation:0,fireCooldownMs:500,laserCooldownMs:2700,charging:false};
  drawShipDetails(renderer,enemy,{x:240,y:800},true);drawShipDetails(renderer,enemy,{x:240,y:800},false);return commands;};
  const a=capture(100,240),b=capture(500,240);assert.notDeepEqual(a,b,'rotors and thrust animate');assert.equal(a.length,b.length,'no accumulating draw objects');
  const c=capture(100,260);assert.equal(c[0][2]-a[0][2],20,'exhaust follows hull movement');

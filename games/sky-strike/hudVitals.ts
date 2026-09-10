@@ -36,7 +36,7 @@ export class SkyStrikeVitals {
   private readonly best: GuiLabel;
   private bossId='';
   constructor(parent:GuiElement,private readonly image:SkyStrikeGuiImage,private readonly locale:SkyStrikeLocale,top:number) {
-    const panel=parent.add(new GuiElement({id:'sky-vitals',y:top,width:'100%',height:90,style:{backgroundColor:'rgba(3,8,18,0.76)'}}));
+    const panel=parent.add(new GuiElement({id:'sky-vitals',y:top,width:'100%',height:90,style:{backgroundColor:'rgba(3,8,18,0.40)'}}));
     this.hull=healthRing(panel,'sky-hull-ring');
     this.hull.root.layout=rect=> { this.hull.root.rect={x:rect.x+10,y:rect.y+4,width:60,height:60};for(const child of this.hull.root.children)child.layout(this.hull.root.rect); };
     this.hull.root.add(new GuiImage({x:12,y:12,width:36,height:36,source:image('assets/gui-shield.png'),sourceKey:'assets/gui-shield.png',disabled:true}));

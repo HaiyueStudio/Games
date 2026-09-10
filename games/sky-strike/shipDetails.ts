@@ -1,5 +1,5 @@
 import type { SkyStrikeBattleLayer } from './battleLayer';
-import type { EnemyDefinition } from './rules';
+import { CARRIER_DEPLOY_INTERVAL_MS, type EnemyDefinition } from './rules';
 interface ShipPose { definition: EnemyDefinition; x:number; y:number; rotation:number; ageMs:number; fireCooldownMs:number; lastShotAgeMs?:number; laserCooldownMs:number; charging:boolean }
 /** Per-hull attachment placement, in fractions of the existing ship sprite. */
 const layouts: Record<string,{ engines: number[]; rear: number; rotors: number[]; color: string }> = {
@@ -34,7 +34,8 @@ export function drawShipDetails(r:SkyStrikeBattleLayer,e:ShipPose,target:{x:numb
   }
   if(e.definition.bossAttack==='carrier-deploy') {
     // Bay doors open for the deployment interval and close after the launch.
-    const openness=e.laserCooldownMs>3900 ? Math.min(1,(4600-e.laserCooldownMs)/180) : Math.max(0,1-(3900-e.laserCooldownMs)/350);
+    const sinceLaunch=CARRIER_DEPLOY_INTERVAL_MS-e.laserCooldownMs;
+    const openness=sinceLaunch<700 ? Math.max(0,Math.min(1,sinceLaunch/180)) : Math.max(0,1-(sinceLaunch-700)/350);
     const p=point(0,h*0.14); r.rect(p.x,p.y,w*0.20,h*0.16,'#030912',1,a);
     r.glow(p.x,p.y,w*0.12,layout.color,openness*0.65);
     for(const side of [-1,1]) { const q=point(side*w*(0.052+openness*0.055),h*0.14);

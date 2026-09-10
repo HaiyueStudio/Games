@@ -64,6 +64,54 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if (scene === 'balance') {
+    engine.stop();
+    const f=game as any;
+    const near=(a:number,b:number,message:string)=>check(Math.abs(a-b)<1e-6,message);
+    const reset=(id:string)=>{
+      f.enemies=[];f.hostileLasers=[];f.boss=null;f.bombBlast=null;f.bombs=3;f.phase='playing';f.levelTimeline=[];
+      f.player.x=240;f.player.y=600;f.player.invulnerableMs=10000;
+      return f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),240,365);
+    };
+    for(const id of ['dreadnought','ion-seraph','void-mantis','star-carrier']) {
+      const b=reset(id),hp=b.hitPoints;f.activateBomb();near(hp-b.hitPoints,126,id+' bomb reduction');
+    }
+    let b=reset('helios-prism'),hp=b.hitPoints;
+    const emitter=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='helios-emitter'),240,365);
+    f.activateBomb();near(hp-b.hitPoints,36*7*0.3,'proxy bomb reduction');
+    check(!f.enemies.includes(emitter),'bomb destroys emitter');
+    b=reset('iron-serpent');hp=b.hitPoints;
+    let parts=f.enemies.filter((e:any)=>e.segmentOwner===b);
+    for(const part of parts){part.x=240;part.y=365;}
+    f.activateBomb();near(hp-b.hitPoints,126,'one bomb per serpent group');
+    for(const part of parts)near(part.hitPoints,106,'bomb shared among nine parts');
+    f.damageEnemy(f.enemies.indexOf(parts[0]),parts[0],90);
+    for(const part of parts)near(part.hitPoints,96,'body hit shared');
+    f.damageEnemy(f.enemies.indexOf(b),b,90);
+    for(const part of parts)near(part.hitPoints,86,'head hit shared');
+    f.damageEnemy(f.enemies.indexOf(b),b,1000);
+    check(f.enemies.filter((e:any)=>e.segmentOwner===b).length===0,'parts destroyed safely');
+    hp=b.hitPoints;f.damageEnemy(f.enemies.indexOf(b),b,50);near(hp-b.hitPoints,50,'head damage after all parts destroyed');
+    b=reset('helios-prism');f.spawnHeliosEmitters(b);
+    const laserSource=f.enemies.find((e:any)=>e.definition.id==='helios-emitter');
+    const old={x:laserSource.x,y:laserSource.y};f.startHostileLaser(laserSource);
+    f.updateHostileLasers(10000);
+    check(laserSource.x===old.x&&laserSource.y===old.y,'warning does not relocate');
+    f.updateHostileLasers(10000);
+    check(Math.hypot(laserSource.x-old.x,laserSource.y-old.y)>=100,'relocate after attack');
+    check(f.hostileLasers.length===0&&laserSource.fireCooldownMs>0,'clean laser and reset warning cooldown');
+    b=reset('star-carrier');
+    const deploy=()=>{f.enemies=f.enemies.filter((e:any)=>e.definition.tier!=='normal');f.triggerBossAttack(b);};
+    for(let n=1;n<=9;n++){
+      deploy();check(b.laserCooldownMs===3000,'faster carrier interval');
+      check(f.enemies.filter((e:any)=>e.definition.tier==='elite').length===Math.min(2,Math.floor(n/3)),'every third wave / two elite cap');
+    }
+    const elite=f.enemies.find((e:any)=>e.definition.tier==='elite');f.destroyEnemy(f.enemies.indexOf(elite),elite);
+    deploy();deploy();deploy();check(f.enemies.filter((e:any)=>e.definition.tier==='elite').length===2,'replace defeated elite on third wave');
+    reset('star-carrier');f.boss.y=220;f.syncHud();f.phase='paused';
+    f.syncHud();
+    result.textContent=JSON.stringify({status:'passed',checks:['boss-bomb-resistance','proxy-bomb-resistance','serpent-shared-damage','serpent-bomb-deduplication','laser-relocation-after-attack','carrier-cadence-elite-cap'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if (scene === 'hud') {
     const fixture = game as any, params = new URLSearchParams(location.search);
     fixture.player.health=Number(params.get('health')??100);fixture.player.lives=Number(params.get('lives')??3);
