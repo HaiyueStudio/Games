@@ -1,3 +1,4 @@
+import { browserSkyStrikeLocale } from './i18n';
 import { HaiyueEngine, World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { SkyStrikeGame } from './SkyStrikeGame';
@@ -10,9 +11,10 @@ async function main(): Promise<void> {
   await engine.init();
   const world = new World('Sky Strike');
   const battle = new SkyStrikeBattleLayer(engine, await loadSkySprites()); world.addSystem(battle);
-  const ui = new SkyStrikeGuiHud(world, id => battle.guiImage(id));
-  const game = new SkyStrikeGame(canvas, battle, engine, world, { ui,
-    acceptsGameplayInput: (_x,y) => y >= 132 && y <= canvas.getBoundingClientRect().height - 70,
+  const locale = browserSkyStrikeLocale();
+  const ui = new SkyStrikeGuiHud(world, id => battle.guiImage(id), undefined, locale);
+  const game = new SkyStrikeGame(canvas, battle, engine, world, { ui, locale,
+    acceptsGameplayInput: (_x,y) => y >= 94 && y <= canvas.getBoundingClientRect().height - 94,
   });
   await game.init();
   const renderIntegration = new RenderIntegration(engine, { label: 'SkyStrike.gui' });

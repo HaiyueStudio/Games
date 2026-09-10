@@ -41,14 +41,15 @@ export class SkyStrikeBattleLayer extends System {
   private readonly commands: IndexedSpriteDrawCommand[] = [];
   private readonly sources = new Map<string, IndexedSpritePlaneDescriptor>();
   private readonly guiTextures = new Map<string, GPUTexture>();
+  private guiTextureBytes = 0;
   private view = skyStrikeViewport(480, 960);
   private shakeX = 0; private shakeY = 0;
   constructor(private readonly engine: HaiyueEngine, sprites: readonly IndexedSpritePlaneDescriptor[]) {
     super(() => false); this.priority = 40; this.name = 'SkyStrikeBattleLayer';
     for (const sprite of [...sprites, ...effectSprites()]) this.sources.set(sprite.id, sprite);
-    this.renderer = new IndexedSpriteRenderer(engine.device, [...this.sources.values()], [], {
+    this.renderer = new IndexedSpriteRenderer(engine.device, [...this.sources.values()].filter(source => !source.id.startsWith('assets/gui-') || source.id === 'assets/gui-space.png'), [], {
       targetFormat: engine.format, sampleCount: engine.msaaSamples as 1 | 4, label: 'SkyStrike.sprites',
-      limits: { ...DEFAULT_INDEXED_SPRITE_ATLAS_LIMITS, maxTextureDimension2D: 4096, maxDrawCommandsPerFrame: 8192 },
+      limits: { ...DEFAULT_INDEXED_SPRITE_ATLAS_LIMITS, maxTextureDimension2D: 2048, maxDrawCommandsPerFrame: 8192 },
     });
     this.renderer.uploadAll();
   }
@@ -58,7 +59,7 @@ export class SkyStrikeBattleLayer extends System {
       const source = this.sources.get(id); if (!source) throw new Error(`Missing ${id}`);
       texture = this.engine.device.createTexture({ label: id, size: [source.width, source.height], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
       this.engine.device.queue.writeTexture({ texture }, new Uint8Array(source.pixels), { bytesPerRow: source.width * 4 }, [source.width, source.height]);
-      this.guiTextures.set(id, texture);
+      this.guiTextures.set(id, texture); this.guiTextureBytes += source.width * source.height * 4;
     }
     return texture;
   }
@@ -85,7 +86,7 @@ export class SkyStrikeBattleLayer extends System {
     if (warning) { const length = Math.hypot(endX - x, endY - y); for (let d = 0; d < length; d += 28) { const a = d / length, b = Math.min(1, (d + 17) / length); this.line(x + (endX-x)*a,y+(endY-y)*a,x+(endX-x)*b,y+(endY-y)*b,2,color,0.7); } }
     else { this.line(x,y,endX,endY,width*3,color,0.15); this.line(x,y,endX,endY,width,color,0.8); this.line(x,y,endX,endY,Math.max(2,width*0.26),'#f4fdff'); }
   }
-  stats() { return { ...this.renderer.stats(), renderer: 'haiyue-gpu-sprites', frameTextureUploads: 0 }; }
+  stats() { return { ...this.renderer.stats(), renderer: 'haiyue-gpu-sprites', guiTextureBytes: this.guiTextureBytes, frameTextureUploads: 0 }; }
   record(_world: World, context: RenderCommandContext): this {
     const { passEncoder, ownsPass } = beginRenderCommandPass(context);
     const dpr = this.engine.width / this.engine.displayWidth;
@@ -94,5 +95,5 @@ export class SkyStrikeBattleLayer extends System {
     this.renderer.render(passEncoder, this.commands, this.engine.displayWidth, this.engine.displayHeight);
     if (ownsPass) passEncoder.end(); return this;
   }
-  override destroy(): this { this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.commands.length = 0; return super.destroy(); }
+  override destroy(): this { this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.guiTextureBytes = 0; this.commands.length = 0; return super.destroy(); }
 }

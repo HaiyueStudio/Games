@@ -398,7 +398,16 @@
         "sky-strike/assets/sprites.rgba",
         "sky-strike/assets/gui-launch.png",
         "sky-strike/assets/gui-arrow.png",
-        "sky-strike/assets/gui-pause-panel.png"
+        "sky-strike/assets/gui-pause-panel.png",
+        "sky-strike/assets/gui-bomb.png",
+        "sky-strike/assets/gui-pause.png",
+        "sky-strike/assets/gui-gear.png",
+        "sky-strike/assets/fx-turret.png",
+        "sky-strike/assets/fx-rotor.png",
+        "sky-strike/assets/fx-flame.png",
+        "sky-strike/assets/fx-hatch.png",
+        "sky-strike/assets/gui-shield.png",
+        "sky-strike/assets/gui-life.png"
       ],
       "screenshot": {
         "required": false,

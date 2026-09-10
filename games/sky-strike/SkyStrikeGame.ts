@@ -1,3 +1,6 @@
+import { SkyStrikeCombatEffects } from './combatEffects';
+import { drawShipDetails } from './shipDetails';
+import { SkyStrikeLocale, browserSkyStrikeLocale } from './i18n';
 import { HaiyueEngine, World } from '@haiyue/engine';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 import {
@@ -110,6 +113,7 @@ interface EnemyState {
   hitPoints: number;
   ageMs: number;
   fireCooldownMs: number;
+  lastShotAgeMs?: number;
   phaseOffset: number;
   entered: boolean;
   laserCooldownMs: number;
@@ -230,7 +234,6 @@ const HOSTILE_LASER_ACTIVE_MS = 520;
 const BOMB_EFFECT_DURATION_MS = 1_050;
 const LEVEL_ADVANCE_DELAY_MS = 2_600;
 const BACKGROUND_TRANSITION_MS = 7_000;
-const SAVE_NAME = 'Sky Strike 自动存档';
 const DEFAULT_BACKGROUND: LevelBackground = Object.freeze({
   top: '#030617',
   middle: '#071d3a',
@@ -248,6 +251,7 @@ function isSkyStrikeSaveData(value: unknown): value is SkyStrikeSaveData {
 
 export interface SkyStrikePlatform {
   ui?: SkyStrikeUi;
+  locale?: SkyStrikeLocale;
   saveBackend?: GameSaveBackend;
   levels?: readonly SkyStrikeLevel[];
   guiFont?: GuiFontOptions;
@@ -262,6 +266,7 @@ export class SkyStrikeGame {
   private readonly random = createSeededRandom(0x51a7f11e);
   private readonly fixture: string | null;
   private readonly ui: SkyStrikeUi;
+  private readonly locale: SkyStrikeLocale;
   private readonly cleanup: (() => void)[] = [];
   private readonly pendingInput: (() => void)[] = [];
   private disposed = false;
@@ -317,6 +322,7 @@ export class SkyStrikeGame {
   private laserTarget: EnemyState | null = null;
   private laserDamageCooldownMs = 0;
   private shakeMs = 0;
+  private readonly combatEffects = new SkyStrikeCombatEffects();
   private spiralAngle = 0;
   private bombs = INITIAL_BOMBS;
   private bombBlast: BombBlast | null = null;
@@ -329,15 +335,16 @@ export class SkyStrikeGame {
     private readonly world: World,
     private readonly platform: SkyStrikePlatform = {},
   ) {
-    this.ui = platform.ui ?? new SkyStrikeGuiHud(world, id => battle.guiImage(id));
+    this.locale = platform.locale ?? browserSkyStrikeLocale();
+    this.ui = platform.ui ?? new SkyStrikeGuiHud(world, id => battle.guiImage(id), undefined, this.locale);
     this.fixture = platform.fixture ?? (typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('fixture'));
-    this.saves = new SingleSlotGameSave<SkyStrikeSaveData>({ gameId: 'sky-strike', name: SAVE_NAME,
+    this.saves = new SingleSlotGameSave<SkyStrikeSaveData>({ gameId: 'sky-strike', name: this.locale.text('saveName'),
       validateData: isSkyStrikeSaveData, ...(platform.saveBackend ? { backend: platform.saveBackend } : {}) });
   }
 
   snapshot() {
     const viewport = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, this.player.x, this.player.radius);
-    return { phase: this.phase, player: { x: this.player.x, y: this.player.y, health: this.player.health },
+    return { phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), player: { x: this.player.x, y: this.player.y, health: this.player.health },
       score: this.score, highScore: this.highScore, wave: this.wave, bombs: this.bombs,
       enemies: this.enemies.length, bullets: this.playerBullets.length + this.enemyBullets.length,
       selectedLevel: this.selectedLevelIndex, viewport, firing: this.pointerFiring, rendering: this.battle.stats() };
@@ -352,7 +359,7 @@ export class SkyStrikeGame {
     if (this.disposed) return;
     this.disposed = true; this.suspend(); this.levelCarousel?.dispose();
     for (const off of this.cleanup.splice(0)) off();
-    this.ui.dispose();
+    this.ui.dispose(); this.combatEffects.clear();
   }
   private listen(target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>, type: string, handler: (event: any) => void): void {
     target.addEventListener(type, handler);
@@ -390,6 +397,7 @@ export class SkyStrikeGame {
     }
 
     this.elapsedMs += delta;
+    this.combatEffects.update(delta);
     this.levelElapsedMs += delta;
     this.backgroundTransitionMs = Math.min(BACKGROUND_TRANSITION_MS, this.backgroundTransitionMs + delta);
     this.bestWave = Math.max(this.bestWave, this.wave);
@@ -429,6 +437,7 @@ export class SkyStrikeGame {
 
   private setupLevelCarousel(): void {
     this.levelCarousel = new SkyStrikeLevelCarousel({
+      locale: this.locale,
       engine: this.engine,
       world: this.world,
       canvas: this.canvas,
@@ -442,7 +451,7 @@ export class SkyStrikeGame {
         return {
           source: this.battle.guiImage(definition.sprite),
           sourceKey: definition.sprite,
-          label: definition.id.replaceAll('-', ' ').toUpperCase(),
+          label: this.locale.named(definition.id),
           aspect: definition.renderAspect ?? 1.18,
         };
       },
@@ -462,6 +471,7 @@ export class SkyStrikeGame {
     if (this.platform.keyboard !== false && typeof window !== 'undefined') {
     this.listen(window, 'keydown', event => {
       const key = event.key.toLowerCase();
+      if (this.levelCarousel?.optionsOpen) { event.preventDefault(); if (key === 'escape') this.levelCarousel.closeOptions(); return; }
       if (this.levelCarousel?.isVisible) {
         if (!event.repeat && (key === 'arrowleft' || key === 'a')) {
           event.preventDefault();
@@ -528,6 +538,7 @@ export class SkyStrikeGame {
       start: () => this.pendingInput.push(() => { if (this.phase === 'paused') this.togglePause(); else this.startSortie(); }),
       bomb: () => this.pendingInput.push(() => this.activateBomb()),
       pause: () => this.pendingInput.push(() => this.togglePause()),
+      home: () => this.pendingInput.push(() => this.returnHome()),
       suspend: () => this.suspend(),
     }));
   }
@@ -539,11 +550,13 @@ export class SkyStrikeGame {
   }
 
   private startSortie(): void {
+    if (this.levelCarousel?.optionsOpen) return;
     this.levelCarousel?.hide();
     this.phase = 'playing';
     this.score = 0;
     this.wave = 1;
     this.elapsedMs = 0;
+    this.combatEffects.clear(); this.shakeMs = 0;
     this.player.x = LOGICAL_WIDTH / 2;
     this.player.y = LOGICAL_HEIGHT - 118;
     this.player.lives = PLAYER_MAX_LIVES;
@@ -574,7 +587,7 @@ export class SkyStrikeGame {
     this.sorties++;
     this.applyBrowserFixture();
     this.hideStatus();
-    this.ui.pauseState('暂停', false);
+    this.ui.pauseState(false, false);
     this.syncHud();
   }
 
@@ -644,8 +657,26 @@ export class SkyStrikeGame {
 
   private pause(): void {
     this.phase = 'paused';
-    this.showStatus('已暂停', '按 P、Esc 或点击继续返回战场', '继续');
-    this.ui.pauseState('继续', false);
+    this.ui.status({ gameOver: false });
+    this.ui.pauseState(true, false);
+  }
+
+  private returnHome(): void {
+    if (this.phase !== 'paused') return;
+    this.saveProgress();
+    this.phase = 'ready';
+    this.pendingInput.length = 0; this.keys.clear();
+    if (this.pointerId !== -1 && this.canvas.hasPointerCapture?.(this.pointerId)) this.canvas.releasePointerCapture(this.pointerId);
+    this.pointerId = -1; this.pointerFiring = false; this.laserFiring = false;
+    this.playerBullets.length = 0; this.enemyBullets.length = 0; this.enemies.length = 0;
+    this.powerups.length = 0; this.bombPowerups.length = 0;
+    this.sparks.length = 0; this.impacts.length = 0; this.energyImpacts.length = 0; this.debris.length = 0;
+    this.hostileLasers.length = 0; this.boss = null; this.bossLaser = null; this.laserTarget = null;
+    this.bombBlast = null; this.levelAdvanceMs = 0; this.shakeMs = 0; this.combatEffects.clear();
+    this.selectedLevelIndex = this.levelIndex;
+    this.hideStatus(); this.ui.pauseState(false, true);
+    this.levelCarousel?.show(this.selectedLevelIndex);
+    this.syncHud();
   }
 
   private togglePause(): void {
@@ -654,7 +685,7 @@ export class SkyStrikeGame {
     } else if (this.phase === 'paused') {
       this.phase = 'playing';
       this.hideStatus();
-      this.ui.pauseState('暂停', false);
+      this.ui.pauseState(false, false);
     }
   }
 
@@ -703,6 +734,7 @@ export class SkyStrikeGame {
         ? (index - (count - 1) / 2) * 11
         : normalized * (profile.form === 'red' ? 30 : 11);
       const vx = profile.form === 'red' ? normalized * profile.spreadSpeed : profile.form === 'basic' ? offset * 0.42 : 0;
+      this.combatEffects.shot(this.player, offset, -24, vx, -PLAYER_BULLET_SPEED, profile.form === 'red' ? '#ff6952' : profile.form === 'blue' ? '#55bdff' : '#ffe19a', profile.form);
       this.playerBullets.push({
         x: this.player.x + offset,
         y: this.player.y - 24,
@@ -988,9 +1020,11 @@ export class SkyStrikeGame {
   }
 
   private fireEnemyPattern(enemy: EnemyState): void {
+    enemy.lastShotAgeMs = enemy.ageMs;
     const speed = ENEMY_BULLET_SPEED + Math.min(70, this.wave * 4);
     const aimed = aimedVelocity(enemy.x, enemy.y, this.player.x, this.player.y, speed);
     const projectile = enemyProjectileProfile(enemy.definition);
+    this.combatEffects.shot(enemy, 0, enemy.definition.size * 0.25, aimed.x, aimed.y, projectile.cssColor, enemy.definition.bulletPattern === 'spread' ? 'red' : 'blue');
     const add = (velocity: { x: number; y: number }, radius = 6) => this.enemyBullets.push({
       x: enemy.x,
       y: enemy.y + enemy.definition.size * 0.25,
@@ -1446,7 +1480,8 @@ export class SkyStrikeGame {
     this.score += enemy.definition.score;
     this.highScore = Math.max(this.highScore, this.score);
     this.addEnemyDestructionEffects(enemy);
-    this.shakeMs = enemy.definition.tier === 'boss' ? 900 : 180;
+    this.shakeMs = Math.max(this.shakeMs, enemy.definition.tier === 'boss' ? 900 : 180);
+    if (enemy.definition.tier === 'boss') this.combatEffects.detonate(enemy.x, enemy.y, enemy.definition.size);
     if (enemy.definition.tier === 'elite') this.spawnWeaponPowerup(enemy);
     if (enemy.definition.tier === 'elite' && this.levelRandom() < 0.45) this.spawnBombPowerup(enemy);
     if (enemy.definition.tier === 'boss') this.spawnBombPowerup(enemy);
@@ -1556,10 +1591,10 @@ export class SkyStrikeGame {
   private finishSortie(): void {
     this.phase = 'game-over';
     this.highScore = Math.max(this.highScore, this.score);
-    this.ui.pauseState('暂停', true);
+    this.ui.pauseState(false, true);
     this.saveProgress();
     this.hideStatus();
-    this.levelCarousel?.show(this.levelIndex, '再次出击', '任务失败 · 选择关卡');
+    this.levelCarousel?.show(this.levelIndex, true);
   }
 
   private saveProgress(): void {
@@ -1727,13 +1762,14 @@ export class SkyStrikeGame {
   private render(): void {
     const shake = this.shakeMs > 0 ? Math.min(7, this.shakeMs / 90) : 0;
     // Visual jitter does not consume the combat random stream.
-    this.battle.begin(this.player.x, Math.sin(this.elapsedMs * 0.071) * shake, Math.cos(this.elapsedMs * 0.093) * shake);
+    const blast = this.combatEffects.shake();
+    this.battle.begin(this.player.x, blast.x + Math.sin(this.elapsedMs * 0.071) * shake, blast.y + Math.cos(this.elapsedMs * 0.093) * shake);
     this.drawSpace();
     if (this.phase === 'ready' || this.phase === 'game-over') return;
     this.drawBossWarning(); this.drawBullets(this.playerBullets);
     this.drawSerpentLinks(); this.drawEnemies(); this.drawPowerups(); this.drawPlayerLaser();
     this.drawBossLaser(); this.drawHostileLasers(); this.drawPlayer(); this.drawBullets(this.enemyBullets);
-    this.drawImpacts(); this.drawEnergyImpacts(); this.drawDebris(); this.drawBombBlast(); this.drawSparks();
+    this.drawImpacts(); this.drawEnergyImpacts(); this.drawDebris(); this.drawBombBlast(); this.drawSparks(); this.combatEffects.draw(this.battle);
   }
   private drawSpace(): void {
     const b = this.currentBackground(), r = this.battle;
@@ -1757,7 +1793,9 @@ export class SkyStrikeGame {
       if (d.segmentedPart === 'serpent-turret') continue;
       const w=d.size, h=w*(d.renderAspect??(d.tier==='boss'?1.18:1.3));
       if (d.tier==='boss'||d.tier==='elite') r.glow(enemy.x,enemy.y,w*0.75,d.tier==='boss'?'#ff244f':'#b455ff',0.3);
+      drawShipDetails(r,enemy,this.player,true);
       r.sprite(d.sprite,enemy.x,enemy.y,w,h,enemy.rotation);
+      drawShipDetails(r,enemy,this.player,false);
       if (d.directDamageImmune) r.ring(enemy.x,enemy.y,w*0.54,'#69e8ff',0.35+Math.sin(this.elapsedMs*0.006)*0.12,h/w*0.88,enemy.rotation);
     }
   }
@@ -1820,8 +1858,19 @@ export class SkyStrikeGame {
     if(this.player.invulnerableMs>0&&Math.floor(this.player.invulnerableMs/90)%2===0) return;
     const r=this.battle,p=this.player;
     r.glow(p.x,p.y,66,'#42e8ff',0.5);
-    r.sprite('fx:triangle',p.x,p.y+48,25,42+Math.sin(this.elapsedMs*0.04)*7,0,0.9,'#5cf1ff',true);
+    r.sprite('assets/fx-flame.png',p.x,p.y+51,25,46+Math.sin(this.elapsedMs*0.04)*7,0,0.9,'#5cf1ff',true);
     r.sprite(PLAYER_SPRITE,p.x,p.y,84,106);
+    if(this.weaponForm !== 'purple') {
+      const profile=weaponProfile(this.weaponForm,this.weaponLevel),count=profile.projectileCount;
+      for(let i=0;i<count;i++) {
+        const normalized=count<=1?0:i/(count-1)*2-1;
+        const dx=profile.form==='blue'?(i-(count-1)/2)*11:normalized*(profile.form==='red'?30:11);
+        // Small weapon pods identify the muzzle hardpoints independently of the base hull art.
+        r.line(p.x+dx,p.y-17,p.x+dx,p.y-24,4,'#486477');
+        r.disc(p.x+dx,p.y-24,2,profile.form==='red'?'#ff785e':profile.form==='blue'?'#64c7ff':'#ffe6b0');
+      }
+    }
+    if(this.laserFiring) { const pulse=1+Math.sin(this.elapsedMs*0.04)*0.18; r.ring(p.x,p.y-28,11*pulse,'#cb66ff',0.9,0.6); r.glow(p.x,p.y-28,22*pulse,'#bc65ff',0.8); }
   }
   private drawBullets(bullets: Bullet[]): void {
     for(const b of bullets) {
@@ -1853,7 +1902,7 @@ export class SkyStrikeGame {
     this.ui.update({ score: this.score, highScore: this.highScore, wave: this.wave, lives: this.player.lives,
       health: this.player.health, weapon: this.weaponForm, weaponLevel: this.weaponLevel,
       bombs: this.bombs, bombDisabled: this.phase !== 'playing' || this.bombs <= 0 || this.bombBlast !== null,
-      bossName: this.boss?.definition.id.replaceAll('-', ' ').toUpperCase() ?? '',
+      bossName: this.boss?.definition.id ?? '',
       bossHealth: this.boss ? this.boss.hitPoints / this.boss.definition.hitPoints : 0 });
     this.ui.metadata({ phase: this.phase, health: this.player.health.toFixed(2), lives: String(this.player.lives),
       weapon: this.weaponForm, weaponLevel: String(this.weaponLevel), powerups: String(this.powerups.length),
@@ -1861,7 +1910,6 @@ export class SkyStrikeGame {
       redBulletDamage: String(RED_ENEMY_BULLET_DAMAGE), blueBulletDamage: String(BLUE_ENEMY_BULLET_DAMAGE), bossLaserDamage: String(BOSS_LASER_DAMAGE) });
   }
 
-  private showStatus(title: string, copy: string, action: string): void { this.ui.status({ title, copy, action, gameOver: this.phase === 'game-over' }); }
   private hideStatus(): void { this.ui.status(null); }
 
 }

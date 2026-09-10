@@ -24,3 +24,49 @@ Use case: stylized-concept. Asset type: single LEFT navigation arrow button for 
 
 Use case: stylized-concept. Asset type: opaque rectangular sci-fi pause-dialog background texture, 4:3 landscape. A full-bleed midnight purple panel fills the entire image to all four edges, NO surrounding space and NO transparency. Thin cyan-lit machined gunmetal frame inset very close to the four image edges, violet secondary light strip, elegant bevels, tiny side circuitry accents. Corners are dark purple solid material. Interior occupies 85%: very dark purple glass, extremely subtle fine technological grid, almost black center for white GUI text. Top rim has a small cyan capsule light. Restraint, premium space-game HUD, front-on orthographic 2D game interface texture. NO text, NO letters, NO buttons, NO arrows, NO checkerboard, NO checkered pattern, NO gray or white background, NO transparency simulation, NO scene around panel. This is a completely opaque rectangular finished panel texture.
 
+## 2026-09-10 controls and animated attachments
+
+### fx-hatch.png
+
+Use case: stylized-concept. Asset type: transparent top-down spaceship hangar door half sprite. One narrow tall rectangular sliding armored hatch panel, height 2.5 times width, bevelled gunmetal silver plates, dark violet recessed mechanical seams, bolts, one VERY THIN cyan status light near the inner edge. Perfectly flat orthographic overhead view. Fine metal details readable at 32 by 72 pixels. Occupy central 85 percent of frame, genuinely transparent RGBA background outside panel, no ship, no letters, no icons, no text. Will be mirrored in a pair and slide apart over an existing steel sci-fi carrier hull. Solid metal panel, no glass.
+
+Generated using the built-in image generation tool. Transparent source PNGs are bundled in this directory; `scripts/pack-sky-sprites.py` retains their alpha and downsizes them for the static GPU atlas. No per-frame image decoding or Canvas 2D drawing is used.
+
+### gui-bomb.png
+
+Use case: stylized-concept. Production square sci-fi GUI button icon for a dark-purple space shooter. Match reference's hexagonal gunmetal-purple housing, thin cyan outer glow and violet circuitry. Front-on orthographic, crisp and legible at 56 pixels. Single centered button fills 90% of image, genuinely transparent RGBA background outside housing. No text, no letters, no words, no other objects, no watermark. Central symbol: a bold stylized futuristic bomb with a bright amber energy core and short ignition spark, clear recognizable bomb silhouette. Amber-orange accent light inside purple housing. No real-world technical details.
+
+### gui-pause.png
+
+Use case: stylized-concept. Production square sci-fi GUI button icon for a dark-purple space shooter. Match reference's hexagonal gunmetal-purple housing, thin cyan outer glow and violet circuitry. Front-on orthographic, crisp and legible at 56 pixels. Single centered button fills 90% of image, genuinely transparent RGBA background outside housing. No text, no letters, no words, no other objects, no watermark. Central symbol: two thick luminous cyan vertical pause bars, clear pause symbol with restrained violet inner glow.
+
+### gui-gear.png
+
+Use case: stylized-concept. Production square sci-fi GUI button icon for a dark-purple space shooter. Match reference's hexagonal gunmetal-purple housing, thin cyan outer glow and violet circuitry. Front-on orthographic, crisp and legible at 56 pixels. Single centered button fills 90% of image, genuinely transparent RGBA background outside housing. No text, no letters, no words, no other objects, no watermark. Central symbol: a bold luminous cyan mechanical settings gear with six broad teeth and a dark central aperture. Clear simple recognizable settings icon, violet highlights.
+
+### fx-turret.png
+
+Use case: stylized-concept. Asset type: transparent top-down space shooter sprite attachment. One isolated compact gunmetal twin-barrel turret, barrels point straight UP, rotation pivot in circular base at exact image center. Orthographic top view, detailed pixel-sharp sci-fi metal, dark purple armor, restrained cyan light strips, silver barrel tips. No spacecraft, no background, no words, no shadows outside object. Genuinely transparent RGBA background. Entire object within central 85 percent. Designed to overlay existing spaceship at 32 pixels.
+
+### fx-rotor.png
+
+Use case: stylized-concept. Asset type: transparent top-down sci-fi spaceship rotor sprite. One perfectly circular turbine rotor with six radial angular steel fan blades, dark gunmetal violet metal, bright cyan core and tiny violet accents, exact rotational center at image center. Orthographic straight top view, crisp premium sci-fi game art, isolated on genuinely transparent RGBA background. No surrounding square frame, no text, no ship. Occupies central 85 percent. Readable at 28 pixels.
+
+### fx-flame.png
+
+Use case: stylized-concept. Asset type: transparent space-shooter engine flame sprite, tintable. A single narrow elongated rocket exhaust jet, bright white rounded source at top center fading into sharp wispy tapered tips pointing DOWN. White silver monochrome luminous plasma with layered flame tongues and transparent soft edges, for tinting cyan/red/violet in a game shader. Orthographic flat isolated sprite, centered, fills 80 percent vertically, no engine or metal, no background, no text. Genuinely transparent RGBA background.
+
+Runtime attachment pivots and per-ship placement are in `shipDetails.ts`; combat-triggered muzzle flashes and the bounded Boss detonation envelope are in `combatEffects.ts`. The flame is tinted per weapon; the turret tracks the player and recoils after a shot; the rotor spins; carrier bay doors open during deployment. Collision shapes and projectile velocities remain unchanged.
+
+## Compact HUD assets — 2026-09-10
+
+Generated with the built-in image generation tool. Original transparent PNGs remain in this directory; runtime sizes are 96px for the shield and 48px for the life marker, via `scripts/pack-sky-sprites.py`.
+
+### gui-shield.png
+
+Use case: stylized-concept. Asset type: tiny HUD armor icon for a sci-fi space shooter. A single simple broad shield silhouette, dark gunmetal inset and luminous mint-cyan beveled edge, small pale cyan central armor plate. Crisp frontal flat game UI symbol. NO surrounding ring, NO badge housing, NO text, no letters, no background. Genuinely transparent RGBA. Shield centered and occupying 85 percent of a square image. Must read clearly at 30 pixels, restrained details, matches violet/cyan space HUD.
+
+### gui-life.png
+
+Use case: stylized-concept. Asset type: tiny remaining-lives HUD icon for sci-fi shooter. A single white-cyan stylized fighter jet silhouette viewed straight from above, nose pointing UP, broad swept wings and two short tail fins. Simple solid readable shape with a small cyan center cutout, minimal metallic shading. Centered, occupies 85 percent of square image. No surrounding ring, no button housing, no words, no background, genuinely transparent RGBA. Must be instantly readable at 14 pixels, for showing repeated mini fighters in a row.
+
