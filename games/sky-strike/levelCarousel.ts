@@ -1,18 +1,20 @@
 import { Entity, type HaiyueEngine, type World } from '@haiyue/engine';
 import {
   GuiButton,
-  GuiDirtyFlags,
   GuiElement,
   GuiImage,
   GuiLabel,
   GuiRoot,
   GuiSystem,
   type GuiRect,
+  type GuiImageSource,
+  type GuiFontOptions,
 } from '@haiyue/engine/gui';
+import { skyStrikeButton, type SkyStrikeGuiImage } from './guiSkins';
 import { wrapLevelIndex, type SkyStrikeLevel } from './levels/loader';
 
 export interface LevelBossPresentation {
-  readonly source: HTMLImageElement | null;
+  readonly source: GuiImageSource;
   readonly sourceKey: string;
   readonly label: string;
   readonly aspect: number;
@@ -24,6 +26,9 @@ export interface SkyStrikeLevelCarouselOptions {
   readonly canvas: HTMLCanvasElement;
   readonly levels: readonly SkyStrikeLevel[];
   readonly initialIndex?: number;
+  readonly guiFont?: GuiFontOptions;
+  readonly loadOp?: 'clear' | 'load';
+  readonly guiImage: SkyStrikeGuiImage;
   readonly resolveBoss: (level: SkyStrikeLevel) => LevelBossPresentation;
   readonly onSelectionChange?: (index: number) => void;
   readonly onStart: (index: number) => void;
@@ -43,6 +48,7 @@ export class SkyStrikeLevelCarousel {
   private readonly startButton: GuiButton;
   private selectedIndex: number;
   private active = false;
+  private readonly cleanup: (() => void)[] = [];
   private pointerId = -1;
   private pointerStartX = 0;
 
@@ -74,17 +80,23 @@ export class SkyStrikeLevelCarousel {
       y: 0,
       width: '100%',
       height: '100%',
-      style: { backgroundColor: 'rgba(1, 4, 13, 0.86)' },
+      style: { backgroundColor: 'rgba(9, 3, 25, 0.22)' },
     }));
     this.panel = backdrop.add(new GuiElement({
       style: {
-        backgroundColor: 'rgba(5, 20, 44, 0.96)',
+        backgroundColor: 'rgba(15, 7, 35, 0.58)',
         borderColor: 'rgba(91, 226, 255, 0.48)',
-        radius: 14,
+        radius: 3,
         padding: 12,
       },
     }));
     this.layoutPanel();
+    for (const y of [0.02, 0.975]) {
+      const rail = this.panel.add(new GuiElement({ style: { backgroundColor: '#57d9f5' } }));
+      this.layoutRelative(rail, p => this.relativeRect(p, 0.08, y, 0.84, 0.002));
+    }
+    const channel = this.panel.add(new GuiLabel({ text: 'MISSION CONTROL / SECTOR SCAN', fontSize: 10, textAlign: 'center', style: { color: '#ad91e0' } }));
+    this.layoutRelative(channel, p => this.relativeRect(p, 0.06, 0.125, 0.88, 0.035));
 
     this.heading = this.panel.add(new GuiLabel({
       text: '选择关卡',
@@ -98,40 +110,22 @@ export class SkyStrikeLevelCarousel {
       source: null,
       sourceKey: 'sky-strike-boss-preview-empty',
       style: {
-        backgroundColor: 'rgba(3, 11, 28, 0.72)',
+        backgroundColor: 'rgba(14, 8, 34, 0.35)',
         borderColor: 'rgba(83, 219, 255, 0.28)',
-        radius: 12,
+        radius: 3,
       },
     }));
     this.layoutBossImage();
 
-    const previousButton = this.panel.add(new GuiButton({
-      text: '<',
-      style: {
-        backgroundColor: 'rgba(11, 42, 72, 0.92)',
-        hoverBackgroundColor: '#155c83',
-        borderColor: 'rgba(99, 230, 255, 0.52)',
-        color: '#dffaff',
-        hoverColor: '#ffffff',
-        radius: 22,
-      },
-      onClick: () => this.changeSelection(-1),
-    }));
-    this.layoutRelative(previousButton, (parent) => this.relativeRect(parent, 0.035, 0.32, 0.13, 0.095));
-
-    const nextButton = this.panel.add(new GuiButton({
-      text: '>',
-      style: {
-        backgroundColor: 'rgba(11, 42, 72, 0.92)',
-        hoverBackgroundColor: '#155c83',
-        borderColor: 'rgba(99, 230, 255, 0.52)',
-        color: '#dffaff',
-        hoverColor: '#ffffff',
-        radius: 22,
-      },
-      onClick: () => this.changeSelection(1),
-    }));
-    this.layoutRelative(nextButton, (parent) => this.relativeRect(parent, 0.835, 0.32, 0.13, 0.095));
+    const previousButton = skyStrikeButton(this.panel, options.guiImage, '', () => this.changeSelection(-1), 'left');
+    const nextButton = skyStrikeButton(this.panel, options.guiImage, '', () => this.changeSelection(1), 'right');
+    for (const [button, right] of [[previousButton, false], [nextButton, true]] as const) {
+      button.layout = rect => {
+        const size = Math.max(48, Math.min(64, rect.width * 0.16));
+        button.rect = { x: rect.x + (right ? rect.width - size - 4 : 4), y: rect.y + rect.height * 0.36 - size / 2, width: size, height: size };
+        for (const child of button.children) child.layout(button.rect);
+      };
+    }
 
     this.levelName = this.panel.add(new GuiLabel({
       text: '',
@@ -155,40 +149,29 @@ export class SkyStrikeLevelCarousel {
       fontSize: 14,
       style: { color: '#a9cbd9' },
     }));
-    this.layoutRelative(this.counter, (parent) => this.relativeRect(parent, 0.32, 0.755, 0.36, 0.04));
+    this.layoutRelative(this.counter, (parent) => this.relativeRect(parent, 0.32, 0.765, 0.36, 0.04));
 
     const hint = this.panel.add(new GuiLabel({
-      text: '< > / A D / 左右滑动切换',
+      text: '左右滑动切换',
       textAlign: 'center',
-      fontSize: 12,
-      style: { color: '#83aabc' },
+      fontSize: 11,
+      style: { color: '#8397b9' },
     }));
-    this.layoutRelative(hint, (parent) => this.relativeRect(parent, 0.07, 0.8, 0.86, 0.04));
+    this.layoutRelative(hint, (parent) => this.relativeRect(parent, 0.07, 0.81, 0.86, 0.025));
 
-    this.startButton = this.panel.add(new GuiButton({
-      text: '开始出击',
-      variant: 'primary',
-      style: {
-        backgroundColor: '#0f86b0',
-        hoverBackgroundColor: '#18a8d5',
-        borderColor: '#67e9ff',
-        color: '#ffffff',
-        hoverColor: '#ffffff',
-        radius: 8,
-      },
-      onClick: () => options.onStart(this.selectedIndex),
-    }));
-    this.layoutRelative(this.startButton, (parent) => this.relativeRect(parent, 0.2, 0.87, 0.6, 0.085));
+    this.startButton = skyStrikeButton(this.panel, options.guiImage, '开始出击', () => options.onStart(this.selectedIndex));
+    this.layoutRelative(this.startButton, parent => this.relativeRect(parent, 0.12, 0.86, 0.76, 0.1));
 
     const entity = new Entity('SkyStrikeLevelCarouselGui');
     entity.addComponent(this.root);
     options.world.addEntity(entity);
     const guiSystem = new GuiSystem(options.engine, {
-      loadOp: 'clear',
+      loadOp: options.loadOp ?? 'clear',
       font: {
         chars: [...new Set(`${ASCII_CHARACTERS}${localizedCharacters}`)].join(''),
         fontSize: 34,
         atlasSize: 2048,
+        ...options.guiFont,
       },
     });
     guiSystem.priority = 50;
@@ -211,7 +194,7 @@ export class SkyStrikeLevelCarousel {
     this.heading.setText(heading);
     this.startButton.setText(actionText);
     this.root.root.setVisible(true);
-    this.options.canvas.classList.add('level-carousel-active');
+
     this.sync();
   }
 
@@ -219,7 +202,7 @@ export class SkyStrikeLevelCarousel {
     this.active = false;
     this.pointerId = -1;
     this.root.root.setVisible(false);
-    this.options.canvas.classList.remove('level-carousel-active');
+
   }
 
   changeSelection(offset: number): void {
@@ -235,31 +218,37 @@ export class SkyStrikeLevelCarousel {
     const boss = this.options.resolveBoss(level);
     this.levelName.setText(`${String(this.selectedIndex + 1).padStart(2, '0')} · ${level.name}`);
     this.bossName.setText(`BOSS · ${boss.label}`);
-    this.counter.setText(`${this.selectedIndex + 1} / ${this.options.levels.length}`);
+    this.counter.setText(`SECTOR  ${String(this.selectedIndex + 1).padStart(2, '0')} / ${String(this.options.levels.length).padStart(2, '0')}`);
     this.bossImage.setSource(boss.source, boss.sourceKey);
-    this.panel.markDirty(GuiDirtyFlags.All);
+    this.root.root.markDirty();
   }
 
   private bindSwipeInput(): void {
-    this.options.canvas.addEventListener('pointerdown', event => {
+    this.listen('pointerdown', event => {
       if (!this.active || event.button !== 0) return;
       this.pointerId = event.pointerId;
       this.pointerStartX = event.clientX;
       this.options.canvas.setPointerCapture(event.pointerId);
     });
-    this.options.canvas.addEventListener('pointerup', event => {
+    this.listen('pointerup', event => {
       if (!this.active || event.pointerId !== this.pointerId) return;
       const deltaX = event.clientX - this.pointerStartX;
       if (Math.abs(deltaX) >= SWIPE_THRESHOLD) this.changeSelection(deltaX < 0 ? 1 : -1);
       this.pointerId = -1;
-      if (this.options.canvas.hasPointerCapture(event.pointerId)) {
+      if (this.options.canvas.hasPointerCapture?.(event.pointerId)) {
         this.options.canvas.releasePointerCapture(event.pointerId);
       }
     });
-    this.options.canvas.addEventListener('pointercancel', event => {
+    this.listen('pointercancel', event => {
       if (event.pointerId === this.pointerId) this.pointerId = -1;
     });
   }
+
+  private listen(type: string, handler: (event: PointerEvent) => void): void {
+    this.options.canvas.addEventListener(type, handler as EventListener);
+    this.cleanup.push(() => this.options.canvas.removeEventListener(type, handler as EventListener));
+  }
+  dispose(): void { this.hide(); for (const off of this.cleanup.splice(0)) off(); }
 
   private layoutPanel(): void {
     this.panel.layout = (parentRect) => {
@@ -295,6 +284,7 @@ export class SkyStrikeLevelCarousel {
   private layoutRelative(element: GuiElement, resolve: (parent: GuiRect) => GuiRect): void {
     element.layout = (parentRect) => {
       element.rect = resolve(parentRect);
+      for (const child of element.children) child.layout(element.rect);
     };
   }
 

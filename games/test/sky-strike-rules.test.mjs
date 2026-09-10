@@ -306,19 +306,19 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8'));
   const entry = manifest.entries.find(candidate => candidate.id === 'sky-strike');
   assert.ok(entry);
-  assert.equal(entry.assets.length, 27);
+  assert.ok(entry.assets.includes('sky-strike/assets/sprites.rgba'));
   for (const asset of entry.assets) {
     assert.ok(existsSync(new URL(`../${asset}`, import.meta.url)), `${asset} must exist`);
   }
 
-  const source = await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8');
+  const source = (await readFile(new URL('../sky-strike/SkyStrikeGame.ts', import.meta.url), 'utf8')) + (await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8'));
   const carouselSource = await readFile(new URL('../sky-strike/levelCarousel.ts', import.meta.url), 'utf8');
   const html = await readFile(new URL('../sky-strike/index.html', import.meta.url), 'utf8');
   assert.match(source, /new SingleSlotGameSave<SkyStrikeSaveData>/);
   assert.match(source, /'arrowup'.*'arrowdown'.*'arrowleft'.*'arrowright'.*'w'.*'a'.*'s'.*'d'.*'j'.*'k'.*'b'/s);
-  assert.match(source, /addEventListener\('pointerdown'/);
-  assert.match(source, /addEventListener\('pointermove'/);
-  assert.match(source, /addEventListener\('contextmenu'.*preventDefault/s);
+  assert.match(source, /listen\(this\.canvas, 'pointerdown'/);
+  assert.match(source, /listen\(this\.canvas, 'pointermove'/);
+  assert.match(source, /listen\(this\.canvas, 'contextmenu'.*preventDefault/s);
   assert.match(source, /event\.button === 2.*activateBomb\(\)/s);
   assert.match(source, /POWERUP_FORM_INTERVAL_MS/);
   assert.match(source, /BOSS_LASER_WARNING_MS/);
@@ -348,7 +348,7 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(source, /drawIronSerpentTurret\(/);
   assert.match(source, /new SkyStrikeLevelCarousel\(/);
   assert.match(source, /new RenderIntegration\(engine, \{ label: 'SkyStrike\.gui' \}\)/);
-  assert.match(source, /renderIntegration\.registerAll\(world, \(\) => \(\{ pass: 'shared' \}\)\)/);
+  assert.match(source, /renderIntegration\.registerAll\(world\)/);
   assert.match(source, /beginLevel\(this\.selectedLevelIndex\)/);
   assert.match(source, /key === 'arrowleft'.*key === 'a'/s);
   assert.match(source, /key === 'arrowright'.*key === 'd'/s);
@@ -356,10 +356,12 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(carouselSource, /GuiImage/);
   assert.match(carouselSource, /GuiButton/);
   assert.match(carouselSource, /GuiSystem/);
-  assert.match(carouselSource, /addEventListener\('pointerdown'/);
-  assert.match(carouselSource, /addEventListener\('pointerup'/);
+  assert.match(carouselSource, /listen\('pointerdown'/);
+  assert.match(carouselSource, /listen\('pointerup'/);
   assert.match(carouselSource, /SWIPE_THRESHOLD/);
   assert.doesNotMatch(source, /definition\.tier === 'boss'\) this\.enemyBullets\.length = 0/);
   assert.match(html, /height:\s*100dvh/);
-  assert.match(html, /width:\s*min\(100vw,\s*50dvh\)/);
+  assert.equal((html.match(/<canvas\b/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /<button|id="ui"|id="engine-canvas"/);
+  assert.doesNotMatch(source, /CanvasRenderingContext2D|getContext\('2d'/);
 });

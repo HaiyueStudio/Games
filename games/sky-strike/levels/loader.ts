@@ -50,8 +50,9 @@ const LEVEL_PATHS = [
   'levels/level-06.json',
 ] as const;
 
-export async function loadSkyStrikeLevels(): Promise<readonly SkyStrikeLevel[]> {
+export async function loadSkyStrikeLevels(readJson?: (path: string) => Promise<unknown>): Promise<readonly SkyStrikeLevel[]> {
   return Promise.all(LEVEL_PATHS.map(async path => {
+    if (readJson) return parseLevel(await readJson(path), path);
     const response = await fetch(path);
     if (!response.ok) throw new Error(`[SKY_STRIKE_LEVEL_LOAD_FAILED] ${path}: HTTP ${response.status}.`);
     return parseLevel(await response.json(), path);

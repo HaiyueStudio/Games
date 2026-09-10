@@ -1,0 +1,177 @@
+[
+  {
+    "id": "assets/boss-dreadnought.png",
+    "width": 427,
+    "height": 640,
+    "offset": 0,
+    "length": 1093120
+  },
+  {
+    "id": "assets/boss-helios-prism.png",
+    "width": 427,
+    "height": 640,
+    "offset": 1093120,
+    "length": 1093120
+  },
+  {
+    "id": "assets/boss-ion-seraph.png",
+    "width": 427,
+    "height": 640,
+    "offset": 2186240,
+    "length": 1093120
+  },
+  {
+    "id": "assets/boss-iron-serpent.png",
+    "width": 427,
+    "height": 640,
+    "offset": 3279360,
+    "length": 1093120
+  },
+  {
+    "id": "assets/boss-star-carrier.png",
+    "width": 427,
+    "height": 640,
+    "offset": 4372480,
+    "length": 1093120
+  },
+  {
+    "id": "assets/boss-void-mantis.png",
+    "width": 427,
+    "height": 640,
+    "offset": 5465600,
+    "length": 1093120
+  },
+  {
+    "id": "assets/elite-crimson-lance.png",
+    "width": 213,
+    "height": 320,
+    "offset": 6558720,
+    "length": 272640
+  },
+  {
+    "id": "assets/elite-prism-lancer.png",
+    "width": 213,
+    "height": 320,
+    "offset": 6831360,
+    "length": 272640
+  },
+  {
+    "id": "assets/elite-violet-fortress.png",
+    "width": 213,
+    "height": 320,
+    "offset": 7104000,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-bomber.png",
+    "width": 213,
+    "height": 320,
+    "offset": 7376640,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-dart.png",
+    "width": 213,
+    "height": 320,
+    "offset": 7649280,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-drone.png",
+    "width": 289,
+    "height": 320,
+    "offset": 7921920,
+    "length": 369920
+  },
+  {
+    "id": "assets/enemy-gunship.png",
+    "width": 213,
+    "height": 320,
+    "offset": 8291840,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-kamikaze.png",
+    "width": 213,
+    "height": 320,
+    "offset": 8564480,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-saucer.png",
+    "width": 315,
+    "height": 320,
+    "offset": 8837120,
+    "length": 403200
+  },
+  {
+    "id": "assets/enemy-scout.png",
+    "width": 213,
+    "height": 320,
+    "offset": 9240320,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-space-train.png",
+    "width": 213,
+    "height": 320,
+    "offset": 9512960,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-splitter.png",
+    "width": 213,
+    "height": 320,
+    "offset": 9785600,
+    "length": 272640
+  },
+  {
+    "id": "assets/enemy-stealth.png",
+    "width": 308,
+    "height": 320,
+    "offset": 10058240,
+    "length": 394240
+  },
+  {
+    "id": "assets/fx-burning-impact.png",
+    "width": 314,
+    "height": 320,
+    "offset": 10452480,
+    "length": 401920
+  },
+  {
+    "id": "assets/gui-arrow.png",
+    "width": 320,
+    "height": 320,
+    "offset": 10854400,
+    "length": 409600
+  },
+  {
+    "id": "assets/gui-launch.png",
+    "width": 768,
+    "height": 307,
+    "offset": 11264000,
+    "length": 943104
+  },
+  {
+    "id": "assets/gui-pause-panel.png",
+    "width": 1024,
+    "height": 768,
+    "offset": 12207104,
+    "length": 3145728
+  },
+  {
+    "id": "assets/gui-space.png",
+    "width": 512,
+    "height": 1024,
+    "offset": 15352832,
+    "length": 2097152
+  },
+  {
+    "id": "assets/player-fighter.png",
+    "width": 213,
+    "height": 320,
+    "offset": 17449984,
+    "length": 272640
+  }
+]
