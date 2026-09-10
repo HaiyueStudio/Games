@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
+import { readMugenTestArtifact } from './mugen-test-artifacts.mjs';
 
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? `${specifier}.ts` : specifier, context); } });
 
@@ -102,7 +103,7 @@ test('G01 evaluator enforces fuel and parser/compiler survive deterministic fuzz
 });
 
 test('G01 generated operator/function ledger matches the frozen milestone artifact', () => {
-  const ledger = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/expression-ledger.json', import.meta.url), 'utf8'));
+  const ledger = readMugenTestArtifact('m09-mugen-character-runtime-parity/expression-ledger.json');
   assert.equal(ledger.bytecodeRevision, 'm09-g01-expression-bytecode-v1');
   assert.deepEqual(ledger.operatorsByDescendingPrecedence, MUGEN_EXPRESSION_OPERATOR_LEDGER);
   assert.deepEqual(ledger.coreFunctions, MUGEN_EXPRESSION_CORE_FUNCTION_LEDGER);
@@ -110,7 +111,7 @@ test('G01 generated operator/function ledger matches the frozen milestone artifa
 });
 
 test('G01 official documentation oracle fixtures are bytecode differential green', () => {
-  const oracle = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/expression-oracle-fixtures.json', import.meta.url), 'utf8'));
+  const oracle = readMugenTestArtifact('m09-mugen-character-runtime-parity/expression-oracle-fixtures.json');
   assert.equal(oracle.fixtures.length, 33);
   for (const fixture of oracle.fixtures) {
     const actual = run(fixture.expression); assert.equal(actual.kind, fixture.expected.kind, fixture.id);

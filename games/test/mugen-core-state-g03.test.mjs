@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
+import { readMugenTestArtifact } from './mugen-test-artifacts.mjs';
 
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? specifier + '.ts' : specifier, context); } });
 
@@ -90,9 +91,9 @@ test('G03 parser fails closed on ambiguous Width and VarRangeSet parameters', as
 });
 
 test('G03 ledger closes 25 core controllers and script runtime has no direct core field writes', () => {
-  const ledger = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/core-controller-ledger.json', import.meta.url), 'utf8'));
+  const ledger = readMugenTestArtifact('m09-mugen-character-runtime-parity/core-controller-ledger.json');
   assert.equal(ledger.closedCount, 25); assert.equal(ledger.controllers.length, 25); assert.equal(new Set(ledger.controllers.map(value => value.name)).size, 25);
-  const evidence = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/g03-official-oracle-evidence.json', import.meta.url), 'utf8')); assert.equal(evidence.result, 'pass'); assert.deepEqual([evidence.officialLoadEvidence.expressions, evidence.officialLoadEvidence.triggerLineExpressions], [98, 45]);
+  const evidence = readMugenTestArtifact('m09-mugen-character-runtime-parity/g03-official-oracle-evidence.json'); assert.equal(evidence.result, 'pass'); assert.deepEqual([evidence.officialLoadEvidence.expressions, evidence.officialLoadEvidence.triggerLineExpressions], [98, 45]);
   for (const source of evidence.sources.filter(value => value.path.startsWith('Games/games/mugen/oracle/g03-core-state-oracle/'))) { const bytes = readFileSync(new URL(`../mugen/oracle/g03-core-state-oracle/${source.path.split('/').at(-1)}`, import.meta.url)); assert.equal(createHash('sha256').update(bytes).digest('hex'), source.sha256); }
   const source = readFileSync(new URL('../mugen/runtime/script/MugenScriptRuntime.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /match\.(?:setKinematics|setFighterState|setFighterAction|setFighterStateMetadata|setIntegerVariable|addIntegerVariable|setFloatVariable|addFloatVariable|setLife|setPower|resetMoveContact|changeFighterState)\(/u);

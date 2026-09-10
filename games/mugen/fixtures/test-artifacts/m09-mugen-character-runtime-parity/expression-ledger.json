@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "bytecodeRevision": "m09-g01-expression-bytecode-v1",
+  "operatorsByDescendingPrecedence": [
+    {
+      "symbols": [
+        "!",
+        "~",
+        "-",
+        "+"
+      ],
+      "precedence": 13,
+      "associativity": "right",
+      "family": "unary"
+    },
+    {
+      "symbols": [
+        "**"
+      ],
+      "precedence": 12,
+      "associativity": "left",
+      "family": "arithmetic"
+    },
+    {
+      "symbols": [
+        "*",
+        "/",
+        "%"
+      ],
+      "precedence": 11,
+      "associativity": "left",
+      "family": "arithmetic"
+    },
+    {
+      "symbols": [
+        "+",
+        "-"
+      ],
+      "precedence": 10,
+      "associativity": "left",
+      "family": "arithmetic"
+    },
+    {
+      "symbols": [
+        ">",
+        ">=",
+        "<",
+        "<="
+      ],
+      "precedence": 9,
+      "associativity": "left",
+      "family": "relational"
+    },
+    {
+      "symbols": [
+        "=",
+        "!=",
+        "interval"
+      ],
+      "precedence": 8,
+      "associativity": "left",
+      "family": "equality"
+    },
+    {
+      "symbols": [
+        ":="
+      ],
+      "precedence": 7,
+      "associativity": "right",
+      "family": "assignment"
+    },
+    {
+      "symbols": [
+        "&"
+      ],
+      "precedence": 6,
+      "associativity": "left",
+      "family": "bitwise"
+    },
+    {
+      "symbols": [
+        "^"
+      ],
+      "precedence": 5,
+      "associativity": "left",
+      "family": "bitwise"
+    },
+    {
+      "symbols": [
+        "|"
+      ],
+      "precedence": 4,
+      "associativity": "left",
+      "family": "bitwise"
+    },
+    {
+      "symbols": [
+        "&&"
+      ],
+      "precedence": 3,
+      "associativity": "left",
+      "family": "logical-short-circuit"
+    },
+    {
+      "symbols": [
+        "^^"
+      ],
+      "precedence": 2,
+      "associativity": "left",
+      "family": "logical"
+    },
+    {
+      "symbols": [
+        "||"
+      ],
+      "precedence": 1,
+      "associativity": "left",
+      "family": "logical-short-circuit"
+    }
+  ],
+  "coreFunctions": [
+    {
+      "name": "abs",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "acos",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "asin",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "atan",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "ceil",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "cond",
+      "arguments": 3,
+      "evaluation": "lazy-selected-branch",
+      "owner": "g01"
+    },
+    {
+      "name": "cos",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "exp",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "floor",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "fvar",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "ifelse",
+      "arguments": 3,
+      "evaluation": "eager-all-branches",
+      "owner": "g01"
+    },
+    {
+      "name": "ln",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "log",
+      "arguments": 2,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "sin",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "tan",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    },
+    {
+      "name": "var",
+      "arguments": 1,
+      "evaluation": "eager",
+      "owner": "g01"
+    }
+  ],
+  "budgets": {
+    "sourceBytes": 1048576,
+    "sourcePathBytes": 512,
+    "stringBytes": 16777216,
+    "encodedBytecodeBytes": 67108864,
+    "expressionDepth": 128,
+    "callDepth": 16,
+    "instructions": 4096,
+    "stack": 256,
+    "functionArguments": 32,
+    "fuel": 16384
+  }
+}

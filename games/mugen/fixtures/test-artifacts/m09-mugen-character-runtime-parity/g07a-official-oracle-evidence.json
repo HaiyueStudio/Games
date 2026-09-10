@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "result": "pass",
+  "sources": [
+    {
+      "path": "Games/games/mugen/oracle/g07a-cmd-ai-oracle/official-human-time-zero.json",
+      "sha256": "2ba97d9c5435fcf7a0e7664238374a6ffffa9e32c10d75c5ec4fea090747d0ec"
+    },
+    {
+      "path": "Games/games/mugen/oracle/g07a-cmd-ai-oracle/official-human-time-one.json",
+      "sha256": "7f3ae8a200e79c05dcabe15badac96b28bad6613042dcdc5c28bbc4a7c1c2d36"
+    },
+    {
+      "path": "Games/games/mugen/oracle/g07a-cmd-ai-oracle/official-ai-toggle.json",
+      "sha256": "e7307095491effc9eca2bb0bccd605a9b182951bf8984c1b7e00a0b0c3738849"
+    }
+  ],
+  "observations": [
+    {
+      "id": "human-time-zero",
+      "resultPath": "Games/games/mugen/oracle/g07a-cmd-ai-oracle/official-human-time-zero.json",
+      "resultSha256": "2ba97d9c5435fcf7a0e7664238374a6ffffa9e32c10d75c5ec4fea090747d0ec"
+    },
+    {
+      "id": "human-time-one-control",
+      "resultPath": "Games/games/mugen/oracle/g07a-cmd-ai-oracle/official-human-time-one.json",
+      "resultSha256": "7f3ae8a200e79c05dcabe15badac96b28bad6613042dcdc5c28bbc4a7c1c2d36"
+    },
+    {
+      "id": "legacy-ai-command-and-ailevel",
+      "resultPath": "Games/games/mugen/oracle/g07a-cmd-ai-oracle/official-ai-toggle.json",
+      "resultSha256": "e7307095491effc9eca2bb0bccd605a9b182951bf8984c1b7e00a0b0c3738849"
+    }
+  ]
+}
