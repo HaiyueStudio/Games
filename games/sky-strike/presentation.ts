@@ -3,6 +3,7 @@ export interface SkyStrikeHud {
   score: number; highScore: number; wave: number; lives: number; health: number;
   weapon: WeaponForm; weaponLevel: number; bombs: number; bombDisabled: boolean;
   bossName: string; bossHealth: number;
+  twinHealth?: number[]; twinReviveMs?: number;
 }
 export interface SkyStrikeActions { start(): void; bomb(): void; pause(): void; home(): void; suspend(): void; }
 export interface SkyStrikeStatus { gameOver: boolean; }

@@ -1,7 +1,7 @@
 export type EnemyTier = 'normal' | 'elite' | 'boss' | 'device';
 export type BulletPattern = 'none' | 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
 export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze' | 'anchor' | 'rail';
-export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles';
 export type SegmentedPart = 'train-head' | 'train-car' | 'serpent-head' | 'serpent-turret';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
@@ -20,6 +20,7 @@ export interface EnemyDefinition {
   readonly flightPattern: FlightPattern;
   readonly bossAttack?: BossAttack;
   readonly contactDamage?: number;
+  readonly splitsInto?: string;
   readonly deathBurstCount?: number;
   readonly renderAspect?: number;
   readonly directDamageImmune?: boolean;
@@ -131,6 +132,7 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'crimson-lance', sprite: 'assets/elite-crimson-lance.png', tier: 'elite', hitPoints: 78, speed: 52, score: 2400, size: 120, fireIntervalMs: 720, bulletPattern: 'spread', flightPattern: 'sweep' },
   { id: 'violet-fortress', sprite: 'assets/elite-violet-fortress.png', tier: 'elite', hitPoints: 118, speed: 38, score: 3600, size: 138, fireIntervalMs: 820, bulletPattern: 'ring', flightPattern: 'fortress' },
   { id: 'prism-lancer', sprite: 'assets/elite-prism-lancer.png', tier: 'elite', hitPoints: 148, speed: 46, score: 4_600, size: 142, fireIntervalMs: 1_700, bulletPattern: 'none', flightPattern: 'sweep', laserWeapon: true, laserDamage: 70, renderAspect: 1.5 },
+  { id: 'fission-elite', sprite: 'assets/elite-fission.png', tier: 'elite', hitPoints: 180, speed: 48, score: 5200, size: 140, fireIntervalMs: 1400, bulletPattern: 'spread', flightPattern: 'fortress', splitsInto: 'scout', renderAspect: 1 },
   { id: 'helios-emitter', sprite: 'procedural:helios-emitter', tier: 'device', hitPoints: 36, speed: 0, score: 650, size: 58, fireIntervalMs: 1_500, bulletPattern: 'none', flightPattern: 'anchor', contactDamage: 45, damageProxyMultiplier: 7, damageProxyBossAttack: 'emitter-grid', laserWeapon: true, laserDamage: 65, renderAspect: 1 },
   { id: 'iron-serpent-turret', sprite: 'procedural:iron-serpent-turret', tier: 'device', hitPoints: 120, speed: 0, score: 1_100, size: 56, fireIntervalMs: 2_200, bulletPattern: 'aimed', flightPattern: 'anchor', contactDamage: 50, damageProxyMultiplier: 1, damageProxyBossAttack: 'serpent-barrage', renderAspect: 1, segmentedPart: 'serpent-turret' },
   { id: 'dreadnought', sprite: 'assets/boss-dreadnought.png', tier: 'boss', hitPoints: 1_300, speed: 34, score: 25_000, size: 292, fireIntervalMs: 260, bulletPattern: 'spiral', flightPattern: 'fortress', bossAttack: 'laser' },
@@ -139,6 +141,8 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'star-carrier', sprite: 'assets/boss-star-carrier.png', tier: 'boss', hitPoints: 2_500, speed: 28, score: 50_000, size: 350, fireIntervalMs: 1_450, bulletPattern: 'aimed', flightPattern: 'fortress', bossAttack: 'carrier-deploy', renderAspect: 1.32 },
   { id: 'helios-prism', sprite: 'assets/boss-helios-prism.png', tier: 'boss', hitPoints: 2_800, speed: 26, score: 62_000, size: 356, fireIntervalMs: 1_800, bulletPattern: 'none', flightPattern: 'fortress', bossAttack: 'emitter-grid', directDamageImmune: true, renderAspect: 1.5 },
   { id: 'iron-serpent', sprite: 'assets/boss-iron-serpent.png', tier: 'boss', hitPoints: 2_200, speed: 110, score: 74_000, size: 154, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'fortress', bossAttack: 'serpent-barrage', renderAspect: 1.5, segmentedPart: 'serpent-head' },
+  { id: 'twin-red', sprite: 'assets/boss-twin-red.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1000, bulletPattern: 'spread', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
+  { id: 'twin-blue', sprite: 'assets/boss-twin-blue.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1200, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
 ]);
 
 const ENEMY_BY_ID = new Map(ENEMY_DEFINITIONS.map(definition => [definition.id, definition]));
@@ -480,3 +484,10 @@ export function shareSerpentDamage(damage: number, health: readonly number[]): n
   }
   return shares;
 }
+
+export const TWIN_REVIVE_WINDOW_MS = 5000;
+export const TWIN_REVIVE_HEALTH_RATIO = 0.2;
+export const TWIN_BUBBLE_HEALTH = 24;
+export const TWIN_BUBBLE_BLAST_RADIUS = 150;
+export const TWIN_BUBBLE_BLAST_DAMAGE = 55;
+export const MAX_TWIN_BUBBLES = 24;

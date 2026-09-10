@@ -35,206 +35,227 @@
     "length": 1093120
   },
   {
+    "id": "assets/boss-twin-blue.png",
+    "width": 384,
+    "height": 384,
+    "offset": 5465600,
+    "length": 589824
+  },
+  {
+    "id": "assets/boss-twin-red.png",
+    "width": 384,
+    "height": 384,
+    "offset": 6055424,
+    "length": 589824
+  },
+  {
     "id": "assets/boss-void-mantis.png",
     "width": 427,
     "height": 640,
-    "offset": 5465600,
+    "offset": 6645248,
     "length": 1093120
   },
   {
     "id": "assets/elite-crimson-lance.png",
     "width": 213,
     "height": 320,
-    "offset": 6558720,
+    "offset": 7738368,
     "length": 272640
+  },
+  {
+    "id": "assets/elite-fission.png",
+    "width": 256,
+    "height": 256,
+    "offset": 8011008,
+    "length": 262144
   },
   {
     "id": "assets/elite-prism-lancer.png",
     "width": 213,
     "height": 320,
-    "offset": 6831360,
+    "offset": 8273152,
     "length": 272640
   },
   {
     "id": "assets/elite-violet-fortress.png",
     "width": 213,
     "height": 320,
-    "offset": 7104000,
+    "offset": 8545792,
     "length": 272640
   },
   {
     "id": "assets/enemy-bomber.png",
     "width": 171,
     "height": 256,
-    "offset": 7376640,
+    "offset": 8818432,
     "length": 175104
   },
   {
     "id": "assets/enemy-dart.png",
     "width": 171,
     "height": 256,
-    "offset": 7551744,
+    "offset": 8993536,
     "length": 175104
   },
   {
     "id": "assets/enemy-drone.png",
     "width": 231,
     "height": 256,
-    "offset": 7726848,
+    "offset": 9168640,
     "length": 236544
   },
   {
     "id": "assets/enemy-gunship.png",
     "width": 171,
     "height": 256,
-    "offset": 7963392,
+    "offset": 9405184,
     "length": 175104
   },
   {
     "id": "assets/enemy-kamikaze.png",
     "width": 171,
     "height": 256,
-    "offset": 8138496,
+    "offset": 9580288,
     "length": 175104
   },
   {
     "id": "assets/enemy-saucer.png",
     "width": 252,
     "height": 256,
-    "offset": 8313600,
+    "offset": 9755392,
     "length": 258048
   },
   {
     "id": "assets/enemy-scout.png",
     "width": 171,
     "height": 256,
-    "offset": 8571648,
+    "offset": 10013440,
     "length": 175104
   },
   {
     "id": "assets/enemy-space-train.png",
     "width": 171,
     "height": 256,
-    "offset": 8746752,
+    "offset": 10188544,
     "length": 175104
   },
   {
     "id": "assets/enemy-splitter.png",
     "width": 171,
     "height": 256,
-    "offset": 8921856,
+    "offset": 10363648,
     "length": 175104
   },
   {
     "id": "assets/enemy-stealth.png",
     "width": 246,
     "height": 256,
-    "offset": 9096960,
+    "offset": 10538752,
     "length": 251904
   },
   {
     "id": "assets/fx-burning-impact.png",
     "width": 314,
     "height": 320,
-    "offset": 9348864,
+    "offset": 10790656,
     "length": 401920
   },
   {
     "id": "assets/fx-flame.png",
     "width": 128,
     "height": 192,
-    "offset": 9750784,
+    "offset": 11192576,
     "length": 98304
   },
   {
     "id": "assets/fx-hatch.png",
     "width": 114,
     "height": 192,
-    "offset": 9849088,
+    "offset": 11290880,
     "length": 87552
   },
   {
     "id": "assets/fx-rotor.png",
     "width": 128,
     "height": 128,
-    "offset": 9936640,
+    "offset": 11378432,
     "length": 65536
   },
   {
     "id": "assets/fx-turret.png",
     "width": 189,
     "height": 192,
-    "offset": 10002176,
+    "offset": 11443968,
     "length": 145152
   },
   {
     "id": "assets/gui-arrow.png",
     "width": 160,
     "height": 160,
-    "offset": 10147328,
+    "offset": 11589120,
     "length": 102400
   },
   {
     "id": "assets/gui-bomb.png",
     "width": 160,
     "height": 160,
-    "offset": 10249728,
+    "offset": 11691520,
     "length": 102400
   },
   {
     "id": "assets/gui-gear.png",
     "width": 128,
     "height": 128,
-    "offset": 10352128,
+    "offset": 11793920,
     "length": 65536
   },
   {
     "id": "assets/gui-launch.png",
     "width": 640,
     "height": 256,
-    "offset": 10417664,
+    "offset": 11859456,
     "length": 655360
   },
   {
     "id": "assets/gui-life.png",
     "width": 48,
     "height": 48,
-    "offset": 11073024,
+    "offset": 12514816,
     "length": 9216
   },
   {
     "id": "assets/gui-pause-panel.png",
     "width": 768,
     "height": 576,
-    "offset": 11082240,
+    "offset": 12524032,
     "length": 1769472
   },
   {
     "id": "assets/gui-pause.png",
     "width": 160,
     "height": 160,
-    "offset": 12851712,
+    "offset": 14293504,
     "length": 102400
   },
   {
     "id": "assets/gui-shield.png",
     "width": 96,
     "height": 96,
-    "offset": 12954112,
+    "offset": 14395904,
     "length": 36864
   },
   {
     "id": "assets/gui-space.png",
     "width": 512,
     "height": 1024,
-    "offset": 12990976,
+    "offset": 14432768,
     "length": 2097152
   },
   {
     "id": "assets/player-fighter.png",
     "width": 171,
     "height": 256,
-    "offset": 15088128,
+    "offset": 16529920,
     "length": 175104
   }
 ]

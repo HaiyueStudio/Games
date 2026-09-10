@@ -39,6 +39,7 @@ async function run() {
   check(game.snapshot().selectedLevel === 1, 'skinned next button');
   await click(panelLeft + 4 + arrowSize / 2, arrowY);
   check(game.snapshot().selectedLevel === 0, 'skinned previous button');
+  if(new URLSearchParams(location.search).get('mission')==='7') {await click(panelLeft + 4 + arrowSize / 2, arrowY);check(game.snapshot().selectedLevel===6,'seventh mission carousel');}
   const language = (new URLSearchParams(location.search).get('lang') ?? 'zh') as SkyLanguage;
   if (scene === 'options' || language !== 'zh') {
     await click(panelLeft+panelWidth-32,(innerHeight-panelHeight)/2+panelHeight*0.035+24);
@@ -58,12 +59,69 @@ async function run() {
     await click(innerWidth/2,top+optionsHeight*0.8325);check(!game.snapshot().optionsOpen,'close settings');
   }
   if (scene === 'menu') {
+    if(new URLSearchParams(location.search).get('mission')==='7') {const carousel=(game as any).levelCarousel;check(carousel.bossImage.rect.x+carousel.bossImage.rect.width*0.85<carousel.companionImage.rect.x,'twin preview hulls have separate positions');}
     engine.stop(); result.textContent = JSON.stringify({ status:'passed', checks:['engine-gui-menu','skinned-next','skinned-previous'], state:game.snapshot() }); result.dataset.status='passed'; return;
   }
 
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if (scene === 'twins-rules' || scene === 'twins-down' || scene === 'bubble-blast' || scene === 'fission') {
+    engine.stop();const f=game as any;
+    const near=(a:number,b:number,label:string)=>check(Math.abs(a-b)<1e-6,label);
+    const reset=()=>{
+      f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.twins=null;f.boss=null;f.twinReviveMs=0;f.hostileLasers=[];
+      f.phase='playing';f.bombBlast=null;f.bombs=3;f.levelAdvanceMs=0;f.laserFiring=false;f.pointerFiring=false;f.weaponForm='basic';
+      f.player.x=240;f.player.y=840;f.player.health=100;f.player.invulnerableMs=10000;
+      f.beginLevel(6);f.levelTimeline=[];f.combatEffects.clear();
+    };
+    const pair=()=>{f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='twin-red'),130,180);return f.twins as any[];};
+    reset();let twins=pair();check(twins.length===2&&f.enemies.length===2,'one primary spawn creates two bosses');
+    f.damageEnemy(f.enemies.indexOf(twins[0]),twins[0],1800);
+    check(twins[0].hitPoints===0&&f.twinReviveMs===5000&&f.levelAdvanceMs===0,'first twin down opens five-second window');
+    f.updateTwins(4999);check(twins[0].hitPoints===0&&f.twinReviveMs===1,'no early revival');
+    f.phase='paused';f.update(34);check(f.twinReviveMs===1,'pause freezes revival clock');f.phase='playing';
+    f.updateTwins(1);near(twins[0].hitPoints,360,'revival at exactly five seconds to twenty percent');
+    check(f.twinReviveMs===0&&twins[1].hitPoints===1800,'survivor health unaffected');
+    f.damageEnemy(f.enemies.indexOf(twins[1]),twins[1],1800);f.updateTwins(4999);
+    const defeated=f.bossesDefeated;f.damageEnemy(f.enemies.indexOf(twins[0]),twins[0],360);
+    check(!f.twins&&!f.boss&&f.enemies.length===0&&f.levelAdvanceMs>0&&f.bossesDefeated===defeated+1,'both down before timeout wins once');
+    reset();twins=pair();for(const t of twins){t.hitPoints=100;t.y=400;}f.player.y=635;f.activateBomb();
+    check(!f.twins&&!f.boss&&f.enemies.length===0,'same bomb defeats both safely');
+    reset();twins=pair();
+    f.triggerBossAttack(twins[0]);f.triggerBossAttack(twins[1]);
+    check(f.enemyBullets.length===2&&f.enemyBullets[0].bubbleColor==='red'&&f.enemyBullets[1].bubbleColor==='blue','matched bubble colors');
+    const bubble=f.enemyBullets[0];for(let i=0;i<5;i++)f.damageBubble(bubble,4);
+    check(f.enemyBullets.includes(bubble)&&bubble.bubbleHealth===4,'bubble needs repeated hits');
+    f.damageBubble(bubble,4);check(!f.enemyBullets.includes(bubble),'six basic hits safely pop bubble');
+    f.enemyBullets=[];f.triggerBossAttack(twins[0]);f.triggerBossAttack(twins[1]);
+    f.enemyBullets.forEach((b:any)=>{b.x=240;b.y=500;});f.player.y=640;f.player.invulnerableMs=0;
+    f.resolveBubbleCollisions();near(f.player.health,45,'opposite bubbles deal wide area damage');check(f.enemyBullets.length===0,'each pair consumed once');
+    f.player.invulnerableMs=0;f.resolveBubbleCollisions();near(f.player.health,45,'explosion cannot repeat next frame');
+    f.triggerBossAttack(twins[0]);f.triggerBossAttack(twins[0]);f.enemyBullets.forEach((b:any)=>{b.x=240;b.y=400;});
+    f.resolveBubbleCollisions();check(f.enemyBullets.length===2,'same color bubbles do not detonate');
+    f.enemyBullets=[];f.triggerBossAttack(twins[0]);const shotBubble=f.enemyBullets[0];shotBubble.x=240;shotBubble.y=500;
+    f.playerBullets.push({x:240,y:500,vx:0,vy:-1,radius:4,damage:4,color:'#ffffff',hostile:false});f.player.invulnerableMs=10000;f.resolveCollisions();
+    check(shotBubble.bubbleHealth===20&&f.playerBullets.length===0,'actual bullet collision chips bubble and consumes shot');
+    f.player.x=240;f.player.y=600;f.weaponForm='purple';f.laserFiring=true;f.laserDamageCooldownMs=0;f.updatePlayerLaser(16);
+    check(shotBubble.bubbleHealth<20,'purple beam targets destructible bubbles');
+    f.enemyBullets=[];f.fireEnemyPattern(twins[0]);check(f.enemyBullets.every((b:any)=>b.color==='#ff415e'),'red twin ordinary shots');
+    f.enemyBullets=[];f.fireEnemyPattern(twins[1]);check(f.enemyBullets.every((b:any)=>b.color==='#48a7ff'),'blue twin ordinary shots');
+    for(let i=0;i<50;i++)f.triggerBossAttack(twins[i%2]);check(f.enemyBullets.filter((b:any)=>b.bubbleHealth!==undefined).length===24,'bubble population bounded');
+    reset();const elite=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='fission-elite'),240,400);
+    f.damageEnemy(f.enemies.indexOf(elite),elite,180);check(f.enemies.length===2&&f.enemies.every((e:any)=>e.definition.id==='scout'),'elite splits into exactly two normals');
+    const children=[...f.enemies];for(const child of children)f.damageEnemy(f.enemies.indexOf(child),child,1000);check(f.enemies.length===0,'split children never recursively split');
+    reset();pair();f.phase='paused';f.returnHome();check(!f.twins&&f.twinReviveMs===0&&f.enemyBullets.length===0,'home clears encounter');
+    f.levelCarousel.hide();f.ui.status(null);reset();twins=pair();
+    if(scene==='twins-down')f.damageEnemy(f.enemies.indexOf(twins[0]),twins[0],1800);
+    if(scene==='fission'){f.enemies=[];f.twins=null;f.boss=null;f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='fission-elite'),240,300);}
+    for(let i=0;i<3;i++){f.triggerBossAttack(twins[0]);f.triggerBossAttack(twins[1]);}
+    f.enemyBullets.forEach((b:any,i:number)=>{b.y=360+Math.floor(i/2)*125;b.x=i%2?310:170;});
+    if(scene==='bubble-blast'){f.enemyBullets[0].x=240;f.enemyBullets[1].x=240;f.resolveBubbleCollisions();f.updateEnergyImpacts(150);f.updateImpacts(100);}
+    f.phase='paused';f.syncHud();f.render();engine.run();await wait(180);engine.stop();
+    check(game.snapshot().rendering.frameTextureUploads===0,'static single-canvas GPU rendering');
+    result.textContent=JSON.stringify({status:'passed',checks:['twins-revive-boundary','pause-clock','pair-victory-once','simultaneous-bomb-win','bubble-hitpoints','bubble-collision-explosion','bubble-laser-target','matched-shot-colors','bounded-bubbles','elite-split','home-clears-twins'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if (scene === 'balance') {
     engine.stop();
     const f=game as any;

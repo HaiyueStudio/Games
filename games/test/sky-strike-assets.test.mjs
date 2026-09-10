@@ -14,5 +14,5 @@ test('small HUD art uses small alpha textures while Boss art retains preview res
   let clear=false,visible=false;for(let p=e.offset+3;p<e.offset+e.length;p+=4){clear ||=pixels[p]===0;visible ||=pixels[p]>0;}
   assert.ok(clear&&visible,`${id} preserves transparency`);
  }
- for(const e of entries.filter(e=>e.id.startsWith('assets/boss-')))assert.equal(Math.max(e.width,e.height),640);
+ for(const e of entries.filter(e=>e.id.startsWith('assets/boss-')))assert.equal(Math.max(e.width,e.height),e.id.includes('boss-twin-')?384:640);
 });

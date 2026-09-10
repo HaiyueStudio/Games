@@ -1,0 +1,87 @@
+{
+  "id": "binary-nova",
+  "name": "双星新纪",
+  "seed": 207734921,
+  "bossId": "twin-red",
+  "background": {
+    "top": "#10051b",
+    "middle": "#291542",
+    "bottom": "#020714",
+    "nebula": "#895ac9"
+  },
+  "spawns": [
+    {
+      "atMs": 500,
+      "enemyId": "scout",
+      "position": {
+        "mode": "random",
+        "minX": 70,
+        "maxX": 410
+      },
+      "count": 6,
+      "intervalMs": 450
+    },
+    {
+      "atMs": 4500,
+      "enemyId": "fission-elite",
+      "position": {
+        "mode": "fixed",
+        "x": 160
+      }
+    },
+    {
+      "atMs": 8500,
+      "enemyId": "dart",
+      "position": {
+        "mode": "random",
+        "minX": 75,
+        "maxX": 405
+      },
+      "count": 6,
+      "intervalMs": 500
+    },
+    {
+      "atMs": 13000,
+      "enemyId": "fission-elite",
+      "position": {
+        "mode": "fixed",
+        "x": 320
+      }
+    },
+    {
+      "atMs": 17500,
+      "enemyId": "violet-fortress",
+      "position": {
+        "mode": "fixed",
+        "x": 120
+      }
+    },
+    {
+      "atMs": 21500,
+      "enemyId": "kamikaze",
+      "position": {
+        "mode": "random",
+        "minX": 70,
+        "maxX": 410
+      },
+      "count": 6,
+      "intervalMs": 450
+    },
+    {
+      "atMs": 26000,
+      "enemyId": "fission-elite",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      }
+    },
+    {
+      "atMs": 33000,
+      "enemyId": "twin-red",
+      "position": {
+        "mode": "fixed",
+        "x": 130
+      }
+    }
+  ]
+}

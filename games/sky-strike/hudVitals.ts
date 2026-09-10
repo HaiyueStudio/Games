@@ -35,6 +35,8 @@ export class SkyStrikeVitals {
   private readonly score: GuiLabel;
   private readonly best: GuiLabel;
   private bossId='';
+  private readonly twinRings: ReturnType<typeof healthRing>[];
+  private readonly revive: GuiLabel;
   constructor(parent:GuiElement,private readonly image:SkyStrikeGuiImage,private readonly locale:SkyStrikeLocale,top:number) {
     const panel=parent.add(new GuiElement({id:'sky-vitals',y:top,width:'100%',height:90,style:{backgroundColor:'rgba(3,8,18,0.40)'}}));
     this.hull=healthRing(panel,'sky-hull-ring');
@@ -52,13 +54,32 @@ export class SkyStrikeVitals {
     this.boss=healthRing(panel,'sky-boss-ring');this.boss.root.setVisible(false);
     this.boss.root.layout=rect=> {this.boss.root.rect={x:rect.x+rect.width-70,y:rect.y+4,width:60,height:60};for(const child of this.boss.root.children)child.layout(this.boss.root.rect);};
     this.portrait=this.boss.root.add(new GuiImage({x:15,y:12,width:30,height:36,uv:[0.2,0.2,0.6,0.6],disabled:true}));
+    this.twinRings=['twin-red','twin-blue'].map((id,i)=>{
+      const ring=healthRing(panel,'sky-'+id+'-ring');
+      ring.root.layout=rect=>{
+        ring.root.rect={x:rect.x+rect.width-74+i*34,y:rect.y+8,width:60,height:60};
+        for(const child of ring.root.children) {
+          child.layout(ring.root.rect);const p=child.rect;
+          child.rect={x:ring.root.rect.x+(p.x-ring.root.rect.x)*0.52,y:ring.root.rect.y+(p.y-ring.root.rect.y)*0.52,width:p.width*0.52,height:p.height*0.52};
+        }
+      };
+      ring.root.add(new GuiImage({x:12,y:12,width:36,height:36,source:image(requiredEnemyDefinition(id).sprite),sourceKey:requiredEnemyDefinition(id).sprite,disabled:true}));
+      ring.root.setVisible(false);return ring;
+    });
+    this.revive=panel.add(new GuiLabel({id:'sky-twin-revival',y:65,width:'100%',height:20,textAlign:'center',fontSize:12,style:{color:'#ffbcda'}}));
+
   }
   update(hud:SkyStrikeHud):void {
     this.score.setText(`${this.locale.text('score')} ${hud.score}`);this.best.setText(`${this.locale.text('best')} ${hud.highScore}`);
     for(const label of [this.score,this.best]) { if(label.rect.width>0) { const units=[...label.text].reduce((n,c)=>n+(c.charCodeAt(0)>255?1:0.62),0);label.setFontSize(Math.min(label===this.score?21:12,(label.rect.width-4)/Math.max(1,units))); } }
     this.hull.set(hud.health/100,hud.health<=25?'#ff6b85':hud.health<=50?'#ffc46b':'#65edc4');
     for(const [i,icon] of this.lives.entries())icon.setVisible(i<hud.lives);
-    this.boss.root.setVisible(!!hud.bossName);
+    this.boss.root.setVisible(!!hud.bossName && !hud.twinHealth);
+    for(const [i,ring] of this.twinRings.entries()) {
+      ring.root.setVisible(!!hud.twinHealth);ring.set(hud.twinHealth?.[i]??0,i===0?'#ff415e':'#48a7ff');
+    }
+    this.revive.setVisible((hud.twinReviveMs??0)>0);
+    this.revive.setText(`${this.locale.text('revival')} ${((hud.twinReviveMs??0)/1000).toFixed(1)}s`);
     if(hud.bossName) {
       this.boss.set(hud.bossHealth,'#ff708e');
       if(this.bossId!==hud.bossName) {

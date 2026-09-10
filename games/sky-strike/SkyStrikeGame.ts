@@ -6,6 +6,8 @@ import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/Sing
 import {
   BLUE_ENEMY_BULLET_DAMAGE,
   BOMB_DAMAGE,
+  TWIN_REVIVE_WINDOW_MS, TWIN_REVIVE_HEALTH_RATIO, TWIN_BUBBLE_HEALTH,
+  TWIN_BUBBLE_BLAST_RADIUS, TWIN_BUBBLE_BLAST_DAMAGE, MAX_TWIN_BUBBLES,
   BOSS_BOMB_DAMAGE_MULTIPLIER,
   CARRIER_DEPLOY_INTERVAL_MS,
   CARRIER_ELITE_WAVE_INTERVAL,
@@ -106,6 +108,8 @@ interface Bullet {
   radius: number;
   damage: number;
   hostile: boolean;
+  bubbleHealth?: number;
+  bubbleColor?: 'red' | 'blue';
   color: string;
   rotation?: number;
 }
@@ -322,11 +326,13 @@ export class SkyStrikeGame {
   private backgroundTransitionMs = BACKGROUND_TRANSITION_MS;
   private pointerFiring = false;
   private boss: EnemyState | null = null;
+  private twins: [EnemyState, EnemyState] | null = null;
+  private twinReviveMs = 0;
   private bossLaser: BossLaserState | null = null;
   private weaponForm: WeaponForm = 'basic';
   private weaponLevel = 0;
   private laserFiring = false;
-  private laserTarget: EnemyState | null = null;
+  private laserTarget: EnemyState | Bullet | null = null;
   private laserDamageCooldownMs = 0;
   private shakeMs = 0;
   private readonly combatEffects = new SkyStrikeCombatEffects();
@@ -351,7 +357,7 @@ export class SkyStrikeGame {
 
   snapshot() {
     const viewport = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, this.player.x, this.player.radius);
-    return { phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), player: { x: this.player.x, y: this.player.y, health: this.player.health },
+    return { phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
       score: this.score, highScore: this.highScore, wave: this.wave, bombs: this.bombs,
       enemies: this.enemies.length, bullets: this.playerBullets.length + this.enemyBullets.length,
       selectedLevel: this.selectedLevelIndex, viewport, firing: this.pointerFiring, rendering: this.battle.stats() };
@@ -417,12 +423,14 @@ export class SkyStrikeGame {
     this.updatePlayer(delta);
     this.updateSpawns();
     this.updateBullets(delta);
+    this.updateTwins(delta);
     this.updateEnemies(delta);
     this.updateBossLaser(delta);
     this.updateHostileLasers(delta);
     this.updatePowerups(delta);
     this.updatePlayerLaser(delta);
     this.resolveCollisions();
+    this.resolveBubbleCollisions();
     this.syncHud();
     this.render();
   }
@@ -458,6 +466,7 @@ export class SkyStrikeGame {
         return {
           source: this.battle.guiImage(definition.sprite),
           sourceKey: definition.sprite,
+          ...(definition.id==='twin-red'?{companion:{source:this.battle.guiImage('assets/boss-twin-blue.png'),sourceKey:'assets/boss-twin-blue.png'}}:{}),
           label: this.locale.named(definition.id),
           aspect: definition.renderAspect ?? 1.18,
         };
@@ -581,6 +590,7 @@ export class SkyStrikeGame {
     this.debris.length = 0;
     this.hostileLasers.length = 0;
     this.boss = null;
+    this.twins = null; this.twinReviveMs = 0;
     this.bossLaser = null;
     this.weaponForm = 'basic';
     this.weaponLevel = 0;
@@ -678,7 +688,7 @@ export class SkyStrikeGame {
     this.playerBullets.length = 0; this.enemyBullets.length = 0; this.enemies.length = 0;
     this.powerups.length = 0; this.bombPowerups.length = 0;
     this.sparks.length = 0; this.impacts.length = 0; this.energyImpacts.length = 0; this.debris.length = 0;
-    this.hostileLasers.length = 0; this.boss = null; this.bossLaser = null; this.laserTarget = null;
+    this.hostileLasers.length = 0; this.twins = null; this.twinReviveMs = 0; this.boss = null; this.bossLaser = null; this.laserTarget = null;
     this.bombBlast = null; this.levelAdvanceMs = 0; this.shakeMs = 0; this.combatEffects.clear();
     this.selectedLevelIndex = this.levelIndex;
     this.hideStatus(); this.ui.pauseState(false, true);
@@ -762,23 +772,20 @@ export class SkyStrikeGame {
       return;
     }
     const profile = weaponProfile(this.weaponForm, this.weaponLevel);
-    const vulnerableTargets = this.enemies.filter(enemy => !enemy.definition.directDamageImmune);
-    this.laserTarget = selectLaserTarget(this.player.x, this.player.y, profile.attractionRadius, vulnerableTargets);
+    const vulnerableTargets = this.enemies.filter(enemy => !enemy.definition.directDamageImmune && enemy.hitPoints > 0);
+    const targets: (EnemyState | Bullet)[] = [...vulnerableTargets, ...this.enemyBullets.filter(b => b.bubbleHealth !== undefined)];
+    this.laserTarget = selectLaserTarget(this.player.x, this.player.y, profile.attractionRadius, targets);
     this.laserDamageCooldownMs -= deltaMs;
     if (!this.laserTarget || this.laserDamageCooldownMs > 0) return;
-    const targetIndex = this.enemies.indexOf(this.laserTarget);
-    if (targetIndex < 0) {
-      this.laserTarget = null;
-      return;
-    }
     const damage = profile.beamDamagePerSecond * (LASER_DAMAGE_TICK_MS / 1000);
     const target = this.laserTarget;
-    this.damageEnemy(targetIndex, target, damage);
+    if ('hostile' in target) this.damageBubble(target, damage);
+    else this.damageEnemy(this.enemies.indexOf(target), target, damage);
     this.addLaserImpact(this.laserTarget.x, this.laserTarget.y, 22 + this.weaponLevel * 5);
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#65e8ff');
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#bd5cff');
     this.laserDamageCooldownMs += LASER_DAMAGE_TICK_MS;
-    if (!this.enemies.includes(target)) {
+    if ('hostile' in target ? !this.enemyBullets.includes(target) : !this.enemies.includes(target)) {
       this.laserTarget = null;
     }
   }
@@ -844,6 +851,12 @@ export class SkyStrikeGame {
     };
     this.enemies.push(enemy);
     if (definition.tier === 'boss') this.boss = enemy;
+    if (definition.id === 'twin-red') {
+      enemy.x = enemy.originX = 130;
+      const blue = this.spawnEnemy(requiredEnemyDefinition('twin-blue'), 350, enemy.y);
+      this.twins = [enemy, blue]; this.twinReviveMs = 0; this.boss = enemy;
+      enemy.laserCooldownMs = blue.laserCooldownMs = 2000;
+    }
     if (definition.id === 'space-train') {
       const carDefinition = requiredEnemyDefinition('space-train-car');
       for (let order = 1; order <= SPACE_TRAIN_CAR_COUNT; order++) {
@@ -875,12 +888,17 @@ export class SkyStrikeGame {
     const seconds = deltaMs / 1000;
     for (let index = this.enemies.length - 1; index >= 0; index--) {
       const enemy = this.enemies[index]!;
+      if (enemy.hitPoints <= 0) continue;
       enemy.ageMs += deltaMs;
       enemy.fireCooldownMs -= deltaMs;
       const movement = enemy.definition.flightPattern;
 
       if (enemy.definition.tier === 'boss') {
-        if (enemy.definition.id === 'iron-serpent') {
+        if (enemy.definition.bossAttack === 'twin-bubbles') {
+          enemy.y = Math.min(180, enemy.y + enemy.definition.speed * seconds);
+          enemy.entered = enemy.y >= 180;
+          enemy.x = enemy.originX + Math.sin(enemy.ageMs * 0.00085) * 38;
+        } else if (enemy.definition.id === 'iron-serpent') {
           this.updateIronSerpent(enemy, deltaMs);
         } else {
           if (enemy.y < 142) enemy.y += enemy.definition.speed * seconds;
@@ -1088,6 +1106,15 @@ export class SkyStrikeGame {
   }
 
   private triggerBossAttack(enemy: EnemyState): void {
+    if (enemy.definition.bossAttack === 'twin-bubbles') {
+      enemy.laserCooldownMs = 2800;
+      const color = enemy.definition.id === 'twin-red' ? 'red' : 'blue';
+      if (this.enemyBullets.filter(b => b.bubbleHealth !== undefined).length >= MAX_TWIN_BUBBLES) return;
+      this.enemyBullets.push({x:enemy.x,y:enemy.y+60,vx:color==='red'?32:-32,vy:85,radius:22,
+        damage:35,hostile:true,color:color==='red'?'#ff415e':'#48a7ff',bubbleColor:color,bubbleHealth:TWIN_BUBBLE_HEALTH});
+      this.combatEffects.shot(enemy,0,60,0,1,color==='red'?'#ff415e':'#48a7ff',color);
+      return;
+    }
     if (enemy.definition.bossAttack === 'laser') {
       this.startBossLaser(enemy);
       return;
@@ -1433,6 +1460,48 @@ export class SkyStrikeGame {
     if (this.bombBlast.ageMs >= this.bombBlast.durationMs) this.bombBlast = null;
   }
 
+  private updateTwins(deltaMs: number): void {
+    if (!this.twins || this.twinReviveMs <= 0) return;
+    this.twinReviveMs = Math.max(0, this.twinReviveMs - deltaMs);
+    if (this.twinReviveMs > 0) return;
+    for (const twin of this.twins) if (twin.hitPoints <= 0) {
+      twin.hitPoints = twin.definition.hitPoints * TWIN_REVIVE_HEALTH_RATIO;
+      twin.fireCooldownMs = 700; twin.laserCooldownMs = 1500;
+      this.addLaserImpact(twin.x,twin.y,100);
+    }
+    this.boss = this.twins[0];
+  }
+
+  private damageBubble(bubble: Bullet, damage: number): void {
+    if (bubble.bubbleHealth === undefined) return;
+    bubble.bubbleHealth -= Math.max(0,damage);
+    this.addSparks(bubble.x,bubble.y,4,bubble.color);
+    if (bubble.bubbleHealth <= 0) {
+      const index=this.enemyBullets.indexOf(bubble);
+      if(index>=0)this.enemyBullets.splice(index,1);
+      this.addLaserImpact(bubble.x,bubble.y,35);
+    }
+  }
+
+  private resolveBubbleCollisions(): void {
+    const bubbles=this.enemyBullets.filter(b=>b.bubbleHealth!==undefined);
+    for(let i=0;i<bubbles.length;i++) {
+      const a=bubbles[i]!;if(!this.enemyBullets.includes(a))continue;
+      for(let j=i+1;j<bubbles.length;j++) {
+        const b=bubbles[j]!;
+        if(a.bubbleColor===b.bubbleColor || !this.enemyBullets.includes(b) || !circlesOverlap(a,b))continue;
+        this.enemyBullets.splice(this.enemyBullets.indexOf(a),1);
+        this.enemyBullets.splice(this.enemyBullets.indexOf(b),1);
+        const x=(a.x+b.x)/2,y=(a.y+b.y)/2;
+        this.addLaserImpact(x,y,TWIN_BUBBLE_BLAST_RADIUS*1.4);
+        this.addImpact(x,y,180);this.addSparks(x,y,60,'#ce8dff');this.shakeMs=Math.max(this.shakeMs,550);
+        if(Math.hypot(this.player.x-x,this.player.y-y)<=TWIN_BUBBLE_BLAST_RADIUS+this.player.radius)
+          this.damagePlayer(TWIN_BUBBLE_BLAST_DAMAGE);
+        break;
+      }
+    }
+  }
+
   private updateBullets(deltaMs: number): void {
     const seconds = deltaMs / 1000;
     for (const collection of [this.playerBullets, this.enemyBullets]) {
@@ -1450,9 +1519,15 @@ export class SkyStrikeGame {
   private resolveCollisions(): void {
     for (let bulletIndex = this.playerBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
       const bullet = this.playerBullets[bulletIndex]!;
+      const bubble = this.enemyBullets.find(b => b.bubbleHealth !== undefined && circlesOverlap(b, bullet));
+      if (bubble) {
+        this.damageBubble(bubble, bullet.damage);
+        this.playerBullets.splice(bulletIndex, 1); continue;
+      }
       let hit = false;
       for (let enemyIndex = this.enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
         const enemy = this.enemies[enemyIndex]!;
+      if (enemy.hitPoints <= 0) continue;
         if (!circlesOverlap(bullet, enemy)) continue;
         hit = true;
         if (enemy.definition.directDamageImmune) {
@@ -1479,6 +1554,7 @@ export class SkyStrikeGame {
 
     for (let enemyIndex = this.enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
       const enemy = this.enemies[enemyIndex]!;
+      if (enemy.hitPoints <= 0) continue;
       const radius = enemy.definition.size * 0.25;
       if (circlesOverlap({ x: enemy.x, y: enemy.y, radius }, this.player)) {
         const contactDamage = enemy.definition.contactDamage ?? PLAYER_MAX_HEALTH;
@@ -1500,11 +1576,30 @@ export class SkyStrikeGame {
   }
 
   private destroyEnemy(index: number, enemy: EnemyState, suppressDeathBurst = false): void {
+    if (this.twins?.includes(enemy)) {
+      if (enemy.hitPoints > 0) enemy.hitPoints = 0;
+      if (this.twins.every(twin => twin.hitPoints <= 0)) {
+        const pair = this.twins; this.twins = null; this.twinReviveMs = 0;
+        this.boss = pair[1];
+        for (const twin of pair) this.destroyEnemy(this.enemies.indexOf(twin), twin, suppressDeathBurst);
+      } else if (this.twinReviveMs <= 0) {
+        this.twinReviveMs = TWIN_REVIVE_WINDOW_MS;
+        this.addEnemyDestructionEffects(enemy); this.combatEffects.detonate(enemy.x, enemy.y, enemy.definition.size);
+        this.boss = this.twins.find(twin => twin.hitPoints > 0)!;
+      }
+      return;
+    }
     const actualIndex = this.enemies[index] === enemy ? index : this.enemies.indexOf(enemy);
     if (actualIndex < 0) return;
     this.enemies.splice(actualIndex, 1);
     for (let laserIndex = this.hostileLasers.length - 1; laserIndex >= 0; laserIndex--) {
       if (this.hostileLasers[laserIndex]?.source === enemy) this.hostileLasers.splice(laserIndex, 1);
+    }
+    if (enemy.definition.splitsInto) {
+      for (const side of [-1, 1]) {
+        const child = this.spawnEnemy(requiredEnemyDefinition(enemy.definition.splitsInto), enemy.x + side * 38, enemy.y + 18);
+        child.fireCooldownMs = 650;
+      }
     }
     if (!suppressDeathBurst && enemy.definition.deathBurstCount) this.fireDeathBurst(enemy);
     if (enemy.definition.segmentedPart === 'serpent-turret') {
@@ -1522,6 +1617,7 @@ export class SkyStrikeGame {
       if (enemy.definition.bossAttack === 'emitter-grid') this.removeHeliosEmitters();
       if (enemy.definition.bossAttack === 'serpent-barrage') this.removeIronSerpentSegments();
       this.boss = null;
+      this.twins = null; this.twinReviveMs = 0;
       this.bossLaser = null;
       this.bossesDefeated++;
       this.levelAdvanceMs = LEVEL_ADVANCE_DELAY_MS;
@@ -1531,7 +1627,7 @@ export class SkyStrikeGame {
   }
 
   private damageEnemy(index: number, enemy: EnemyState, damage: number, suppressDeathBurst = false, source: 'weapon' | 'bomb' = 'weapon'): boolean {
-    if (!this.enemies.includes(enemy)) return true;
+    if (!this.enemies.includes(enemy) || enemy.hitPoints <= 0) return true;
     const boss = this.boss;
     const bossScale = source === 'bomb' ? BOSS_BOMB_DAMAGE_MULTIPLIER : 1;
     if (boss?.definition.id === 'iron-serpent'
@@ -1841,6 +1937,7 @@ export class SkyStrikeGame {
       if (d.id === 'helios-emitter') { this.drawHeliosEmitter(enemy); continue; }
       if (d.segmentedPart === 'train-car') { this.drawSpaceTrainCar(enemy); continue; }
       if (d.segmentedPart === 'serpent-turret') continue;
+      if(enemy.hitPoints<=0) { r.sprite(d.sprite,enemy.x,enemy.y,d.size,d.size,enemy.rotation,0.22);r.ring(enemy.x,enemy.y,d.size*0.45,enemy.definition.id==='twin-red'?'#ff415e':'#48a7ff',0.7);continue; }
       const w=d.size, h=w*(d.renderAspect??(d.tier==='boss'?1.18:1.3));
       if (d.tier==='boss'||d.tier==='elite') r.glow(enemy.x,enemy.y,w*0.75,d.tier==='boss'?'#ff244f':'#b455ff',0.3);
       drawShipDetails(r,enemy,this.player,true);
@@ -1924,6 +2021,13 @@ export class SkyStrikeGame {
   }
   private drawBullets(bullets: Bullet[]): void {
     for(const b of bullets) {
+      if(b.bubbleHealth!==undefined) {
+        this.battle.glow(b.x,b.y,b.radius*1.8,b.color,0.32);
+        this.battle.disc(b.x,b.y,b.radius,b.color,0.18);
+        this.battle.ring(b.x,b.y,b.radius,b.color,0.85);
+        this.battle.ring(b.x,b.y,b.radius*0.78,b.color,0.25+0.5*b.bubbleHealth/TWIN_BUBBLE_HEALTH);
+        this.battle.disc(b.x-6,b.y-7,4,'#ffffff',0.8);continue;
+      }
       this.battle.glow(b.x,b.y,b.hostile?b.radius*3:16,b.color,0.65);
       if(b.hostile) { this.battle.disc(b.x,b.y,b.radius,b.color); this.battle.disc(b.x,b.y,b.radius*0.4,'#fff4ff',0.85); }
       else this.battle.sprite('fx:disc',b.x,b.y,4.8,22,b.rotation??0,1,b.color);
@@ -1952,6 +2056,7 @@ export class SkyStrikeGame {
     this.ui.update({ score: this.score, highScore: this.highScore, wave: this.wave, lives: this.player.lives,
       health: this.player.health, weapon: this.weaponForm, weaponLevel: this.weaponLevel,
       bombs: this.bombs, bombDisabled: this.phase !== 'playing' || this.bombs <= 0 || this.bombBlast !== null,
+      ...(this.twins?{twinHealth:this.twins.map(t=>Math.max(0,t.hitPoints)/t.definition.hitPoints)}:{}), twinReviveMs:this.twinReviveMs,
       bossName: this.boss?.definition.id ?? '',
       bossHealth: this.boss ? this.boss.hitPoints / this.boss.definition.hitPoints : 0 });
     this.ui.metadata({ phase: this.phase, health: this.player.health.toFixed(2), lives: String(this.player.lives),

@@ -3,6 +3,9 @@ import { CARRIER_DEPLOY_INTERVAL_MS, type EnemyDefinition } from './rules';
 interface ShipPose { definition: EnemyDefinition; x:number; y:number; rotation:number; ageMs:number; fireCooldownMs:number; lastShotAgeMs?:number; laserCooldownMs:number; charging:boolean }
 /** Per-hull attachment placement, in fractions of the existing ship sprite. */
 const layouts: Record<string,{ engines: number[]; rear: number; rotors: number[]; color: string }> = {
+  'twin-red':{engines:[-0.22,0.22],rear:-0.3,rotors:[0],color:'#ff415e'},
+  'twin-blue':{engines:[-0.22,0.22],rear:-0.3,rotors:[0],color:'#48a7ff'},
+  'fission-elite':{engines:[-0.25,0.25],rear:-0.3,rotors:[-0.22,0.22],color:'#bd78ff'},
   dreadnought:{engines:[-0.23,0.23],rear:-0.35,rotors:[-0.24,0.24],color:'#ff8655'},
   'ion-seraph':{engines:[-0.28,0.28],rear:-0.31,rotors:[-0.25,0.25],color:'#68cdff'},
   'void-mantis':{engines:[-0.16,0.16],rear:-0.32,rotors:[-0.27,0.27],color:'#c575ff'},

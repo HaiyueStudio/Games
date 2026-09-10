@@ -66,15 +66,15 @@ import {
   wrapLevelIndex,
 } from '../sky-strike/levels/loader.ts';
 
-test('Sky Strike defines ten regular enemies, three elites, six bosses, and segmented devices', () => {
-  assert.equal(ENEMY_DEFINITIONS.length, 22);
+test('Sky Strike defines ten regular enemies, four elites, eight boss hulls, and segmented devices', () => {
+  assert.equal(ENEMY_DEFINITIONS.length, 25);
   assert.equal(NORMAL_ENEMIES.length, 10);
-  assert.equal(ELITE_ENEMIES.length, 3);
-  assert.equal(BOSS_ENEMIES.length, 6);
+  assert.equal(ELITE_ENEMIES.length, 4);
+  assert.equal(BOSS_ENEMIES.length, 8);
   assert.equal(BOSS_ENEMY.tier, 'boss');
   assert.equal(BOSS_ENEMY.hitPoints, 1_300);
-  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage']);
-  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 22);
+  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage', 'twin-bubbles', 'twin-bubbles']);
+  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 25);
   assert.ok(ENEMY_DEFINITIONS.every(enemy => enemy.hitPoints > 0 && enemy.size > 0));
   const helios = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-prism');
   const emitter = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-emitter');
@@ -273,10 +273,10 @@ test('bomb area is forward-facing and includes nearby enemies and projectiles', 
 });
 
 test('level timelines expand grouped spawns and resolve deterministic positions', async () => {
-  const levelUrls = [1, 2, 3, 4, 5, 6].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
+  const levelUrls = [1, 2, 3, 4, 5, 6, 7].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
   const levels = await Promise.all(levelUrls.map(async url => JSON.parse(await readFile(url, 'utf8'))));
-  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier', 'helios-prism', 'iron-serpent']);
-  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307', '#031317', '#020d0a']);
+  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier', 'helios-prism', 'iron-serpent', 'twin-red']);
+  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307', '#031317', '#020d0a', '#10051b']);
   assert.ok(levels.every(level => typeof level.name === 'string' && level.name.length >= 4));
   for (const level of levels) {
     const timeline = compileLevelTimeline(level);
@@ -297,8 +297,8 @@ test('level timelines expand grouped spawns and resolve deterministic positions'
     mixLevelBackground(levels[0].background, levels[1].background, 1),
     levels[1].background,
   );
-  assert.equal(wrapLevelIndex(6, levels.length), 0);
-  assert.equal(wrapLevelIndex(-1, levels.length), 5);
+  assert.equal(wrapLevelIndex(7, levels.length), 0);
+  assert.equal(wrapLevelIndex(-1, levels.length), 6);
   assert.equal(wrapLevelIndex(3, 0), 0);
 });
 

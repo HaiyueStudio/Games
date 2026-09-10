@@ -48,6 +48,7 @@ const LEVEL_PATHS = [
   'levels/level-04.json',
   'levels/level-05.json',
   'levels/level-06.json',
+  'levels/level-07.json',
 ] as const;
 
 export async function loadSkyStrikeLevels(readJson?: (path: string) => Promise<unknown>): Promise<readonly SkyStrikeLevel[]> {

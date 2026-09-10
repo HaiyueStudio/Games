@@ -18,6 +18,7 @@ import { wrapLevelIndex, type SkyStrikeLevel } from './levels/loader';
 export interface LevelBossPresentation {
   readonly source: GuiImageSource;
   readonly sourceKey: string;
+  readonly companion?: {source: GuiImageSource; sourceKey: string};
   readonly label: string;
   readonly aspect: number;
 }
@@ -44,6 +45,7 @@ export class SkyStrikeLevelCarousel {
   private readonly panel: GuiElement;
   private readonly heading: GuiLabel;
   private readonly bossImage: GuiImage;
+  private readonly companionImage: GuiImage;
   private readonly levelName: GuiLabel;
   private readonly bossName: GuiLabel;
   private readonly counter: GuiLabel;
@@ -120,6 +122,7 @@ export class SkyStrikeLevelCarousel {
         radius: 3,
       },
     }));
+    this.companionImage=this.panel.add(new GuiImage({visible:false,disabled:true}));
     this.layoutBossImage();
 
     const previousButton = skyStrikeButton(this.panel, options.guiImage, '', () => this.changeSelection(-1), 'left');
@@ -236,6 +239,10 @@ export class SkyStrikeLevelCarousel {
     this.bossName.setText(`${t.text('boss')} · ${boss.label}`);
     this.counter.setText(`${t.text('sector')}  ${String(this.selectedIndex + 1).padStart(2, '0')} / ${String(this.options.levels.length).padStart(2, '0')}`);
     this.bossImage.setSource(boss.source, boss.sourceKey);
+    this.companionImage.setVisible(!!boss.companion);
+    if(boss.companion)this.companionImage.setSource(boss.companion.source,boss.companion.sourceKey);
+    this.bossImage.layout(this.panel.rect);
+    this.companionImage.layout(this.panel.rect);
     this.root.root.markDirty();
   }
 
@@ -281,15 +288,16 @@ export class SkyStrikeLevelCarousel {
   }
 
   private layoutBossImage(): void {
-    this.bossImage.layout = (parentRect) => {
+    for(const [image,side] of [[this.bossImage,-1],[this.companionImage,1]] as const) image.layout = (parentRect) => {
       const level = this.options.levels[this.selectedIndex];
       const aspect = level ? Math.max(0.8, this.options.resolveBoss(level).aspect) : 1.25;
-      const maxWidth = parentRect.width * 0.56;
+      const paired=!!(level && this.options.resolveBoss(level).companion);
+      const maxWidth = parentRect.width * (paired?0.34:0.56);
       const maxHeight = parentRect.height * 0.43;
       const width = Math.min(maxWidth, maxHeight / aspect);
       const height = width * aspect;
-      this.bossImage.rect = {
-        x: parentRect.x + (parentRect.width - width) / 2,
+      image.rect = {
+        x: parentRect.x + (parentRect.width - width) / 2 + (paired?side*width*0.47:0),
         y: parentRect.y + parentRect.height * 0.17 + (maxHeight - height) / 2,
         width,
         height,
