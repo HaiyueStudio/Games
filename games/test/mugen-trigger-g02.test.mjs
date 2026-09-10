@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
+import { readMugenTestArtifact } from './mugen-test-artifacts.mjs';
 
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? `${specifier}.ts` : specifier, context); } });
 
@@ -61,8 +62,8 @@ test('G07-B evaluates legal sibling redirections and redirected selector argumen
 });
 
 test('G02 generated trigger ledger classifies the complete frozen 127-item census without duplicates', () => {
-  const frozen = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m08-mugen-asset-vertical-slice/g01-contract/feature-census.json', import.meta.url), 'utf8'));
-  const artifact = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/trigger-ledger.json', import.meta.url), 'utf8'));
+  const frozen = readMugenTestArtifact('m08-mugen-asset-vertical-slice/g01-contract/feature-census.json');
+  const artifact = readMugenTestArtifact('m09-mugen-character-runtime-parity/trigger-ledger.json');
   const official = frozen.catalogs.find(catalog => catalog.id === 'official-triggers').groups.flatMap(group => group.items).sort();
   const classified = artifact.classifications.flatMap(group => group.items.map(name => ({ name, implementation: group.implementation, owner: group.owner })));
   assert.equal(MUGEN_TRIGGER_LEDGER.length, 127); assert.equal(new Set(MUGEN_TRIGGER_LEDGER.map(entry => entry.name)).size, 127);
@@ -76,7 +77,7 @@ test('G02 generated trigger ledger classifies the complete frozen 127-item censu
 });
 
 test('G02 official executable oracle evidence is content-addressed to the committed fixture', () => {
-  const evidence = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/g02-official-oracle-evidence.json', import.meta.url), 'utf8'));
+  const evidence = readMugenTestArtifact('m09-mugen-character-runtime-parity/g02-official-oracle-evidence.json');
   assert.equal(evidence.result, 'pass'); assert.equal(evidence.protocol.orderedValue, 1234); assert.equal(evidence.protocol.persistentTwoAtTime60, 30);
   for (const source of evidence.sources.filter(value => value.path.startsWith('Games/'))) {
     const relative = source.path.slice('Games/'.length); const bytes = readFileSync(new URL(`../../${relative}`, import.meta.url));
