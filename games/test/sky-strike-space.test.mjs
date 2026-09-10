@@ -5,10 +5,10 @@ import { stripTypeScriptTypes } from 'node:module';
 const code=stripTypeScriptTypes(readFileSync(new URL('../sky-strike/spaceBackdrop.ts',import.meta.url),'utf8'),{mode:'transform'});
 const {SkyStrikeSpaceBackdrop,spaceTiles,SPACE_THEMES,SPACE_FADE_MS}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
-test('all seven missions own a distinct background; some include independently moving planets',()=>{
- const ids=Array.from({length:7},(_,i)=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-0${i+1}.json`,import.meta.url))).id);
+test('all eight missions own a distinct background; some include independently moving planets',()=>{
+ const ids=Array.from({length:8},(_,i)=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-0${i+1}.json`,import.meta.url))).id);
  assert.deepEqual(SPACE_THEMES.map(t=>t.level),ids);
- assert.equal(new Set(SPACE_THEMES.map(t=>t.texture)).size,7);
+ assert.equal(new Set(SPACE_THEMES.map(t=>t.texture)).size,8);
  assert.ok(SPACE_THEMES.some(t=>!t.planet));assert.ok(SPACE_THEMES.some(t=>t.planet==='planet-amber'));assert.ok(SPACE_THEMES.some(t=>t.planet==='planet-ice'));
 });
 test('scroll tiles cover the full field without gaps or unmatched seams across many wrap boundaries',()=>{
@@ -20,10 +20,10 @@ test('scroll tiles cover the full field without gaps or unmatched seams across m
 });
 test('crossfade preserves total weight, supports interruptions, settles and resets cleanly',()=>{
  const b=new SkyStrikeSpaceBackdrop();b.select('orbital-gate',true);b.update(2000);b.select('ion-tempest');
- assert.deepEqual(b.weights(),[1,0,0,0,0,0,0]);b.update(SPACE_FADE_MS/2);assert.deepEqual(b.weights(),[.5,.5,0,0,0,0,0]);
+ assert.deepEqual(b.weights(),[1,0,0,0,0,0,0,0]);b.update(SPACE_FADE_MS/2);assert.deepEqual(b.weights(),[.5,.5,0,0,0,0,0,0]);
  const before=b.weights(),age=b.snapshot().ageMs;b.select('void-hunt');assert.deepEqual(b.weights(),before);assert.equal(b.snapshot().ageMs,age);
  for(let i=0;i<90;i++){b.update(100);assert.ok(Math.abs(b.weights().reduce((a,v)=>a+v,0)-1)<1e-12);}
- assert.deepEqual(b.weights(),[0,0,1,0,0,0,0]);b.select('binary-nova',true);assert.equal(b.snapshot().ageMs,0);assert.deepEqual(b.weights(),[0,0,0,0,0,0,1]);
+ assert.deepEqual(b.weights(),[0,0,1,0,0,0,0,0]);b.select('binary-nova',true);assert.equal(b.snapshot().ageMs,0);assert.deepEqual(b.weights(),[0,0,0,0,0,0,1,0]);
  assert.throws(()=>b.select('missing'));b.update(NaN);assert.equal(b.snapshot().ageMs,0);
 });
 test('space layers keep independent scroll speeds and depth, with bounded immutable sprite commands',()=>{

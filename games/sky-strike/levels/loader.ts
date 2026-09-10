@@ -26,6 +26,8 @@ export interface LevelBackground {
   readonly nebula: string;
 }
 
+export interface AsteroidBelt { readonly startMs: number; readonly endMs: number; readonly intervalMs: number; readonly bossIntervalMs: number }
+
 export interface SkyStrikeLevel {
   readonly id: string;
   readonly name: string;
@@ -33,6 +35,7 @@ export interface SkyStrikeLevel {
   readonly bossId: string;
   readonly background: LevelBackground;
   readonly spawns: readonly LevelSpawnGroup[];
+  readonly asteroidBelt?: AsteroidBelt;
 }
 
 export interface CompiledLevelSpawn {
@@ -49,6 +52,7 @@ const LEVEL_PATHS = [
   'levels/level-05.json',
   'levels/level-06.json',
   'levels/level-07.json',
+  'levels/level-08.json',
 ] as const;
 
 export async function loadSkyStrikeLevels(readJson?: (path: string) => Promise<unknown>): Promise<readonly SkyStrikeLevel[]> {
@@ -117,6 +121,12 @@ function parseLevel(value: unknown, path: string): SkyStrikeLevel {
     || !Array.isArray(value.spawns)) {
     throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} has an invalid root object.`);
   }
+  const belt = value.asteroidBelt;
+  if (belt !== undefined && (!isRecord(belt) || !isFiniteNumber(belt.startMs) || belt.startMs < 0
+    || !isFiniteNumber(belt.endMs) || belt.endMs <= belt.startMs
+    || !isFiniteNumber(belt.intervalMs) || belt.intervalMs < 250 || belt.intervalMs > 5000
+    || !isFiniteNumber(belt.bossIntervalMs) || belt.bossIntervalMs < 250 || belt.bossIntervalMs > 5000))
+    throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} has an invalid asteroid belt.`);
   const spawns = value.spawns.map((spawn, index) => parseSpawn(spawn, `${path}#spawns[${index}]`));
   if (!spawns.some(spawn => spawn.enemyId === value.bossId)) {
     throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} must schedule boss "${value.bossId}".`);
@@ -128,6 +138,7 @@ function parseLevel(value: unknown, path: string): SkyStrikeLevel {
     bossId: value.bossId,
     background: Object.freeze({ ...value.background }),
     spawns: Object.freeze(spawns),
+    ...(belt ? { asteroidBelt: Object.freeze({ ...belt }) as unknown as AsteroidBelt } : {}),
   });
 }
 

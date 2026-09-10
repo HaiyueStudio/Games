@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const entries=JSON.parse(readFileSync(new URL('../sky-strike/assets/sprites.json',import.meta.url),'utf8'));
 const pixels=readFileSync(new URL('../sky-strike/assets/sprites.rgba',import.meta.url));
-test('runtime image pack stays under 26 MiB with complete, contiguous RGBA slices',()=>{
- assert.ok(pixels.byteLength<26*1024*1024);let offset=0;
+test('runtime image pack stays under 28 MiB with complete, contiguous RGBA slices',()=>{
+ assert.ok(pixels.byteLength<28*1024*1024);let offset=0;
  for(const e of entries){assert.equal(e.offset,offset);assert.equal(e.length,e.width*e.height*4);offset+=e.length;}
  assert.equal(offset,pixels.byteLength);assert.equal(new Set(entries.map(e=>e.id)).size,entries.length);
 });
@@ -14,13 +14,13 @@ test('small HUD art uses small alpha textures while Boss art retains preview res
   let clear=false,visible=false;for(let p=e.offset+3;p<e.offset+e.length;p+=4){clear ||=pixels[p]===0;visible ||=pixels[p]>0;}
   assert.ok(clear&&visible,`${id} preserves transparency`);
  }
- for(const e of entries.filter(e=>e.id.startsWith('assets/boss-')))assert.equal(Math.max(e.width,e.height),e.id.includes('boss-twin-')?384:640);
+ for(const e of entries.filter(e=>e.id.startsWith('assets/boss-')))assert.equal(Math.max(e.width,e.height),e.id.includes('boss-twin-')?384:e.id.includes('boss-miner')?512:640);
 });
 
 
-test('seven themed background tiles and two planet layers have bounded runtime sizes',()=>{
+test('eight themed background tiles and two planet layers have bounded runtime sizes',()=>{
  const backgrounds=entries.filter(e=>e.id.startsWith('assets/bg-'));
- assert.equal(backgrounds.length,7);
+ assert.equal(backgrounds.length,8);
  for(const e of backgrounds)assert.equal(Math.max(e.width,e.height),512);
  const planets=entries.filter(e=>e.id.startsWith('assets/planet-'));
  assert.equal(planets.length,2);
@@ -29,3 +29,9 @@ test('seven themed background tiles and two planet layers have bounded runtime s
   assert.ok(clear&&visible,'planet remains an independent transparent layer');
  }
 });
+
+ test('asteroid variants preserve alpha and use only 192px runtime textures',()=>{
+ const rocks=entries.filter(e=>e.id.includes('asteroid-')); assert.equal(rocks.length,3);
+ for(const e of rocks){assert.equal(Math.max(e.width,e.height),192);let clear=false,visible=false;
+ for(let i=e.offset+3;i<e.offset+e.length;i+=4){clear ||=pixels[i]===0;visible ||=pixels[i]>0;}assert.ok(clear&&visible);}
+ });

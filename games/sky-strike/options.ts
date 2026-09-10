@@ -1,3 +1,4 @@
+import type { SkyStrikeAudio } from './audio/SkyStrikeAudio';
 import { Entity, type World } from '@haiyue/engine';
 import { GuiRoot, GuiElement, GuiImage, GuiLabel } from '@haiyue/engine/gui';
 import { SKY_LANGUAGES, SKY_LANGUAGE_NAMES, type SkyStrikeLocale } from './i18n';
@@ -7,12 +8,13 @@ import { skyStrikeButton, type SkyStrikeGuiImage } from './guiSkins';
 export class SkyStrikeOptions {
   private readonly root = new GuiRoot({ visible: false });
   private readonly offLocale: () => void;
+  private readonly offAudio: (() => void) | undefined;
   isOpen = false;
-  constructor(world: World, image: SkyStrikeGuiImage, locale: SkyStrikeLocale) {
+  constructor(world: World, image: SkyStrikeGuiImage, locale: SkyStrikeLocale, audio?: SkyStrikeAudio) {
     const overlay = this.root.add(new GuiElement({ width: '100%', height: '100%', style: { backgroundColor: 'rgba(1,3,13,0.94)' } }));
     const card = overlay.add(new GuiElement());
     card.layout = rect => {
-      const width = Math.min(400, rect.width - 24), height = Math.min(510, rect.height - 48);
+      const width = Math.min(400, rect.width - 24), height = Math.min(640, rect.height - 48);
       card.rect = { x: rect.x + (rect.width-width)/2, y: rect.y + (rect.height-height)/2, width, height };
       for (const child of card.children) child.layout(card.rect);
     };
@@ -26,17 +28,25 @@ export class SkyStrikeOptions {
       const button = skyStrikeButton(card,image,'',()=>locale.set(language)); place(button,0.30+index*0.125,0.105);
       return { language, button };
     });
-    const hint = card.add(new GuiLabel({ fontSize: 10, textAlign: 'center', style: { color: '#c9b5df' } })); place(hint,0.70,0.055,0.9);
-    const back = skyStrikeButton(card,image,'',()=>this.close()); place(back,0.78,0.105,0.6);
+    const hint = card.add(new GuiLabel({ fontSize: 10, textAlign: 'center', style: { color: '#c9b5df' } })); place(hint,0.655,0.04,0.9);
+    const sound = skyStrikeButton(card,image,'',()=>audio?.settings(!audio.enabled)); place(sound,0.705,0.075);
+    const volume = card.add(new GuiLabel({fontSize:14,textAlign:'center',style:{color:'#a2deef'}})); place(volume,0.795,0.075,0.44);
+    for (const direction of [-1,1]) {
+      const button = skyStrikeButton(card,image,direction<0?'-':'+',()=>audio?.settings(audio.enabled,audio.volume+direction*0.1));
+      button.layout = rect => {button.rect={x:rect.x+rect.width*(direction<0?0.12:0.71),y:rect.y+rect.height*0.795,width:rect.width*0.17,height:rect.height*0.075};for(const child of button.children)child.layout(button.rect);};
+    }
+    const back = skyStrikeButton(card,image,'',()=>this.close()); place(back,0.895,0.075,0.6);
     const refresh = () => {
       heading.setText(locale.text('options')); subtitle.setText(locale.text('language'));
-      hint.setText(locale.text(locale.saveFailed ? 'saveFailed' : 'languageHint')); back.setText(locale.text('close'));
+      hint.setText(locale.text(audio?.saveFailed ? 'audioSaveFailed' : locale.saveFailed ? 'saveFailed' : 'languageHint'));
+      sound.setText(locale.text(audio?.enabled !== false ? 'audioOn' : 'audioOff'));
+      volume.setText(`${locale.text('volume')} ${Math.round((audio?.volume ?? 0.65)*100)}%`); back.setText(locale.text('close'));
       for (const {language,button} of buttons) button.setText(`${locale.language === language ? '●' : '○'}  ${SKY_LANGUAGE_NAMES[language]}`);
     };
-    this.offLocale = locale.subscribe(refresh); refresh();
+    this.offLocale = locale.subscribe(refresh); this.offAudio = audio?.subscribe(refresh); refresh();
     const entity = new Entity('SkyStrikeOptionsGui'); entity.addComponent(this.root); world.addEntity(entity);
   }
   open(): void { this.isOpen = true; this.root.root.setVisible(true); }
   close(): void { this.isOpen = false; this.root.root.setVisible(false); }
-  dispose(): void { this.close(); this.offLocale(); }
+  dispose(): void { this.close(); this.offLocale(); this.offAudio?.(); }
 }

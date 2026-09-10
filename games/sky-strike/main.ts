@@ -1,3 +1,5 @@
+import { SkyStrikeAudio } from './audio/SkyStrikeAudio';
+import { SkyStrikeBrowserAudio } from './audio/browser';
 import { browserSkyStrikeLocale } from './i18n';
 import { HaiyueEngine, World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
@@ -13,7 +15,10 @@ async function main(): Promise<void> {
   const battle = new SkyStrikeBattleLayer(engine, await loadSkySprites()); world.addSystem(battle);
   const locale = browserSkyStrikeLocale();
   const ui = new SkyStrikeGuiHud(world, id => battle.guiImage(id), undefined, locale);
-  const game = new SkyStrikeGame(canvas, battle, engine, world, { ui, locale,
+  const audioBackend = new SkyStrikeBrowserAudio(); await audioBackend.load();
+  let settingsStorage: Storage | undefined; try { settingsStorage=globalThis.localStorage; } catch { /* Private browsing can deny persistence. */ }
+  const audio = new SkyStrikeAudio(audioBackend, settingsStorage);
+  const game = new SkyStrikeGame(canvas, battle, engine, world, { ui, locale, audio,
     acceptsGameplayInput: (_x,y) => y >= 94 && y <= canvas.getBoundingClientRect().height - 94,
   });
   await game.init();

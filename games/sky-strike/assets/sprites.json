@@ -1,324 +1,359 @@
 [
   {
+    "id": "assets/asteroid-copper.png",
+    "width": 192,
+    "height": 192,
+    "offset": 0,
+    "length": 147456
+  },
+  {
+    "id": "assets/asteroid-ice.png",
+    "width": 192,
+    "height": 192,
+    "offset": 147456,
+    "length": 147456
+  },
+  {
+    "id": "assets/asteroid-iron.png",
+    "width": 192,
+    "height": 192,
+    "offset": 294912,
+    "length": 147456
+  },
+  {
     "id": "assets/bg-binary.png",
     "width": 512,
     "height": 512,
-    "offset": 0,
+    "offset": 442368,
     "length": 1048576
   },
   {
     "id": "assets/bg-carrier.png",
     "width": 512,
     "height": 512,
-    "offset": 1048576,
+    "offset": 1490944,
     "length": 1048576
   },
   {
     "id": "assets/bg-ion.png",
     "width": 512,
     "height": 512,
-    "offset": 2097152,
+    "offset": 2539520,
+    "length": 1048576
+  },
+  {
+    "id": "assets/bg-mining.png",
+    "width": 512,
+    "height": 512,
+    "offset": 3588096,
     "length": 1048576
   },
   {
     "id": "assets/bg-orbital.png",
     "width": 512,
     "height": 512,
-    "offset": 3145728,
+    "offset": 4636672,
     "length": 1048576
   },
   {
     "id": "assets/bg-prism.png",
     "width": 512,
     "height": 512,
-    "offset": 4194304,
+    "offset": 5685248,
     "length": 1048576
   },
   {
     "id": "assets/bg-serpent.png",
     "width": 512,
     "height": 512,
-    "offset": 5242880,
+    "offset": 6733824,
     "length": 1048576
   },
   {
     "id": "assets/bg-void.png",
     "width": 512,
     "height": 512,
-    "offset": 6291456,
+    "offset": 7782400,
     "length": 1048576
   },
   {
     "id": "assets/boss-dreadnought.png",
     "width": 427,
     "height": 640,
-    "offset": 7340032,
+    "offset": 8830976,
     "length": 1093120
   },
   {
     "id": "assets/boss-helios-prism.png",
     "width": 427,
     "height": 640,
-    "offset": 8433152,
+    "offset": 9924096,
     "length": 1093120
   },
   {
     "id": "assets/boss-ion-seraph.png",
     "width": 427,
     "height": 640,
-    "offset": 9526272,
+    "offset": 11017216,
     "length": 1093120
   },
   {
     "id": "assets/boss-iron-serpent.png",
     "width": 427,
     "height": 640,
-    "offset": 10619392,
+    "offset": 12110336,
     "length": 1093120
+  },
+  {
+    "id": "assets/boss-miner.png",
+    "width": 512,
+    "height": 512,
+    "offset": 13203456,
+    "length": 1048576
   },
   {
     "id": "assets/boss-star-carrier.png",
     "width": 427,
     "height": 640,
-    "offset": 11712512,
+    "offset": 14252032,
     "length": 1093120
   },
   {
     "id": "assets/boss-twin-blue.png",
     "width": 384,
     "height": 384,
-    "offset": 12805632,
+    "offset": 15345152,
     "length": 589824
   },
   {
     "id": "assets/boss-twin-red.png",
     "width": 384,
     "height": 384,
-    "offset": 13395456,
+    "offset": 15934976,
     "length": 589824
   },
   {
     "id": "assets/boss-void-mantis.png",
     "width": 427,
     "height": 640,
-    "offset": 13985280,
+    "offset": 16524800,
     "length": 1093120
   },
   {
     "id": "assets/elite-crimson-lance.png",
     "width": 213,
     "height": 320,
-    "offset": 15078400,
+    "offset": 17617920,
     "length": 272640
   },
   {
     "id": "assets/elite-fission.png",
     "width": 256,
     "height": 256,
-    "offset": 15351040,
+    "offset": 17890560,
     "length": 262144
   },
   {
     "id": "assets/elite-prism-lancer.png",
     "width": 213,
     "height": 320,
-    "offset": 15613184,
+    "offset": 18152704,
     "length": 272640
   },
   {
     "id": "assets/elite-violet-fortress.png",
     "width": 213,
     "height": 320,
-    "offset": 15885824,
+    "offset": 18425344,
     "length": 272640
   },
   {
     "id": "assets/enemy-bomber.png",
     "width": 171,
     "height": 256,
-    "offset": 16158464,
+    "offset": 18697984,
     "length": 175104
   },
   {
     "id": "assets/enemy-dart.png",
     "width": 171,
     "height": 256,
-    "offset": 16333568,
+    "offset": 18873088,
     "length": 175104
   },
   {
     "id": "assets/enemy-drone.png",
     "width": 231,
     "height": 256,
-    "offset": 16508672,
+    "offset": 19048192,
     "length": 236544
   },
   {
     "id": "assets/enemy-gunship.png",
     "width": 171,
     "height": 256,
-    "offset": 16745216,
+    "offset": 19284736,
     "length": 175104
   },
   {
     "id": "assets/enemy-kamikaze.png",
     "width": 171,
     "height": 256,
-    "offset": 16920320,
+    "offset": 19459840,
     "length": 175104
   },
   {
     "id": "assets/enemy-saucer.png",
     "width": 252,
     "height": 256,
-    "offset": 17095424,
+    "offset": 19634944,
     "length": 258048
   },
   {
     "id": "assets/enemy-scout.png",
     "width": 171,
     "height": 256,
-    "offset": 17353472,
+    "offset": 19892992,
     "length": 175104
   },
   {
     "id": "assets/enemy-space-train.png",
     "width": 171,
     "height": 256,
-    "offset": 17528576,
+    "offset": 20068096,
     "length": 175104
   },
   {
     "id": "assets/enemy-splitter.png",
     "width": 171,
     "height": 256,
-    "offset": 17703680,
+    "offset": 20243200,
     "length": 175104
   },
   {
     "id": "assets/enemy-stealth.png",
     "width": 246,
     "height": 256,
-    "offset": 17878784,
+    "offset": 20418304,
     "length": 251904
   },
   {
     "id": "assets/fx-burning-impact.png",
     "width": 314,
     "height": 320,
-    "offset": 18130688,
+    "offset": 20670208,
     "length": 401920
   },
   {
     "id": "assets/fx-flame.png",
     "width": 128,
     "height": 192,
-    "offset": 18532608,
+    "offset": 21072128,
     "length": 98304
   },
   {
     "id": "assets/fx-hatch.png",
     "width": 114,
     "height": 192,
-    "offset": 18630912,
+    "offset": 21170432,
     "length": 87552
   },
   {
     "id": "assets/fx-rotor.png",
     "width": 128,
     "height": 128,
-    "offset": 18718464,
+    "offset": 21257984,
     "length": 65536
   },
   {
     "id": "assets/fx-turret.png",
     "width": 189,
     "height": 192,
-    "offset": 18784000,
+    "offset": 21323520,
     "length": 145152
   },
   {
     "id": "assets/gui-arrow.png",
     "width": 160,
     "height": 160,
-    "offset": 18929152,
+    "offset": 21468672,
     "length": 102400
   },
   {
     "id": "assets/gui-bomb.png",
     "width": 160,
     "height": 160,
-    "offset": 19031552,
+    "offset": 21571072,
     "length": 102400
   },
   {
     "id": "assets/gui-gear.png",
     "width": 128,
     "height": 128,
-    "offset": 19133952,
+    "offset": 21673472,
     "length": 65536
   },
   {
     "id": "assets/gui-launch.png",
     "width": 640,
     "height": 256,
-    "offset": 19199488,
+    "offset": 21739008,
     "length": 655360
   },
   {
     "id": "assets/gui-life.png",
     "width": 48,
     "height": 48,
-    "offset": 19854848,
+    "offset": 22394368,
     "length": 9216
   },
   {
     "id": "assets/gui-pause-panel.png",
     "width": 768,
     "height": 576,
-    "offset": 19864064,
+    "offset": 22403584,
     "length": 1769472
   },
   {
     "id": "assets/gui-pause.png",
     "width": 160,
     "height": 160,
-    "offset": 21633536,
+    "offset": 24173056,
     "length": 102400
   },
   {
     "id": "assets/gui-shield.png",
     "width": 96,
     "height": 96,
-    "offset": 21735936,
+    "offset": 24275456,
     "length": 36864
   },
   {
     "id": "assets/gui-space.png",
     "width": 512,
     "height": 1024,
-    "offset": 21772800,
+    "offset": 24312320,
     "length": 2097152
   },
   {
     "id": "assets/planet-amber.png",
     "width": 384,
     "height": 384,
-    "offset": 23869952,
+    "offset": 26409472,
     "length": 589824
   },
   {
     "id": "assets/planet-ice.png",
     "width": 384,
     "height": 384,
-    "offset": 24459776,
+    "offset": 26999296,
     "length": 589824
   },
   {
     "id": "assets/player-fighter.png",
     "width": 171,
     "height": 256,
-    "offset": 25049600,
+    "offset": 27589120,
     "length": 175104
   }
 ]

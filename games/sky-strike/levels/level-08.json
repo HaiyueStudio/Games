@@ -1,0 +1,94 @@
+{
+  "id": "asteroid-forge",
+  "name": "陨星矿场",
+  "seed": 81673291,
+  "bossId": "ore-reaper",
+  "background": {
+    "top": "#0d0c17",
+    "middle": "#261b26",
+    "bottom": "#030712",
+    "nebula": "#644834"
+  },
+  "asteroidBelt": {
+    "startMs": 9500,
+    "endMs": 33000,
+    "intervalMs": 520,
+    "bossIntervalMs": 420
+  },
+  "spawns": [
+    {
+      "atMs": 500,
+      "enemyId": "scout",
+      "position": {
+        "mode": "random",
+        "minX": 65,
+        "maxX": 415
+      },
+      "count": 6,
+      "intervalMs": 500
+    },
+    {
+      "atMs": 4300,
+      "enemyId": "dart",
+      "position": {
+        "mode": "random",
+        "minX": 65,
+        "maxX": 415
+      },
+      "count": 5,
+      "intervalMs": 600
+    },
+    {
+      "atMs": 9000,
+      "enemyId": "crimson-lance",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      },
+      "count": 1,
+      "intervalMs": 0
+    },
+    {
+      "atMs": 14500,
+      "enemyId": "saucer",
+      "position": {
+        "mode": "random",
+        "minX": 65,
+        "maxX": 415
+      },
+      "count": 5,
+      "intervalMs": 1000
+    },
+    {
+      "atMs": 21500,
+      "enemyId": "fission-elite",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      },
+      "count": 1,
+      "intervalMs": 0
+    },
+    {
+      "atMs": 27000,
+      "enemyId": "dart",
+      "position": {
+        "mode": "random",
+        "minX": 65,
+        "maxX": 415
+      },
+      "count": 5,
+      "intervalMs": 800
+    },
+    {
+      "atMs": 38000,
+      "enemyId": "ore-reaper",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      },
+      "count": 1,
+      "intervalMs": 0
+    }
+  ]
+}

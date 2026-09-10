@@ -1,7 +1,7 @@
 export type EnemyTier = 'normal' | 'elite' | 'boss' | 'device';
 export type BulletPattern = 'none' | 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
 export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze' | 'anchor' | 'rail';
-export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles' | 'asteroid-grab';
 export type SegmentedPart = 'train-head' | 'train-car' | 'serpent-head' | 'serpent-turret';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
@@ -143,6 +143,7 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'iron-serpent', sprite: 'assets/boss-iron-serpent.png', tier: 'boss', hitPoints: 2_200, speed: 110, score: 74_000, size: 154, fireIntervalMs: 999_999, bulletPattern: 'none', flightPattern: 'fortress', bossAttack: 'serpent-barrage', renderAspect: 1.5, segmentedPart: 'serpent-head' },
   { id: 'twin-red', sprite: 'assets/boss-twin-red.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1000, bulletPattern: 'spread', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
   { id: 'twin-blue', sprite: 'assets/boss-twin-blue.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1200, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
+  { id: 'ore-reaper', sprite: 'assets/boss-miner.png', tier: 'boss', hitPoints: 3400, speed: 60, score: 100000, size: 268, fireIntervalMs: 850, bulletPattern: 'spread', flightPattern: 'fortress', bossAttack: 'asteroid-grab', renderAspect: 1 },
 ]);
 
 const ENEMY_BY_ID = new Map(ENEMY_DEFINITIONS.map(definition => [definition.id, definition]));

@@ -11,7 +11,7 @@ test('Chinese defaults and language survives restart independently of career sav
  data.set(SKY_LANGUAGE_KEY,'invalid');assert.equal(new SkyStrikeLocale(storage).language,'zh');
 });
 test('all level/boss names and GUI strings exist in each locale and font atlas',()=>{
- const names=Array.from({length:7},(_,i)=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-0${i+1}.json`,import.meta.url),'utf8'))).flatMap(l=>[l.id,l.bossId]);
+ const names=Array.from({length:8},(_,i)=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-0${i+1}.json`,import.meta.url),'utf8'))).flatMap(l=>[l.id,l.bossId]);
  for(const language of ['zh','en','ja']){
   assert.deepEqual(Object.keys(SKY_TEXT[language]).sort(),Object.keys(SKY_TEXT.zh).sort());
   const locale=new SkyStrikeLocale();locale.set(language);for(const name of names)assert.ok(locale.named(name));

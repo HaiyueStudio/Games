@@ -1,3 +1,6 @@
+import {SkyStrikeAudio, SKY_AUDIO_SETTINGS_KEY} from '../../../sky-strike/audio/SkyStrikeAudio';
+import {SkyStrikeBrowserAudio} from '../../../sky-strike/audio/browser';
+import {SKY_SOUND_IDS} from '../../../sky-strike/audio/synthesis';
 import { SkyStrikeLocale, SKY_LANGUAGE_KEY, type SkyLanguage } from '../../../sky-strike/i18n';
 import { HaiyueEngine, World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
@@ -20,7 +23,11 @@ async function run() {
   const hud = new SkyStrikeGuiHud(world, id => battle.guiImage(id), undefined, locale);
   canvas.setPointerCapture = () => {}; canvas.releasePointerCapture = () => {};
   const levels = await loadSkyStrikeLevels(async source => (await fetch(`../../../sky-strike/${source}`)).json());
-  const game = new SkyStrikeGame(canvas, battle, engine, world, { ui: hud, locale, levels, keyboard: true, acceptsGameplayInput: (_x,y) => y >= 94 && y <= innerHeight - 94, saveBackend: new MemorySaveBackend() });
+  const haptics: string[] = [];
+  const audioBackend = new SkyStrikeBrowserAudio(); await audioBackend.load('../../../sky-strike/');
+  localStorage.removeItem(SKY_AUDIO_SETTINGS_KEY);
+  const audio = new SkyStrikeAudio(audioBackend,localStorage);
+  const game = new SkyStrikeGame(canvas, battle, engine, world, { ui: hud, locale, levels, audio, haptic: event => haptics.push(event), keyboard: true, acceptsGameplayInput: (_x,y) => y >= 94 && y <= innerHeight - 94, saveBackend: new MemorySaveBackend() });
   await game.init();
   const integration = new RenderIntegration(engine); world.addRuntimeIntegration(integration); integration.registerAll(world);
   let frames = 0;
@@ -39,7 +46,9 @@ async function run() {
   check(game.snapshot().selectedLevel === 1, 'skinned next button');
   await click(panelLeft + 4 + arrowSize / 2, arrowY);
   check(game.snapshot().selectedLevel === 0, 'skinned previous button');
-  if(new URLSearchParams(location.search).get('mission')==='7') {await click(panelLeft + 4 + arrowSize / 2, arrowY);check(game.snapshot().selectedLevel===6,'seventh mission carousel');}
+  const mission=Number(new URLSearchParams(location.search).get('mission')??1);
+  for(let i=1;i<mission;i++)await click(panelLeft + panelWidth - 4 - arrowSize / 2, arrowY);
+  check(game.snapshot().selectedLevel===mission-1,'requested mission carousel');
   const language = (new URLSearchParams(location.search).get('lang') ?? 'zh') as SkyLanguage;
   if (scene === 'options' || language !== 'zh') {
     await click(panelLeft+panelWidth-32,(innerHeight-panelHeight)/2+panelHeight*0.035+24);
@@ -49,14 +58,19 @@ async function run() {
     const selected=game.snapshot().selectedLevel;
     send('pointerdown',panelLeft+30,arrowY);send('pointerup',panelLeft+panelWidth-30,arrowY);await wait(60);
     check(game.snapshot().selectedLevel===selected,'options blocks carousel swipes');
-    const optionsHeight=Math.min(510,innerHeight-48), top=(innerHeight-optionsHeight)/2;
+    const optionsHeight=Math.min(640,innerHeight-48), top=(innerHeight-optionsHeight)/2;
     await click(innerWidth/2,top+optionsHeight*(0.3525+['zh','en','ja'].indexOf(language)*0.125));
     check(game.snapshot().language===language,'language applies immediately');
     check(new SkyStrikeLocale(localStorage).language===language,'language persists across new instance');
     if(scene==='options') {
+      await click(innerWidth/2,top+optionsHeight*0.7425);check(!audio.enabled,'GUI sound mute');
+      const cw=Math.min(400,innerWidth-24);await click((innerWidth-cw)/2+cw*.205,top+optionsHeight*.8325);check(audio.volume===.55,'GUI volume down');
+      await click((innerWidth-cw)/2+cw*.795,top+optionsHeight*.8325);check(audio.volume===.65,'GUI volume up');
+      await click(innerWidth/2,top+optionsHeight*.7425);check(audio.enabled,'GUI sound enable');
+      check(JSON.parse(localStorage.getItem(SKY_AUDIO_SETTINGS_KEY)!).volume===.65,'GUI audio persistence');
       engine.stop();result.textContent=JSON.stringify({status:'passed',checks:['settings-modal','language-persistence','input-isolation'],state:game.snapshot()});result.dataset.status='passed';return;
     }
-    await click(innerWidth/2,top+optionsHeight*0.8325);check(!game.snapshot().optionsOpen,'close settings');
+    await click(innerWidth/2,top+optionsHeight*0.9325);check(!game.snapshot().optionsOpen,'close settings');
   }
   if (scene === 'menu') {
     if(new URLSearchParams(location.search).get('mission')==='7') {const carousel=(game as any).levelCarousel;check(carousel.bossImage.rect.x+carousel.bossImage.rect.width*0.85<carousel.companionImage.rect.x,'twin preview hulls have separate positions');}
@@ -66,6 +80,101 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if (scene === 'audio') {
+    engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.player.invulnerableMs=999999;
+    check(audioBackend.snapshot().buffers===13 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
+    audio.resume();await wait(80);check(audioBackend.snapshot().state==='running','WebAudio unlocked');
+    for(const form of ['basic','red','blue']){f.weaponForm=form;f.player.fireCooldownMs=0;f.pointerFiring=true;game.update(16);check(audioBackend.snapshot().voices>0,'game fires '+form+' sound');audio.stop();}
+    f.weaponForm='purple';game.update(16);check(audio.snapshot().loops===1,'game starts laser');
+    for(let i=0;i<70;i++){game.update(16);audio.play('bomb');audio.play('explosion-large');audio.play('shot-enemy');}
+    check(audioBackend.snapshot().voices<=12&&audioBackend.snapshot().error===null,'dense effects obey voice budget without failure');
+    check(audio.snapshot().loops===1,'loop survives higher-impact effects');
+    f.pointerFiring=false;game.update(16);check(audio.snapshot().loops===0,'laser release');
+    audio.stop();for(const id of SKY_SOUND_IDS){audio.update(500);audio.play(id);check(audioBackend.snapshot().voices>0,'play '+id);audio.stop();}
+    f.pointerFiring=true;game.update(16);game.suspend();await wait(80);check(audioBackend.snapshot().voices===0&&audioBackend.snapshot().state==='suspended','background silences audio');
+    f.togglePause();await wait(80);check(audioBackend.snapshot().state==='running','resume after background');
+    audio.pause();audio.resume();audio.pause();audio.resume();await wait(100);check(audioBackend.snapshot().state==='running','rapid pause/resume keeps latest intent');
+    audio.settings(false);check(audioBackend.snapshot().voices===0,'mute stops all voices');audio.settings(true,.65);
+    const beforeDispose=audio.snapshot();game.dispose();await wait(30);check(audioBackend.snapshot().state==='closed'&&audioBackend.snapshot().voices===0,'dispose closes audio');
+    result.textContent=JSON.stringify({status:'passed',checks:['13-decoded-effects','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
+  }
+  if (scene === 'fighter-aim') {
+    engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.player.x=400;f.player.y=760;f.player.invulnerableMs=999999;
+    const spawn=(id:string,x:number,y:number)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),x,y);e.phaseOffset=0;e.fireCooldownMs=240;return e;};
+    const scout=spawn('scout',80,400);f.updateEnemies(16);
+    check(scout.rotation<0&&Math.abs(scout.rotation)<.08,'fighter smoothly begins turning toward player');check(f.enemyBullets.length===0,'no early shot before windup');
+    const frozen=scout.rotation;f.phase='paused';f.update(34);check(scout.rotation===frozen,'pause freezes aiming');f.phase='playing';
+    let elapsed=16;while(!f.enemyBullets.length&&elapsed<1600){const before=scout.rotation;f.updateEnemies(16);elapsed+=16;check(Math.abs(scout.rotation-before)<=.076801,'bounded angular speed');}
+    check(f.enemyBullets.length===1&&elapsed>=240,'aimed shot occurs after lead animation');const b=f.enemyBullets[0],dx=b.x-scout.x,dy=b.y-scout.y;
+    check(Math.abs(dx*b.vy-dy*b.vx)<1e-6,'bullet emerges along rotated nose');check(dx>0&&b.vx>0&&b.vy>0,'nose and shot face player');
+    const after=scout.rotation;for(let i=0;i<8;i++)f.updateEnemies(16);check(scout.rotation===after,'muzzle flash holds firing pose');
+    for(let i=0;i<35;i++)f.updateEnemies(16);check(Math.abs(scout.rotation)<.001,'fighter smoothly returns to cruise heading');
+    f.enemies=[];f.enemyBullets=[];const delayed=spawn('dart',80,500);delayed.rotation=Math.PI;delayed.fireCooldownMs=0;
+    f.updateEnemies(16);check(f.enemyBullets.length===0,'unready fighter waits for turn rather than snapping and firing');
+    for(let i=0;i<100&&!f.enemyBullets.length;i++)f.updateEnemies(16);check(f.enemyBullets.length===1,'late alignment fires one shot without burst catch-up');
+    f.enemies=[];f.enemyBullets=[];f.combatEffects.clear();
+    for(const [id,x,y] of [['scout',75,300],['dart',390,250],['drone',115,500],['bomber',370,450],['stealth',110,150],['gunship',310,130]])spawn(id as string,x as number,y as number);
+    const stage=new URLSearchParams(location.search).get('stage');for(let i=0;i<(stage==='turn'?5:17);i++)f.updateEnemies(16);
+    f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
+    result.textContent=JSON.stringify({status:'passed',checks:['prefire-turn','bounded-shortest-arc','rotated-muzzle','aligned-shot','pause-aim','firing-pose-hold','return-to-cruise','delayed-alignment-no-catch-up'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
+  if (scene === 'mining' || scene === 'mining-rules' || scene === 'asteroid-belt' || scene === 'mining-live') {
+    engine.stop(); const f=game as any;
+    const reset=()=>{f.startSortie();f.beginLevel(7);f.levelTimeline=[];f.enemies=[];f.boss=null;f.twins=null;
+      f.enemyBullets=[];f.playerBullets=[];f.player.invulnerableMs=0;f.player.health=100;f.player.lives=3;f.player.x=240;f.player.y=820;
+      f.asteroids.clear();f.spaceBackdrop.select('asteroid-forge',true);f.spaceBackdrop.update(22000);f.backgroundTransitionMs=9000;};
+    const bullet=(x:number,y:number,hostile=false,damage=10)=>({x,y,vx:0,vy:0,radius:4,damage,hostile,color:hostile?'#ff415e':'#48a7ff'});
+    const spawn=(id:string,x=240,y=150)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),x,y);e.entered=true;return e;};
+    reset();haptics.length=0;f.damagePlayer(10);check(haptics.join()==='player-hit','accepted damage emits light feedback');
+    f.damagePlayer(100);check(haptics.length===1,'invulnerability suppresses damage feedback');
+    f.player.invulnerableMs=0;f.damagePlayer(100);check(haptics.join()==='player-hit,player-destroyed','life loss emits strong feedback once');
+    reset();haptics.length=0;f.bombs=0;f.activateBomb();check(haptics.length===0,'empty bomb does not vibrate');
+    f.bombs=2;f.activateBomb();f.activateBomb();check(haptics.join()==='bomb','only successfully released bomb vibrates');
+    reset();let rock=f.asteroids.spawn(240,500,80),health=rock.health;
+    f.playerBullets.push(bullet(240,500));f.resolveCollisions();check(rock.health===health-10&&f.playerBullets.length===0,'player bullet damages rock');
+    f.player.invulnerableMs=100;f.enemyBullets.push(bullet(240,500,true,20));f.resolveCollisions();check(rock.health===health-30&&f.enemyBullets.length===0,'hostile bullets hit neutral cover during invulnerability');
+    reset();f.asteroids.spawn(100,500,64);for(let i=0;i<12;i++)f.enemyBullets.push(bullet(240,820,true,100));
+    f.resolveCollisions();check(f.player.lives===2,'lethal bullet cleanup safely handles remaining projectiles');
+    reset();rock=f.asteroids.spawn(240,820,64);f.resolveCollisions();check(f.player.lives===2&&f.player.health===100,'rock collision deals exactly 100 HP and loses one life');
+    check(f.asteroids.rocks.length===0,'contact destroys rock');
+    rock=f.asteroids.spawn(240,820,64);f.resolveCollisions();check(f.player.lives===2,'contact respects respawn invulnerability');
+    reset();rock=f.asteroids.spawn(240,600,64);const enemy=spawn('scout',240,450),hp=enemy.hitPoints;
+    f.playerBullets.push({...bullet(240,400),previousX:240,previousY:800});f.resolveCollisions();check(enemy.hitPoints===hp&&rock.health<rock.maxHealth,'nearest rock intercepts a fast bullet before enemy');
+    reset();rock=f.asteroids.spawn(240,820,64);rock.previousX=240;rock.previousY=700;rock.y=920;f.resolveCollisions();check(f.player.lives===2,'fast thrown rock cannot tunnel through player');
+    reset();rock=f.asteroids.spawn(240,710,64);f.weaponForm='purple';f.weaponLevel=3;f.laserFiring=true;f.updatePlayerLaser(100);check(rock.health<rock.maxHealth,'player laser damages asteroid');
+    reset();rock=f.asteroids.spawn(240,620,100);f.activateBomb();check(f.asteroids.rocks.length===0,'bomb clears rocks in radius');
+    reset();haptics.length=0;const elite=spawn('fission-elite');f.damageEnemy(f.enemies.indexOf(elite),elite,99999);check(haptics.join() === 'elite-defeated','elite haptic once');
+    const boss=spawn('ore-reaper');rock=f.asteroids.spawn(100,200,64);f.updateAsteroids(16);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);
+    check(haptics.join() === 'elite-defeated,boss-defeated','boss haptic once');check(f.asteroids.rocks.length===0&&f.asteroids.arms.length===0,'boss victory clears rocks and arms');
+    reset();haptics.length=0;spawn('twin-red');const pair=[...f.twins];f.damageEnemy(f.enemies.indexOf(pair[0]),pair[0],99999);
+    check(haptics.length===0,'single downed twin has no victory haptic');f.damageEnemy(f.enemies.indexOf(pair[1]),pair[1],99999);check(haptics.join()==='boss-defeated','twin victory emits one haptic');
+    reset();f.levelElapsedMs=9499;f.updateAsteroids(16);check(f.asteroids.rocks.length===0,'belt not before scheduled time');
+    f.levelElapsedMs=10000;f.updateAsteroids(16);check(f.asteroids.rocks.length===1,'mid-level belt activates');
+    for(let i=0;i<80;i++)f.updateAsteroids(16);f.phase='paused';const before=JSON.stringify(f.asteroids.rocks);f.update(34);check(before===JSON.stringify(f.asteroids.rocks),'pause freezes rocks');
+    f.returnHome();check(f.asteroids.rocks.length===0&&f.asteroids.arms.length===0,'home clears hazard state');
+    reset();f.levelElapsedMs=16000;f.player.invulnerableMs=999999;
+    if(scene==='mining-live') {
+      f.beginLevel(7);f.player.invulnerableMs=999999;const seen=new Set();let maxRocks=0,maxThrown=0;
+      for(let i=0;i<4500;i++) {f.update(16);maxRocks=Math.max(maxRocks,f.asteroids.rocks.length);
+        for(const rock of f.asteroids.rocks)if(rock.thrown)seen.add(rock);maxThrown=Math.max(maxThrown,f.asteroids.rocks.filter((r:any)=>r.thrown).length);}
+      check(f.boss?.definition.id==='ore-reaper'&&f.boss.entered,'scheduled miner enters battle');
+      check(maxRocks>=12&&maxRocks<=28,'dense scheduled belt stays bounded');check(seen.size>=5,'live boss repeatedly grabs and throws actual rocks');
+      check(f.enemyBullets.length>0,'mining boss also fires bullets');f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
+      result.textContent=JSON.stringify({status:'passed',checks:['full-level-timeline','72-seconds-live-simulation','repeated-real-rock-throws','boss-projectiles','bounded-hazards'],maxRocks,maxThrown,throws:seen.size,state:game.snapshot()});result.dataset.status='passed';return;
+    }
+    if(scene!=='asteroid-belt') {const miner=spawn('ore-reaper');miner.hitPoints=1200;
+      for(const x of [65,160,320,415])for(const y of [200,290]){const r=f.asteroids.spawn(x,y,42+(x%60));r.vx=r.vy=0;}
+      const stage=new URLSearchParams(location.search).get('stage');
+      for(let i=0;i<(stage==='windup'?58:110);i++)f.updateAsteroids(16);
+      if(stage==='windup')check(f.asteroids.arms.some((a:any)=>a.phase==='windup'),'visible arm windup');
+      else check(f.asteroids.rocks.some((r:any)=>r.thrown),'visible thrown asteroid');
+    }
+    for(let i=0;i<14;i++)f.asteroids.spawn(35+(i*117)%410,380+(i*83)%510,32+(i*19)%76);
+    f.enemyBullets.push(bullet(165,570,true),bullet(300,720,true));
+    f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
+    check(game.snapshot().rendering.frameTextureUploads===0,'static asteroid textures');
+    result.textContent=JSON.stringify({status:'passed',checks:['both-sides-hit-rocks','size-health','100-contact-damage','swept-nearest-hit','laser-and-bomb','pause-and-home-cleanup','haptics-once','damage-death-bomb-haptics','mining-render'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if (scene === 'space') {
     engine.stop();const f=game as any,params=new URLSearchParams(location.search),theme=Number(params.get('theme')??0);
     f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.twins=null;f.boss=null;f.elapsedMs=20000;

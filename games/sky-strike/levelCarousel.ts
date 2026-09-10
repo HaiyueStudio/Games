@@ -1,3 +1,4 @@
+import type { SkyStrikeAudio } from './audio/SkyStrikeAudio';
 import { SKY_FONT_CHARACTERS, type SkyStrikeLocale } from './i18n';
 import { SkyStrikeOptions } from './options';
 import { Entity, type HaiyueEngine, type World } from '@haiyue/engine';
@@ -24,6 +25,7 @@ export interface LevelBossPresentation {
 }
 
 export interface SkyStrikeLevelCarouselOptions {
+  readonly audio?: SkyStrikeAudio | undefined;
   readonly locale: SkyStrikeLocale;
   readonly engine: HaiyueEngine;
   readonly world: World;
@@ -175,7 +177,7 @@ export class SkyStrikeLevelCarousel {
     const entity = new Entity('SkyStrikeLevelCarouselGui');
     entity.addComponent(this.root);
     options.world.addEntity(entity);
-    this.settings = new SkyStrikeOptions(options.world, options.guiImage, options.locale);
+    this.settings = new SkyStrikeOptions(options.world, options.guiImage, options.locale, options.audio);
     this.cleanup.push(options.locale.subscribe(() => this.sync()));
     const guiSystem = new GuiSystem(options.engine, {
       loadOp: options.loadOp ?? 'clear',

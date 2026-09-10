@@ -1,3 +1,7 @@
+import type { SkyStrikeAudio } from './audio/SkyStrikeAudio';
+import { isAimingFighter, turnFighterToward, angleDifference, fighterMuzzle, FIGHTER_AIM_LEAD_MS, FIGHTER_AIM_HOLD_MS } from './fighterAim';
+import { SkyStrikeAsteroids, ASTEROID_CONTACT_DAMAGE, sweptCircleTime, type Asteroid } from './asteroids';
+import { drawMiningArms, drawAsteroids } from './asteroidVisuals';
 import { SkyStrikeSpaceBackdrop, SPACE_FADE_MS } from './spaceBackdrop';
 import { SkyStrikeCombatEffects } from './combatEffects';
 import { drawShipDetails } from './shipDetails';
@@ -102,6 +106,8 @@ interface PlayerState {
 }
 
 interface Bullet {
+  previousX?: number;
+  previousY?: number;
   x: number;
   y: number;
   vx: number;
@@ -262,6 +268,9 @@ function isSkyStrikeSaveData(value: unknown): value is SkyStrikeSaveData {
 }
 
 export interface SkyStrikePlatform {
+  audio?: SkyStrikeAudio;
+  /** Native adapter owns hardware feedback; browser can omit it. */
+  haptic?: (event: 'elite-defeated' | 'boss-defeated' | 'player-hit' | 'player-destroyed' | 'bomb') => void;
   ui?: SkyStrikeUi;
   locale?: SkyStrikeLocale;
   saveBackend?: GameSaveBackend;
@@ -287,6 +296,7 @@ export class SkyStrikeGame {
   private readonly stars: Star[] = [];
   private readonly playerBullets: Bullet[] = [];
   private readonly enemyBullets: Bullet[] = [];
+  private readonly asteroids = new SkyStrikeAsteroids();
   private readonly enemies: EnemyState[] = [];
   private readonly powerups: WeaponPowerup[] = [];
   private readonly bombPowerups: BombPowerup[] = [];
@@ -334,7 +344,7 @@ export class SkyStrikeGame {
   private weaponForm: WeaponForm = 'basic';
   private weaponLevel = 0;
   private laserFiring = false;
-  private laserTarget: EnemyState | Bullet | null = null;
+  private laserTarget: EnemyState | Bullet | Asteroid | null = null;
   private laserDamageCooldownMs = 0;
   private shakeMs = 0;
   private readonly combatEffects = new SkyStrikeCombatEffects();
@@ -359,7 +369,7 @@ export class SkyStrikeGame {
 
   snapshot() {
     const viewport = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, this.player.x, this.player.radius);
-    return { phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), background: this.spaceBackdrop.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
+    return { audio: this.platform.audio?.snapshot() ?? null, asteroids: this.asteroids.snapshot(), phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), background: this.spaceBackdrop.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
       score: this.score, highScore: this.highScore, wave: this.wave, bombs: this.bombs,
       enemies: this.enemies.length, bullets: this.playerBullets.length + this.enemyBullets.length,
       selectedLevel: this.selectedLevelIndex, viewport, firing: this.pointerFiring, rendering: this.battle.stats() };
@@ -368,13 +378,14 @@ export class SkyStrikeGame {
   suspend(): void {
     this.pendingInput.length = 0; this.keys.clear(); this.pointerFiring = false; this.pointerId = -1;
     if (this.phase === 'playing') this.pause();
+    this.platform.audio?.pause();
     void this.flushSave();
   }
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true; this.suspend(); this.levelCarousel?.dispose();
     for (const off of this.cleanup.splice(0)) off();
-    this.ui.dispose(); this.combatEffects.clear();
+    this.ui.dispose(); this.combatEffects.clear(); this.asteroids.clear(); this.platform.audio?.dispose();
   }
   private listen(target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>, type: string, handler: (event: any) => void): void {
     target.addEventListener(type, handler);
@@ -404,6 +415,7 @@ export class SkyStrikeGame {
     if (this.disposed) return;
     for (const input of this.pendingInput.splice(0)) input();
     const delta = Math.min(34, Math.max(0, deltaMs));
+    this.platform.audio?.update(delta);
     this.updateStars(delta);
     this.updateSparks(delta);
     if (this.phase !== 'playing') {
@@ -428,12 +440,14 @@ export class SkyStrikeGame {
     this.updateBullets(delta);
     this.updateTwins(delta);
     this.updateEnemies(delta);
+    this.updateAsteroids(delta);
     this.updateBossLaser(delta);
     this.updateHostileLasers(delta);
     this.updatePowerups(delta);
     this.updatePlayerLaser(delta);
     this.resolveCollisions();
     this.resolveBubbleCollisions();
+    this.platform.audio?.lasers(this.phase === 'playing' && this.laserFiring, this.phase === 'playing' && (this.bossLaser?.phase === 'active' || this.hostileLasers.some(l => l.phase === 'active')), this.player.x);
     this.syncHud();
     this.render();
   }
@@ -456,6 +470,7 @@ export class SkyStrikeGame {
   private setupLevelCarousel(): void {
     this.levelCarousel = new SkyStrikeLevelCarousel({
       locale: this.locale,
+      audio: this.platform.audio,
       engine: this.engine,
       world: this.world,
       canvas: this.canvas,
@@ -487,6 +502,8 @@ export class SkyStrikeGame {
   }
 
   private setupInput(): void {
+    this.listen(this.canvas, 'pointerdown', () => this.platform.audio?.unlock());
+    if (this.platform.keyboard !== false && typeof window !== 'undefined') this.listen(window, 'keydown', () => this.platform.audio?.unlock());
     if (this.platform.keyboard !== false && typeof window !== 'undefined') {
     this.listen(window, 'keydown', event => {
       const key = event.key.toLowerCase();
@@ -570,6 +587,7 @@ export class SkyStrikeGame {
 
   private startSortie(): void {
     if (this.levelCarousel?.optionsOpen) return;
+    this.platform.audio?.stop(); this.platform.audio?.resume();
     this.levelCarousel?.hide();
     this.phase = 'playing';
     this.score = 0;
@@ -668,6 +686,7 @@ export class SkyStrikeGame {
     this.levelAdvanceMs = 0;
     this.levelTimeline = compileLevelTimeline(level);
     this.levelRandom = createSeededRandom(level.seed + this.sorties * 997);
+    this.asteroids.reset(createSeededRandom(level.seed ^ (this.sorties * 997) ^ 0xa57e));
     this.bossWarningProgress = 0;
     this.enemyBullets.length = 0;
     this.hostileLasers.length = 0;
@@ -677,6 +696,7 @@ export class SkyStrikeGame {
   }
 
   private pause(): void {
+    this.platform.audio?.pause();
     this.phase = 'paused';
     this.ui.status({ gameOver: false });
     this.ui.pauseState(true, false);
@@ -686,6 +706,7 @@ export class SkyStrikeGame {
     if (this.phase !== 'paused') return;
     this.saveProgress();
     this.phase = 'ready';
+    this.asteroids.clear();
     this.pendingInput.length = 0; this.keys.clear();
     if (this.pointerId !== -1 && this.canvas.hasPointerCapture?.(this.pointerId)) this.canvas.releasePointerCapture(this.pointerId);
     this.pointerId = -1; this.pointerFiring = false; this.laserFiring = false;
@@ -704,6 +725,7 @@ export class SkyStrikeGame {
     if (this.phase === 'playing') {
       this.pause();
     } else if (this.phase === 'paused') {
+      this.platform.audio?.resume();
       this.phase = 'playing';
       this.hideStatus();
       this.ui.pauseState(false, false);
@@ -748,6 +770,7 @@ export class SkyStrikeGame {
   }
 
   private firePlayerWeapons(profile: WeaponProfile): void {
+    this.platform.audio?.play(profile.form === 'red' ? 'shot-red' : profile.form === 'blue' ? 'shot-blue' : 'shot-basic', this.player.x);
     const count = profile.projectileCount;
     for (let index = 0; index < count; index++) {
       const normalized = count <= 1 ? 0 : index / (count - 1) * 2 - 1;
@@ -777,19 +800,20 @@ export class SkyStrikeGame {
     }
     const profile = weaponProfile(this.weaponForm, this.weaponLevel);
     const vulnerableTargets = this.enemies.filter(enemy => !enemy.definition.directDamageImmune && enemy.hitPoints > 0);
-    const targets: (EnemyState | Bullet)[] = [...vulnerableTargets, ...this.enemyBullets.filter(b => b.bubbleHealth !== undefined)];
+    const targets: (EnemyState | Bullet | Asteroid)[] = [...vulnerableTargets, ...this.enemyBullets.filter(b => b.bubbleHealth !== undefined), ...this.asteroids.rocks];
     this.laserTarget = selectLaserTarget(this.player.x, this.player.y, profile.attractionRadius, targets);
     this.laserDamageCooldownMs -= deltaMs;
     if (!this.laserTarget || this.laserDamageCooldownMs > 0) return;
     const damage = profile.beamDamagePerSecond * (LASER_DAMAGE_TICK_MS / 1000);
     const target = this.laserTarget;
     if ('hostile' in target) this.damageBubble(target, damage);
+    else if ('kind' in target) this.damageAsteroid(target, damage);
     else this.damageEnemy(this.enemies.indexOf(target), target, damage);
     this.addLaserImpact(this.laserTarget.x, this.laserTarget.y, 22 + this.weaponLevel * 5);
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#65e8ff');
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#bd5cff');
     this.laserDamageCooldownMs += LASER_DAMAGE_TICK_MS;
-    if ('hostile' in target ? !this.enemyBullets.includes(target) : !this.enemies.includes(target)) {
+    if ('hostile' in target ? !this.enemyBullets.includes(target) : 'kind' in target ? !this.asteroids.rocks.includes(target) : !this.enemies.includes(target)) {
       this.laserTarget = null;
     }
   }
@@ -907,7 +931,7 @@ export class SkyStrikeGame {
         } else {
           if (enemy.y < 142) enemy.y += enemy.definition.speed * seconds;
           else enemy.entered = true;
-          const travel = enemy.definition.id === 'helios-prism'
+          const travel = enemy.definition.id === 'ore-reaper' ? 30 : enemy.definition.id === 'helios-prism'
             ? 38
             : enemy.definition.id === 'star-carrier'
             ? 46
@@ -966,16 +990,28 @@ export class SkyStrikeGame {
         enemy.x = clampToPlayfield(enemy.originX + Math.sin(enemy.ageMs * frequency + enemy.phaseOffset) * amplitude, 24, LOGICAL_WIDTH);
       }
 
+      const aimsAtPlayer = isAimingFighter(enemy.definition);
+      let aimReady = true;
+      if (aimsAtPlayer) {
+        const windingUp = enemy.fireCooldownMs <= FIGHTER_AIM_LEAD_MS && enemy.y > 40 && enemy.y < LOGICAL_HEIGHT * 0.72;
+        const holdingShot = enemy.ageMs - (enemy.lastShotAgeMs ?? -10000) < FIGHTER_AIM_HOLD_MS;
+        const targetAngle = windingUp ? Math.atan2(this.player.y-enemy.y, this.player.x-enemy.x)-Math.PI/2
+          : holdingShot ? enemy.rotation : 0;
+        enemy.rotation = turnFighterToward(enemy.rotation, targetAngle, deltaMs);
+        aimReady = Math.abs(angleDifference(enemy.rotation,targetAngle)) < 0.025;
+      }
       if (enemy.definition.bulletPattern !== 'none'
+        && aimReady
         && enemy.fireCooldownMs <= 0
         && enemy.y > 40
         && enemy.y < LOGICAL_HEIGHT * 0.72) {
         this.fireEnemyPattern(enemy);
         const boss = this.boss;
-        enemy.fireCooldownMs += enemy.definition.segmentedPart === 'serpent-turret'
+        const interval = enemy.definition.segmentedPart === 'serpent-turret'
           && boss?.definition.bossAttack === 'serpent-barrage'
           ? serpentTurretFireIntervalMs(enemy.definition.fireIntervalMs, boss.hitPoints, boss.definition.hitPoints)
           : enemyFireIntervalMs(enemy.definition.fireIntervalMs, this.wave);
+        enemy.fireCooldownMs = aimsAtPlayer ? interval : enemy.fireCooldownMs + interval;
       }
       if (enemy.definition.laserWeapon
         && enemy.fireCooldownMs <= 0
@@ -1050,14 +1086,18 @@ export class SkyStrikeGame {
   }
 
   private fireEnemyPattern(enemy: EnemyState): void {
+    this.platform.audio?.play('shot-enemy', enemy.x);
     enemy.lastShotAgeMs = enemy.ageMs;
     const speed = ENEMY_BULLET_SPEED + Math.min(70, this.wave * 4);
-    const aimed = aimedVelocity(enemy.x, enemy.y, this.player.x, this.player.y, speed);
+    const aimingFighter = isAimingFighter(enemy.definition);
+    const muzzle = aimingFighter ? fighterMuzzle(enemy) : {x:enemy.x,y:enemy.y+enemy.definition.size*0.25,dx:0,dy:enemy.definition.size*0.25};
+    const aimed = aimingFighter ? {x:-Math.sin(enemy.rotation)*speed,y:Math.cos(enemy.rotation)*speed}
+      : aimedVelocity(enemy.x, enemy.y, this.player.x, this.player.y, speed);
     const projectile = enemyProjectileProfile(enemy.definition);
-    this.combatEffects.shot(enemy, 0, enemy.definition.size * 0.25, aimed.x, aimed.y, projectile.cssColor, enemy.definition.bulletPattern === 'spread' ? 'red' : 'blue');
+    this.combatEffects.shot(enemy, muzzle.dx, muzzle.dy, aimed.x, aimed.y, projectile.cssColor, enemy.definition.bulletPattern === 'spread' ? 'red' : 'blue');
     const add = (velocity: { x: number; y: number }, radius = 6) => this.enemyBullets.push({
-      x: enemy.x,
-      y: enemy.y + enemy.definition.size * 0.25,
+      x: muzzle.x,
+      y: muzzle.y,
       vx: velocity.x,
       vy: velocity.y,
       radius,
@@ -1110,6 +1150,10 @@ export class SkyStrikeGame {
   }
 
   private triggerBossAttack(enemy: EnemyState): void {
+    if (enemy.definition.bossAttack === 'asteroid-grab') {
+      // Independent arm cadence is driven by actual hull health in the hazard simulation.
+      enemy.laserCooldownMs = 1000; return;
+    }
     if (enemy.definition.bossAttack === 'twin-bubbles') {
       enemy.laserCooldownMs = 2800;
       const color = enemy.definition.id === 'twin-red' ? 'red' : 'blue';
@@ -1416,6 +1460,7 @@ export class SkyStrikeGame {
     if (this.phase !== 'playing' || this.bombs <= 0 || this.bombBlast) return;
     const area = createBombArea(this.player.x, this.player.y);
     this.bombs--;
+    this.platform.haptic?.('bomb'); this.platform.audio?.play('bomb', this.player.x);
     this.bombBlast = {
       x: area.x,
       y: area.y,
@@ -1429,6 +1474,7 @@ export class SkyStrikeGame {
       this.addSparks(bullet.x, bullet.y, 4, '#fff0a6');
       this.enemyBullets.splice(index, 1);
     }
+    for (const rock of [...this.asteroids.rocks]) if (isInsideBombArea(area, rock)) this.damageAsteroid(rock, BOMB_DAMAGE);
     const hitSerpents = new Set<EnemyState>();
     for (const enemy of [...this.enemies].reverse()) {
       if (!this.enemies.includes(enemy) || !isInsideBombArea(area, enemy)) continue;
@@ -1511,6 +1557,7 @@ export class SkyStrikeGame {
     for (const collection of [this.playerBullets, this.enemyBullets]) {
       for (let index = collection.length - 1; index >= 0; index--) {
         const bullet = collection[index]!;
+        bullet.previousX = bullet.x; bullet.previousY = bullet.y;
         bullet.x += bullet.vx * seconds;
         bullet.y += bullet.vy * seconds;
         if (bullet.y < -30 || bullet.y > LOGICAL_HEIGHT + 30 || bullet.x < -30 || bullet.x > LOGICAL_WIDTH + 30) {
@@ -1520,40 +1567,59 @@ export class SkyStrikeGame {
     }
   }
 
-  private resolveCollisions(): void {
-    for (let bulletIndex = this.playerBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
-      const bullet = this.playerBullets[bulletIndex]!;
-      const bubble = this.enemyBullets.find(b => b.bubbleHealth !== undefined && circlesOverlap(b, bullet));
-      if (bubble) {
-        this.damageBubble(bubble, bullet.damage);
-        this.playerBullets.splice(bulletIndex, 1); continue;
-      }
-      let hit = false;
-      for (let enemyIndex = this.enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
-        const enemy = this.enemies[enemyIndex]!;
-      if (enemy.hitPoints <= 0) continue;
-        if (!circlesOverlap(bullet, enemy)) continue;
-        hit = true;
-        if (enemy.definition.directDamageImmune) {
-          this.addSparks(bullet.x, bullet.y, 10, '#82efff');
-          this.addLaserImpact(bullet.x, bullet.y, 34);
-        } else {
-          this.addSparks(bullet.x, bullet.y, 7, '#ffbd62');
-          this.addImpact(bullet.x, bullet.y, enemy.definition.tier === 'boss' ? 58 : 42);
-        }
-        this.damageEnemy(enemyIndex, enemy, bullet.damage);
-        break;
-      }
-      if (hit) this.playerBullets.splice(bulletIndex, 1);
-    }
+  private updateAsteroids(deltaMs: number): void {
+    const belt = this.levels[this.levelIndex]?.asteroidBelt;
+    const miner = this.boss?.definition.bossAttack === 'asteroid-grab' ? this.boss : null;
+    const active = !!belt && this.levelAdvanceMs <= 0 && (!!miner || (this.levelElapsedMs >= belt.startMs && this.levelElapsedMs < belt.endMs));
+    this.asteroids.update(deltaMs, active, miner ? belt?.bossIntervalMs ?? 420 : belt?.intervalMs ?? 520, miner, this.player);
+  }
 
+  private damageAsteroid(rock: Asteroid, damage: number): void {
+    const broken = this.asteroids.damage(rock, damage);
+    this.addSparks(rock.x, rock.y, broken ? 18 : 3, '#c4a179');
+    if (broken) { this.platform.audio?.play('explosion-small', rock.x); this.addImpact(rock.x, rock.y, rock.size * 0.75); this.addDebris(rock.x, rock.y, 8, rock.size, 'normal'); }
+  }
+
+  private resolveCollisions(): void {
+    for (let i = this.playerBullets.length - 1; i >= 0; i--) {
+      const bullet = this.playerBullets[i]!;
+      let target: EnemyState | Bullet | Asteroid | null = null, first = Infinity;
+      const consider = (candidate: EnemyState | Bullet | Asteroid) => {
+        const t = sweptCircleTime(bullet, candidate);
+        if (t !== null && t < first) { first = t; target = candidate; }
+      };
+      for (const rock of this.asteroids.rocks) consider(rock);
+      for (const bubble of this.enemyBullets) if (bubble.bubbleHealth !== undefined) consider(bubble);
+      for (const enemy of this.enemies) if (enemy.hitPoints > 0) consider(enemy);
+      if (!target) continue;
+      const hit = target as EnemyState | Bullet | Asteroid;
+      if ('kind' in hit) this.damageAsteroid(hit, bullet.damage);
+      else if ('hostile' in hit) this.damageBubble(hit, bullet.damage);
+      else {
+        this.addSparks(bullet.x, bullet.y, 7, hit.definition.directDamageImmune ? '#82efff' : '#ffbd62');
+        this.addImpact(bullet.x, bullet.y, hit.definition.tier === 'boss' ? 58 : 42);
+        this.damageEnemy(this.enemies.indexOf(hit), hit, bullet.damage);
+      }
+      this.playerBullets.splice(i, 1);
+    }
+    // Losing a life can clear part of this array; snapshot identities keep traversal valid.
+    // Neutral cover still intercepts hostile fire during player invulnerability.
+    for (const bullet of [...this.enemyBullets].reverse()) {
+      const i = this.enemyBullets.indexOf(bullet);
+      if (i < 0) continue;
+      let rock: Asteroid | null = null, first = Infinity;
+      for (const candidate of this.asteroids.rocks) {
+        const t = sweptCircleTime(bullet, candidate);
+        if (t !== null && t < first) { first = t; rock = candidate; }
+      }
+      const playerHit = this.player.invulnerableMs <= 0 ? sweptCircleTime(bullet, this.player) : null;
+      if (rock && (playerHit === null || first <= playerHit)) {
+        this.damageAsteroid(rock, bullet.damage); this.enemyBullets.splice(i, 1);
+      } else if (playerHit !== null) { this.enemyBullets.splice(i, 1); this.damagePlayer(bullet.damage); }
+    }
     if (this.player.invulnerableMs > 0) return;
-    for (let bulletIndex = this.enemyBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
-      const bullet = this.enemyBullets[bulletIndex]!;
-      if (!circlesOverlap(bullet, this.player)) continue;
-      this.enemyBullets.splice(bulletIndex, 1);
-      this.damagePlayer(bullet.damage);
-      return;
+    for (const rock of this.asteroids.rocks) if (sweptCircleTime(rock, this.player) !== null) {
+      this.damageAsteroid(rock, rock.health); this.damagePlayer(ASTEROID_CONTACT_DAMAGE); return;
     }
 
     for (let enemyIndex = this.enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
@@ -1614,10 +1680,13 @@ export class SkyStrikeGame {
     this.addEnemyDestructionEffects(enemy);
     this.shakeMs = Math.max(this.shakeMs, enemy.definition.tier === 'boss' ? 900 : 180);
     if (enemy.definition.tier === 'boss') this.combatEffects.detonate(enemy.x, enemy.y, enemy.definition.size);
-    if (enemy.definition.tier === 'elite') this.spawnWeaponPowerup(enemy);
+    if (enemy.definition.tier !== 'boss') this.platform.audio?.play(enemy.definition.tier === 'elite' ? 'explosion-large' : 'explosion-small', enemy.x);
+    if (enemy.definition.tier === 'elite') { this.spawnWeaponPowerup(enemy); this.platform.haptic?.('elite-defeated'); }
     if (enemy.definition.tier === 'elite' && this.levelRandom() < 0.45) this.spawnBombPowerup(enemy);
     if (enemy.definition.tier === 'boss') this.spawnBombPowerup(enemy);
     if (this.boss === enemy) {
+      this.platform.haptic?.('boss-defeated'); this.platform.audio?.play('explosion-boss', enemy.x);
+      if (enemy.definition.bossAttack === 'asteroid-grab') this.asteroids.clear();
       if (enemy.definition.bossAttack === 'emitter-grid') this.removeHeliosEmitters();
       if (enemy.definition.bossAttack === 'serpent-barrage') this.removeIronSerpentSegments();
       this.boss = null;
@@ -1720,7 +1789,12 @@ export class SkyStrikeGame {
 
   private damagePlayer(damage: number): void {
     if (this.player.invulnerableMs > 0 || this.phase !== 'playing') return;
+    const previousHealth = this.player.health;
     this.player.health = Math.max(0, this.player.health - Math.max(0, damage));
+    if (this.player.health < previousHealth) {
+      this.platform.haptic?.(this.player.health <= 0 ? 'player-destroyed' : 'player-hit');
+      this.platform.audio?.play(this.player.health <= 0 ? 'explosion-large' : 'hit', this.player.x);
+    }
     this.shakeMs = damage >= BOSS_LASER_DAMAGE ? 760 : 420;
     this.addSparks(this.player.x, this.player.y, damage >= BLUE_ENEMY_BULLET_DAMAGE ? 54 : 34, '#ff9a49');
     this.addImpact(this.player.x, this.player.y - 6, damage >= BLUE_ENEMY_BULLET_DAMAGE ? 96 : 72);
@@ -1739,6 +1813,7 @@ export class SkyStrikeGame {
   }
 
   private finishSortie(): void {
+    this.platform.audio?.stopLasers();
     this.phase = 'game-over';
     this.highScore = Math.max(this.highScore, this.score);
     this.ui.pauseState(false, true);
@@ -1917,7 +1992,9 @@ export class SkyStrikeGame {
     this.drawSpace();
     if (this.phase === 'ready' || this.phase === 'game-over') return;
     this.drawBossWarning(); this.drawBullets(this.playerBullets);
-    this.drawSerpentLinks(); this.drawEnemies(); this.drawPowerups(); this.drawPlayerLaser();
+    this.drawSerpentLinks();
+    if (this.boss?.definition.bossAttack === 'asteroid-grab') drawMiningArms(this.battle, this.asteroids, this.boss);
+    this.drawEnemies(); drawAsteroids(this.battle, this.asteroids); this.drawPowerups(); this.drawPlayerLaser();
     this.drawBossLaser(); this.drawHostileLasers(); this.drawPlayer(); this.drawBullets(this.enemyBullets);
     this.drawImpacts(); this.drawEnergyImpacts(); this.drawDebris(); this.drawBombBlast(); this.drawSparks(); this.combatEffects.draw(this.battle);
   }

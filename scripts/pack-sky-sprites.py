@@ -8,7 +8,8 @@ root = Path(__file__).resolve().parents[1] / 'games/sky-strike/assets'
 # Long-edge limits. Boss previews/background retain detail; small controls/effects do not
 # occupy 320px textures. The manifest deliberately lists master art for provenance too.
 limits = {
-    **{f'bg-{name}.png': 512 for name in ['orbital','ion','void','carrier','prism','serpent','binary']},
+    **{f'bg-{name}.png': 512 for name in ['orbital','ion','void','carrier','prism','serpent','binary','mining']},
+    'boss-miner.png': 512, **{f'asteroid-{name}.png': 192 for name in ['iron','copper','ice']},
     'planet-ice.png': 384, 'planet-amber.png': 384,
     'boss-twin-red.png': 384, 'boss-twin-blue.png': 384, 'elite-fission.png': 256,
     'gui-space.png': 1024, 'gui-pause-panel.png': 768, 'gui-launch.png': 640,

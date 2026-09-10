@@ -1,0 +1,72 @@
+[
+  {
+    "image": "image-0.jpg",
+    "rgba": "image-0.rgba",
+    "width": 256,
+    "height": 256,
+    "sha256": "8b5fbcc801b1506bdde8ca830f5b31bee2baf4d60837220882427885556ddbdc"
+  },
+  {
+    "image": "image-1.jpg",
+    "rgba": "image-1.rgba",
+    "width": 256,
+    "height": 256,
+    "sha256": "54a5fe175a2e85179d7cc2fa739b74c96849166724b8748227052ee64d805c14"
+  },
+  {
+    "image": "image-2.jpg",
+    "rgba": "image-2.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "a66002aa2ff9a1e13e99a884ff7d2b9b228e16cf69c85237123b60a4f7774e4a"
+  },
+  {
+    "image": "image-3.jpg",
+    "rgba": "image-3.rgba",
+    "width": 256,
+    "height": 128,
+    "sha256": "393f78f58adbf64f2ec1e9544ef9d76b8bc8f18f44942526d2ad4eaa63ac0ecd"
+  },
+  {
+    "image": "image-4.jpg",
+    "rgba": "image-4.rgba",
+    "width": 256,
+    "height": 128,
+    "sha256": "18164616887d95df6cf236213b5527ced930ec49ee0feaaacdddc5101b89cc63"
+  },
+  {
+    "image": "image-5.jpg",
+    "rgba": "image-5.rgba",
+    "width": 256,
+    "height": 256,
+    "sha256": "59d747aeb7f2ba0edf5abb321f59c7fc18c533e1718f173fc7f96989584405f3"
+  },
+  {
+    "image": "image-6.png",
+    "rgba": "image-6.rgba",
+    "width": 100,
+    "height": 100,
+    "sha256": "6554b928d08499ff41a6e68efbdc0afc42cee6f83d52c531076380449ad79acc"
+  },
+  {
+    "image": "image-7.jpg",
+    "rgba": "image-7.rgba",
+    "width": 256,
+    "height": 256,
+    "sha256": "30e619445d4a537e2a402c77003de8a0c6d164397aa50f3d9e7dcc6029569c69"
+  },
+  {
+    "image": "image-8.png",
+    "rgba": "image-8.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "728fad0328bad2d453068b4c5d47461b22fdb4419bf71f87a078473b97d3ce83"
+  },
+  {
+    "image": "image-9.jpg",
+    "rgba": "image-9.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "3c07dba6c143fb07abf0f152898f84b0998ff84fb66c6b5a341fb280140df652"
+  }
+]
