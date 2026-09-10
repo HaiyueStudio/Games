@@ -1,0 +1,18 @@
+import { rollup } from 'rollup';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { haiyuePlugins } from '../config/rollup.shared.js';
+import { runChromeWebGpuFixture } from '../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
+const root = resolve(import.meta.dirname, '..');
+process.chdir(root);
+const fixture = 'games/test/fixtures/spider-gui';
+const bundle = await rollup({ input: `${fixture}/main.ts`, plugins: haiyuePlugins({ declaration: false, tsconfig: `${fixture}/tsconfig.json` }) });
+await bundle.write({ file: `${fixture}/bundle.js`, format: 'iife', inlineDynamicImports: true, sourcemap: true });
+await bundle.close();
+const evidence = resolve(root, '.artifacts/spider-gui');
+mkdirSync(evidence, { recursive: true });
+const result = await runChromeWebGpuFixture({ root, fixture: `${fixture}/index.html`, timeoutMs: 45000, visualCapture: { viewportWidth: 932, viewportHeight: 430 } });
+writeFileSync(resolve(evidence, 'browser.png'), Buffer.from(result.visualCapture.pngBase64, 'base64'));
+delete result.visualCapture.pngBase64;
+writeFileSync(resolve(evidence, 'browser.json'), JSON.stringify(result, null, 2));
+console.log(JSON.stringify({ status: result.status, checks: result.checks, screenshot: resolve(evidence, 'browser.png') }));

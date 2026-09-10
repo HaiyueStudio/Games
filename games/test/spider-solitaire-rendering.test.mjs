@@ -31,7 +31,7 @@ test('Spider Solitaire draws canvas card textures after opaque card bodies', () 
 test('Spider Solitaire exposes one, two, and four-suit difficulty controls', () => {
   const source = read('games', 'spider-solitaire', 'SpiderSolitaireGame.ts');
 
-  assert.match(source, /difficulty: 'easy'.*label: 'Easy · 1 Suit'/);
+  assert.match(source, /difficulty: 'easy'.*label: 'Easy · 1'/);
   assert.match(source, /difficulty: 'normal'.*label: 'Normal · 2'/);
   assert.match(source, /difficulty: 'hard'.*label: 'Hard · 4'/);
   assert.match(source, /private difficulty: Difficulty = 'easy'/, 'easy should be the default difficulty');

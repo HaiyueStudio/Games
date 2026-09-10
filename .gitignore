@@ -14,3 +14,5 @@ artifacts/
 animation-spec/corpus/.cache/
 .DS_Store
 desktop.ini
+
+.artifacts/spider-gui/
