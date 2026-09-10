@@ -1,6 +1,7 @@
 const catalogUrl = './games/manifest.json';
 
 const gameDetails = {
+  'rubiks-cube': { genre: 'puzzle', description: 'Turn 2×2, 3×3, 4×4 and shape-shifting mirror cubes, then replay your moves to restore them.', mark: '3×3' },
   '2048': { genre: 'puzzle', description: 'Slide matching tiles and build the elusive 2048 tile.', mark: '20' },
   'billiards-3d': { genre: 'physics', description: 'A tactile three-dimensional billiards table driven by physics.', mark: '3D' },
   billiards: { genre: 'physics', description: 'Line up the shot and clear a crisp top-down billiards table.', mark: '8' },

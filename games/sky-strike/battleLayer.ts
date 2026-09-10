@@ -67,13 +67,13 @@ export class SkyStrikeBattleLayer extends System {
     this.commands.length = 0; this.view = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, playerX);
     this.shakeX = shakeX; this.shakeY = shakeY;
   }
-  sprite(id: string, x: number, y: number, width: number, height: number, rotation = 0, opacity = 1, color = '#ffffff', additive = false): void {
+  sprite(id: string, x: number, y: number, width: number, height: number, rotation = 0, opacity = 1, color = '#ffffff', additive = false, flipY = false): void {
     if (opacity <= 0 || width <= 0 || height <= 0) return;
     const source = this.sources.get(id); if (!source) throw new Error(`Missing battle sprite ${id}`);
     const scale = this.view.scale;
     this.commands.push({ spriteId: id, x: this.view.left + (x - this.view.cameraX + this.shakeX) * scale, y: (y + this.shakeY) * scale,
       axisX: source.width / 2, axisY: source.height / 2, scaleX: width / source.width * scale, scaleY: height / source.height * scale,
-      rotationRadians: rotation, opacity: Math.min(1, opacity), tint: tint(color), sampling: 'linear', blend: additive ? 'additive' : 'alpha' });
+      rotationRadians: rotation, flipY, opacity: Math.min(1, opacity), tint: tint(color), sampling: 'linear', blend: additive ? 'additive' : 'alpha' });
   }
   rect(x: number, y: number, width: number, height: number, color: string, alpha = 1, rotation = 0): void { this.sprite('fx:solid', x, y, width, height, rotation, alpha, color); }
   glow(x: number, y: number, radius: number, color: string, alpha = 1): void { this.sprite('fx:glow', x, y, radius * 2, radius * 2, 0, alpha, color, true); }

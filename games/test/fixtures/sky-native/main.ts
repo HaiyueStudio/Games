@@ -66,6 +66,33 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if (scene === 'space') {
+    engine.stop();const f=game as any,params=new URLSearchParams(location.search),theme=Number(params.get('theme')??0);
+    f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.twins=null;f.boss=null;f.elapsedMs=20000;
+    f.beginLevel(theme);f.levelTimeline=[];f.spaceBackdrop.select(levels[theme]!.id,true);
+    f.spaceBackdrop.update(Number(params.get('age')??18000));
+    const next=params.get('next');
+    if(next!==null) {
+      const before=f.spaceBackdrop.snapshot();f.beginLevel(Number(next));f.levelTimeline=[];
+      check(JSON.stringify(before.weights)===JSON.stringify(f.spaceBackdrop.weights()),'level transition starts continuously');
+      const fade=Number(params.get('fade')??4500);f.spaceBackdrop.update(fade);f.backgroundTransitionMs=fade;
+      check(Math.abs(f.spaceBackdrop.weights().reduce((a:number,b:number)=>a+b,0)-1)<1e-9,'fade retains exposure');
+    }
+    f.player.x=Number(params.get('playerX')??240);f.player.invulnerableMs=10000;
+    // Keep a representative enemy/bullets over the new backdrop to check contrast.
+    const bossId=levels[next===null?theme:Number(next)]!.bossId;
+    f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===bossId));
+    for(const e of f.enemies){e.y=180;e.entered=true;}
+    f.enemyBullets.push({x:180,y:570,vx:0,vy:0,radius:6,damage:10,hostile:true,color:'#ff415e'},
+      {x:300,y:690,vx:0,vy:0,radius:6,damage:10,hostile:true,color:'#48a7ff'});
+    f.phase='paused';f.syncHud();const before=f.spaceBackdrop.snapshot();f.update(34);
+    check(f.spaceBackdrop.snapshot().ageMs===before.ageMs,'pause freezes background travel');
+    engine.run();await wait(160);engine.stop();
+    check(game.snapshot().rendering.frameTextureUploads===0,'background uses static GPU textures');
+    check(game.snapshot().rendering.pendingUploadBytes===0,'all themes ready before gameplay');
+    check(document.querySelectorAll('canvas').length===1,'single canvas');
+    result.textContent=JSON.stringify({status:'passed',checks:['theme-background','continuous-level-fade','paused-background','static-gpu-textures','single-canvas'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if (scene === 'twins-rules' || scene === 'twins-down' || scene === 'bubble-blast' || scene === 'fission') {
     engine.stop();const f=game as any;
     const near=(a:number,b:number,label:string)=>check(Math.abs(a-b)<1e-6,label);

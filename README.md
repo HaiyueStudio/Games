@@ -29,6 +29,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | Pac-Man | 2D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pacman) |
 | Piano | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=piano) |
 | Pong | 3D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pong) |
+| Rubiks Cube / 魔方实验室 | 3D puzzle · 2×2 / 3×3 / 4×4 / mirror | [Local build](games/rubiks-cube/README.md) |
 | Sky Strike | 2D bullet hell | [Play](https://haiyuestudio.github.io/Games/?game=sky-strike) |
 | Sokoban 3D | 3D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=sokoban-3d) |
 | Spider Solitaire | 2D card game | [Play](https://haiyuestudio.github.io/Games/?game=spider-solitaire) |

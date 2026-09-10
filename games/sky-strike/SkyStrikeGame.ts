@@ -1,3 +1,4 @@
+import { SkyStrikeSpaceBackdrop, SPACE_FADE_MS } from './spaceBackdrop';
 import { SkyStrikeCombatEffects } from './combatEffects';
 import { drawShipDetails } from './shipDetails';
 import { SkyStrikeLocale, browserSkyStrikeLocale } from './i18n';
@@ -244,7 +245,7 @@ const HOSTILE_LASER_WARNING_MS = 920;
 const HOSTILE_LASER_ACTIVE_MS = 520;
 const BOMB_EFFECT_DURATION_MS = 1_050;
 const LEVEL_ADVANCE_DELAY_MS = 2_600;
-const BACKGROUND_TRANSITION_MS = 7_000;
+const BACKGROUND_TRANSITION_MS = SPACE_FADE_MS;
 const DEFAULT_BACKGROUND: LevelBackground = Object.freeze({
   top: '#030617',
   middle: '#071d3a',
@@ -321,6 +322,7 @@ export class SkyStrikeGame {
   private levelAdvanceMs = 0;
   private levelRandom = createSeededRandom(1);
   private bossWarningProgress = 0;
+  private readonly spaceBackdrop = new SkyStrikeSpaceBackdrop();
   private backgroundFrom = DEFAULT_BACKGROUND;
   private backgroundTo = DEFAULT_BACKGROUND;
   private backgroundTransitionMs = BACKGROUND_TRANSITION_MS;
@@ -357,7 +359,7 @@ export class SkyStrikeGame {
 
   snapshot() {
     const viewport = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, this.player.x, this.player.radius);
-    return { phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
+    return { phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), background: this.spaceBackdrop.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
       score: this.score, highScore: this.highScore, wave: this.wave, bombs: this.bombs,
       enemies: this.enemies.length, bullets: this.playerBullets.length + this.enemyBullets.length,
       selectedLevel: this.selectedLevelIndex, viewport, firing: this.pointerFiring, rendering: this.battle.stats() };
@@ -410,6 +412,7 @@ export class SkyStrikeGame {
     }
 
     this.elapsedMs += delta;
+    this.spaceBackdrop.update(delta);
     this.combatEffects.update(delta);
     this.levelElapsedMs += delta;
     this.backgroundTransitionMs = Math.min(BACKGROUND_TRANSITION_MS, this.backgroundTransitionMs + delta);
@@ -653,6 +656,7 @@ export class SkyStrikeGame {
   private beginLevel(index: number): void {
     const level = this.levels[index];
     if (!level) return;
+    this.spaceBackdrop.select(level.id, this.elapsedMs === 0);
     this.backgroundFrom = this.currentBackground();
     this.backgroundTo = level.background;
     this.backgroundTransitionMs = 0;
@@ -1923,7 +1927,8 @@ export class SkyStrikeGame {
     r.sprite('fx:fade',240,270,520,560,0,1,b.top);
     r.glow(260,440,550,b.middle,0.8); r.glow(80,340,340,b.nebula,0.5);
     if (this.phase === 'ready' || this.phase === 'game-over') r.sprite('assets/gui-space.png',240,480,480,960);
-    for (const s of this.stars) r.rect(s.x,s.y,s.size,s.size*(1+s.speed/40),s.color,s.alpha);
+    else this.spaceBackdrop.draw(r, skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, this.player.x).cameraX, this.player.x);
+    for (const s of this.stars) r.rect(s.x,s.y,s.size,s.size*(1+s.speed/40),s.color,s.alpha*0.6);
   }
   private drawBossWarning(): void {
     if (this.bossWarningProgress <= 0) return;

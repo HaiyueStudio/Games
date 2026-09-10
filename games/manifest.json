@@ -388,6 +388,15 @@
         "sky-strike/assets/enemy-space-train.png",
         "sky-strike/assets/boss-iron-serpent.png",
         "sky-strike/assets/boss-twin-red.png",
+        "sky-strike/assets/bg-orbital.png",
+        "sky-strike/assets/bg-ion.png",
+        "sky-strike/assets/bg-void.png",
+        "sky-strike/assets/bg-carrier.png",
+        "sky-strike/assets/bg-prism.png",
+        "sky-strike/assets/bg-serpent.png",
+        "sky-strike/assets/bg-binary.png",
+        "sky-strike/assets/planet-ice.png",
+        "sky-strike/assets/planet-amber.png",
         "sky-strike/assets/boss-twin-blue.png",
         "sky-strike/assets/elite-fission.png",
         "sky-strike/levels/level-01.json",
@@ -489,6 +498,26 @@
       },
       "performance": null,
       "ci": "full"
+    },
+    {
+      "id": "rubiks-cube",
+      "title": "魔方实验室",
+      "entry": "rubiks-cube/main.ts",
+      "capabilities": [
+        "3d",
+        "pbr-workflow",
+        "input",
+        "gui",
+        "game-workflow"
+      ],
+      "assets": [],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke",
+      "thumbnail": "screenshots/rubiks-cube.webp"
     }
   ]
 }
