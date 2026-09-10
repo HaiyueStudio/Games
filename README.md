@@ -41,13 +41,17 @@ game list. Direct links use `?game=<id>` and open the selected game automaticall
 
 ## Local development
 
-Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine` and `Games` repositories in
-the same parent directory and install local package candidates:
+Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine`, `UI`, and `Games`
+repositories in the same parent directory and install local package candidates:
 
 ```bash
 cd ../Engine
 npm ci
 npm run pack:candidates
+
+cd ../UI
+npm ci
+npm run pack:candidate
 
 cd ../Games
 npm run deps:local
