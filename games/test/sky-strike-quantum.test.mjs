@@ -5,6 +5,9 @@ import {quantumPose,quantumPoint,quantumTurretPose,quantumCoreState,quantumBossX
 import {requiredEnemyDefinition,enemyFireIntervalMs} from '../sky-strike/rules.ts';
 import {loadSkyStrikeLevels,compileLevelTimeline} from '../sky-strike/levels/loader.ts';
 const read=p=>JSON.parse(readFileSync(new URL('../sky-strike/'+p,import.meta.url)));
+test('quantum dreadnought health is reduced by fifteen percent',()=>{
+ assert.equal(requiredEnemyDefinition('quantum-dreadnought').hitPoints,4200*.85);
+});
 test('quantum pair is horizontally mirrored in every visible camera and rotates in the opposite direction',()=>{
  for(const cx of [140,240,340])for(const a of [-2,0,2]){
   const body={x:90,y:230,rotation:a},ghost=quantumPose(body,cx);
@@ -21,11 +24,11 @@ test('six independent cannon hardpoints rotate with hull and glitch remains boun
  for(let t=0;t<10000;t+=16){const a=quantumGlitch(t,.32);assert.deepEqual(a,quantumGlitch(t,.32));assert.ok(Math.abs(a.offset)<=8&&a.opacity>=.2&&a.opacity<=.5&&a.scan>=0&&a.scan<1);}
  assert.notDeepEqual(quantumGlitch(0),quantumGlitch(900));
 });
-test('mission 12 loads with paired mixed enemies, unpaired waves and one paired dreadnought without inventing mission 11',async()=>{
+test('mission 12 loads with paired mixed enemies, unpaired waves and one paired dreadnought after the new mission 11',async()=>{
  const levels=await loadSkyStrikeLevels(read),level=levels.at(-1);assert.equal(level.number,12);assert.equal(level.id,'quantum-armada');
  const timeline=compileLevelTimeline(level);assert.ok(timeline.some(s=>!s.quantumPair));assert.ok(new Set(timeline.filter(s=>s.quantumPair).map(s=>s.enemyId)).size>=5);
  assert.equal(timeline.filter(s=>s.enemyId===level.bossId).length,1);assert.ok(timeline.find(s=>s.enemyId===level.bossId).quantumPair);
- assert.ok(!levels.some(l=>l.number===11));
+ assert.equal(levels.at(-2).number,11);
  await assert.rejects(loadSkyStrikeLevels(p=>({...read(p),number:-1})),/invalid root/);
  await assert.rejects(loadSkyStrikeLevels(p=>{const l=read(p);return {...l,spawns:l.spawns.map(s=>({...s,quantumPair:'yes'}))};}),/invalid/);
 });

@@ -1,0 +1,91 @@
+{
+  "id": "inferno-front",
+  "number": 11,
+  "name": "熔火前线",
+  "seed": 11110923,
+  "bossId": "inferno-ark",
+  "background": {
+    "top": "#1c0602",
+    "middle": "#39120c",
+    "bottom": "#080203",
+    "nebula": "#c74615"
+  },
+  "spawns": [
+    {
+      "atMs": 800,
+      "enemyId": "scout",
+      "count": 6,
+      "intervalMs": 750,
+      "position": {
+        "mode": "random",
+        "minX": 90,
+        "maxX": 390
+      }
+    },
+    {
+      "atMs": 6000,
+      "enemyId": "cinder-elite",
+      "count": 1,
+      "intervalMs": 0,
+      "position": {
+        "mode": "random",
+        "minX": 90,
+        "maxX": 390
+      }
+    },
+    {
+      "atMs": 11000,
+      "enemyId": "dart",
+      "count": 5,
+      "intervalMs": 850,
+      "position": {
+        "mode": "random",
+        "minX": 90,
+        "maxX": 390
+      }
+    },
+    {
+      "atMs": 16000,
+      "enemyId": "cinder-elite",
+      "count": 2,
+      "intervalMs": 2700,
+      "position": {
+        "mode": "random",
+        "minX": 90,
+        "maxX": 390
+      }
+    },
+    {
+      "atMs": 21500,
+      "enemyId": "gunship",
+      "count": 3,
+      "intervalMs": 1000,
+      "position": {
+        "mode": "random",
+        "minX": 90,
+        "maxX": 390
+      }
+    },
+    {
+      "atMs": 26000,
+      "enemyId": "drone",
+      "count": 5,
+      "intervalMs": 800,
+      "position": {
+        "mode": "random",
+        "minX": 90,
+        "maxX": 390
+      }
+    },
+    {
+      "atMs": 31000,
+      "enemyId": "inferno-ark",
+      "count": 1,
+      "intervalMs": 0,
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      }
+    }
+  ]
+}

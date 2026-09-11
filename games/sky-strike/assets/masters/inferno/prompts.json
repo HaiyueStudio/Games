@@ -1,0 +1,14 @@
+[
+  {
+    "id": "boss-inferno",
+    "prompt": "One massive top-down sci-fi furnace battleship game sprite, nose pointing DOWN, broad dark charcoal and burnt bronze armored hull, two articulated long flame projector barrels facing down, central molten orange reactor, red hot exhaust grilles, industrial heat shielding and small cyan status lamps, intricate layered plating. Menacing distinct industrial silhouette. Orthographic straight overhead, symmetrical, no perspective, whole ship fully inside square image with 10% padding. True transparent alpha background, no background scene, no text or shadow. Production game sprite readable at 300px."
+  },
+  {
+    "id": "elite-cinder",
+    "prompt": "One top-down sci-fi flamethrower elite enemy spaceship game sprite, nose pointing DOWN, compact triangular black and copper armored hull, two orange fuel tanks on shoulders, one large downward-facing flame nozzle, red heat strips, silver cooling fins, mechanical brass details. Distinct squat industrial silhouette. Orthographic straight overhead, whole ship fully inside square image with 10% padding. True transparent alpha background, no flame outside hull, no background scene, no text or shadow. Production game sprite readable at 100px."
+  },
+  {
+    "id": "fx-inferno",
+    "prompt": "Production game VFX sprite: ONE continuous compact tapered tongue of bright orange and golden yellow flamethrower fire with white-hot core, pointing straight UP from a narrow origin at bottom center. White center, yellow inner fire, vivid orange/red outer wisps, high contrast luminous detail. Vertical flame occupies 50% width and 85% height of square canvas. No blue, no brown, no smoke clouds, no text, no scenery, no shadows. True transparent alpha background with soft transparent fiery wisps; fully inside canvas. Top down 2D game effect, intended for additive blending."
+  }
+]

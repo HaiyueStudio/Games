@@ -12,6 +12,7 @@ export const SPACE_THEMES = [
   { level: 'asteroid-forge', texture: 'bg-mining', planet: null, x: 0, size: 0, phase: 0 },
   { level: 'event-horizon', texture: 'bg-void', planet: null, x: 0, size: 0, phase: 0 },
   { level: 'crystal-labyrinth', texture: 'bg-prism', planet: 'planet-ice', x: 390, size: 210, phase: 810 },
+  { level: 'inferno-front', texture: 'bg-mining', planet: 'planet-amber', x: 380, size: 260, phase: 1110 },
   { level: 'quantum-armada', texture: 'bg-ion', planet: 'planet-ice', x: 80, size: 190, phase: 970 },
 ] as const;
 

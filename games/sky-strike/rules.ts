@@ -1,7 +1,7 @@
 export type EnemyTier = 'normal' | 'elite' | 'boss' | 'device';
 export type BulletPattern = 'none' | 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
 export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze' | 'anchor' | 'rail';
-export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles' | 'asteroid-grab' | 'singularity' | 'mirror-deploy' | 'quantum-broadside';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles' | 'asteroid-grab' | 'singularity' | 'mirror-deploy' | 'quantum-broadside' | 'inferno';
 export type SegmentedPart = 'train-head' | 'train-car' | 'serpent-head' | 'serpent-turret';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
@@ -21,6 +21,7 @@ export interface EnemyDefinition {
   readonly bossAttack?: BossAttack;
   readonly contactDamage?: number;
   readonly splitsInto?: string;
+  readonly flameStyle?: 'elite' | 'boss';
   readonly mirrorSides?:number;
   readonly quantumPair?:boolean;
   readonly deathBurstCount?: number;
@@ -120,6 +121,8 @@ export const SERPENT_SEGMENT_SPACING = 46;
 export const SERPENT_SEGMENT_VERTICAL_SPACING = 24;
 
 export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
+  {id:'cinder-elite',sprite:'assets/elite-cinder.png',tier:'elite',hitPoints:180,speed:30,score:5600,size:128,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'sweep',flameStyle:'elite',renderAspect:1},
+  {id:'inferno-ark',sprite:'assets/boss-inferno.png',tier:'boss',hitPoints:3300,speed:44,score:190000,size:272,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'fortress',bossAttack:'inferno',flameStyle:'boss',renderAspect:1},
   { id: 'scout', sprite: 'assets/enemy-scout.png', tier: 'normal', hitPoints: 5, speed: 116, score: 100, size: 58, fireIntervalMs: 1800, bulletPattern: 'aimed', flightPattern: 'straight' },
   { id: 'dart', sprite: 'assets/enemy-dart.png', tier: 'normal', hitPoints: 6, speed: 172, score: 140, size: 52, fireIntervalMs: 2200, bulletPattern: 'aimed', flightPattern: 'dive' },
   { id: 'bomber', sprite: 'assets/enemy-bomber.png', tier: 'normal', hitPoints: 24, speed: 66, score: 320, size: 82, fireIntervalMs: 1450, bulletPattern: 'spread', flightPattern: 'straight' },
@@ -147,7 +150,7 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'twin-blue', sprite: 'assets/boss-twin-blue.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1200, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
   { id: 'ore-reaper', sprite: 'assets/boss-miner.png', tier: 'boss', hitPoints: 3400, speed: 60, score: 100000, size: 268, fireIntervalMs: 850, bulletPattern: 'spread', flightPattern: 'fortress', bossAttack: 'asteroid-grab', renderAspect: 1 },
   {id:'black-hole',sprite:'fx:black-hole',tier:'boss',hitPoints:360,speed:0,score:150000,size:50,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'anchor',bossAttack:'singularity',directDamageImmune:true,renderAspect:1},
-  {id:'quantum-dreadnought',sprite:'assets/boss-quantum-dreadnought.png',tier:'boss',hitPoints:4200,speed:72,score:210000,size:268,fireIntervalMs:875,bulletPattern:'spread',flightPattern:'fortress',bossAttack:'quantum-broadside',quantumPair:true,laserDamage:65,renderAspect:1},
+  {id:'quantum-dreadnought',sprite:'assets/boss-quantum-dreadnought.png',tier:'boss',hitPoints:3570,speed:72,score:210000,size:268,fireIntervalMs:875,bulletPattern:'spread',flightPattern:'fortress',bossAttack:'quantum-broadside',quantumPair:true,laserDamage:65,renderAspect:1},
   {id:'mirror-triangle',sprite:'fx:mirror-triangle',tier:'normal',hitPoints:32,speed:48,score:650,size:76,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'straight',mirrorSides:3,directDamageImmune:true,renderAspect:1},
   {id:'crystal-prism',sprite:'fx:crystal-prism',tier:'boss',hitPoints:1100,speed:58,score:175000,size:280,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'fortress',bossAttack:'mirror-deploy',mirrorSides:6,directDamageImmune:true,renderAspect:1},
 ]);

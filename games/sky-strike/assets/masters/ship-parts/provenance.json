@@ -1,0 +1,100 @@
+[
+  {
+    "id": "serpent-body",
+    "file": "../../part-serpent-body.png",
+    "sha256": "9bbbee1a5b2afc770675c62fefe55d817eda21707e0fd71709f18690ffbe0218",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "serpent-joint",
+    "file": "../../part-serpent-joint.png",
+    "sha256": "7eff2a744b97abba409374d7b64630fa1b4c595bed4edf92f53f33addbe87308",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "serpent-gun",
+    "file": "../../part-serpent-gun.png",
+    "sha256": "b6d44a9a734d9980433007311c3014a47225d93fe506a101e8c8f47549bc6b47",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "dread-gun",
+    "file": "../../part-dread-gun.png",
+    "sha256": "cc59ed22f206bbc5a9196815137610bd39d747d6fd12c2052c601799415f9319",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "ion-impeller",
+    "file": "../../part-ion-impeller.png",
+    "sha256": "453c16b74769360657fbf4f6e78f42bcc33057c933571d091cb7399da7c7f656",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "mantis-blade",
+    "file": "../../part-mantis-blade.png",
+    "sha256": "8fb047a02c67a8f60f4f1bf409b7965688ab1c52366cd09bdbb44682c3ca79ce",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "carrier-door",
+    "file": "../../part-carrier-door.png",
+    "sha256": "7daf048bd3ee7871ad923b32cbb5549222236a0e0014e6e2b434dac7bb2637a7",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "prism-iris",
+    "file": "../../part-prism-iris.png",
+    "sha256": "3ac7ea79a001c609bc9d3e99f1c009637d8242affaad75032282272d428c29cf",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "twin-gyro",
+    "file": "../../part-twin-gyro.png",
+    "sha256": "5e91fbad908bfa47665e4ae07be2caf81cddf636fd6e9739f1b57b6315d86366",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "mining-cog",
+    "file": "../../part-mining-cog.png",
+    "sha256": "4657c356b6f343d0632d45c819ccccbf622d41c4a5371928fb1a8a58e945f2f7",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "crimson-rail",
+    "file": "../../part-crimson-rail.png",
+    "sha256": "5b8ab8a04438bcfaf3cef75dc4d0f703243cb52c7d3ecf38b4ee707042f377d5",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "violet-capacitor",
+    "file": "../../part-violet-capacitor.png",
+    "sha256": "c4212542a77b0cee5d4ffa3cb20adcaef4f4202d1507b2fcd1bc1d0e0712cb21",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "lancer-petal",
+    "file": "../../part-lancer-petal.png",
+    "sha256": "7bc04efc5325530f3fa848bee992f08fa773a7d0b3e000f0237b650d33181e42",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "fission-shell",
+    "file": "../../part-fission-shell.png",
+    "sha256": "6459abe252ca2924a8f5f5f4406ce87c6adfe85d19c3a52660ec9f1bb79a25da",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  }
+]

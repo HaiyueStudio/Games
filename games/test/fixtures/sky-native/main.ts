@@ -86,6 +86,47 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if(scene==='inferno'){
+    engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'long';
+    const reset=()=>{f.beginLevel(10);f.levelCarousel.hide();f.score=0;f.phase='playing';f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.flames.clear();f.flameProtectionMs=0;f.player.invulnerableMs=0;f.player.health=100;f.player.x=240;f.player.y=680;f.pointerFiring=false;};
+    const spawn=(id:string,x:number,y:number)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),x,y);e.entered=true;return e;};
+    reset();let elite=spawn('cinder-elite',240,100);f.player.y=260;f.flames.update(890,f.enemies,f.player);f.updateFlames(200);check(f.player.health===97,'flame ticks bypass bullet hit cooldown and deal three');
+    f.player.y=850;for(let i=0;i<25;i++)f.updateFlames(200);check(f.player.health===72&&f.flames.burnMs===0,'five-second residual burn deals exactly 25');
+    reset();let boss=spawn('inferno-ark',240,145);const small=spawn('scout',188,340);f.player.x=188;f.player.y=650;f.flames.update(1400,f.enemies,f.player);check(f.flames.charges.length===1,'boss flame ignites small fighter');
+    f.damageEnemy(f.enemies.indexOf(small),small,999);check(f.flames.charges.length===1&&!f.flames.charges[0].source,'shot-down fighter leaves armed wreck');
+    f.player.x=188;f.player.y=340;f.player.invulnerableMs=0;f.flames.clearBurn();f.flames.cones=[];f.enemies=[];f.boss=null;
+    f.updateFlames(3000);check(f.flames.charges.length===0&&f.player.health===40,'wreck still explodes and deals circular area damage');
+    reset();const live=spawn('scout',180,430);f.flames.ignite(live);f.updateFlames(2999);check(f.enemies.includes(live),'living ignited fighter survives until fuse deadline');f.updateFlames(1);check(!f.enemies.includes(live),'living ignited fighter explodes at deadline');
+    reset();boss=spawn('inferno-ark',240,145);const doomed=spawn('scout',180,430);f.flames.ignite(doomed);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);check(f.levelAdvanceMs>=3000&&f.flames.charges.length===1,'boss death cannot cancel a pending fuse');
+    reset();f.player.health=1;f.player.lives=2;f.damagePlayer(3,true);check(f.player.health===100&&f.player.lives===1&&f.flameProtectionMs===1800,'burn death respawns once');f.damagePlayer(3,true);check(f.player.health===100,'respawn protects against repeated burn ticks');
+    reset();boss=spawn('inferno-ark',240,145);f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.tier==='normal').length===2,'boss summons escorts');
+    for(let i=0;i<10;i++)f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.tier==='normal').length===8,'escort cap is bounded');
+    f.flames.ignite(f.enemies.find((e:any)=>e.definition.tier==='normal'));f.pause();const before=JSON.stringify(f.flames.snapshot());game.update(34);check(JSON.stringify(f.flames.snapshot())===before,'pause freezes burns and fuse');f.returnHome();check(f.flames.charges.length===0,'home clears hazards');
+    reset();boss=spawn(stage==='elite'?'cinder-elite':'inferno-ark',240,155);f.player.y=720;
+    const elapsed=stage==='warning'?700:stage==='wide'?6500:stage==='elite'?1400:1900;
+    f.elapsedMs=elapsed;f.flames.update(elapsed,f.enemies,f.player,true);
+    if(stage==='wreck'){const small=spawn('scout',150,530);f.flames.ignite(small);f.damageEnemy(f.enemies.indexOf(small),small,999);}
+    if(stage==='burn'){f.flames.burnMs=4000;f.flames.burnDamage=2;}
+    f.phase='paused';f.syncHud();f.render();engine.run();await wait(180);engine.stop();await engine.device.queue.onSubmittedWorkDone();
+    check(game.snapshot().rendering.frameTextureUploads===0,'fire uses static GPU textures');
+    result.textContent=JSON.stringify({status:'passed',checks:['elite-ticks','five-second-burn','boss-ignition','dead-hull-fuse','live-hull-fuse','boss-death-fuse','burn-respawn','blast-damage','escort-cap','pause-home-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
+  if(scene==='ship-parts') {
+    engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'serpent';
+    f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.player.invulnerableMs=999999;f.player.x=240;f.player.y=800;f.pointerFiring=false;
+    const spawn=(id:string,x:number,y:number)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),x,y);e.entered=true;e.ageMs=420;e.rotation=0;return e;};
+    if(stage==='serpent'){
+      const head=spawn('iron-serpent',240,230);f.spaceBackdrop.select('serpent-rail',true);
+      for(const e of f.enemies.filter((e:any)=>e.segmentOwner===head)){e.x=240+Math.sin(e.segmentOrder*.65)*80;e.y=230+e.segmentOrder*48;e.ageMs=420;}
+    }else{
+      const ids=stage==='elites'?['crimson-lance','violet-fortress','prism-lancer','fission-elite']:stage==='bosses-a'?['dreadnought','ion-seraph','void-mantis']:['star-carrier','helios-prism','ore-reaper'];
+      for(let i=0;i<ids.length;i++){const e=spawn(ids[i]!,240,180+i*230);e.laserCooldownMs=stage==='bosses-b'?1380:0;}
+    }
+    f.phase='paused';f.syncHud();f.render();engine.run();await wait(160);engine.stop();await engine.device.queue.onSubmittedWorkDone();
+    check(game.snapshot().rendering.frameTextureUploads===0,'animated parts never upload textures per frame');
+    check(game.snapshot().rendering.pendingUploadBytes===0,'new parts uploaded');
+    result.textContent=JSON.stringify({status:'passed',checks:['hull-specific-parts',stage,'static-atlas','zero-frame-uploads'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if (scene === 'audio') {
     engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.player.invulnerableMs=999999;
     check(audioBackend.snapshot().buffers===19 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');

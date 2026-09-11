@@ -1,0 +1,20 @@
+[
+  {
+    "file": "../../boss-inferno.png",
+    "sha256": "eeacd515543d360c0e07867a44f8b6001178cf19ef501d5ae5d32f62c3139e52",
+    "generator": "built-in image_gen",
+    "alpha": "original generated alpha preserved"
+  },
+  {
+    "file": "../../elite-cinder.png",
+    "sha256": "b00642a91437debf81b417572f1c3baf6096c587abaa9c949c99ac565e0c973f",
+    "generator": "built-in image_gen",
+    "alpha": "original generated alpha preserved"
+  },
+  {
+    "file": "../../fx-inferno.png",
+    "sha256": "7bf11478dfd42b72315c1c9e8e4bf8c0c987304b97b09a525ad46f61eb4bab3f",
+    "generator": "built-in image_gen",
+    "alpha": "original generated alpha preserved"
+  }
+]

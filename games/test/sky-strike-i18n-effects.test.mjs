@@ -11,7 +11,7 @@ test('Chinese defaults and language survives restart independently of career sav
  data.set(SKY_LANGUAGE_KEY,'invalid');assert.equal(new SkyStrikeLocale(storage).language,'zh');
 });
 test('all level/boss names and GUI strings exist in each locale and font atlas',()=>{
- const names=[1,2,3,4,5,6,7,8,9,10,12].map(n=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-${String(n).padStart(2,'0')}.json`,import.meta.url),'utf8'))).flatMap(l=>[l.id,l.bossId]);
+ const names=[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-${String(n).padStart(2,'0')}.json`,import.meta.url),'utf8'))).flatMap(l=>[l.id,l.bossId]);
  for(const language of ['zh','en','ja']){
   assert.deepEqual(Object.keys(SKY_TEXT[language]).sort(),Object.keys(SKY_TEXT.zh).sort());
   const locale=new SkyStrikeLocale();locale.set(language);for(const name of names)assert.ok(locale.named(name));
@@ -35,13 +35,39 @@ test('boss shake is deterministic, strongest at impact, bounded and fully settle
  for(let t=0;t<=BOSS_BLAST_MS;t+=16){const s=bossShake(t);assert.ok(Math.abs(s.x)<=14 && Math.abs(s.y)<=14);}
  assert.deepEqual(bossShake(BOSS_BLAST_MS),{x:0,y:0});assert.deepEqual(bossShake(-1),{x:0,y:0});
 });
-const {drawShipDetails} = await module('shipDetails');
+const {drawShipDetails,drawSerpentSegment,SHIP_DETAIL_ASSETS} = await module('shipDetails');
 test('elite/Boss attachment animation follows hull translation and changes over time',()=>{
  const capture=(age,x)=>{const commands=[];const renderer=new Proxy({}, {get:(_,kind)=>(...args)=>commands.push([kind,...args])});
  const enemy={definition:{id:'star-carrier',size:350,tier:'boss',bulletPattern:'aimed',bossAttack:'carrier-deploy',fireIntervalMs:1450},x,y:200,ageMs:age,rotation:0,fireCooldownMs:500,laserCooldownMs:2700,charging:false};
  drawShipDetails(renderer,enemy,{x:240,y:800},true);drawShipDetails(renderer,enemy,{x:240,y:800},false);return commands;};
- const a=capture(100,240),b=capture(500,240);assert.notDeepEqual(a,b,'rotors and thrust animate');assert.equal(a.length,b.length,'no accumulating draw objects');
+ const a=capture(100,240),b=capture(500,240);assert.notDeepEqual(a,b,'thrust animates');assert.equal(a.length,b.length,'no accumulating draw objects');
  const c=capture(100,260);assert.equal(c[0][2]-a[0][2],20,'exhaust follows hull movement');
+});
+
+test('each hull uses its own attachment and bounded deterministic motion',async()=>{
+ const {ENEMY_DEFINITIONS,CARRIER_DEPLOY_INTERVAL_MS}=await import('../sky-strike/rules.ts');
+ const ids=['dreadnought','ion-seraph','void-mantis','star-carrier','helios-prism','ore-reaper','crimson-lance','violet-fortress','prism-lancer','fission-elite'];
+ const used=new Set();
+ for(const id of ids){
+  const capture=(age,offset=0)=>{const calls=[],r=new Proxy({},{get:(_,kind)=>(...args)=>calls.push([kind,...args])});
+   drawShipDetails(r,{definition:ENEMY_DEFINITIONS.find(d=>d.id===id),x:240+offset,y:300,rotation:.2,ageMs:age,lastShotAgeMs:0,laserCooldownMs:CARRIER_DEPLOY_INTERVAL_MS-age,charging:false},{x:120+offset,y:680},false);return calls;};
+  const a=capture(0),b=capture(420),c=capture(420,20),sprites=b.filter(v=>v[0]==='sprite');
+  assert.ok(sprites.length>0,id);assert.deepEqual(b,capture(420));assert.notDeepEqual(a,b,id+' moves');assert.equal(a.length,b.length);
+  for(const call of sprites){assert.ok(SHIP_DETAIL_ASSETS.includes(call[1]),id);assert.ok(!used.has(call[1]),'other hull cannot reuse '+call[1]);}
+  for(const call of sprites)used.add(call[1]);
+  for(let i=0;i<b.length;i++){const xi=b[i][0]==='sprite'?2:1;assert.ok(Math.abs(c[i][xi]-b[i][xi]-20)<1e-8,'attached to translated hull');}
+ }
+ assert.equal(SHIP_DETAIL_ASSETS.length,14);
+});
+
+test('serpent vertebra follows its predecessor while its gun tracks independently',async()=>{
+ const {requiredEnemyDefinition}=await import('../sky-strike/rules.ts');
+ const capture=(previous,target)=>{const calls=[],r=new Proxy({},{get:(_,kind)=>(...args)=>calls.push([kind,...args])});
+ drawSerpentSegment(r,{definition:requiredEnemyDefinition('iron-serpent-turret'),x:240,y:300,rotation:0,ageMs:420,segmentOrder:2,hitPoints:100},previous,target);return calls;};
+ const a=capture({x:240,y:250},{x:100,y:600}),b=capture({x:290,y:300},{x:100,y:600}),c=capture({x:240,y:250},{x:400,y:600});
+ const part=(calls,id)=>calls.find(v=>v[1]===`assets/part-serpent-${id}.png`);
+ assert.notEqual(part(a,'body')[6],part(b,'body')[6]);assert.equal(part(a,'gun')[6],part(b,'gun')[6]);
+ assert.equal(part(a,'body')[6],part(c,'body')[6]);assert.notEqual(part(a,'gun')[6],part(c,'gun')[6]);
 });
 
 test('quantum battleship retains engine thrust without a decorative central rotor',()=>{

@@ -66,15 +66,15 @@ import {
   wrapLevelIndex,
 } from '../sky-strike/levels/loader.ts';
 
-test('Sky Strike defines eleven regular enemies, four elites, twelve boss hulls, and segmented devices', () => {
-  assert.equal(ENEMY_DEFINITIONS.length, 30);
+test('Sky Strike defines eleven regular enemies, five elites, thirteen boss hulls, and segmented devices', () => {
+  assert.equal(ENEMY_DEFINITIONS.length, 32);
   assert.equal(NORMAL_ENEMIES.length, 11);
-  assert.equal(ELITE_ENEMIES.length, 4);
-  assert.equal(BOSS_ENEMIES.length, 12);
+  assert.equal(ELITE_ENEMIES.length, 5);
+  assert.equal(BOSS_ENEMIES.length, 13);
   assert.equal(BOSS_ENEMY.tier, 'boss');
   assert.equal(BOSS_ENEMY.hitPoints, 1_300);
-  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage', 'twin-bubbles', 'twin-bubbles', 'asteroid-grab', 'singularity', 'quantum-broadside', 'mirror-deploy']);
-  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 30);
+  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['inferno', 'laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage', 'twin-bubbles', 'twin-bubbles', 'asteroid-grab', 'singularity', 'quantum-broadside', 'mirror-deploy']);
+  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 32);
   assert.ok(ENEMY_DEFINITIONS.every(enemy => enemy.hitPoints > 0 && enemy.size > 0));
   const helios = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-prism');
   const emitter = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-emitter');

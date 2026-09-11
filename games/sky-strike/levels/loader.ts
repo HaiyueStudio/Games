@@ -58,6 +58,7 @@ const LEVEL_PATHS = [
   'levels/level-08.json',
   'levels/level-09.json',
   'levels/level-10.json',
+  'levels/level-11.json',
   'levels/level-12.json',
 ] as const;
 

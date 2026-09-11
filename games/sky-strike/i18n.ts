@@ -5,6 +5,7 @@ export const SKY_LANGUAGE_NAMES: Record<SkyLanguage, string> = { zh: '简体中�
 const zh = {
   'asteroid-forge':'陨星矿场', 'ore-reaper':'星矿收割者', 'binary-nova':'双星新纪', 'twin-red':'红蓝双子', 'twin-blue':'蓝色双子', 'fission-elite':'裂变战舰', revival:'复活倒计时',
   audioOn:'音效：开启', audioOff:'音效：关闭', volume:'音量', audioSaveFailed:'音效设置未能保存。',
+  'inferno-front':'熔火前线','inferno-ark':'焚星方舟','cinder-elite':'熔焰卫士',
   'quantum-armada':'量子舰队','quantum-dreadnought':'宇宙战舰·幽蓝','quantumHint':'量子免疫 · 攻击本体',
   'crystal-labyrinth':'晶镜迷阵','crystal-prism':'万华晶核','mirror-triangle':'三角镜卫',mirrorLoad:'镜面负荷',crystalStorm:'晶体破裂 · 躲避碎片',
   accretion:'吸积进度',holeEscape:'即将爆炸 · 向下躲避', 'event-horizon':'事件视界', 'black-hole':'吞星奇点',
@@ -21,7 +22,8 @@ export const SKY_TEXT: Record<SkyLanguage, Catalog> = {
   en: {
     'asteroid-forge':'Asteroid Forge', 'ore-reaper':'ORE REAPER', 'binary-nova':'Binary Nova', 'twin-red':'CHROMATIC TWINS', 'twin-blue':'BLUE TWIN', 'fission-elite':'FISSION CRUISER', revival:'Revival',
     audioOn:'SOUND: ON', audioOff:'SOUND: OFF', volume:'Volume', audioSaveFailed:'Sound settings could not be saved.',
-    'quantum-armada':'Quantum Armada','quantum-dreadnought':'PHANTOM DREADNOUGHT','quantumHint':'GHOST IMMUNE · HIT THE HULL',
+    'inferno-front':'Inferno Front','inferno-ark':'INFERNO ARK','cinder-elite':'Cinder Guard',
+  'quantum-armada':'Quantum Armada','quantum-dreadnought':'PHANTOM DREADNOUGHT','quantumHint':'GHOST IMMUNE · HIT THE HULL',
   'crystal-labyrinth':'Crystal Labyrinth','crystal-prism':'KALEIDOSCOPE','mirror-triangle':'Mirror Sentry',mirrorLoad:'MIRROR LOAD',crystalStorm:'CRYSTAL BURST · DODGE SHARDS',
     accretion:'ACCRETION',holeEscape:'BLAST · MOVE DOWN', 'event-horizon':'Event Horizon', 'black-hole':'SINGULARITY',
     title: 'SKY STRIKE', select: 'Select Mission', missionChannel: 'MISSION CONTROL / SECTOR SCAN', start: 'LAUNCH', retry: 'RETRY', failedSelect: 'Mission Failed', swipe: 'Swipe to change mission', sector: 'SECTOR', boss: 'BOSS',
@@ -33,7 +35,8 @@ export const SKY_TEXT: Record<SkyLanguage, Catalog> = {
   ja: {
     'asteroid-forge':'隕石の鉱場', 'ore-reaper':'鉱石の収穫者', 'binary-nova':'双星の新紀', 'twin-red':'紅蒼の双子', 'twin-blue':'蒼の双子', 'fission-elite':'分裂巡洋艦', revival:'復活まで',
     audioOn:'効果音：オン', audioOff:'効果音：オフ', volume:'音量', audioSaveFailed:'効果音設定を保存できませんでした。',
-    'quantum-armada':'量子艦隊','quantum-dreadnought':'幽青の宇宙戦艦','quantumHint':'量子体は無敵 · 本体を攻撃',
+    'inferno-front':'灼熱前線','inferno-ark':'焔の方舟','cinder-elite':'火炎衛兵',
+  'quantum-armada':'量子艦隊','quantum-dreadnought':'幽青の宇宙戦艦','quantumHint':'量子体は無敵 · 本体を攻撃',
   'crystal-labyrinth':'水晶迷宮','crystal-prism':'万華の結晶核','mirror-triangle':'三角鏡衛',mirrorLoad:'鏡面負荷',crystalStorm:'結晶破裂 · 破片を回避',
     accretion:'降着進度',holeEscape:'爆発注意 · 下へ退避', 'event-horizon':'事象の地平面', 'black-hole':'特異点',
     title: 'スカイストライク', select: 'ステージ選択', missionChannel: '作戦司令 / 宙域スキャン', start: '出撃する', retry: '再出撃', failedSelect: '作戦失敗', swipe: '左右にスワイプして選択', sector: '宙域', boss: 'ボス',
