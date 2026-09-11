@@ -1,6 +1,11 @@
 /** Deterministic sound design. Render offline once; gameplay never synthesizes on the audio thread. */
 export const SKY_SAMPLE_RATE = 44100;
 export const SKY_SOUNDS = {
+  'pickup-red': { seconds: 0.32, gain: 0.52, priority: 6, cooldown: 100 },
+  'pickup-blue': { seconds: 0.27, gain: 0.50, priority: 6, cooldown: 100 },
+  'pickup-purple': { seconds: 0.42, gain: 0.50, priority: 6, cooldown: 100 },
+  'pickup-bomb': { seconds: 0.40, gain: 0.56, priority: 6, cooldown: 100 },
+  'ui-click': { seconds: 0.075, gain: 0.48, priority: 6, cooldown: 35 },
   'shot-basic': { seconds: 0.105, gain: 0.30, priority: 2, cooldown: 65 },
   'shot-red': { seconds: 0.15, gain: 0.32, priority: 2, cooldown: 85 },
   'shot-blue': { seconds: 0.08, gain: 0.27, priority: 2, cooldown: 55 },
@@ -26,7 +31,17 @@ export function synthesizeSkySound(id: SkySound): Float32Array {
   for (let i=0;i<samples.length;i++) {
     const t=i/SKY_SAMPLE_RATE,p=i/(samples.length-1),n=noise();
     let value=0;
-    if(id==='laser-loop'||id==='laser-enemy') {
+    if(id.startsWith('pickup-')) {
+      const bomb=id==='pickup-bomb',red=id==='pickup-red',blue=id==='pickup-blue';
+      const notes=bomb?[392,523.25,783.99]:red?[523.25,659.25,783.99]:blue?[783.99,987.77,1318.51]:[440,659.25,1108.73];
+      const step=Math.min(2,Math.floor(p*3)),local=(p*3-step),hz=notes[step]!;
+      phase+=2*Math.PI*hz/SKY_SAMPLE_RATE;
+      const envelope=Math.min(1,local/.07)*Math.exp(-local*3);
+      value=(Math.sin(phase)*.58+Math.sin(phase*2)*.14+Math.sin(phase*(bomb?.5:3))*.08)*envelope;
+    } else if(id==='ui-click') {
+      const hz=t<.026?1250:1800; phase+=2*Math.PI*hz/SKY_SAMPLE_RATE;
+      value=(Math.sin(phase)*.62+Math.sin(phase*2)*.12)*Math.exp(-p*4);
+    } else if(id==='laser-loop'||id==='laser-enemy') {
       const hz=id==='laser-loop'?440:165;
       value=(Math.sin(2*Math.PI*hz*t+1.3*Math.sin(2*Math.PI*20*t))*.56+Math.sin(2*Math.PI*hz*2*t)*.15)*(0.85+0.15*Math.cos(2*Math.PI*5*t));
     } else if(id.startsWith('shot-')) {

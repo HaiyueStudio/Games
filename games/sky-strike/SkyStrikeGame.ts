@@ -1,3 +1,4 @@
+import {SkyStrikeBombCrates, BOMB_CRATE_HEALTH, type BombCrate} from './bombCrates';
 import type { SkyStrikeAudio } from './audio/SkyStrikeAudio';
 import { isAimingFighter, turnFighterToward, angleDifference, fighterMuzzle, FIGHTER_AIM_LEAD_MS, FIGHTER_AIM_HOLD_MS } from './fighterAim';
 import { SkyStrikeAsteroids, ASTEROID_CONTACT_DAMAGE, sweptCircleTime, type Asteroid } from './asteroids';
@@ -297,6 +298,7 @@ export class SkyStrikeGame {
   private readonly playerBullets: Bullet[] = [];
   private readonly enemyBullets: Bullet[] = [];
   private readonly asteroids = new SkyStrikeAsteroids();
+  private readonly bombCrates = new SkyStrikeBombCrates();
   private readonly enemies: EnemyState[] = [];
   private readonly powerups: WeaponPowerup[] = [];
   private readonly bombPowerups: BombPowerup[] = [];
@@ -344,7 +346,7 @@ export class SkyStrikeGame {
   private weaponForm: WeaponForm = 'basic';
   private weaponLevel = 0;
   private laserFiring = false;
-  private laserTarget: EnemyState | Bullet | Asteroid | null = null;
+  private laserTarget: EnemyState | Bullet | Asteroid | BombCrate | null = null;
   private laserDamageCooldownMs = 0;
   private shakeMs = 0;
   private readonly combatEffects = new SkyStrikeCombatEffects();
@@ -369,7 +371,7 @@ export class SkyStrikeGame {
 
   snapshot() {
     const viewport = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, this.player.x, this.player.radius);
-    return { audio: this.platform.audio?.snapshot() ?? null, asteroids: this.asteroids.snapshot(), phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), background: this.spaceBackdrop.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
+    return { bombCrates: this.bombCrates.snapshot(), audio: this.platform.audio?.snapshot() ?? null, asteroids: this.asteroids.snapshot(), phase: this.phase, language: this.locale.language, optionsOpen: this.levelCarousel?.optionsOpen ?? false, effects: this.combatEffects.snapshot(), background: this.spaceBackdrop.snapshot(), twins: this.twins?.map(t=>({id:t.definition.id,health:t.hitPoints})) ?? [], twinReviveMs:this.twinReviveMs, bubbles:this.enemyBullets.filter(b=>b.bubbleHealth!==undefined).length, player: { x: this.player.x, y: this.player.y, health: this.player.health },
       score: this.score, highScore: this.highScore, wave: this.wave, bombs: this.bombs,
       enemies: this.enemies.length, bullets: this.playerBullets.length + this.enemyBullets.length,
       selectedLevel: this.selectedLevelIndex, viewport, firing: this.pointerFiring, rendering: this.battle.stats() };
@@ -385,7 +387,7 @@ export class SkyStrikeGame {
     if (this.disposed) return;
     this.disposed = true; this.suspend(); this.levelCarousel?.dispose();
     for (const off of this.cleanup.splice(0)) off();
-    this.ui.dispose(); this.combatEffects.clear(); this.asteroids.clear(); this.platform.audio?.dispose();
+    this.ui.dispose(); this.combatEffects.clear(); this.asteroids.clear(); this.bombCrates.clear(); this.platform.audio?.dispose();
   }
   private listen(target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>, type: string, handler: (event: any) => void): void {
     target.addEventListener(type, handler);
@@ -441,6 +443,7 @@ export class SkyStrikeGame {
     this.updateTwins(delta);
     this.updateEnemies(delta);
     this.updateAsteroids(delta);
+    this.bombCrates.update(delta, this.levels[this.levelIndex]?.id === 'asteroid-forge' && this.boss?.definition.id === 'ore-reaper' && this.boss.entered && this.boss.hitPoints > 0 && this.levelAdvanceMs <= 0, this.bombPowerups.length);
     this.updateBossLaser(delta);
     this.updateHostileLasers(delta);
     this.updatePowerups(delta);
@@ -571,10 +574,10 @@ export class SkyStrikeGame {
     this.listen(this.canvas, 'pointercancel', stopPointer);
 
     this.cleanup.push(this.ui.bindActions({
-      start: () => this.pendingInput.push(() => { if (this.phase === 'paused') this.togglePause(); else this.startSortie(); }),
-      bomb: () => this.pendingInput.push(() => this.activateBomb()),
-      pause: () => this.pendingInput.push(() => this.togglePause()),
-      home: () => this.pendingInput.push(() => this.returnHome()),
+      start: () => this.pendingInput.push(() => { if (this.phase === 'paused') this.togglePause(); else this.startSortie(); this.platform.audio?.click(); }),
+      bomb: () => this.pendingInput.push(() => {this.activateBomb();this.platform.audio?.click();}),
+      pause: () => this.pendingInput.push(() => {this.togglePause();this.platform.audio?.click();}),
+      home: () => this.pendingInput.push(() => {this.returnHome();this.platform.audio?.click();}),
       suspend: () => this.suspend(),
     }));
   }
@@ -687,6 +690,7 @@ export class SkyStrikeGame {
     this.levelTimeline = compileLevelTimeline(level);
     this.levelRandom = createSeededRandom(level.seed + this.sorties * 997);
     this.asteroids.reset(createSeededRandom(level.seed ^ (this.sorties * 997) ^ 0xa57e));
+    this.bombCrates.reset(createSeededRandom(level.seed ^ (this.sorties * 997) ^ 0xb04b));
     this.bossWarningProgress = 0;
     this.enemyBullets.length = 0;
     this.hostileLasers.length = 0;
@@ -706,7 +710,7 @@ export class SkyStrikeGame {
     if (this.phase !== 'paused') return;
     this.saveProgress();
     this.phase = 'ready';
-    this.asteroids.clear();
+    this.asteroids.clear(); this.bombCrates.clear();
     this.pendingInput.length = 0; this.keys.clear();
     if (this.pointerId !== -1 && this.canvas.hasPointerCapture?.(this.pointerId)) this.canvas.releasePointerCapture(this.pointerId);
     this.pointerId = -1; this.pointerFiring = false; this.laserFiring = false;
@@ -800,20 +804,20 @@ export class SkyStrikeGame {
     }
     const profile = weaponProfile(this.weaponForm, this.weaponLevel);
     const vulnerableTargets = this.enemies.filter(enemy => !enemy.definition.directDamageImmune && enemy.hitPoints > 0);
-    const targets: (EnemyState | Bullet | Asteroid)[] = [...vulnerableTargets, ...this.enemyBullets.filter(b => b.bubbleHealth !== undefined), ...this.asteroids.rocks];
+    const targets: (EnemyState | Bullet | Asteroid | BombCrate)[] = [...vulnerableTargets, ...this.enemyBullets.filter(b => b.bubbleHealth !== undefined), ...this.asteroids.rocks, ...this.bombCrates.crates];
     this.laserTarget = selectLaserTarget(this.player.x, this.player.y, profile.attractionRadius, targets);
     this.laserDamageCooldownMs -= deltaMs;
     if (!this.laserTarget || this.laserDamageCooldownMs > 0) return;
     const damage = profile.beamDamagePerSecond * (LASER_DAMAGE_TICK_MS / 1000);
     const target = this.laserTarget;
     if ('hostile' in target) this.damageBubble(target, damage);
-    else if ('kind' in target) this.damageAsteroid(target, damage);
+    else if ('kind' in target) {if(target.kind==='bomb-crate')this.damageBombCrate(target,damage);else this.damageAsteroid(target, damage);}
     else this.damageEnemy(this.enemies.indexOf(target), target, damage);
     this.addLaserImpact(this.laserTarget.x, this.laserTarget.y, 22 + this.weaponLevel * 5);
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#65e8ff');
     this.addSparks(this.laserTarget.x, this.laserTarget.y, 2 + this.weaponLevel, '#bd5cff');
     this.laserDamageCooldownMs += LASER_DAMAGE_TICK_MS;
-    if ('hostile' in target ? !this.enemyBullets.includes(target) : 'kind' in target ? !this.asteroids.rocks.includes(target) : !this.enemies.includes(target)) {
+    if ('hostile' in target ? !this.enemyBullets.includes(target) : 'kind' in target ? (target.kind==='bomb-crate' ? !this.bombCrates.crates.includes(target) : !this.asteroids.rocks.includes(target)) : !this.enemies.includes(target)) {
       this.laserTarget = null;
     }
   }
@@ -1369,7 +1373,7 @@ export class SkyStrikeGame {
     });
   }
 
-  private spawnBombPowerup(enemy: EnemyState): void {
+  private spawnBombPowerup(enemy: {x:number;y:number}): void {
     this.bombPowerups.push({
       x: enemy.x,
       y: enemy.y,
@@ -1409,6 +1413,7 @@ export class SkyStrikeGame {
       powerup.x = clampToPlayfield(powerup.baseX + Math.sin(powerup.orbitAngle) * 22, powerup.radius, LOGICAL_WIDTH);
       if (circlesOverlap(powerup, this.player)) {
         this.bombs = Math.min(MAX_BOMBS, this.bombs + 1);
+        this.platform.audio?.play('pickup-bomb',powerup.x);
         this.addSparks(powerup.x, powerup.y, 42, '#ffd75e');
         this.shakeMs = Math.max(this.shakeMs, 160);
         this.bombPowerups.splice(index, 1);
@@ -1419,6 +1424,7 @@ export class SkyStrikeGame {
   }
 
   private collectPowerup(powerup: WeaponPowerup): void {
+    this.platform.audio?.play(powerup.form==='red'?'pickup-red':powerup.form==='blue'?'pickup-blue':'pickup-purple',powerup.x);
     const triggerBonusBurst = shouldTriggerMaxLevelPickupBurst(this.weaponForm, this.weaponLevel, powerup.form);
     const upgraded = upgradeWeapon(this.weaponForm, this.weaponLevel, powerup.form);
     this.weaponForm = upgraded.form;
@@ -1475,6 +1481,7 @@ export class SkyStrikeGame {
       this.enemyBullets.splice(index, 1);
     }
     for (const rock of [...this.asteroids.rocks]) if (isInsideBombArea(area, rock)) this.damageAsteroid(rock, BOMB_DAMAGE);
+    for (const crate of [...this.bombCrates.crates]) if (isInsideBombArea(area, crate)) this.damageBombCrate(crate, BOMB_DAMAGE);
     const hitSerpents = new Set<EnemyState>();
     for (const enemy of [...this.enemies].reverse()) {
       if (!this.enemies.includes(enemy) || !isInsideBombArea(area, enemy)) continue;
@@ -1580,20 +1587,28 @@ export class SkyStrikeGame {
     if (broken) { this.platform.audio?.play('explosion-small', rock.x); this.addImpact(rock.x, rock.y, rock.size * 0.75); this.addDebris(rock.x, rock.y, 8, rock.size, 'normal'); }
   }
 
+  private damageBombCrate(crate: BombCrate, damage: number): void {
+    if(!this.bombCrates.crates.includes(crate))return;
+    const broken=this.bombCrates.damage(crate,damage);
+    this.addSparks(crate.x,crate.y,broken?28:5,'#ffd568');
+    if(broken){this.spawnBombPowerup(crate);this.addImpact(crate.x,crate.y,48);this.platform.audio?.play('explosion-small',crate.x);}
+  }
+
   private resolveCollisions(): void {
     for (let i = this.playerBullets.length - 1; i >= 0; i--) {
       const bullet = this.playerBullets[i]!;
-      let target: EnemyState | Bullet | Asteroid | null = null, first = Infinity;
-      const consider = (candidate: EnemyState | Bullet | Asteroid) => {
+      let target: EnemyState | Bullet | Asteroid | BombCrate | null = null, first = Infinity;
+      const consider = (candidate: EnemyState | Bullet | Asteroid | BombCrate) => {
         const t = sweptCircleTime(bullet, candidate);
         if (t !== null && t < first) { first = t; target = candidate; }
       };
       for (const rock of this.asteroids.rocks) consider(rock);
+      for (const crate of this.bombCrates.crates) consider(crate);
       for (const bubble of this.enemyBullets) if (bubble.bubbleHealth !== undefined) consider(bubble);
       for (const enemy of this.enemies) if (enemy.hitPoints > 0) consider(enemy);
       if (!target) continue;
-      const hit = target as EnemyState | Bullet | Asteroid;
-      if ('kind' in hit) this.damageAsteroid(hit, bullet.damage);
+      const hit = target as EnemyState | Bullet | Asteroid | BombCrate;
+      if ('kind' in hit) {if(hit.kind==='bomb-crate')this.damageBombCrate(hit,bullet.damage);else this.damageAsteroid(hit, bullet.damage);}
       else if ('hostile' in hit) this.damageBubble(hit, bullet.damage);
       else {
         this.addSparks(bullet.x, bullet.y, 7, hit.definition.directDamageImmune ? '#82efff' : '#ffbd62');
@@ -1687,6 +1702,7 @@ export class SkyStrikeGame {
     if (this.boss === enemy) {
       this.platform.haptic?.('boss-defeated'); this.platform.audio?.play('explosion-boss', enemy.x);
       if (enemy.definition.bossAttack === 'asteroid-grab') this.asteroids.clear();
+      this.bombCrates.clear();
       if (enemy.definition.bossAttack === 'emitter-grid') this.removeHeliosEmitters();
       if (enemy.definition.bossAttack === 'serpent-barrage') this.removeIronSerpentSegments();
       this.boss = null;
@@ -1813,6 +1829,7 @@ export class SkyStrikeGame {
   }
 
   private finishSortie(): void {
+    this.bombCrates.clear();
     this.platform.audio?.stopLasers();
     this.phase = 'game-over';
     this.highScore = Math.max(this.highScore, this.score);
@@ -1994,7 +2011,7 @@ export class SkyStrikeGame {
     this.drawBossWarning(); this.drawBullets(this.playerBullets);
     this.drawSerpentLinks();
     if (this.boss?.definition.bossAttack === 'asteroid-grab') drawMiningArms(this.battle, this.asteroids, this.boss);
-    this.drawEnemies(); drawAsteroids(this.battle, this.asteroids); this.drawPowerups(); this.drawPlayerLaser();
+    this.drawEnemies(); drawAsteroids(this.battle, this.asteroids); this.drawBombCrates(); this.drawPowerups(); this.drawPlayerLaser();
     this.drawBossLaser(); this.drawHostileLasers(); this.drawPlayer(); this.drawBullets(this.enemyBullets);
     this.drawImpacts(); this.drawEnergyImpacts(); this.drawDebris(); this.drawBombBlast(); this.drawSparks(); this.combatEffects.draw(this.battle);
   }
@@ -2053,6 +2070,20 @@ export class SkyStrikeGame {
     r.glow(e.x,e.y,48,'#60ecff',p*0.65); r.disc(e.x,e.y,26,'#0e2434');
     for(let i=0;i<6;i++) { const a=i*Math.PI/3+e.ageMs*0.00045, b=a+Math.PI/3; r.line(e.x+Math.cos(a)*27,e.y+Math.sin(a)*27,e.x+Math.cos(b)*27,e.y+Math.sin(b)*27,3,'#79efff'); }
     r.disc(e.x,e.y,9*p,'#d9fbff'); r.ring(e.x,e.y,19,'#c957ff',Math.max(0.15,e.hitPoints/e.definition.hitPoints));
+  }
+  private drawBombCrates(): void {
+    const r=this.battle;
+    for(const c of this.bombCrates.crates){
+      const pulse=0.65+Math.sin(c.ageMs*.007)*.15, color=c.flashMs>0?'#fff8ce':'#eeb557';
+      r.glow(c.x,c.y,47,'#ffbe47',pulse*.6);
+      r.rect(c.x,c.y,57,55,'#080e18');r.rect(c.x,c.y,51,49,'#7c622f');r.rect(c.x,c.y,43,43,'#172534');
+      for(const dx of [-23,23]){r.line(c.x+dx,c.y-23,c.x+dx,c.y+23,3,color);r.disc(c.x+dx,c.y-20,2,'#fff0b5');r.disc(c.x+dx,c.y+20,2,'#fff0b5');}
+      for(const dy of [-24,24])r.line(c.x-20,c.y+dy,c.x+20,c.y+dy,3,color);
+      r.disc(c.x,c.y+2,10,'#ffcd68');r.disc(c.x-3,c.y-1,3,'#fff7d2');
+      r.line(c.x+4,c.y-6,c.x+8,c.y-13,3,'#ffcd68');r.line(c.x+8,c.y-13,c.x+13,c.y-10,2,'#fff2b8');
+      for(let i=0;i<3;i++)r.rect(c.x-12+i*12,c.y+18,7,3,c.health/BOMB_CRATE_HEALTH>i/3?'#ffe18e':'#493e2d');
+      if(c.flashMs>0)r.rect(c.x,c.y,47,45,'#fff3bd',c.flashMs/500);
+    }
   }
   private drawPowerups(): void {
     const r=this.battle;

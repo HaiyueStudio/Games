@@ -7,7 +7,7 @@ import { RenderIntegration } from '@haiyue/engine/experimental';
 import { VirtualJoystickControls } from '@haiyue/extensions/controls';
 import { applyGltfAnimationClip, disposeGltfModel, loadGltfModel, type LoadedGltfModel, type GltfAnimationClip } from '@haiyue/extensions/gltf';
 import { mat4, vec3 } from 'wgpu-matrix';
-import { MAGAZINE, RELOAD_SECONDS, SIGHT_RANGE, RangeRules } from './rules';
+import { MAGAZINE, RELOAD_SECONDS, SIGHT_RANGE, RangeRules, resolvePlayerHeading } from './rules';
 import type { GameSaveBackend } from '@haiyue/engine/save';
 import { SingleSlotGameSave, isRecord, isNonNegativeInteger } from '../save/SingleSlotGameSave';
 
@@ -20,9 +20,6 @@ const ZERO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 export function actionRects(width: number, height: number, insets = ZERO_INSETS) {
   return { fire: { x: width - insets.right - 116, y: height - insets.bottom - 120, width: 96, height: 96 },
     reload: { x: width - insets.right - 108, y: height - insets.bottom - 182, width: 88, height: 48 } };
-}
-function inside(p: { x: number; y: number }, r: GuiRect): boolean {
-  return p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height;
 }
 function walk(entity: Entity, fn: (e: Entity) => void): void { fn(entity); for (const child of entity.children) walk(child, fn); }
 /** Model-local chain; independent of render scheduling, so attachments and muzzle use this frame's pose. */
@@ -43,6 +40,7 @@ export class RangeGame {
   readonly camera = new Camera3D({ type: 'perspective', fov: Math.PI / 4, near: 0.1, far: 100 });
   readonly orbit = new SphericalTransform3D({ radius: 12, theta: 0, phi: 0.92, target: [0, 0.8, 3] });
   readonly controls: VirtualJoystickControls;
+  readonly aimControls: VirtualJoystickControls;
   private character: LoadedGltfModel | null = null;
   private weapon: LoadedGltfModel | null = null;
   private hand: Entity | null = null;
@@ -66,7 +64,6 @@ export class RangeGame {
   private portrait = false;
   private readonly safeInsets: () => SafeInsets;
   private readonly haptic: (kind: 'shot' | 'hit') => void;
-  private firePointer: number | null = null;
   private disposed = false;
   private initialized = false;
   private elapsed = 0;
@@ -108,16 +105,30 @@ export class RangeGame {
     place(this.ammoLabel, r => ({ x: r.width - this.safeInsets().right - 178, y: r.height - this.safeInsets().bottom - 217, width: 155, height: 28 }));
     this.reloadButton = this.root.add(new GuiButton({ text: '重新装填', onClick: () => { this.rules.reload(); }, style: { backgroundColor: '#273a43', borderColor: '#728e94', radius: 12 } }));
     place(this.reloadButton, r => actionRects(r.width, r.height, this.safeInsets()).reload);
-    // GUI draws the button; independent pointer ownership allows a second finger to fire while moving.
+    // Idle presentation only. The aiming control owns shooting pointers and expands on press.
     this.fireButton = this.root.add(new GuiButton({ text: '射击', style: { backgroundColor: '#aa7841', borderColor: '#ead3a2', radius: 48 } }));
     place(this.fireButton, r => actionRects(r.width, r.height, this.safeInsets()).fire);
     const hint = this.root.add(new GuiLabel({ text: '90° 视野 · 掩体', fontSize: 12, textAlign: 'center', style: { color: '#aec7c9' } }));
     place(hint, r => ({ x: this.safeInsets().left + 28, y: r.height - this.safeInsets().bottom - 27, width: 130, height: 22 }));
     this.controls = new VirtualJoystickControls(this.canvas, { mode: 'fixed', target: this.player, guiRoot: this.root,
-      maxDistance: 48, knobRadius: 23, moveSpeed: 4.4, turnSpeed: 14, deadZone: 0.12,
+      maxDistance: 48, knobRadius: 23, moveSpeed: 4.4, rotateToDirection: false, deadZone: 0.12,
+      shouldActivate: () => this.initialized && !this.portrait && this.rules.alive,
       center: ({ width, height }) => this.joystickCenter(width, height),
       region: ({ width, height }) => ({ x: 0, y: height * 0.45, width: width * 0.5, height: height * 0.55 }),
       baseStyle: { backgroundColor: '#263f4666', borderColor: '#b3d5d580' }, knobStyle: { backgroundColor: '#b9dcd980', borderColor: '#def7ee99' } });
+    this.aimControls = new VirtualJoystickControls(this.canvas, { mode: 'fixed', guiRoot: this.root,
+      maxDistance: 40, knobRadius: 20, activationRadius: 48, deadZone: 0.12, showIdle: false,
+      center: ({ width, height }) => {
+        const fire = actionRects(width, height, this.safeInsets()).fire;
+        return { x: fire.x + fire.width / 2, y: fire.y + fire.height / 2 };
+      },
+      region: ({ width, height }) => actionRects(width, height, this.safeInsets()).fire,
+      shouldActivate: () => this.initialized && !this.portrait && this.rules.alive,
+      baseStyle: { backgroundColor: '#8a633e66', borderColor: '#ead3a280' },
+      knobStyle: { backgroundColor: '#e8bd788c', borderColor: '#fff0d099' } });
+    this.aimControls.events.on('start', this.startAim);
+    this.aimControls.events.on('end', this.stopAim);
+    this.aimControls.events.on('cancel', this.stopAim);
     this.hurtLabel = this.root.add(new GuiLabel({ text: '被击中', textAlign: 'center', fontSize: 20, style: { color: '#ff967c' } }));
     place(this.hurtLabel, r => ({ x: r.width / 2 - 80, y: this.safeInsets().top + 25, width: 160, height: 32 }));
     this.hurtLabel.setVisible(false);
@@ -127,7 +138,6 @@ export class RangeGame {
     this.orientationLabel = this.root.add(new GuiLabel({ text: '请横屏继续', fontSize: 26, textAlign: 'center', style: { backgroundColor: '#10202aee', color: '#ebdfc2', padding: 12 } }));
     place(this.orientationLabel, r => ({ x: 0, y: r.height / 2 - 60, width: r.width, height: 60 }));
     this.orientationLabel.setVisible(false);
-    for (const [name, listener] of this.listeners) this.canvas.addEventListener(name, listener);
     engine.on('update', this.frame);
   }
   async init(): Promise<void> {
@@ -236,7 +246,10 @@ export class RangeGame {
     this.resize();
     const old = { x: this.playerTransform.position[0]!, z: this.playerTransform.position[2]! };
     this.controls.disabled = this.portrait || !this.rules.alive;
+    this.aimControls.disabled = this.controls.disabled;
     this.controls.step(Math.max(0, detail.delta));
+    this.aimControls.step(Math.max(0, detail.delta));
+    this.playerTransform.setRotation(0, resolvePlayerHeading(this.playerTransform.rotation[1]!, this.controls.state, this.aimControls.state, dt), 0);
     const p = this.playerTransform.position;
     const moved = this.rules.move(old, { x: p[0]!, z: p[2]! });
     this.playerTransform.setPosition(moved.x, 0, moved.z);
@@ -321,25 +334,16 @@ export class RangeGame {
     this.root.root.markDirty();
     this.orbit.radius = 12;
   }
-  private readonly down = (event: Event): void => {
-    const e = event as PointerEvent;
-    if (this.portrait || !this.rules.alive || !this.initialized || this.firePointer !== null || (e.button !== undefined && e.button !== 0)) return;
-    const r = this.canvas.getBoundingClientRect();
-    if (!inside({ x: e.clientX - r.left, y: e.clientY - r.top }, actionRects(r.width, r.height, this.safeInsets()).fire)) return;
-    this.firePointer = e.pointerId; this.rules.setFiring(true); e.preventDefault();
-    try { this.canvas.setPointerCapture(e.pointerId); } catch { /* Native target retains pointer ownership. */ }
+  private readonly startAim = (): void => {
+    this.rules.setFiring(true);
+    this.fireButton.setVisible(false);
   };
-  private readonly up = (event: Event): void => {
-    const e = event as PointerEvent;
-    if (e.pointerId !== this.firePointer) return;
-    this.firePointer = null; this.rules.cancel();
-    try { this.canvas.releasePointerCapture(e.pointerId); } catch { /* Capture may already be lost. */ }
+  private readonly stopAim = (): void => {
+    this.rules.cancel();
+    this.fireButton.setVisible(true);
   };
-  private get listeners(): [string, EventListener][] { return [['pointerdown', this.down], ['pointerup', this.up], ['pointercancel', this.up], ['lostpointercapture', this.up]]; }
   cancelInteraction(): void {
-    this.controls.cancel(); this.rules.cancel();
-    const id = this.firePointer; this.firePointer = null;
-    if (id !== null) try { this.canvas.releasePointerCapture(id); } catch { /* Lost capture. */ }
+    this.controls.cancel(); this.aimControls.cancel(); this.rules.cancel();
     this.saveStats();
   }
   private saveStats(): void {
@@ -360,12 +364,12 @@ export class RangeGame {
       player: Array.from(this.playerTransform.position), heading: this.playerTransform.rotation[1],
       cameraTarget: Array.from(this.orbit.target), cameraEye: Array.from(this.orbit.eyePosition),
       hand: this.hand?.name, weaponAttached: this.weapon?.root.parent === this.socket && this.socket?.parent === this.hand,
+      aimJoystick: this.aimControls.state, fireButtonVisible: this.fireButton.visible,
       muzzle: this.muzzle(), joystick: this.controls.state, animation: this.controls.state.strength ? 'run_bottom' : 'idle_bottom' };
   }
   dispose(): void {
     if (this.disposed) return; this.disposed = true;
-    this.cancelInteraction(); this.controls.destroy(); this.engine.off('update', this.frame);
-    for (const [name, listener] of this.listeners) this.canvas.removeEventListener(name, listener);
+    this.cancelInteraction(); this.controls.destroy(); this.aimControls.destroy(); this.engine.off('update', this.frame);
     if (this.weapon) disposeGltfModel(this.weapon);
     if (this.character) disposeGltfModel(this.character);
     this.world.destroy();

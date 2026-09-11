@@ -46,6 +46,7 @@ async function run() {
   check(game.snapshot().selectedLevel === 1, 'skinned next button');
   await click(panelLeft + 4 + arrowSize / 2, arrowY);
   check(game.snapshot().selectedLevel === 0, 'skinned previous button');
+  check(audio.snapshot().uiClicks >= 2,'carousel buttons play GUI sounds');
   const mission=Number(new URLSearchParams(location.search).get('mission')??1);
   for(let i=1;i<mission;i++)await click(panelLeft + panelWidth - 4 - arrowSize / 2, arrowY);
   check(game.snapshot().selectedLevel===mission-1,'requested mission carousel');
@@ -63,11 +64,13 @@ async function run() {
     check(game.snapshot().language===language,'language applies immediately');
     check(new SkyStrikeLocale(localStorage).language===language,'language persists across new instance');
     if(scene==='options') {
+      const clicksBefore=audio.snapshot().uiClicks;
       await click(innerWidth/2,top+optionsHeight*0.7425);check(!audio.enabled,'GUI sound mute');
       const cw=Math.min(400,innerWidth-24);await click((innerWidth-cw)/2+cw*.205,top+optionsHeight*.8325);check(audio.volume===.55,'GUI volume down');
       await click((innerWidth-cw)/2+cw*.795,top+optionsHeight*.8325);check(audio.volume===.65,'GUI volume up');
       await click(innerWidth/2,top+optionsHeight*.7425);check(audio.enabled,'GUI sound enable');
       check(JSON.parse(localStorage.getItem(SKY_AUDIO_SETTINGS_KEY)!).volume===.65,'GUI audio persistence');
+      check(audio.snapshot().uiClicks>clicksBefore,'unmuting plays GUI confirmation');
       engine.stop();result.textContent=JSON.stringify({status:'passed',checks:['settings-modal','language-persistence','input-isolation'],state:game.snapshot()});result.dataset.status='passed';return;
     }
     await click(innerWidth/2,top+optionsHeight*0.9325);check(!game.snapshot().optionsOpen,'close settings');
@@ -82,8 +85,9 @@ async function run() {
   check(game.snapshot().phase === 'playing', 'GUI start');
   if (scene === 'audio') {
     engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.player.invulnerableMs=999999;
-    check(audioBackend.snapshot().buffers===13 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
+    check(audioBackend.snapshot().buffers===18 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
     audio.resume();await wait(80);check(audioBackend.snapshot().state==='running','WebAudio unlocked');
+    audio.stop();
     for(const form of ['basic','red','blue']){f.weaponForm=form;f.player.fireCooldownMs=0;f.pointerFiring=true;game.update(16);check(audioBackend.snapshot().voices>0,'game fires '+form+' sound');audio.stop();}
     f.weaponForm='purple';game.update(16);check(audio.snapshot().loops===1,'game starts laser');
     for(let i=0;i<70;i++){game.update(16);audio.play('bomb');audio.play('explosion-large');audio.play('shot-enemy');}
@@ -96,7 +100,31 @@ async function run() {
     audio.pause();audio.resume();audio.pause();audio.resume();await wait(100);check(audioBackend.snapshot().state==='running','rapid pause/resume keeps latest intent');
     audio.settings(false);check(audioBackend.snapshot().voices===0,'mute stops all voices');audio.settings(true,.65);
     const beforeDispose=audio.snapshot();game.dispose();await wait(30);check(audioBackend.snapshot().state==='closed'&&audioBackend.snapshot().voices===0,'dispose closes audio');
-    result.textContent=JSON.stringify({status:'passed',checks:['13-decoded-effects','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
+    result.textContent=JSON.stringify({status:'passed',checks:['18-decoded-effects','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
+  }
+  if (scene === 'bomb-crates' || scene === 'crate-rules') {
+    engine.stop();const f=game as any;
+    const reset=(mission=7)=>{f.beginLevel(mission);f.phase='playing';f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.bombPowerups=[];f.powerups=[];f.asteroids.clear();f.bombCrates.clear();f.player.x=240;f.player.y=820;f.player.invulnerableMs=999999;f.laserFiring=false;f.pointerFiring=false;f.bombs=1;};
+    const miner=()=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='ore-reaper'),240,160);e.entered=true;return e;};
+    reset(0);for(let i=0;i<450;i++)game.update(16);check(f.bombCrates.crates.length===0,'no crates in other stages');
+    reset();for(let i=0;i<450;i++)game.update(16);check(f.bombCrates.crates.length===0,'no crates before mining boss');
+    const boss=miner();for(let i=0;i<375;i++)game.update(16);check(f.bombCrates.crates.length===1,'mining boss naturally spawns first crate after six seconds');
+    const before=JSON.stringify(f.bombCrates.snapshot());f.pause();for(let i=0;i<40;i++)game.update(16);check(JSON.stringify(f.bombCrates.snapshot())===before,'pause freezes crate and supply timer');f.togglePause();
+    reset();let c=f.bombCrates.spawn(240,600);const bullet=(damage:number)=>({x:240,y:500,previousX:240,previousY:750,vx:0,vy:-800,radius:4,damage,hostile:false,color:'#5ef'});
+    f.playerBullets.push(bullet(20));f.resolveCollisions();check(c.health===22&&f.bombPowerups.length===0&&f.playerBullets.length===0,'first swept hit damages sealed crate without drop');
+    f.playerBullets.push(bullet(22));f.resolveCollisions();check(f.bombCrates.crates.length===0&&f.bombPowerups.length===1,'breaking crate releases one bomb');f.damageBombCrate(c,999);check(f.bombPowerups.length===1,'cannot duplicate drop');
+    f.player.x=240;f.player.y=600;f.updatePowerups(0);check(f.bombs===2&&f.bombPowerups.length===0,'touch released bomb adds exactly one');
+    reset();c=f.bombCrates.spawn(240,600);f.player.y=600;f.resolveCollisions();f.updatePowerups(0);check(f.bombs===1&&f.player.health===100&&f.bombCrates.crates.length===1,'sealed crate cannot be collected and causes no contact damage');
+    f.player.y=820;f.weaponForm='purple';f.weaponLevel=3;f.laserFiring=true;f.laserDamageCooldownMs=0;for(let i=0;i<30&&f.bombCrates.crates.length;i++)f.updatePlayerLaser(100);check(f.bombCrates.crates.length===0&&f.bombPowerups.length===1,'laser breaks crate and releases bomb');
+    reset();c=f.bombCrates.spawn(240,600);const rock=f.asteroids.spawn(240,700,64),hp=rock.health;f.playerBullets.push(bullet(20));f.resolveCollisions();check(c.health===42&&rock.health===hp-20,'nearest asteroid shields farther crate');
+    reset();miner();c=f.bombCrates.spawn(240,600);f.damageEnemy(f.enemies.indexOf(f.boss),f.boss,999999);check(f.bombCrates.crates.length===0,'boss death clears sealed supplies');
+    reset();const played:string[]=[];const original=audioBackend.play.bind(audioBackend);audioBackend.play=(id,options)=>{played.push(id);return original(id,options);};audio.resume();await wait(40);
+    for(const form of ['red','blue','purple']){f.powerups.push({x:240,y:820,baseX:240,ageMs:0,formTimerMs:4000,orbitAngle:0,form,radius:18});f.updatePowerups(0);check(f.weaponForm===form,'collect '+form);}
+    f.spawnBombPowerup({x:240,y:820});f.bombPowerups[0].orbitAngle=0;f.updatePowerups(0);check(['pickup-red','pickup-blue','pickup-purple','pickup-bomb'].every(id=>played.includes(id)),'each actual pickup triggers its distinct audio');
+    const count=played.length;f.updatePowerups(0);check(played.length===count,'collected items cannot replay pickup');audioBackend.play=original;
+    reset();miner();f.bombCrates.spawn(160,550);f.asteroids.spawn(80,400,70);f.asteroids.spawn(340,660,88);f.asteroids.update(16,false,420,f.boss,f.player);f.bombCrates.crates[0].health=28;f.spaceBackdrop.select('asteroid-forge',true);f.spaceBackdrop.update(22000);f.player.invulnerableMs=0;f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
+    check(game.snapshot().rendering.frameTextureUploads===0,'crate uses existing GPU primitives with no uploads');
+    result.textContent=JSON.stringify({status:'passed',checks:['boss-only-supply-timing','pause-freeze','swept-hit','single-drop','pickup-bomb','laser-crate','occlusion','boss-cleanup','four-pickup-sounds','zero-texture-upload'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if (scene === 'fighter-aim') {
     engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.player.x=400;f.player.y=760;f.player.invulnerableMs=999999;
@@ -323,8 +351,10 @@ async function run() {
     result.textContent=JSON.stringify({status:'passed',checks:['compact-vitals','lives-icons','conditional-boss','centered-score'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if (scene === 'pause' || scene === 'home') {
+    const pauseClicks=audio.snapshot().uiClicks;
     await click(innerWidth / 2 + Math.min(innerWidth, innerHeight / 2) / 2 - 60, innerHeight - 36);
     check(game.snapshot().phase === 'paused', 'skinned pause dialog');
+    check(audio.snapshot().uiClicks>pauseClicks&&!audio.snapshot().active,'pause confirmation plays without combat');
     if (scene === 'home') {
       const cardHeight = Math.min(Math.min(400, Math.min(innerWidth,innerHeight/2)-28)*0.98,innerHeight-40);
       for (let cycle=0;cycle<2;cycle++) {

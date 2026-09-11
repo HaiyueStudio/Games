@@ -127,8 +127,8 @@ export class SkyStrikeLevelCarousel {
     this.companionImage=this.panel.add(new GuiImage({visible:false,disabled:true}));
     this.layoutBossImage();
 
-    const previousButton = skyStrikeButton(this.panel, options.guiImage, '', () => this.changeSelection(-1), 'left');
-    const nextButton = skyStrikeButton(this.panel, options.guiImage, '', () => this.changeSelection(1), 'right');
+    const previousButton = skyStrikeButton(this.panel, options.guiImage, '', () => {this.changeSelection(-1);options.audio?.click();}, 'left');
+    const nextButton = skyStrikeButton(this.panel, options.guiImage, '', () => {this.changeSelection(1);options.audio?.click();}, 'right');
     for (const [button, right] of [[previousButton, false], [nextButton, true]] as const) {
       button.layout = rect => {
         const size = Math.max(48, Math.min(64, rect.width * 0.16));
@@ -169,10 +169,10 @@ export class SkyStrikeLevelCarousel {
     }));
     this.layoutRelative(this.hint, (parent) => this.relativeRect(parent, 0.07, 0.81, 0.86, 0.025));
 
-    this.startButton = skyStrikeButton(this.panel, options.guiImage, '', () => options.onStart(this.selectedIndex));
+    this.startButton = skyStrikeButton(this.panel, options.guiImage, '', () => {options.onStart(this.selectedIndex);options.audio?.click();});
     this.layoutRelative(this.startButton, parent => this.relativeRect(parent, 0.12, 0.86, 0.76, 0.1));
 
-    const gear = skyStrikeIconButton(this.panel, options.guiImage, 'gear', () => { this.pointerId = -1; this.settings.open(); });
+    const gear = skyStrikeIconButton(this.panel, options.guiImage, 'gear', () => { this.pointerId = -1; this.settings.open(); options.audio?.click(); });
     this.layoutRelative(gear.button, p => ({ x: p.x + p.width - 58, y: p.y + p.height * 0.035, width: 52, height: 60 }));
     const entity = new Entity('SkyStrikeLevelCarouselGui');
     entity.addComponent(this.root);

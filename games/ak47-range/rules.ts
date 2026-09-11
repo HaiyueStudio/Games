@@ -48,6 +48,16 @@ function bodyEntry(a: Point, b: Point, body: Point): number {
   const t = (-bb - Math.sqrt(disc)) / aa;
   return t >= 0 && t <= 1 ? t : Infinity;
 }
+interface StickDirection { readonly strength: number; readonly direction: { readonly x: number; readonly y: number } }
+/** Right stick owns facing while held, even at its center. Translation stays with the left stick. */
+export function resolvePlayerHeading(current: number, movement: StickDirection, aim: StickDirection & { readonly active: boolean }, dt: number): number {
+  if (aim.active) return aim.strength > 0 ? Math.atan2(-aim.direction.x, -aim.direction.y) : current;
+  if (movement.strength === 0) return current;
+  const desired = Math.atan2(-movement.direction.x, -movement.direction.y);
+  const turn = Math.atan2(Math.sin(desired - current), Math.cos(desired - current));
+  const step = Math.max(0, Math.min(0.1, dt)) * 14;
+  return current + Math.max(-step, Math.min(step, turn));
+}
 export class RangeRules {
   ammo = MAGAZINE; shots = 0; hits = 0; kills = 0; health = 100; damageEvents = 0;
   firing = false; reloadRemaining = 0; cooldown = 0; time = 0; spawned = 0;

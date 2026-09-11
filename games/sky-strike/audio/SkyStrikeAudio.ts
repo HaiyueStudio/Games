@@ -20,6 +20,8 @@ export class SkyStrikeAudio {
   private disposed=false;
   private clock=0;
   private sequence=0;
+  private pendingClickUntil=-Infinity;
+  private uiClicks=0;
   private readonly last=new Map<SkySound,number>();
   private readonly loops=new Set<string>();
   private readonly listeners=new Set<()=>void>();
@@ -39,7 +41,20 @@ export class SkyStrikeAudio {
   }
   unlock():void {if(!this.disposed)this.backend.unlock();}
   resume():void {if(this.disposed)return;this.active=true;this.last.clear();this.backend.unlock();}
-  update(delta:number):void {if(Number.isFinite(delta))this.clock+=Math.max(0,delta);}
+  /** Explicit GUI activation works in menus/paused screens, never enables combat audio. */
+  click():void {
+    if(this.disposed||!this.enabled||this.volume===0)return;
+    this.backend.unlock();this.pendingClickUntil=this.clock+160;
+  }
+  update(delta:number):void {
+    if(Number.isFinite(delta))this.clock+=Math.max(0,delta);
+    if(this.disposed||!this.enabled||this.volume===0||this.clock>this.pendingClickUntil)return;
+    const definition=SKY_SOUNDS['ui-click'];
+    if(this.clock-(this.last.get('ui-click')??-Infinity)<definition.cooldown){this.pendingClickUntil=-Infinity;return;}
+    if(this.backend.play('ui-click',{channel:'ui-click',loop:false,gain:definition.gain,pan:0,priority:definition.priority})){
+      this.pendingClickUntil=-Infinity;this.last.set('ui-click',this.clock);this.uiClicks++;
+    }
+  }
   play(id:SkySound,x=240):void {
     if(!this.active||!this.enabled||this.volume===0||this.disposed)return;
     const definition=SKY_SOUNDS[id];if(this.clock-(this.last.get(id)??-Infinity)<definition.cooldown)return;
@@ -57,8 +72,8 @@ export class SkyStrikeAudio {
     }else if(!on&&this.loops.delete(channel)){this.backend.stop(channel);if(transients&&this.active)this.play('laser-end',x);}
   }
   stopLasers():void {for(const channel of this.loops)this.backend.stop(channel);this.loops.clear();}
-  stop():void {this.backend.stop();this.loops.clear();this.last.clear();}
+  stop():void {this.pendingClickUntil=-Infinity;this.backend.stop();this.loops.clear();this.last.clear();}
   pause():void {this.active=false;this.stop();this.backend.suspend();}
   dispose():void {if(this.disposed)return;this.pause();this.disposed=true;this.listeners.clear();this.backend.dispose();}
-  snapshot(){return {enabled:this.enabled,volume:this.volume,active:this.active,loops:this.loops.size,saveFailed:this.saveFailed,backend:this.backend.snapshot()};}
+  snapshot(){return {uiClicks:this.uiClicks,enabled:this.enabled,volume:this.volume,active:this.active,loops:this.loops.size,saveFailed:this.saveFailed,backend:this.backend.snapshot()};}
 }

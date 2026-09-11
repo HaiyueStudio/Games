@@ -25,17 +25,17 @@ export class SkyStrikeOptions {
     const heading = card.add(new GuiLabel({ fontSize: 25, textAlign: 'center', style: { color: '#edf8ff' } })); place(heading,0.12,0.08);
     const subtitle = card.add(new GuiLabel({ fontSize: 13, textAlign: 'center', style: { color: '#a2deef' } })); place(subtitle,0.22,0.045);
     const buttons = SKY_LANGUAGES.map((language,index) => {
-      const button = skyStrikeButton(card,image,'',()=>locale.set(language)); place(button,0.30+index*0.125,0.105);
+      const button = skyStrikeButton(card,image,'',()=>{locale.set(language);audio?.click();}); place(button,0.30+index*0.125,0.105);
       return { language, button };
     });
     const hint = card.add(new GuiLabel({ fontSize: 10, textAlign: 'center', style: { color: '#c9b5df' } })); place(hint,0.655,0.04,0.9);
-    const sound = skyStrikeButton(card,image,'',()=>audio?.settings(!audio.enabled)); place(sound,0.705,0.075);
+    const sound = skyStrikeButton(card,image,'',()=>{audio?.settings(!audio.enabled);audio?.click();}); place(sound,0.705,0.075);
     const volume = card.add(new GuiLabel({fontSize:14,textAlign:'center',style:{color:'#a2deef'}})); place(volume,0.795,0.075,0.44);
     for (const direction of [-1,1]) {
-      const button = skyStrikeButton(card,image,direction<0?'-':'+',()=>audio?.settings(audio.enabled,audio.volume+direction*0.1));
+      const button = skyStrikeButton(card,image,direction<0?'-':'+',()=>{audio?.settings(audio.enabled,audio.volume+direction*0.1);audio?.click();});
       button.layout = rect => {button.rect={x:rect.x+rect.width*(direction<0?0.12:0.71),y:rect.y+rect.height*0.795,width:rect.width*0.17,height:rect.height*0.075};for(const child of button.children)child.layout(button.rect);};
     }
-    const back = skyStrikeButton(card,image,'',()=>this.close()); place(back,0.895,0.075,0.6);
+    const back = skyStrikeButton(card,image,'',()=>{this.close();audio?.click();}); place(back,0.895,0.075,0.6);
     const refresh = () => {
       heading.setText(locale.text('options')); subtitle.setText(locale.text('language'));
       hint.setText(locale.text(audio?.saveFailed ? 'audioSaveFailed' : locale.saveFailed ? 'saveFailed' : 'languageHint'));

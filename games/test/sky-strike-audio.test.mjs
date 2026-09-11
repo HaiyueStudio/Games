@@ -6,7 +6,7 @@ import {SKY_SOUNDS,SKY_SOUND_IDS,SKY_SAMPLE_RATE,soundPath,synthesizeSkySound,en
 const source=stripTypeScriptTypes(readFileSync(new URL('../sky-strike/audio/SkyStrikeAudio.ts',import.meta.url),'utf8'),{mode:'transform'}).replace("'./synthesis'",JSON.stringify(new URL('../sky-strike/audio/synthesis.ts',import.meta.url).href));
 const {SkyStrikeAudio,SKY_AUDIO_SETTINGS_KEY}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 function fixture(storage){const played=[],stopped=[];const backend={unlocks:0,suspended:0,disposed:0,volume:1,unlock(){this.unlocks++;},play(id,options){played.push({id,...options});return true;},stop(channel){stopped.push(channel);},setVolume(v){this.volume=v;},suspend(){this.suspended++;},dispose(){this.disposed++;},snapshot(){return{};}};return {audio:new SkyStrikeAudio(backend,storage),backend,played,stopped};}
-test('all 13 shipped sound files are reproducible bounded PCM with valid lengths, decay and seamless loop periods',()=>{
+test('all 18 shipped sound files are reproducible bounded PCM with valid lengths, decay and seamless loop periods',()=>{
  let bytes=0;const manifest=JSON.parse(readFileSync(new URL('../manifest.json',import.meta.url),'utf8')).entries.find(e=>e.id==='sky-strike');
  for(const id of SKY_SOUND_IDS){const pcm=synthesizeSkySound(id),wav=encodeSkyWav(pcm),shipped=readFileSync(new URL('../sky-strike/'+soundPath(id),import.meta.url));
  assert.deepEqual(Buffer.from(wav),shipped,id);assert.equal(pcm.length,Math.round(SKY_SOUNDS[id].seconds*SKY_SAMPLE_RATE));
@@ -14,7 +14,7 @@ test('all 13 shipped sound files are reproducible bounded PCM with valid lengths
  assert.equal(shipped.toString('ascii',0,4),'RIFF');assert.equal(shipped.readUInt32LE(24),44100);assert.equal(shipped.readUInt16LE(22),1);assert.equal(shipped.readUInt16LE(34),16);assert.equal(shipped.readUInt32LE(40),pcm.length*2);
  assert.equal(Math.abs(pcm[0]),0);if(id==='laser-loop'||id==='laser-enemy'){const last=pcm.length-1;assert.ok(Math.abs(pcm[last]+pcm[1])<.001);assert.ok(Math.abs((pcm[1]-pcm[0])-(pcm[0]-pcm[last]))<.001);}else assert.equal(Math.abs(pcm.at(-1)),0);
  assert.ok(JSON.stringify(manifest).includes('sky-strike/'+soundPath(id)));bytes+=wav.length;
- }assert.equal(SKY_SOUND_IDS.length,13);assert.ok(bytes<450000);
+ }assert.equal(SKY_SOUND_IDS.length,18);assert.ok(bytes<580000);
 });
 test('volley cooldown, pan bounds and high priority explosions do not depend on projectile count',()=>{
  const {audio,played}=fixture();audio.play('bomb');assert.equal(played.length,0);audio.resume();for(let i=0;i<20;i++)audio.play('shot-basic',-200);assert.equal(played.length,1);assert.equal(played[0].pan,-.65);
@@ -31,4 +31,12 @@ test('sound preferences persist separately, clamp inputs and survive unavailable
  audio.settings(true,2);assert.equal(audio.volume,1);audio.settings(true,NaN);assert.equal(audio.volume,1);audio.settings(true,-2);assert.equal(audio.volume,0);
  data.set(SKY_AUDIO_SETTINGS_KEY,'{"enabled":true,"volume":9}');assert.equal(fixture(storage).audio.volume,.65);
  const denied=fixture({getItem(){throw Error('denied');},setItem(){throw Error('denied');}}).audio;denied.settings(false,.2);assert.equal(denied.saveFailed,true);assert.equal(denied.volume,.2);
+});
+
+test('GUI clicks work in menus and after pausing, obey mute and never enable gameplay or survive backgrounding',()=>{
+ const {audio,played}=fixture();audio.click();audio.update(16);assert.equal(played.at(-1).id,'ui-click');assert.equal(audio.snapshot().active,false);audio.play('bomb');assert.equal(played.length,1);
+ audio.resume();audio.lasers(true,true);audio.pause();audio.click();audio.update(16);assert.equal(played.at(-1).id,'ui-click');assert.equal(audio.snapshot().loops,0);assert.equal(audio.snapshot().active,false);
+ audio.click();audio.pause();const n=played.length;audio.update(20);assert.equal(played.length,n);
+ audio.settings(false);audio.click();audio.update(40);assert.equal(played.length,n);audio.settings(true,0);audio.click();audio.update(40);assert.equal(played.length,n);
+ audio.settings(true,.65);audio.click();audio.update(40);assert.equal(played.length,n+1);audio.dispose();audio.click();audio.update(40);assert.equal(played.length,n+1);
 });

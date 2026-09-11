@@ -1,3 +1,4 @@
+import { verifyTwinStick } from './twin-stick-verification';
 import { type RangeGame } from './RangeGame';
 export async function verifyRange(game: RangeGame, canvas: HTMLCanvasElement) {
   const checks: string[] = [];
@@ -47,6 +48,7 @@ export async function verifyRange(game: RangeGame, canvas: HTMLCanvasElement) {
     check(game.rules.ammo === 30 && game.rules.reloadRemaining === 0, 'reload replenishes magazine');
     send('pointerdown', 9102, actions.fire.x + 48, actions.fire.y + 48); send('pointercancel', 9102, 0, 0);
     check(!game.rules.firing, 'pointer cancellation stops continuous fire');
+    checks.push(...await verifyTwinStick(game, send, frames, [9101, 9102]));
     game.restart();
     game.rules.spawnEnemy({ x: 1, z: -2 });
     game.rules.spawnEnemy({ x: 0, z: 7 });
@@ -59,6 +61,12 @@ export async function verifyRange(game: RangeGame, canvas: HTMLCanvasElement) {
     await frames(100);
     check(game.rules.health < 100 && game.rules.damageEvents > 0, 'enemy acquires player and bullets inflict damage');
     await frames(45);
+    // Freeze a rendered two-stick pose for the WebGPU screenshot; the fixture's finally releases pointers.
+    game.restart(); game.rules.spawnEnemy({ x: 1, z: -2 });
+    const move = game.controls.state.center, aim = game.aimControls.state.center;
+    send('pointerdown', 9101, move.x, move.y); send('pointermove', 9101, move.x + 42, move.y);
+    send('pointerdown', 9102, aim.x, aim.y); send('pointermove', 9102, aim.x - 20, aim.y - 36);
+    await frames(3); game.engine.stop();
     await game.engine.device.queue.onSubmittedWorkDone();
     return { schemaVersion: 2, suite: 'ak47-range', checks, ...game.snapshot() };
   } finally { game.cancelInteraction(); canvas.setPointerCapture = capture; canvas.releasePointerCapture = release; }

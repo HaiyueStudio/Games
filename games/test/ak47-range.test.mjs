@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { RangeRules, MAGAZINE } from '../ak47-range/rules.ts';
+import { RangeRules, MAGAZINE, resolvePlayerHeading } from '../ak47-range/rules.ts';
 const muzzle = { x: 0, y: 1.2, z: 0 };
 test('held trigger fires at 600 rpm; releasing immediately stops', () => {
   const game = new RangeRules(); game.setFiring(true);
@@ -129,4 +129,24 @@ test('a hand socket extending through cover cannot shoot from its far side', () 
   const game = new RangeRules(); game.setFiring(true);
   game.step(0.1, { x: 5, y: 1.1, z: -6 }, 0, { x: 5, z: 0 });
   assert.equal(game.shots, 1); assert.equal(game.bullets.length, 0);
+});
+
+test('right aim owns facing independently of movement, including center hold and return to center', () => {
+  const right = { strength: 1, direction: { x: 1, y: 0 } };
+  const leftAim = { active: true, strength: 1, direction: { x: -1, y: 0 } };
+  const heading = resolvePlayerHeading(0, right, leftAim, 1 / 60);
+  assert.equal(heading, Math.PI / 2);
+  const centered = { active: true, strength: 0, direction: { x: 0, y: 0 } };
+  assert.equal(resolvePlayerHeading(heading, right, centered, 1 / 60), heading);
+  assert.equal(resolvePlayerHeading(0.7, right, centered, 1 / 60), 0.7);
+  const released = resolvePlayerHeading(heading, right, { ...centered, active: false }, 1 / 60);
+  assert.ok(Math.abs(released - heading) > 0.1);
+});
+test('screen aim cardinal directions map to world bullet directions, regardless of movement', () => {
+  for (const [x, y] of [[1, 0], [-1, 0], [0, -1], [0, 1]]) {
+    const heading = resolvePlayerHeading(0, { strength: 1, direction: { x: -x, y: -y } }, { active: true, strength: 1, direction: { x, y } }, 1 / 60);
+    const game = new RangeRules(); game.setFiring(true); game.step(1 / 120, muzzle, heading);
+    assert.ok(Math.abs(game.bullets[0].dx - x) < 1e-6);
+    assert.ok(Math.abs(game.bullets[0].dz - y) < 1e-6);
+  }
 });
