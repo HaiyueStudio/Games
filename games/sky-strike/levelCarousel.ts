@@ -237,7 +237,7 @@ export class SkyStrikeLevelCarousel {
     this.startButton.setText(t.text(this.failed ? 'retry' : 'start'));
     this.channel.setText(t.text('missionChannel')); this.hint.setText(t.text('swipe'));
     const boss = this.options.resolveBoss(level);
-    this.levelName.setText(`${String(this.selectedIndex + 1).padStart(2, '0')} · ${t.named(level.id)}`);
+    this.levelName.setText(`${String(level.number ?? this.selectedIndex + 1).padStart(2, '0')} · ${t.named(level.id)}`);
     this.bossName.setText(`${t.text('boss')} · ${boss.label}`);
     this.counter.setText(`${t.text('sector')}  ${String(this.selectedIndex + 1).padStart(2, '0')} / ${String(this.options.levels.length).padStart(2, '0')}`);
     this.bossImage.setSource(boss.source, boss.sourceKey);

@@ -1,3 +1,6 @@
+import {quantumPixels} from './quantum';
+import {mirrorSprites} from './mirrorSprites';
+import {SkyStrikeBlackHolePass,blackHolePortrait,type HoleVisual} from './blackHolePass';
 import { System, type World } from '@haiyue/engine/ecs';
 import type { HaiyueEngine } from '@haiyue/engine';
 import { beginRenderCommandPass, type RenderCommandContext } from '@haiyue/engine/extension-authoring';
@@ -43,10 +46,16 @@ export class SkyStrikeBattleLayer extends System {
   private readonly guiTextures = new Map<string, GPUTexture>();
   private guiTextureBytes = 0;
   private view = skyStrikeViewport(480, 960);
+  private hole:HoleVisual|null=null;
+  private lens:SkyStrikeBlackHolePass|null=null;
   private shakeX = 0; private shakeY = 0;
   constructor(private readonly engine: HaiyueEngine, sprites: readonly IndexedSpritePlaneDescriptor[]) {
     super(() => false); this.priority = 40; this.name = 'SkyStrikeBattleLayer';
-    for (const sprite of [...sprites, ...effectSprites()]) this.sources.set(sprite.id, sprite);
+    for (const sprite of [...sprites, ...effectSprites(),blackHolePortrait(),...mirrorSprites()]) this.sources.set(sprite.id, sprite);
+    for(const source of sprites){
+      if(source.id.startsWith('assets/enemy-')||source.id.startsWith('assets/elite-')||source.id==='assets/boss-quantum-dreadnought.png'||source.id==='assets/fx-quantum-turret.png')
+        this.sources.set(`quantum:${source.id}`,{...source,id:`quantum:${source.id}`,pixels:quantumPixels(new Uint8Array(source.pixels))});
+    }
     this.renderer = new IndexedSpriteRenderer(engine.device, [...this.sources.values()].filter(source => !source.id.startsWith('assets/gui-') || source.id === 'assets/gui-space.png'), [], {
       targetFormat: engine.format, sampleCount: engine.msaaSamples as 1 | 4, label: 'SkyStrike.sprites',
       limits: { ...DEFAULT_INDEXED_SPRITE_ATLAS_LIMITS, maxTextureDimension2D: 2048, maxDrawCommandsPerFrame: 8192 },
@@ -86,14 +95,18 @@ export class SkyStrikeBattleLayer extends System {
     if (warning) { const length = Math.hypot(endX - x, endY - y); for (let d = 0; d < length; d += 28) { const a = d / length, b = Math.min(1, (d + 17) / length); this.line(x + (endX-x)*a,y+(endY-y)*a,x+(endX-x)*b,y+(endY-y)*b,2,color,0.7); } }
     else { this.line(x,y,endX,endY,width*3,color,0.15); this.line(x,y,endX,endY,width,color,0.8); this.line(x,y,endX,endY,Math.max(2,width*0.26),'#f4fdff'); }
   }
-  stats() { return { ...this.renderer.stats(), renderer: 'haiyue-gpu-sprites', guiTextureBytes: this.guiTextureBytes, frameTextureUploads: 0 }; }
+  setBlackHole(visual:HoleVisual|null):void {this.hole=visual; if(!visual)this.lens?.releaseTargets();}
+  stats() { return { lens:this.lens?.stats()??null, ...this.renderer.stats(), renderer: 'haiyue-gpu-sprites', guiTextureBytes: this.guiTextureBytes, frameTextureUploads: 0 }; }
   record(_world: World, context: RenderCommandContext): this {
-    const { passEncoder, ownsPass } = beginRenderCommandPass(context);
-    const dpr = this.engine.width / this.engine.displayWidth;
-    const left = Math.ceil(this.view.left * dpr), right = Math.floor((this.view.left + this.view.width) * dpr);
-    passEncoder.setScissorRect(left, 0, Math.max(1, right - left), this.engine.height);
-    this.renderer.render(passEncoder, this.commands, this.engine.displayWidth, this.engine.displayHeight);
-    if (ownsPass) passEncoder.end(); return this;
+    const draw=(pass:GPURenderPassEncoder)=>{
+      const dpr=this.engine.width/this.engine.displayWidth;
+      const left=Math.ceil(this.view.left*dpr),right=Math.floor((this.view.left+this.view.width)*dpr);
+      pass.setScissorRect(left,0,Math.max(1,right-left),this.engine.height);
+      this.renderer.render(pass,this.commands,this.engine.displayWidth,this.engine.displayHeight);
+    };
+    if(this.hole){this.lens??=new SkyStrikeBlackHolePass(this.engine);this.lens.record(context,this.hole,this.view,draw);}
+    else {const {passEncoder,ownsPass}=beginRenderCommandPass(context);draw(passEncoder);if(ownsPass)passEncoder.end();}
+    return this;
   }
-  override destroy(): this { this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.guiTextureBytes = 0; this.commands.length = 0; return super.destroy(); }
+  override destroy(): this { this.lens?.destroy(); this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.guiTextureBytes = 0; this.commands.length = 0; return super.destroy(); }
 }

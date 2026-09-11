@@ -22,6 +22,7 @@ export class SkyStrikeAudio {
   private sequence=0;
   private pendingClickUntil=-Infinity;
   private uiClicks=0;
+  private clickSound: SkySound = 'ui-click';
   private readonly last=new Map<SkySound,number>();
   private readonly loops=new Set<string>();
   private readonly listeners=new Set<()=>void>();
@@ -42,16 +43,17 @@ export class SkyStrikeAudio {
   unlock():void {if(!this.disposed)this.backend.unlock();}
   resume():void {if(this.disposed)return;this.active=true;this.last.clear();this.backend.unlock();}
   /** Explicit GUI activation works in menus/paused screens, never enables combat audio. */
-  click():void {
+  click(kind: 'forward' | 'back' = 'forward'):void {
     if(this.disposed||!this.enabled||this.volume===0)return;
+    this.clickSound=kind==='back'?'ui-back':'ui-click';
     this.backend.unlock();this.pendingClickUntil=this.clock+160;
   }
   update(delta:number):void {
     if(Number.isFinite(delta))this.clock+=Math.max(0,delta);
     if(this.disposed||!this.enabled||this.volume===0||this.clock>this.pendingClickUntil)return;
-    const definition=SKY_SOUNDS['ui-click'];
+    const definition=SKY_SOUNDS[this.clickSound];
     if(this.clock-(this.last.get('ui-click')??-Infinity)<definition.cooldown){this.pendingClickUntil=-Infinity;return;}
-    if(this.backend.play('ui-click',{channel:'ui-click',loop:false,gain:definition.gain,pan:0,priority:definition.priority})){
+    if(this.backend.play(this.clickSound,{channel:'ui-click',loop:false,gain:definition.gain,pan:0,priority:definition.priority})){
       this.pendingClickUntil=-Infinity;this.last.set('ui-click',this.clock);this.uiClicks++;
     }
   }

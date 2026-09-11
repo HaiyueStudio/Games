@@ -1,18 +1,18 @@
 import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, EnvironmentLight, HaiyueEngine,
   Geometry3D, Mesh3D, PbrMaterial, SphericalTransform3D, World, createBox3D, createSphere3D } from '@haiyue/engine';
-import { Transform3D } from '@haiyue/engine/components';
 import { GuiRoot, GuiElement, GuiLabel, GuiButton, GuiSystem, type GuiFontOptions, type GuiRect } from '@haiyue/engine/gui';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { VirtualJoystickControls } from '@haiyue/extensions/controls';
 import { applyGltfAnimationClip, disposeGltfModel, loadGltfModel, type LoadedGltfModel, type GltfAnimationClip } from '@haiyue/extensions/gltf';
-import { mat4, vec3 } from 'wgpu-matrix';
-import { MAGAZINE, RELOAD_SECONDS, SIGHT_RANGE, RangeRules, resolvePlayerHeading } from './rules';
+import { MAGAZINE, RELOAD_SECONDS, SIGHT_RANGE, PLAYER_FOV, ENEMY_FOV, CORPSE_SECONDS, ENEMY_FIRE_RANGE, RangeRules, resolvePlayerHeading } from './rules';
+import { RadarHud } from './RadarHud';
+import { mountSoldier, soldierClip, soldierMuzzle, deathPose } from './SoldierModel';
 import type { GameSaveBackend } from '@haiyue/engine/save';
 import { SingleSlotGameSave, isRecord, isNonNegativeInteger } from '../save/SingleSlotGameSave';
 
 export const FONT_CHARS = [...new Set(Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join('') +
-  '前线训练场移动按住连续射击重新装填弹药中命中松手停止第三人称跟随空仓请装填弹匣无限备弹被生命击败生存秒视野掩体横屏继续战斗结束重新开始每刷新敌人°·')].join('');
+  '前线训练场移动按住连续射击重新装填弹药中命中松手停止第三人称跟随空仓请装填弹匣无限备弹被生命击败生存秒视野掩体横屏继续战斗结束重新开始每刷新敌人雷达°·')].join('');
 export type ModelLoader = (name: 'ren42' | 'qiang_ak47') => Promise<LoadedGltfModel>;
 function place(node: GuiElement, rect: (r: GuiRect) => GuiRect): void { node.layout = r => { node.rect = rect(r); }; }
 export interface SafeInsets { top: number; right: number; bottom: number; left: number }
@@ -21,14 +21,6 @@ export function actionRects(width: number, height: number, insets = ZERO_INSETS)
   return { fire: { x: width - insets.right - 116, y: height - insets.bottom - 120, width: 96, height: 96 },
     reload: { x: width - insets.right - 108, y: height - insets.bottom - 182, width: 88, height: 48 } };
 }
-function walk(entity: Entity, fn: (e: Entity) => void): void { fn(entity); for (const child of entity.children) walk(child, fn); }
-/** Model-local chain; independent of render scheduling, so attachments and muzzle use this frame's pose. */
-function matrixTo(entity: Entity, ancestor: Entity | null): Float32Array {
-  if (entity === ancestor) return mat4.identity();
-  const local = entity.getComponent(Transform3D)?.localMatrix ?? mat4.identity();
-  return entity.parent ? mat4.multiply(matrixTo(entity.parent, ancestor), local) : mat4.copy(local);
-}
-
 export class RangeGame {
   readonly world = new World('AK47 Range');
   readonly rules = new RangeRules();
@@ -46,13 +38,17 @@ export class RangeGame {
   private hand: Entity | null = null;
   private socket: Entity | null = null;
   private flash = new Entity('Muzzle flash').addComponent(new CartesianTransform3D());
+  private readonly radar: RadarHud;
   private stats: GuiLabel;
   private ammoLabel: GuiLabel;
   private reloadButton: GuiButton;
   private fireButton: GuiButton;
   private bulletPool: { entity: Entity; transform: CartesianTransform3D }[] = [];
-  private enemyPool: { entity: Entity; transform: CartesianTransform3D; legs: CartesianTransform3D[]; flash: Entity }[] = [];
-  private addEnemyView!: () => void;
+  private enemyPool: { entity: Entity; transform: CartesianTransform3D; character: LoadedGltfModel; weapon: LoadedGltfModel;
+    flash: Entity; hand: Entity; socket: Entity; id: number; animation: string; animationTime: number }[] = [];
+  private enemyLoading: Promise<void> | null = null;
+  private enemyLoadError: unknown = null;
+  private playerDeathAge = 0;
   private addBulletView!: () => void;
   private fogGeometry!: Geometry3D;
   private fogKey = '';
@@ -97,6 +93,7 @@ export class RangeGame {
     this.world.addRuntimeIntegration(integration);
     integration.registerAll(this.world, () => ({ pass: 'shared' }));
     this.buildArena();
+    this.radar = new RadarHud(this.root, () => this.safeInsets());
     const title = this.root.add(new GuiLabel({ text: '前线 / 生存', fontSize: 23, style: { color: '#ebdfc2' } }));
     place(title, r => ({ x: this.safeInsets().left + 18, y: this.safeInsets().top + 12, width: r.width - 36, height: 32 }));
     this.stats = this.root.add(new GuiLabel({ text: '', fontSize: 12, style: { color: '#adc1c3' } }));
@@ -108,7 +105,7 @@ export class RangeGame {
     // Idle presentation only. The aiming control owns shooting pointers and expands on press.
     this.fireButton = this.root.add(new GuiButton({ text: '射击', style: { backgroundColor: '#aa7841', borderColor: '#ead3a2', radius: 48 } }));
     place(this.fireButton, r => actionRects(r.width, r.height, this.safeInsets()).fire);
-    const hint = this.root.add(new GuiLabel({ text: '90° 视野 · 掩体', fontSize: 12, textAlign: 'center', style: { color: '#aec7c9' } }));
+    const hint = this.root.add(new GuiLabel({ text: '120° 视野 · 掩体', fontSize: 12, textAlign: 'center', style: { color: '#aec7c9' } }));
     place(hint, r => ({ x: this.safeInsets().left + 28, y: r.height - this.safeInsets().bottom - 27, width: 130, height: 22 }));
     this.controls = new VirtualJoystickControls(this.canvas, { mode: 'fixed', target: this.player, guiRoot: this.root,
       maxDistance: 48, knobRadius: 23, moveSpeed: 4.4, rotateToDirection: false, deadZone: 0.12,
@@ -148,33 +145,38 @@ export class RangeGame {
     const character = await this.loadModel('ren42');
     if (this.disposed) { disposeGltfModel(character); return; }
     this.character = character;
+    // Cool the player's camouflage while retaining its texture; enemy materials are separate instances.
+    const tintPlayer = (entity: Entity): void => {
+      const material = entity.getComponent(Mesh3D)?.material;
+      if (material instanceof PbrMaterial) material.baseColor = [0.45, 0.65, 1, 1];
+      for (const child of entity.children) tintPlayer(child);
+    };
+    tintPlayer(character.root);
     const weapon = await this.loadModel('qiang_ak47');
     if (this.disposed) { disposeGltfModel(weapon); return; }
     this.weapon = weapon;
-    const modelFrame = new Entity('Character asset axis and meters').addComponent(new CartesianTransform3D({ position: [0, 0.94, 0], rotation: [0, Math.PI, 0], scale: [0.027, 0.027, 0.027] }));
-    modelFrame.addChild(character.root); this.player.addChild(modelFrame);
-    this.animate(0);
-    walk(character.root, e => { if (e.name === '1seal_skeleton_Bip01 R Hand') this.hand = e; });
-    if (!this.hand) throw new Error('ren42 right-hand attachment bone is missing');
-    const hand = this.hand as Entity;
-    const handMatrix = matrixTo(hand, character.root);
-    const desired = mat4.translation([handMatrix[12]!, handMatrix[13]! - 0.3, handMatrix[14]! - 1.6]);
-    mat4.scale(desired, [0.78, 0.78, 0.78], desired);
-    const socketTransform = new Transform3D().setMatrix(mat4.multiply(mat4.inverse(handMatrix), desired));
-    this.socket = new Entity('AK47 right-hand socket').addComponent(socketTransform);
-    hand.addChild(this.socket); this.socket.addChild(weapon.root);
+    const mounted = mountSoldier(this.player, character, weapon);
+    this.hand = mounted.hand; this.socket = mounted.socket;
+    // Warm independent skeletons once; subsequent enemy appearances reuse these views.
+    await this.addEnemyView(); await this.addEnemyView();
+    if (this.disposed) return;
     this.flash.addComponent(new Mesh3D(createSphere3D({ radius: 0.14, widthSegments: 8, heightSegments: 6 }),
       new PbrMaterial({ baseColor: [1, 0.65, 0.08, 1], emissiveFactor: [4, 1.5, 0.1], roughness: 1 })));
     this.flash.disabled = true; this.world.addEntity(this.flash);
     this.initialized = true;
   }
   private clip(name: string): GltfAnimationClip {
-    const clip = this.character?.animationClips.find(c => c.name === name);
-    if (!clip) throw new Error(`Missing character animation ${name}`);
-    return clip;
+    if (!this.character) throw new Error('Character is not loaded');
+    return soldierClip(this.character, name);
   }
   private animate(dt: number): void {
     if (!this.character) return;
+    if (!this.rules.alive) {
+      this.playerDeathAge += dt;
+      deathPose(this.character, this.playerDeathAge);
+      this.player.disabled = this.playerDeathAge >= CORPSE_SECONDS;
+      return;
+    }
     this.runTime += dt * this.controls.state.strength * 1.5;
     const moving = this.controls.state.strength > 0;
     // Upper and lower clips are authored separately; apply lower last to preserve locomotion roots.
@@ -205,28 +207,8 @@ export class RangeGame {
     const positions = new Float32Array(256 * 9), normals = new Float32Array(positions.length);
     for (let i = 1; i < normals.length; i += 3) normals[i] = 1;
     this.fogGeometry = new Geometry3D({ positions, normals, cullMode: 'none', boundsMode: 'dynamic' });
-    this.world.addEntity(new Entity('Visible ground / occluded 90-degree fan').addComponent(new CartesianTransform3D())
+    this.world.addEntity(new Entity('Visible ground / occluded 120-degree fan').addComponent(new CartesianTransform3D())
       .addComponent(new Mesh3D(this.fogGeometry, new PbrMaterial({ baseColor: [0.30, 0.44, 0.35, 0.55], alphaMode: 'blend', roughness: 1 }))));
-    const red = new PbrMaterial({ baseColor: [0.55, 0.15, 0.095, 1], roughness: 0.9 });
-    const armor = new PbrMaterial({ baseColor: [0.13, 0.18, 0.20, 1], roughness: 0.8 });
-    const visor = new PbrMaterial({ baseColor: [0.9, 0.38, 0.15, 1], emissiveFactor: [0.5, 0.09, 0.01] });
-    const muzzleMaterial = new PbrMaterial({ baseColor: [1, 0.6, 0.15, 1], emissiveFactor: [2, 0.8, 0.1] });
-    this.addEnemyView = () => {
-      const transform = new CartesianTransform3D(), entity = new Entity('Enemy soldier').addComponent(transform);
-      const part = (name: string, position: [number, number, number], scale: [number, number, number], material: PbrMaterial) => {
-        const t = new CartesianTransform3D({ position, scale });
-        const e = new Entity(name).addComponent(t).addComponent(new Mesh3D(box, material)); entity.addChild(e); return { e, t };
-      };
-      part('Red combat jacket', [0, 1.08, 0], [0.55, 0.65, 0.34], red);
-      part('Armor plate', [0, 1.1, -0.2], [0.43, 0.4, 0.11], armor);
-      part('Helmet', [0, 1.63, 0], [0.4, 0.4, 0.4], armor);
-      part('Visor', [0, 1.63, -0.21], [0.3, 0.13, 0.04], visor);
-      for (const x of [-0.34, 0.34]) part('Aiming arm', [x, 1.1, -0.18], [0.17, 0.2, 0.57], red);
-      const legs = [-0.17, 0.17].map(x => part('Running leg', [x, 0.38, 0], [0.23, 0.72, 0.27], armor).t);
-      part('Enemy rifle', [0.25, 1.13, -0.5], [0.09, 0.12, 0.9], armor);
-      const flash = part('Enemy muzzle flash', [0.25, 1.13, -0.99], [0.11, 0.11, 0.13], muzzleMaterial).e;
-      entity.disabled = true; this.world.addEntity(entity); this.enemyPool.push({ entity, transform, legs, flash });
-    };
     const tracer = createBox3D({ width: 0.018, height: 0.018, depth: 0.24 });
     const tracerMaterial = new PbrMaterial({ baseColor: [1, 0.82, 0.28, 1], emissiveFactor: [3, 1.9, 0.3] });
     this.addBulletView = () => {
@@ -237,11 +219,33 @@ export class RangeGame {
   }
   muzzle(): { x: number; y: number; z: number } {
     if (!this.weapon) return { x: this.playerTransform.position[0]!, y: 1.2, z: this.playerTransform.position[2]! - 0.8 };
-    const point = vec3.transformMat4([0, 3.3, 31.5], matrixTo(this.weapon.root, null));
-    return { x: point[0]!, y: point[1]!, z: point[2]! };
+    return soldierMuzzle(this.weapon);
   }
+  private async addEnemyView(): Promise<void> {
+    const character = await this.loadModel('ren42');
+    if (this.disposed) { disposeGltfModel(character); return; }
+    let weapon: LoadedGltfModel | null = null;
+    try {
+      weapon = await this.loadModel('qiang_ak47');
+      if (this.disposed) { disposeGltfModel(weapon); disposeGltfModel(character); return; }
+      const transform = new CartesianTransform3D(), entity = new Entity('ren42 enemy').addComponent(transform);
+      const mounted = mountSoldier(entity, character, weapon);
+      const flash = new Entity('Enemy muzzle flash').addComponent(new CartesianTransform3D())
+        .addComponent(new Mesh3D(createSphere3D({ radius: 0.09, widthSegments: 8, heightSegments: 6 }),
+          new PbrMaterial({ baseColor: [1, 0.6, 0.15, 1], emissiveFactor: [2, 0.8, 0.1] })));
+      entity.disabled = true; flash.disabled = true;
+      this.world.addEntity(entity); this.world.addEntity(flash);
+      this.enemyPool.push({ entity, transform, character, weapon, flash, hand: mounted.hand, socket: mounted.socket,
+        id: 0, animation: 'idle_bottom', animationTime: 0 });
+    } catch (error) {
+      if (weapon) disposeGltfModel(weapon);
+      disposeGltfModel(character); throw error;
+    }
+  }
+
   private readonly frame = ({ detail }: { detail: { time: number; delta: number } }): void => {
     if (this.disposed || !this.initialized) return;
+    if (this.enemyLoadError) throw this.enemyLoadError;
     const dt = Math.min(0.1, Math.max(0, detail.delta / 1000)); this.elapsed += dt;
     this.resize();
     const old = { x: this.playerTransform.position[0]!, z: this.playerTransform.position[2]! };
@@ -253,7 +257,7 @@ export class RangeGame {
     const p = this.playerTransform.position;
     const moved = this.rules.move(old, { x: p[0]!, z: p[2]! });
     this.playerTransform.setPosition(moved.x, 0, moved.z);
-    this.animate(dt);
+    this.animate(this.portrait ? 0 : dt);
     const muzzle = this.muzzle();
     this.rules.step(this.portrait ? 0 : dt, muzzle, this.playerTransform.rotation[1]!, moved);
     if (this.rules.shots > this.shotsBefore) { this.flashTime = 0.045; this.haptic('shot'); }
@@ -262,8 +266,9 @@ export class RangeGame {
     this.hurtLabel.setVisible(this.hurtTime > 0);
     if (!this.rules.alive) this.cancelInteraction();
     this.updateVisibility();
+    this.radar.update(this.rules.player, this.rules.enemies.filter(e => e.health > 0));
     this.shotsBefore = this.rules.shots; this.flashTime = Math.max(0, this.flashTime - dt);
-    this.flash.disabled = this.flashTime <= 0;
+    this.flash.disabled = !this.rules.alive || this.flashTime <= 0;
     this.flash.getComponent(CartesianTransform3D)!.setPosition(muzzle.x, muzzle.y, muzzle.z);
     while (this.bulletPool.length < this.rules.bullets.length) this.addBulletView();
     this.bulletPool.forEach((v, i) => {
@@ -292,26 +297,39 @@ export class RangeGame {
   restart(): void {
     this.cancelInteraction(); this.rules.restart(); this.playerTransform.setPosition(0, 0, 3);
     this.playerTransform.setRotation(0, 0, 0); this.orbit.setTarget(0, 0.8, 3); this.fogKey = '';
+    this.playerDeathAge = 0; this.player.disabled = false; this.hurtTime = 0; this.flashTime = 0;
   }
   private updateVisibility(): void {
     const observer = this.rules.player;
     const visibleEnemies = this.rules.enemies.filter(enemy => this.rules.canSee(observer, enemy));
-    while (this.enemyPool.length < visibleEnemies.length) this.addEnemyView();
+    if (this.enemyPool.length < visibleEnemies.length + 1 && !this.enemyLoading) {
+      this.enemyLoading = this.addEnemyView().catch(error => { this.enemyLoadError = error; })
+        .finally(() => { this.enemyLoading = null; });
+    }
     this.enemyPool.forEach((view, i) => {
       const enemy = visibleEnemies[i];
-      view.entity.disabled = !enemy || !this.rules.canSee(observer, enemy);
-      if (!enemy) return;
+      view.entity.disabled = !enemy; view.flash.disabled = true;
+      if (!enemy) { view.id = 0; return; }
+      view.id = enemy.id;
       view.transform.setPosition(enemy.x, 0, enemy.z); view.transform.setRotation(0, enemy.heading, 0);
-      view.flash.disabled = enemy.flash <= 0;
-      view.legs.forEach((leg, j) => leg.setRotation(enemy.alert ? 0 : Math.sin(this.elapsed * 10 + j * Math.PI) * 0.45, 0, 0));
+      if (enemy.deathAge !== null) {
+        view.animation = 'death'; view.animationTime = deathPose(view.character, enemy.deathAge);
+      } else {
+        view.animation = enemy.moving ? 'run_bottom' : 'idle_bottom'; view.animationTime = enemy.animationTime;
+        applyGltfAnimationClip(soldierClip(view.character, 'run_top2'), 0);
+        applyGltfAnimationClip(soldierClip(view.character, view.animation), enemy.animationTime);
+        view.flash.disabled = enemy.flash <= 0;
+        const muzzle = soldierMuzzle(view.weapon);
+        view.flash.getComponent(CartesianTransform3D)!.setPosition(muzzle.x, muzzle.y, muzzle.z);
+      }
     });
     const key = `${observer.x.toFixed(3)},${observer.z.toFixed(3)},${observer.heading.toFixed(3)}`;
     if (key === this.fogKey) return; this.fogKey = key;
-    const angles = Array.from({ length: 129 }, (_, i) => -Math.PI / 4 + i / 128 * Math.PI / 2);
+    const angles = Array.from({ length: 129 }, (_, i) => -PLAYER_FOV / 2 + i / 128 * PLAYER_FOV);
     for (const box of this.rules.obstacles) for (const x of [box.x - box.width / 2, box.x + box.width / 2]) for (const z of [box.z - box.depth / 2, box.z + box.depth / 2]) {
       const a = Math.atan2(observer.x - x, observer.z - z) - observer.heading;
       const angle = Math.atan2(Math.sin(a), Math.cos(a));
-      for (const offset of [-0.0001, 0, 0.0001]) if (Math.abs(angle + offset) < Math.PI / 4) angles.push(angle + offset);
+      for (const offset of [-0.0001, 0, 0.0001]) if (Math.abs(angle + offset) < PLAYER_FOV / 2) angles.push(angle + offset);
     }
     angles.sort((a, b) => a - b);
     const points = angles.map(a => {
@@ -357,19 +375,26 @@ export class RangeGame {
   snapshot() {
     return { ready: this.initialized, ammo: this.rules.ammo, shots: this.rules.shots, hits: this.rules.hits,
       health: this.rules.health, kills: this.rules.kills, survival: this.rules.time, spawned: this.rules.spawned,
-      enemies: this.rules.enemies.map(e => ({ id: e.id, x: e.x, z: e.z, heading: e.heading, alert: e.alert, visible: this.rules.canSee(this.rules.player, e) })),
+      enemies: this.rules.enemies.map(e => ({ id: e.id, x: e.x, z: e.z, heading: e.heading, alert: e.alert, health: e.health, deathAge: e.deathAge, visible: this.rules.canSee(this.rules.player, e) })),
+      enemyModels: this.enemyPool.filter(e => !e.entity.disabled).map(e => ({ id: e.id, model: 'ren42',
+        weaponAttached: e.weapon.root.parent === e.socket && e.socket.parent === e.hand,
+        animation: e.animation, animationTime: e.animationTime, deathDuration: soldierClip(e.character, 'death').duration })),
+      enemyFireRange: ENEMY_FIRE_RANGE, playerDeathAge: this.playerDeathAge, playerVisible: !this.player.disabled,
       renderedEnemies: this.enemyPool.filter(e => !e.entity.disabled).length, portraitPaused: this.portrait,
+      radar: this.radar.snapshot(), fieldOfView: { player: PLAYER_FOV * 180 / Math.PI, enemy: ENEMY_FOV * 180 / Math.PI },
       safeInsets: this.safeInsets(), damageEvents: this.rules.damageEvents,
       reloading: this.rules.reloadRemaining, firing: this.rules.firing, bullets: this.rules.bullets.length,
       player: Array.from(this.playerTransform.position), heading: this.playerTransform.rotation[1],
       cameraTarget: Array.from(this.orbit.target), cameraEye: Array.from(this.orbit.eyePosition),
       hand: this.hand?.name, weaponAttached: this.weapon?.root.parent === this.socket && this.socket?.parent === this.hand,
       aimJoystick: this.aimControls.state, fireButtonVisible: this.fireButton.visible,
-      muzzle: this.muzzle(), joystick: this.controls.state, animation: this.controls.state.strength ? 'run_bottom' : 'idle_bottom' };
+      muzzle: this.muzzle(), joystick: this.controls.state, animation: !this.rules.alive ? 'death' : this.controls.state.strength ? 'run_bottom' : 'idle_bottom' };
   }
   dispose(): void {
     if (this.disposed) return; this.disposed = true;
     this.cancelInteraction(); this.controls.destroy(); this.aimControls.destroy(); this.engine.off('update', this.frame);
+    for (const view of this.enemyPool) { disposeGltfModel(view.weapon); disposeGltfModel(view.character); }
+    this.enemyPool.length = 0;
     if (this.weapon) disposeGltfModel(this.weapon);
     if (this.character) disposeGltfModel(this.character);
     this.world.destroy();

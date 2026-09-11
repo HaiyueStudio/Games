@@ -1,0 +1,74 @@
+{
+  "id": "crystal-labyrinth",
+  "name": "晶镜迷阵",
+  "seed": 10197631,
+  "bossId": "crystal-prism",
+  "background": {
+    "top": "#080e22",
+    "middle": "#16294e",
+    "bottom": "#020619",
+    "nebula": "#5668a6"
+  },
+  "spawns": [
+    {
+      "atMs": 800,
+      "enemyId": "mirror-triangle",
+      "position": {
+        "mode": "random",
+        "minX": 70,
+        "maxX": 410
+      },
+      "count": 5,
+      "intervalMs": 1200
+    },
+    {
+      "atMs": 6500,
+      "enemyId": "scout",
+      "position": {
+        "mode": "random",
+        "minX": 70,
+        "maxX": 410
+      },
+      "count": 4,
+      "intervalMs": 800
+    },
+    {
+      "atMs": 10000,
+      "enemyId": "mirror-triangle",
+      "position": {
+        "mode": "random",
+        "minX": 70,
+        "maxX": 410
+      },
+      "count": 6,
+      "intervalMs": 1000
+    },
+    {
+      "atMs": 17000,
+      "enemyId": "fission-elite",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      }
+    },
+    {
+      "atMs": 21000,
+      "enemyId": "mirror-triangle",
+      "position": {
+        "mode": "random",
+        "minX": 70,
+        "maxX": 410
+      },
+      "count": 6,
+      "intervalMs": 950
+    },
+    {
+      "atMs": 31000,
+      "enemyId": "crystal-prism",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      }
+    }
+  ]
+}

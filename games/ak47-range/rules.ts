@@ -5,7 +5,7 @@ export interface Bullet extends Point { id: number; y: number; dx: number; dz: n
 export interface Obstacle extends Point { width: number; depth: number; height: number }
 export interface Enemy extends Actor {
   id: number; health: number; cooldown: number; alert: boolean; memory: number; goal: Point;
-  repath: number; path: NavMeshPath; waypoint: number; flash: number;
+  repath: number; path: NavMeshPath; waypoint: number; flash: number; moving: boolean; animationTime: number; deathAge: number | null;
 }
 export const MAGAZINE = 30;
 export const RELOAD_SECONDS = 2.2;
@@ -14,6 +14,10 @@ export const BULLET_SPEED = 32;
 export const ARENA_LIMIT = 18;
 export const SPAWN_SECONDS = 3;
 export const SIGHT_RANGE = 26;
+export const PLAYER_FOV = Math.PI * 2 / 3;
+export const ENEMY_FOV = Math.PI / 3;
+export const ENEMY_FIRE_RANGE = 10;
+export const CORPSE_SECONDS = 5;
 export const BODY_RADIUS = 0.35;
 export const OBSTACLES: readonly Obstacle[] = [
   { x: -5, z: 0, width: 2.5, depth: 6, height: 2.1 },
@@ -92,10 +96,10 @@ export class RangeRules {
     for (const box of this.obstacles) t = Math.min(t, coverEntry(a, b, box));
     return t;
   }
-  canSee(observer: Actor, point: Point): boolean {
+  canSee(observer: Actor, point: Point, fieldOfView = PLAYER_FOV): boolean {
     const x = point.x - observer.x, z = point.z - observer.z, distance = Math.hypot(x, z);
     if (distance > SIGHT_RANGE) return false;
-    if (distance > 1e-8 && (-Math.sin(observer.heading) * x - Math.cos(observer.heading) * z) / distance < Math.SQRT1_2 - 1e-9) return false;
+    if (distance > 1e-8 && (-Math.sin(observer.heading) * x - Math.cos(observer.heading) * z) / distance < Math.cos(fieldOfView / 2) - 1e-9) return false;
     return this.coverFraction(observer, point) >= 1 - 1e-7;
   }
   private free(p: Point, radius = BODY_RADIUS): boolean {
@@ -117,15 +121,25 @@ export class RangeRules {
     const edge = Math.floor(this.random() * 4), along = this.random() * 34 - 17;
     const start = position ?? (edge < 2 ? { x: edge ? 17.5 : -17.5, z: along } : { x: along, z: edge === 2 ? -17.5 : 17.5 });
     const enemy: Enemy = { ...start, id: ++this.spawned, health: 3, heading: Math.atan2(start.x, start.z),
-      cooldown: 0.6, alert: false, memory: 0, goal: { x: 0, z: 0 }, repath: 0, path: new NavMeshPath(), waypoint: 1, flash: 0 };
+      cooldown: 0.6, alert: false, memory: 0, goal: { x: 0, z: 0 }, repath: 0, path: new NavMeshPath(), waypoint: 1, flash: 0, moving: false, animationTime: 0, deathAge: null };
     this.enemies.push(enemy); return enemy;
   }
   /** Fixed combat slices and injected seed make visibility, AI, and fire reproducible. */
   step(dt: number, muzzle: Point & { y: number }, heading: number, body: Point = muzzle): void {
     if (!Number.isFinite(dt) || dt < 0) throw new RangeError('dt must be finite and non-negative');
     Object.assign(this.player, body, { heading });
-    for (let remaining = Math.min(dt, 0.1); remaining > 1e-9 && this.alive;) {
-      const slice = Math.min(remaining, 1 / 120); this.tick(slice, muzzle, heading); remaining -= slice;
+    for (let remaining = Math.min(dt, 0.1); remaining > 1e-9;) {
+      const slice = Math.min(remaining, 1 / 120);
+      // Corpse lifetimes continue after game over, while combat remains stopped.
+      for (let i = this.enemies.length - 1; i >= 0; i--) {
+        const enemy = this.enemies[i]!;
+        if (enemy.deathAge !== null) {
+          enemy.deathAge += slice;
+          if (enemy.deathAge >= CORPSE_SECONDS - 1e-8) this.enemies.splice(i, 1);
+        }
+      }
+      if (this.alive) this.tick(slice, muzzle, heading);
+      remaining -= slice;
     }
   }
   private tick(dt: number, muzzle: Point & { y: number }, heading: number): void {
@@ -135,6 +149,7 @@ export class RangeRules {
       this.spawnRemaining += SPAWN_SECONDS;
     }
     this.cooldown = Math.max(0, this.cooldown - dt);
+    if (this.ammo === 0 && this.reloadRemaining === 0) this.reload();
     if (this.reloadRemaining > 0) {
       this.reloadRemaining = Math.max(0, this.reloadRemaining - dt);
       if (this.reloadRemaining < 1e-8) { this.reloadRemaining = 0; this.ammo = MAGAZINE; }
@@ -142,10 +157,19 @@ export class RangeRules {
       this.ammo--; this.shots++; this.cooldown = FIRE_INTERVAL;
       // The hand may put the muzzle through a wall: it cannot fire from the other side.
       if (this.coverFraction(this.player, muzzle) > 1) this.emit(muzzle, heading, 'player');
+      if (this.ammo === 0) this.reload();
     }
-    for (const enemy of this.enemies) this.updateEnemy(enemy, dt);
+    for (const enemy of this.enemies) {
+      if (enemy.health <= 0) continue;
+      const x = enemy.x, z = enemy.z;
+      this.updateEnemy(enemy, dt);
+      enemy.moving = Math.hypot(enemy.x - x, enemy.z - z) > 1e-7;
+      enemy.animationTime += dt * (enemy.moving ? 0.7 : 1);
+    }
     for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const b = this.bullets[i]!, next = { x: b.x + b.dx * BULLET_SPEED * dt, z: b.z + b.dz * BULLET_SPEED * dt };
+      const b = this.bullets[i]!, range = b.team === 'enemy' ? ENEMY_FIRE_RANGE : BULLET_SPEED * 1.5;
+      const travel = Math.max(0, Math.min(BULLET_SPEED * dt, range - b.age * BULLET_SPEED));
+      const next = { x: b.x + b.dx * travel, z: b.z + b.dz * travel };
       let first = this.coverFraction(b, next), hit: Enemy | 'player' | null = null;
       if (b.team === 'enemy') {
         const t = bodyEntry(b, next, this.player); if (t < first) { first = t; hit = 'player'; }
@@ -153,11 +177,10 @@ export class RangeRules {
         const t = bodyEntry(b, next, enemy); if (enemy.health > 0 && t < first) { first = t; hit = enemy; }
       }
       if (hit === 'player') { this.health = Math.max(0, this.health - 12); this.damageEvents++; }
-      else if (hit) { hit.health--; this.hits++; if (hit.health === 0) this.kills++; }
+      else if (hit) { hit.health--; this.hits++; if (hit.health === 0) { this.kills++; hit.deathAge = 0; hit.moving = false; hit.alert = false; hit.flash = 0; } }
       b.x = next.x; b.z = next.z; b.age += dt;
-      if (first <= 1 || b.age > 1.5 || Math.abs(b.x) > 20 || Math.abs(b.z) > 20) this.bullets.splice(i, 1);
+      if (first <= 1 || b.age * BULLET_SPEED >= range - 1e-8 || Math.abs(b.x) > 20 || Math.abs(b.z) > 20) this.bullets.splice(i, 1);
     }
-    for (let i = this.enemies.length - 1; i >= 0; i--) if (this.enemies[i]!.health <= 0) this.enemies.splice(i, 1);
     if (!this.alive) { this.cancel(); this.bullets.length = 0; }
   }
   private emit(muzzle: Point & { y: number }, heading: number, team: Bullet['team']): void {
@@ -165,13 +188,13 @@ export class RangeRules {
   }
   private updateEnemy(enemy: Enemy, dt: number): void {
     enemy.cooldown = Math.max(0, enemy.cooldown - dt); enemy.flash = Math.max(0, enemy.flash - dt);
-    const sees = this.canSee(enemy, this.player), distance = Math.hypot(enemy.x - this.player.x, enemy.z - this.player.z);
+    const sees = this.canSee(enemy, this.player, ENEMY_FOV), distance = Math.hypot(enemy.x - this.player.x, enemy.z - this.player.z);
     if (sees) {
       if (!enemy.alert) enemy.cooldown = Math.max(enemy.cooldown, 0.6);
       enemy.goal = { x: this.player.x, z: this.player.z }; enemy.memory = 5;
     } else enemy.memory = Math.max(0, enemy.memory - dt);
     enemy.alert = sees;
-    if (sees && distance < 13) {
+    if (sees && distance <= ENEMY_FIRE_RANGE) {
       enemy.heading = Math.atan2(enemy.x - this.player.x, enemy.z - this.player.z);
       if (enemy.cooldown <= 1e-8) { this.emit({ x: enemy.x, z: enemy.z, y: 1.1 }, enemy.heading, 'enemy'); enemy.cooldown = 0.9; enemy.flash = 0.07; }
       return;

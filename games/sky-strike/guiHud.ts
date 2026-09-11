@@ -8,6 +8,7 @@ import type { SkyStrikeUi, SkyStrikeHud, SkyStrikeActions, SkyStrikeStatus } fro
 /** Shared browser/native HUD, composed entirely through the engine GuiSystem. */
 export class SkyStrikeGuiHud implements SkyStrikeUi {
   private readonly root = new GuiRoot({ theme: { radius: 3, colors: { primary: '#7750c4', background: '#100722', surface: '#201036', border: '#694690', text: '#edf5ff', hover: '#6843a7', active: '#452c70', disabled: '#292038', danger: '#ff538a', textMuted: '#ad9cc3' } } });
+  private readonly holeHint:GuiLabel;
   private readonly vitals: SkyStrikeVitals;
   private readonly bomb: ReturnType<typeof skyStrikeIconButton>;
   private readonly pause: ReturnType<typeof skyStrikeIconButton>;
@@ -21,6 +22,7 @@ export class SkyStrikeGuiHud implements SkyStrikeUi {
   constructor(world: World, image: SkyStrikeGuiImage, insets: { top: number; bottom: number } = { top: 0, bottom: 0 }, private readonly locale = new SkyStrikeLocale()) {
     const layer = this.root.add(new GuiElement({ width: '100%', height: '100%' }));
     layer.layout = rect => { const view = skyStrikeViewport(rect.width, rect.height); layer.rect = { x: rect.x + view.left, y: rect.y, width: view.width, height: rect.height }; for (const child of layer.children) child.layout(layer.rect); };
+    this.holeHint=layer.add(new GuiLabel({y:insets.top+94,width:'100%',height:24,fontSize:14,textAlign:'center',disabled:true,visible:false,style:{color:'#c7d7ff'}}));
     this.vitals = new SkyStrikeVitals(layer, image, locale, insets.top);
     this.bomb = skyStrikeIconButton(layer, image, 'bomb', () => this.actions?.bomb());
     this.pause = skyStrikeIconButton(layer, image, 'pause', () => this.actions?.pause());
@@ -66,6 +68,8 @@ export class SkyStrikeGuiHud implements SkyStrikeUi {
   }
   update(hud: SkyStrikeHud): void {
     this.lastHud = hud;
+    this.holeHint.setVisible(hud.bossName==='black-hole'||hud.bossName==='crystal-prism'||!!hud.crystalStorm||!!hud.quantumEncounter);
+    this.holeHint.setText(hud.quantumEncounter?this.locale.text('quantumHint'):hud.crystalStorm?this.locale.text('crystalStorm'):hud.bossName==='crystal-prism'?`${this.locale.text('mirrorLoad')} ${Math.round((1-hud.bossHealth)*100)}%`:(hud.holeWarningMs??0)>0?`${this.locale.text('holeEscape')} ${((hud.holeWarningMs??0)/1000).toFixed(1)}s`:`${this.locale.text('accretion')} ${Math.round(hud.bossHealth*100)}%`);
     this.vitals.update(hud);
     this.bomb.caption.setText(`${this.locale.text('bomb')} ×${hud.bombs}`); this.bomb.setDisabled(hud.bombDisabled);
   }

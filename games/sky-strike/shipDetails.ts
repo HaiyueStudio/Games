@@ -3,6 +3,7 @@ import { CARRIER_DEPLOY_INTERVAL_MS, type EnemyDefinition } from './rules';
 interface ShipPose { definition: EnemyDefinition; x:number; y:number; rotation:number; ageMs:number; fireCooldownMs:number; lastShotAgeMs?:number; laserCooldownMs:number; charging:boolean }
 /** Per-hull attachment placement, in fractions of the existing ship sprite. */
 const layouts: Record<string,{ engines: number[]; rear: number; rotors: number[]; color: string }> = {
+  'quantum-dreadnought':{engines:[-.22,.22],rear:-.34,rotors:[],color:'#6edbff'},
   'ore-reaper':{engines:[-0.23,0.23],rear:-0.31,rotors:[0],color:'#ffb456'},
   'twin-red':{engines:[-0.22,0.22],rear:-0.3,rotors:[0],color:'#ff415e'},
   'twin-blue':{engines:[-0.22,0.22],rear:-0.3,rotors:[0],color:'#48a7ff'},
@@ -29,7 +30,7 @@ export function drawShipDetails(r:SkyStrikeBattleLayer,e:ShipPose,target:{x:numb
   }
   for(const [i,x] of layout.rotors.entries()) { const p=point(x*w,-h*0.08),size=w*(layout.rotors.length===1?0.17:0.14);
     r.sprite('assets/fx-rotor.png',p.x,p.y,size,size,a+e.ageMs*0.002*(i%2?-1:1)); }
-  if(e.definition.bulletPattern!=='none') {
+  if(e.definition.bulletPattern!=='none'&&e.definition.bossAttack!=='quantum-broadside') {
     // Barrel tips meet the exact existing projectile origin, so aiming and flashes agree.
     const muzzle={x:e.x,y:e.y+w*0.25}, angle=Math.atan2(target.y-muzzle.y,target.x-muzzle.x),size=w*0.24;
     const recoil=Math.max(0,1-(e.ageMs-(e.lastShotAgeMs??-1000))/120)*Math.min(3,w*0.015);

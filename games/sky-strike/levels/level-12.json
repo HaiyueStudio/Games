@@ -1,0 +1,98 @@
+{
+  "id": "quantum-armada",
+  "number": 12,
+  "name": "量子舰队",
+  "seed": 12120619,
+  "bossId": "quantum-dreadnought",
+  "background": {
+    "top": "#020c21",
+    "middle": "#132a50",
+    "bottom": "#030915",
+    "nebula": "#18568a"
+  },
+  "spawns": [
+    {
+      "atMs": 800,
+      "enemyId": "scout",
+      "count": 5,
+      "intervalMs": 1000,
+      "quantumPair": true,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 6500,
+      "enemyId": "bomber",
+      "count": 3,
+      "intervalMs": 1600,
+      "quantumPair": true,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 11000,
+      "enemyId": "dart",
+      "count": 4,
+      "intervalMs": 900,
+      "quantumPair": false,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 15000,
+      "enemyId": "stealth",
+      "count": 4,
+      "intervalMs": 1300,
+      "quantumPair": true,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 21000,
+      "enemyId": "crimson-lance",
+      "count": 1,
+      "intervalMs": 0,
+      "quantumPair": true,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 25000,
+      "enemyId": "gunship",
+      "count": 3,
+      "intervalMs": 1300,
+      "quantumPair": true,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 31000,
+      "enemyId": "quantum-dreadnought",
+      "count": 1,
+      "intervalMs": 0,
+      "quantumPair": true,
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      }
+    }
+  ]
+}

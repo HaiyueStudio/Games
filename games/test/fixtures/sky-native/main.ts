@@ -27,6 +27,7 @@ async function run() {
   const audioBackend = new SkyStrikeBrowserAudio(); await audioBackend.load('../../../sky-strike/');
   localStorage.removeItem(SKY_AUDIO_SETTINGS_KEY);
   const audio = new SkyStrikeAudio(audioBackend,localStorage);
+  const uiSounds:string[]=[];const playSound=audioBackend.play.bind(audioBackend);audioBackend.play=(id,options)=>{if(id.startsWith('ui-'))uiSounds.push(id);return playSound(id,options);};
   const game = new SkyStrikeGame(canvas, battle, engine, world, { ui: hud, locale, levels, audio, haptic: event => haptics.push(event), keyboard: true, acceptsGameplayInput: (_x,y) => y >= 94 && y <= innerHeight - 94, saveBackend: new MemorySaveBackend() });
   await game.init();
   const integration = new RenderIntegration(engine); world.addRuntimeIntegration(integration); integration.registerAll(world);
@@ -48,8 +49,10 @@ async function run() {
   check(game.snapshot().selectedLevel === 0, 'skinned previous button');
   check(audio.snapshot().uiClicks >= 2,'carousel buttons play GUI sounds');
   const mission=Number(new URLSearchParams(location.search).get('mission')??1);
-  for(let i=1;i<mission;i++)await click(panelLeft + panelWidth - 4 - arrowSize / 2, arrowY);
-  check(game.snapshot().selectedLevel===mission-1,'requested mission carousel');
+  const missionIndex=levels.findIndex((level,i)=>(level.number??i+1)===mission);
+  check(missionIndex>=0,'requested mission exists');
+  for(let i=0;i<missionIndex;i++)await click(panelLeft + panelWidth - 4 - arrowSize / 2, arrowY);
+  check(game.snapshot().selectedLevel===missionIndex,'requested mission carousel');
   const language = (new URLSearchParams(location.search).get('lang') ?? 'zh') as SkyLanguage;
   if (scene === 'options' || language !== 'zh') {
     await click(panelLeft+panelWidth-32,(innerHeight-panelHeight)/2+panelHeight*0.035+24);
@@ -60,20 +63,20 @@ async function run() {
     send('pointerdown',panelLeft+30,arrowY);send('pointerup',panelLeft+panelWidth-30,arrowY);await wait(60);
     check(game.snapshot().selectedLevel===selected,'options blocks carousel swipes');
     const optionsHeight=Math.min(640,innerHeight-48), top=(innerHeight-optionsHeight)/2;
-    await click(innerWidth/2,top+optionsHeight*(0.3525+['zh','en','ja'].indexOf(language)*0.125));
+    await click(innerWidth/2,top+optionsHeight*(0.2825+['zh','en','ja'].indexOf(language)*0.115));
     check(game.snapshot().language===language,'language applies immediately');
     check(new SkyStrikeLocale(localStorage).language===language,'language persists across new instance');
     if(scene==='options') {
       const clicksBefore=audio.snapshot().uiClicks;
-      await click(innerWidth/2,top+optionsHeight*0.7425);check(!audio.enabled,'GUI sound mute');
-      const cw=Math.min(400,innerWidth-24);await click((innerWidth-cw)/2+cw*.205,top+optionsHeight*.8325);check(audio.volume===.55,'GUI volume down');
-      await click((innerWidth-cw)/2+cw*.795,top+optionsHeight*.8325);check(audio.volume===.65,'GUI volume up');
-      await click(innerWidth/2,top+optionsHeight*.7425);check(audio.enabled,'GUI sound enable');
+      await click(innerWidth/2,top+optionsHeight*0.6675);check(!audio.enabled,'GUI sound mute');
+      const cw=Math.min(400,innerWidth-24);await click((innerWidth-cw)/2+cw*.205,top+optionsHeight*.7725);check(audio.volume===.55,'GUI volume down');
+      await click((innerWidth-cw)/2+cw*.795,top+optionsHeight*.7725);check(audio.volume===.65,'GUI volume up');
+      await click(innerWidth/2,top+optionsHeight*.6675);check(audio.enabled,'GUI sound enable');
       check(JSON.parse(localStorage.getItem(SKY_AUDIO_SETTINGS_KEY)!).volume===.65,'GUI audio persistence');
       check(audio.snapshot().uiClicks>clicksBefore,'unmuting plays GUI confirmation');
       engine.stop();result.textContent=JSON.stringify({status:'passed',checks:['settings-modal','language-persistence','input-isolation'],state:game.snapshot()});result.dataset.status='passed';return;
     }
-    await click(innerWidth/2,top+optionsHeight*0.9325);check(!game.snapshot().optionsOpen,'close settings');
+    await click(innerWidth/2,top+optionsHeight*0.8725);check(!game.snapshot().optionsOpen,'close settings');check(uiSounds.at(-1)==='ui-back','settings return uses distinct sound');
   }
   if (scene === 'menu') {
     if(new URLSearchParams(location.search).get('mission')==='7') {const carousel=(game as any).levelCarousel;check(carousel.bossImage.rect.x+carousel.bossImage.rect.width*0.85<carousel.companionImage.rect.x,'twin preview hulls have separate positions');}
@@ -85,7 +88,7 @@ async function run() {
   check(game.snapshot().phase === 'playing', 'GUI start');
   if (scene === 'audio') {
     engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.player.invulnerableMs=999999;
-    check(audioBackend.snapshot().buffers===18 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
+    check(audioBackend.snapshot().buffers===19 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
     audio.resume();await wait(80);check(audioBackend.snapshot().state==='running','WebAudio unlocked');
     audio.stop();
     for(const form of ['basic','red','blue']){f.weaponForm=form;f.player.fireCooldownMs=0;f.pointerFiring=true;game.update(16);check(audioBackend.snapshot().voices>0,'game fires '+form+' sound');audio.stop();}
@@ -100,7 +103,7 @@ async function run() {
     audio.pause();audio.resume();audio.pause();audio.resume();await wait(100);check(audioBackend.snapshot().state==='running','rapid pause/resume keeps latest intent');
     audio.settings(false);check(audioBackend.snapshot().voices===0,'mute stops all voices');audio.settings(true,.65);
     const beforeDispose=audio.snapshot();game.dispose();await wait(30);check(audioBackend.snapshot().state==='closed'&&audioBackend.snapshot().voices===0,'dispose closes audio');
-    result.textContent=JSON.stringify({status:'passed',checks:['18-decoded-effects','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
+    result.textContent=JSON.stringify({status:'passed',checks:['19-decoded-effects','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
   }
   if (scene === 'bomb-crates' || scene === 'crate-rules') {
     engine.stop();const f=game as any;
@@ -125,6 +128,123 @@ async function run() {
     reset();miner();f.bombCrates.spawn(160,550);f.asteroids.spawn(80,400,70);f.asteroids.spawn(340,660,88);f.asteroids.update(16,false,420,f.boss,f.player);f.bombCrates.crates[0].health=28;f.spaceBackdrop.select('asteroid-forge',true);f.spaceBackdrop.update(22000);f.player.invulnerableMs=0;f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
     check(game.snapshot().rendering.frameTextureUploads===0,'crate uses existing GPU primitives with no uploads');
     result.textContent=JSON.stringify({status:'passed',checks:['boss-only-supply-timing','pause-freeze','swept-hit','single-drop','pickup-bomb','laser-crate','occlusion','boss-cleanup','four-pickup-sounds','zero-texture-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
+  if(scene==='quantum'){
+    engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'battle';
+    const renderFrames=async()=>{const target=frames+3,deadline=performance.now()+10000;engine.run();while(frames<target&&performance.now()<deadline)await wait(16);engine.stop();check(frames>=target,'actual quantum frames rendered');};
+    const reset=()=>{f.levelCarousel?.hide();f.hideStatus();f.impacts=[];f.energyImpacts=[];f.debris=[];f.sparks=[];f.powerups=[];f.bombPowerups=[];f.shakeMs=0;f.enemies=[];f.boss=null;f.playerBullets=[];f.enemyBullets=[];f.phase='playing';f.player.x=240;f.player.y=750;f.player.health=100;f.player.lives=3;f.player.invulnerableMs=0;f.pointerFiring=false;f.laserFiring=false;f.weaponForm='basic';f.weaponLevel=0;f.combatEffects.clear();f.beginLevel(levels.length-1);f.levelTimeline=[];f.asteroids.clear();f.player.invulnerableMs=0;};
+    const spawn=(id='bomber',x=120,y=240)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),x,y,true);e.entered=true;return e;};
+    const shot=(x:number,y:number,damage=8)=>({x,y,previousX:x,previousY:y+30,vx:0,vy:-700,radius:4,damage,hostile:false,color:'#65eaff'});
+    if(stage==='live'){
+      reset();f.beginLevel(levels.length-1);f.player.invulnerableMs=999999;f.pointerFiring=true;f.weaponForm='blue';f.weaponLevel=3;
+      let seenBoss=false,seenGhost=false,finished=false;const render=f.render;f.render=()=>{};
+      try{for(let i=0;i<11000;i++){if(i%128===0)await wait(0);if(f.boss)f.player.x=f.boss.x;game.update(16);seenBoss ||= !!f.boss;seenGhost ||= game.snapshot().quantum.length>0;if(f.levelIndex===0){finished=true;break;}}}finally{f.render=render;}
+      check(seenBoss&&seenGhost&&finished,'full mission timeline naturally reaches boss victory and next mission');check(game.snapshot().quantum.length===0,'victory clears all quantum bodies');
+      f.phase='paused';f.syncHud();await renderFrames();result.textContent=JSON.stringify({status:'passed',checks:['full-quantum-timeline','natural-boss-victory','transition-cleanup'],durationMs:f.elapsedMs,state:game.snapshot()});result.dataset.status='passed';return;
+    }
+    reset();let entering=spawn('bomber',120,-80);check(game.snapshot().quantum[0]!.ghost.y===-80,'both paired enemies enter from above');f.updateEnemies(1000);check(game.snapshot().quantum[0]!.body.y===game.snapshot().quantum[0]!.ghost.y,'paired entry remains at identical height');
+    reset();let body=spawn();body.rotation=.3;
+    let pair=game.snapshot().quantum[0]!;check(Math.abs(pair.body.x+pair.ghost.x-2*f.quantumCenterX())<.001&&pair.body.y===pair.ghost.y,'left-right symmetry at identical height including narrow camera');
+    f.player.x=430;pair=game.snapshot().quantum[0]!;check(Math.abs(pair.body.x+pair.ghost.x-2*f.quantumCenterX())<.001,'tracked camera preserves visual symmetry');f.player.x=240;
+    pair=game.snapshot().quantum[0]!;const hp=body.hitPoints;
+    f.playerBullets.push(shot(pair.ghost.x,pair.ghost.y));f.resolveCollisions();check(body.hitPoints===hp&&f.playerBullets.length===1,'bullets pass through quantum ghost without damage or interception');
+    f.player.x=pair.ghost.x;f.weaponForm='purple';f.weaponLevel=1;f.laserFiring=true;f.updatePlayerLaser(100);check(f.laserTarget!==pair.ghost&&(!f.laserTarget||f.enemies.includes(f.laserTarget)),'laser only acquires real bodies');
+    f.playerBullets=[];body.rotation=0;f.fireEnemyPattern(body);check(f.enemyBullets.length===6&&f.enemyBullets.filter((b:any)=>b.quantumOwner===body).length===3,'paired salvo fires once from both hulls');
+    const a=f.enemyBullets[0],b=f.enemyBullets[1];check(Math.abs(a.vx+b.vx)<.001&&Math.abs(a.vy-b.vy)<.001&&a.y===b.y,'quantum bullets mirror horizontally and retain downward travel');
+    const score=f.score;f.damageEnemy(f.enemies.indexOf(body),body,9999);check(game.snapshot().quantum.length===0&&f.score-score===body.definition.score,'body death removes ghost and awards score once');check(f.enemyBullets.every((b:any)=>!b.quantumOwner),'body death removes quantum fire');
+    reset();body=spawn('bomber',240,240);pair=game.snapshot().quantum[0]!;f.player.x=pair.ghost.x;f.player.y=pair.ghost.y;f.resolveCollisions();check(f.player.health===65&&f.enemies.includes(body),'ghost contact hurts player without destroying pair');
+    reset();body=spawn();body.y=1200;f.updateEnemies(16);check(game.snapshot().quantum.length===0,'offscreen cleanup cannot orphan a ghost');
+    reset();body=spawn('quantum-dreadnought',240,180);f.updateEnemies(16);check(body.definition.fireIntervalMs===875,'boss retains reduced firing cadence');const leftX=body.x;body.ageMs=Math.PI/.0005;f.updateEnemies(0);check(leftX<f.quantumCenterX()-80&&body.x>f.quantumCenterX()+80,'boss crosses both visible halves');const sweptPair=game.snapshot().quantum[0]!;check(Math.abs(sweptPair.body.x+sweptPair.ghost.x-2*f.quantumCenterX())<.001,'wide sweep keeps opposite mirror movement');body.ageMs=16;f.updateEnemies(0);f.fireEnemyPattern(body);check(f.enemyBullets.length===24&&new Set(f.enemyBullets.filter((b:any)=>!b.quantumOwner).map((b:any)=>`${b.x}:${b.y}`)).size===12,'six independent triple-barrel mounts emit paired rounds from their tips');
+    const rounds=f.enemyBullets.filter((b:any)=>!b.quantumOwner);
+    for(let i=0;i<6;i++){const g=f.quantumGun(body,i);check(Math.hypot((rounds[i*2].x+rounds[i*2+1].x)/2-g.muzzle.x,(rounds[i*2].y+rounds[i*2+1].y)/2-g.muzzle.y)<.001,'projectiles start at actual rotated barrel tips');}
+    const oldAngles=[...body.quantumTurretAngles];f.player.x=430;f.updateEnemies(16);check(body.quantumTurretAngles.some((a:number,i:number)=>a!==oldAngles[i])&&body.quantumTurretAngles.every((a:number,i:number)=>Math.abs(a-oldAngles[i])<=2.4*.016+.0001),'six turrets turn smoothly toward player');
+    f.player.x=240;const savedAngles=[...body.quantumTurretAngles];f.phase='paused';game.update(34);check(body.quantumTurretAngles.every((a:number,i:number)=>a===savedAngles[i]),'pause freezes turret rotation');f.phase='playing';
+    body.hitPoints=body.definition.hitPoints*.35;check(!game.snapshot().quantum[0]!.core!.critical,'35 percent remains calm');body.hitPoints=body.definition.hitPoints*.349;check(game.snapshot().quantum[0]!.core!.critical&&game.snapshot().quantum[0]!.core!.periodMs===420,'below 35 percent red fast alert');body.hitPoints=body.definition.hitPoints;
+    f.triggerBossAttack(body);check(f.hostileLasers.length===4&&game.snapshot().quantumLasers.every(l=>l.phase==='warning'),'four paired lasers telegraph');
+    const before=f.hostileLasers[0].timerMs;f.phase='paused';game.update(34);check(f.hostileLasers[0].timerMs===before,'pause freezes quantum laser warning');f.phase='playing';
+    const q=f.hostileLasers.find((l:any)=>l.quantum);q.targetX=400;const path=f.hostileLaserPath(q);f.player.x=240;f.player.y=path.y+(path.endY-path.y)*(240-path.x)/(path.endX-path.x);f.player.invulnerableMs=0;
+    f.updateHostileLasers(1199);check(f.player.health===100,'telegraph never damages player');f.updateHostileLasers(1);check(f.player.health===35,'active quantum laser uses matching collision path');
+    f.damageEnemy(f.enemies.indexOf(body),body,99999);check(!f.boss&&f.hostileLasers.length===0&&game.snapshot().quantum.length===0,'boss death cancels mirror ship and all owned lasers');
+    reset();spawn('quantum-dreadnought',240,180);f.triggerBossAttack(f.boss);f.pause();f.returnHome();check(game.snapshot().quantum.length===0&&f.hostileLasers.length===0,'home cleans pairs and laser hazards');
+    reset();const boss=spawn('quantum-dreadnought',240,185);boss.ageMs=4000;boss.rotation=.09;f.player.x=90;f.player.y=550;f.player.invulnerableMs=999999;f.elapsedMs=4000;f.updateEnemies(0);
+    if(stage.startsWith('sweep-')){boss.ageMs=stage==='sweep-left'?0:Math.PI/.0005;f.updateEnemies(0);f.enemyBullets=[];f.hostileLasers=[];f.combatEffects.clear();f.elapsedMs=boss.ageMs;}else if(stage.startsWith('core-')){boss.hitPoints=boss.definition.hitPoints*(stage==='core-alert'?.34:1);boss.ageMs=stage==='core-dim'?0:stage==='core-alert'?210:1100;f.enemyBullets=[];f.hostileLasers=[];f.combatEffects.clear();f.elapsedMs=boss.ageMs;}else if(stage==='fleet'){f.enemies=[];f.boss=null;spawn('bomber',125,270);spawn('stealth',340,380);spawn('crimson-lance',260,145);}else{f.fireEnemyPattern(boss);f.updateBullets(600);f.triggerBossAttack(boss);if(stage==='active')f.updateHostileLasers(1200);}
+    f.phase='paused';f.syncHud();await renderFrames();check(game.snapshot().rendering.frameTextureUploads===0,'quantum effects never upload textures per frame');
+    result.textContent=JSON.stringify({status:'passed',checks:['horizontal-symmetry','opposite-rotation','ghost-bullet-immunity','laser-real-targets','paired-fire','single-score','owned-hazard-cleanup','ghost-contact','offscreen-cleanup','six-mount-broadside','rotating-barrel-tips','smooth-turret-tracking','wide-boss-sweep','35-percent-reactor-threshold','four-laser-warning','quantum-laser-hit','pause-home-cleanup','zero-texture-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
+  if(scene==='prism'){
+    engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'battle';
+    const renderFrames=async()=>{const target=frames+3,deadline=performance.now()+10000;engine.run();while(frames<target&&performance.now()<deadline)await wait(16);engine.stop();check(frames>=target,'actual prism frames rendered');};
+    const reset=()=>{f.levelCarousel?.hide();f.hideStatus();f.impacts=[];f.energyImpacts=[];f.debris=[];f.sparks=[];f.powerups=[];f.bombPowerups=[];f.shakeMs=0;f.enemies=[];f.boss=null;f.playerBullets=[];f.enemyBullets=[];f.phase='playing';f.player.x=240;f.player.y=840;f.player.health=100;f.player.lives=3;f.player.invulnerableMs=0;f.pointerFiring=false;f.laserFiring=false;f.weaponForm='basic';f.weaponLevel=0;f.combatEffects.clear();f.beginLevel(9);f.levelTimeline=[];f.asteroids.clear();f.player.invulnerableMs=0;};
+    const spawn=(boss=false,x=240,y=300)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===(boss?'crystal-prism':'mirror-triangle')),x,y);e.entered=true;return e;};
+    const shot=(damage=8)=>({x:240,y:160,previousX:240,previousY:700,vx:0,vy:-700,radius:4,damage,hostile:false,color:'#65eaff'});
+    if(stage==='live'){
+      reset();spawn(true,240,142);f.player.invulnerableMs=999999;f.pointerFiring=true;f.weaponForm='blue';f.weaponLevel=3;
+      let shattered=false,finished=false,peakShards=0;const render=f.render;f.render=()=>{};
+      try{for(let i=0;i<10000;i++){if(i%128===0)await wait(0);game.update(16);peakShards=Math.max(peakShards,game.snapshot().mirrors.shards);shattered ||= !f.boss&&f.levelAdvanceMs>0;if(f.levelIndex===(9+1)%levels.length){finished=true;break;}}}finally{f.render=render;}
+      check(shattered&&finished&&peakShards===30,'normal fire overloads prism, survives full shard storm and advances');
+      f.phase='paused';f.syncHud();await renderFrames();result.textContent=JSON.stringify({status:'passed',checks:['natural-overload','thirty-shard-storm','delayed-victory','hazard-cleanup'],durationMs:f.elapsedMs,state:game.snapshot()});result.dataset.status='passed';return;
+    }
+    reset();let m=spawn();f.playerBullets.push(shot());f.resolveCollisions();check(m.hitPoints===24&&f.playerBullets.length===0,'reflection consumes exact original bullet damage');
+    let b=f.enemyBullets.find((p:any)=>p.reflected);check(!!b&&b.hostile&&b.vy>0&&Math.abs(b.vx)<.001,'facet returns player bullet as hostile');
+    f.player.x=b.x;f.player.y=b.y+18;f.updateBullets(34);f.resolveCollisions();check(f.player.health===93,'reflected bullet deals exactly seven player damage');
+    reset();m=spawn();m.hitPoints=3;f.playerBullets.push(shot(20));f.resolveCollisions();check(!f.enemies.includes(m)&&f.enemyBullets[0].damage===7,'last reflection deals seven damage while saturating finite budget and shattering');
+    reset();m=spawn();m.rotation=.35;f.playerBullets.push(shot());f.resolveCollisions();check(Math.abs(f.enemyBullets[0].vx)>100,'rotating facet changes reflection angle');
+    reset();m=spawn();f.updateEnemies(1000);check(m.rotation>.3&&m.rotation<.34&&f.enemyBullets.length===0,'ordinary mirror rotates slowly without firing');
+    reset();let boss=spawn(true,240,142);for(let i=0;i<20;i++)f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.id==='mirror-triangle').length===10,'prism deployments capped at ten live mirrors');f.updateEnemies(1000);check(boss.rotation>1.6,'boss rotates faster');
+    reset();m=spawn();f.weaponForm='purple';f.weaponLevel=1;f.laserFiring=true;
+    for(let i=0;i<30;i++)f.updatePlayerLaser(16);
+    check(!!f.mirrorLaser&&f.mirrorLaser.warningMs===0&&f.mirrorLaser.endY>840,'laser reflects down from bottom facet');check(f.player.health<100&&m.hitPoints<32,'reflected laser hurts player and consumes budget');
+    const state=JSON.stringify(game.snapshot().mirrors);f.pause();for(let i=0;i<12;i++)game.update(16);check(JSON.stringify(game.snapshot().mirrors)===state,'pause freezes reflected laser');f.returnHome();check(!f.mirrorLaser&&f.enemyBullets.length===0,'home clears reflective hazards');
+    reset();boss=spawn(true,240,142);boss.hitPoints=5;f.playerBullets.push(shot(20));f.resolveCollisions();
+    check(!f.boss&&f.enemyBullets.filter((p:any)=>p.crystalShard).length===30,'prism explosion keeps thirty shards after boss cleanup');check(f.enemyBullets.find((p:any)=>p.reflected)?.damage===7,'last boss reflection deals seven damage and survives explosion cleanup');
+    check(f.enemyBullets.filter((p:any)=>p.crystalShard).every((p:any)=>p.damage===90),'all fragments have ninety damage');
+    const shard=f.enemyBullets.find((p:any)=>p.crystalShard);f.enemyBullets=[{...shard,x:240,y:840,previousX:240,previousY:800}];f.resolveCollisions();check(f.player.health===10,'shard actually removes ninety armor');
+    f.updateLevelTransition(2600);check(f.levelIndex===9&&f.levelAdvanceMs>0,'stage does not erase shards prematurely');f.updateLevelTransition(3900);check(f.levelIndex===(9+1)%levels.length&&f.enemyBullets.length===0,'storm finishes before next level and clears hazards');
+    reset();boss=spawn(true,240,170);boss.rotation=.4;boss.hitPoints=410;m=spawn(false,110,405);m.rotation=.3;spawn(false,365,490).rotation=-.45;spawn(false,280,340).rotation=.9;
+    if(stage==='laser'){
+      f.enemies=[boss];m=spawn(false,240,380);m.hitPoints=32;f.weaponForm='purple';f.weaponLevel=1;f.laserFiring=true;for(let i=0;i<25;i++)f.updatePlayerLaser(16);
+    }else if(stage==='shards'){
+      f.enemies=[boss];f.spendMirrorBudget(boss,2000);f.updateBullets(1550);f.combatEffects.update(500);
+    }else{
+      for(let i=0;i<10;i++)f.enemyBullets.push({x:150+i*13,y:430+i*25,vx:80,vy:320,radius:4,damage:2,hostile:true,reflected:true,color:'#ffd9f4'});
+    }
+    f.phase='paused';f.syncHud();await renderFrames();check(game.snapshot().rendering.frameTextureUploads===0,'crystals use cached GPU textures');
+    result.textContent=JSON.stringify({status:'passed',checks:['facet-reflection','finite-budget','seven-damage-hostile-return','slow-passive-mirrors','fast-boss-rotation','bounded-deployment','laser-reflection','pause-home-cleanup','thirty-shards','ninety-damage','full-dodge-window','gpu-crystals'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
+  if (scene === 'black-hole' || scene === 'hole-live') {
+    engine.stop();const f=game as any,params=new URLSearchParams(location.search);const stage=params.get('stage')??'feeding';
+    const renderFrames=async()=>{const target=frames+3,deadline=performance.now()+10000;engine.run();while(frames<target&&performance.now()<deadline)await wait(16);engine.stop();check(frames>=target,'rendered verification frames');};
+    const reset=()=>{f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.powerups=[];f.bombPowerups=[];f.boss=null;f.phase='playing';f.player.x=240;f.player.y=840;f.player.health=100;f.player.lives=3;f.player.invulnerableMs=0;f.pointerTarget=null;f.combatEffects.clear();f.beginLevel(8);f.levelTimeline=[];f.asteroids.clear();};
+    if(scene==='hole-live'){
+      reset();f.player.invulnerableMs=999999;f.pointerFiring=true;let peak=0,sawWarning=false,sawWave=false,finished=false;
+      for(let i=0;i<12000;i++){if(i%128===0)await wait(0);game.update(16);const state=f.blackHole.snapshot();peak=Math.max(peak,state.mass);sawWarning ||=state.phase==='warning';sawWave ||=state.phase==='wave';if(f.levelIndex===9){finished=true;break;}}
+      check(sawWarning&&sawWave&&finished,'natural fire and matter absorption completes level and advances');check(peak===360,'no passive mass shortcut');
+      f.phase='paused';f.syncHud();await renderFrames();check((game.snapshot().rendering.lens?.targetBytes??0)===0,'offscreen targets released on exit');
+      result.textContent=JSON.stringify({status:'passed',checks:['natural-level-progression','absorption-threshold','warning-wave-victory','target-release'],durationMs:f.elapsedMs,state:game.snapshot()});result.dataset.status='passed';return;
+    }
+    reset();check(f.boss?.definition.id==='black-hole'&&f.boss.entered,'black hole enters at start');const h=f.blackHole,hp=f.boss.hitPoints;
+    const charge=()=>{h.absorb(1200);for(let i=0;i<2000&&h.phase==='feeding';i++)h.update(16);check(h.phase==='warning','continuous growth completes before warning');};
+    f.damageEnemy(f.enemies.indexOf(f.boss),f.boss,99999);f.damageEnemy(f.enemies.indexOf(f.boss),f.boss,99999,false,'bomb');check(f.boss.hitPoints===hp&&h.mass===0,'direct weapons and bombs do not damage or feed black hole');
+    const bullet=(y:number)=>({x:h.x,y,vx:0,vy:-100,radius:4,damage:10,hostile:false,color:'#75dcff'});
+    f.playerBullets.push(bullet(h.y));f.enemyBullets.push({...bullet(h.y),hostile:true});f.updateBlackHole(16);check(h.snapshot().absorbedMass===.6&&f.playerBullets.length===0&&f.enemyBullets.length===0,'both sides bullets swallowed into mass');
+    const rock=f.asteroids.spawn(h.x,h.y,64);const enemy=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='scout'),24);enemy.x=h.x;enemy.y=h.y;f.updateBlackHole(16);check(!f.asteroids.rocks.includes(rock)&&!f.enemies.includes(enemy)&&h.snapshot().absorbedMass>9,'asteroids and enemies feed mass');
+    for(let i=0;i<120;i++)f.updateBlackHole(16);check(f.enemies.some((e:any)=>e.definition.tier!=='boss'&&(e.x<0||e.x>480)),'enemy enters from side');
+    const elite=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='crimson-lance'),24);const eh=elite.hitPoints;f.damageEnemy(f.enemies.indexOf(elite),elite,100,false,'bomb');check(elite.hitPoints===eh-50,'elite takes half bomb damage');
+    const fixed=JSON.stringify(h.snapshot());f.pause();for(let i=0;i<20;i++)game.update(16);check(JSON.stringify(h.snapshot())===fixed,'pause freezes hole');f.togglePause();
+    reset();charge();let ms=1999;while(ms>0){const dt=Math.min(16,ms);f.updateBlackHole(dt);ms-=dt;}check(h.phase==='warning','full two second warning');
+    f.enemyBullets=[{...bullet(h.y+470),hostile:true},{...bullet(h.y+470),x:h.x+220,hostile:true}];f.player.invulnerableMs=0;f.updateBlackHole(1);check(h.phase==='wave'&&!f.boss&&f.player.health===100,'outside circle safe and boss victory');check(f.enemyBullets.length===1&&f.enemyBullets[0].x===h.x+220,'only circular blast area cleared');
+    reset();charge();f.player.x=h.x;f.player.y=h.y+470;f.player.invulnerableMs=0;for(let i=0;i<125;i++)f.updateBlackHole(16);check(f.player.lives===2,'inside circular blast destroys player');
+    reset();h.absorb(stage==='small'?0:260/.3);for(let i=0;i<1000;i++)h.update(16);
+    if(stage==='warning'||stage==='wave'){charge();if(stage==='wave'){for(let i=0;i<125;i++)f.updateBlackHole(16);for(let i=0;i<32;i++)f.updateBlackHole(16);}}
+    for(let i=0;i<32;i++){const a=i*.48,r=110+i*5;f.playerBullets.push({x:h.x+Math.cos(a)*r,y:h.y+Math.sin(a)*r,vx:0,vy:0,radius:3,damage:2,hostile:false,color:i%2?'#69d8ff':'#ff846e'});}
+    for(const [x,y] of [[60,450],[400,400]]){const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='scout'),x);e.x=x;e.y=y;e.entered=true;}
+    f.asteroids.spawn(120,540,64);f.player.invulnerableMs=0;f.phase='paused';f.syncHud();await renderFrames();
+    const lens=game.snapshot().rendering.lens;check(!!lens&&lens.passes>0,'actual scene lensing shader executed');check(!!lens&&lens.targetBytes>0,'offscreen targets allocated');
+    if(stage==='resources'){
+      f.beginLevel(0);f.enemies=[];f.boss=null;f.phase='paused';await renderFrames();
+      check(game.snapshot().rendering.lens?.targetBytes===0,'allocated lens targets released after stage exit');
+    }
+    result.textContent=JSON.stringify({status:'passed',checks:['start-boss','damage-immunity','absorption-growth','side-enemies','elite-bomb-half','pause','two-second-warning','blast-region','actual-lens-shader'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if (scene === 'fighter-aim') {
     engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.player.x=400;f.player.y=760;f.player.invulnerableMs=999999;
@@ -359,6 +479,7 @@ async function run() {
       const cardHeight = Math.min(Math.min(400, Math.min(innerWidth,innerHeight/2)-28)*0.98,innerHeight-40);
       for (let cycle=0;cycle<2;cycle++) {
         await click(innerWidth/2,innerHeight/2+cardHeight*0.27);
+        check(uiSounds.at(-1)==='ui-back','main menu return uses distinct sound');
         const home=game.snapshot();
         check(home.phase==='ready' && home.enemies===0 && home.bullets===0 && !home.firing,'home clears battle and input');
         check(home.effects.detonations===0 && home.effects.muzzleFlashes===0,'home clears effects');

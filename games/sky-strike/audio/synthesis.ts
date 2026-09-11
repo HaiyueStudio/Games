@@ -1,6 +1,7 @@
 /** Deterministic sound design. Render offline once; gameplay never synthesizes on the audio thread. */
 export const SKY_SAMPLE_RATE = 44100;
 export const SKY_SOUNDS = {
+  'ui-back': {seconds:0.14,gain:0.48,priority:6,cooldown:35},
   'pickup-red': { seconds: 0.32, gain: 0.52, priority: 6, cooldown: 100 },
   'pickup-blue': { seconds: 0.27, gain: 0.50, priority: 6, cooldown: 100 },
   'pickup-purple': { seconds: 0.42, gain: 0.50, priority: 6, cooldown: 100 },
@@ -38,6 +39,8 @@ export function synthesizeSkySound(id: SkySound): Float32Array {
       phase+=2*Math.PI*hz/SKY_SAMPLE_RATE;
       const envelope=Math.min(1,local/.07)*Math.exp(-local*3);
       value=(Math.sin(phase)*.58+Math.sin(phase*2)*.14+Math.sin(phase*(bomb?.5:3))*.08)*envelope;
+    } else if(id==='ui-back') {
+      phase+=2*Math.PI*(1600-1000*p)/SKY_SAMPLE_RATE;value=Math.sin(phase)*.65*Math.exp(-p*4);
     } else if(id==='ui-click') {
       const hz=t<.026?1250:1800; phase+=2*Math.PI*hz/SKY_SAMPLE_RATE;
       value=(Math.sin(phase)*.62+Math.sin(phase*2)*.12)*Math.exp(-p*4);

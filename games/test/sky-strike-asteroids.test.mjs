@@ -48,7 +48,7 @@ test('health-dependent cadence accelerates grabs and continuous belt remains bou
 });
 test('eighth mission loads hazard timing and rejects malformed belt configuration',async()=>{
  const read=p=>JSON.parse(readFileSync(new URL('../sky-strike/'+p,import.meta.url)));
- const levels=await loadSkyStrikeLevels(async p=>read(p));assert.equal(levels.length,8);assert.equal(levels[7].bossId,'ore-reaper');
+ const levels=await loadSkyStrikeLevels(async p=>read(p));assert.equal(levels.length,11);assert.equal(levels[7].bossId,'ore-reaper');
  assert.ok(levels[7].asteroidBelt.startMs<levels[7].asteroidBelt.endMs);
  for(const patch of [{intervalMs:0},{startMs:-1},{endMs:1},{bossIntervalMs:NaN}])
  await assert.rejects(loadSkyStrikeLevels(async p=>{const l=read(p);if(l.asteroidBelt)Object.assign(l.asteroidBelt,patch);return l;}),/invalid asteroid belt/);

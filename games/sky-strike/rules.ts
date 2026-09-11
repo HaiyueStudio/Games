@@ -1,7 +1,7 @@
 export type EnemyTier = 'normal' | 'elite' | 'boss' | 'device';
 export type BulletPattern = 'none' | 'aimed' | 'spread' | 'burst' | 'ring' | 'spiral' | 'arc' | 'scythe';
 export type FlightPattern = 'straight' | 'weave' | 'sweep' | 'dive' | 'fortress' | 'kamikaze' | 'anchor' | 'rail';
-export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles' | 'asteroid-grab';
+export type BossAttack = 'laser' | 'arc-storm' | 'gravity-fan' | 'carrier-deploy' | 'emitter-grid' | 'serpent-barrage' | 'twin-bubbles' | 'asteroid-grab' | 'singularity' | 'mirror-deploy' | 'quantum-broadside';
 export type SegmentedPart = 'train-head' | 'train-car' | 'serpent-head' | 'serpent-turret';
 export type WeaponForm = 'basic' | 'red' | 'blue' | 'purple';
 export type PowerupForm = Exclude<WeaponForm, 'basic'>;
@@ -21,6 +21,8 @@ export interface EnemyDefinition {
   readonly bossAttack?: BossAttack;
   readonly contactDamage?: number;
   readonly splitsInto?: string;
+  readonly mirrorSides?:number;
+  readonly quantumPair?:boolean;
   readonly deathBurstCount?: number;
   readonly renderAspect?: number;
   readonly directDamageImmune?: boolean;
@@ -144,6 +146,10 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'twin-red', sprite: 'assets/boss-twin-red.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1000, bulletPattern: 'spread', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
   { id: 'twin-blue', sprite: 'assets/boss-twin-blue.png', tier: 'boss', hitPoints: 1800, speed: 65, score: 45000, size: 172, fireIntervalMs: 1200, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'twin-bubbles', renderAspect: 1 },
   { id: 'ore-reaper', sprite: 'assets/boss-miner.png', tier: 'boss', hitPoints: 3400, speed: 60, score: 100000, size: 268, fireIntervalMs: 850, bulletPattern: 'spread', flightPattern: 'fortress', bossAttack: 'asteroid-grab', renderAspect: 1 },
+  {id:'black-hole',sprite:'fx:black-hole',tier:'boss',hitPoints:360,speed:0,score:150000,size:50,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'anchor',bossAttack:'singularity',directDamageImmune:true,renderAspect:1},
+  {id:'quantum-dreadnought',sprite:'assets/boss-quantum-dreadnought.png',tier:'boss',hitPoints:4200,speed:72,score:210000,size:268,fireIntervalMs:875,bulletPattern:'spread',flightPattern:'fortress',bossAttack:'quantum-broadside',quantumPair:true,laserDamage:65,renderAspect:1},
+  {id:'mirror-triangle',sprite:'fx:mirror-triangle',tier:'normal',hitPoints:32,speed:48,score:650,size:76,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'straight',mirrorSides:3,directDamageImmune:true,renderAspect:1},
+  {id:'crystal-prism',sprite:'fx:crystal-prism',tier:'boss',hitPoints:1100,speed:58,score:175000,size:280,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'fortress',bossAttack:'mirror-deploy',mirrorSides:6,directDamageImmune:true,renderAspect:1},
 ]);
 
 const ENEMY_BY_ID = new Map(ENEMY_DEFINITIONS.map(definition => [definition.id, definition]));

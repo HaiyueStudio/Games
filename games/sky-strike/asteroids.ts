@@ -23,7 +23,7 @@ export interface MiningArm {
   rock: Asteroid | null;
   aimX: number; aimY: number;
 }
-export function asteroidHealth(size: number): number { return Math.round(Math.max(32, Math.min(108, size)) ** 2 * 0.018); }
+export function asteroidHealth(size: number): number { return Math.round(Math.max(32, Math.min(108, size)) ** 2 * 0.018 * 0.85); }
 export function miningGrabInterval(health: number, maxHealth: number): number {
   return 650 + 1850 * Math.max(0, Math.min(1, maxHealth > 0 ? health / maxHealth : 0));
 }

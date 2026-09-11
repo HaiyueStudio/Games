@@ -11,7 +11,7 @@ test('Chinese defaults and language survives restart independently of career sav
  data.set(SKY_LANGUAGE_KEY,'invalid');assert.equal(new SkyStrikeLocale(storage).language,'zh');
 });
 test('all level/boss names and GUI strings exist in each locale and font atlas',()=>{
- const names=Array.from({length:8},(_,i)=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-0${i+1}.json`,import.meta.url),'utf8'))).flatMap(l=>[l.id,l.bossId]);
+ const names=[1,2,3,4,5,6,7,8,9,10,12].map(n=>JSON.parse(readFileSync(new URL(`../sky-strike/levels/level-${String(n).padStart(2,'0')}.json`,import.meta.url),'utf8'))).flatMap(l=>[l.id,l.bossId]);
  for(const language of ['zh','en','ja']){
   assert.deepEqual(Object.keys(SKY_TEXT[language]).sort(),Object.keys(SKY_TEXT.zh).sort());
   const locale=new SkyStrikeLocale();locale.set(language);for(const name of names)assert.ok(locale.named(name));
@@ -42,4 +42,12 @@ test('elite/Boss attachment animation follows hull translation and changes over 
  drawShipDetails(renderer,enemy,{x:240,y:800},true);drawShipDetails(renderer,enemy,{x:240,y:800},false);return commands;};
  const a=capture(100,240),b=capture(500,240);assert.notDeepEqual(a,b,'rotors and thrust animate');assert.equal(a.length,b.length,'no accumulating draw objects');
  const c=capture(100,260);assert.equal(c[0][2]-a[0][2],20,'exhaust follows hull movement');
+});
+
+test('quantum battleship retains engine thrust without a decorative central rotor',()=>{
+ const calls=[];const renderer=new Proxy({}, {get:(_,kind)=>(...args)=>calls.push([kind,...args])});
+ const e={definition:{id:'quantum-dreadnought',size:268,tier:'boss',bulletPattern:'aimed',bossAttack:'quantum-broadside'},x:240,y:160,ageMs:1000,rotation:.1,charging:false};
+ drawShipDetails(renderer,e,{x:240,y:800},true);drawShipDetails(renderer,e,{x:240,y:800},false);
+ assert.equal(calls.filter(c=>c[1]==='assets/fx-flame.png').length,2);
+ assert.ok(!calls.some(c=>c[1]==='assets/fx-rotor.png'||c[1]==='assets/fx-turret.png'));
 });

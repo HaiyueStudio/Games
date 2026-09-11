@@ -22,20 +22,20 @@ export class SkyStrikeOptions {
     const place = (element: GuiElement, y: number, height: number, width = 0.76) => {
       element.layout = rect => { element.rect = { x: rect.x + rect.width*(1-width)/2, y: rect.y + rect.height*y, width: rect.width*width, height: rect.height*height }; for (const child of element.children) child.layout(element.rect); };
     };
-    const heading = card.add(new GuiLabel({ fontSize: 25, textAlign: 'center', style: { color: '#edf8ff' } })); place(heading,0.12,0.08);
-    const subtitle = card.add(new GuiLabel({ fontSize: 13, textAlign: 'center', style: { color: '#a2deef' } })); place(subtitle,0.22,0.045);
+    const heading = card.add(new GuiLabel({ fontSize: 25, textAlign: 'center', style: { color: '#edf8ff' } })); place(heading,0.10,0.065);
+    const subtitle = card.add(new GuiLabel({ fontSize: 13, textAlign: 'center', style: { color: '#a2deef' } })); place(subtitle,0.185,0.035);
     const buttons = SKY_LANGUAGES.map((language,index) => {
-      const button = skyStrikeButton(card,image,'',()=>{locale.set(language);audio?.click();}); place(button,0.30+index*0.125,0.105);
+      const button = skyStrikeButton(card,image,'',()=>{locale.set(language);audio?.click();}); place(button,0.235+index*0.115,0.095);
       return { language, button };
     });
-    const hint = card.add(new GuiLabel({ fontSize: 10, textAlign: 'center', style: { color: '#c9b5df' } })); place(hint,0.655,0.04,0.9);
-    const sound = skyStrikeButton(card,image,'',()=>{audio?.settings(!audio.enabled);audio?.click();}); place(sound,0.705,0.075);
-    const volume = card.add(new GuiLabel({fontSize:14,textAlign:'center',style:{color:'#a2deef'}})); place(volume,0.795,0.075,0.44);
+    const hint = card.add(new GuiLabel({ fontSize: 10, textAlign: 'center', style: { color: '#c9b5df' } })); place(hint,0.575,0.035,0.9);
+    const sound = skyStrikeButton(card,image,'',()=>{audio?.settings(!audio.enabled);audio?.click();}); place(sound,0.63,0.075);
+    const volume = card.add(new GuiLabel({fontSize:14,textAlign:'center',style:{color:'#a2deef'}})); place(volume,0.735,0.075,0.44);
     for (const direction of [-1,1]) {
       const button = skyStrikeButton(card,image,direction<0?'-':'+',()=>{audio?.settings(audio.enabled,audio.volume+direction*0.1);audio?.click();});
-      button.layout = rect => {button.rect={x:rect.x+rect.width*(direction<0?0.12:0.71),y:rect.y+rect.height*0.795,width:rect.width*0.17,height:rect.height*0.075};for(const child of button.children)child.layout(button.rect);};
+      button.layout = rect => {button.rect={x:rect.x+rect.width*(direction<0?0.12:0.71),y:rect.y+rect.height*0.735,width:rect.width*0.17,height:rect.height*0.075};for(const child of button.children)child.layout(button.rect);};
     }
-    const back = skyStrikeButton(card,image,'',()=>{this.close();audio?.click();}); place(back,0.895,0.075,0.6);
+    const back = skyStrikeButton(card,image,'',()=>{this.close();audio?.click('back');}); place(back,0.835,0.075,0.6);
     const refresh = () => {
       heading.setText(locale.text('options')); subtitle.setText(locale.text('language'));
       hint.setText(locale.text(audio?.saveFailed ? 'audioSaveFailed' : locale.saveFailed ? 'saveFailed' : 'languageHint'));

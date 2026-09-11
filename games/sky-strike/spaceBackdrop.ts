@@ -10,6 +10,9 @@ export const SPACE_THEMES = [
   { level: 'serpent-rail', texture: 'bg-serpent', planet: null, x: 0, size: 0, phase: 0 },
   { level: 'binary-nova', texture: 'bg-binary', planet: 'planet-amber', x: 100, size: 240, phase: 590 },
   { level: 'asteroid-forge', texture: 'bg-mining', planet: null, x: 0, size: 0, phase: 0 },
+  { level: 'event-horizon', texture: 'bg-void', planet: null, x: 0, size: 0, phase: 0 },
+  { level: 'crystal-labyrinth', texture: 'bg-prism', planet: 'planet-ice', x: 390, size: 210, phase: 810 },
+  { level: 'quantum-armada', texture: 'bg-ion', planet: 'planet-ice', x: 80, size: 190, phase: 970 },
 ] as const;
 
 /** Mirrored repeat shares identical edge texels, even when source art is not perfectly tileable. */

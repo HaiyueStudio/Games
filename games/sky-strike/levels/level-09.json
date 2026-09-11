@@ -1,0 +1,28 @@
+{
+  "id": "event-horizon",
+  "name": "事件视界",
+  "seed": 9184723,
+  "bossId": "black-hole",
+  "background": {
+    "top": "#070311",
+    "middle": "#150b2b",
+    "bottom": "#01020a",
+    "nebula": "#46316a"
+  },
+  "asteroidBelt": {
+    "startMs": 0,
+    "endMs": 3600000,
+    "intervalMs": 2800,
+    "bossIntervalMs": 2800
+  },
+  "spawns": [
+    {
+      "atMs": 0,
+      "enemyId": "black-hole",
+      "position": {
+        "mode": "fixed",
+        "x": 240
+      }
+    }
+  ]
+}

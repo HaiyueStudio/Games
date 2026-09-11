@@ -2,6 +2,9 @@ import type { WeaponForm } from './rules';
 export interface SkyStrikeHud {
   score: number; highScore: number; wave: number; lives: number; health: number;
   weapon: WeaponForm; weaponLevel: number; bombs: number; bombDisabled: boolean;
+  holeWarningMs?:number;
+  crystalStorm?:boolean;
+  quantumEncounter?:boolean;
   bossName: string; bossHealth: number;
   twinHealth?: number[]; twinReviveMs?: number;
 }

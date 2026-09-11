@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { RangeRules, MAGAZINE, resolvePlayerHeading } from '../ak47-range/rules.ts';
+import { RangeRules, MAGAZINE, resolvePlayerHeading, PLAYER_FOV, ENEMY_FOV, RELOAD_SECONDS, ENEMY_FIRE_RANGE, CORPSE_SECONDS, BULLET_SPEED } from '../ak47-range/rules.ts';
+import { radarContact } from '../ak47-range/radar.ts';
 const muzzle = { x: 0, y: 1.2, z: 0 };
 test('held trigger fires at 600 rpm; releasing immediately stops', () => {
   const game = new RangeRules(); game.setFiring(true);
@@ -17,15 +18,24 @@ test('cadence is stable at 30, 60 and 120 FPS', () => {
     assert.equal(game.shots, 20); assert.equal(game.ammo, 10);
   }
 });
-test('empty magazine never fires; reload blocks firing and completes exactly once', () => {
-  const game = new RangeRules(); assert.equal(game.reload(), false); game.setFiring(true);
-  for (let i = 0; i < 250; i++) game.step(1 / 60, muzzle, 0);
-  assert.equal(game.shots, MAGAZINE); assert.equal(game.ammo, 0);
-  assert.equal(game.reload(), true); assert.equal(game.reload(), false);
-  for (let i = 0; i < 120; i++) game.step(1 / 60, muzzle, 0);
-  assert.equal(game.shots, MAGAZINE); game.cancel();
-  for (let i = 0; i < 15; i++) game.step(1 / 60, muzzle, 0);
-  assert.equal(game.ammo, MAGAZINE); assert.equal(game.reloadRemaining, 0);
+test('the last round starts automatic reload exactly once, even after releasing fire', () => {
+  const game = new RangeRules(); game.ammo = 1; game.setFiring(true);
+  game.step(1 / 120, muzzle, 0);
+  assert.equal(game.shots, 1); assert.equal(game.ammo, 0); assert.equal(game.reloadRemaining, RELOAD_SECONDS);
+  assert.equal(game.reload(), false); game.cancel();
+  for (let i = 0; i < 120; i++) game.step(1 / 120, muzzle, 0);
+  assert.equal(game.ammo, 0); assert.ok(game.reloadRemaining > 1);
+  for (let i = 0; i < 145; i++) game.step(1 / 120, muzzle, 0);
+  assert.equal(game.ammo, MAGAZINE); assert.equal(game.reloadRemaining, 0); assert.equal(game.shots, 1);
+});
+test('held fire resumes after automatic reload, and idle empty magazines also reload', () => {
+  const game = new RangeRules(); game.ammo = 1; game.setFiring(true);
+  for (let i = 0; i < 280; i++) game.step(1 / 120, muzzle, 0);
+  assert.ok(game.shots >= 2); assert.ok(game.ammo > 0 && game.ammo < 30); assert.equal(game.firing, true);
+  const idle = new RangeRules(); idle.ammo = 0; idle.step(1 / 60, muzzle, 0);
+  assert.ok(idle.reloadRemaining > 0); assert.equal(idle.shots, 0);
+  const dead = new RangeRules(); dead.health = 0; dead.ammo = 0; dead.step(0.1, muzzle, 0);
+  assert.equal(dead.reloadRemaining, 0);
 });
 test('bullets originate at muzzle and preserve the facing at emission', () => {
   const game = new RangeRules(); game.setFiring(true); game.step(1 / 120, muzzle, Math.PI / 2);
@@ -37,7 +47,7 @@ test('bullets originate at muzzle and preserve the facing at emission', () => {
 test('swept enemy hits score once; cover absorbs bullets before a body', () => {
   const game = new RangeRules(); const enemy = game.spawnEnemy({ x: 0, z: -2 });
   enemy.health = 1; game.setFiring(true); game.step(0.1, muzzle, 0); game.cancel();
-  assert.equal(game.hits, 1); assert.equal(game.kills, 1); assert.equal(game.enemies.length, 0);
+  assert.equal(game.hits, 1); assert.equal(game.kills, 1); assert.equal(game.enemies.length, 1); assert.ok(enemy.deathAge !== null);
   const blocked = new RangeRules(); blocked.spawnEnemy({ x: 5, z: -7 });
   blocked.setFiring(true);
   for (let i = 0; i < 30; i++) blocked.step(1 / 60, { x: 5, y: 1.2, z: 1 }, 0);
@@ -63,7 +73,7 @@ test('source GLBs match provenance; rifle runtime excludes first-person arms', (
       }
     } else {
       assert.ok(gltf.nodes.some(n => n.name === '1seal_skeleton_Bip01 R Hand'));
-      for (const clip of ['run_bottom', 'run_top1', 'idle_bottom', 'reload_top']) assert.ok(gltf.animations.some(a => a.name === clip));
+      for (const clip of ['run_bottom', 'run_top1', 'idle_bottom', 'reload_top', 'death']) assert.ok(gltf.animations.some(a => a.name === clip));
     }
   }
 });
@@ -79,14 +89,21 @@ test('one seeded enemy appears at an arena edge every three simulation seconds',
   advance(a, 3); advance(b, 6); assert.equal(a.spawned, 2);
   assert.deepEqual(a.enemies.map(e => [e.x, e.z]), b.enemies.map(e => [e.x, e.z]));
 });
-test('both teams have exactly a forward 90-degree cone with solid cover occlusion', () => {
+test('player sees 120 degrees and enemies see 60 degrees, with exact boundaries and cover', () => {
   const game = new RangeRules(), observer = { x: 0, z: 3, heading: 0 };
-  assert.equal(game.canSee(observer, { x: 2, z: 1 }), true);
-  assert.equal(game.canSee(observer, { x: 2.01, z: 1 }), false);
+  const point = angle => ({ x: Math.sin(angle) * 2, z: 3 - Math.cos(angle) * 2 });
+  assert.equal(game.canSee(observer, point(Math.PI / 3)), true);
+  assert.equal(game.canSee(observer, point(Math.PI / 3 + 0.001)), false);
+  assert.equal(game.canSee(observer, point(Math.PI / 6), ENEMY_FOV), true);
+  assert.equal(game.canSee(observer, point(Math.PI / 6 + 0.001), ENEMY_FOV), false);
+  assert.equal(game.canSee(observer, point(Math.PI / 4), PLAYER_FOV), true);
+  assert.equal(game.canSee(observer, point(Math.PI / 4), ENEMY_FOV), false);
   assert.equal(game.canSee(observer, { x: 0, z: 4 }), false);
-  assert.equal(game.canSee(observer, { x: 0, z: -2 }), true);
   assert.equal(game.canSee(observer, { x: 5, z: -6 }), false);
-  assert.equal(game.canSee({ x: 5, z: -6, heading: Math.atan2(5, -9) }, observer), false);
+  assert.equal(game.canSee({ x: 5, z: -6, heading: Math.atan2(5, -9) }, observer, ENEMY_FOV), false);
+  const enemy = game.spawnEnemy({ x: 0, z: 0 }); enemy.heading = 0;
+  game.step(1 / 120, { x: 1, z: -1, y: 1.2 }, 0, { x: 1, z: -1 });
+  assert.equal(enemy.alert, false);
 });
 test('actors slide along cover and cannot tunnel through it or leave the arena', () => {
   const game = new RangeRules();
@@ -149,4 +166,48 @@ test('screen aim cardinal directions map to world bullet directions, regardless 
     assert.ok(Math.abs(game.bullets[0].dx - x) < 1e-6);
     assert.ok(Math.abs(game.bullets[0].dz - y) < 1e-6);
   }
+});
+
+test('radar includes rear and covered bearings and clamps distant contacts without changing bearing', () => {
+  const player = { x: 0, z: 3 };
+  assert.deepEqual(radarContact(player, player), { x: 0, y: 0, onRim: false });
+  const behind = radarContact(player, { x: 0, z: 7 });
+  assert.equal(behind.x, 0); assert.ok(behind.y > 0);
+  const far = radarContact(player, { x: 40, z: -27 });
+  assert.ok(Math.abs(Math.hypot(far.x, far.y) - 1) < 1e-9);
+  assert.ok(Math.abs(far.x / far.y - 40 / -30) < 1e-9); assert.equal(far.onRim, true);
+  const near = radarContact({ x: 10, z: 0 }, { x: 11, z: -1 });
+  assert.ok(near.x > 0 && near.y < 0); assert.equal(near.onRim, false);
+});
+
+
+test('dead enemies cannot move, fire, block shots or score twice, and expire after five seconds even at game over', () => {
+  const game = new RangeRules(); const enemy = game.spawnEnemy({ x: 0, z: -2 });
+  enemy.health = 1; game.setFiring(true); game.step(0.1, muzzle, 0); game.cancel();
+  assert.equal(enemy.health, 0); assert.equal(game.kills, 1); assert.ok(enemy.deathAge >= 0);
+  const position = [enemy.x, enemy.z, enemy.heading];
+  const second = game.spawnEnemy({ x: 0, z: -3 }); second.health = 1;
+  game.setFiring(true); advance(game, 0.2, muzzle); game.cancel();
+  assert.equal(second.health, 0); assert.equal(game.kills, 2);
+  assert.deepEqual([enemy.x, enemy.z, enemy.heading], position); assert.equal(enemy.flash, 0);
+  game.health = 0;
+  const remaining = CORPSE_SECONDS - enemy.deathAge;
+  advance(game, remaining - 0.02, muzzle); assert.ok(game.enemies.includes(enemy));
+  advance(game, 0.03, muzzle); assert.ok(!game.enemies.includes(enemy));
+  assert.equal(game.kills, 2); game.restart(); assert.equal(game.enemies.length, 0);
+});
+test('enemy fire uses a ten-metre engagement range and bullets cannot hit beyond their physical range', () => {
+  const game = new RangeRules(); const enemy = game.spawnEnemy({ x: 0, z: -8 });
+  enemy.heading = Math.PI; enemy.cooldown = 0; enemy.alert = true;
+  advance(game, 0.1); assert.equal(game.bullets.length, 0);
+  enemy.z = -6; enemy.heading = Math.PI; enemy.cooldown = 0; enemy.alert = true;
+  advance(game, 0.01); assert.ok(game.bullets.some(b => b.team === 'enemy'));
+  for (const fps of [30, 60, 120]) {
+    const ranged = new RangeRules();
+    ranged.bullets.push({ id: 1, x: 0, y: 1.2, z: 0, dx: 0, dz: -1, age: 0, team: 'enemy' });
+    const body = { x: 0, z: -ENEMY_FIRE_RANGE - 0.5 };
+    for (let i = 0; i < fps; i++) ranged.step(1 / fps, { ...body, y: 1.2 }, 0, body);
+    assert.equal(ranged.health, 100); assert.equal(ranged.bullets.length, 0);
+  }
+  assert.equal(ENEMY_FIRE_RANGE, 10); assert.ok(ENEMY_FIRE_RANGE < BULLET_SPEED * 1.5);
 });
