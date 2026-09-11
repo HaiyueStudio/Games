@@ -305,9 +305,19 @@ export function serpentTurretFireIntervalMs(
   return base * (0.42 + healthRatio * 1.18);
 }
 
-export function shouldSerpentCharge(hitPoints: number, maximumHitPoints: number): boolean {
+export function shouldSerpentCharge(hitPoints: number, maximumHitPoints: number, remainingSegments = SERPENT_SEGMENT_COUNT): boolean {
   if (!Number.isFinite(hitPoints) || !Number.isFinite(maximumHitPoints) || maximumHitPoints <= 0) return false;
-  return hitPoints > 0 && hitPoints / maximumHitPoints < SERPENT_CHARGE_HEALTH_RATIO;
+  return hitPoints > 0 && (remainingSegments === 0 || hitPoints / maximumHitPoints < SERPENT_CHARGE_HEALTH_RATIO);
+}
+
+/** Shared hardpoint for the weapon pod, muzzle flash and projectile origin. */
+export function playerMuzzleOffset(profile: WeaponProfile, index: number): Velocity {
+  const count = profile.projectileCount;
+  const normalized = count <= 1 ? 0 : index / (count - 1) * 2 - 1;
+  return {
+    x: profile.form === 'blue' ? (index - (count - 1) / 2) * 11 : normalized * (profile.form === 'red' ? 30 : 11),
+    y: profile.form === 'red' ? -24 + Math.abs(normalized) * 40 : -24,
+  };
 }
 
 export function serpentCruiseX(ageMs: number, segmentOrder = 0): number {

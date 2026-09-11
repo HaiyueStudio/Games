@@ -376,3 +376,25 @@ test('serpent shares conserve damage across living parts and redistribute overki
   assert.deepEqual(shareSerpentDamage(90, []), []);
   assert.deepEqual(shareSerpentDamage(NaN, [120]), [0]);
 });
+
+
+test('bare serpent head charges above the health gate while dead heads cannot charge', () => {
+  assert.equal(shouldSerpentCharge(1120, 2200, 0), true);
+  assert.equal(shouldSerpentCharge(1120, 2200, 1), false);
+  assert.equal(shouldSerpentCharge(769, 2200, 1), true);
+  assert.equal(shouldSerpentCharge(0, 2200, 0), false);
+});
+
+test('red hardpoints follow the swept wings at every upgrade and leave other weapons unchanged', async () => {
+  const {playerMuzzleOffset}=await import('../sky-strike/rules.ts');
+  for(let level=1;level<=3;level++){
+    const profile=weaponProfile('red',level),points=Array.from({length:profile.projectileCount},(_,i)=>playerMuzzleOffset(profile,i));
+    assert.deepEqual(points[0],{x:-30,y:16});assert.deepEqual(points.at(-1),{x:30,y:16});
+    assert.deepEqual(points[Math.floor(points.length/2)],{x:0,y:-24});
+    for(let i=0;i<points.length;i++){const mirror=points[points.length-1-i];assert.ok(Math.abs(points[i].x+mirror.x)<1e-8);assert.ok(Math.abs(points[i].y-mirror.y)<1e-8);}
+  }
+  for(const form of ['basic','blue'])for(let level=1;level<=3;level++){
+    const profile=weaponProfile(form,level);
+    for(let i=0;i<profile.projectileCount;i++)assert.equal(playerMuzzleOffset(profile,i).y,-24);
+  }
+});

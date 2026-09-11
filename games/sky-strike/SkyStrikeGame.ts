@@ -70,6 +70,7 @@ import {
   upgradeWeapon,
   velocityFromAngle,
   weaponProfile,
+  playerMuzzleOffset,
   type EnemyDefinition,
   type PowerupForm,
   type WeaponForm,
@@ -811,14 +812,13 @@ export class SkyStrikeGame {
     const count = profile.projectileCount;
     for (let index = 0; index < count; index++) {
       const normalized = count <= 1 ? 0 : index / (count - 1) * 2 - 1;
-      const offset = profile.form === 'blue'
-        ? (index - (count - 1) / 2) * 11
-        : normalized * (profile.form === 'red' ? 30 : 11);
+      const muzzle = playerMuzzleOffset(profile, index);
+      const offset = muzzle.x;
       const vx = profile.form === 'red' ? normalized * profile.spreadSpeed : profile.form === 'basic' ? offset * 0.42 : 0;
-      this.combatEffects.shot(this.player, offset, -24, vx, -PLAYER_BULLET_SPEED, profile.form === 'red' ? '#ff6952' : profile.form === 'blue' ? '#55bdff' : '#ffe19a', profile.form);
+      this.combatEffects.shot(this.player, offset, muzzle.y, vx, -PLAYER_BULLET_SPEED, profile.form === 'red' ? '#ff6952' : profile.form === 'blue' ? '#55bdff' : '#ffe19a', profile.form);
       this.playerBullets.push({
         x: this.player.x + offset,
-        y: this.player.y - 24,
+        y: this.player.y + muzzle.y,
         vx,
         vy: -PLAYER_BULLET_SPEED,
         radius: profile.form === 'blue' ? 5 : 4,
@@ -1136,6 +1136,8 @@ export class SkyStrikeGame {
 
   private updateIronSerpent(enemy: EnemyState, deltaMs: number): void {
     const seconds = deltaMs / 1000;
+    const remainingSegments = this.enemies.filter(part => part.segmentOwner === enemy && part.hitPoints > 0).length;
+    const headOnly = remainingSegments === 0;
     if (enemy.charging) {
       enemy.x += enemy.velocityX * seconds;
       enemy.y += enemy.velocityY * seconds;
@@ -1145,19 +1147,19 @@ export class SkyStrikeGame {
         enemy.x = serpentCruiseX(enemy.ageMs);
         enemy.originX = enemy.x;
         enemy.y = -enemy.definition.size * 0.72;
-        enemy.chargeCooldownMs = 4_200;
+        enemy.chargeCooldownMs = headOnly ? 900 : 4_200;
       }
       return;
     }
     if (enemy.y < 360) {
-      enemy.y = Math.min(360, enemy.y + enemy.definition.speed * seconds);
+      enemy.y = Math.min(360, enemy.y + (headOnly ? 320 : enemy.definition.speed) * seconds);
       enemy.x = serpentCruiseX(enemy.ageMs);
       enemy.entered = enemy.y >= 360;
     } else {
       enemy.entered = true;
       enemy.x = serpentCruiseX(enemy.ageMs);
     }
-    if (!enemy.entered || !shouldSerpentCharge(enemy.hitPoints, enemy.definition.hitPoints)) return;
+    if (!enemy.entered || !shouldSerpentCharge(enemy.hitPoints, enemy.definition.hitPoints, remainingSegments)) return;
     enemy.chargeCooldownMs -= deltaMs;
     if (enemy.chargeCooldownMs > 0) return;
     const velocity = aimedVelocity(enemy.x, enemy.y, this.player.x, this.player.y, 520);
@@ -1983,6 +1985,8 @@ export class SkyStrikeGame {
     segments.forEach((segment, index) => {
       segment.segmentOrder = index + 1;
     });
+    // Losing the final body part unlocks a charge immediately, even above 35% HP.
+    if (segments.length === 0 && !owner.charging) owner.chargeCooldownMs = 0;
   }
 
   private removeIronSerpentSegments(): void {
@@ -2403,11 +2407,10 @@ export class SkyStrikeGame {
     if(this.weaponForm !== 'purple') {
       const profile=weaponProfile(this.weaponForm,this.weaponLevel),count=profile.projectileCount;
       for(let i=0;i<count;i++) {
-        const normalized=count<=1?0:i/(count-1)*2-1;
-        const dx=profile.form==='blue'?(i-(count-1)/2)*11:normalized*(profile.form==='red'?30:11);
+        const {x:dx,y:dy}=playerMuzzleOffset(profile,i);
         // Small weapon pods identify the muzzle hardpoints independently of the base hull art.
-        r.line(p.x+dx,p.y-17,p.x+dx,p.y-24,4,'#486477');
-        r.disc(p.x+dx,p.y-24,2,profile.form==='red'?'#ff785e':profile.form==='blue'?'#64c7ff':'#ffe6b0');
+        r.line(p.x+dx,p.y+dy+7,p.x+dx,p.y+dy,4,'#486477');
+        r.disc(p.x+dx,p.y+dy,2,profile.form==='red'?'#ff785e':profile.form==='blue'?'#64c7ff':'#ffe6b0');
       }
     }
     if(this.laserFiring) { const pulse=1+Math.sin(this.elapsedMs*0.04)*0.18; r.ring(p.x,p.y-28,11*pulse,'#cb66ff',0.9,0.6); r.glow(p.x,p.y-28,22*pulse,'#bc65ff',0.8); }

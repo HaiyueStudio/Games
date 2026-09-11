@@ -8,7 +8,7 @@ import { MemorySaveBackend } from '@haiyue/engine/save';
 import { SkyStrikeGame } from '../../../sky-strike/SkyStrikeGame';
 import { SkyStrikeBattleLayer, loadSkySprites } from '../../../sky-strike/battleLayer';
 import { SkyStrikeGuiHud } from '../../../sky-strike/guiHud';
-import { ENEMY_DEFINITIONS } from '../../../sky-strike/rules';
+import { ENEMY_DEFINITIONS, weaponProfile } from '../../../sky-strike/rules';
 import { loadSkyStrikeLevels } from '../../../sky-strike/levels/loader';
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const check = (value: boolean, message: string) => { if (!value) throw new Error(message); };
@@ -86,6 +86,35 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if(scene==='serpent-rage'||scene==='red-wing'){
+    engine.stop();const f=game as any;f.beginLevel(scene==='serpent-rage'?5:0);f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.pointerFiring=false;f.player.x=240;f.player.y=760;f.player.invulnerableMs=0;
+    const checks:string[]=[];
+    if(scene==='serpent-rage'){
+      const head=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='iron-serpent'),240,360);head.entered=true;
+      f.damageEnemy(f.enemies.indexOf(head),head,1071);f.updateEnemies(16);
+      check(f.enemies.filter((e:any)=>e.segmentOwner===head).length===9&&!head.charging,'surviving body retains normal health gate');
+      f.damageEnemy(f.enemies.indexOf(head),head,9);
+      check(f.enemies.filter((e:any)=>e.segmentOwner===head).length===0&&head.hitPoints>head.definition.hitPoints*.35,'real distributed damage removes body above old threshold');
+      f.updateEnemies(16);check(head.charging,'last body death starts immediate charge');
+      f.pause();const pos={x:head.x,y:head.y};game.update(34);check(head.x===pos.x&&head.y===pos.y,'pause freezes charge');f.togglePause();
+      let charges=1,wasCharging=true;
+      for(let ms=0;ms<9000;ms+=16){f.updateEnemies(16);if(head.charging&&!wasCharging)charges++;wasCharging=head.charging;}
+      check(charges>=3&&f.enemies.includes(head),'head repeatedly recycles and charges at least three times in nine seconds');
+      for(let i=0;i<400&&!(head.charging&&head.y>420&&head.y<520);i++)f.updateEnemies(16);
+      checks.push('real-body-destruction','above-35-percent-charge','immediate-first-charge','three-charges-in-nine-seconds','pause-freeze');
+    }else{
+      f.player.y=550;f.weaponForm='red';f.weaponLevel=3;f.combatEffects.clear();f.firePlayerWeapons(weaponProfile('red',3));
+      const bullets=f.playerBullets,flashes=f.combatEffects.flashes;
+      check(bullets.length===7&&flashes.length===7,'seven barrel salvo');
+      for(let i=0;i<7;i++){check(bullets[i].x===f.player.x+flashes[i].dx&&bullets[i].y===f.player.y+flashes[i].dy,'flash and projectile share hardpoint');check(bullets[i].damage===2,'damage unchanged');}
+      check(bullets[0].y===566&&bullets[6].y===566&&bullets[3].y===526,'wing muzzles sit behind nose symmetrically');
+      f.updateBullets(35);f.combatEffects.update(35);
+      checks.push('seven-barrel-salvo','wing-aligned-origins','flash-projectile-alignment','damage-unchanged');
+    }
+    f.phase='paused';f.syncHud();f.render();engine.run();await wait(160);engine.stop();await engine.device.queue.onSubmittedWorkDone();
+    check(game.snapshot().rendering.frameTextureUploads===0,'static texture rendering');
+    result.textContent=JSON.stringify({status:'passed',checks,state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if(scene==='cinder-entry'){
     engine.stop();const f=game as any;f.beginLevel(10);f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.player.invulnerableMs=999999;f.flameProtectionMs=999999;f.pointerFiring=false;
     let observedBeforeEntry=false,observedWarning=false,observedFire=false;
