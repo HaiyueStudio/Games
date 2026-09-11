@@ -19,7 +19,7 @@ limits = {
     'gui-shield.png': 96, 'gui-life.png': 48,
     'fx-flame.png': 192,
     **{f'part-{name}.png': 128 for name in ['serpent-gun','dread-gun','ion-impeller','mantis-blade','carrier-door','prism-iris','twin-gyro','mining-cog','crimson-rail']},
-    'part-serpent-body.png':192, 'part-serpent-joint.png':96,
+    'part-serpent-body.png':192, 'part-serpent-joint.png':96, 'part-dread-rotor.png':96,
     'part-violet-capacitor.png':96, 'part-lancer-petal.png':96, 'part-fission-shell.png':96,
     'fx-burning-impact.png': 320, 'player-fighter.png': 256,
 }

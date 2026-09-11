@@ -57,7 +57,7 @@ test('each hull uses its own attachment and bounded deterministic motion',async(
   for(const call of sprites)used.add(call[1]);
   for(let i=0;i<b.length;i++){const xi=b[i][0]==='sprite'?2:1;assert.ok(Math.abs(c[i][xi]-b[i][xi]-20)<1e-8,'attached to translated hull');}
  }
- assert.equal(SHIP_DETAIL_ASSETS.length,14);
+ assert.equal(SHIP_DETAIL_ASSETS.length,15);
 });
 
 test('serpent vertebra follows its predecessor while its gun tracks independently',async()=>{

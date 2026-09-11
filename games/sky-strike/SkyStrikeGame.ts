@@ -1,4 +1,4 @@
-import { SkyStrikeFlames, IGNITION_DAMAGE } from './flames';
+import { SkyStrikeFlames, IGNITION_DAMAGE, burningApproach } from './flames';
 import { drawFlames } from './flameVisuals';
 import {quantumPose,quantumPoint,quantumTurretPose,quantumCoreState,QUANTUM_TURRET_SPRITE,quantumBossX,quantumAttachment,quantumVelocity,quantumHardpoint,quantumGlitch,QUANTUM_GUN_MOUNTS} from './quantum';
 import {mirrorHit,mirrorVertices,reflectedVelocity,consumeMirrorBudget,prismShards,PRISM_SHARD_STORM_MS,REFLECTED_BULLET_DAMAGE,type MirrorHull} from './mirrorPrism';
@@ -1007,7 +1007,9 @@ export class SkyStrikeGame {
       const movement = enemy.definition.flightPattern;
 
       if(enemy.definition.id==='black-hole'){enemy.x=this.blackHole.x;enemy.y=this.blackHole.y;enemy.entered=true;continue;}
-      if(this.levels[this.levelIndex]?.id==='event-horizon'&&enemy.definition.tier!=='boss'){
+      if(this.flames.isIgnited(enemy)){
+        const next=burningApproach(enemy,this.player,deltaMs);enemy.x=next.x;enemy.y=next.y;
+      }else if(this.levels[this.levelIndex]?.id==='event-horizon'&&enemy.definition.tier!=='boss'){
         const force=this.blackHole.force(enemy.x,enemy.y);
         const lane=enemy.originX<240?50:430;
         const steer=Math.max(-110,Math.min(110,(lane-enemy.x)*1.8));
@@ -1079,6 +1081,8 @@ export class SkyStrikeGame {
         enemy.x = enemy.originX + Math.sin(enemy.ageMs * 0.0011 + enemy.phaseOffset) * 48;
       } else {
         enemy.y += enemy.definition.speed * seconds;
+        // Moving enemies also need an entry transition for entry-gated attacks.
+        if (enemy.y >= 40) enemy.entered = true;
         const amplitude = movement === 'weave' ? 76 : movement === 'sweep' ? 118 : movement === 'dive' ? 34 : 14;
         const frequency = movement === 'dive' ? 0.004 : 0.0018;
         enemy.x = clampToPlayfield(enemy.originX + Math.sin(enemy.ageMs * frequency + enemy.phaseOffset) * amplitude, 24, LOGICAL_WIDTH);

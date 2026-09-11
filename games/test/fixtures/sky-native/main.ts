@@ -44,7 +44,7 @@ async function run() {
   const arrowY = (innerHeight - panelHeight) / 2 + panelHeight * 0.36;
   const click = async (x: number,y: number) => { send('pointerdown',x,y); await wait(40); send('pointerup',x,y); await wait(80); };
   await click(panelLeft + panelWidth - 4 - arrowSize / 2, arrowY);
-  check(game.snapshot().selectedLevel === 1, 'skinned next button');
+  check(game.snapshot().selectedLevel === 1, 'skinned next button '+JSON.stringify({frames,selected:game.snapshot().selectedLevel,viewport:[innerWidth,innerHeight],display:[engine.displayWidth,engine.displayHeight],panel:(game as any).levelCarousel.panel?.rect}));
   await click(panelLeft + 4 + arrowSize / 2, arrowY);
   check(game.snapshot().selectedLevel === 0, 'skinned previous button');
   check(audio.snapshot().uiClicks >= 2,'carousel buttons play GUI sounds');
@@ -86,6 +86,26 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if(scene==='cinder-entry'){
+    engine.stop();const f=game as any;f.beginLevel(10);f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.player.invulnerableMs=999999;f.flameProtectionMs=999999;f.pointerFiring=false;
+    let observedBeforeEntry=false,observedWarning=false,observedFire=false;
+    for(let time=0;time<12200;time+=16){
+      game.update(16);const elite=f.enemies.find((e:any)=>e.definition.id==='cinder-elite');
+      if(elite&&!elite.entered){observedBeforeEntry=true;check(!f.flames.cones.some((c:any)=>!c.boss),'no elite fire before entry');}
+      if(elite?.entered){observedWarning ||=f.flames.cones.some((c:any)=>!c.boss&&c.warning);observedFire ||=f.flames.cones.some((c:any)=>!c.boss&&!c.warning);}
+    }
+    check(observedBeforeEntry&&observedWarning&&observedFire,'timeline-spawned elite enters, telegraphs and emits fire without forced entry flags');
+    const elite=f.enemies.find((e:any)=>e.definition.id==='cinder-elite'),cone=f.flames.cones.find((c:any)=>!c.boss&&!c.warning);check(!!cone,'natural elite is actively flaming');
+    f.player.x=cone.x+Math.cos(cone.angle)*150;f.player.y=cone.y+Math.sin(cone.angle)*150;f.player.health=100;f.player.invulnerableMs=0;f.flameProtectionMs=0;f.updateFlames(200);check(f.player.health===97,'naturally activated flame deals expected contact tick');
+    f.pause();const paused=JSON.stringify(f.flames.snapshot());game.update(34);check(JSON.stringify(f.flames.snapshot())===paused,'pause freezes natural flame');f.togglePause();
+    const hp=f.player.health;f.damageEnemy(f.enemies.indexOf(elite),elite,99999);f.flames.clearBurn();f.updateFlames(200);check(!f.flames.cones.some((c:any)=>!c.boss)&&f.player.health===hp,'dead elite cannot keep spraying');
+    // Restore the same real timeline for visual capture, with no synthetic entry flag.
+    f.beginLevel(10);f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.player.x=240;f.player.y=800;f.player.health=100;f.player.invulnerableMs=999999;f.flameProtectionMs=999999;
+    for(let time=0;time<12200;time+=16)game.update(16);
+    f.phase='paused';f.syncHud();f.render();engine.run();await wait(180);engine.stop();await engine.device.queue.onSubmittedWorkDone();
+    check(game.snapshot().rendering.frameTextureUploads===0,'natural elite uses static GPU textures');
+    result.textContent=JSON.stringify({status:'passed',checks:['real-level-11-timeline','offscreen-entry-gate','natural-warning-and-fire','contact-damage','pause-freeze','death-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if(scene==='inferno'){
     engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'long';
     const reset=()=>{f.beginLevel(10);f.levelCarousel.hide();f.score=0;f.phase='playing';f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.flames.clear();f.flameProtectionMs=0;f.player.invulnerableMs=0;f.player.health=100;f.player.x=240;f.player.y=680;f.pointerFiring=false;};
@@ -99,17 +119,22 @@ async function run() {
     reset();const live=spawn('scout',180,430);f.flames.ignite(live);f.updateFlames(2999);check(f.enemies.includes(live),'living ignited fighter survives until fuse deadline');f.updateFlames(1);check(!f.enemies.includes(live),'living ignited fighter explodes at deadline');
     reset();boss=spawn('inferno-ark',240,145);const doomed=spawn('scout',180,430);f.flames.ignite(doomed);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);check(f.levelAdvanceMs>=3000&&f.flames.charges.length===1,'boss death cannot cancel a pending fuse');
     reset();f.player.health=1;f.player.lives=2;f.damagePlayer(3,true);check(f.player.health===100&&f.player.lives===1&&f.flameProtectionMs===1800,'burn death respawns once');f.damagePlayer(3,true);check(f.player.health===100,'respawn protects against repeated burn ticks');
+    reset();boss=spawn('inferno-ark',240,145);boss.fireCooldownMs=0;f.updateEnemies(16);check(f.enemyBullets.length===3,'boss emits ordinary three-round salvo');
+    f.flames.update(1500,f.enemies,f.player,true);const activeAngle=f.flames.cones[0].angle;f.player.x=420;f.flames.update(500,f.enemies,f.player,true);check(f.flames.cones[0].angle<activeAngle&&activeAngle-f.flames.cones[0].angle<=.08001,'live narrow cone tracks with bounded turn speed');
+    const chase=spawn('scout',80,330);f.flames.ignite(chase);const beforeX=chase.x,beforeY=chase.y;f.updateEnemies(100);check(Math.abs(Math.hypot(chase.x-beforeX,chase.y-beforeY)-6)<.0001&&chase.x>beforeX&&chase.y>beforeY,'ignited fighter replaces regular flight with slow pursuit');
+    f.updateFlames(100);const remaining=f.flames.charges.find((c:any)=>c.source===chase).remainingMs;f.damageEnemy(f.enemies.indexOf(chase),chase,999);const wreck=f.flames.charges.find((c:any)=>!c.source);const wreckX=wreck.x,wreckY=wreck.y;f.player.x=30;f.updateEnemies(100);f.updateFlames(100);check(wreck.x===wreckX&&wreck.y===wreckY&&wreck.remainingMs===remaining-100,'shot-down pursuer leaves stationary timed wreck');
     reset();boss=spawn('inferno-ark',240,145);f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.tier==='normal').length===2,'boss summons escorts');
     for(let i=0;i<10;i++)f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.tier==='normal').length===8,'escort cap is bounded');
     f.flames.ignite(f.enemies.find((e:any)=>e.definition.tier==='normal'));f.pause();const before=JSON.stringify(f.flames.snapshot());game.update(34);check(JSON.stringify(f.flames.snapshot())===before,'pause freezes burns and fuse');f.returnHome();check(f.flames.charges.length===0,'home clears hazards');
     reset();boss=spawn(stage==='elite'?'cinder-elite':'inferno-ark',240,155);f.player.y=720;
     const elapsed=stage==='warning'?700:stage==='wide'?6500:stage==='elite'?1400:1900;
     f.elapsedMs=elapsed;f.flames.update(elapsed,f.enemies,f.player,true);
+    if(stage==='long'){f.player.x=420;f.flames.update(900,f.enemies,f.player,true);f.elapsedMs+=900;boss.fireCooldownMs=0;f.updateEnemies(16);f.updateBullets(350);}
     if(stage==='wreck'){const small=spawn('scout',150,530);f.flames.ignite(small);f.damageEnemy(f.enemies.indexOf(small),small,999);}
     if(stage==='burn'){f.flames.burnMs=4000;f.flames.burnDamage=2;}
     f.phase='paused';f.syncHud();f.render();engine.run();await wait(180);engine.stop();await engine.device.queue.onSubmittedWorkDone();
     check(game.snapshot().rendering.frameTextureUploads===0,'fire uses static GPU textures');
-    result.textContent=JSON.stringify({status:'passed',checks:['elite-ticks','five-second-burn','boss-ignition','dead-hull-fuse','live-hull-fuse','boss-death-fuse','burn-respawn','blast-damage','escort-cap','pause-home-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+    result.textContent=JSON.stringify({status:'passed',checks:['elite-ticks','five-second-burn','boss-ignition','dead-hull-fuse','live-hull-fuse','boss-death-fuse','burn-respawn','blast-damage','escort-cap','boss-ordinary-salvo','narrow-tracking','ignited-pursuit','stationary-wreck','pause-home-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if(scene==='ship-parts') {
     engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'serpent';

@@ -122,7 +122,7 @@ export const SERPENT_SEGMENT_VERTICAL_SPACING = 24;
 
 export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   {id:'cinder-elite',sprite:'assets/elite-cinder.png',tier:'elite',hitPoints:180,speed:30,score:5600,size:128,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'sweep',flameStyle:'elite',renderAspect:1},
-  {id:'inferno-ark',sprite:'assets/boss-inferno.png',tier:'boss',hitPoints:3300,speed:44,score:190000,size:272,fireIntervalMs:999999,bulletPattern:'none',flightPattern:'fortress',bossAttack:'inferno',flameStyle:'boss',renderAspect:1},
+  {id:'inferno-ark',sprite:'assets/boss-inferno.png',tier:'boss',hitPoints:3300,speed:44,score:190000,size:272,fireIntervalMs:900,bulletPattern:'spread',flightPattern:'fortress',bossAttack:'inferno',flameStyle:'boss',renderAspect:1},
   { id: 'scout', sprite: 'assets/enemy-scout.png', tier: 'normal', hitPoints: 5, speed: 116, score: 100, size: 58, fireIntervalMs: 1800, bulletPattern: 'aimed', flightPattern: 'straight' },
   { id: 'dart', sprite: 'assets/enemy-dart.png', tier: 'normal', hitPoints: 6, speed: 172, score: 140, size: 52, fireIntervalMs: 2200, bulletPattern: 'aimed', flightPattern: 'dive' },
   { id: 'bomber', sprite: 'assets/enemy-bomber.png', tier: 'normal', hitPoints: 24, speed: 66, score: 320, size: 82, fireIntervalMs: 1450, bulletPattern: 'spread', flightPattern: 'straight' },

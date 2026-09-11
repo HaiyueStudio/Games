@@ -1,10 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {SkyStrikeFlames,inFlame,FIRE_PROFILES,IGNITION_MS} from '../sky-strike/flames.ts';
+import {SkyStrikeFlames,inFlame,FIRE_PROFILES,IGNITION_MS,burningApproach,NARROW_FLAME_TURN_SPEED,IGNITED_APPROACH_SPEED} from '../sky-strike/flames.ts';
 import {loadSkyStrikeLevels} from '../sky-strike/levels/loader.ts';
 const body=(style='elite')=>({x:240,y:100,radius:20,entered:true,hitPoints:180,definition:{tier:style==='boss'?'boss':style==='normal'?'normal':'elite',size:100,...(style==='normal'?{}:{flameStyle:style})}});
 const player={x:240,y:260,radius:8},safe={x:470,y:900,radius:8};
+test('narrow active flame tracks gradually, while warning and wide flame retain aim',()=>{
+ const f=new SkyStrikeFlames(),e=body('boss'),right={x:470,y:350,radius:8},left={x:10,y:350,radius:8};
+ f.update(500,[e],player,true);const warning=f.cones[0].angle;f.update(500,[e],right,true);assert.equal(f.cones[0].angle,warning);
+ f.update(200,[e],player,true);const start=f.cones[0].angle;f.update(1000,[e],right,true);
+ const turned=f.cones[0].angle;assert.ok(turned<start);assert.ok(Math.abs(turned-start)<=NARROW_FLAME_TURN_SPEED+1e-9);
+ f.update(100,[e],left,true);assert.ok(f.cones[0].angle>turned);assert.ok(f.cones[0].angle-turned<=NARROW_FLAME_TURN_SPEED*.1+1e-9);
+ f.update(4200,[e],player,true);assert.equal(f.cones[0].range,FIRE_PROFILES.wide.range);
+ const wide=f.cones[0].angle;f.update(600,[e],right,true);assert.equal(f.cones[0].angle,wide);
+});
+test('burning approach is bounded, partition-independent, and stops at the target',()=>{
+ const from={x:30,y:40},to={x:300,y:400},next=burningApproach(from,to,1000);
+ assert.ok(Math.abs(Math.hypot(next.x-from.x,next.y-from.y)-IGNITED_APPROACH_SPEED)<1e-9);
+ let divided=from;for(let i=0;i<10;i++)divided=burningApproach(divided,to,100);
+ assert.ok(Math.hypot(divided.x-next.x,divided.y-next.y)<1e-9);
+ assert.deepEqual(burningApproach(from,to,100000),to);assert.deepEqual(burningApproach(to,to,100),to);
+});
+test('only live armed hulls chase; detachment keeps the original remaining fuse',()=>{
+ const f=new SkyStrikeFlames(),e=body('normal');assert.equal(f.isIgnited(e),false);f.ignite(e);assert.equal(f.isIgnited(e),true);
+ f.update(500,[e],safe);const remaining=f.charges[0].remainingMs;f.detach(e);assert.equal(f.isIgnited(e),false);assert.equal(f.charges[0].remainingMs,remaining);
+});
 test('finite flame sectors handle edges, origin, end cap and behind nozzle',()=>{
  const c={x:0,y:0,angle:Math.PI/2,range:100,halfAngle:.3};
  assert.ok(inFlame(c,{x:0,y:90,radius:4}));assert.ok(inFlame(c,{x:0,y:103,radius:4}));

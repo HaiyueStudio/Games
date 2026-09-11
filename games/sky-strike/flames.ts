@@ -3,6 +3,12 @@ export interface FireBody { x:number; y:number; radius:number; hitPoints:number;
 export interface FlameCone { x:number;y:number;angle:number;range:number;halfAngle:number;boss:boolean;warning:boolean;ageMs:number }
 export interface IgnitedHull<T> { source:T|null;x:number;y:number;remainingMs:number;radius:number }
 export const FIRE_TICK_MS=200, BURN_MS=5000, IGNITION_MS=3000, IGNITION_RADIUS=110, IGNITION_DAMAGE=60;
+export const NARROW_FLAME_TURN_SPEED=.16, IGNITED_APPROACH_SPEED=60;
+/** Burning hulls replace their regular flight path and cannot overshoot the player. */
+export function burningApproach(body:{x:number;y:number},target:{x:number;y:number},deltaMs:number):{x:number;y:number}{
+ const dx=target.x-body.x,dy=target.y-body.y,d=Math.hypot(dx,dy),step=Math.min(d,IGNITED_APPROACH_SPEED*Math.max(0,deltaMs)/1000);
+ return d>0?{x:body.x+dx/d*step,y:body.y+dy/d*step}:{x:body.x,y:body.y};
+}
 export const FIRE_PROFILES={elite:{range:280,halfAngle:.55,inside:3,burn:1},long:{range:570,halfAngle:.18,inside:5,burn:2},wide:{range:330,halfAngle:.67,inside:5,burn:2}} as const;
 /** Circle-sector intersection including radial edges and finite end cap. */
 export function inFlame(cone:FlameCone,p:{x:number;y:number;radius:number}):boolean {
@@ -29,6 +35,7 @@ export class SkyStrikeFlames<T extends FireBody> {
   this.ignited.add(source);this.charges.push({source,x:source.x,y:source.y,remainingMs:IGNITION_MS,radius:IGNITION_RADIUS});
  }
  detach(source:T):void{for(const c of this.charges)if(c.source===source){c.x=source.x;c.y=source.y;c.source=null;}}
+ isIgnited(source:T):boolean{return this.charges.some(c=>c.source===source);}
  update(deltaMs:number,enemies:readonly T[],player:{x:number;y:number;radius:number},protectedPlayer=false):{damage:number;explosions:IgnitedHull<T>[]} {
   let damage=0;const explosions:IgnitedHull<T>[]=[];
   // Small fixed upper-bound slices prevent frame-size dependent burns and fuse drift.
@@ -48,6 +55,11 @@ export class SkyStrikeFlames<T extends FireBody> {
     if(state.ageMs>=cycleLength){state.ageMs=0;state.cycle++;}
     if(state.ageMs>=warning+active)continue;
     const profile=!boss?FIRE_PROFILES.elite:state.cycle%2===0?FIRE_PROFILES.long:FIRE_PROFILES.wide;
+    if(boss&&profile===FIRE_PROFILES.long&&state.ageMs>=warning){
+     const target=Math.PI/2+Math.max(-.55,Math.min(.55,Math.atan2(player.y-y,player.x-x)-Math.PI/2));
+     const limit=NARROW_FLAME_TURN_SPEED*step/1000;
+     state.angle+=Math.max(-limit,Math.min(limit,target-state.angle));
+    }
     const cone={x,y,angle:state.angle,range:profile.range,halfAngle:profile.halfAngle,boss,warning:state.ageMs<warning,ageMs:state.ageMs};
     const jets=boss?[-1,1].map(side=>({...cone,x:x+side*e.definition.size*.19})):[cone];
     this.cones.push(...jets);

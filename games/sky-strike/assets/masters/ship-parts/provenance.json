@@ -23,9 +23,10 @@
   {
     "id": "dread-gun",
     "file": "../../part-dread-gun.png",
-    "sha256": "cc59ed22f206bbc5a9196815137610bd39d747d6fd12c2052c601799415f9319",
+    "sha256": "f4a766dc6bba26e7707f7f96f32bac6a1743a841f1db082085f56d5a969f8314",
     "generator": "built-in image_gen",
-    "alpha": "generated alpha preserved unmodified"
+    "alpha": "generated alpha preserved unmodified",
+    "revision": "2026-09-11 hull-matched obsidian/bronze/crimson redesign; prior master archived at ../dreadnought/previous-gun.png"
   },
   {
     "id": "ion-impeller",
@@ -94,6 +95,13 @@
     "id": "fission-shell",
     "file": "../../part-fission-shell.png",
     "sha256": "6459abe252ca2924a8f5f5f4406ce87c6adfe85d19c3a52660ec9f1bb79a25da",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved unmodified"
+  },
+  {
+    "id": "dread-rotor",
+    "file": "../../part-dread-rotor.png",
+    "sha256": "2f1db48636849d6262ea7c60f282166ded78e66a6fa9be9a1479c51cb088e564",
     "generator": "built-in image_gen",
     "alpha": "generated alpha preserved unmodified"
   }

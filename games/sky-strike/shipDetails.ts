@@ -2,11 +2,11 @@ import type { SkyStrikeBattleLayer } from './battleLayer';
 import { CARRIER_DEPLOY_INTERVAL_MS, type EnemyDefinition } from './rules';
 interface ShipPose { definition: EnemyDefinition; x:number; y:number; rotation:number; ageMs:number; fireCooldownMs:number; lastShotAgeMs?:number; laserCooldownMs:number; charging:boolean; hitPoints?:number }
 type Motion = 'cannon'|'ion'|'blades'|'hangars'|'iris'|'serpent'|'gyro'|'gear'|'capacitors'|'petals'|'shells'|'none';
-interface Layout { engines:number[]; rear:number; color:string; motion:Motion; part?:string }
+interface Layout { engines:number[]; rear:number; color:string; motion:Motion; part?:string; rotor?:string }
 /** Art and motion are specific to each hull; the twin pair deliberately shares a chassis. */
 const layouts: Record<string,Layout> = {
   'quantum-dreadnought':{engines:[-.22,.22],rear:-.34,color:'#6edbff',motion:'none'},
-  dreadnought:{engines:[-.23,.23],rear:-.35,color:'#ff6655',motion:'cannon',part:'dread-gun'},
+  dreadnought:{engines:[-.23,.23],rear:-.35,color:'#ff3826',motion:'cannon',part:'dread-gun',rotor:'dread-rotor'},
   'ion-seraph':{engines:[-.28,.28],rear:-.31,color:'#68cdff',motion:'ion',part:'ion-impeller'},
   'void-mantis':{engines:[-.16,.16],rear:-.32,color:'#c575ff',motion:'blades',part:'mantis-blade'},
   'star-carrier':{engines:[-.3,.3],rear:-.3,color:'#72dfff',motion:'hangars',part:'carrier-door'},
@@ -20,7 +20,7 @@ const layouts: Record<string,Layout> = {
   'prism-lancer':{engines:[-.2,.2],rear:-.3,color:'#b875ff',motion:'petals',part:'lancer-petal'},
   'fission-elite':{engines:[-.25,.25],rear:-.3,color:'#bd78ff',motion:'shells',part:'fission-shell'},
 };
-export const SHIP_DETAIL_ASSETS=[...new Set([...Object.values(layouts).flatMap(l=>l.part?[`assets/part-${l.part}.png`]:[]),'assets/part-serpent-body.png','assets/part-serpent-joint.png'])];
+export const SHIP_DETAIL_ASSETS=[...new Set([...Object.values(layouts).flatMap(l=>[l.part,l.rotor].filter(Boolean).map(id=>`assets/part-${id}.png`)),'assets/part-serpent-body.png','assets/part-serpent-joint.png'])];
 export function drawShipDetails(r:SkyStrikeBattleLayer,e:ShipPose,target:{x:number;y:number},behind:boolean):void {
   const layout=layouts[e.definition.id]; if(!layout)return;
   const w=e.definition.size,h=w*(e.definition.renderAspect??(e.definition.tier==='boss'?1.18:1.3)),a=e.rotation,t=e.ageMs;
@@ -38,7 +38,12 @@ export function drawShipDetails(r:SkyStrikeBattleLayer,e:ShipPose,target:{x:numb
       const muzzle={x:e.x,y:e.y+w*.25},angle=Math.atan2(target.y-muzzle.y,target.x-muzzle.x),size=w*.27;
       const recoil=Math.max(0,1-(t-(e.lastShotAgeMs??-1000))/120)*Math.min(3,w*.015),d=size*.4+recoil;
       r.sprite(`assets/part-${layout.part}.png`,muzzle.x-Math.cos(angle)*d,muzzle.y-Math.sin(angle)*d,size,size,angle+Math.PI/2);
-      for(const side of [-1,1]){const p=point(side*w*.23,-h*.10);r.glow(p.x,p.y,w*.07,layout.color,.18+pulse*.16);}
+      for(const side of [-1,1]){
+        // Dreadnought's red reactor sockets are embedded in the source hull art.
+        const p=layout.rotor?point(side*w*.16,-h*.17):point(side*w*.23,-h*.10);
+        if(layout.rotor)r.sprite(`assets/part-${layout.rotor}.png`,p.x,p.y,w*.15,w*.15,a+side*t*.0012);
+        r.glow(p.x,p.y,w*(layout.rotor?.032:.07),layout.color,.18+pulse*.16);
+      }
       break;
     }
     case 'ion':

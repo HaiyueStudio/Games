@@ -378,101 +378,108 @@
     "length": 65536
   },
   {
-    "id": "assets/part-fission-shell.png",
+    "id": "assets/part-dread-rotor.png",
     "width": 96,
     "height": 96,
     "offset": 27028736,
     "length": 36864
   },
   {
+    "id": "assets/part-fission-shell.png",
+    "width": 96,
+    "height": 96,
+    "offset": 27065600,
+    "length": 36864
+  },
+  {
     "id": "assets/part-ion-impeller.png",
     "width": 128,
     "height": 128,
-    "offset": 27065600,
+    "offset": 27102464,
     "length": 65536
   },
   {
     "id": "assets/part-lancer-petal.png",
     "width": 96,
     "height": 96,
-    "offset": 27131136,
+    "offset": 27168000,
     "length": 36864
   },
   {
     "id": "assets/part-mantis-blade.png",
     "width": 128,
     "height": 128,
-    "offset": 27168000,
+    "offset": 27204864,
     "length": 65536
   },
   {
     "id": "assets/part-mining-cog.png",
     "width": 128,
     "height": 128,
-    "offset": 27233536,
+    "offset": 27270400,
     "length": 65536
   },
   {
     "id": "assets/part-prism-iris.png",
     "width": 128,
     "height": 128,
-    "offset": 27299072,
+    "offset": 27335936,
     "length": 65536
   },
   {
     "id": "assets/part-serpent-body.png",
     "width": 192,
     "height": 192,
-    "offset": 27364608,
+    "offset": 27401472,
     "length": 147456
   },
   {
     "id": "assets/part-serpent-gun.png",
     "width": 128,
     "height": 128,
-    "offset": 27512064,
+    "offset": 27548928,
     "length": 65536
   },
   {
     "id": "assets/part-serpent-joint.png",
     "width": 96,
     "height": 96,
-    "offset": 27577600,
+    "offset": 27614464,
     "length": 36864
   },
   {
     "id": "assets/part-twin-gyro.png",
     "width": 128,
     "height": 128,
-    "offset": 27614464,
+    "offset": 27651328,
     "length": 65536
   },
   {
     "id": "assets/part-violet-capacitor.png",
     "width": 96,
     "height": 96,
-    "offset": 27680000,
+    "offset": 27716864,
     "length": 36864
   },
   {
     "id": "assets/planet-amber.png",
     "width": 384,
     "height": 384,
-    "offset": 27716864,
+    "offset": 27753728,
     "length": 589824
   },
   {
     "id": "assets/planet-ice.png",
     "width": 384,
     "height": 384,
-    "offset": 28306688,
+    "offset": 28343552,
     "length": 589824
   },
   {
     "id": "assets/player-fighter.png",
     "width": 171,
     "height": 256,
-    "offset": 28896512,
+    "offset": 28933376,
     "length": 175104
   }
 ]
