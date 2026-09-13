@@ -180,12 +180,19 @@
         "game-workflow",
         "gltf",
         "input",
+        "gui",
         "particles",
         "custom-shader",
         "procedural-geometry"
       ],
       "assets": [
-        "neon-circuit/assets/wraith-raider.glb"
+        "neon-circuit/assets/wraith-raider.glb",
+        "neon-circuit/assets/smoke-puff.png",
+        "neon-circuit/assets/boost-chevron.png",
+        "neon-circuit/assets/gui-button.png",
+        "neon-circuit/assets/gui-panel.png",
+        "neon-circuit/assets/gui-dial.png",
+        "neon-circuit/assets/gui-title.png"
       ],
       "screenshot": {
         "required": false,
@@ -469,6 +476,7 @@
         "sky-strike/assets/part-fission-shell.png",
         "sky-strike/levels/level-11.json",
         "sky-strike/assets/boss-inferno.png",
+        "sky-strike/assets/fx-inferno-gun.png",
         "sky-strike/assets/elite-cinder.png",
         "sky-strike/assets/fx-inferno.png"
       ],

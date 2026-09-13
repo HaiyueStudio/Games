@@ -2,7 +2,7 @@ import type { SkyStrikeBattleLayer } from './battleLayer';
 import { armSocket, type MiningShip, type SkyStrikeAsteroids } from './asteroids';
 
 /** Four two-link hydraulic arms share existing GPU masks; no dynamic texture uploads. */
-export function drawMiningArms(r: SkyStrikeBattleLayer, field: SkyStrikeAsteroids, boss: MiningShip): void {
+export function drawMiningArms(r: SkyStrikeBattleLayer, field: Pick<SkyStrikeAsteroids, 'arms'>, boss: MiningShip): void {
   for (const arm of field.arms) {
     const socket=armSocket(boss,arm.index), side=arm.index%2?1:-1;
     const dx=arm.x-socket.x,dy=arm.y-socket.y,length=Math.max(1,Math.hypot(dx,dy));

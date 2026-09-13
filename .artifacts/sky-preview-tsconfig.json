@@ -1,0 +1,1 @@
+{"extends": "../tsconfig.json", "include": ["../games/sky-strike/**/*.ts", "../games/test/fixtures/sky-native/main.ts"], "exclude": ["../node_modules", "../dist"]}

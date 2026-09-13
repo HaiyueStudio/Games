@@ -1,5 +1,5 @@
 import type { SkyStrikeBattleLayer } from './battleLayer';
-import { CARRIER_DEPLOY_INTERVAL_MS, type EnemyDefinition } from './rules';
+import { dreadnoughtLaserMuzzle, CARRIER_DEPLOY_INTERVAL_MS, type EnemyDefinition } from './rules';
 interface ShipPose { definition: EnemyDefinition; x:number; y:number; rotation:number; ageMs:number; fireCooldownMs:number; lastShotAgeMs?:number; laserCooldownMs:number; charging:boolean; hitPoints?:number }
 type Motion = 'cannon'|'ion'|'blades'|'hangars'|'iris'|'serpent'|'gyro'|'gear'|'capacitors'|'petals'|'shells'|'none';
 interface Layout { engines:number[]; rear:number; color:string; motion:Motion; part?:string; rotor?:string }
@@ -35,8 +35,8 @@ export function drawShipDetails(r:SkyStrikeBattleLayer,e:ShipPose,target:{x:numb
   switch(layout.motion){
     case 'cannon': {
       // The generated barrel tips sit 40% of image height ahead of its center.
-      const muzzle={x:e.x,y:e.y+w*.25},angle=Math.atan2(target.y-muzzle.y,target.x-muzzle.x),size=w*.27;
-      const recoil=Math.max(0,1-(t-(e.lastShotAgeMs??-1000))/120)*Math.min(3,w*.015),d=size*.4+recoil;
+      const muzzle=e.definition.id==='dreadnought'?dreadnoughtLaserMuzzle(e):{x:e.x,y:e.y+w*.25},angle=Math.atan2(target.y-muzzle.y,target.x-muzzle.x),size=w*.27;
+      const recoil=(e.definition.id==='dreadnought'?0:Math.max(0,1-(t-(e.lastShotAgeMs??-1000))/120))*Math.min(3,w*.015),d=size*.4+recoil;
       r.sprite(`assets/part-${layout.part}.png`,muzzle.x-Math.cos(angle)*d,muzzle.y-Math.sin(angle)*d,size,size,angle+Math.PI/2);
       for(const side of [-1,1]){
         // Dreadnought's red reactor sockets are embedded in the source hull art.

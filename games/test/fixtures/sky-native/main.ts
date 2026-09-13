@@ -1,3 +1,4 @@
+import {dreadnoughtWingMuzzle,dreadnoughtLaserMuzzle} from '../../../sky-strike/rules';
 import {SkyStrikeAudio, SKY_AUDIO_SETTINGS_KEY} from '../../../sky-strike/audio/SkyStrikeAudio';
 import {SkyStrikeBrowserAudio} from '../../../sky-strike/audio/browser';
 import {SKY_SOUND_IDS} from '../../../sky-strike/audio/synthesis';
@@ -37,12 +38,40 @@ async function run() {
   };
   engine.on('update', update); engine.run(); await wait(500);
   const scene = new URLSearchParams(location.search).get('scene');
+  if(scene==='preview-switch-frames') {
+    engine.stop();const f=game as any,menu=f.levelCarousel;
+    const width=128,height=256,bytesPerRow=512,device=engine.device;
+    const capture=async(switchLevel:boolean)=>{
+      const target=device.createTexture({size:[width,height],format:engine.format,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
+      const msaa=device.createTexture({size:[width,height],format:engine.format,sampleCount:4,usage:GPUTextureUsage.RENDER_ATTACHMENT});
+      const readback=device.createBuffer({size:bytesPerRow*height,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+      try {
+        const encoder=device.createCommandEncoder(),pass=encoder.beginRenderPass({colorAttachments:[{view:msaa.createView(),resolveTarget:target.createView(),loadOp:'clear',storeOp:'store',clearValue:{r:0,g:0,b:0,a:1}}]});
+        f.battle.renderer.render(pass,f.battle.commands,engine.displayWidth,engine.displayHeight);pass.end();
+        // GUI input may compose the next boss after the background pass is encoded, before it is submitted.
+        if(switchLevel)menu.changeSelection(1);
+        encoder.copyTextureToBuffer({texture:target},{buffer:readback,bytesPerRow},[width,height]);device.queue.submit([encoder.finish()]);
+        await readback.mapAsync(GPUMapMode.READ);return new Uint8Array(readback.getMappedRange()).slice();
+      }finally{readback.destroy();target.destroy();msaa.destroy();}
+    };
+    const transitions=[];
+    for(let i=0;i<24;i++){
+      f.render();const before=await capture(false),after=await capture(true);
+      let changed=0;for(let j=0;j<before.length;j++)if(before[j]!==after[j])changed++;
+      transitions.push({index:menu.index,changedBytes:changed});
+      check(changed===0,`preview switch corrupts pending background frame: level ${menu.index+1}, ${changed} bytes`);
+      check(menu.bossImage.rect.width<=menu.panel.rect.width*.56+.01&&menu.bossImage.rect.height<=menu.panel.rect.height*.43+.01,'new preview retains bounded layout immediately');
+    }
+    menu.show(0);f.render();engine.run();await wait(160);engine.stop();
+    result.textContent=JSON.stringify({status:'passed',checks:['pending-frame-pixel-isolation','12-first-visit-transitions','12-cached-transitions','immediate-bounded-layout'],transitions,state:game.snapshot()});result.dataset.status='passed';return;
+  }
   const send = (type: string, x: number, y: number) => canvas.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y, button: 0 }));
   const panelHeight = Math.min(720, Math.max(280, innerHeight - 36));
   const panelWidth = Math.min(410, innerWidth - 24), panelLeft = (innerWidth - panelWidth) / 2;
   const arrowSize = Math.max(48, Math.min(64, panelWidth * 0.16));
   const arrowY = (innerHeight - panelHeight) / 2 + panelHeight * 0.36;
-  const click = async (x: number,y: number) => { send('pointerdown',x,y); await wait(40); send('pointerup',x,y); await wait(80); };
+  const inputFrames=async()=>{const start=frames,deadline=performance.now()+5000;while(frames<start+2&&performance.now()<deadline)await wait(10);check(frames>=start+2,'GUI input advances two frames');};
+  const click = async (x: number,y: number) => { send('pointerdown',x,y); await inputFrames(); send('pointerup',x,y); await inputFrames(); };
   await click(panelLeft + panelWidth - 4 - arrowSize / 2, arrowY);
   check(game.snapshot().selectedLevel === 1, 'skinned next button '+JSON.stringify({frames,selected:game.snapshot().selectedLevel,viewport:[innerWidth,innerHeight],display:[engine.displayWidth,engine.displayHeight],panel:(game as any).levelCarousel.panel?.rect}));
   await click(panelLeft + 4 + arrowSize / 2, arrowY);
@@ -79,6 +108,27 @@ async function run() {
     await click(innerWidth/2,top+optionsHeight*0.8725);check(!game.snapshot().optionsOpen,'close settings');check(uiSounds.at(-1)==='ui-back','settings return uses distinct sound');
   }
   if (scene === 'menu') {
+    const menu=(game as any).levelCarousel;
+    check(Math.abs(menu.heading.rect.x+menu.heading.rect.width/2-(menu.panel.rect.x+menu.panel.rect.width/2))<.01,'heading centered on panel');
+    const scanY=menu.scanBands[0].rect.y,bytes=(game as any).battle.stats().guiTextureBytes;
+    menu.update(1000);check(menu.scanBands[0].rect.y!==scanY,'scan light advances');
+    for(const b of menu.scanBands)check(b.disabled&&b.rect.y>=menu.panel.rect.y&&b.rect.y+b.rect.height<=menu.panel.rect.y+menu.panel.rect.height,'scan stays decorative and inside panel');
+    menu.sync();check((game as any).battle.stats().guiTextureBytes===bytes,'preview reuses GPU texture');
+    if(![9,10,11,12].includes(mission))check(menu.bossImage.sourceKey.startsWith('preview:'),'boss preview includes combat detail composition');
+
+    if(mission===11){
+      const carousel=(game as any).levelCarousel;
+      for(let round=0;round<3;round++){
+        check(carousel.bossAttachments.length===2&&carousel.bossAttachments.every((p:any)=>p.visible&&p.disabled),'two decorative burner preview layers');
+        const hull=carousel.bossImage.rect;
+        carousel.bossAttachments.forEach((p:any,i:number)=>{
+          check(Math.abs(p.rect.x+p.rect.width*.5-(hull.x+hull.width*(.5+(i===0?-1:1)*.165)))<1e-6,'preview gun pivot aligns horizontally');
+          check(Math.abs(p.rect.y+p.rect.height*.12-(hull.y+hull.height*.528))<1e-6,'preview gun pivot aligns vertically');
+        });
+        carousel.changeSelection(1);check(carousel.bossAttachments.every((p:any)=>!p.visible),'attachments hide on another boss');
+        carousel.changeSelection(-1);await wait(40);
+      }
+    }
     if(new URLSearchParams(location.search).get('mission')==='7') {const carousel=(game as any).levelCarousel;check(carousel.bossImage.rect.x+carousel.bossImage.rect.width*0.85<carousel.companionImage.rect.x,'twin preview hulls have separate positions');}
     engine.stop(); result.textContent = JSON.stringify({ status:'passed', checks:['engine-gui-menu','skinned-next','skinned-previous'], state:game.snapshot() }); result.dataset.status='passed'; return;
   }
@@ -86,6 +136,33 @@ async function run() {
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
   send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
   check(game.snapshot().phase === 'playing', 'GUI start');
+  if(scene==='serpent-segments') {
+    engine.stop();const f=game as any;f.beginLevel(5);f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.pointerFiring=false;f.player.invulnerableMs=999999;
+    const head=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='iron-serpent'),240,520);head.entered=true;
+    const parts=f.enemies.filter((e:any)=>e.segmentOwner===head),victim=parts[3],next=parts[4];
+    for(const p of parts){p.entered=true;p.fireCooldownMs=999999;}
+    const hit=(target:any,damage:number)=>{f.playerBullets.push({x:target.x,y:target.y,previousX:target.x,previousY:target.y,vx:0,vy:0,radius:2,damage,hostile:false,color:'#ffffff'});f.resolveCollisions();};
+    hit(victim,30);check(victim.hitPoints===90&&head.hitPoints===2200&&parts.every((p:any)=>p===victim||p.hitPoints===120),'bullet reduces only the struck segment');
+    f.damageEnemy(f.enemies.indexOf(next),next,15);f.startHostileLaser(victim);f.startHostileLaser(next);
+    const score=f.score;hit(victim,1000);
+    check(!f.enemies.includes(victim)&&f.enemies.filter((p:any)=>p.segmentOwner===head).length===8,'middle segment destroyed independently');
+    check(head.hitPoints===2200&&next.hitPoints===105,'overkill never spills into head or surviving neighbor');
+    check(f.score===score+victim.definition.score,'one segment awards one score');
+    check(!f.hostileLasers.some((l:any)=>l.source===victim)&&f.hostileLasers.some((l:any)=>l.source===next),'only destroyed segment laser is removed');
+    const alive=parts.filter((p:any)=>p!==victim);
+    check(alive.every((p:any,i:number)=>p.segmentOrder===i+1),'survivor order compacts immediately');
+    check(next.segmentOrder===4&&next.segmentFollowOrder===5,'following node keeps its starting position for smooth join');
+    check(alive.find((p:any)=>p.segmentOrder===next.segmentOrder-1)===parts[2],'following node reconnects to preceding survivor');
+    f.updateEnemies(110);check(Math.abs(next.segmentFollowOrder-4.5)<1e-8,'join advances partway instead of teleporting');
+    f.pause();game.update(34);check(Math.abs(next.segmentFollowOrder-4.5)<1e-8,'pause freezes rejoin');f.togglePause();
+    f.updateEnemies(110);check(next.segmentFollowOrder===4&&next.hitPoints===105,'join completes while preserving health');
+    for(const target of [parts[0],parts[8]]){f.damageEnemy(f.enemies.indexOf(target),target,1000);f.updateEnemies(220);}
+    const survivors=f.enemies.filter((p:any)=>p.segmentOwner===head).sort((a:any,b:any)=>a.segmentOrder-b.segmentOrder);
+    check(survivors.length===6&&survivors.every((p:any,i:number)=>p.segmentOrder===i+1),'first and last segment destruction keeps contiguous survivors');
+    check(survivors[0]===parts[1]&&head.hitPoints===2200,'new first node connects directly to intact head');
+    f.hostileLasers=[];f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
+    result.textContent=JSON.stringify({status:'passed',checks:['real-bullet-independent-hp','middle-node-overkill-isolation','neighbor-health-preserved','single-score','owned-laser-cleanup','smooth-reconnection','pause-rejoin','first-middle-last-removal'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
   if(scene==='serpent-rage'||scene==='red-wing'){
     engine.stop();const f=game as any;f.beginLevel(scene==='serpent-rage'?5:0);f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.pointerFiring=false;f.player.x=240;f.player.y=760;f.player.invulnerableMs=0;
     const checks:string[]=[];
@@ -93,8 +170,10 @@ async function run() {
       const head=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='iron-serpent'),240,360);head.entered=true;
       f.damageEnemy(f.enemies.indexOf(head),head,1071);f.updateEnemies(16);
       check(f.enemies.filter((e:any)=>e.segmentOwner===head).length===9&&!head.charging,'surviving body retains normal health gate');
-      f.damageEnemy(f.enemies.indexOf(head),head,9);
-      check(f.enemies.filter((e:any)=>e.segmentOwner===head).length===0&&head.hitPoints>head.definition.hitPoints*.35,'real distributed damage removes body above old threshold');
+      const body=f.enemies.filter((e:any)=>e.segmentOwner===head);
+      check(body.every((e:any)=>e.hitPoints===120),'head damage does not drain body HP');
+      for(const part of body)f.damageEnemy(f.enemies.indexOf(part),part,part.hitPoints);
+      check(f.enemies.filter((e:any)=>e.segmentOwner===head).length===0&&head.hitPoints>head.definition.hitPoints*.35,'independent body destruction leaves head above health gate');
       f.updateEnemies(16);check(head.charging,'last body death starts immediate charge');
       f.pause();const pos={x:head.x,y:head.y};game.update(34);check(head.x===pos.x&&head.y===pos.y,'pause freezes charge');f.togglePause();
       let charges=1,wasCharging=true;
@@ -117,23 +196,24 @@ async function run() {
   }
   if(scene==='cinder-entry'){
     engine.stop();const f=game as any;f.beginLevel(10);f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.player.invulnerableMs=999999;f.flameProtectionMs=999999;f.pointerFiring=false;
-    let observedBeforeEntry=false,observedWarning=false,observedFire=false;
-    for(let time=0;time<12200;time+=16){
+    let observedBeforeEntry=false,observedTravel=false,observedFire=false;
+    for(let time=0;time<11600;time+=16){
       game.update(16);const elite=f.enemies.find((e:any)=>e.definition.id==='cinder-elite');
       if(elite&&!elite.entered){observedBeforeEntry=true;check(!f.flames.cones.some((c:any)=>!c.boss),'no elite fire before entry');}
-      if(elite?.entered){observedWarning ||=f.flames.cones.some((c:any)=>!c.boss&&c.warning);observedFire ||=f.flames.cones.some((c:any)=>!c.boss&&!c.warning);}
+      if(elite?.entered){observedTravel ||=f.flames.cones.some((c:any)=>!c.boss&&c.range<100&&!c.warning);observedFire ||=f.flames.cones.some((c:any)=>!c.boss&&c.range>200&&!c.warning);}
     }
-    check(observedBeforeEntry&&observedWarning&&observedFire,'timeline-spawned elite enters, telegraphs and emits fire without forced entry flags');
-    const elite=f.enemies.find((e:any)=>e.definition.id==='cinder-elite'),cone=f.flames.cones.find((c:any)=>!c.boss&&!c.warning);check(!!cone,'natural elite is actively flaming');
+    check(observedBeforeEntry&&observedTravel&&observedFire,'timeline-spawned elite enters and emits a traveling jet without forced entry flags');
+    const elite=f.enemies.find((e:any)=>e.definition.id==='cinder-elite'),cone=f.flames.cones.find((c:any)=>!c.boss&&c.minRange<=150&&c.range>=150);check(!!cone,'natural elite is actively flaming');
     f.player.x=cone.x+Math.cos(cone.angle)*150;f.player.y=cone.y+Math.sin(cone.angle)*150;f.player.health=100;f.player.invulnerableMs=0;f.flameProtectionMs=0;f.updateFlames(200);check(f.player.health===97,'naturally activated flame deals expected contact tick');
     f.pause();const paused=JSON.stringify(f.flames.snapshot());game.update(34);check(JSON.stringify(f.flames.snapshot())===paused,'pause freezes natural flame');f.togglePause();
     const hp=f.player.health;f.damageEnemy(f.enemies.indexOf(elite),elite,99999);f.flames.clearBurn();f.updateFlames(200);check(!f.flames.cones.some((c:any)=>!c.boss)&&f.player.health===hp,'dead elite cannot keep spraying');
     // Restore the same real timeline for visual capture, with no synthetic entry flag.
     f.beginLevel(10);f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.player.x=240;f.player.y=800;f.player.health=100;f.player.invulnerableMs=999999;f.flameProtectionMs=999999;
-    for(let time=0;time<12200;time+=16)game.update(16);
+    for(let time=0;time<11600;time+=16)game.update(16);
     f.phase='paused';f.syncHud();f.render();engine.run();await wait(180);engine.stop();await engine.device.queue.onSubmittedWorkDone();
     check(game.snapshot().rendering.frameTextureUploads===0,'natural elite uses static GPU textures');
-    result.textContent=JSON.stringify({status:'passed',checks:['real-level-11-timeline','offscreen-entry-gate','natural-warning-and-fire','contact-damage','pause-freeze','death-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+    check(game.snapshot().rendering.fire?.shader==='advected-fbm-flame'&&game.snapshot().rendering.fire!.instances>0,'custom noise pipeline draws natural jets');
+    result.textContent=JSON.stringify({status:'passed',checks:['real-level-11-timeline','offscreen-entry-gate','natural-traveling-fire','contact-damage','pause-freeze','death-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if(scene==='inferno'){
     engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'long';
@@ -149,21 +229,43 @@ async function run() {
     reset();boss=spawn('inferno-ark',240,145);const doomed=spawn('scout',180,430);f.flames.ignite(doomed);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);check(f.levelAdvanceMs>=3000&&f.flames.charges.length===1,'boss death cannot cancel a pending fuse');
     reset();f.player.health=1;f.player.lives=2;f.damagePlayer(3,true);check(f.player.health===100&&f.player.lives===1&&f.flameProtectionMs===1800,'burn death respawns once');f.damagePlayer(3,true);check(f.player.health===100,'respawn protects against repeated burn ticks');
     reset();boss=spawn('inferno-ark',240,145);boss.fireCooldownMs=0;f.updateEnemies(16);check(f.enemyBullets.length===3,'boss emits ordinary three-round salvo');
-    f.flames.update(1500,f.enemies,f.player,true);const activeAngle=f.flames.cones[0].angle;f.player.x=420;f.flames.update(500,f.enemies,f.player,true);check(f.flames.cones[0].angle<activeAngle&&activeAngle-f.flames.cones[0].angle<=.08001,'live narrow cone tracks with bounded turn speed');
+    f.flames.update(1500,f.enemies,f.player,true);const activeAngle=f.flames.nozzles[0].angle;f.player.x=420;f.flames.update(500,f.enemies,f.player,true);check(f.flames.nozzles[0].angle<activeAngle&&activeAngle-f.flames.nozzles[0].angle<=.08001,'live narrow cone tracks with bounded turn speed');
     const chase=spawn('scout',80,330);f.flames.ignite(chase);const beforeX=chase.x,beforeY=chase.y;f.updateEnemies(100);check(Math.abs(Math.hypot(chase.x-beforeX,chase.y-beforeY)-6)<.0001&&chase.x>beforeX&&chase.y>beforeY,'ignited fighter replaces regular flight with slow pursuit');
     f.updateFlames(100);const remaining=f.flames.charges.find((c:any)=>c.source===chase).remainingMs;f.damageEnemy(f.enemies.indexOf(chase),chase,999);const wreck=f.flames.charges.find((c:any)=>!c.source);const wreckX=wreck.x,wreckY=wreck.y;f.player.x=30;f.updateEnemies(100);f.updateFlames(100);check(wreck.x===wreckX&&wreck.y===wreckY&&wreck.remainingMs===remaining-100,'shot-down pursuer leaves stationary timed wreck');
     reset();boss=spawn('inferno-ark',240,145);f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.tier==='normal').length===2,'boss summons escorts');
     for(let i=0;i<10;i++)f.triggerBossAttack(boss);check(f.enemies.filter((e:any)=>e.definition.tier==='normal').length===8,'escort cap is bounded');
     f.flames.ignite(f.enemies.find((e:any)=>e.definition.tier==='normal'));f.pause();const before=JSON.stringify(f.flames.snapshot());game.update(34);check(JSON.stringify(f.flames.snapshot())===before,'pause freezes burns and fuse');f.returnHome();check(f.flames.charges.length===0,'home clears hazards');
     reset();boss=spawn(stage==='elite'?'cinder-elite':'inferno-ark',240,155);f.player.y=720;
-    const elapsed=stage==='warning'?700:stage==='wide'?6500:stage==='elite'?1400:1900;
+    const elapsed=stage==='warning'?180:stage==='wide'?5200:stage==='elite'?1400:1900;
     f.elapsedMs=elapsed;f.flames.update(elapsed,f.enemies,f.player,true);
     if(stage==='long'){f.player.x=420;f.flames.update(900,f.enemies,f.player,true);f.elapsedMs+=900;boss.fireCooldownMs=0;f.updateEnemies(16);f.updateBullets(350);}
     if(stage==='wreck'){const small=spawn('scout',150,530);f.flames.ignite(small);f.damageEnemy(f.enemies.indexOf(small),small,999);}
     if(stage==='burn'){f.flames.burnMs=4000;f.flames.burnDamage=2;}
     f.phase='paused';f.syncHud();f.render();engine.run();await wait(180);engine.stop();await engine.device.queue.onSubmittedWorkDone();
     check(game.snapshot().rendering.frameTextureUploads===0,'fire uses static GPU textures');
+    check(game.snapshot().rendering.fire?.shader==='advected-fbm-flame','custom noise pipeline compiled');
     result.textContent=JSON.stringify({status:'passed',checks:['elite-ticks','five-second-burn','boss-ignition','dead-hull-fuse','live-hull-fuse','boss-death-fuse','burn-respawn','blast-damage','escort-cap','boss-ordinary-salvo','narrow-tracking','ignited-pursuit','stationary-wreck','pause-home-cleanup','zero-frame-upload'],state:game.snapshot()});result.dataset.status='passed';return;
+  }
+  if(scene==='dread-wing'||scene==='dread-laser') {
+    engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.combatEffects.clear();f.player.x=365;f.player.y=760;f.pointerFiring=false;
+    const boss=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='dreadnought'),240,280);boss.entered=true;boss.ageMs=420;boss.rotation=0;f.boss=boss;
+    const tips=Array.from({length:4},(_,i)=>dreadnoughtWingMuzzle(boss,i));
+    for(let round=0;round<4;round++){boss.ageMs=420+round*260;f.fireEnemyPattern(boss);}
+    check(f.enemyBullets.length===12,'ordinary spiral count unchanged');
+    const used=new Set<number>();for(const bullet of f.enemyBullets){const i=tips.findIndex(p=>Math.hypot(p.x-bullet.x,p.y-bullet.y)<1e-6);check(i>=0,'every normal bullet originates at a wing cannon');used.add(i);}
+    check(used.size===4,'all four wing cannons fire');check(f.combatEffects.snapshot().muzzleFlashes===4,'one compact flash per wing muzzle');
+    const laser=dreadnoughtLaserMuzzle(boss);
+    f.startBossLaser(boss);const locked=f.bossLaser.targetX;f.player.x=80;
+    const beams:any[]=[];const beam=f.battle.beam.bind(f.battle);f.battle.beam=(...args:any[])=>beams.push(args);f.drawBossLaser();f.battle.beam=beam;
+    check(beams[0][0]===laser.x&&beams[0][1]===laser.y&&beams[0][2]===locked,'laser starts at front muzzle and retains warning target');
+    f.bossLaser.phase='active';f.bossLaser.timerMs=1000;f.player.invulnerableMs=0;f.player.health=100;f.player.lives=3;
+    f.player.x=laser.x+(locked-laser.x)*.6;f.player.y=laser.y+(980-laser.y)*.6;f.updateBossLaser(0);check(f.player.lives===2,'laser damage uses the rendered beam segment');
+    f.player.x=365;f.player.y=760;f.player.health=100;f.player.invulnerableMs=10000;
+    f.impacts=[];f.sparks=[];f.shakeMs=0;f.enemyBullets=[];f.combatEffects.clear();
+    if(scene==='dread-wing'){f.bossLaser=null;f.fireEnemyPattern(boss);f.fireEnemyPattern(boss);}
+    f.phase='paused';f.syncHud();engine.run();await wait(160);engine.stop();
+    check(game.snapshot().rendering.frameTextureUploads===0,'muzzle FX use static GPU masks');
+    result.textContent=JSON.stringify({status:'passed',checks:['four-wing-muzzles','unchanged-bullet-count','compact-volley-flashes','front-laser-origin','locked-target','matching-laser-collision'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if(scene==='ship-parts') {
     engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'serpent';
@@ -518,16 +620,15 @@ async function run() {
     f.activateBomb();near(hp-b.hitPoints,36*7*0.3,'proxy bomb reduction');
     check(!f.enemies.includes(emitter),'bomb destroys emitter');
     b=reset('iron-serpent');hp=b.hitPoints;
-    let parts=f.enemies.filter((e:any)=>e.segmentOwner===b);
+    const parts=f.enemies.filter((e:any)=>e.segmentOwner===b);
     for(const part of parts){part.x=240;part.y=365;}
-    f.activateBomb();near(hp-b.hitPoints,126,'one bomb per serpent group');
-    for(const part of parts)near(part.hitPoints,106,'bomb shared among nine parts');
-    f.damageEnemy(f.enemies.indexOf(parts[0]),parts[0],90);
-    for(const part of parts)near(part.hitPoints,96,'body hit shared');
-    f.damageEnemy(f.enemies.indexOf(b),b,90);
-    for(const part of parts)near(part.hitPoints,86,'head hit shared');
-    f.damageEnemy(f.enemies.indexOf(b),b,1000);
-    check(f.enemies.filter((e:any)=>e.segmentOwner===b).length===0,'parts destroyed safely');
+    parts[8].x=20;parts[8].y=-600;
+    f.activateBomb();near(hp-b.hitPoints,126,'head receives one reduced bomb hit');
+    check(parts.slice(0,8).every((p:any)=>!f.enemies.includes(p)),'bomb damages every body in area independently');
+    check(f.enemies.includes(parts[8])&&parts[8].hitPoints===120,'out-of-range body receives no bomb damage');
+    f.damageEnemy(f.enemies.indexOf(parts[8]),parts[8],90);near(parts[8].hitPoints,30,'body hit affects only target');near(b.hitPoints,hp-126,'body damage never relays to head');
+    f.damageEnemy(f.enemies.indexOf(b),b,90);near(parts[8].hitPoints,30,'head hit does not drain body');
+    f.damageEnemy(f.enemies.indexOf(parts[8]),parts[8],1000);check(!f.enemies.includes(parts[8]),'overkill destroys only target');
     hp=b.hitPoints;f.damageEnemy(f.enemies.indexOf(b),b,50);near(hp-b.hitPoints,50,'head damage after all parts destroyed');
     b=reset('helios-prism');f.spawnHeliosEmitters(b);
     const laserSource=f.enemies.find((e:any)=>e.definition.id==='helios-emitter');
@@ -547,7 +648,7 @@ async function run() {
     deploy();deploy();deploy();check(f.enemies.filter((e:any)=>e.definition.tier==='elite').length===2,'replace defeated elite on third wave');
     reset('star-carrier');f.boss.y=220;f.syncHud();f.phase='paused';
     f.syncHud();
-    result.textContent=JSON.stringify({status:'passed',checks:['boss-bomb-resistance','proxy-bomb-resistance','serpent-shared-damage','serpent-bomb-deduplication','laser-relocation-after-attack','carrier-cadence-elite-cap'],state:game.snapshot()});result.dataset.status='passed';return;
+    result.textContent=JSON.stringify({status:'passed',checks:['boss-bomb-resistance','proxy-bomb-resistance','serpent-independent-health','serpent-bomb-area-per-segment','laser-relocation-after-attack','carrier-cadence-elite-cap'],state:game.snapshot()});result.dataset.status='passed';return;
   }
   if (scene === 'hud') {
     const fixture = game as any, params = new URLSearchParams(location.search);

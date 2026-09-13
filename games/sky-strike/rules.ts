@@ -139,7 +139,7 @@ export const ENEMY_DEFINITIONS: readonly EnemyDefinition[] = Object.freeze([
   { id: 'prism-lancer', sprite: 'assets/elite-prism-lancer.png', tier: 'elite', hitPoints: 148, speed: 46, score: 4_600, size: 142, fireIntervalMs: 1_700, bulletPattern: 'none', flightPattern: 'sweep', laserWeapon: true, laserDamage: 70, renderAspect: 1.5 },
   { id: 'fission-elite', sprite: 'assets/elite-fission.png', tier: 'elite', hitPoints: 180, speed: 48, score: 5200, size: 140, fireIntervalMs: 1400, bulletPattern: 'spread', flightPattern: 'fortress', splitsInto: 'scout', renderAspect: 1 },
   { id: 'helios-emitter', sprite: 'procedural:helios-emitter', tier: 'device', hitPoints: 36, speed: 0, score: 650, size: 58, fireIntervalMs: 1_500, bulletPattern: 'none', flightPattern: 'anchor', contactDamage: 45, damageProxyMultiplier: 7, damageProxyBossAttack: 'emitter-grid', laserWeapon: true, laserDamage: 65, renderAspect: 1 },
-  { id: 'iron-serpent-turret', sprite: 'procedural:iron-serpent-turret', tier: 'device', hitPoints: 120, speed: 0, score: 1_100, size: 56, fireIntervalMs: 2_200, bulletPattern: 'aimed', flightPattern: 'anchor', contactDamage: 50, damageProxyMultiplier: 1, damageProxyBossAttack: 'serpent-barrage', renderAspect: 1, segmentedPart: 'serpent-turret' },
+  { id: 'iron-serpent-turret', sprite: 'procedural:iron-serpent-turret', tier: 'device', hitPoints: 120, speed: 0, score: 1_100, size: 72, fireIntervalMs: 2_200, bulletPattern: 'aimed', flightPattern: 'anchor', contactDamage: 50, renderAspect: 1, segmentedPart: 'serpent-turret' },
   { id: 'dreadnought', sprite: 'assets/boss-dreadnought.png', tier: 'boss', hitPoints: 1_300, speed: 34, score: 25_000, size: 292, fireIntervalMs: 260, bulletPattern: 'spiral', flightPattern: 'fortress', bossAttack: 'laser' },
   { id: 'ion-seraph', sprite: 'assets/boss-ion-seraph.png', tier: 'boss', hitPoints: 1_650, speed: 38, score: 32_000, size: 302, fireIntervalMs: 310, bulletPattern: 'arc', flightPattern: 'fortress', bossAttack: 'arc-storm' },
   { id: 'void-mantis', sprite: 'assets/boss-void-mantis.png', tier: 'boss', hitPoints: 2_000, speed: 42, score: 40_000, size: 310, fireIntervalMs: 235, bulletPattern: 'scythe', flightPattern: 'fortress', bossAttack: 'gravity-fan' },
@@ -310,6 +310,18 @@ export function shouldSerpentCharge(hitPoints: number, maximumHitPoints: number,
   return hitPoints > 0 && (remainingSegments === 0 || hitPoints / maximumHitPoints < SERPENT_CHARGE_HEALTH_RATIO);
 }
 
+/** Pixel-calibrated rear-wing muzzle tips in boss-dreadnought.png (normalized hull coordinates). */
+export const DREADNOUGHT_WING_MUZZLES=[{x:-.382,y:.051},{x:-.275,y:.073},{x:.275,y:.073},{x:.382,y:.051}] as const;
+type DreadnoughtPose={x:number;y:number;rotation:number;definition:{size:number;renderAspect?:number}};
+export function dreadnoughtWingMuzzle(ship:DreadnoughtPose,index:number):{x:number;y:number;dx:number;dy:number} {
+  const p=DREADNOUGHT_WING_MUZZLES[((index%4)+4)%4]!,w=ship.definition.size,h=w*(ship.definition.renderAspect??1.18);
+  const dx=Math.cos(ship.rotation)*p.x*w-Math.sin(ship.rotation)*p.y*h,dy=Math.sin(ship.rotation)*p.x*w+Math.cos(ship.rotation)*p.y*h;
+  return {x:ship.x+dx,y:ship.y+dy,dx,dy};
+}
+export function dreadnoughtLaserMuzzle(ship:DreadnoughtPose):{x:number;y:number} {
+  return {x:ship.x-Math.sin(ship.rotation)*ship.definition.size*.25,y:ship.y+Math.cos(ship.rotation)*ship.definition.size*.25};
+}
+
 /** Shared hardpoint for the weapon pod, muzzle flash and projectile origin. */
 export function playerMuzzleOffset(profile: WeaponProfile, index: number): Velocity {
   const count = profile.projectileCount;
@@ -337,7 +349,7 @@ export function serpentSegmentPosition(
   velocityX = 0,
   velocityY = 1,
 ): Velocity {
-  const order = Math.max(1, Math.floor(Number.isFinite(segmentOrder) ? segmentOrder : 1));
+  const order = Math.max(1, Number.isFinite(segmentOrder) ? segmentOrder : 1);
   if (charging) {
     const speed = Math.hypot(velocityX, velocityY) || 1;
     return {
@@ -488,21 +500,10 @@ export function distancePointToSegment(
   return Math.hypot(pointX - (startX + dx * t), pointY - (startY + dy * t));
 }
 
-/** Water-fill a single hit across living body parts without losing overkill damage. */
-export function shareSerpentDamage(damage: number, health: readonly number[]): number[] {
-  const shares = health.map(() => 0);
-  let remaining = Math.max(0, Number.isFinite(damage) ? damage : 0);
-  let active = health.map((hp, i) => i).filter(i => health[i]! > 0);
-  while (remaining > 1e-8 && active.length) {
-    const portion = remaining / active.length;
-    for (const i of active) {
-      const applied = Math.min(portion, health[i]! - shares[i]!);
-      shares[i]! += applied;
-      remaining -= applied;
-    }
-    active = active.filter(i => health[i]! - shares[i]! > 1e-8);
-  }
-  return shares;
+/** Close a missing body slot in 220 ms, independent of frame slicing, without overshooting. */
+export function advanceSerpentSegmentOrder(current:number,target:number,deltaMs:number):number {
+  const step=Math.max(0,Number.isFinite(deltaMs)?deltaMs:0)/220;
+  return current+Math.sign(target-current)*Math.min(Math.abs(target-current),step);
 }
 
 export const TWIN_REVIVE_WINDOW_MS = 5000;

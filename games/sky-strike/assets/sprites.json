@@ -273,213 +273,220 @@
     "length": 98304
   },
   {
+    "id": "assets/fx-inferno-gun.png",
+    "width": 192,
+    "height": 192,
+    "offset": 22956288,
+    "length": 147456
+  },
+  {
     "id": "assets/fx-inferno.png",
     "width": 128,
     "height": 128,
-    "offset": 22956288,
+    "offset": 23103744,
     "length": 65536
   },
   {
     "id": "assets/fx-quantum-preview.png",
     "width": 256,
     "height": 256,
-    "offset": 23021824,
+    "offset": 23169280,
     "length": 262144
   },
   {
     "id": "assets/fx-quantum-turret.png",
     "width": 128,
     "height": 128,
-    "offset": 23283968,
+    "offset": 23431424,
     "length": 65536
   },
   {
     "id": "assets/gui-arrow.png",
     "width": 160,
     "height": 160,
-    "offset": 23349504,
+    "offset": 23496960,
     "length": 102400
   },
   {
     "id": "assets/gui-bomb.png",
     "width": 160,
     "height": 160,
-    "offset": 23451904,
+    "offset": 23599360,
     "length": 102400
   },
   {
     "id": "assets/gui-gear.png",
     "width": 128,
     "height": 128,
-    "offset": 23554304,
+    "offset": 23701760,
     "length": 65536
   },
   {
     "id": "assets/gui-launch.png",
     "width": 640,
     "height": 256,
-    "offset": 23619840,
+    "offset": 23767296,
     "length": 655360
   },
   {
     "id": "assets/gui-life.png",
     "width": 48,
     "height": 48,
-    "offset": 24275200,
+    "offset": 24422656,
     "length": 9216
   },
   {
     "id": "assets/gui-pause-panel.png",
     "width": 640,
     "height": 480,
-    "offset": 24284416,
+    "offset": 24431872,
     "length": 1228800
   },
   {
     "id": "assets/gui-pause.png",
     "width": 160,
     "height": 160,
-    "offset": 25513216,
+    "offset": 25660672,
     "length": 102400
   },
   {
     "id": "assets/gui-shield.png",
     "width": 96,
     "height": 96,
-    "offset": 25615616,
+    "offset": 25763072,
     "length": 36864
   },
   {
     "id": "assets/gui-space.png",
     "width": 384,
     "height": 768,
-    "offset": 25652480,
+    "offset": 25799936,
     "length": 1179648
   },
   {
     "id": "assets/part-carrier-door.png",
     "width": 128,
     "height": 128,
-    "offset": 26832128,
+    "offset": 26979584,
     "length": 65536
   },
   {
     "id": "assets/part-crimson-rail.png",
     "width": 128,
     "height": 128,
-    "offset": 26897664,
+    "offset": 27045120,
     "length": 65536
   },
   {
     "id": "assets/part-dread-gun.png",
     "width": 128,
     "height": 128,
-    "offset": 26963200,
+    "offset": 27110656,
     "length": 65536
   },
   {
     "id": "assets/part-dread-rotor.png",
     "width": 96,
     "height": 96,
-    "offset": 27028736,
+    "offset": 27176192,
     "length": 36864
   },
   {
     "id": "assets/part-fission-shell.png",
     "width": 96,
     "height": 96,
-    "offset": 27065600,
+    "offset": 27213056,
     "length": 36864
   },
   {
     "id": "assets/part-ion-impeller.png",
     "width": 128,
     "height": 128,
-    "offset": 27102464,
+    "offset": 27249920,
     "length": 65536
   },
   {
     "id": "assets/part-lancer-petal.png",
     "width": 96,
     "height": 96,
-    "offset": 27168000,
+    "offset": 27315456,
     "length": 36864
   },
   {
     "id": "assets/part-mantis-blade.png",
     "width": 128,
     "height": 128,
-    "offset": 27204864,
+    "offset": 27352320,
     "length": 65536
   },
   {
     "id": "assets/part-mining-cog.png",
     "width": 128,
     "height": 128,
-    "offset": 27270400,
+    "offset": 27417856,
     "length": 65536
   },
   {
     "id": "assets/part-prism-iris.png",
     "width": 128,
     "height": 128,
-    "offset": 27335936,
+    "offset": 27483392,
     "length": 65536
   },
   {
     "id": "assets/part-serpent-body.png",
     "width": 192,
     "height": 192,
-    "offset": 27401472,
+    "offset": 27548928,
     "length": 147456
   },
   {
     "id": "assets/part-serpent-gun.png",
     "width": 128,
     "height": 128,
-    "offset": 27548928,
+    "offset": 27696384,
     "length": 65536
   },
   {
     "id": "assets/part-serpent-joint.png",
     "width": 96,
     "height": 96,
-    "offset": 27614464,
+    "offset": 27761920,
     "length": 36864
   },
   {
     "id": "assets/part-twin-gyro.png",
     "width": 128,
     "height": 128,
-    "offset": 27651328,
+    "offset": 27798784,
     "length": 65536
   },
   {
     "id": "assets/part-violet-capacitor.png",
     "width": 96,
     "height": 96,
-    "offset": 27716864,
+    "offset": 27864320,
     "length": 36864
   },
   {
     "id": "assets/planet-amber.png",
     "width": 384,
     "height": 384,
-    "offset": 27753728,
+    "offset": 27901184,
     "length": 589824
   },
   {
     "id": "assets/planet-ice.png",
     "width": 384,
     "height": 384,
-    "offset": 28343552,
+    "offset": 28491008,
     "length": 589824
   },
   {
     "id": "assets/player-fighter.png",
     "width": 171,
     "height": 256,
-    "offset": 28933376,
+    "offset": 29080832,
     "length": 175104
   }
 ]

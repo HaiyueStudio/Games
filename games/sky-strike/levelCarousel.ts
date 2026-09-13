@@ -20,6 +20,8 @@ export interface LevelBossPresentation {
   readonly source: GuiImageSource;
   readonly sourceKey: string;
   readonly companion?: {source: GuiImageSource; sourceKey: string};
+  /** Layer rectangles normalized to the main hull's displayed rectangle. */
+  readonly attachments?: readonly {source:GuiImageSource;sourceKey:string;x:number;y:number;width:number;height:number}[];
   readonly label: string;
   readonly aspect: number;
 }
@@ -48,6 +50,7 @@ export class SkyStrikeLevelCarousel {
   private readonly heading: GuiLabel;
   private readonly bossImage: GuiImage;
   private readonly companionImage: GuiImage;
+  private readonly bossAttachments:GuiImage[]=[];
   private readonly levelName: GuiLabel;
   private readonly bossName: GuiLabel;
   private readonly counter: GuiLabel;
@@ -55,6 +58,8 @@ export class SkyStrikeLevelCarousel {
   private readonly channel: GuiLabel;
   private readonly hint: GuiLabel;
   private readonly settings: SkyStrikeOptions;
+  private scanMs=0;
+  private readonly scanBands:GuiElement[]=[];
   private failed = false;
   private selectedIndex: number;
   private active = false;
@@ -100,6 +105,28 @@ export class SkyStrikeLevelCarousel {
       },
     }));
     this.layoutPanel();
+    // Subtle circuit lattice: immutable GUI geometry, rendered beneath text and ships.
+    for(let i=0;i<11;i++){
+      const line=this.panel.add(new GuiElement({disabled:true,style:{backgroundColor:'rgba(96, 174, 227, 0.055)'}}));
+      this.layoutRelative(line,p=>this.relativeRect(p,.06,.065+i*.085,.88,.0008));
+    }
+    for(let i=0;i<7;i++){
+      const line=this.panel.add(new GuiElement({disabled:true,style:{backgroundColor:'rgba(116, 129, 226, 0.045)'}}));
+      this.layoutRelative(line,p=>this.relativeRect(p,.11+i*.13,.06,.001,.88));
+      for(const y of [.21,.55,.80]){
+        const node=this.panel.add(new GuiElement({disabled:true,style:{backgroundColor:'rgba(99, 224, 247, 0.16)'}}));
+        this.layoutRelative(node,p=>({x:p.x+p.width*(.11+i*.13)-1,y:p.y+p.height*y-1,width:2,height:2}));
+      }
+      const trace=this.panel.add(new GuiElement({disabled:true,style:{backgroundColor:'rgba(97, 215, 244, 0.11)'}}));
+      this.layoutRelative(trace,p=>this.relativeRect(p,i%2?.83:.06,.20+i*.092,.11,.0014));
+    }
+    for(let i=0;i<12;i++){
+      const band=this.panel.add(new GuiElement({disabled:true,style:{backgroundColor:`rgba(102, 218, 255, ${.035*(1-i/12)**2})`}}));
+      this.layoutRelative(band,p=>{
+        const y=((this.scanMs/8500-i*.006)%1+1)%1;
+        return this.relativeRect(p,.06,.04+y*.91,.88,.006);
+      });this.scanBands.push(band);
+    }
     for (const y of [0.02, 0.975]) {
       const rail = this.panel.add(new GuiElement({ style: { backgroundColor: '#57d9f5' } }));
       this.layoutRelative(rail, p => this.relativeRect(p, 0.08, y, 0.84, 0.002));
@@ -113,7 +140,11 @@ export class SkyStrikeLevelCarousel {
       fontSize: 23,
       style: { color: '#f4fbff' },
     }));
-    this.layoutRelative(this.heading, (parent) => this.relativeRect(parent, 0.04, 0.045, 0.76, 0.075));
+    this.layoutRelative(this.heading, parent => {
+      const units=Array.from(this.heading.text).reduce((n,c)=>n+(c.charCodeAt(0)<128?.6:1),0);
+      this.heading.setFontSize(Math.min(23,Math.max(1,parent.width-124)/Math.max(1,units)));
+      return this.relativeRect(parent,0.04,0.045,0.92,0.075);
+    });
 
     this.bossImage = this.panel.add(new GuiImage({
       source: null,
@@ -194,6 +225,12 @@ export class SkyStrikeLevelCarousel {
     this.sync();
   }
 
+  update(deltaMs:number):void {
+    if(!this.active||this.optionsOpen)return;
+    this.scanMs=(this.scanMs+Math.max(0,deltaMs))%8500;
+    for(const band of this.scanBands){band.layout(this.panel.rect);band.markDirty();}
+  }
+
   get isVisible(): boolean {
     return this.active;
   }
@@ -241,6 +278,12 @@ export class SkyStrikeLevelCarousel {
     this.bossName.setText(`${t.text('boss')} · ${boss.label}`);
     this.counter.setText(`${t.text('sector')}  ${String(this.selectedIndex + 1).padStart(2, '0')} / ${String(this.options.levels.length).padStart(2, '0')}`);
     this.bossImage.setSource(boss.source, boss.sourceKey);
+    const attachments=boss.attachments??[];
+    while(this.bossAttachments.length<attachments.length)this.bossAttachments.push(this.bossImage.add(new GuiImage({disabled:true,visible:false})));
+    for(let i=0;i<this.bossAttachments.length;i++){
+      const image=this.bossAttachments[i]!,part=attachments[i];image.setVisible(!!part);
+      if(part){image.setSource(part.source,part.sourceKey);image.layout=parent=>{image.rect=this.relativeRect(parent,part.x,part.y,part.width,part.height);};}
+    }
     this.companionImage.setVisible(!!boss.companion);
     if(boss.companion)this.companionImage.setSource(boss.companion.source,boss.companion.sourceKey);
     this.bossImage.layout(this.panel.rect);
@@ -304,6 +347,7 @@ export class SkyStrikeLevelCarousel {
         width,
         height,
       };
+      for(const child of image.children)child.layout(image.rect);
     };
   }
 

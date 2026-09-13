@@ -77,3 +77,15 @@ test('quantum battleship retains engine thrust without a decorative central roto
  assert.equal(calls.filter(c=>c[1]==='assets/fx-flame.png').length,2);
  assert.ok(!calls.some(c=>c[1]==='assets/fx-rotor.png'||c[1]==='assets/fx-turret.png'));
 });
+
+test('enemy flashes are compact, collapse a volley at one muzzle, track translation and expire',()=>{
+ const fx=new SkyStrikeCombatEffects(),source={x:100,y:200};
+ for(let i=0;i<12;i++)fx.enemyShot(source,10,20,i,100,'#ff5544');
+ assert.equal(fx.snapshot().muzzleFlashes,1);
+ fx.enemyShot(source,-10,20,0,100,'#ff5544');assert.equal(fx.snapshot().muzzleFlashes,2);
+ source.x+=25;const calls=[],r=new Proxy({},{get:(_,kind)=>(...args)=>calls.push([kind,...args])});fx.draw(r);
+ assert.deepEqual(calls.filter(c=>c[0]==='disc').map(c=>c[1]),[135,115]);
+ assert.ok(calls.filter(c=>c[0]==='sprite').every(c=>c[4]<=9&&c[5]<=15));
+ fx.update(90);assert.equal(fx.snapshot().muzzleFlashes,0);
+ for(let i=0;i<150;i++)fx.enemyShot({x:i,y:0},0,0,0,1,'#ffffff');assert.equal(fx.snapshot().muzzleFlashes,96);fx.clear();assert.equal(fx.snapshot().muzzleFlashes,0);
+});

@@ -33,11 +33,16 @@ export interface RaceState {
   readonly activeBoostZone: number;
   readonly wallHits: number;
   readonly finished: boolean;
+  readonly headingOffset: number;
+  readonly health: number;
+  readonly destroyed: boolean;
+  readonly impact: number;
+  readonly collisionCooldown: number;
 }
 
 export interface RaceStepResult {
   readonly state: RaceState;
-  readonly events: readonly ('boost' | 'wall' | 'lap' | 'finish')[];
+  readonly events: readonly ('boost' | 'wall' | 'lap' | 'finish' | 'destroyed')[];
 }
 
 export interface RacePose extends TrackControlPoint {
@@ -48,7 +53,9 @@ export interface RacePose extends TrackControlPoint {
 
 export const TOTAL_LAPS = 3;
 export const ROAD_HALF_WIDTH = 92;
-export const RAIL_LIMIT = 103;
+export const RAIL_LIMIT = ROAD_HALF_WIDTH - 10;
+export const MAX_HEALTH = 100;
+export const BURN_HEALTH = 30;
 export const BOOST_PAD_HALF_WIDTH = 16;
 export const CRUISE_MAX_SPEED = 650;
 export const BOOST_MAX_SPEED = 920;
@@ -83,13 +90,14 @@ export const TRACK_CONTROL_POINTS: readonly TrackControlPoint[] = Object.freeze(
   { x: -520, y: 315, z: -2_410 },
 ]);
 
-export function createRaceTrack(segmentCount = 360): RaceTrack {
+export function createRaceTrack(segmentCount = 360, controlPoints: readonly TrackControlPoint[] = TRACK_CONTROL_POINTS): RaceTrack {
+  if (controlPoints.length < 4) throw new Error('A circuit needs at least four control points.');
   const count = Math.max(48, Math.floor(segmentCount));
   const positions = Array.from({ length: count }, (_, index) => {
-    const scaled = index / count * TRACK_CONTROL_POINTS.length;
+    const scaled = index / count * controlPoints.length;
     const controlIndex = Math.floor(scaled);
     const local = scaled - controlIndex;
-    return catmullRomPoint(controlIndex, local);
+    return catmullRomPoint(controlPoints, controlIndex, local);
   });
 
   let distance = 0;
@@ -128,77 +136,109 @@ export function createInitialRaceState(): RaceState {
     activeBoostZone: -1,
     wallHits: 0,
     finished: false,
+    headingOffset: 0,
+    health: MAX_HEALTH,
+    destroyed: false,
+    impact: 0,
+    collisionCooldown: 0,
   };
 }
 
+/** Fixed, bounded integration keeps wall damage and cornering stable across render rates. */
 export function stepRace(track: RaceTrack, state: RaceState, controls: RaceControls, deltaSeconds: number): RaceStepResult {
-  if (state.finished) return { state, events: [] };
-  const dt = Math.max(0, Math.min(0.05, Number.isFinite(deltaSeconds) ? deltaSeconds : 0));
+  if (state.finished || state.destroyed) return { state, events: [] };
+  const dt = clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
+  if (dt === 0) return { state, events: [] };
+  const count = Math.ceil(dt / (1 / 120));
+  const events: RaceStepResult['events'][number][] = [];
+  for (let index = 0; index < count; index++) {
+    const result = integrateRace(track, state, controls, dt / count);
+    state = result.state;
+    events.push(...result.events);
+    if (state.finished || state.destroyed) break;
+  }
+  return { state, events };
+}
+
+function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControls, dt: number): RaceStepResult {
   const throttle = clamp01(controls.throttle);
   const brake = clamp01(controls.brake);
   const steer = clamp(controls.steer, -1, 1);
-  const events: ('boost' | 'wall' | 'lap' | 'finish')[] = [];
-
+  const events: RaceStepResult['events'][number][] = [];
   let boostRemaining = Math.max(0, state.boostRemaining - dt);
-  let speed = state.speed;
-  speed += throttle * 410 * dt;
-  speed -= brake * 560 * dt;
-  speed -= (throttle > 0 ? 18 : 74) * dt;
-  if (boostRemaining > 0) speed += 520 * dt;
+  const turning = Math.abs(steer);
+  const speedLimit = (boostRemaining > 0 ? BOOST_MAX_SPEED : CRUISE_MAX_SPEED) * (1 - turning * 0.04);
+  // A lower thrust ceiling never discards existing momentum. Boost expiry and
+  // steering scrub speed off over time; the HUD reads this actual simulation speed.
+  let speed = state.speed > speedLimit
+    ? Math.max(speedLimit, state.speed - (120 + turning * 90 + brake * 680 + (throttle > 0 ? 0 : 74)) * dt)
+    : clamp(state.speed + (throttle * 410 - brake * 680 - (throttle > 0 ? 18 : 74)
+      - turning * state.speed * 0.065 + (boostRemaining > 0 ? 520 : 0)) * dt, 0, speedLimit);
 
-  const steeringAuthority = 105 + Math.min(1, speed / 430) * 205;
-  let lateralSpeed = state.lateralSpeed + steer * steeringAuthority * dt;
-  lateralSpeed *= Math.exp(-dt * (steer === 0 ? 5.8 : 3.5));
+  // Track coordinates locate the road; they do not steer the ship. Preserve its
+  // world heading as the road tangent changes underneath it, including at the seam.
+  const center = sampleTrack(track, state.distance);
+  let headingOffset = state.headingOffset + steer * (0.72 + Math.min(1, speed / 500) * 0.42) * dt;
+  const advance = speed * Math.max(0.12, Math.cos(headingOffset)) * dt;
+  let distance = state.distance + advance;
+  headingOffset = clamp(headingOffset - angleDelta(center.heading, sampleTrack(track, distance).heading), -1.35, 1.35);
+  let lateralSpeed = state.lateralSpeed + (speed * Math.sin(headingOffset) - state.lateralSpeed) * (1 - Math.exp(-dt * 14));
   let lateral = state.lateral + lateralSpeed * dt;
-
-  if (Math.abs(lateral) > ROAD_HALF_WIDTH) speed *= Math.exp(-dt * 2.1);
+  let health = state.health;
   let wallHits = state.wallHits;
+  let impact = state.impact * Math.exp(-dt * 7);
+  let collisionCooldown = Math.max(0, state.collisionCooldown - dt);
   if (Math.abs(lateral) > RAIL_LIMIT) {
-    lateral = Math.sign(lateral) * RAIL_LIMIT;
-    lateralSpeed *= -0.32;
-    speed *= 0.68;
-    wallHits++;
-    events.push('wall');
+    const side = Math.sign(lateral);
+    const normalSpeed = Math.abs(lateralSpeed);
+    const incidence = clamp01(normalSpeed / Math.max(1, speed));
+    lateral = side * RAIL_LIMIT;
+    if (collisionCooldown <= 0) {
+      const severity = clamp01(speed / BOOST_MAX_SPEED * (0.35 + incidence * 0.9));
+      health -= 2 + 42 * (speed / CRUISE_MAX_SPEED) ** 2 * (0.16 + incidence * 0.84);
+      impact = Math.max(impact, 0.18 + severity * 0.82);
+      speed *= 0.48 - incidence * 0.26;
+      boostRemaining = 0;
+      collisionCooldown = 0.22;
+      wallHits++;
+      events.push('wall');
+    } else {
+      // Sustained scraping still costs hull and speed, without a hit every frame.
+      health -= (2 + normalSpeed * 0.025) * dt;
+      speed *= Math.exp(-dt * 3);
+    }
+    lateralSpeed = -side * normalSpeed * 0.28;
+    headingOffset = -side * Math.min(0.28, Math.abs(headingOffset) * 0.4 + 0.04);
   }
-
-  speed = clamp(speed, 0, boostRemaining > 0 ? BOOST_MAX_SPEED : CRUISE_MAX_SPEED);
-  let distance = state.distance + speed * dt;
+  health = clamp(health, 0, MAX_HEALTH);
+  const destroyed = health <= 0;
   let lap = state.lap;
   let finished = false;
-  if (distance >= track.length) {
+  if (destroyed) {
+    speed = 0;
+    lateralSpeed = 0;
+    boostRemaining = 0;
+    events.push('destroyed');
+  } else if (distance >= track.length) {
     distance %= track.length;
     if (lap >= TOTAL_LAPS) {
       finished = true;
       speed = 0;
+      boostRemaining = 0;
       events.push('finish');
     } else {
       lap++;
       events.push('lap');
     }
   }
-
   const zone = boostZoneAt(distance / track.length, lateral);
-  if (zone >= 0 && zone !== state.activeBoostZone) {
+  if (!destroyed && !finished && collisionCooldown === 0 && zone >= 0 && zone !== state.activeBoostZone) {
     boostRemaining = BOOST_DURATION_SECONDS;
     speed = Math.max(speed, 590);
     events.push('boost');
   }
-
-  return {
-    state: {
-      distance,
-      speed,
-      lateral,
-      lateralSpeed,
-      lap,
-      elapsed: state.elapsed + dt,
-      boostRemaining,
-      activeBoostZone: zone,
-      wallHits,
-      finished,
-    },
-    events,
-  };
+  return { state: { distance, speed, lateral, lateralSpeed, lap, elapsed: state.elapsed + dt,
+    boostRemaining, activeBoostZone: zone, wallHits, finished, headingOffset, health, destroyed, impact, collisionCooldown }, events };
 }
 
 export function sampleTrack(track: RaceTrack, distance: number): TrackSample {
@@ -225,14 +265,14 @@ export function sampleTrack(track: RaceTrack, distance: number): TrackSample {
   };
 }
 
-export function racePose(track: RaceTrack, state: Pick<RaceState, 'distance' | 'lateral'>): RacePose {
+export function racePose(track: RaceTrack, state: Pick<RaceState, 'distance' | 'lateral'> & Partial<Pick<RaceState, 'headingOffset'>>): RacePose {
   const center = sampleTrack(track, state.distance);
   const right = bankedRight(center.heading, center.pitch, center.bank);
   return {
     x: center.x + right[0] * state.lateral,
     y: center.y + right[1] * state.lateral,
     z: center.z + right[2] * state.lateral,
-    heading: center.heading,
+    heading: center.heading + (state.headingOffset ?? 0),
     pitch: center.pitch,
     bank: center.bank,
   };
@@ -244,12 +284,12 @@ export function boostZoneAt(progress: number, lateral: number): number {
   return BOOST_ZONES.findIndex(center => circularDistance(wrapped, center) <= BOOST_ZONE_HALF_LENGTH);
 }
 
-function catmullRomPoint(index: number, t: number): TrackControlPoint {
-  const count = TRACK_CONTROL_POINTS.length;
-  const p0 = TRACK_CONTROL_POINTS[(index - 1 + count) % count]!;
-  const p1 = TRACK_CONTROL_POINTS[index % count]!;
-  const p2 = TRACK_CONTROL_POINTS[(index + 1) % count]!;
-  const p3 = TRACK_CONTROL_POINTS[(index + 2) % count]!;
+function catmullRomPoint(points: readonly TrackControlPoint[], index: number, t: number): TrackControlPoint {
+  const count = points.length;
+  const p0 = points[(index - 1 + count) % count]!;
+  const p1 = points[index % count]!;
+  const p2 = points[(index + 1) % count]!;
+  const p3 = points[(index + 2) % count]!;
   return {
     x: catmull(p0.x, p1.x, p2.x, p3.x, t),
     y: catmull(p0.y, p1.y, p2.y, p3.y, t),
@@ -304,3 +344,51 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 function clamp01(value: number): number { return clamp(value, 0, 1); }
+
+
+export interface Circuit {
+  readonly id: string;
+  readonly name: string;
+  readonly subtitle: string;
+  readonly difficulty: string;
+  readonly description: string;
+  readonly color: string;
+  readonly seed: number;
+  readonly points: readonly TrackControlPoint[];
+}
+
+const points = (values: readonly (readonly [number, number, number])[]): readonly TrackControlPoint[] =>
+  values.map(([x, y, z]) => ({ x, y, z }));
+
+export const CIRCUITS: readonly Circuit[] = [
+  { id: 'neon-city', name: '霓虹都市', subtitle: 'NEON METROPOLIS', difficulty: '进阶 · 起伏长环',
+    description: '穿行摩天楼群，征服高架连续弯与大落差坡道。', color: '#55eaff', seed: 0x91e10da5, points: TRACK_CONTROL_POINTS },
+  { id: 'sky-harbor', name: '云端港湾', subtitle: 'SKY HARBOR', difficulty: '入门 · 高速宽弯',
+    description: '沿空港外环加速，在开阔长弯中掌握转向与刹车。', color: '#ffbf69', seed: 0x2fa192,
+    points: points([[0,180,-2800],[1000,200,-2750],[2100,260,-2250],[2850,340,-1300],
+      [3050,400,-100],[2800,420,1100],[1900,360,2100],[650,260,2600],[-650,200,2600],
+      [-1900,230,2150],[-2800,310,1200],[-3050,400,0],[-2800,370,-1250],[-1900,280,-2300],[-900,200,-2750]]) },
+  { id: 'reactor-run', name: '反应堆回廊', subtitle: 'REACTOR RUN', difficulty: '专家 · 连续 S 弯',
+    description: '深入能源核心，在折返弯和连续变向中守住车身。', color: '#d893ff', seed: 0x871a20,
+    points: points([[0,110,-2800],[1050,140,-2780],[2400,230,-2300],[2800,350,-1300],
+      [2500,400,-350],[1600,310,100],[1400,220,850],[2350,180,1550],[2200,300,2400],
+      [1000,400,2750],[-200,330,2450],[-750,230,1500],[-1450,150,1450],[-2050,180,2450],
+      [-2950,300,2050],[-3100,380,900],[-2350,310,0],[-2900,220,-1000],[-2400,140,-2250],[-1100,100,-2800]]) },
+];
+
+export function circuitById(id: string | null): Circuit {
+  return CIRCUITS.find(circuit => circuit.id === id) ?? CIRCUITS[0]!;
+}
+
+/** Fit the actual sampled centerline, using equal X/Z scale, into a route thumbnail. */
+export function trackMap(track: RaceTrack): { path: string; start: readonly [number, number] } {
+  const xs = track.samples.map(point => point.x);
+  const zs = track.samples.map(point => point.z);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const scale = Math.min(264 / (maxX - minX), 156 / (maxZ - minZ));
+  const mapped = track.samples.map(point => [150 + (point.x - (minX + maxX) / 2) * scale,
+    96 + (point.z - (minZ + maxZ) / 2) * scale] as const);
+  return { path: mapped.map(([x, y], index) => `${index ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ') + ' Z', start: mapped[0]! };
+}
+
+export function circuitTrack(circuit: Circuit): RaceTrack { return createRaceTrack(520, circuit.points); }

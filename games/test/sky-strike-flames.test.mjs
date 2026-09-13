@@ -5,14 +5,21 @@ import {SkyStrikeFlames,inFlame,FIRE_PROFILES,IGNITION_MS,burningApproach,NARROW
 import {loadSkyStrikeLevels} from '../sky-strike/levels/loader.ts';
 const body=(style='elite')=>({x:240,y:100,radius:20,entered:true,hitPoints:180,definition:{tier:style==='boss'?'boss':style==='normal'?'normal':'elite',size:100,...(style==='normal'?{}:{flameStyle:style})}});
 const player={x:240,y:260,radius:8},safe={x:470,y:900,radius:8};
-test('narrow active flame tracks gradually, while warning and wide flame retain aim',()=>{
- const f=new SkyStrikeFlames(),e=body('boss'),right={x:470,y:350,radius:8},left={x:10,y:350,radius:8};
- f.update(500,[e],player,true);const warning=f.cones[0].angle;f.update(500,[e],right,true);assert.equal(f.cones[0].angle,warning);
- f.update(200,[e],player,true);const start=f.cones[0].angle;f.update(1000,[e],right,true);
- const turned=f.cones[0].angle;assert.ok(turned<start);assert.ok(Math.abs(turned-start)<=NARROW_FLAME_TURN_SPEED+1e-9);
- f.update(100,[e],left,true);assert.ok(f.cones[0].angle>turned);assert.ok(f.cones[0].angle-turned<=NARROW_FLAME_TURN_SPEED*.1+1e-9);
- f.update(4200,[e],player,true);assert.equal(f.cones[0].range,FIRE_PROFILES.wide.range);
- const wide=f.cones[0].angle;f.update(600,[e],right,true);assert.equal(f.cones[0].angle,wide);
+test('nozzles track slowly and old flame packets keep their emitted direction',()=>{
+ const f=new SkyStrikeFlames(),e=body('boss'),right={x:470,y:350,radius:8};
+ f.update(50,[e],player,true);const old=f.cones[0],start=f.nozzles[0].angle;
+ f.update(500,[e],right,true);assert.ok(f.nozzles[0].angle<start);
+ assert.ok(Math.abs(f.nozzles[0].angle-start)<=NARROW_FLAME_TURN_SPEED*.5+1e-9);
+ assert.equal(f.cones.find(c=>c.x===old.x&&c.y===old.y).angle,old.angle);
+ assert.ok(f.nozzles[0].angle!==f.nozzles[1].angle,'independent twin aim');
+ f.update(3600,[e],player,true);assert.ok(f.cones.some(c=>c.maxRange===FIRE_PROFILES.wide.range));
+});
+test('jets have flight time without sector warnings and stop emitting before the tail leaves',()=>{
+ const f=new SkyStrikeFlames(),e=body();f.update(100,[e],player);
+ assert.ok(f.cones.length>0&&f.cones.every(c=>!c.warning&&c.range<=42));assert.equal(f.burnMs,0);
+ f.update(800,[e],player);assert.ok(f.burnMs>0);assert.ok(f.cones.some(c=>c.range===280));
+ f.update(1000,[e],safe,true);assert.ok(f.cones.length>0&&f.cones.every(c=>c.minRange>0));
+ f.update(900,[e],safe,true);assert.equal(f.cones.length,0);
 });
 test('burning approach is bounded, partition-independent, and stops at the target',()=>{
  const from={x:30,y:40},to={x:300,y:400},next=burningApproach(from,to,1000);
@@ -31,8 +38,8 @@ test('finite flame sectors handle edges, origin, end cap and behind nozzle',()=>
  assert.ok(!inFlame(c,{x:0,y:105,radius:4}));assert.ok(!inFlame(c,{x:0,y:-20,radius:4}));
  assert.ok(inFlame(c,{x:0,y:0,radius:4}));assert.ok(!inFlame(c,{x:70,y:60,radius:4}));
 });
-test('elite telegraphs, deals 3 per 200ms inside, then exactly 25 burn damage over five seconds',()=>{
- const f=new SkyStrikeFlames(),e=body();assert.equal(f.update(890,[e],player).damage,0);
+test('elite arrives, deals 3 per 200ms inside, then exactly 25 burn damage over five seconds',()=>{
+ const f=new SkyStrikeFlames(),e=body();assert.equal(f.update(100,[e],player).damage,0);f.update(600,[e],safe,true);
  assert.equal(f.update(200,[e],player).damage,3);
  let damage=0;for(let i=0;i<25;i++)damage+=f.update(200,[],safe).damage;
  assert.equal(damage,25);assert.equal(f.burnMs,0);assert.equal(f.update(2000,[],safe).damage,0);
@@ -40,8 +47,8 @@ test('elite telegraphs, deals 3 per 200ms inside, then exactly 25 burn damage ov
 test('overlapping flames use strongest damage, bosses alternate long/narrow and short/wide',()=>{
  const f=new SkyStrikeFlames(),e=body('boss'),elite=body();f.update(1190,[e,elite],player);f.clearBurn();
  assert.equal(f.update(200,[e,elite],player).damage,5);
- assert.equal(f.cones.find(c=>c.boss).range,FIRE_PROFILES.long.range);
- f.update(4000,[e],safe);assert.equal(f.cones[0].range,FIRE_PROFILES.wide.range);
+ assert.equal(Math.max(...f.cones.filter(c=>c.boss).map(c=>c.range)),FIRE_PROFILES.long.range);
+ f.update(4000,[e],safe);assert.ok(f.cones.some(c=>c.maxRange===FIRE_PROFILES.wide.range));
  assert.ok(FIRE_PROFILES.wide.halfAngle>FIRE_PROFILES.long.halfAngle);
 });
 test('ignited fighter explodes at three seconds even after being shot down; repeated hits cannot postpone it',()=>{
@@ -51,10 +58,10 @@ test('ignited fighter explodes at three seconds even after being shot down; repe
  const result=f.update(10,[],safe);assert.equal(result.explosions.length,1);assert.equal(result.explosions[0].x,300);assert.equal(result.explosions[0].source,null);
  assert.equal(f.update(IGNITION_MS,[],safe).explosions.length,0);
 });
-test('only active Boss flame ignites normal hulls; elite fire and warning do not',()=>{
+test('only arrived Boss flame ignites normal hulls; elite fire cannot ignite enemies',()=>{
  for(const style of ['elite','boss']){
   const f=new SkyStrikeFlames(),e=body(style),small=body('normal');small.y=250;
-  f.update(880,[e,small],safe);assert.equal(f.charges.length,0);
+  f.update(80,[e,small],safe);assert.equal(f.charges.length,0);
   f.update(600,[e,small],player);assert.equal(f.charges.length,style==='boss'?1:0);
  }
 });

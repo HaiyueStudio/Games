@@ -102,8 +102,8 @@ test('space train cars and mechanical serpent segments follow the requested comb
   assert.ok((train?.speed ?? 0) >= 300);
   assert.equal(SERPENT_SEGMENT_COUNT, 9);
   assert.equal(serpent?.bossAttack, 'serpent-barrage');
-  assert.equal(turret?.damageProxyBossAttack, 'serpent-barrage');
-  assert.deepEqual(resolveEnemyDamage(turret, 16), { targetDamage: 16, relayedBossDamage: 16 });
+  assert.equal(turret?.damageProxyBossAttack, undefined);
+  assert.deepEqual(resolveEnemyDamage(turret, 16), { targetDamage: 16, relayedBossDamage: 0 });
 
   const fullHealthInterval = serpentTurretFireIntervalMs(2_200, 2_200, 2_200);
   const halfHealthInterval = serpentTurretFireIntervalMs(2_200, 1_100, 2_200);
@@ -367,16 +367,14 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
 });
 
 
-test('serpent shares conserve damage across living parts and redistribute overkill', async () => {
-  const {shareSerpentDamage} = await import('../sky-strike/rules.ts');
-  assert.deepEqual(shareSerpentDamage(90, [120,120,120]), [30,30,30]);
-  assert.deepEqual(shareSerpentDamage(90, [10,120,120]), [10,40,40]);
-  assert.deepEqual(shareSerpentDamage(90, [0,120,120]), [0,45,45]);
-  assert.deepEqual(shareSerpentDamage(420, [10,20]), [10,20]);
-  assert.deepEqual(shareSerpentDamage(90, []), []);
-  assert.deepEqual(shareSerpentDamage(NaN, [120]), [0]);
+test('serpent missing slots close smoothly without overshoot or frame-rate dependence',async()=>{
+ const {advanceSerpentSegmentOrder,serpentSegmentPosition}=await import('../sky-strike/rules.ts');
+ assert.equal(advanceSerpentSegmentOrder(5,4,0),5);assert.equal(advanceSerpentSegmentOrder(5,4,110),4.5);
+ assert.equal(advanceSerpentSegmentOrder(5,4,500),4);assert.equal(advanceSerpentSegmentOrder(4,4,16),4);
+ let order=5;for(let i=0;i<22;i++)order=advanceSerpentSegmentOrder(order,4,10);assert.ok(Math.abs(order-4)<1e-10);
+ const a=serpentSegmentPosition(240,360,0,4,false),b=serpentSegmentPosition(240,360,0,4.5,false),c=serpentSegmentPosition(240,360,0,5,false);
+ assert.ok(b.y<a.y&&b.y>c.y,'fractional follow order does not jump between slots');
 });
-
 
 test('bare serpent head charges above the health gate while dead heads cannot charge', () => {
   assert.equal(shouldSerpentCharge(1120, 2200, 0), true);
@@ -397,4 +395,15 @@ test('red hardpoints follow the swept wings at every upgrade and leave other wea
     const profile=weaponProfile(form,level);
     for(let i=0;i<profile.projectileCount;i++)assert.equal(playerMuzzleOffset(profile,i).y,-24);
   }
+});
+
+test('Dreadnought four wing hardpoints rotate with hull and remain separate from the laser muzzle',async()=>{
+ const {dreadnoughtWingMuzzle,dreadnoughtLaserMuzzle}=await import('../sky-strike/rules.ts');
+ const e={x:240,y:200,rotation:0,definition:{size:292,renderAspect:1.18}};
+ const tips=Array.from({length:4},(_,i)=>dreadnoughtWingMuzzle(e,i)),laser=dreadnoughtLaserMuzzle(e);
+ assert.equal(new Set(tips.map(p=>p.x)).size,4);
+ assert.ok(tips.every(p=>p.y<laser.y&&Math.abs(p.x-e.x)>70));
+ assert.equal(tips[0].x+tips[3].x,480);assert.equal(tips[1].x+tips[2].x,480);
+ for(let i=0;i<4;i++){const p=dreadnoughtWingMuzzle({...e,rotation:Math.PI/2},i);assert.ok(Math.abs(p.dx+tips[i].dy)<1e-8);assert.ok(Math.abs(p.dy-tips[i].dx)<1e-8);}
+ assert.deepEqual(dreadnoughtWingMuzzle(e,4),tips[0]);
 });

@@ -1,4 +1,6 @@
 import {quantumPixels} from './quantum';
+import {SkyStrikeFlamePass,type LavaCore} from './flamePass';
+import type {FlameCone,FlameNozzle} from './flames';
 import {mirrorSprites} from './mirrorSprites';
 import {SkyStrikeBlackHolePass,blackHolePortrait,type HoleVisual} from './blackHolePass';
 import { System, type World } from '@haiyue/engine/ecs';
@@ -45,9 +47,13 @@ export class SkyStrikeBattleLayer extends System {
   private readonly sources = new Map<string, IndexedSpritePlaneDescriptor>();
   private readonly guiTextures = new Map<string, GPUTexture>();
   private guiTextureBytes = 0;
+  private readonly previews = new Map<string,{source:GPUTexture;sourceKey:string;aspect:number}>();
   private view = skyStrikeViewport(480, 960);
   private hole:HoleVisual|null=null;
   private lens:SkyStrikeBlackHolePass|null=null;
+  private flamePass:SkyStrikeFlamePass|null=null;
+  private flames:readonly FlameCone[]=[];private nozzles:readonly FlameNozzle[]=[];private flameTime=0;
+  private cores:LavaCore[]=[];
   private shakeX = 0; private shakeY = 0;
   constructor(private readonly engine: HaiyueEngine, sprites: readonly IndexedSpritePlaneDescriptor[]) {
     super(() => false); this.priority = 40; this.name = 'SkyStrikeBattleLayer';
@@ -72,7 +78,41 @@ export class SkyStrikeBattleLayer extends System {
     }
     return texture;
   }
+  /** Bake the existing GPU sprite commands once per hull; no Canvas 2D or per-frame uploads. */
+  guiComposition(key:string,draw:(layer:SkyStrikeBattleLayer)=>void):{source:GPUTexture;sourceKey:string;aspect:number} {
+    const cached=this.previews.get(key);if(cached)return cached;
+    const saved=this.commands.splice(0),view=this.view,sx=this.shakeX,sy=this.shakeY;
+    let commands:IndexedSpriteDrawCommand[];
+    try {this.view={scale:1,left:0,width:480,visibleWidth:480,cameraX:0};this.shakeX=this.shakeY=0;draw(this);commands=this.commands.splice(0);}
+    finally {this.commands.length=0;this.commands.push(...saved);this.view=view;this.shakeX=sx;this.shakeY=sy;}
+    if(!commands.length)throw new Error(`Empty boss preview: ${key}`);
+    let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+    for(const c of commands){const s=this.sources.get(c.spriteId)!,a=c.rotationRadians??0;
+      const w=s.width*(c.scaleX??1)/2,h=s.height*(c.scaleY??1)/2,dx=Math.abs(Math.cos(a)*w)+Math.abs(Math.sin(a)*h),dy=Math.abs(Math.sin(a)*w)+Math.abs(Math.cos(a)*h);
+      left=Math.min(left,c.x-dx);right=Math.max(right,c.x+dx);top=Math.min(top,c.y-dy);bottom=Math.max(bottom,c.y+dy);}
+    const pad=4,width=right-left,height=bottom-top,scale=(384-pad*2)/Math.max(width,height);
+    const tw=Math.ceil(width*scale)+pad*2,th=Math.ceil(height*scale)+pad*2;
+    commands=commands.map(c=>({...c,x:(c.x-left)*scale+pad,y:(c.y-top)*scale+pad,scaleX:(c.scaleX??1)*scale,scaleY:(c.scaleY??1)*scale}));
+    const device=this.engine.device,format=this.engine.format,sampleCount=this.engine.msaaSamples as 1|4;
+    const texture=device.createTexture({label:key,size:[tw,th],format,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});
+    const msaa=sampleCount===4?device.createTexture({label:key+'.msaa',size:[tw,th],format,sampleCount,usage:GPUTextureUsage.RENDER_ATTACHMENT}):null;
+    // A GUI click can run after the battle pass is encoded. Never overwrite that
+    // renderer's instance/viewport buffers before the pending frame is submitted.
+    // Upload only this portrait's assets; release temporary resources after submission.
+    let previewRenderer:IndexedSpriteRenderer|null=null;
+    try {
+      const sources=[...new Set(commands.map(c=>c.spriteId))].map(id=>this.sources.get(id)!);
+      previewRenderer=new IndexedSpriteRenderer(device,sources,[],{targetFormat:format,sampleCount,label:key,
+        limits:{...DEFAULT_INDEXED_SPRITE_ATLAS_LIMITS,maxTextureDimension2D:2048,maxDrawCommandsPerFrame:Math.max(1,commands.length)}});
+      previewRenderer.uploadAll();
+      const encoder=device.createCommandEncoder({label:key}),pass=encoder.beginRenderPass({colorAttachments:[{
+      view:(msaa??texture).createView(),...(msaa?{resolveTarget:texture.createView()}:{}),loadOp:'clear',storeOp:'store',clearValue:{r:0,g:0,b:0,a:0}}]});
+      previewRenderer.render(pass,commands,tw,th);pass.end();device.queue.submit([encoder.finish()]);
+    }catch(error){texture.destroy();throw error;}finally{previewRenderer?.dispose();msaa?.destroy();}
+    const result={source:texture,sourceKey:key,aspect:th/tw};this.previews.set(key,result);this.guiTextures.set(key,texture);this.guiTextureBytes+=tw*th*4;return result;
+  }
   begin(playerX: number, shakeX = 0, shakeY = 0): void {
+    this.flames=[];this.nozzles=[];this.cores=[];
     this.commands.length = 0; this.view = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, playerX);
     this.shakeX = shakeX; this.shakeY = shakeY;
   }
@@ -96,17 +136,21 @@ export class SkyStrikeBattleLayer extends System {
     else { this.line(x,y,endX,endY,width*3,color,0.15); this.line(x,y,endX,endY,width,color,0.8); this.line(x,y,endX,endY,Math.max(2,width*0.26),'#f4fdff'); }
   }
   setBlackHole(visual:HoleVisual|null):void {this.hole=visual; if(!visual)this.lens?.releaseTargets();}
-  stats() { return { lens:this.lens?.stats()??null, ...this.renderer.stats(), renderer: 'haiyue-gpu-sprites', guiTextureBytes: this.guiTextureBytes, frameTextureUploads: 0 }; }
+  setFlames(cones:readonly FlameCone[],nozzles:readonly FlameNozzle[],time:number):void{this.flames=cones;this.nozzles=nozzles;this.flameTime=time;}
+  lava(core:LavaCore):void{this.cores.push(core);}
+  stats() { return { fire:this.flamePass?.stats()??null,lens:this.lens?.stats()??null, ...this.renderer.stats(), renderer: 'haiyue-gpu-sprites', guiTextureBytes: this.guiTextureBytes, frameTextureUploads: 0 }; }
   record(_world: World, context: RenderCommandContext): this {
     const draw=(pass:GPURenderPassEncoder)=>{
       const dpr=this.engine.width/this.engine.displayWidth;
       const left=Math.ceil(this.view.left*dpr),right=Math.floor((this.view.left+this.view.width)*dpr);
       pass.setScissorRect(left,0,Math.max(1,right-left),this.engine.height);
       this.renderer.render(pass,this.commands,this.engine.displayWidth,this.engine.displayHeight);
+      if(this.flames.length||this.nozzles.length||this.cores.length)this.flamePass??=new SkyStrikeFlamePass(this.engine);
+      this.flamePass?.draw(pass,this.flames,this.nozzles,this.flameTime,this.view,this.shakeX,this.shakeY,this.cores);
     };
     if(this.hole){this.lens??=new SkyStrikeBlackHolePass(this.engine);this.lens.record(context,this.hole,this.view,draw);}
     else {const {passEncoder,ownsPass}=beginRenderCommandPass(context);draw(passEncoder);if(ownsPass)passEncoder.end();}
     return this;
   }
-  override destroy(): this { this.lens?.destroy(); this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.guiTextureBytes = 0; this.commands.length = 0; return super.destroy(); }
+  override destroy(): this { this.flamePass?.destroy();this.lens?.destroy(); this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.previews.clear(); this.guiTextureBytes = 0; this.commands.length = 0; return super.destroy(); }
 }

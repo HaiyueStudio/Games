@@ -1,4 +1,6 @@
-import { SkyStrikeFlames, IGNITION_DAMAGE, burningApproach } from './flames';
+import {dreadnoughtWingMuzzle,dreadnoughtLaserMuzzle} from './rules';
+import {bossPreview} from './bossPreview';
+import { SkyStrikeFlames, IGNITION_DAMAGE, burningApproach, INFERNO_GUN } from './flames';
 import { drawFlames } from './flameVisuals';
 import {quantumPose,quantumPoint,quantumTurretPose,quantumCoreState,QUANTUM_TURRET_SPRITE,quantumBossX,quantumAttachment,quantumVelocity,quantumHardpoint,quantumGlitch,QUANTUM_GUN_MOUNTS} from './quantum';
 import {mirrorHit,mirrorVertices,reflectedVelocity,consumeMirrorBudget,prismShards,PRISM_SHARD_STORM_MS,REFLECTED_BULLET_DAMAGE,type MirrorHull} from './mirrorPrism';
@@ -24,7 +26,7 @@ import {
   CARRIER_ELITE_WAVE_INTERVAL,
   CARRIER_MAX_ELITES,
   ELITE_ENEMIES,
-  shareSerpentDamage,
+  advanceSerpentSegmentOrder,
   BOSS_LASER_DAMAGE,
   BOSS_ENEMY,
   ENEMY_DEFINITIONS,
@@ -146,6 +148,7 @@ interface EnemyState {
   ageMs: number;
   fireCooldownMs: number;
   lastShotAgeMs?: number;
+  wingShotIndex?: number;
   phaseOffset: number;
   entered: boolean;
   laserCooldownMs: number;
@@ -155,6 +158,7 @@ interface EnemyState {
   damageEffectCooldownMs: number;
   segmentOwner: EnemyState | null;
   segmentOrder: number;
+  segmentFollowOrder?: number;
   charging: boolean;
   chargeCooldownMs: number;
   deploymentWaves: number;
@@ -441,6 +445,7 @@ export class SkyStrikeGame {
     for (const input of this.pendingInput.splice(0)) input();
     const delta = Math.min(34, Math.max(0, deltaMs));
     this.platform.audio?.update(delta);
+    this.levelCarousel?.update(delta);
     this.updateStars(delta);
     this.updateSparks(delta);
     if (this.phase !== 'playing') {
@@ -510,11 +515,16 @@ export class SkyStrikeGame {
       resolveBoss: level => {
         const definition = requiredEnemyDefinition(level.bossId);
         return {
-          source: this.battle.guiImage(definition.id==='quantum-dreadnought'?'assets/fx-quantum-preview.png':definition.sprite),
-          sourceKey: definition.id==='quantum-dreadnought'?'assets/fx-quantum-preview.png':definition.sprite,
-          ...(definition.id==='twin-red'?{companion:{source:this.battle.guiImage('assets/boss-twin-blue.png'),sourceKey:'assets/boss-twin-blue.png'}}:{}),
+          ...bossPreview(this.battle,definition),
+          ...(definition.id==='twin-red'?{companion:bossPreview(this.battle,requiredEnemyDefinition('twin-blue'))}:{}),
+          ...(definition.id==='inferno-ark'?{attachments:[-1,1].map(side=>({
+            source:this.battle.guiImage('assets/fx-inferno-gun.png'),sourceKey:'assets/fx-inferno-gun.png',
+            x:.5+side*INFERNO_GUN.pivotX-INFERNO_GUN.drawScale*.5,
+            y:.5+INFERNO_GUN.pivotY-INFERNO_GUN.pivotV*INFERNO_GUN.drawScale/(definition.renderAspect??1),
+            width:INFERNO_GUN.drawScale,height:INFERNO_GUN.drawScale/(definition.renderAspect??1),
+          }))}:{}),
           label: this.locale.named(definition.id),
-          aspect: definition.renderAspect ?? 1.18,
+
         };
       },
       onSelectionChange: index => {
@@ -1050,7 +1060,7 @@ export class SkyStrikeGame {
         }
         this.updateBossDamageEffects(enemy, deltaMs);
       } else if (enemy.definition.segmentedPart === 'serpent-turret') {
-        if (!this.updateSerpentTurretPosition(enemy)) {
+        if (!this.updateSerpentTurretPosition(enemy, deltaMs)) {
           this.enemies.splice(index, 1);
           continue;
         }
@@ -1172,14 +1182,15 @@ export class SkyStrikeGame {
     this.shakeMs = Math.max(this.shakeMs, 520);
   }
 
-  private updateSerpentTurretPosition(enemy: EnemyState): boolean {
+  private updateSerpentTurretPosition(enemy: EnemyState, deltaMs: number): boolean {
     const owner = enemy.segmentOwner;
     if (!owner || !this.enemies.includes(owner)) return false;
+    enemy.segmentFollowOrder=advanceSerpentSegmentOrder(enemy.segmentFollowOrder??enemy.segmentOrder,enemy.segmentOrder,deltaMs);
     const position = serpentSegmentPosition(
       owner.x,
       owner.y,
       owner.ageMs,
-      enemy.segmentOrder,
+      enemy.segmentFollowOrder,
       owner.charging,
       owner.velocityX,
       owner.velocityY,
@@ -1200,17 +1211,20 @@ export class SkyStrikeGame {
       : aimedVelocity(enemy.x, enemy.y, this.player.x, this.player.y, speed);
     const projectile = enemyProjectileProfile(enemy.definition);
     if(enemy.definition.bossAttack==='quantum-broadside'){this.fireQuantumBroadside(enemy,speed);return;}
-    this.combatEffects.shot(enemy, muzzle.dx, muzzle.dy, aimed.x, aimed.y, projectile.cssColor, enemy.definition.bulletPattern === 'spread' ? 'red' : 'blue');
-    const add = (velocity: { x: number; y: number }, radius = 6) => this.emitEnemyBullet(enemy,{
-      x: muzzle.x,
-      y: muzzle.y,
+    const add = (velocity: { x: number; y: number }, radius = 6) => {
+      // Preserve the existing bullet count/cadence, distributing rounds across the four wing guns.
+      const origin=enemy.definition.id==='dreadnought'?dreadnoughtWingMuzzle(enemy,enemy.wingShotIndex??0):muzzle;
+      if(enemy.definition.id==='dreadnought')enemy.wingShotIndex=((enemy.wingShotIndex??0)+1)%4;
+      this.emitEnemyBullet(enemy,{
+      x: origin.x,
+      y: origin.y,
       vx: velocity.x,
       vy: velocity.y,
       radius,
       damage: projectile.damage,
       hostile: true,
       color: projectile.cssColor,
-    });
+    });};
 
     switch (enemy.definition.bulletPattern) {
       case 'aimed':
@@ -1265,9 +1279,11 @@ export class SkyStrikeGame {
   }
   private emitEnemyBullet(owner:EnemyState,bullet:Bullet):void {
     this.enemyBullets.push(bullet);
+    this.combatEffects.enemyShot(owner,bullet.x-owner.x,bullet.y-owner.y,bullet.vx,bullet.vy,bullet.color);
     if(!owner.quantumPaired)return;
     const p=quantumAttachment(owner,bullet,this.quantumCenterX()),v=quantumVelocity(bullet.vx,bullet.vy);
     this.enemyBullets.push({...bullet,...p,previousX:p.x,previousY:p.y,vx:v.x,vy:v.y,color:'#59baff',quantumOwner:owner,lifeMs:6500});
+    this.combatEffects.enemyShot(p,0,0,v.x,v.y,'#59baff');
   }
   private quantumGun(enemy:EnemyState,index:number) {
     const recoil=Math.max(0,1-(enemy.ageMs-(enemy.lastShotAgeMs??-1000))/130)*2;
@@ -1279,7 +1295,6 @@ export class SkyStrikeGame {
       for(const side of [-1,1]){
         const x=gun.muzzle.x-Math.sin(base)*side*gun.drawSize*.09,y=gun.muzzle.y+Math.cos(base)*side*gun.drawSize*.09;
         this.emitEnemyBullet(enemy,{x,y,vx:Math.cos(base+side*.12)*speed,vy:Math.sin(base+side*.12)*speed,radius:4,damage:25,hostile:true,color:'#ffac63'});
-        this.combatEffects.shot(enemy,x-enemy.x,y-enemy.y,Math.cos(base),Math.sin(base),'#ffb668','red');
       }
     }
   }
@@ -1324,9 +1339,8 @@ export class SkyStrikeGame {
       enemy.laserCooldownMs = 2800;
       const color = enemy.definition.id === 'twin-red' ? 'red' : 'blue';
       if (this.enemyBullets.filter(b => b.bubbleHealth !== undefined).length >= MAX_TWIN_BUBBLES) return;
-      this.enemyBullets.push({x:enemy.x,y:enemy.y+60,vx:color==='red'?32:-32,vy:85,radius:22,
+      this.emitEnemyBullet(enemy,{x:enemy.x,y:enemy.y+60,vx:color==='red'?32:-32,vy:85,radius:22,
         damage:35,hostile:true,color:color==='red'?'#ff415e':'#48a7ff',bubbleColor:color,bubbleHealth:TWIN_BUBBLE_HEALTH});
-      this.combatEffects.shot(enemy,0,60,0,1,color==='red'?'#ff415e':'#48a7ff',color);
       return;
     }
     if (enemy.definition.bossAttack === 'laser') {
@@ -1359,7 +1373,7 @@ export class SkyStrikeGame {
       return;
     }
     const projectile = enemyProjectileProfile(enemy.definition);
-    const add = (angle: number, speed: number, radius = 6) => this.enemyBullets.push({
+    const add = (angle: number, speed: number, radius = 6) => this.emitEnemyBullet(enemy,{
       x: enemy.x,
       y: enemy.y + enemy.definition.size * 0.2,
       vx: Math.cos(angle) * speed,
@@ -1453,15 +1467,16 @@ export class SkyStrikeGame {
       laser.phase = 'active';
       laser.timerMs = BOSS_LASER_ACTIVE_MS;
       this.shakeMs = Math.max(this.shakeMs, 320);
-      this.addSparks(boss.x, boss.y + boss.definition.size * 0.28, 32, '#ff8ca6');
+      const muzzle=dreadnoughtLaserMuzzle(boss);
+      this.addSparks(muzzle.x,muzzle.y,32,'#ff8ca6');
     }
     if (laser.phase === 'active' && !laser.hitPlayer && this.player.invulnerableMs <= 0) {
-      const startY = boss.y + boss.definition.size * 0.22;
+      const muzzle=dreadnoughtLaserMuzzle(boss);
       const distance = distancePointToSegment(
         this.player.x,
         this.player.y,
-        boss.x,
-        startY,
+        muzzle.x,
+        muzzle.y,
         laser.targetX,
         LOGICAL_HEIGHT + 20,
       );
@@ -1638,13 +1653,8 @@ export class SkyStrikeGame {
     }
     for (const rock of [...this.asteroids.rocks]) if (isInsideBombArea(area, rock)) this.damageAsteroid(rock, BOMB_DAMAGE);
     for (const crate of [...this.bombCrates.crates]) if (isInsideBombArea(area, crate)) this.damageBombCrate(crate, BOMB_DAMAGE);
-    const hitSerpents = new Set<EnemyState>();
     for (const enemy of [...this.enemies].reverse()) {
       if (!this.enemies.includes(enemy) || !isInsideBombArea(area, enemy)) continue;
-      const serpent = enemy.definition.id === 'iron-serpent' ? enemy
-        : enemy.definition.segmentedPart === 'serpent-turret' ? enemy.segmentOwner : null;
-      if (serpent && hitSerpents.has(serpent)) continue;
-      if (serpent) hitSerpents.add(serpent);
       if (enemy.definition.directDamageImmune) this.addLaserImpact(enemy.x, enemy.y, 92);
       else this.addImpact(enemy.x, enemy.y, enemy.definition.tier === 'boss' ? 130 : 74);
       this.damageEnemy(this.enemies.indexOf(enemy), enemy, BOMB_DAMAGE, true, 'bomb');
@@ -1933,23 +1943,7 @@ export class SkyStrikeGame {
     if(enemy.definition.id==='black-hole'||enemy.definition.mirrorSides)return false;
     const boss = this.boss;
     const bossScale = source === 'bomb' ? BOSS_BOMB_DAMAGE_MULTIPLIER : 1;
-    if (boss?.definition.id === 'iron-serpent'
-      && (enemy === boss || enemy.segmentOwner === boss)) {
-      const totalDamage = Math.max(0, Number.isFinite(damage) ? damage : 0) * bossScale;
-      const parts = this.enemies.filter(part => part.segmentOwner === boss && part.hitPoints > 0);
-      const shares = shareSerpentDamage(totalDamage, parts.map(part => part.hitPoints));
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i]!;
-        part.hitPoints -= shares[i]!;
-        if (shares[i]! > 0) this.addLaserImpact(part.x, part.y, 22);
-        if (part.hitPoints <= 1e-8) this.destroyEnemy(this.enemies.indexOf(part), part, suppressDeathBurst);
-      }
-      // Body HP is distributed armor; the boss pool receives this hit exactly once.
-      boss.hitPoints -= totalDamage;
-      if (boss.hitPoints <= 0) this.destroyEnemy(this.enemies.indexOf(boss), boss, suppressDeathBurst);
-      return !this.enemies.includes(enemy);
-    }
-    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage * (enemy.definition.tier === 'boss' ? bossScale : source === 'bomb' && enemy.definition.tier === 'elite' ? 0.5 : 1));
+    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage * ((enemy.definition.tier === 'boss'||enemy.definition.segmentedPart==='serpent-turret') ? bossScale : source === 'bomb' && enemy.definition.tier === 'elite' ? 0.5 : 1));
     if (resolvedDamage.targetDamage <= 0) return false;
     const effectiveDamage = Math.min(resolvedDamage.targetDamage, Math.max(0, enemy.hitPoints));
     enemy.hitPoints -= effectiveDamage;
@@ -1983,6 +1977,7 @@ export class SkyStrikeGame {
       .filter(candidate => candidate.segmentOwner === owner && candidate.definition.segmentedPart === 'serpent-turret')
       .sort((left, right) => left.segmentOrder - right.segmentOrder);
     segments.forEach((segment, index) => {
+      segment.segmentFollowOrder ??= segment.segmentOrder;
       segment.segmentOrder = index + 1;
     });
     // Losing the final body part unlocks a charge immediately, even above 35% HP.
@@ -2251,6 +2246,7 @@ export class SkyStrikeGame {
     if (this.boss?.definition.bossAttack === 'asteroid-grab') drawMiningArms(this.battle, this.asteroids, this.boss);
     this.drawEnemies(); this.drawQuantumEnemies(); drawAsteroids(this.battle, this.asteroids); this.drawBombCrates(); this.drawPowerups(); this.drawPlayerLaser();
     this.drawBossLaser(); this.drawHostileLasers();
+    this.battle.setFlames(this.flames.cones,this.flames.nozzles,this.elapsedMs);
     drawFlames(this.battle,this.flames.cones,this.flames.charges,this.player,this.flames.burnMs,this.elapsedMs); this.drawPlayer(); this.drawBullets(this.enemyBullets);
     this.drawImpacts(); this.drawEnergyImpacts(); this.drawDebris(); this.drawBombBlast(); this.drawSparks(); this.combatEffects.draw(this.battle);
   }
@@ -2282,10 +2278,16 @@ export class SkyStrikeGame {
       if (d.tier==='boss'||d.tier==='elite') r.glow(enemy.x,enemy.y,w*0.75,d.tier==='boss'?'#ff244f':'#b455ff',0.3);
       drawShipDetails(r,enemy,this.player,true);
       r.sprite(d.sprite,enemy.x,enemy.y,w,h,enemy.rotation);
-      drawShipDetails(r,enemy,this.player,false);
+      if(d.id==='inferno-ark')r.lava({x:enemy.x+Math.sin(enemy.rotation)*h*.092,y:enemy.y-Math.cos(enemy.rotation)*h*.092,width:w*.062,height:h*.086,rotation:enemy.rotation});
+      drawShipDetails(r,enemy,d.id==='dreadnought'&&this.bossLaser?{x:this.bossLaser.targetX,y:LOGICAL_HEIGHT+20}:this.player,false);
       if(d.flameStyle){const intensity=.3+.25*Math.sin(enemy.ageMs*.009);r.glow(enemy.x,enemy.y-w*.075,w*.10,'#ff871f',intensity);}
       if(d.bossAttack==='quantum-broadside')this.drawQuantumTurrets(enemy,false);
       if (d.directDamageImmune) r.ring(enemy.x,enemy.y,w*0.54,'#69e8ff',0.35+Math.sin(this.elapsedMs*0.006)*0.12,h/w*0.88,enemy.rotation);
+    }
+    for(const n of this.flames.nozzles)if(n.boss){
+      const d=n.size*(.5-INFERNO_GUN.pivotV);
+      this.battle.sprite('assets/fx-inferno-gun.png',n.pivotX+Math.cos(n.angle)*d,n.pivotY+Math.sin(n.angle)*d,n.size,n.size,n.angle-Math.PI/2);
+      this.battle.glow(n.x,n.y,8,'#ff8a21',n.heat*.5);
     }
   }
   private drawQuantumTurrets(e:EnemyState,ghost:boolean):void {
@@ -2332,7 +2334,7 @@ export class SkyStrikeGame {
     if (!previous || !this.enemies.includes(previous)) return;
     for (const s of segments) {
       const dx=s.x-previous.x,dy=s.y-previous.y,distance=Math.hypot(dx,dy);
-      this.battle.sprite('assets/part-serpent-joint.png',(previous.x+s.x)/2,(previous.y+s.y)/2,31,distance+12,Math.atan2(dy,dx)-Math.PI/2);
+      this.battle.sprite('assets/part-serpent-joint.png',(previous.x+s.x)/2,(previous.y+s.y)/2,s.definition.size*.55,distance+12,Math.atan2(dy,dx)-Math.PI/2);
       previous=s;
     }
   }
@@ -2392,7 +2394,7 @@ export class SkyStrikeGame {
     for(let i=1;i<=18;i++) { const t=i/18,u=1-t,nx=u*u*x+2*u*t*cx+t*t*ex,ny=u*u*y+2*u*t*cy+t*t*ey; this.battle.beam(px,py,nx,ny,width,'#c05cff'); px=nx;py=ny; }
   }
   private drawBossLaser(): void {
-    if(this.bossLaser&&this.boss) this.battle.beam(this.boss.x,this.boss.y+this.boss.definition.size*0.22,this.bossLaser.targetX,980,28,'#ff2046',this.bossLaser.phase==='warning');
+    if(this.bossLaser&&this.boss){const p=dreadnoughtLaserMuzzle(this.boss);this.battle.beam(p.x,p.y,this.bossLaser.targetX,LOGICAL_HEIGHT+20,28,'#ff2046',this.bossLaser.phase==='warning');}
   }
   private drawHostileLasers(): void {
     const m=this.mirrorLaser;if(m)this.battle.beam(m.x,m.y,m.endX,m.endY,weaponProfile(this.weaponForm,this.weaponLevel).beamWidth,'#ffacec',m.warningMs>0);

@@ -1,0 +1,13 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "path": "gui-button.png",
+      "prompt": "Use case: stylized-concept. Asset type: futuristic anti-gravity racing game GUI button skin. One isolated horizontal rectangular button, 3:1 aspect ratio, genuine transparent background outside its clipped chamfered corners. Flat orthographic front view. Dark midnight navy brushed metal interior, thin elegant cyan emissive perimeter, layered beveled titanium corners and tiny amber indicator slits at the far left and right. Very large clean empty dark center for live text overlay. Minimal premium cyberpunk aerospace instrument aesthetic, no text, no symbols, no logo, no scene, no perspective, no drop shadow beyond modest cyan edge glow. Fill the image bounds closely with the button; no extra objects."
+    },
+    {
+      "path": "gui-panel.png",
+      "prompt": "Use case: stylized-concept. Asset type: futuristic racing game GUI panel skin, one isolated rectangular information panel, landscape 3:2 aspect ratio, genuine transparent alpha outside chamfered corners. Flat front view, not perspective. Deep blue-black matte glass center with very faint technical grid, thin cyan illuminated beveled frame, slim metallic corner brackets, restrained violet circuit accents on the perimeter only. 85 percent of panel is a clean empty dark field for route preview and live labels. Premium spacecraft telemetry console aesthetic. No text, no digits, no icons, no route, no gauge, no scene. Panel almost fills canvas, minimal padding."
+    }
+  ]
+}

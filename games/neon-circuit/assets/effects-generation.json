@@ -1,0 +1,13 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "path": "assets/smoke-puff.png",
+      "prompt": "Use case: stylized-concept. Asset type: real-time racing game particle sprite, square 512x512. Generate one isolated soft gray smoke puff with realistic wispy rolling edges and fine turbulent billows, neutral light-gray density in the center, very soft dissipating thin perimeter. Genuine transparent alpha background, no floor, no scene, no flame, no sparks, no text, no border, no shadow behind it. Entire puff comfortably inside the image with fully transparent padding around all four edges. Even nondirectional lighting so it can be tinted and rotated as a game billboard. Single puff only, not an atlas."
+    },
+    {
+      "path": "assets/boost-chevron.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless game surface texture, square 512x512, flat orthographic 2D emission/albedo texture for a futuristic racing boost strip. Dark midnight navy background, three evenly spaced identical cyan luminous chevrons pointing straight UP toward the top edge, thin white-cyan cores and restrained electric blue glow. Clean geometric arrowheads, subtle technical grained panel surface. Full-bleed texture, tiles seamlessly vertically: first and last rows must be the identical dark navy gap between repeating arrowheads. No perspective, no scene, no road photographed, no border frame, no letters, no numbers, no watermark. Readable simple forward arrows, premium sci-fi racing aesthetic."
+    }
+  ]
+}

@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parents[1] / 'games/sky-strike/assets'
 # occupy 320px textures. The manifest deliberately lists master art for provenance too.
 limits = {
     **{f'bg-{name}.png': 512 for name in ['orbital','ion','void','carrier','prism','serpent','binary','mining']},
-    'fx-inferno.png':128, 'boss-inferno.png':384, 'elite-cinder.png':192,
+    'fx-inferno-gun.png':192, 'fx-inferno.png':128, 'boss-inferno.png':384, 'elite-cinder.png':192,
     'fx-quantum-turret.png': 128, 'fx-quantum-preview.png': 256,
     'boss-quantum-dreadnought.png': 512, 'boss-miner.png': 512, **{f'asteroid-{name}.png': 192 for name in ['iron','copper','ice']},
     'planet-ice.png': 384, 'planet-amber.png': 384,

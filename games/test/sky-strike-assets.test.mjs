@@ -42,3 +42,10 @@ test('eight themed background tiles and two planet layers have bounded runtime s
  for(const e of rocks){assert.equal(Math.max(e.width,e.height),192);let clear=false,visible=false;
  for(let i=e.offset+3;i<e.offset+e.length;i+=4){clear ||=pixels[i]===0;visible ||=pixels[i]>0;}assert.ok(clear&&visible);}
  });
+
+
+test('Inferno hull renders at its actual source aspect ratio',async()=>{
+ const {requiredEnemyDefinition}=await import('../sky-strike/rules.ts');
+ const boss=requiredEnemyDefinition('inferno-ark'),entry=entries.find(e=>e.id===boss.sprite);
+ assert.equal(boss.renderAspect,entry.height/entry.width);
+});
