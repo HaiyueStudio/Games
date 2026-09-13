@@ -2,7 +2,7 @@ import { CIRCUITS, circuitTrack, trackMap } from './RaceRules';
 import { carouselMetrics, carouselOffset } from './CarouselMath';
 import { distanceKm } from './RaceUnits';
 
-/** Three static route/info layers projected over the existing frame skin. The result is a GuiImage texture. */
+/** Static route/info layers projected over the existing frame skin. The result is a GuiImage texture. */
 export class CircuitCarousel {
   texture: GPUTexture;
   private panel: GPUTexture | null = null;
@@ -15,7 +15,7 @@ export class CircuitCarousel {
   private size = '';
   constructor(private readonly device: GPUDevice) {
     this.texture = this.target(1, 1);
-    this.ink = device.createTexture({ label: 'NeonCircuit.carouselLabels', size: [640, 780, 3], format: 'rgba8unorm',
+    this.ink = device.createTexture({ label: 'NeonCircuit.carouselLabels', size: [640, 780, CIRCUITS.length], format: 'rgba8unorm',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
     for (const [index, circuit] of CIRCUITS.entries()) {
       const canvas = new OffscreenCanvas(640, 780), ctx = canvas.getContext('2d')!;
@@ -27,6 +27,11 @@ export class CircuitCarousel {
       const track = circuitTrack(circuit), map = trackMap(track);
       ctx.save(); ctx.translate(44, 140); ctx.scale(1.84, 1.84);
       const path = new Path2D(map.path); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = circuit.color;
+      if (circuit.theme === 'cosmic') {
+        const rainbow = ctx.createLinearGradient(15, 0, 285, 190);
+        ['#ff609c','#ffc963','#72ffb0','#64dfff','#ae82ff'].forEach((color, i) => rainbow.addColorStop(i / 4, color));
+        ctx.strokeStyle = rainbow;
+      }
       ctx.globalAlpha = 0.14; ctx.lineWidth = 13; ctx.stroke(path); ctx.globalAlpha = 1; ctx.lineWidth = 3; ctx.stroke(path);
       ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(map.start[0], map.start[1], 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       text(circuit.subtitle, 46, 534, 20, '#91a9c3'); text(circuit.name, 46, 593, 43, '#edf8ff', true);
@@ -36,10 +41,10 @@ export class CircuitCarousel {
       const bitmap = canvas.transferToImageBitmap();
       device.queue.copyExternalImageToTexture({ source: bitmap }, { texture: this.ink, origin: [0, 0, index] }, [640, 780]); bitmap.close();
     }
-    this.uniform = device.createBuffer({ size: 80, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.uniform = device.createBuffer({ size: 32 + CIRCUITS.length * 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.sampler = device.createSampler({ minFilter: 'linear', magFilter: 'linear' });
     const module = device.createShaderModule({ code: /* wgsl */ `
-      struct State { view: vec4<f32>, shape: vec4<f32>, cards: array<vec4<f32>, 3> }
+      struct State { view: vec4<f32>, shape: vec4<f32>, cards: array<vec4<f32>, ${CIRCUITS.length}> }
       @group(0) @binding(0) var<uniform> state: State;
       @group(0) @binding(1) var frame: texture_2d<f32>;
       @group(0) @binding(2) var ink: texture_2d_array<f32>;
@@ -51,7 +56,7 @@ export class CircuitCarousel {
       }
       @fragment fn fs(o: Out) -> @location(0) vec4<f32> {
         let q = (o.uv - 0.5) * state.view.xy; var rgb = vec3<f32>(0); var alpha = 0.0;
-        for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < ${CIRCUITS.length}; i++) {
           let card = state.cards[i]; let d = card.x; let yaw = -d * 0.62;
           let depth = abs(d) * state.view.z * 0.65;
           let localX = (q.x * (1.0 + depth / state.shape.y) - d * state.shape.x) / (cos(yaw) + q.x * sin(yaw) / state.shape.y);
@@ -90,10 +95,10 @@ export class CircuitCarousel {
     const ratio = Math.min(2, 1800 / width), w = Math.max(1, Math.round(width * ratio)), h = Math.max(1, Math.round(height * ratio));
     const size = `${w},${h}`;
     if (size !== this.size) { this.texture.destroy(); this.texture = this.target(w,h); this.size = size; }
-    const m = carouselMetrics(width, height), values = new Float32Array(20);
+    const m = carouselMetrics(width, height), values = new Float32Array(8 + CIRCUITS.length * 4);
     values.set([width,height,m.cardWidth,m.cardHeight,m.spacing,m.focal,0,0]);
-    const order = [0,1,2].sort((a,b) => Math.abs(carouselOffset(b,position)) - Math.abs(carouselOffset(a,position)));
-    order.forEach((index,i) => values.set([carouselOffset(index,position),index,0,0],8+i*4));
+    const order = CIRCUITS.map((_, index) => index).sort((a,b) => Math.abs(carouselOffset(b,position,CIRCUITS.length)) - Math.abs(carouselOffset(a,position,CIRCUITS.length)));
+    order.forEach((index,i) => values.set([carouselOffset(index,position,CIRCUITS.length),index,0,0],8+i*4));
     this.device.queue.writeBuffer(this.uniform,0,values);
     const encoder = this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{
       view: this.texture.createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,0] }] });

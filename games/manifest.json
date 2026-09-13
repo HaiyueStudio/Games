@@ -192,7 +192,13 @@
         "neon-circuit/assets/gui-button.png",
         "neon-circuit/assets/gui-panel.png",
         "neon-circuit/assets/gui-dial.png",
-        "neon-circuit/assets/gui-title.png"
+        "neon-circuit/assets/gui-title.png",
+        "neon-circuit/assets/space-panorama.png",
+        "neon-circuit/assets/planet-azure.png",
+        "neon-circuit/assets/planet-amber.png",
+        "neon-circuit/assets/planet-violet.png",
+        "neon-circuit/assets/meteor-streak.png",
+        "neon-circuit/assets/gui-timing.png"
       ],
       "screenshot": {
         "required": false,

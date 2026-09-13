@@ -1,0 +1,30 @@
+{
+  "generator": "Built-in image_gen",
+  "assets": [
+    {
+      "name": "space-panorama",
+      "prompt": "Use case: stylized-concept. Asset type: 360 degree equirectangular outer space sky texture for a WebGPU futuristic racing game, 2:1 panorama. Deep midnight indigo and black cosmic void with fine distant stars, a flowing violet and cyan nebula band, distant galaxies and restrained luminous dust. No planets, no ground, no race track, no horizon line, no words or logos. Panoramic left and right edges visually seamless, reduced detail at poles, subdued contrast so a luminous foreground rainbow raceway remains readable. High quality cinematic astronomy-inspired painted realism, wide 2:1 image.",
+      "source": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee/exec-f61bd44c-2552-42ac-b33a-b064a87249f6.png"
+    },
+    {
+      "name": "planet-azure",
+      "prompt": "Use case: stylized-concept. Asset type: isolated transparent game sprite. One complete majestic blue turquoise gas giant with broad luminous icy rings tilted 25 degrees. Beautiful atmosphere rim, subtle swirling clouds, shaded lower right hemisphere and illuminated upper left. Entire planet and elliptical rings inside image with 12 percent padding, centered, no cropping. True transparent background alpha, no stars or backdrop, no text. Cinematic detailed 3D science fiction render suitable for a colorful outer space racing game.",
+      "source": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee/exec-ea905b4e-1a60-4914-9677-4eae5ee9d5ce.png"
+    },
+    {
+      "name": "planet-amber",
+      "prompt": "Use case: stylized-concept. Asset type: isolated transparent game sprite. One complete amber gold gas giant, striped terracotta clouds and broad complex dusty golden rings tilted minus 35 degrees. Strong sense of sphere depth with warm sunlit upper right, darker lower left and gentle atmospheric rim. Entire rings and planet centered with 12 percent transparent margin. True transparent background, no stars, no backdrop, no words or logos. High detail cinematic 3D science fiction render for an outer space racing game. Distinct from a blue planet.",
+      "source": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee/exec-b8268164-b5a0-4674-8397-bac0e3c28ac0.png"
+    },
+    {
+      "name": "planet-violet",
+      "prompt": "Use case: stylized-concept. Asset type: isolated transparent game sprite. One complete violet and lavender ice giant with delicate bright double rings at a dramatic near vertical 65 degree tilt, cyan atmospheric halo and pale lavender storm bands. Whole sphere and rings fit centered within canvas with 12 percent padding. Beautiful dramatic side lighting preserving sphere detail. True transparent alpha background, no stars, no scene, no text. Polished cinematic 3D game asset for a fantastical cosmic racing environment.",
+      "source": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee/exec-b4d93b25-fe83-441e-82ed-597de00e18d8.png"
+    },
+    {
+      "name": "meteor-streak",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent VFX sprite for additive compositing. Horizontal shooting star traveling RIGHT: compact bright white cyan meteor head at 80 percent of image width, long elegant tapered cyan violet glowing tail trailing LEFT, a few restrained tiny fragments following the tail. Whole streak centered vertically with spacious transparent padding, shape fits entire image, no background, no starfield, no text. True transparent alpha background, wide 3:1 composition, premium cinematic particle texture.",
+      "source": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee/exec-d20b3fa0-6fa0-4f2c-8ff8-9fb7b5003598.png"
+    }
+  ]
+}

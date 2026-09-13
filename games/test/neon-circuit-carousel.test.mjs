@@ -2,26 +2,29 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { carouselOffset, projectCard, cardUv, hitCarousel, swipeStep, carouselRelease, carouselMetrics } from '../neon-circuit/CarouselMath.ts';
 
-test('carousel wraps all three courses in either direction without a long rotation', () => {
-  assert.equal(carouselOffset(0,2),1); assert.equal(carouselOffset(2,0),-1);
-  assert.equal(carouselOffset(0,3),0); assert.equal(carouselOffset(2,-1),0);
-  for (let position=-9;position<9;position+=0.07) for(let i=0;i<3;i++) assert.ok(Math.abs(carouselOffset(i,position))<=1.5);
+test('carousel wraps three or four courses without losing the unwrapped rotation', () => {
+  for (const count of [3,4]) {
+    assert.equal(carouselOffset(0,count-1,count),1); assert.equal(carouselOffset(count-1,0,count),-1);
+    assert.equal(carouselOffset(0,count,count),0); assert.equal(carouselOffset(count-1,-1,count),0);
+    for (let position=-12;position<12;position+=0.07) for(let i=0;i<count;i++) assert.ok(Math.abs(carouselOffset(i,position,count))<=count/2);
+  }
 });
 test('perspective projection and pointer inverse agree across responsive layouts and transitions', () => {
-  for(const [width,height] of [[1080,380],[358,420],[805,186]]) for(const position of [0,0.3,1,1.9,2.6]) {
-    for(let i=0;i<3;i++) for(const [u,v] of [[0.15,0.2],[0.5,0.5],[0.85,0.8]]) {
-      const p=projectCard(i,position,width,height,u,v), uv=cardUv(i,position,width,height,p.x,p.y);
+  for(const count of [3,4]) for(const [width,height] of [[1080,380],[358,420],[805,186]]) for(const position of [0,0.3,1,1.9,2.6,3.8]) {
+    for(let i=0;i<count;i++) for(const [u,v] of [[0.15,0.2],[0.5,0.5],[0.85,0.8]]) {
+      const p=projectCard(i,position,width,height,u,v,count), uv=cardUv(i,position,width,height,p.x,p.y,count);
       assert.ok(Math.abs(uv.u-u)<1e-9 && Math.abs(uv.v-v)<1e-9);
     }
   }
 });
-test('front card wins hit testing while both side cards retain visible clickable areas', () => {
-  for(const [width,height] of [[1080,380],[358,420],[805,186]]) for(let position=0;position<3;position++) {
-    assert.equal(hitCarousel(position,width,height,width/2,height/2),position);
+test('front card wins, side cards remain clickable and the hidden fourth card never intercepts input', () => {
+  for(const count of [3,4]) for(const [width,height] of [[1080,380],[358,420],[805,186]]) for(let position=0;position<count;position++) {
+    assert.equal(hitCarousel(position,width,height,width/2,height/2,count),position);
     const visible=new Set();
-    for(let y=0;y<height;y+=5) for(let x=0;x<width;x+=5) visible.add(hitCarousel(position,width,height,x,y));
-    for(let i=0;i<3;i++) assert.ok(visible.has(i));
-    assert.equal(hitCarousel(position,width,height,-1,height/2),-1);
+    for(let y=0;y<height;y+=5) for(let x=0;x<width;x+=5) visible.add(hitCarousel(position,width,height,x,y,count));
+    for(const delta of [-1,0,1]) assert.ok(visible.has((position+delta+count)%count));
+    if(count===4) assert.ok(!visible.has((position+2)%count));
+    assert.equal(hitCarousel(position,width,height,-1,height/2,count),-1);
   }
 });
 test('swipes ignore tap jitter and vertical movement but accept short horizontal drags', () => {

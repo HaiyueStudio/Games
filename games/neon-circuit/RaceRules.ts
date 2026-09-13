@@ -52,13 +52,15 @@ export interface RacePose extends TrackControlPoint {
 }
 
 export const TOTAL_LAPS = 3;
+export const TRACK_SCALE = 1.8;
+export const BOOST_DECELERATION = 200;
 export const ROAD_HALF_WIDTH = 92;
 export const RAIL_LIMIT = ROAD_HALF_WIDTH - 10;
 export const MAX_HEALTH = 100;
 export const BURN_HEALTH = 30;
 export const BOOST_PAD_HALF_WIDTH = 16;
-export const CRUISE_MAX_SPEED = 650;
-export const BOOST_MAX_SPEED = 920;
+export const CRUISE_MAX_SPEED = 1000;
+export const BOOST_MAX_SPEED = 1450;
 export const BOOST_DURATION_SECONDS = 1.8;
 export const BOOST_ZONES = Object.freeze([0.08, 0.275, 0.47, 0.675, 0.865] as const);
 export const BOOST_ZONE_HALF_LENGTH = 0.0065;
@@ -160,6 +162,10 @@ export function stepRace(track: RaceTrack, state: RaceState, controls: RaceContr
   return { state, events };
 }
 
+export function steeringYawRate(speed: number): number {
+  return 0.62 + Math.min(1, Math.max(0, speed) / (CRUISE_MAX_SPEED * 0.77)) * 0.34;
+}
+
 function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControls, dt: number): RaceStepResult {
   const throttle = clamp01(controls.throttle);
   const brake = clamp01(controls.brake);
@@ -171,14 +177,14 @@ function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControl
   // A lower thrust ceiling never discards existing momentum. Boost expiry and
   // steering scrub speed off over time; the HUD reads this actual simulation speed.
   let speed = state.speed > speedLimit
-    ? Math.max(speedLimit, state.speed - (120 + turning * 90 + brake * 680 + (throttle > 0 ? 0 : 74)) * dt)
-    : clamp(state.speed + (throttle * 410 - brake * 680 - (throttle > 0 ? 18 : 74)
-      - turning * state.speed * 0.065 + (boostRemaining > 0 ? 520 : 0)) * dt, 0, speedLimit);
+    ? Math.max(speedLimit, state.speed - (BOOST_DECELERATION + turning * 135 + brake * 1000 + (throttle > 0 ? 0 : 110)) * dt)
+    : clamp(state.speed + (throttle * 600 - brake * 1000 - (throttle > 0 ? 27 : 110)
+      - turning * state.speed * 0.065 + (boostRemaining > 0 ? 780 : 0)) * dt, 0, speedLimit);
 
   // Track coordinates locate the road; they do not steer the ship. Preserve its
   // world heading as the road tangent changes underneath it, including at the seam.
   const center = sampleTrack(track, state.distance);
-  let headingOffset = state.headingOffset + steer * (0.72 + Math.min(1, speed / 500) * 0.42) * dt;
+  let headingOffset = state.headingOffset + steer * steeringYawRate(speed) * dt;
   const advance = speed * Math.max(0.12, Math.cos(headingOffset)) * dt;
   let distance = state.distance + advance;
   headingOffset = clamp(headingOffset - angleDelta(center.heading, sampleTrack(track, distance).heading), -1.35, 1.35);
@@ -234,7 +240,7 @@ function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControl
   const zone = boostZoneAt(distance / track.length, lateral);
   if (!destroyed && !finished && collisionCooldown === 0 && zone >= 0 && zone !== state.activeBoostZone) {
     boostRemaining = BOOST_DURATION_SECONDS;
-    speed = Math.max(speed, 590);
+    speed = Math.max(speed, CRUISE_MAX_SPEED * 0.9);
     events.push('boost');
   }
   return { state: { distance, speed, lateral, lateralSpeed, lap, elapsed: state.elapsed + dt,
@@ -353,6 +359,7 @@ export interface Circuit {
   readonly difficulty: string;
   readonly description: string;
   readonly color: string;
+  readonly theme: 'harbor' | 'neon' | 'reactor' | 'cosmic';
   readonly seed: number;
   readonly points: readonly TrackControlPoint[];
 }
@@ -361,19 +368,27 @@ const points = (values: readonly (readonly [number, number, number])[]): readonl
   values.map(([x, y, z]) => ({ x, y, z }));
 
 export const CIRCUITS: readonly Circuit[] = [
-  { id: 'neon-city', name: '霓虹都市', subtitle: 'NEON METROPOLIS', difficulty: '进阶 · 起伏长环',
-    description: '穿行摩天楼群，征服高架连续弯与大落差坡道。', color: '#55eaff', seed: 0x91e10da5, points: TRACK_CONTROL_POINTS },
   { id: 'sky-harbor', name: '云端港湾', subtitle: 'SKY HARBOR', difficulty: '入门 · 高速宽弯',
-    description: '沿空港外环加速，在开阔长弯中掌握转向与刹车。', color: '#ffbf69', seed: 0x2fa192,
+    description: '沿空港外环加速，在开阔长弯中掌握转向与刹车。', color: '#ffbf69', theme: 'harbor', seed: 0x2fa192,
     points: points([[0,180,-2800],[1000,200,-2750],[2100,260,-2250],[2850,340,-1300],
       [3050,400,-100],[2800,420,1100],[1900,360,2100],[650,260,2600],[-650,200,2600],
       [-1900,230,2150],[-2800,310,1200],[-3050,400,0],[-2800,370,-1250],[-1900,280,-2300],[-900,200,-2750]]) },
+  { id: 'neon-city', name: '霓虹都市', subtitle: 'NEON METROPOLIS', difficulty: '进阶 · 起伏长环',
+    description: '穿行摩天楼群，征服高架连续弯与大落差坡道。', color: '#55eaff', theme: 'neon', seed: 0x91e10da5, points: TRACK_CONTROL_POINTS },
   { id: 'reactor-run', name: '反应堆回廊', subtitle: 'REACTOR RUN', difficulty: '专家 · 连续 S 弯',
-    description: '深入能源核心，在折返弯和连续变向中守住车身。', color: '#d893ff', seed: 0x871a20,
+    description: '深入能源核心，在折返弯和连续变向中守住车身。', color: '#d893ff', theme: 'reactor', seed: 0x871a20,
     points: points([[0,110,-2800],[1050,140,-2780],[2400,230,-2300],[2800,350,-1300],
       [2500,400,-350],[1600,310,100],[1400,220,850],[2350,180,1550],[2200,300,2400],
       [1000,400,2750],[-200,330,2450],[-750,230,1500],[-1450,150,1450],[-2050,180,2450],
       [-2950,300,2050],[-3100,380,900],[-2350,310,0],[-2900,220,-1000],[-2400,140,-2250],[-1100,100,-2800]]) },
+  { id: 'rainbow-road', name: '彩虹之路', subtitle: 'RAINBOW ROAD', difficulty: '终极 · 星海立交',
+    description: '穿越光环与流星雨，在交错的彩虹天路上攀升俯冲。', color: '#ffa7e7', theme: 'cosmic', seed: 0x5241494e,
+    // A suspended figure eight: the two crossings are 1,700 units apart vertically.
+    // Smooth climbs and banked bends preserve the car's continuous contact frame.
+    points: Array.from({ length: 36 }, (_, i) => {
+      const angle = i / 36 * Math.PI * 2;
+      return { x: 3600 * Math.sin(angle), y: 1250 + 850 * Math.cos(angle) + 180 * Math.sin(angle * 2), z: 2800 * Math.sin(angle * 2) };
+    }) },
 ];
 
 export function circuitById(id: string | null): Circuit {
@@ -391,4 +406,7 @@ export function trackMap(track: RaceTrack): { path: string; start: readonly [num
   return { path: mapped.map(([x, y], index) => `${index ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ') + ' Z', start: mapped[0]! };
 }
 
-export function circuitTrack(circuit: Circuit): RaceTrack { return createRaceTrack(520, circuit.points); }
+export function circuitTrack(circuit: Circuit): RaceTrack {
+  // Enlarge the route, not the ship/road width. Keep the original mesh sampling density.
+  return createRaceTrack(Math.ceil(520 * TRACK_SCALE), circuit.points.map(p => ({ x: p.x * TRACK_SCALE, y: p.y * TRACK_SCALE, z: p.z * TRACK_SCALE })));
+}

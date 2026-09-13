@@ -4,10 +4,10 @@ export const FIRE_HEALTH = 30;
 /** Rear exhaust face centers in model units, scaled by 0.078 and rebased around Y=60. */
 export const EXHAUST_SOCKETS = [[-6.32, 0.55, -19.45], [6.32, 0.55, -19.45]] as const;
 
-export function propulsionEnvelope(speed: number, throttle: boolean, racing: boolean, boost: number, destroyed: boolean): number {
+export function propulsionEnvelope(speed: number, throttle: boolean, racing: boolean, boost: number, destroyed: boolean, maximumSpeed: number): number {
   if (destroyed) return 0;
   if (!racing || !throttle) return 1.35;
-  return 8 + Math.min(1, Math.max(0, speed) / 920) * 13 + Math.min(1, Math.max(0, boost)) * 5;
+  return 8 + Math.min(1, Math.max(0, speed) / maximumSpeed) * 13 + Math.min(1, Math.max(0, boost)) * 5;
 }
 
 export function damageEnvelope(health: number): { smokeRate: number; smokeOpacity: number; fire: number } {
@@ -19,9 +19,16 @@ export function damageEnvelope(health: number): { smokeRate: number; smokeOpacit
   };
 }
 
-export function speedFov(speed: number): number {
-  const ratio = Math.min(1, Math.max(0, speed) / 920);
+export function speedFov(speed: number, maximumSpeed: number): number {
+  const ratio = Math.min(1, Math.max(0, speed) / maximumSpeed);
   return 0.96 - (ratio * ratio * (3 - 2 * ratio)) * 0.34;
+}
+
+/** Raise the sightline as the lens narrows, and follow the road's uphill/downhill tangent. */
+export function speedCameraPhi(speed: number, roadPitch: number, maximumSpeed: number): number {
+  const ratio = Math.min(1, Math.max(0, speed) / maximumSpeed);
+  const lift = ratio * ratio * (3 - 2 * ratio) * 0.22;
+  return Math.max(0.65, Math.min(1.95, 1.18 + lift + roadPitch));
 }
 
 /** Match the engine's Y * X * Z Euler order, including bank and pitch. */

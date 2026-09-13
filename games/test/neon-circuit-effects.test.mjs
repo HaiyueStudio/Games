@@ -1,14 +1,15 @@
+import { BOOST_MAX_SPEED, CRUISE_MAX_SPEED } from '../neon-circuit/RaceRules.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EXHAUST_SOCKETS, healthRingColor, damageEnvelope, propulsionEnvelope, rotateBodyPoint, speedFov } from '../neon-circuit/RacerEffects.ts';
+import { EXHAUST_SOCKETS, healthRingColor, damageEnvelope, propulsionEnvelope, rotateBodyPoint, speedFov, speedCameraPhi } from '../neon-circuit/RacerEffects.ts';
 
 test('idle and coasting jets stay short even at boost speed; throttle controls sustained thrust', () => {
-  for (const speed of [0, 400, 920]) {
-    assert.equal(propulsionEnvelope(speed, false, true, 1, false), 1.35);
-    assert.equal(propulsionEnvelope(speed, true, false, 1, false), 1.35);
+  for (const speed of [0, CRUISE_MAX_SPEED, BOOST_MAX_SPEED]) {
+    assert.equal(propulsionEnvelope(speed, false, true, 1, false, BOOST_MAX_SPEED), 1.35);
+    assert.equal(propulsionEnvelope(speed, true, false, 1, false, BOOST_MAX_SPEED), 1.35);
   }
-  assert.ok(propulsionEnvelope(650, true, true, 0, false) > 15);
-  assert.equal(propulsionEnvelope(650, true, true, 0, true), 0);
+  assert.ok(propulsionEnvelope(CRUISE_MAX_SPEED, true, true, 0, false, BOOST_MAX_SPEED) > 15);
+  assert.equal(propulsionEnvelope(CRUISE_MAX_SPEED, true, true, 0, true, BOOST_MAX_SPEED), 0);
 });
 
 test('half hull emits light smoke and critical hull adds restrained fire and denser smoke', () => {
@@ -32,14 +33,14 @@ test('exhaust sockets follow bank and pitch, preserve separation, and rotate wit
 });
 
 test('FOV narrows gradually with speed and stays bounded at extreme inputs', () => {
-  assert.ok(speedFov(0) > speedFov(300));
-  assert.ok(speedFov(300) > speedFov(650));
-  assert.ok(speedFov(650) > speedFov(920));
-  assert.equal(speedFov(-20), speedFov(0));
-  assert.equal(speedFov(5000), speedFov(920));
-  assert.ok(speedFov(920) >= 0.6);
-  assert.ok(speedFov(0) - speedFov(650) > 0.25);
-  assert.ok(speedFov(920) < 0.65);
+  assert.ok(speedFov(0, BOOST_MAX_SPEED) > speedFov(300, BOOST_MAX_SPEED));
+  assert.ok(speedFov(300, BOOST_MAX_SPEED) > speedFov(CRUISE_MAX_SPEED, BOOST_MAX_SPEED));
+  assert.ok(speedFov(CRUISE_MAX_SPEED, BOOST_MAX_SPEED) > speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED));
+  assert.equal(speedFov(-20, BOOST_MAX_SPEED), speedFov(0, BOOST_MAX_SPEED));
+  assert.equal(speedFov(5000, BOOST_MAX_SPEED), speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED));
+  assert.ok(speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED) >= 0.6);
+  assert.ok(speedFov(0, BOOST_MAX_SPEED) - speedFov(CRUISE_MAX_SPEED, BOOST_MAX_SPEED) > 0.25);
+  assert.ok(speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED) < 0.65);
 });
 
 
@@ -60,7 +61,25 @@ test('speedometer units match distance travelled and course distance units', asy
   }
   assert.equal(formatSpeed(650),'234');
   assert.equal(formatSpeed(920),'331');
+  assert.equal(formatSpeed(CRUISE_MAX_SPEED),'360');
+  assert.equal(formatSpeed(BOOST_MAX_SPEED),'522');
   assert.equal(formatSpeed(0),'000');
   assert.equal(formatSpeed(-1),'000');
   assert.equal(distanceKm(20000),2);
+});
+
+
+test('narrower high-speed lens gains a forward sightline and follows the road slope', () => {
+  for (const slope of [-0.3, 0, 0.3]) {
+    let previous = speedCameraPhi(0, slope, BOOST_MAX_SPEED);
+    for (let speed = 20; speed <= BOOST_MAX_SPEED; speed += 20) {
+      const phi = speedCameraPhi(speed, slope, BOOST_MAX_SPEED);
+      assert.ok(phi > previous); previous = phi;
+    }
+    assert.ok(speedCameraPhi(BOOST_MAX_SPEED, slope, BOOST_MAX_SPEED) - speedCameraPhi(0, slope, BOOST_MAX_SPEED) > 0.2);
+  }
+  assert.ok(speedCameraPhi(CRUISE_MAX_SPEED, 0.3, BOOST_MAX_SPEED) > speedCameraPhi(CRUISE_MAX_SPEED, 0, BOOST_MAX_SPEED));
+  assert.ok(speedCameraPhi(CRUISE_MAX_SPEED, -0.3, BOOST_MAX_SPEED) < speedCameraPhi(CRUISE_MAX_SPEED, 0, BOOST_MAX_SPEED));
+  assert.equal(speedCameraPhi(-100, 0, BOOST_MAX_SPEED), speedCameraPhi(0, 0, BOOST_MAX_SPEED));
+  assert.equal(speedCameraPhi(2000, 0, BOOST_MAX_SPEED), speedCameraPhi(BOOST_MAX_SPEED, 0, BOOST_MAX_SPEED));
 });

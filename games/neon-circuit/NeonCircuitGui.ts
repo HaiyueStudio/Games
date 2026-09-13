@@ -72,7 +72,7 @@ export class NeonCircuitGui {
   private readonly countdownImage: GuiImage;
   private readonly countdownFrames = new Map<string, ImageBitmap>();
   private readonly dial: HudDialTexture;
-  private readonly skins: { image: GuiImage; kind: 'button' | 'panel' | 'dial' | 'title' }[] = [];
+  private readonly skins: { image: GuiImage; kind: 'button' | 'panel' | 'dial' | 'title' | 'timing' }[] = [];
   private readonly courseHeader: GuiElement;
   private readonly speedPanel: GuiElement;
   private readonly stats: GuiElement;
@@ -124,19 +124,19 @@ export class NeonCircuitGui {
     for (const [i, circuit] of CIRCUITS.entries()) {
       const card = this.carouselStage.add(new GuiButton({ id: `track-${circuit.id}`, text: '',
         onClick: () => { if (!this.suppressCardClick) this.select(circuit.id, true,
-          Math.round(this.carouselPosition + carouselOffset(i, this.carouselPosition))); },
+          Math.round(this.carouselPosition + carouselOffset(i, this.carouselPosition, CIRCUITS.length))); },
         onPointerDown: e => this.beginSwipe(e), onPointerMove: e => this.moveSwipe(e), onPointerUp: e => this.endSwipe(e),
         style: { backgroundColor: '#00000000', hoverBackgroundColor: '#00000000', borderColor: '#00000000', radius: 0 } }));
       this.buttons.set(card.id, card); this.cards.push(card);
       card.layout = p => {
-        const corners = [[0,0],[1,0],[1,1],[0,1]].map(([u,v]) => projectCard(i,this.carouselPosition,p.width,p.height,u!,v!));
+        const corners = [[0,0],[1,0],[1,1],[0,1]].map(([u,v]) => projectCard(i,this.carouselPosition,p.width,p.height,u!,v!,CIRCUITS.length));
         const left = Math.min(p.width,Math.max(0, Math.min(...corners.map(v => v.x)))), top = Math.min(p.height,Math.max(0, Math.min(...corners.map(v => v.y))));
         const right = Math.max(0,Math.min(p.width, Math.max(...corners.map(v => v.x)))), bottom = Math.max(0,Math.min(p.height, Math.max(...corners.map(v => v.y))));
         place(card,{ x:p.x+left,y:p.y+top,width:Math.max(0,right-left),height:Math.max(0,bottom-top) });
       };
       card.hitTest = (x,y) => {
         const p = this.carouselStage.rect;
-        return this.home.visible && hitCarousel(this.carouselPosition,p.width,p.height,x-p.x,y-p.y) === i ? card : null;
+        return this.home.visible && hitCarousel(this.carouselPosition,p.width,p.height,x-p.x,y-p.y,CIRCUITS.length) === i ? card : null;
       };
     }
     for (const [id, text, step] of [['previous-course','←',-1],['next-course','→',1]] as const) {
@@ -160,25 +160,31 @@ export class NeonCircuitGui {
         : edge === 2 ? [0, 0, 10, p.height] : [p.width - 10, 0, 10, p.height]);
     }
     const brand = this.courseHeader = this.hud.add(new GuiElement({ id: 'course-title', disabled: true }));
-    box(brand, p => { const width = Math.min(460, p.width < 760 ? p.width - 152 : p.width - 2 * (p.height < 550 ? 190 : 248));
-      return [(p.width - width) / 2, 12, width, p.width < 760 ? 50 : 78]; });
+    box(brand, p => {
+      const width = p.width < 760 ? p.width - 32 : Math.min(460, p.width - 2 * (p.width >= 1100 ? 424 : p.height < 550 ? 190 : 248));
+      return [(p.width - width) / 2, p.width < 1100 ? 68 : 12, width, p.width < 1100 ? 50 : 78];
+    });
     this.skin(brand, 'title');
     const course = label(brand, CIRCUITS.find(c => c.id === circuitId)!.name, 21, WHITE, 'center');
     box(course, p => { course.setFontSize(p.width < 300 ? 18 : 24); return [12, (p.height - 28) / 2, p.width - 24, 28]; });
-    const stats = this.stats = this.hud.add(new GuiElement({ disabled: true, style: { backgroundColor: '#071426b0', radius: 3 } }));
-    box(stats, p => { const width = p.width < 760 ? Math.min(190, p.width - 176) : 290; return [p.width - width - 16, p.width < 760 ? 88 : 86, width, 64]; });
+    const stats = this.stats = this.hud.add(new GuiElement({ id: 'race-timing', disabled: true }));
+    box(stats, p => {
+      const width = p.width < 760 ? p.width - 96 : 290;
+      return [p.width - (p.width < 760 ? 72 : 110) - 12 - width, 16, width, 44];
+    });
+    this.skin(stats, 'timing');
     const stat = (name: string, index: number) => {
-      const caption = label(stats, name, 10, MUTED, 'center');
-      box(caption, p => { caption.setVisible(index < 2 || p.width > 200); const w = p.width / (p.width < 200 ? 2 : 3); return [index * w, 10, w, 18]; });
-      const value = label(stats, '', 17, WHITE, 'center');
-      box(value, p => { value.setVisible(index < 2 || p.width > 200); value.setFontSize(p.width < 200 ? 12 : 17); const w = p.width / (p.width < 200 ? 2 : 3); return [index * w, 31, w, 26]; });
+      const caption = label(stats, name, 9, MUTED, 'center');
+      box(caption, p => { caption.setFontSize(p.width < 260 ? 8 : 9); return [index * p.width / 3, 5, p.width / 3, 12]; });
+      const value = label(stats, '', 15, WHITE, 'center');
+      box(value, p => { value.setFontSize(p.width < 260 ? 10 : 14); return [index * p.width / 3, 18, p.width / 3, 21]; });
       return value;
     };
     this.lap = stat('LAP', 0); this.time = stat('TIME', 1); this.best = stat('BEST', 2);
     const pause = this.hud.add(this.button('pause', '暂停', () => this.actions.pause()));
     box(pause, p => [p.width - (p.width < 760 ? 72 : 110), 16, p.width < 760 ? 56 : 94, 44]);
     const speedPanel = this.speedPanel = this.hud.add(new GuiElement({ id: 'speed-hull-dial', disabled: true }));
-    box(speedPanel, p => { const size = p.width < 760 ? 144 : p.height < 550 ? 174 : 232; return [8, p.width < 760 ? 68 : 8, size, size]; });
+    box(speedPanel, p => { const size = p.width < 760 ? 144 : p.height < 550 ? 174 : 232; return [8, p.width < 760 ? 126 : 8, size, size]; });
     const dialFace = speedPanel.add(new GuiElement({ disabled: true }));
     box(dialFace, p => [p.width * 0.06, p.height * 0.06, p.width * 0.88, p.height * 0.88]);
     this.skin(dialFace, 'dial');
@@ -239,7 +245,7 @@ export class NeonCircuitGui {
   private mobile(rect: GuiRect): boolean { return rect.width < 760 || this.coarsePointer; }
   private shiftCourse(step: number): void {
     const index = CIRCUITS.findIndex(c => c.id === this.selected);
-    this.select(CIRCUITS[(index + step + 3) % 3]!.id);
+    this.select(CIRCUITS[(index + step + CIRCUITS.length) % CIRCUITS.length]!.id);
   }
   private beginSwipe(event: GuiPointerEvent): void {
     if (this.current?.phase !== 'home' || this.gesture || event.button !== 0) return;
@@ -271,7 +277,7 @@ export class NeonCircuitGui {
     const target = carouselRelease(g.position, g.dx, g.dy, rect.width, rect.height, velocity);
     if (target !== null) {
       this.suppressCardClick = true;
-      this.select(CIRCUITS[((target % 3) + 3) % 3]!.id, true, target);
+      this.select(CIRCUITS[((target % CIRCUITS.length) + CIRCUITS.length) % CIRCUITS.length]!.id, true, target);
     }
   }
   cancelCarouselPointer(pointer?: number): void {
@@ -312,9 +318,9 @@ export class NeonCircuitGui {
       hoverBackgroundColor: '#00000000', borderColor: '#00000000', color: WHITE, radius: 0 } });
     this.buttons.set(id, button); this.skin(button, 'button'); return button;
   }
-  private skin(parent: GuiElement, kind: 'button' | 'panel' | 'dial' | 'title'): void {
+  private skin(parent: GuiElement, kind: 'button' | 'panel' | 'dial' | 'title' | 'timing'): void {
     const image = parent.add(new GuiImage({ width: '100%', height: '100%', disabled: true,
-      uv: kind === 'button' ? [0, 0.1, 1, 0.8] : kind === 'title' ? [0, 0.30, 1, 0.36] : [0, 0, 1, 1], tint: '#d4e8f2' }));
+      uv: kind === 'timing' ? [0, 0.31, 1, 0.35] : kind === 'button' ? [0, 0.1, 1, 0.8] : kind === 'title' ? [0, 0.30, 1, 0.36] : [0, 0, 1, 1], tint: '#d4e8f2' }));
     this.skins.push({ image, kind });
     // Keep the native GUI hit target and focus outline around the image skin.
     if (parent instanceof GuiButton) {
@@ -325,16 +331,16 @@ export class NeonCircuitGui {
       parent.on('pointerup', () => image.setTint('#ffffff'));
     }
   }
-  setSkins(button: GPUTexture, panel: GPUTexture, dial: GPUTexture, title: GPUTexture): void {
+  setSkins(button: GPUTexture, panel: GPUTexture, dial: GPUTexture, title: GPUTexture, timing: GPUTexture): void {
     this.carousel.setPanel(panel);
-    const textures = { button, panel, dial, title };
+    const textures = { button, panel, dial, title, timing };
     for (const skin of this.skins) skin.image.setSource(textures[skin.kind]);
   }
   select(id: string, notify = true, destination?: number): void {
     this.selected = id;
     const index = CIRCUITS.findIndex(c => c.id === id);
-    this.carouselTarget = destination ?? this.carouselTarget + carouselOffset(index, this.carouselTarget);
-    this.carouselHint.setText(`0${index + 1} / 03    左右滑动 / A D / ← → 切换赛道`);
+    this.carouselTarget = destination ?? this.carouselTarget + carouselOffset(index, this.carouselTarget, CIRCUITS.length);
+    this.carouselHint.setText(`0${index + 1} / ${String(CIRCUITS.length).padStart(2, '0')}    左右滑动 / A D / ← → 切换赛道`);
     this.start.setText(`开始竞速 · ${CIRCUITS.find(c => c.id === id)!.name} →`);
     if (notify) this.actions.select(id);
   }
@@ -380,7 +386,7 @@ export class NeonCircuitGui {
     const home = this.current?.phase === 'home';
     const index = CIRCUITS.findIndex(c => c.id === this.selected);
     if (home && ['a', 'd', 'arrowleft', 'arrowup', 'arrowright', 'arrowdown'].includes(key)) {
-      this.select(CIRCUITS[(index + (key === 'a' || key === 'arrowleft' || key === 'arrowup' ? 2 : 1)) % 3]!.id);
+      this.select(CIRCUITS[(index + (key === 'a' || key === 'arrowleft' || key === 'arrowup' ? CIRCUITS.length - 1 : 1)) % CIRCUITS.length]!.id);
       this.focusId = 'start-race'; return true;
     }
     if (key === 'tab') {
@@ -417,7 +423,7 @@ export class NeonCircuitGui {
   }
   get snapshot() { return { renderer: 'engine-gui', homeVisible: this.home.visible, selected: this.selected, routeCount: this.cards.length, carouselPosition: this.carouselPosition, carouselTarget: this.carouselTarget, carouselBounds: { ...this.carouselStage.rect },
     skinnedButtonsTransparent: [...this.buttons.values()].every(b => b.style.borderColor === '#00000000' && b.style.backgroundColor === '#00000000'),
-    modalVisible: this.modal.visible, activeButtons: this.activeButtonIds(), courseBounds: { ...this.courseHeader.rect }, dialBounds: { ...this.speedPanel.rect },
+    modalVisible: this.modal.visible, activeButtons: this.activeButtonIds(), courseBounds: { ...this.courseHeader.rect }, timingBounds: { ...this.stats.rect }, dialBounds: { ...this.speedPanel.rect },
     instrumentsVisible: this.courseHeader.visible || this.speedPanel.visible || this.stats.visible,
     displaySpeed: this.speed.text, health: this.current?.health ?? 100, healthColor: healthRingColor(this.current?.health ?? 100), countdownVisible: this.countdownImage.visible, announcement: this.announcement.text, touchVisible: this.touch.visible,
     bounds: this.cards.map(card => ({ ...card.rect })), start: this.buttonRect('start-race'), buttons: Object.fromEntries([...this.buttons].map(([id, button]) => [id, { ...button.rect }])), viewport: { ...this.root.viewport } }; }

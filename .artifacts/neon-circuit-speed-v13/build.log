@@ -1,0 +1,9 @@
+
+> @haiyue/games-repository@0.1.0 build:target
+> node scripts/build-target.mjs game:neon-circuit
+
+
+> rollup game neon-circuit
+
+games/neon-circuit/main.ts → games/neon-circuit/bundle.js...
+created games/neon-circuit/bundle.js in 56.8s

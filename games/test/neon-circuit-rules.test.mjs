@@ -4,6 +4,9 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   BOOST_MAX_SPEED,
+  BOOST_DECELERATION,
+  TRACK_SCALE,
+  steeringYawRate,
   BURN_HEALTH,
   BOOST_PAD_HALF_WIDTH,
   BOOST_ZONES,
@@ -48,7 +51,7 @@ test('hover racer accelerates, steers laterally, brakes, and respects cruise spe
   }
   assert.ok(CRUISE_MAX_SPEED >= 650);
   assert.ok(BOOST_MAX_SPEED >= 900);
-  assert.ok(state.speed > 560 && state.speed <= CRUISE_MAX_SPEED);
+  assert.ok(state.speed > CRUISE_MAX_SPEED * 0.9 && state.speed <= CRUISE_MAX_SPEED);
   assert.ok(state.lateral > 0);
   const braked = stepRace(track, state, { throttle: 0, brake: 1, steer: 0 }, 0.05).state;
   assert.ok(braked.speed < state.speed);
@@ -114,7 +117,7 @@ test('manifest and page expose the racer, controls, timing, boost, and debug hoo
   assert.match(source, /new SingleSlotGameSave<RacerSaveData>/);
   assert.match(source, /window\.__neonCircuit/);
   assert.match(source, /new RaceParticles\(this\.world, smoke, spark\)/);
-  for (const asset of ['smoke-puff.png', 'boost-chevron.png', 'gui-button.png', 'gui-panel.png', 'gui-dial.png', 'gui-title.png']) {
+  for (const asset of ['smoke-puff.png', 'boost-chevron.png', 'gui-button.png', 'gui-panel.png', 'gui-dial.png', 'gui-title.png', 'gui-timing.png', 'space-panorama.png', 'planet-azure.png', 'planet-amber.png', 'planet-violet.png', 'meteor-streak.png']) {
     assert.ok(entry.assets.includes(`neon-circuit/assets/${asset}`));
     const png = await readFile(new URL(`../neon-circuit/assets/${asset}`, import.meta.url));
     assert.equal(png.subarray(1, 4).toString('ascii'), 'PNG');
@@ -137,12 +140,12 @@ test('manifest and page expose the racer, controls, timing, boost, and debug hoo
   assert.match(gui, /new GuiImage/);
   assert.doesNotMatch(html, /<(button|svg|section|header|dl)\b/);
   assert.match(html, /<pre id="result" hidden/);
-  assert.match(html, /neon-circuit-gesture-v11/);
+  assert.match(html, /neon-circuit-speed-v13/);
 });
 
 
-test('all three routes are distinct closed circuits with accurate, bounded thumbnails', () => {
-  assert.equal(CIRCUITS.length, 3);
+test('all four routes are distinct closed circuits with accurate, bounded thumbnails', () => {
+  assert.equal(CIRCUITS.length, 4);
   const maps = CIRCUITS.map(circuit => {
     const track = circuitTrack(circuit);
     assert.ok(track.length > 15_000);
@@ -155,7 +158,7 @@ test('all three routes are distinct closed circuits with accurate, bounded thumb
     }
     return map.path;
   });
-  assert.equal(new Set(maps).size, 3);
+  assert.equal(new Set(maps).size, 4);
 });
 
 test('holding throttle without turning hits walls on every course', () => {
@@ -171,7 +174,7 @@ test('holding throttle without turning hits walls on every course', () => {
   }
 });
 
-test('deliberate steering and braking can complete all three courses without damage', () => {
+test('deliberate steering and braking can complete all four courses without damage', () => {
   for (const circuit of CIRCUITS) {
     const track = circuitTrack(circuit);
     let state = { ...createInitialRaceState(), lateral: -30 };
@@ -179,14 +182,14 @@ test('deliberate steering and braking can complete all three courses without dam
       const here = sampleTrack(track, state.distance);
       const ahead = sampleTrack(track, state.distance + 8);
       const curvature = Math.atan2(Math.sin(ahead.heading - here.heading), Math.cos(ahead.heading - here.heading)) / 8;
-      const yaw = 0.72 + Math.min(1, state.speed / 500) * 0.42;
+      const yaw = steeringYawRate(state.speed);
       const steer = Math.max(-1, Math.min(1, (curvature * state.speed - state.headingOffset * 3 - (state.lateral + 30) * 0.012) / yaw));
       let maxCurvature = Math.abs(curvature);
-      for (let look = 40; look <= 500; look += 40) {
+      for (let look = 40; look <= 800; look += 40) {
         const a = sampleTrack(track, state.distance + look), b = sampleTrack(track, state.distance + look + 8);
         maxCurvature = Math.max(maxCurvature, Math.abs(Math.atan2(Math.sin(b.heading - a.heading), Math.cos(b.heading - a.heading))) / 8);
       }
-      const targetSpeed = Math.min(490, 0.68 / Math.max(0.0001, maxCurvature));
+      const targetSpeed = Math.min(CRUISE_MAX_SPEED * 0.75, 0.58 / Math.max(0.0001, maxCurvature));
       state = stepRace(track, state, { throttle: state.speed < targetSpeed ? 1 : 0, brake: state.speed > targetSpeed + 10 ? 1 : 0, steer }, 1 / 60).state;
     }
     assert.equal(state.finished, true, circuit.id);
@@ -238,12 +241,12 @@ test('boost expiration preserves momentum and smoothly returns to cruise even wi
   const first = stepRace(straightTrack, state, { throttle: 1, brake: 0, steer: 0 }, 1 / 60).state;
   assert.equal(first.boostRemaining, 0);
   assert.ok(first.speed > CRUISE_MAX_SPEED + 200);
-  assert.ok(state.speed - first.speed <= 2.01, 'expiration cannot truncate speed in one frame');
+  assert.ok(state.speed - first.speed <= BOOST_DECELERATION / 60 + 0.001, 'expiration cannot truncate speed in one frame');
   state = first;
   for (let i = 0; i < 180; i++) {
     const next = stepRace(straightTrack, state, { throttle: 1, brake: 0, steer: 0 }, 1 / 60).state;
     assert.ok(next.speed <= state.speed && next.speed >= CRUISE_MAX_SPEED);
-    assert.ok(state.speed - next.speed <= 2.01);
+    assert.ok(state.speed - next.speed <= BOOST_DECELERATION / 60 + 0.001);
     state = next;
   }
   assert.equal(state.speed, CRUISE_MAX_SPEED);
@@ -262,4 +265,54 @@ test('steering scrubs a small symmetric amount of speed without a discontinuous 
   assert.ok(left.speed > initial.speed * 0.96);
   const recovered = stepRace(straightTrack, left, { throttle: 1, brake: 0, steer: 0 }, 0.05).state;
   assert.ok(recovered.speed > left.speed);
+});
+
+
+test('beginner course comes first and Rainbow Road has a separated elevated crossing', () => {
+  assert.deepEqual(CIRCUITS.map(c => c.id), ['sky-harbor', 'neon-city', 'reactor-run', 'rainbow-road']);
+  assert.equal(new Set(CIRCUITS.map(c => c.theme)).size, 4);
+  const track = circuitTrack(CIRCUITS[3]);
+  const ys = track.samples.map(p => p.y);
+  assert.ok(Math.max(...ys) - Math.min(...ys) > 1700);
+  let crossings = 0;
+  for (let a = 0; a < track.samples.length; a++) for (let b = a + 1; b < track.samples.length; b++) {
+    const p = track.samples[a], q = track.samples[b];
+    if (Math.min(q.distance - p.distance, track.length - (q.distance - p.distance)) < 600) continue;
+    if (Math.hypot(p.x - q.x, p.z - q.z) < 184) {
+      crossings++;
+      assert.ok(Math.abs(p.y - q.y) > 1000, 'the road must pass safely above its other branch');
+    }
+  }
+  assert.ok(crossings > 0);
+  assert.ok(track.samples.every(p => Math.abs(p.pitch) < 0.65));
+});
+
+
+test('expanded courses preserve proportions and widths while easing curvature per metre', () => {
+  assert.equal(TRACK_SCALE, 1.8);
+  assert.equal(ROAD_HALF_WIDTH, 92);
+  for (const circuit of CIRCUITS) {
+    const expanded = circuitTrack(circuit), original = createRaceTrack(expanded.samples.length, circuit.points);
+    assert.ok(Math.abs(expanded.length / original.length - TRACK_SCALE) < 1e-10);
+    for (let i=0;i<expanded.samples.length;i++) {
+      const a=original.samples[i], b=expanded.samples[i];
+      for (const axis of ['x','y','z']) assert.ok(Math.abs(b[axis]-a[axis]*TRACK_SCALE)<1e-8);
+      assert.ok(Math.abs(Math.sin(a.heading-b.heading))<1e-9);
+    }
+    const at = original.length*0.23, look = original.length*0.002;
+    const turn = t => Math.atan2(Math.sin(t[1].heading-t[0].heading),Math.cos(t[1].heading-t[0].heading));
+    const oldCurvature = turn([sampleTrack(original,at),sampleTrack(original,at+look)])/look;
+    const newCurvature = turn([sampleTrack(expanded,at*TRACK_SCALE),sampleTrack(expanded,(at+look)*TRACK_SCALE)])/(look*TRACK_SCALE);
+    assert.ok(Math.abs(newCurvature-oldCurvature/TRACK_SCALE)<1e-10);
+  }
+});
+
+test('higher racing speeds remain reachable and brakes can settle boost speed promptly', () => {
+  let state={...createInitialRaceState(),distance:18000};
+  for(let i=0;i<120*2;i++) state=stepRace(straightTrack,state,{throttle:1,brake:0,steer:0},1/120).state;
+  assert.equal(state.speed,CRUISE_MAX_SPEED);
+  state={...state,speed:BOOST_MAX_SPEED,boostRemaining:0};
+  for(let i=0;i<120*1.5;i++) state=stepRace(straightTrack,state,{throttle:0,brake:1,steer:0},1/120).state;
+  assert.equal(state.speed,0);
+  assert.ok(steeringYawRate(CRUISE_MAX_SPEED)<1, 'high-speed steering must remain measured');
 });

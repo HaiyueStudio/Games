@@ -14,7 +14,7 @@ import {
 import { GuiSystem, type GuiPointerEvent } from '@haiyue/engine/gui';
 import { NeonCircuitGui, NEON_GUI_GLYPHS, type RacePhase } from './NeonCircuitGui';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { createPathExtrusion3D, type Geometry3D, type PathExtrusionPoint } from '@haiyue/engine/geometry';
+import { createPathExtrusion3D, Geometry3D, type PathExtrusionPoint } from '@haiyue/engine/geometry';
 import { AmbientLight, EnvironmentLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial, PbrMaterial } from '@haiyue/engine/material';
 import { GltfModelComponent, GltfModelSystem } from '@haiyue/extensions/gltf';
@@ -33,6 +33,7 @@ import {
   ROAD_HALF_WIDTH,
   RAIL_LIMIT,
   TOTAL_LAPS,
+  TRACK_SCALE,
   createInitialRaceState,
   racePose,
   sampleTrack,
@@ -43,8 +44,12 @@ import {
 import { ThrusterFlameTexture } from './ThrusterFlameTexture';
 import { HullFireTexture } from './HullFireTexture';
 import { BoostStripTexture } from './BoostStripTexture';
+import { CIRCUIT_PALETTES } from './CircuitThemes';
+import { roadOverlay } from './RoadOverlay';
+import { RainbowRoadTexture } from './RainbowRoadTexture';
+import { SpaceEnvironment } from './SpaceEnvironment';
 import { RaceParticles } from './RaceParticles';
-import { EXHAUST_SOCKETS, damageEnvelope, propulsionEnvelope, rotateBodyPoint, speedFov } from './RacerEffects';
+import { EXHAUST_SOCKETS, damageEnvelope, propulsionEnvelope, rotateBodyPoint, speedFov, speedCameraPhi } from './RacerEffects';
 import { CIRCUITS, circuitById, circuitTrack } from './RaceRules';
 import { formatSpeed } from './RaceUnits';
 
@@ -81,6 +86,12 @@ interface RacerSnapshot {
   readonly buildingCount: number;
   readonly exhaustLength: number;
   readonly fov: number;
+  readonly cameraPhi: number;
+  readonly reverseZ: boolean;
+  readonly depthFormat: GPUTextureFormat;
+  readonly theme: string;
+  readonly space: { planets: number; meteors: number } | null;
+  readonly rainbowTime: number | null;
   readonly particles: { smoke: number; sparks: number };
 }
 
@@ -95,16 +106,6 @@ declare global {
   interface Window { __neonCircuit?: RacerDebugApi; }
 }
 
-const COLORS = {
-  roadA: [0.055, 0.075, 0.115, 1] as Color,
-  roadB: [0.075, 0.10, 0.15, 1] as Color,
-  rail: [0.055, 0.72, 0.95, 1] as Color,
-  boost: [0.08, 0.95, 1, 1] as Color,
-  marker: [0.48, 0.65, 0.78, 1] as Color,
-  ground: [0.016, 0.024, 0.048, 1] as Color,
-  magenta: [0.95, 0.08, 0.58, 1] as Color,
-  white: [0.88, 0.95, 1, 1] as Color,
-} as const;
 
 const RACER_MODEL_SCALE = 0.078;
 const THRUSTER_OFFSET_X = EXHAUST_SOCKETS[1][0];
@@ -112,10 +113,13 @@ const THRUSTER_OFFSET_Z = EXHAUST_SOCKETS[1][2];
 
 class NeonCircuitGame {
   private readonly circuit = circuitById(new URLSearchParams(location.search).get('track'));
+  private readonly colors = CIRCUIT_PALETTES[this.circuit.theme];
+  private rainbowRoad: RainbowRoadTexture | null = null;
+  private space: SpaceEnvironment | null = null;
   private readonly track: RaceTrack = circuitTrack(this.circuit);
   private selectedCircuit = this.circuit.id;
   private readonly saves = new SingleSlotGameSave<RacerSaveData>({
-    gameId: `neon-circuit-v3-${this.circuit.id}`,
+    gameId: `neon-circuit-v4-${this.circuit.id}`,
     name: 'Neon Circuit 最佳成绩',
     validateData: isRacerSaveData,
   });
@@ -136,6 +140,7 @@ class NeonCircuitGame {
   private visualBank = 0;
   private visualPitch = 0;
   private validationFrames = 0;
+  private verificationOverview = false;
   private thrusterFlame!: ThrusterFlameTexture;
   private racerModel!: GltfModelComponent;
   private styledRacerRoot: Entity | null = null;
@@ -161,8 +166,9 @@ class NeonCircuitGame {
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new HaiyueEngine({
       canvas,
-      clearColor: { r: 0.012, g: 0.025, b: 0.065, a: 1 },
+      clearColor: { r: this.colors.sky[0], g: this.colors.sky[1], b: this.colors.sky[2], a: 1 },
       msaaSamples: 4,
+      reverseZ: true,
       devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 1.65),
     });
     await this.engine.init();
@@ -172,7 +178,10 @@ class NeonCircuitGame {
     this.setupRenderer();
     this.setupLighting();
     await this.loadEffectTextures();
-    this.buildEnvironment();
+    if (this.circuit.theme === 'cosmic') {
+      this.space = await SpaceEnvironment.create(this.world, this.engine.device, TRACK_SCALE);
+      this.rainbowRoad = new RainbowRoadTexture(this.engine.device);
+    } else this.buildEnvironment();
     this.buildTrack();
     this.buildHoverCar();
     this.bindInput(canvas);
@@ -195,6 +204,7 @@ class NeonCircuitGame {
       if (event.persisted) return;
       this.inputLifetime.abort();
       this.boostStrip.destroy();
+      this.rainbowRoad?.destroy(); this.space?.destroy();
       for (const texture of this.effectTextures) texture.destroy();
       this.hullFire.destroy();
       this.thrusterFlame.destroy();
@@ -218,9 +228,9 @@ class NeonCircuitGame {
         return texture;
       } finally { bitmap.close(); }
     };
-    const [smoke, boost, button, panel, dial, title] = await Promise.all([upload('./assets/smoke-puff.png'), upload('./assets/boost-chevron.png'),
-      upload('./assets/gui-button.png'), upload('./assets/gui-panel.png'), upload('./assets/gui-dial.png'), upload('./assets/gui-title.png')]);
-    this.gui.setSkins(button, panel, dial, title);
+    const [smoke, boost, button, panel, dial, title, timing] = await Promise.all([upload('./assets/smoke-puff.png'), upload('./assets/boost-chevron.png'),
+      upload('./assets/gui-button.png'), upload('./assets/gui-panel.png'), upload('./assets/gui-dial.png'), upload('./assets/gui-title.png'), upload('./assets/gui-timing.png')]);
+    this.gui.setSkins(button, panel, dial, title, timing);
     const sparkCanvas = new OffscreenCanvas(64, 64);
     const paint = sparkCanvas.getContext('2d')!;
     paint.strokeStyle = '#fff4c2'; paint.lineWidth = 3; paint.lineCap = 'round';
@@ -239,7 +249,8 @@ class NeonCircuitGame {
     const start = racePose(this.track, this.state);
     this.cameraHeading = start.heading;
     const cameraEntity = new Entity('Chase camera');
-    this.cameraComponent = new Camera3D({ type: 'perspective', fov: speedFov(0), near: 1, far: 9_500 });
+    this.cameraComponent = new Camera3D({ type: 'perspective', fov: speedFov(0, BOOST_MAX_SPEED), near: 1, far: (this.circuit.theme === 'cosmic' ? 30000 : 9500) * TRACK_SCALE });
+    this.cameraComponent.reverseZ = true;
     cameraEntity.addComponent(this.cameraComponent);
     this.camera = new SphericalTransform3D({
       radius: 106,
@@ -251,7 +262,7 @@ class NeonCircuitGame {
     this.world.addEntity(cameraEntity);
 
     this.world.addSystem(new GltfModelSystem({ priority: -20, loadTimeoutMs: 20_000 }));
-    const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4 });
+    const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4, reverseZ: true });
     this.world.addSystem(render3D);
     this.gui = new NeonCircuitGui(this.world, this.engine.device, this.circuit.id, {
       select: id => { this.selectedCircuit = id; }, start: () => this.startSelectedCircuit(),
@@ -278,12 +289,12 @@ class NeonCircuitGame {
     moon.addComponent(new DirectionalLight({ color: [0.85, 0.92, 1], intensity: 2.2, direction: [-0.35, -1, -0.2] }));
     this.world.addEntity(moon);
     const rim = new Entity('Magenta rim');
-    rim.addComponent(new DirectionalLight({ color: [1, 0.15, 0.55], intensity: 0.68, direction: [0.65, -0.4, 0.5] }));
+    rim.addComponent(new DirectionalLight({ color: [this.colors.accent[0], this.colors.accent[1], this.colors.accent[2]], intensity: 0.68, direction: [0.65, -0.4, 0.5] }));
     this.world.addEntity(rim);
   }
 
   private buildEnvironment(): void {
-    this.addBox('Void floor', 0, -24, 0, 9_200, 12, 9_200, COLORS.ground, 5);
+    this.addBox('Void floor', 0, -24, 0, 9_200 * TRACK_SCALE, 12, 9_200 * TRACK_SCALE, this.colors.ground, 5);
     let randomState = this.circuit.seed;
     const random = (): number => {
       randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
@@ -291,14 +302,14 @@ class NeonCircuitGame {
     };
     for (let index = 0; index < 88; index++) {
       const angle = index / 88 * Math.PI * 2 + (random() - 0.5) * 0.06;
-      const radius = 3_650 + random() * 720;
+      const radius = (3_650 + random() * 720) * TRACK_SCALE;
       const height = 220 + random() * 720;
       const width = 38 + random() * 78;
       const x = Math.sin(angle) * radius;
       const z = Math.cos(angle) * radius;
       this.buildingCount++;
-      this.addBox(`Skyline-${index}`, x, height * 0.5 - 18, z, width, height, width, index % 4 === 0 ? [0.12, 0.055, 0.18, 1] : [0.025, 0.055, 0.095, 1], 12);
-      if (index % 3 === 0) this.addBox(`SkylineLight-${index}`, x, height - 17, z, width * 0.74, 2.5, width * 1.02, index % 2 ? COLORS.rail : COLORS.magenta, 90);
+      this.addBox(`Skyline-${index}`, x, height * 0.5 - 18, z, width, height, width, index % 4 === 0 ? this.colors.roadB : this.colors.roadA, 12);
+      if (index % 3 === 0) this.addBox(`SkylineLight-${index}`, x, height - 17, z, width * 0.74, 2.5, width * 1.02, index % 2 ? this.colors.rail : this.colors.accent, 90);
     }
     // Deterministic districts follow both sides of the circuit. Check the entire
     // centerline so towers never intrude into a neighboring hairpin.
@@ -311,9 +322,9 @@ class NeonCircuitGame {
       const width = 65 + random() * 90;
       if (this.track.samples.some(point => Math.hypot(point.x - x, point.z - z) < ROAD_HALF_WIDTH + width * 0.8 + 55)) continue;
       const height = sample.y + 110 + random() * 330;
-      const accent = this.circuit.id === 'sky-harbor' ? [1, 0.52, 0.15, 1] as Color : index % 3 ? COLORS.rail : COLORS.magenta;
+      const accent = index % 3 ? this.colors.rail : this.colors.accent;
       this.buildingCount++;
-      this.addBox(`District tower ${index}`, x, height / 2 - 18, z, width, height, width, index % 2 ? COLORS.roadA : COLORS.roadB, 30);
+      this.addBox(`District tower ${index}`, x, height / 2 - 18, z, width, height, width, index % 2 ? this.colors.roadA : this.colors.roadB, 30);
       this.addBox(`Tower crown ${index}`, x, height - 10, z, width * 1.08, 9, width * 1.08, accent, 100);
       for (let floor = 1; floor <= 3; floor++) {
         this.addBox(`Window belt ${index}-${floor}`, x, height * floor / 4, z, width * 1.015, 3, width * 1.015, accent, 80);
@@ -322,14 +333,14 @@ class NeonCircuitGame {
     }
     for (let distance = 600; distance < this.track.length; distance += 1300) {
       const point = sampleTrack(this.track, distance);
-      this.addBox(`Track foundation ${distance}`, point.x, (point.y - 25) / 2, point.z, 48, Math.max(10, point.y - 25), 48, COLORS.roadB, 20);
+      this.addBox(`Track foundation ${distance}`, point.x, (point.y - 25) / 2, point.z, 48, Math.max(10, point.y - 25), 48, this.colors.roadB, 20);
       for (const side of [-1, 1]) {
         const x = point.x + Math.cos(point.heading) * side * 126;
         const z = point.z - Math.sin(point.heading) * side * 126;
-        this.addBox(`Portal ${distance}-${side}`, x, point.y + 62, z, 12, 144, 12, COLORS.roadB, 40);
+        this.addBox(`Portal ${distance}-${side}`, x, point.y + 62, z, 12, 144, 12, this.colors.roadB, 40);
       }
       this.addBox(`Overhead sign ${distance}`, point.x, point.y + 136, point.z, 264, 16, 14,
-        this.circuit.id === 'reactor-run' ? COLORS.magenta : COLORS.rail, 100, [0, point.heading, 0]);
+        this.circuit.id === 'reactor-run' ? this.colors.accent : this.colors.rail, 100, [0, point.heading, 0]);
     }
   }
 
@@ -337,15 +348,25 @@ class NeonCircuitGame {
     const centerPath = this.track.samples.map(sample => this.extrusionPoint(sample.distance));
     this.addGeometry('Continuous road', createPathExtrusion3D({
       path: centerPath,
-      shape: [
-        [-ROAD_HALF_WIDTH, 0],
-        [ROAD_HALF_WIDTH, 0],
-        [ROAD_HALF_WIDTH, -5],
-        [-ROAD_HALF_WIDTH, -5],
-      ],
+      // The visible top is shared by all road markings; this mesh is only its underside/edges.
+      shape: [[ROAD_HALF_WIDTH, 0], [ROAD_HALF_WIDTH, -5], [-ROAD_HALF_WIDTH, -5], [-ROAD_HALF_WIDTH, 0]],
+      closedShape: false,
       closedPath: true,
       uvScale: [0.012, 0.02],
-    }), COLORS.roadA, 30);
+    }), this.colors.roadA, 30);
+
+    const surface = createPathExtrusion3D({ path: centerPath,
+      shape: [[-ROAD_HALF_WIDTH, 0], [ROAD_HALF_WIDTH, 0]], closedShape: false, closedPath: true,
+      uvScale: [Math.round(this.track.length / 240) / this.track.length, 1 / (ROAD_HALF_WIDTH * 2)] });
+    const overlay = (from: number, to: number, left: number, right: number, lift: number, uvScale: readonly [number, number]) =>
+      new Geometry3D(roadOverlay(this.track, surface.positions, from, to, left, right, ROAD_HALF_WIDTH, lift, uvScale));
+    if (this.rainbowRoad) {
+      const entity = new Entity('Flowing rainbow road');
+      entity.addComponent(new Mesh3D(surface, new BasicMaterial({ texture: this.rainbowRoad.texture, cullMode: 'none',
+        sampler: { magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear', maxAnisotropy: 8,
+          addressModeU: 'repeat', addressModeV: 'clamp-to-edge' } })));
+      this.world.addEntity(entity);
+    } else this.addGeometry('Road surface', surface, this.colors.roadA, 30);
 
     for (const side of [-1, 1]) {
       const railPath = this.track.samples.map(sample => this.extrusionPoint(sample.distance, side * (ROAD_HALF_WIDTH + 3), 5));
@@ -354,27 +375,17 @@ class NeonCircuitGame {
         shape: [[-3.2, 5], [3.2, 5], [3.2, -5], [-3.2, -5]],
         closedPath: true,
         uvScale: [0.018, 0.08],
-      }), COLORS.rail, 105);
+      }), this.colors.rail, 105);
     }
 
-    for (const laneOffset of [-ROAD_HALF_WIDTH / 3, ROAD_HALF_WIDTH / 3]) {
-      this.addGeometry(`Lane stripe ${laneOffset}`, createPathExtrusion3D({
-        path: centerPath,
-        shape: [[laneOffset - 0.85, 0.38], [laneOffset + 0.85, 0.38]],
-        closedPath: true,
-        closedShape: false,
-        uvScale: [0.02, 1],
-      }), COLORS.marker, 58);
+    for (const laneOffset of this.rainbowRoad ? [] : [-ROAD_HALF_WIDTH / 3, ROAD_HALF_WIDTH / 3]) {
+      this.addGeometry(`Lane stripe ${laneOffset}`, overlay(0, this.track.length, laneOffset - 0.85, laneOffset + 0.85, 0.38, [0.02, 1]), this.colors.marker, 58);
     }
 
-    for (let distance = 220; distance < this.track.length; distance += 360) {
-      const ribPath = [-2.2, 2.2].map(offset => this.extrusionPoint(distance + offset, 0, 0.48));
-      this.addGeometry(`Velocity rib ${Math.round(distance)}`, createPathExtrusion3D({
-        path: ribPath,
-        shape: [[-ROAD_HALF_WIDTH * 0.88, 0], [ROAD_HALF_WIDTH * 0.88, 0]],
-        closedShape: false,
-        uvScale: [0.08, 0.03],
-      }), Math.floor(distance / 360) % 5 === 0 ? COLORS.magenta : COLORS.marker, 88);
+    for (let distance = 220; distance < this.track.length; distance += this.rainbowRoad ? 1080 : 360) {
+      this.addGeometry(`Velocity rib ${Math.round(distance)}`,
+        overlay(distance - 2.2, distance + 2.2, -ROAD_HALF_WIDTH * 0.88, ROAD_HALF_WIDTH * 0.88, 0.48, [0.08, 0.03]),
+        Math.floor(distance / 360) % 5 === 0 ? this.colors.accent : this.colors.marker, 88);
     }
 
     for (let distance = 520; distance < this.track.length; distance += 840) {
@@ -388,7 +399,7 @@ class NeonCircuitGame {
         this.addBox(
           `Velocity beacon ${Math.round(distance)} ${side}`,
           x, y, z, 5, 36, 5,
-          Math.floor(distance / 840) % 2 === 0 ? COLORS.rail : COLORS.magenta,
+          Math.floor(distance / 840) % 2 === 0 ? this.colors.rail : this.colors.accent,
           100,
           [-sample.pitch, sample.heading, sample.bank],
         );
@@ -396,36 +407,22 @@ class NeonCircuitGame {
     }
 
     BOOST_ZONES.forEach((center, index) => {
-      const boostPath: PathExtrusionPoint[] = Array.from({ length: 13 }, (_, sampleIndex) => {
-        const progress = center - BOOST_ZONE_HALF_LENGTH + BOOST_ZONE_HALF_LENGTH * 2 * sampleIndex / 12;
-        return this.extrusionPoint(progress * this.track.length, 0, 0.55);
-      });
-      const boostGeometry = createPathExtrusion3D({
-        path: boostPath,
-        shape: [[-BOOST_PAD_HALF_WIDTH, 0], [BOOST_PAD_HALF_WIDTH, 0]],
-        closedShape: false,
-        uvScale: [1 / 92, 1 / (BOOST_PAD_HALF_WIDTH * 2)],
-      });
+      const boostGeometry = overlay((center - BOOST_ZONE_HALF_LENGTH) * this.track.length, (center + BOOST_ZONE_HALF_LENGTH) * this.track.length,
+        -BOOST_PAD_HALF_WIDTH, BOOST_PAD_HALF_WIDTH, 0.55, [1 / 92, 1 / (BOOST_PAD_HALF_WIDTH * 2)]);
       const entity = new Entity(`Boost lane ${index}`);
       entity.addComponent(new Mesh3D(boostGeometry, new BasicMaterial({ texture: this.boostStrip.texture,
-        color: [1, 1, 1, 1], sampler: { magFilter: 'linear', minFilter: 'linear', addressModeU: 'repeat', addressModeV: 'clamp-to-edge' } })));
+        color: this.colors.boost, sampler: { magFilter: 'linear', minFilter: 'linear', addressModeU: 'repeat', addressModeV: 'clamp-to-edge' } })));
       this.world.addEntity(entity);
     });
 
     const start = sampleTrack(this.track, 0);
-    const startLinePath = [-7, -3.5, 0, 3.5, 7].map(distance => this.extrusionPoint(distance, 0, 0.52));
-    this.addGeometry('Start line', createPathExtrusion3D({
-      path: startLinePath,
-      shape: [[-ROAD_HALF_WIDTH * 0.96, 0], [ROAD_HALF_WIDTH * 0.96, 0]],
-      closedShape: false,
-      uvScale: [0.1, 0.04],
-    }), COLORS.white, 100);
+    this.addGeometry('Start line', overlay(-7, 7, -ROAD_HALF_WIDTH * 0.96, ROAD_HALF_WIDTH * 0.96, 0.52, [0.1, 0.04]), this.colors.white, 100);
     const rightX = Math.cos(start.heading);
     const rightZ = -Math.sin(start.heading);
     for (const side of [-1, 1]) {
       const x = start.x + rightX * side * (ROAD_HALF_WIDTH + 11);
       const z = start.z + rightZ * side * (ROAD_HALF_WIDTH + 11);
-      this.addBox(`StartPylon-${side}`, x, start.y + 28, z, 7, 56, 7, COLORS.magenta, 75);
+      this.addBox(`StartPylon-${side}`, x, start.y + 28, z, 7, 56, 7, this.colors.accent, 75);
     }
   }
 
@@ -643,7 +640,7 @@ class NeonCircuitGame {
     const speedRatio = Math.min(1, this.state.speed / BOOST_MAX_SPEED);
     const boostStrength = Math.min(1, this.state.boostRemaining / BOOST_DURATION_SECONDS);
     const accelerating = this.held('w') || this.held('arrowup');
-    const targetLength = propulsionEnvelope(this.state.speed, accelerating, this.phase === 'racing', boostStrength, this.state.destroyed);
+    const targetLength = propulsionEnvelope(this.state.speed, accelerating, this.phase === 'racing', boostStrength, this.state.destroyed, BOOST_MAX_SPEED);
     this.exhaustLength += (targetLength - this.exhaustLength) * (1 - Math.exp(-seconds * (targetLength < this.exhaustLength ? 22 : 9)));
     for (const part of this.exhaustParts) part.setScale(1, 1, Math.max(0.001, this.exhaustLength));
     const thrust = this.phase === 'racing' && accelerating && !this.state.destroyed;
@@ -656,6 +653,7 @@ class NeonCircuitGame {
     this.effects.update(seconds, bodyPosition([0, 3.8, -11]), [Math.sin(pose.heading), 0, Math.cos(pose.heading)],
       damage.smokeRate, damage.smokeOpacity, effectsRunning);
     this.boostStrip.update(this.effectClock);
+    this.rainbowRoad?.update(this.effectClock);
     this.cameraImpact *= Math.exp(-seconds * 5);
     const shake = this.phase === 'paused' || this.phase === 'home' ? 0 : this.cameraImpact;
 
@@ -663,16 +661,22 @@ class NeonCircuitGame {
     this.cameraHeading = lerpAngle(this.cameraHeading, pose.heading, headingResponse);
     this.camera.theta = this.cameraHeading + Math.PI + Math.sin(timeMs * 0.081) * shake * 0.038;
     const portraitFraming = Math.max(1, 0.65 / (innerWidth / Math.max(1, innerHeight)));
-    this.camera.radius = (108 + speedRatio * 6) * portraitFraming;
-    this.cameraComponent.fov += (speedFov(this.state.speed) - this.cameraComponent.fov) * (1 - Math.exp(-seconds * 3.5));
-    const lookAhead = 12 + speedRatio * 12;
+    this.camera.radius = (108 + speedRatio * 20) * portraitFraming;
+    this.cameraComponent.fov += (speedFov(this.state.speed, BOOST_MAX_SPEED) - this.cameraComponent.fov) * (1 - Math.exp(-seconds * 3.5));
+    this.camera.phi += (speedCameraPhi(this.state.speed, pose.pitch, BOOST_MAX_SPEED) - this.camera.phi) * (1 - Math.exp(-seconds * 3.5));
+    const lookAhead = 12 + speedRatio * 24;
     const forwardHorizontal = Math.cos(pose.pitch);
     this.camera.setTarget(
       pose.x + Math.sin(pose.heading) * forwardHorizontal * lookAhead + Math.sin(timeMs * 0.067) * shake * 3.5,
       pose.y + 11 + Math.sin(pose.pitch) * lookAhead + Math.sin(timeMs * 0.099) * shake * 4.5,
       pose.z + Math.cos(pose.heading) * forwardHorizontal * lookAhead,
     );
+    if (this.verificationOverview) {
+      this.cameraComponent.fov = 0.96;
+      this.camera.set(9800 * TRACK_SCALE, -0.45, 0.8).setTarget(0, 1200 * TRACK_SCALE, 0);
+    }
     this.effects.faceCamera(this.camera.theta, this.camera.phi);
+    this.space?.update(this.effectClock, this.camera.eyePosition);
   }
 
   private updateHud(): void {
@@ -768,6 +772,8 @@ class NeonCircuitGame {
       buildingCount: this.buildingCount,
       exhaustLength: this.exhaustLength,
       fov: this.cameraComponent.fov,
+      reverseZ: this.engine.reverseZ && this.cameraComponent.reverseZ, depthFormat: this.engine.getDepthFormat(),
+      cameraPhi: this.camera.phi, theme: this.circuit.theme, space: this.space?.counts ?? null, rainbowTime: this.rainbowRoad?.time ?? null,
       particles: this.effects.counts,
     };
   }
@@ -783,7 +789,7 @@ class NeonCircuitGame {
     const status = this.validationErrors.length === 0 ? 'passed' : 'failed';
     document.body.dataset.renderStatus = status;
     const output = query<HTMLElement>('#result');
-    output.textContent = JSON.stringify({ schemaVersion: 1, revision: 'neon-circuit-gesture-v11', status,
+    output.textContent = JSON.stringify({ schemaVersion: 1, revision: 'neon-circuit-speed-v13', status,
       errors: this.validationErrors, checks, gui: this.gui.snapshot, modelStatus: this.racerModel.status, ...this.snapshot() });
     output.dataset.status = status;
   }
@@ -817,14 +823,35 @@ class NeonCircuitGame {
     };
     this.showHome();
     await frames();
-    check(this.gui.snapshot.routeCount === 3, 'three actual route thumbnails');
+    check(this.engine.reverseZ && this.cameraComponent.reverseZ && this.engine.getDepthFormat() === 'depth32float',
+      'scene and camera share reverse-Z with floating-point depth');
+    if (this.rainbowRoad) {
+      const texture = this.rainbowRoad;
+      const pixel = async (): Promise<Uint8Array> => {
+        const buffer = this.engine.device.createBuffer({ size: 256, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+        try {
+          const encoder = this.engine.device.createCommandEncoder();
+          encoder.copyTextureToBuffer({ texture: texture.texture, origin: [256, 128] }, { buffer, bytesPerRow: 256 }, [1, 1]);
+          this.engine.device.queue.submit([encoder.finish()]);
+          await buffer.mapAsync(GPUMapMode.READ);
+          return new Uint8Array(buffer.getMappedRange()).slice(0, 4);
+        } finally { buffer.destroy(); }
+      };
+      texture.update(0); const before = await pixel();
+      texture.update(4); const after = await pixel();
+      check(before[3] === 255 && after[3] === 255 && before.slice(0, 3).some((value, i) => Math.abs(value - after[i]!) > 20),
+        'rainbow shader changes actual GPU surface colours over time');
+      texture.update(this.effectClock);
+    }
+    check(this.gui.snapshot.routeCount === CIRCUITS.length, 'four actual route thumbnails');
     check(this.gui.snapshot.bounds.every(r => r.x >= 0 && r.y >= 0 && r.x + r.width <= innerWidth && r.y + r.height <= innerHeight), 'home fits viewport');
     check(document.querySelectorAll('button, svg, section, header, [data-control]').length === 0, 'all visible UI uses engine GUI');
     check(this.gui.snapshot.skinnedButtonsTransparent, 'image-skinned buttons and cards draw no extra rectangle or border');
+    this.gui.select(CIRCUITS[0]!.id); await settleCarousel();
     for (const [index, circuit] of CIRCUITS.entries()) {
       await click(`track-${circuit.id}`);
       await settleCarousel();
-      const position = ((this.gui.snapshot.carouselPosition % 3) + 3) % 3;
+      const position = ((this.gui.snapshot.carouselPosition % CIRCUITS.length) + CIRCUITS.length) % CIRCUITS.length;
       check(this.selectedCircuit === circuit.id && Math.abs(position - index) < 0.002, `GUI side-card tap centres and retains ${circuit.id} after capture release`);
     }
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
@@ -832,7 +859,7 @@ class NeonCircuitGame {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
     const previousCourse = this.selectedCircuit;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
-    check(previousCourse === CIRCUITS[2]!.id && this.selectedCircuit === CIRCUITS[0]!.id && !this.held('a') && !this.held('d'), 'A and D wrap carousel without leaking into driving');
+    check(previousCourse === CIRCUITS[CIRCUITS.length - 1]!.id && this.selectedCircuit === CIRCUITS[0]!.id && !this.held('a') && !this.held('d'), 'A and D wrap carousel without leaking into driving');
     const swipe = async (dx: number, dy = 0, cancel = false, duration = 300): Promise<boolean> => {
       await settleCarousel();
       const rect = this.gui.snapshot.carouselBounds, x=rect.x+rect.width/2, y=rect.y+rect.height/2;
@@ -857,12 +884,12 @@ class NeonCircuitGame {
       return followed;
     };
     const followed = await swipe(-100);
-    check(followed && this.selectedCircuit === CIRCUITS[1]!.id && Math.abs(((this.gui.snapshot.carouselPosition % 3) + 3) % 3 - 1) < 0.002,
+    check(followed && this.selectedCircuit === CIRCUITS[1]!.id && Math.abs(((this.gui.snapshot.carouselPosition % CIRCUITS.length) + CIRCUITS.length) % CIRCUITS.length - 1) < 0.002,
       'horizontal drag retains next card after implicit capture release and settles at its centre');
     await swipe(100); await swipe(100);
-    check(this.selectedCircuit === CIRCUITS[2]!.id, 'right swipe returns through first course and wraps to last');
+    check(this.selectedCircuit === CIRCUITS[CIRCUITS.length - 1]!.id, 'right swipe returns through first course and wraps to last');
     await swipe(-100,0,true); await settleCarousel(); await swipe(4,100);
-    check(this.selectedCircuit === CIRCUITS[2]!.id && Math.abs(this.gui.snapshot.carouselPosition-this.gui.snapshot.carouselTarget)<0.002, 'cancelled and vertical gestures leave selection unchanged');
+    check(this.selectedCircuit === CIRCUITS[CIRCUITS.length - 1]!.id && Math.abs(this.gui.snapshot.carouselPosition-this.gui.snapshot.carouselTarget)<0.002, 'cancelled and vertical gestures leave selection unchanged');
     const shortOrigin = this.gui.snapshot.carouselTarget;
     await swipe(-10);
     check(this.gui.snapshot.carouselTarget === shortOrigin + 1 && Math.abs(this.gui.snapshot.carouselPosition - this.gui.snapshot.carouselTarget) < 0.002,
@@ -879,6 +906,7 @@ class NeonCircuitGame {
     check(origin - this.gui.snapshot.carouselTarget >= 2, 'fast right throw retains reverse momentum across multiple cards');
     check(this.styledRacerRoot === this.racerModel.runtimeRoot && this.racerPbrMaterialCount > 0,
       'loaded racer retains imported PBR materials with environment lighting and paint finish');
+    this.gui.select(this.circuit.id); await settleCarousel();
     await click(`track-${this.circuit.id}`);
     await click('start-race');
     check(this.snapshot().phase === 'countdown', 'selected course starts countdown');
@@ -888,11 +916,13 @@ class NeonCircuitGame {
     check(hud.dialBounds.x < 32 && hud.dialBounds.y < innerHeight / 3
       && Math.abs(hud.courseBounds.x + hud.courseBounds.width / 2 - innerWidth / 2) < 1
       && (innerWidth < 760 || hud.courseBounds.x >= hud.dialBounds.x + hud.dialBounds.width)
-      && this.gui.buttonRect('pause').x > innerWidth - 130 && hud.activeButtons.join() === 'pause', 'dial at upper left, centered course label and single upper-right pause');
+      && this.gui.buttonRect('pause').x > innerWidth - 130 && hud.activeButtons.join() === 'pause'
+      && hud.timingBounds.x >= 0 && hud.timingBounds.x + hud.timingBounds.width < this.gui.buttonRect('pause').x
+      && hud.timingBounds.y === this.gui.buttonRect('pause').y,  'dial at upper left, centered course label, skinned timing left of the upper-right pause');
     await click('pause');
-    const pausedCountdown = this.countdown;
+    const pausedCountdown = this.countdown, pausedEffectTime = this.effectClock;
     await frames(3);
-    check(this.phase === 'paused' && this.countdown === pausedCountdown, 'pause panel freezes countdown');
+    check(this.phase === 'paused' && this.countdown === pausedCountdown && this.effectClock === pausedEffectTime && (!this.rainbowRoad || this.rainbowRoad.time === pausedEffectTime), 'pause panel freezes countdown and scene animation');
     await click('resume');
     check(this.snapshot().phase === 'countdown' && !this.gui.snapshot.modalVisible, 'resume returns to countdown');
     this.countdown = 0;
@@ -912,14 +942,14 @@ class NeonCircuitGame {
     await frames(6);
     window.dispatchEvent(new KeyboardEvent('keyup', { key: 'a' }));
     check(this.state.wallHits === 0 && this.state.headingOffset > heading, 'keyboard steering changes ship heading');
-    this.state = { ...createInitialRaceState(), speed: 650, lateral: RAIL_LIMIT - 0.01,
-      lateralSpeed: 570, headingOffset: 1.1, health: 55, boostRemaining: 1 };
+    this.state = { ...createInitialRaceState(), speed: CRUISE_MAX_SPEED, lateral: RAIL_LIMIT - 0.01,
+      lateralSpeed: CRUISE_MAX_SPEED * 0.88, headingOffset: 1.1, health: 55, boostRemaining: 1 };
     await frames(3);
-    check(this.state.wallHits >= 1 && this.state.speed < 325, 'wall strike sharply reduces speed');
+    check(this.state.wallHits >= 1 && this.state.speed < CRUISE_MAX_SPEED * 0.5, 'wall strike sharply reduces speed');
     check(this.state.health < BURN_HEALTH && this.state.impact > 0, 'impact damages hull and drives shake');
     check(this.gui.snapshot.health < BURN_HEALTH, 'critical hull renders fire and HUD warning');
     check(this.effects.counts.sparks > 0 && this.effects.counts.smoke > 0, 'rail impact creates sparks and smoke');
-    this.state = { ...this.state, health: 1, speed: 650, lateral: RAIL_LIMIT, lateralSpeed: 570,
+    this.state = { ...this.state, health: 1, speed: CRUISE_MAX_SPEED, lateral: RAIL_LIMIT, lateralSpeed: CRUISE_MAX_SPEED * 0.88,
       headingOffset: 1.1, collisionCooldown: 0 };
     await frames();
     check(this.snapshot().phase === 'destroyed' && this.state.speed === 0, 'zero hull ends race');
@@ -945,7 +975,8 @@ class NeonCircuitGame {
     await click('pause');
     await click('home-button');
     check(this.snapshot().phase === 'home' && this.gui.snapshot.homeVisible, 'return to course selection');
-    check(this.buildingCount > 150, 'dense deterministic trackside skyline');
+    check(this.space ? this.space.counts.planets === 3 && this.space.counts.meteors === 36 && this.buildingCount === 0 : this.buildingCount > 150,
+      this.space ? 'cosmic panorama, three ringed planets and pooled meteor shower replace the city' : 'dense deterministic trackside skyline');
     this.restart();
     this.phase = 'racing';
     if (this.gui.snapshot.touchVisible) {
@@ -968,33 +999,33 @@ class NeonCircuitGame {
     this.state = { ...createInitialRaceState(), health: 45 };
     await frames(40);
     check(this.effects.counts.smoke > 0 && damageEnvelope(45).fire === 0, 'half hull smokes without fire');
-    this.state = { ...createInitialRaceState(), speed: 920 };
-    const slowFov = this.cameraComponent.fov;
+    this.state = { ...createInitialRaceState(), speed: BOOST_MAX_SPEED };
+    const slowFov = this.cameraComponent.fov, slowPhi = this.camera.phi;
     await frames(18);
-    check(this.cameraComponent.fov < slowFov, 'higher speed narrows FOV');
+    check(this.cameraComponent.fov < slowFov && this.camera.phi > slowPhi, 'higher speed narrows FOV and raises the forward sightline');
     // Observe expiry immediately, before the unsteered ship reaches a bend.
-    this.state = { ...createInitialRaceState(), speed: 920, boostRemaining: 1 / 240 };
+    this.state = { ...createInitialRaceState(), speed: BOOST_MAX_SPEED, boostRemaining: 1 / 240 };
     await frames(2);
-    check(this.state.boostRemaining === 0 && this.state.wallHits === 0 && this.state.speed > CRUISE_MAX_SPEED && this.state.speed < 920
+    check(this.state.boostRemaining === 0 && this.state.wallHits === 0 && this.state.speed > CRUISE_MAX_SPEED && this.state.speed < BOOST_MAX_SPEED
       && this.gui.snapshot.displaySpeed === formatSpeed(this.state.speed), 'overspeed decays gradually in simulation and speedometer');
     this.showHome();
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot?.startsWith('home')) {
-      this.gui.select(shot === 'home-sky' ? CIRCUITS[1]!.id : shot === 'home-reactor' ? CIRCUITS[2]!.id : CIRCUITS[0]!.id);
+      this.gui.select(shot === 'home-sky' ? 'sky-harbor' : shot === 'home-reactor' ? 'reactor-run' : shot === 'home-rainbow' ? 'rainbow-road' : CIRCUITS[0]!.id);
       await settleCarousel();
       if (shot === 'home-swipe') { this.gui.select(CIRCUITS[1]!.id); await frames(3); }
     } else {
       this.restart();
       const onBoost = shot === 'boost';
-      this.state = { ...createInitialRaceState(), distance: onBoost ? this.track.length * BOOST_ZONES[0] - 100 : this.track.length * 0.18,
+      this.state = { ...createInitialRaceState(), distance: onBoost ? this.track.length * (BOOST_ZONES[0] - BOOST_ZONE_HALF_LENGTH) - 45 : this.track.length * 0.18,
         health: shot === 'fire' ? 18 : shot === 'smoke' ? 45 : 100,
-        speed: shot === 'accelerating' || shot === 'coasting' ? 600 : 0 };
+        speed: shot === 'accelerating' || shot === 'coasting' ? CRUISE_MAX_SPEED * 0.92 : 0 };
       this.cameraHeading = sampleTrack(this.track, this.state.distance).heading;
       this.phase = 'racing';
       this.announcementText = '';
       if (shot === 'accelerating') this.keys.add('w');
       if (shot === 'collision') {
-        this.state = { ...this.state, lateral: RAIL_LIMIT - 0.01, lateralSpeed: 570, headingOffset: 1.1, speed: 650 };
+        this.state = { ...this.state, lateral: RAIL_LIMIT - 0.01, lateralSpeed: CRUISE_MAX_SPEED * 0.88, headingOffset: 1.1, speed: CRUISE_MAX_SPEED };
         await frames(9);
       }
       if (shot === 'countdown') { this.phase = 'countdown'; this.countdown = 2.8; }
@@ -1010,6 +1041,7 @@ class NeonCircuitGame {
       for (let i = 0; i < 120; i++) this.updateVisuals(performance.now(), 1 / 60);
       await frames(2);
     }
+    if (shot === 'space-overlook') { this.verificationOverview = true; await frames(2); }
     this.engine.stop();
   }
 

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { runChromeWebGpuFixture } from '../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const output = resolve(root, '.artifacts/neon-circuit-gesture-v11');
+const output = resolve(root, '.artifacts/neon-circuit-speed-v13');
 mkdirSync(output, { recursive: true });
 const sha = file => createHash('sha256').update(readFileSync(resolve(root, file))).digest('hex');
 const modelSha = sha('games/neon-circuit/assets/wraith-raider.glb');
@@ -26,9 +26,10 @@ for (const [name, track, shot, width, height] of selectNeonScenes(process.argv.s
   const servedModel = result.httpProvenance.files.find(file => file.sourcePath.endsWith('wraith-raider.glb'));
   assert.equal(servedModel?.sha256, modelSha, 'Browser must receive the real racer asset');
   assert.equal(servedModel?.byteLength, readFileSync(resolve(root, 'games/neon-circuit/assets/wraith-raider.glb')).length);
-  assert.equal(result.checks.length, width < 760 ? 47 : 44);
+  assert.equal(result.checks.length, (width < 760 ? 49 : 46) + (track === 'rainbow-road' ? 1 : 0));
   assert.equal(result.gui.renderer, 'engine-gui');
-  for (const asset of ['smoke-puff.png', 'boost-chevron.png', 'gui-button.png', 'gui-panel.png', 'gui-dial.png', 'gui-title.png']) {
+  for (const asset of ['smoke-puff.png', 'boost-chevron.png', 'gui-button.png', 'gui-panel.png', 'gui-dial.png', 'gui-title.png', 'gui-timing.png',
+    ...(track === 'rainbow-road' ? ['space-panorama.png', 'planet-azure.png', 'planet-amber.png', 'planet-violet.png', 'meteor-streak.png'] : [])]) {
     const served = result.httpProvenance.files.find(file => file.sourcePath.endsWith(asset));
     assert.equal(served?.sha256, sha(`games/neon-circuit/assets/${asset}`));
   }

@@ -1,5 +1,10 @@
 /** Named diagnostic scenarios. With no CLI names, the full matrix remains mandatory. */
 export const NEON_SCENES = Object.freeze([
+  ['rainbow-overlook', 'rainbow-road', 'space-overlook', 1440, 900],
+  ['rainbow-road', 'rainbow-road', 'race', 1440, 900],
+  ['rainbow-high-speed', 'rainbow-road', 'high-speed', 1440, 900],
+  ['rainbow-mobile', 'rainbow-road', 'high-speed', 390, 844],
+  ['home-rainbow', 'rainbow-road', 'home-rainbow', 1440, 900],
   ['idle', 'neon-city', 'race', 1440, 900],
   ['high-speed', 'neon-city', 'high-speed', 1440, 900],
   ['high-speed-mobile', 'neon-city', 'high-speed', 390, 844],
