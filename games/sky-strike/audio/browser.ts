@@ -1,5 +1,5 @@
 import {OwnerSafeAudioMixer} from '@haiyue/engine/experimental/audio';
-import {SKY_SOUND_IDS,soundPath,type SkySound} from './synthesis';
+import {SKY_AUDIO_ASSETS,soundPath,type SkyAudioAsset} from './synthesis';
 import type {SkyAudioBackend,SkyAudioPlay} from './SkyStrikeAudio';
 /** Uses the Engine's public mixer; context unlock happens directly in a user gesture. */
 export class SkyStrikeBrowserAudio implements SkyAudioBackend {
@@ -9,7 +9,7 @@ export class SkyStrikeBrowserAudio implements SkyAudioBackend {
   private wantsRunning=false;
   private unlockJob:Promise<void>|null=null;
   async load(prefix=''):Promise<void> {
-    try{await Promise.all(SKY_SOUND_IDS.map(async id=>{const response=await fetch(prefix+soundPath(id));if(!response.ok)throw new Error(`Missing audio: ${id}`);await this.mixer.decodeAndInstall(id,await response.arrayBuffer());}));}
+    try{await Promise.all(SKY_AUDIO_ASSETS.map(async ({id})=>{const response=await fetch(prefix+soundPath(id));if(!response.ok)throw new Error(`Missing audio: ${id}`);await this.mixer.decodeAndInstall(id,await response.arrayBuffer());}));}
     catch(error){this.error=String(error);}
   }
   unlock():void {
@@ -19,9 +19,9 @@ export class SkyStrikeBrowserAudio implements SkyAudioBackend {
       this.unlockJob=null;if(!this.disposed&&!this.wantsRunning)void this.mixer.suspend().catch(()=>{});
     });
   }
-  play(id:SkySound,options:SkyAudioPlay):boolean {
+  play(id:SkyAudioAsset,options:SkyAudioPlay):boolean {
     if(this.disposed||this.error||this.mixer.stats.state!=='running')return false;
-    try { return !!this.mixer.play({eventId:options.channel,bufferId:id,owner:'sky-strike',channel:options.channel,bus:'sfx',
+    try { return !!this.mixer.play({eventId:options.channel,bufferId:id,owner:'sky-strike',channel:options.channel,bus:options.channel==='music'?'music':id.startsWith('ui-')?'ui':'sfx',
       priority:options.priority,loop:options.loop,volume:options.gain,pan:options.pan,replaceChannel:true,startTick:0}); }
     catch(error){if(error instanceof RangeError && error.message.includes('voice budget'))return false;this.error=String(error);this.stop();return false;}
   }

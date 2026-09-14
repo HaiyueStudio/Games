@@ -9,6 +9,11 @@ export interface CircuitPalette {
 
 /** Whole-scene palettes, including asphalt, architecture, rails and the sky. */
 export const CIRCUIT_PALETTES: Readonly<Record<Circuit['theme'], CircuitPalette>> = {
+  daylight: {
+    roadA: [0.18,0.29,0.37,1], roadB: [0.72,0.82,0.88,1], rail: [0.1,0.75,0.92,1],
+    boost: [1,0.65,0.17,1], marker: [0.86,0.94,1,1], ground: [0.3,0.65,0.85,1],
+    accent: [1,0.47,0.13,1], white: [1,1,1,1], sky: [0.3,0.65,0.94,1],
+  },
   harbor: {
     roadA: [0.14, 0.105, 0.08, 1], roadB: [0.19, 0.145, 0.105, 1], rail: [1, 0.57, 0.16, 1],
     boost: [1, 0.9, 0.5, 1], marker: [0.72, 0.66, 0.47, 1], ground: [0.045, 0.055, 0.065, 1],

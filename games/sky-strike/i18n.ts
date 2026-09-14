@@ -4,7 +4,7 @@ export const SKY_LANGUAGE_KEY = 'sky-strike.language.v1';
 export const SKY_LANGUAGE_NAMES: Record<SkyLanguage, string> = { zh: '简体中文', en: 'English', ja: '日本語' };
 const zh = {
   'asteroid-forge':'陨星矿场', 'ore-reaper':'星矿收割者', 'binary-nova':'双星新纪', 'twin-red':'红蓝双子', 'twin-blue':'蓝色双子', 'fission-elite':'裂变战舰', revival:'复活倒计时',
-  audioOn:'音效：开启', audioOff:'音效：关闭', volume:'音量', audioSaveFailed:'音效设置未能保存。',
+  audioOn:'声音：开启', audioOff:'声音：关闭', volume:'音量', audioSaveFailed:'声音设置未能保存。',
   'inferno-front':'熔火前线','inferno-ark':'焚星方舟','cinder-elite':'熔焰卫士',
   'quantum-armada':'量子舰队','quantum-dreadnought':'宇宙战舰·幽蓝','quantumHint':'量子免疫 · 攻击本体',
   'crystal-labyrinth':'晶镜迷阵','crystal-prism':'万华晶核','mirror-triangle':'三角镜卫',mirrorLoad:'镜面负荷',crystalStorm:'晶体破裂 · 躲避碎片',
@@ -34,7 +34,7 @@ export const SKY_TEXT: Record<SkyLanguage, Catalog> = {
   },
   ja: {
     'asteroid-forge':'隕石の鉱場', 'ore-reaper':'鉱石の収穫者', 'binary-nova':'双星の新紀', 'twin-red':'紅蒼の双子', 'twin-blue':'蒼の双子', 'fission-elite':'分裂巡洋艦', revival:'復活まで',
-    audioOn:'効果音：オン', audioOff:'効果音：オフ', volume:'音量', audioSaveFailed:'効果音設定を保存できませんでした。',
+    audioOn:'サウンド：オン', audioOff:'サウンド：オフ', volume:'音量', audioSaveFailed:'サウンド設定を保存できませんでした。',
     'inferno-front':'灼熱前線','inferno-ark':'焔の方舟','cinder-elite':'火炎衛兵',
   'quantum-armada':'量子艦隊','quantum-dreadnought':'幽青の宇宙戦艦','quantumHint':'量子体は無敵 · 本体を攻撃',
   'crystal-labyrinth':'水晶迷宮','crystal-prism':'万華の結晶核','mirror-triangle':'三角鏡衛',mirrorLoad:'鏡面負荷',crystalStorm:'結晶破裂 · 破片を回避',

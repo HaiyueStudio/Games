@@ -45,3 +45,9 @@ export function rotateBodyPoint(point: readonly number[], pitch: number, heading
 export function healthRingColor(health: number): readonly [number, number, number, number] {
   return health < 100 / 3 ? [1, 0.22, 0.16, 1] : health < 200 / 3 ? [1, 0.66, 0.12, 1] : [0.32, 0.95, 0.60, 1];
 }
+
+/** The physics impact already combines speed and contact incidence. */
+export function wallHaptic(impact: number): 'light' | 'medium' | 'heavy' {
+  const strength = Number.isFinite(impact) ? Math.max(0, Math.min(1, impact)) : 0;
+  return strength < 0.36 ? 'light' : strength < 0.66 ? 'medium' : 'heavy';
+}

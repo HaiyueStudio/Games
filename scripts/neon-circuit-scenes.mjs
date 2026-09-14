@@ -1,5 +1,16 @@
 /** Named diagnostic scenarios. With no CLI names, the full matrix remains mandatory. */
 export const NEON_SCENES = Object.freeze([
+  ['music-loop','sky-harbor','music-loop',932,430],
+  ['settings-en','sky-harbor','home-settings-en',932,430],
+  ['settings-ja-narrow','sky-harbor','home-settings-ja',390,844],
+  ['home-en','sky-harbor','home-en',932,430],
+  ['home-ja','sky-harbor','home-ja',932,430],
+  ['lap-banner','sky-harbor','lap',932,430],
+  ['coaster-overlook','sky-coaster','coaster-overlook',1440,900],
+  ['coaster-loop','sky-coaster','coaster-loop',1440,900],
+  ['coaster-roll','sky-coaster','coaster-roll',1440,900],
+  ['coaster-helix','sky-coaster','coaster-helix',1440,900],
+  ['home-coaster','sky-coaster','home-coaster',1440,900],
   ['rainbow-overlook', 'rainbow-road', 'space-overlook', 1440, 900],
   ['rainbow-road', 'rainbow-road', 'race', 1440, 900],
   ['rainbow-high-speed', 'rainbow-road', 'high-speed', 1440, 900],

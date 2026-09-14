@@ -1,6 +1,7 @@
 /** Deterministic sound design. Render offline once; gameplay never synthesizes on the audio thread. */
 export const SKY_SAMPLE_RATE = 44100;
 export const SKY_SOUNDS = {
+  'boss-warning': {seconds:1,gain:0.52,priority:50,cooldown:0},
   'ui-back': {seconds:0.14,gain:0.48,priority:6,cooldown:35},
   'pickup-red': { seconds: 0.32, gain: 0.52, priority: 6, cooldown: 100 },
   'pickup-blue': { seconds: 0.27, gain: 0.50, priority: 6, cooldown: 100 },
@@ -23,7 +24,10 @@ export const SKY_SOUNDS = {
 } as const;
 export type SkySound = keyof typeof SKY_SOUNDS;
 export const SKY_SOUND_IDS = Object.keys(SKY_SOUNDS) as SkySound[];
-export const soundPath = (id: SkySound) => `assets/audio/${id}.wav`;
+export const SKY_MUSIC = {id:'orbital-drift',seconds:40,gain:0.42} as const;
+export type SkyAudioAsset = SkySound | typeof SKY_MUSIC.id;
+export const SKY_AUDIO_ASSETS = [...SKY_SOUND_IDS.map(id=>({id,seconds:SKY_SOUNDS[id].seconds})),SKY_MUSIC];
+export const soundPath = (id: SkyAudioAsset) => `assets/audio/${id}.wav`;
 export function synthesizeSkySound(id: SkySound): Float32Array {
   const seconds = SKY_SOUNDS[id].seconds, samples = new Float32Array(Math.round(seconds * SKY_SAMPLE_RATE));
   let seed = 0x591ade, phase = 0, low = 0, slow = 0;
@@ -32,7 +36,13 @@ export function synthesizeSkySound(id: SkySound): Float32Array {
   for (let i=0;i<samples.length;i++) {
     const t=i/SKY_SAMPLE_RATE,p=i/(samples.length-1),n=noise();
     let value=0;
-    if(id.startsWith('pickup-')) {
+    if(id==='boss-warning') {
+      // Two alternating scanner tones per second; tapered pulses keep every loop boundary silent.
+      const local=t%0.5,hz=t<0.5?620:930;
+      phase+=2*Math.PI*(hz+35*Math.sin(local*Math.PI/.36))/SKY_SAMPLE_RATE;
+      const envelope=local<.36?Math.sin(Math.PI*local/.36)**1.3:0;
+      value=(Math.sin(phase)*.62+Math.sin(phase*2)*.10)*envelope;
+    } else if(id.startsWith('pickup-')) {
       const bomb=id==='pickup-bomb',red=id==='pickup-red',blue=id==='pickup-blue';
       const notes=bomb?[392,523.25,783.99]:red?[523.25,659.25,783.99]:blue?[783.99,987.77,1318.51]:[440,659.25,1108.73];
       const step=Math.min(2,Math.floor(p*3)),local=(p*3-step),hz=notes[step]!;

@@ -1,0 +1,17 @@
+{
+  "tool": "built-in image_gen",
+  "sourceDirectory": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee",
+  "processing": "Original RGBA artwork preserved, transformed at runtime by WebGPU.",
+  "assets": [
+    {
+      "path": "gui-record.png",
+      "prompt": "Generate a single transparent raster award stamp for an original futuristic antigravity racing game. Square 1024x1024 canvas, genuine alpha background, no checkerboard. A bold compact angular circular/seal emblem in warm gold and bright cyan, navy negative spaces, fine sci-fi etched concentric outlines and two small stylized laurel branches. Across the middle the exact words NEW RECORD in bold clearly readable uppercase sans serif, two lines NEW above RECORD, no other text. Looks like a prestigious high-tech certification stamp, flat orthographic, crisp screenprint-like edges with a few tiny distressed flecks, restrained holographic glow. Entire emblem centered with 10 percent transparent padding so it can rotate. Designed for a small game result popup corner. No mockup, no background panel, no watermark.",
+      "source": "exec-d1f509ae-ec7b-4d23-aec5-d7aa404f9c1a.png"
+    },
+    {
+      "path": "gui-wheel.png",
+      "prompt": "Generate a production-ready transparent raster virtual steering wheel for an original futuristic antigravity racing game mobile HUD. Square 1024x1024 canvas, genuine transparent alpha outside AND in the openings between spokes, no checkerboard. Perfectly centered circular steering wheel seen straight on in orthographic view, three clean symmetrical spokes connecting a small central hub to a thick rounded dark graphite grip, machined titanium details, restrained luminous cyan segments with a single warm amber top center marker at twelve o'clock. Sporty high-tech spacecraft wheel, premium minimal game UI asset, strong recognizable silhouette at 120 pixels wide. No surrounding disk, no background panel, no hands, no text, no numbers, no logos. Fill 82 percent of canvas diameter with even transparent padding for rotation.",
+      "source": "exec-c1b54509-4e34-4011-aa68-ab67eb80e69d.png"
+    }
+  ]
+}

@@ -9,6 +9,8 @@ export interface TrackSample extends TrackControlPoint {
   readonly pitch: number;
   readonly bank: number;
   readonly distance: number;
+  readonly frame?: TrackFrame;
+  readonly section?: string;
 }
 
 export interface RaceTrack {
@@ -49,6 +51,7 @@ export interface RacePose extends TrackControlPoint {
   readonly heading: number;
   readonly pitch: number;
   readonly bank: number;
+  readonly frame?: TrackFrame;
 }
 
 export const TOTAL_LAPS = 3;
@@ -187,7 +190,7 @@ function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControl
   let headingOffset = state.headingOffset + steer * steeringYawRate(speed) * dt;
   const advance = speed * Math.max(0.12, Math.cos(headingOffset)) * dt;
   let distance = state.distance + advance;
-  headingOffset = clamp(headingOffset - angleDelta(center.heading, sampleTrack(track, distance).heading), -1.35, 1.35);
+  headingOffset = clamp(headingOffset - frameTurn(center, sampleTrack(track, distance)), -1.35, 1.35);
   let lateralSpeed = state.lateralSpeed + (speed * Math.sin(headingOffset) - state.lateralSpeed) * (1 - Math.exp(-dt * 14));
   let lateral = state.lateral + lateralSpeed * dt;
   let health = state.health;
@@ -268,12 +271,13 @@ export function sampleTrack(track: RaceTrack, distance: number): TrackSample {
     pitch: lerp(current.pitch, next.pitch, t),
     bank: lerp(current.bank, next.bank, t),
     distance: wrapped,
+    ...(current.frame && next.frame ? { frame: interpolateFrame(current.frame,next.frame,t), section: current.section } : {}),
   };
 }
 
 export function racePose(track: RaceTrack, state: Pick<RaceState, 'distance' | 'lateral'> & Partial<Pick<RaceState, 'headingOffset'>>): RacePose {
   const center = sampleTrack(track, state.distance);
-  const right = bankedRight(center.heading, center.pitch, center.bank);
+  const right = center.frame?.right ?? bankedRight(center.heading, center.pitch, center.bank);
   return {
     x: center.x + right[0] * state.lateral,
     y: center.y + right[1] * state.lateral,
@@ -281,6 +285,7 @@ export function racePose(track: RaceTrack, state: Pick<RaceState, 'distance' | '
     heading: center.heading + (state.headingOffset ?? 0),
     pitch: center.pitch,
     bank: center.bank,
+    ...(center.frame ? {frame:turnFrame(center.frame,state.headingOffset ?? 0)} : {}),
   };
 }
 
@@ -359,13 +364,72 @@ export interface Circuit {
   readonly difficulty: string;
   readonly description: string;
   readonly color: string;
-  readonly theme: 'harbor' | 'neon' | 'reactor' | 'cosmic';
+  readonly theme: 'harbor' | 'neon' | 'reactor' | 'cosmic' | 'daylight';
   readonly seed: number;
   readonly points: readonly TrackControlPoint[];
 }
 
 const points = (values: readonly (readonly [number, number, number])[]): readonly TrackControlPoint[] =>
   values.map(([x, y, z]) => ({ x, y, z }));
+
+export type TrackVector = readonly [number, number, number];
+export interface TrackFrame { right: TrackVector; up: TrackVector; forward: TrackVector }
+export const dot = (a: TrackVector, b: TrackVector): number => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+export const cross = (a: TrackVector, b: TrackVector): TrackVector => [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+export const unit = (v: TrackVector): TrackVector => { const n=Math.hypot(...v)||1; return [v[0]/n,v[1]/n,v[2]/n]; };
+export const mixVector = (a: TrackVector,b: TrackVector,t:number): TrackVector => [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+export function turnFrame(frame: TrackFrame, yaw: number, roll = 0): TrackFrame {
+  const f=unit(mixAxes(frame.forward,frame.right,Math.cos(yaw),Math.sin(yaw)));
+  const r=unit(cross(frame.up,f));
+  const right=mixAxes(r,frame.up,Math.cos(roll),Math.sin(roll));
+  return { forward:f,right,up:cross(f,right) };
+}
+export function mixAxes(a: TrackVector,b: TrackVector,x:number,y:number): TrackVector { return [a[0]*x+b[0]*y,a[1]*x+b[1]*y,a[2]*x+b[2]*y]; }
+export function interpolateFrame(a: TrackFrame,b: TrackFrame,t:number): TrackFrame {
+  const forward=unit(mixVector(a.forward,b.forward,t));
+  const right=unit(cross(mixVector(a.up,b.up,t),forward));
+  return {forward,right,up:cross(forward,right)};
+}
+/** Steering curvature in the road plane; vertical loops do not introduce a false 180° yaw. */
+export function frameTurn(a: {heading:number;frame?:TrackFrame}, b: {heading:number;frame?:TrackFrame}): number {
+  return a.frame && b.frame ? Math.atan2(dot(b.frame.forward,a.frame.right),dot(b.frame.forward,a.frame.forward))
+    : Math.atan2(Math.sin(b.heading-a.heading),Math.cos(b.heading-a.heading));
+}
+
+/** A drifting vertical loop, a full barrel roll and a rising 1½-turn helix, joined by tangent-matched curves. */
+export function createCoasterTrack(scale=1): RaceTrack {
+  scale *= 0.75;
+  const vertices: {p:TrackVector;roll:number;section:string}[]=[];
+  const add=(n:number, fn:(t:number)=>TrackVector,section:string,roll:(t:number)=>number=()=>0) => {
+    for(let i=0;i<n;i++) {const p=fn(i/n);vertices.push({p:[p[0]*scale,p[1]*scale,p[2]*scale],roll:roll(i/n),section});}
+  };
+  const bezier=(a:TrackVector,b:TrackVector,c:TrackVector,d:TrackVector,section:string,n=120,roll?:(t:number)=>number) => add(n,t=>{
+    const s=1-t;return [0,1,2].map(i=>a[i]!*s*s*s+3*b[i]!*s*s*t+3*c[i]!*s*t*t+d[i]!*t*t*t) as unknown as TrackVector;
+  },section,roll);
+  bezier([-5000,1800,-9000],[-5000,1800,-8000],[-5000,1800,-7300],[-5000,1800,-6500],'launch');
+  add(360,t=>[-5000+600*(t-Math.sin(t*2*Math.PI)/(2*Math.PI)),1800+1200*(1-Math.cos(t*2*Math.PI)),-6500+1200*Math.sin(t*2*Math.PI)+700*t],'loop');
+  bezier([-4400,1800,-5800],[-4400,1800,-4200],[-4100,2400,-1000],[-1500,2400,-1000],'roll',240,t=>2*Math.PI*(t*t*(3-2*t)));
+  add(540,t=>{const a=-Math.PI/2+t*3*Math.PI;return [-1500+2000*Math.cos(a),2400+2400*t,1000+2000*Math.sin(a)];},'helix');
+  bezier([-1500,4800,3000],[-3700,5080,3000],[-5200,3500,6500],[-7200,2600,4500],'descent',160);
+  bezier([-7200,2600,4500],[-9200,1700,2500],[-9500,1800,-2500],[-8500,1800,-6500],'return',200);
+  bezier([-8500,1800,-6500],[-7500,1800,-10500],[-5000,1800,-11500],[-5000,1800,-9000],'home',160);
+  const n=vertices.length;
+  const forwards=vertices.map((_,i)=>unit(mixAxes(vertices[(i+1)%n]!.p,vertices[(i+n-1)%n]!.p,1,-1)));
+  let right:TrackVector=unit(cross([0,1,0],forwards[0]!));
+  const rights=forwards.map(f=>{right=unit(mixAxes(right,f,1,-dot(right,f)));return right;});
+  // Close the transported frame without a discontinuity at the lap boundary.
+  const f0=forwards[0]!, last=unit(mixAxes(rights[n-1]!,f0,1,-dot(rights[n-1]!,f0)));
+  const seam=Math.atan2(dot(last,cross(f0,rights[0]!)),dot(last,rights[0]!));
+  let distance=0;
+  const samples:TrackSample[]=vertices.map((v,i)=>{
+    if(i)distance+=Math.hypot(...mixAxes(v.p,vertices[i-1]!.p,1,-1));
+    const f=forwards[i]!,r=rights[i]!,u=cross(f,r), angle=v.roll-seam*i/n;
+    const rr=mixAxes(r,u,Math.cos(angle),Math.sin(angle)),up=cross(f,rr);
+    return {x:v.p[0],y:v.p[1],z:v.p[2],heading:Math.atan2(f[0],f[2]),pitch:Math.asin(f[1]),bank:angle,distance,
+      frame:{right:rr,up,forward:f},section:v.section};
+  });
+  return {samples,length:distance+Math.hypot(...mixAxes(vertices[0]!.p,vertices[n-1]!.p,1,-1))};
+}
 
 export const CIRCUITS: readonly Circuit[] = [
   { id: 'sky-harbor', name: '云端港湾', subtitle: 'SKY HARBOR', difficulty: '入门 · 高速宽弯',
@@ -389,6 +453,9 @@ export const CIRCUITS: readonly Circuit[] = [
       const angle = i / 36 * Math.PI * 2;
       return { x: 3600 * Math.sin(angle), y: 1250 + 850 * Math.cos(angle) + 180 * Math.sin(angle * 2), z: 2800 * Math.sin(angle * 2) };
     }) },
+  { id: 'sky-coaster', name: '晴空回旋', subtitle: 'SKY COASTER', difficulty: '极限 · 回环螺旋',
+    description: '飞越晴空云海，穿过垂直回环、翻转天桥与盘旋上升的螺旋路。', color: '#58dcff', theme: 'daylight', seed: 0x534b5943,
+    points: createCoasterTrack().samples },
 ];
 
 export function circuitById(id: string | null): Circuit {
@@ -398,15 +465,16 @@ export function circuitById(id: string | null): Circuit {
 /** Fit the actual sampled centerline, using equal X/Z scale, into a route thumbnail. */
 export function trackMap(track: RaceTrack): { path: string; start: readonly [number, number] } {
   const xs = track.samples.map(point => point.x);
-  const zs = track.samples.map(point => point.z);
+  const zs = track.samples.map(point => point.frame ? point.z * 0.6 - point.y * 1.2 : point.z);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
   const scale = Math.min(264 / (maxX - minX), 156 / (maxZ - minZ));
-  const mapped = track.samples.map(point => [150 + (point.x - (minX + maxX) / 2) * scale,
-    96 + (point.z - (minZ + maxZ) / 2) * scale] as const);
+  const mapped = track.samples.map((point,i) => [150 + (point.x - (minX + maxX) / 2) * scale,
+    96 + (zs[i]! - (minZ + maxZ) / 2) * scale] as const);
   return { path: mapped.map(([x, y], index) => `${index ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ') + ' Z', start: mapped[0]! };
 }
 
 export function circuitTrack(circuit: Circuit): RaceTrack {
+  if(circuit.theme === 'daylight') return createCoasterTrack(TRACK_SCALE);
   // Enlarge the route, not the ship/road width. Keep the original mesh sampling density.
   return createRaceTrack(Math.ceil(520 * TRACK_SCALE), circuit.points.map(p => ({ x: p.x * TRACK_SCALE, y: p.y * TRACK_SCALE, z: p.z * TRACK_SCALE })));
 }

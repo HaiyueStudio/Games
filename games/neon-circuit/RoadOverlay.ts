@@ -41,7 +41,7 @@ export function roadOverlay(track: RaceTrack, top: ArrayLike<number>, from: numb
       const magnitude = Math.hypot(...normal) || 1;
       for (const [t,v] of polygon) {
         const weights = upper ? [1-v,t,v-t] : [1-t,t-v,v];
-        for (let axis = 0; axis < 3; axis++) positions.push(weights.reduce((value, weight, i) => value + weight * top[triangle[i]! + axis]!, axis === 1 ? lift : 0));
+        for (let axis = 0; axis < 3; axis++) positions.push(weights.reduce((value, weight, i) => value + weight * top[triangle[i]! + axis]!, track.samples[ring]!.frame ? normal[axis]! / magnitude * lift : axis === 1 ? lift : 0));
         normals.push(...normal.map(value => value / magnitude));
         uvs.push((d0 + (d1 - d0) * t - start) * uvScale[0], (v * 2 * halfWidth - halfWidth - left) * uvScale[1]);
       }

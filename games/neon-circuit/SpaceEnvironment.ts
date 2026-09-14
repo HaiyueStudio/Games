@@ -1,3 +1,4 @@
+import { browserNeonRaster, type NeonRaster } from './NeonRaster';
 import { BasicMaterial, CartesianTransform3D, Entity, Mesh3D, World, createPlane3D } from '@haiyue/engine';
 import { createSphere3D } from '@haiyue/engine/geometry';
 
@@ -12,26 +13,19 @@ export class SpaceEnvironment {
   private readonly meteors: Sprite[] = [];
   private readonly sky = new CartesianTransform3D();
   private readonly quad = createPlane3D();
-  private constructor(private readonly world: World, private readonly device: GPUDevice, private readonly scale: number) {}
+  private constructor(private readonly world: World, private readonly device: GPUDevice, private readonly scale: number, private readonly raster: NeonRaster) {}
 
-  static async create(world: World, device: GPUDevice, scale: number): Promise<SpaceEnvironment> {
-    const space = new SpaceEnvironment(world, device, scale);
+  static async create(world: World, device: GPUDevice, scale: number, raster: NeonRaster = browserNeonRaster): Promise<SpaceEnvironment> {
+    const space = new SpaceEnvironment(world, device, scale, raster);
     try { await space.load(); return space; } catch (error) { space.destroy(); throw error; }
   }
 
   private async load(): Promise<void> {
     // Preserve the panorama's 2:1 projection and each sprite's native aspect/alpha.
     const images = await Promise.allSettled(SPACE_ASSETS.map(async name => {
-      const response = await fetch(`./assets/${name}.png`);
-      if (!response.ok) throw new Error(`Space asset failed: ${name} (${response.status})`);
-      const bitmap = await createImageBitmap(await response.blob(), { premultiplyAlpha: 'none' });
-      try {
-        const texture = this.device.createTexture({ label: `RainbowRoad.${name}`, size: [bitmap.width, bitmap.height], format: 'rgba8unorm',
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
-        this.textures.push(texture);
-        this.device.queue.copyExternalImageToTexture({ source: bitmap }, { texture }, [bitmap.width, bitmap.height]);
-        return { texture, aspect: bitmap.width / bitmap.height };
-      } finally { bitmap.close(); }
+      const texture = await this.raster.loadTexture(this.device, name);
+      this.textures.push(texture);
+      return { texture, aspect: texture.width / texture.height };
     }));
     const assets = images.map(result => { if (result.status === 'rejected') throw result.reason; return result.value; });
     const sky = new Entity('Cosmic panorama'); sky.addComponent(this.sky);

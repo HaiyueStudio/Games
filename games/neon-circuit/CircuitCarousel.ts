@@ -1,3 +1,5 @@
+import { localizeCourse, TEXT, type Language } from './NeonLocale';
+import { browserNeonRaster, uploadNeonCanvas, type NeonRaster } from './NeonRaster';
 import { CIRCUITS, circuitTrack, trackMap } from './RaceRules';
 import { carouselMetrics, carouselOffset } from './CarouselMath';
 import { distanceKm } from './RaceUnits';
@@ -13,34 +15,11 @@ export class CircuitCarousel {
   private group: GPUBindGroup | null = null;
   private last = '';
   private size = '';
-  constructor(private readonly device: GPUDevice) {
+  constructor(private readonly device: GPUDevice, private readonly raster: NeonRaster = browserNeonRaster) {
     this.texture = this.target(1, 1);
     this.ink = device.createTexture({ label: 'NeonCircuit.carouselLabels', size: [640, 780, CIRCUITS.length], format: 'rgba8unorm',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
-    for (const [index, circuit] of CIRCUITS.entries()) {
-      const canvas = new OffscreenCanvas(640, 780), ctx = canvas.getContext('2d')!;
-      const text = (value: string, x: number, y: number, size: number, color = '#edf8ff', bold = false) => {
-        ctx.font = `${bold ? '700' : '400'} ${size}px Arial, "PingFang SC", "Microsoft Yahei", sans-serif`;
-        ctx.fillStyle = color; ctx.fillText(value, x, y);
-      };
-      text(`0${index + 1} / ${circuit.difficulty}`, 46, 80, 22, circuit.color);
-      const track = circuitTrack(circuit), map = trackMap(track);
-      ctx.save(); ctx.translate(44, 140); ctx.scale(1.84, 1.84);
-      const path = new Path2D(map.path); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = circuit.color;
-      if (circuit.theme === 'cosmic') {
-        const rainbow = ctx.createLinearGradient(15, 0, 285, 190);
-        ['#ff609c','#ffc963','#72ffb0','#64dfff','#ae82ff'].forEach((color, i) => rainbow.addColorStop(i / 4, color));
-        ctx.strokeStyle = rainbow;
-      }
-      ctx.globalAlpha = 0.14; ctx.lineWidth = 13; ctx.stroke(path); ctx.globalAlpha = 1; ctx.lineWidth = 3; ctx.stroke(path);
-      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(map.start[0], map.start[1], 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-      text(circuit.subtitle, 46, 534, 20, '#91a9c3'); text(circuit.name, 46, 593, 43, '#edf8ff', true);
-      const words = circuit.description.split('，');
-      text(words[0]! + '，', 46, 641, 21, '#a6bfd3'); text(words[1]!, 46, 675, 21, '#a6bfd3');
-      text(`${distanceKm(track.length).toFixed(1)} KM  /  3 LAPS`, 46, 708, 20, circuit.color);
-      const bitmap = canvas.transferToImageBitmap();
-      device.queue.copyExternalImageToTexture({ source: bitmap }, { texture: this.ink, origin: [0, 0, index] }, [640, 780]); bitmap.close();
-    }
+    this.setLanguage('zh');
     this.uniform = device.createBuffer({ size: 32 + CIRCUITS.length * 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.sampler = device.createSampler({ minFilter: 'linear', magFilter: 'linear' });
     const module = device.createShaderModule({ code: /* wgsl */ `
@@ -77,6 +56,35 @@ export class CircuitCarousel {
     ` });
     this.pipeline = device.createRenderPipeline({ layout: 'auto', vertex: { module, entryPoint: 'vs' },
       fragment: { module, entryPoint: 'fs', targets: [{ format: 'rgba8unorm' }] }, primitive: { topology: 'triangle-list' } });
+  }
+  setLanguage(language: Language): void {
+    for (const [index, original] of CIRCUITS.entries()) {
+      const circuit = localizeCourse(original, language);
+      const canvas = this.raster.canvas(640, 780), ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+      const text = (value: string, x: number, y: number, size: number, color = '#edf8ff', bold = false) => {
+        ctx.font = `${bold ? '700' : '400'} ${size}px Arial, "PingFang SC", "Hiragino Sans", "Microsoft Yahei", sans-serif`;
+        const measured = ctx.measureText(value).width;
+        if (measured > 548) ctx.font = ctx.font.replace(`${size}px`, `${size * 548 / measured}px`);
+        ctx.fillStyle = color; ctx.fillText(value, x, y);
+      };
+      text(`0${index + 1} / ${circuit.difficulty}`, 46, 80, 22, circuit.color);
+      const track = circuitTrack(circuit), map = trackMap(track);
+      ctx.save(); ctx.translate(44, 140); ctx.scale(1.84, 1.84);
+      const drawPath = () => { ctx.beginPath(); for (const [, command, x, y] of map.path.matchAll(/([ML])([\d.]+),([\d.]+)/g)) { if (command === 'M') ctx.moveTo(Number(x), Number(y)); else ctx.lineTo(Number(x), Number(y)); } ctx.closePath(); }; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = circuit.color;
+      if (circuit.theme === 'cosmic') {
+        const rainbow = ctx.createLinearGradient(15, 0, 285, 190);
+        ['#ff609c','#ffc963','#72ffb0','#64dfff','#ae82ff'].forEach((color, i) => rainbow.addColorStop(i / 4, color));
+        ctx.strokeStyle = rainbow;
+      }
+      ctx.globalAlpha = 0.14; ctx.lineWidth = 13; drawPath(); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 3; drawPath(); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(map.start[0], map.start[1], 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      text(circuit.subtitle, 46, 534, 20, '#91a9c3'); text(circuit.name, 46, 593, 43, '#edf8ff', true);
+      const words = circuit.description.split(language === 'zh' ? '，' : '\n');
+      text(words[0]! + (language === 'zh' ? '，' : ''), 46, 641, 21, '#a6bfd3'); text(words[1]!, 46, 675, 21, '#a6bfd3');
+      text(`${distanceKm(track.length).toFixed(1)} KM  /  3 ${TEXT[language].laps}`, 46, 708, 20, circuit.color);
+      uploadNeonCanvas(this.device, this.raster, canvas, this.ink, index);
+    }
+    this.last = '';
   }
   private target(width: number, height: number): GPUTexture {
     return this.device.createTexture({ label: 'NeonCircuit.carousel', size: [width, height], format: 'rgba8unorm',

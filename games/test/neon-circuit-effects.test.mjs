@@ -83,3 +83,9 @@ test('narrower high-speed lens gains a forward sightline and follows the road sl
   assert.equal(speedCameraPhi(-100, 0, BOOST_MAX_SPEED), speedCameraPhi(0, 0, BOOST_MAX_SPEED));
   assert.equal(speedCameraPhi(2000, 0, BOOST_MAX_SPEED), speedCameraPhi(BOOST_MAX_SPEED, 0, BOOST_MAX_SPEED));
 });
+
+test('wall haptic strength grades speed-and-incidence impact and handles invalid values', async () => {
+  const {wallHaptic}=await import('../neon-circuit/RacerEffects.ts');
+  assert.equal(wallHaptic(.23),'light');assert.equal(wallHaptic(.5),'medium');assert.equal(wallHaptic(.9),'heavy');
+  assert.equal(wallHaptic(-1),'light');assert.equal(wallHaptic(NaN),'light');assert.equal(wallHaptic(5),'heavy');
+});

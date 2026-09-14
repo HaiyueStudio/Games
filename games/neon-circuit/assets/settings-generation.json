@@ -1,0 +1,14 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "path": "gui-settings-gear.png",
+      "prompt": "Use case: stylized-concept. Production transparent game HUD asset, one sci-fi settings gear button. Square 1024x1024 canvas. Perfectly centered compact round dark graphite and brushed titanium housing with a clearly recognizable luminous cyan six-tooth gear symbol in its center, subtle amber accents and crisp restrained edge glow. Flat front orthographic view, readable at 44px, premium futuristic anti-gravity racing UI. Entire button within 12% transparent padding. Genuine alpha background outside housing, no checkerboard, no extra panel, no letters, no text, no logos, no watermark."
+    },
+    {
+      "path": "gui-settings-panel.png",
+      "prompt": "Use case: stylized-concept. A production sci-fi settings panel background for a futuristic racing game. 1536x1024 landscape transparent PNG, front orthographic. Single clean rectangular navy glass panel with angular clipped corners, brushed graphite titanium thin bezel, restrained cyan light rails and small amber mechanical details at the corners. Panel occupies x 5%-95%, y 5%-95%. Broad quiet very dark navy interior with only subtle etched micro-grid, suitable for live controls overlaid in three horizontal rows and a title above. No dividers crossing the interior, no text, no icons, no controls, no words, no logo. No surrounding color rectangle, genuine alpha transparency outside the angular panel, softly translucent interior yet dark enough for crisp white multilingual text. Premium understated anti-gravity racing UI, no perspective, no mockup."
+    }
+  ],
+  "processing": "Original generated PNGs preserved. Engine GUI overlays localized live labels."
+}

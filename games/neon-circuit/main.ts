@@ -1,3 +1,13 @@
+import {NeonAudio} from './audio/NeonAudio';
+import {NeonBrowserAudio} from './audio/BrowserAudio';
+import { TEXT, readLanguage, saveLanguage, lapNotice, type Language, type LanguageStorage } from './NeonLocale';
+import { mat4 } from 'wgpu-matrix';
+import { SunnyEnvironment } from './SunnyEnvironment';
+import { cross, dot, unit, mixAxes, turnFrame, type TrackFrame, type TrackVector } from './RaceRules';
+import { browserNeonRaster, uploadNeonCanvas, type NeonRaster } from './NeonRaster';
+import type { GameSaveBackend } from '@haiyue/engine/save';
+import type { GuiFontOptions } from '@haiyue/engine/gui';
+import type { GltfModelSystemOptions } from '@haiyue/extensions/gltf';
 import {
   BasicMaterial,
   Camera3D,
@@ -90,6 +100,7 @@ interface RacerSnapshot {
   readonly reverseZ: boolean;
   readonly depthFormat: GPUTextureFormat;
   readonly theme: string;
+  readonly coaster: { section: string; roadUp: readonly number[]; cameraUp: readonly number[] } | null;
   readonly space: { planets: number; meteors: number } | null;
   readonly rainbowTime: number | null;
   readonly particles: { smoke: number; sparks: number };
@@ -111,18 +122,45 @@ const RACER_MODEL_SCALE = 0.078;
 const THRUSTER_OFFSET_X = EXHAUST_SOCKETS[1][0];
 const THRUSTER_OFFSET_Z = EXHAUST_SOCKETS[1][2];
 
-class NeonCircuitGame {
-  private readonly circuit = circuitById(new URLSearchParams(location.search).get('track'));
-  private readonly colors = CIRCUIT_PALETTES[this.circuit.theme];
+export interface NeonNativeOptions {
+  haptic(impact:number):void;
+  audio: NeonAudio;
+  languageStorage: LanguageStorage;
+  raster: NeonRaster;
+  guiFont: GuiFontOptions;
+  saveBackend: GameSaveBackend;
+  modelOptions: GltfModelSystemOptions;
+  safeInsets(): { top: number; right: number; bottom: number; left: number };
+  changeCircuit(id: string): void;
+  steering(): number;
+}
+
+export class NeonCircuitGame {
+  private audio!: NeonAudio;
+  get audioState() {return this.audio.snapshot();}
+  private native: NeonNativeOptions | null = null;
+  private language: Language = 'zh';
+  private languageStorage: LanguageStorage | undefined;
+  get locale(): Language {return this.language;}
+  private changeLanguage(language: Language): void {
+    this.language=language; saveLanguage(this.languageStorage,language); this.gui.setLanguage(language);
+    if(!this.native) {document.title=TEXT[language].title;document.documentElement.lang=language === 'zh' ? 'zh-CN' : language;
+      document.querySelector('canvas')?.setAttribute('aria-label',`${TEXT[language].title}. ${TEXT[language].keys}. ${TEXT[language].keysMore}`);}
+    this.updateHud();
+  }
+  private raster: NeonRaster = browserNeonRaster;
+  private disposed = false;
+  private readonly onFrame = ({ detail }: { detail: { time: number; delta: number } }) => this.tick(detail.time, detail.delta);
+  constructor(trackId: string | null = null) { this.circuit = circuitById(trackId); this.colors = CIRCUIT_PALETTES[this.circuit.theme]; this.track = circuitTrack(this.circuit); this.selectedCircuit = this.circuit.id; }
+
+  private readonly circuit: ReturnType<typeof circuitById>;
+  private readonly colors: typeof CIRCUIT_PALETTES[keyof typeof CIRCUIT_PALETTES];
   private rainbowRoad: RainbowRoadTexture | null = null;
   private space: SpaceEnvironment | null = null;
-  private readonly track: RaceTrack = circuitTrack(this.circuit);
-  private selectedCircuit = this.circuit.id;
-  private readonly saves = new SingleSlotGameSave<RacerSaveData>({
-    gameId: `neon-circuit-v4-${this.circuit.id}`,
-    name: 'Neon Circuit 最佳成绩',
-    validateData: isRacerSaveData,
-  });
+  private sunny: SunnyEnvironment | null = null;
+  private readonly track: RaceTrack;
+  private selectedCircuit: string;
+  private saves!: SingleSlotGameSave<RacerSaveData>;
   private engine!: HaiyueEngine;
   private world!: World;
   private camera!: SphericalTransform3D;
@@ -161,6 +199,7 @@ class NeonCircuitGame {
   private effectClock = 0;
   private gui!: NeonCircuitGui;
   private announcementText = '';
+  private newRecord = false;
   private readonly touchKeys = new Map<number, string>();
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
@@ -174,20 +213,8 @@ class NeonCircuitGame {
     await this.engine.init();
     this.engine.device.addEventListener('uncapturederror', event => this.validationErrors.push(event.error.message));
     this.engine.device.pushErrorScope('validation');
-    this.world = new World('Neon Circuit');
-    this.setupRenderer();
-    this.setupLighting();
-    await this.loadEffectTextures();
-    if (this.circuit.theme === 'cosmic') {
-      this.space = await SpaceEnvironment.create(this.world, this.engine.device, TRACK_SCALE);
-      this.rainbowRoad = new RainbowRoadTexture(this.engine.device);
-    } else this.buildEnvironment();
-    this.buildTrack();
-    this.buildHoverCar();
+    await this.prepareScene();
     this.bindInput(canvas);
-    const saved = await this.saves.load();
-    if (saved) this.bestTime = saved.bestTime;
-    this.updateBestTime();
 
     window.__neonCircuit = {
       snapshot: () => this.snapshot(),
@@ -196,49 +223,88 @@ class NeonCircuitGame {
       setState: next => { this.state = { ...this.state, ...next }; },
     };
     if (new URLSearchParams(location.search).get('race') === '1') this.restart();
-    this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
+    this.engine.on('update', this.onFrame);
     window.addEventListener('pageshow', () => this.engine.run(), { signal: this.inputLifetime.signal });
     window.addEventListener('pagehide', event => {
       this.keys.clear(); this.touchKeys.clear();
-      this.engine.stop();
+      this.audio.suspend(); this.engine.stop();
       if (event.persisted) return;
-      this.inputLifetime.abort();
-      this.boostStrip.destroy();
-      this.rainbowRoad?.destroy(); this.space?.destroy();
-      for (const texture of this.effectTextures) texture.destroy();
-      this.hullFire.destroy();
-      this.thrusterFlame.destroy();
-      this.world.destroy();
-      this.gui.dispose();
+      this.dispose();
       this.engine.destroy();
     }, { signal: this.inputLifetime.signal });
     this.engine.run();
   }
 
+  async initNative(engine: HaiyueEngine, options: NeonNativeOptions, race = false): Promise<void> {
+    this.engine = engine; this.native = options; this.raster = options.raster;
+    await this.prepareScene();
+    this.engine.on('update', this.onFrame);
+    if (race) this.restart();
+  }
+
+  private async prepareScene(): Promise<void> {
+    if(this.native) this.languageStorage=this.native.languageStorage;
+    else {try {this.languageStorage = new URLSearchParams(location.search).has('verify') ? undefined : localStorage;} catch { /* Private browsing may block storage. */ }}
+    this.language=readLanguage(this.languageStorage);
+    if(this.native)this.audio=this.native.audio;
+    else {const backend=new NeonBrowserAudio();await backend.load();this.audio=new NeonAudio(backend);}
+    this.engine.clearColor = { r: this.colors.sky[0], g: this.colors.sky[1], b: this.colors.sky[2], a: 1 };
+    this.saves = new SingleSlotGameSave<RacerSaveData>({ gameId: `neon-circuit-v4-${this.circuit.id}`,
+      name: '极速新星 最佳成绩', validateData: isRacerSaveData, ...(this.native ? { backend: this.native.saveBackend } : {}) });
+    this.world = new World('Neon Circuit');
+    this.setupRenderer();
+    this.setupLighting();
+    await this.loadEffectTextures();
+    if (this.circuit.theme === 'cosmic') {
+      this.space = await SpaceEnvironment.create(this.world, this.engine.device, TRACK_SCALE, this.raster);
+      this.rainbowRoad = new RainbowRoadTexture(this.engine.device);
+    } else if(this.circuit.theme === 'daylight') this.sunny = await SunnyEnvironment.create(this.world,this.engine.device,this.raster);
+    else this.buildEnvironment();
+    this.buildTrack();
+    this.buildHoverCar();
+    const saved = await this.saves.load();
+    if (saved) this.bestTime = saved.bestTime;
+    this.updateBestTime();
+
+  }
+
+  cancelInteraction(): void {
+    this.keys.clear(); this.touchKeys.clear(); this.gui?.cancelCarouselPointer();
+  }
+  releaseControl(pointerId: number): void { this.touchKeys.delete(pointerId); }
+  suspend(): void { this.audio?.suspend(); this.cancelInteraction(); if (this.phase === 'racing' || this.phase === 'countdown') this.togglePause(); }
+  flushSave(): Promise<void> { return this.saves.flush(); }
+  get guiView(): NeonCircuitGui { return this.gui; }
+  get modelStatus(): string { return this.racerModel.status; }
+  setState(next: Partial<RaceState>): void { this.state = { ...this.state, ...next }; }
+  dispose(): void {
+    if (this.disposed) return; this.disposed = true;
+    if(this.native)this.audio.stopDrive();else this.audio?.dispose();
+    this.cancelInteraction(); this.inputLifetime.abort(); this.engine.off('update', this.onFrame);
+    this.world?.destroy(); this.gui?.dispose();
+    this.boostStrip?.destroy(); this.rainbowRoad?.destroy(); this.space?.destroy(); this.sunny?.destroy();
+    this.hullFire?.destroy(); this.thrusterFlame?.destroy();
+    for (const texture of this.effectTextures) texture.destroy(); this.effectTextures.length = 0;
+  }
+
   private async loadEffectTextures(): Promise<void> {
-    const upload = async (url: string): Promise<GPUTexture> => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Effect texture failed: ${url} (${response.status})`);
-      const bitmap = await createImageBitmap(await response.blob(), { premultiplyAlpha: 'none', resizeWidth: 512, resizeHeight: 512 });
-      try {
-        const texture = this.engine.device.createTexture({ label: url, size: [bitmap.width, bitmap.height], format: 'rgba8unorm',
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
-        this.engine.device.queue.copyExternalImageToTexture({ source: bitmap }, { texture }, [bitmap.width, bitmap.height]);
-        this.effectTextures.push(texture);
-        return texture;
-      } finally { bitmap.close(); }
+    const upload = async (name: string): Promise<GPUTexture> => {
+      const texture = await this.raster.loadTexture(this.engine.device, name, 512);
+      this.effectTextures.push(texture); return texture;
     };
-    const [smoke, boost, button, panel, dial, title, timing] = await Promise.all([upload('./assets/smoke-puff.png'), upload('./assets/boost-chevron.png'),
-      upload('./assets/gui-button.png'), upload('./assets/gui-panel.png'), upload('./assets/gui-dial.png'), upload('./assets/gui-title.png'), upload('./assets/gui-timing.png')]);
-    this.gui.setSkins(button, panel, dial, title, timing);
-    const sparkCanvas = new OffscreenCanvas(64, 64);
-    const paint = sparkCanvas.getContext('2d')!;
+    const results = await Promise.allSettled(['smoke-puff', 'boost-chevron', 'gui-button', 'gui-panel', 'gui-dial', 'gui-title', 'gui-timing', 'gui-pause'].map(upload));
+    const [smoke, boost, button, panel, dial, title, timing, pause] = results.map(r => { if (r.status === 'rejected') throw r.reason; return r.value; }) as [GPUTexture, GPUTexture, GPUTexture, GPUTexture, GPUTexture, GPUTexture, GPUTexture, GPUTexture];
+    const [gear,settings] = await Promise.all([upload('gui-settings-gear'),upload('gui-settings-panel')]);
+    this.gui.setSkins(button, panel, dial, title, timing, pause, gear, settings);
+    const [record, wheel] = await Promise.all([upload('gui-record'), upload('gui-wheel')]);
+    this.gui.setInteractiveArt(record, wheel);
+    this.gui.setLapArt(await upload('gui-lap'));
+    const sparkCanvas = this.raster.canvas(64, 64);
+    const paint = sparkCanvas.getContext('2d') as CanvasRenderingContext2D;
     paint.strokeStyle = '#fff4c2'; paint.lineWidth = 3; paint.lineCap = 'round';
     paint.shadowColor = '#ff9d25'; paint.shadowBlur = 8;
     paint.beginPath(); paint.moveTo(15, 49); paint.lineTo(49, 15); paint.stroke();
-    const spark = this.engine.device.createTexture({ label: 'NeonCircuit.spark', size: [64, 64], format: 'rgba8unorm',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
-    this.engine.device.queue.copyExternalImageToTexture({ source: sparkCanvas }, { texture: spark }, [64, 64]);
+    const spark = uploadNeonCanvas(this.engine.device, this.raster, sparkCanvas);
     this.effectTextures.push(spark);
     this.effects = new RaceParticles(this.world, smoke, spark);
     this.boostStrip = new BoostStripTexture(this.engine.device, boost);
@@ -249,7 +315,7 @@ class NeonCircuitGame {
     const start = racePose(this.track, this.state);
     this.cameraHeading = start.heading;
     const cameraEntity = new Entity('Chase camera');
-    this.cameraComponent = new Camera3D({ type: 'perspective', fov: speedFov(0, BOOST_MAX_SPEED), near: 1, far: (this.circuit.theme === 'cosmic' ? 30000 : 9500) * TRACK_SCALE });
+    this.cameraComponent = new Camera3D({ type: 'perspective', fov: speedFov(0, BOOST_MAX_SPEED), near: 1, far: (this.circuit.theme === 'cosmic' || this.circuit.theme === 'daylight' ? 30000 : 9500) * TRACK_SCALE });
     this.cameraComponent.reverseZ = true;
     cameraEntity.addComponent(this.cameraComponent);
     this.camera = new SphericalTransform3D({
@@ -261,29 +327,35 @@ class NeonCircuitGame {
     cameraEntity.addComponent(this.camera);
     this.world.addEntity(cameraEntity);
 
-    this.world.addSystem(new GltfModelSystem({ priority: -20, loadTimeoutMs: 20_000 }));
+    this.world.addSystem(new GltfModelSystem({ priority: -20, loadTimeoutMs: 20_000, ...this.native?.modelOptions }));
     const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4, reverseZ: true });
     this.world.addSystem(render3D);
     this.gui = new NeonCircuitGui(this.world, this.engine.device, this.circuit.id, {
-      select: id => { this.selectedCircuit = id; }, start: () => this.startSelectedCircuit(),
+      stamp: () => this.audio.cue('record'),
+      click: () => this.audio.click(),
+      language: value => this.changeLanguage(value),
+      select: id => { if(this.selectedCircuit!==id)this.audio.course(); this.selectedCircuit = id; }, start: () => this.startSelectedCircuit(),
       restart: () => this.restart(), pause: () => this.togglePause(), home: () => this.showHome(),
       press: (key, pointer) => { if (this.phase === 'racing' || this.phase === 'countdown') this.touchKeys.set(pointer, key); },
-      release: pointer => { this.touchKeys.delete(pointer); },
-    }, matchMedia('(pointer: coarse)').matches);
+      release: pointer => this.releaseControl(pointer),
+    }, this.native ? true : matchMedia('(pointer: coarse)').matches, this.raster, this.native?.safeInsets);
+    this.changeLanguage(this.language);
     this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: {
-      chars: NEON_GUI_GLYPHS, fontSize: 48, atlasSize: 2048, fontFamily: 'Arial, "PingFang SC", "Microsoft YaHei", sans-serif',
+      ...this.native?.guiFont, chars: NEON_GUI_GLYPHS, fontSize: 48, atlasSize: 2048, fontFamily: 'Arial, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", sans-serif',
     } }));
     const integration = new RenderIntegration(this.engine, { label: 'NeonCircuit.render' });
     this.world.addRuntimeIntegration(integration);
     integration.registerAll(this.world);
   }
 
+  private get sunnyTheme(): boolean { return this.circuit.theme === 'daylight'; }
+
   private setupLighting(): void {
     const environment = new Entity('Racer environment reflections');
     environment.addComponent(new EnvironmentLight({ intensity: 1.25, diffuseColor: [0.70, 0.75, 0.82], specularColor: [0.22, 0.28, 0.4] }));
     this.world.addEntity(environment);
     const ambient = new Entity('Night ambient');
-    ambient.addComponent(new AmbientLight({ color: [0.22, 0.42, 0.72], intensity: 0.72 }));
+    ambient.addComponent(new AmbientLight({ color: this.sunnyTheme ? [0.82,0.9,1] : [0.22, 0.42, 0.72], intensity: this.sunnyTheme ? 1.15 : 0.72 }));
     this.world.addEntity(ambient);
     const moon = new Entity('Moon light');
     moon.addComponent(new DirectionalLight({ color: [0.85, 0.92, 1], intensity: 2.2, direction: [-0.35, -1, -0.2] }));
@@ -345,7 +417,7 @@ class NeonCircuitGame {
   }
 
   private buildTrack(): void {
-    const centerPath = this.track.samples.map(sample => this.extrusionPoint(sample.distance));
+    const centerPath = this.extrusionPath();
     this.addGeometry('Continuous road', createPathExtrusion3D({
       path: centerPath,
       // The visible top is shared by all road markings; this mesh is only its underside/edges.
@@ -369,7 +441,7 @@ class NeonCircuitGame {
     } else this.addGeometry('Road surface', surface, this.colors.roadA, 30);
 
     for (const side of [-1, 1]) {
-      const railPath = this.track.samples.map(sample => this.extrusionPoint(sample.distance, side * (ROAD_HALF_WIDTH + 3), 5));
+      const railPath = this.extrusionPath(side * (ROAD_HALF_WIDTH + 3), 5);
       this.addGeometry(`Continuous rail ${side}`, createPathExtrusion3D({
         path: railPath,
         shape: [[-3.2, 5], [3.2, 5], [3.2, -5], [-3.2, -5]],
@@ -390,19 +462,20 @@ class NeonCircuitGame {
 
     for (let distance = 520; distance < this.track.length; distance += 840) {
       const sample = sampleTrack(this.track, distance);
-      const right = bankedRight(sample.heading, sample.pitch, sample.bank);
-      const up = bankedUp(sample.heading, sample.pitch, sample.bank);
+      const right = sample.frame?.right ?? bankedRight(sample.heading, sample.pitch, sample.bank);
+      const up = sample.frame?.up ?? bankedUp(sample.heading, sample.pitch, sample.bank);
       for (const side of [-1, 1]) {
         const x = sample.x + right[0] * side * (ROAD_HALF_WIDTH + 12) + up[0] * 18;
         const y = sample.y + right[1] * side * (ROAD_HALF_WIDTH + 12) + up[1] * 18;
         const z = sample.z + right[2] * side * (ROAD_HALF_WIDTH + 12) + up[2] * 18;
-        this.addBox(
+        const beacon = this.addBox(
           `Velocity beacon ${Math.round(distance)} ${side}`,
           x, y, z, 5, 36, 5,
           Math.floor(distance / 840) % 2 === 0 ? this.colors.rail : this.colors.accent,
           100,
           [-sample.pitch, sample.heading, sample.bank],
         );
+        if(sample.frame) beacon.setMatrix(mat4.multiply(frameMatrix(sample.frame,[x,y,z]),mat4.scaling([5,36,5])));
       }
     }
 
@@ -426,10 +499,21 @@ class NeonCircuitGame {
     }
   }
 
+  private extrusionPath(lateral=0, vertical=0): PathExtrusionPoint[] {
+    const path=this.track.samples.map(s=>this.extrusionPoint(s.distance,lateral,vertical));
+    if(!this.sunnyTheme) return path;
+    return path.map((point,i)=>{
+      const prev=path[(i+path.length-1)%path.length]!.position, next=path[(i+1)%path.length]!.position;
+      const f=unit(mixAxes(next,prev,1,-1)), r=unit(cross(Math.abs(f[1])<0.96?[0,1,0]:[0,0,1],f)), u=cross(f,r);
+      const desired=this.track.samples[i]!.frame!.right;
+      return {...point,roll:Math.atan2(dot(desired,u),dot(desired,r))};
+    });
+  }
+
   private extrusionPoint(distance: number, lateral = 0, vertical = 0): PathExtrusionPoint {
     const sample = sampleTrack(this.track, distance);
-    const right = bankedRight(sample.heading, sample.pitch, sample.bank);
-    const up = bankedUp(sample.heading, sample.pitch, sample.bank);
+    const right = sample.frame?.right ?? bankedRight(sample.heading, sample.pitch, sample.bank);
+    const up = sample.frame?.up ?? bankedUp(sample.heading, sample.pitch, sample.bank);
     return {
       position: [
         sample.x + right[0] * lateral + up[0] * vertical,
@@ -516,6 +600,7 @@ class NeonCircuitGame {
     const controlled = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'p', 'r', ' ', 'escape']);
     window.addEventListener('keydown', event => {
       const key = event.key.toLowerCase();
+      this.audio.unlock();
       if (!event.repeat && this.gui.keyboard(key, event.shiftKey)) { event.preventDefault(); return; }
       if (this.phase === 'home') return;
       if (controlled.has(key)) event.preventDefault();
@@ -526,6 +611,7 @@ class NeonCircuitGame {
     }, { signal: this.inputLifetime.signal });
     window.addEventListener('keyup', event => this.keys.delete(event.key.toLowerCase()), { signal: this.inputLifetime.signal });
     const suspend = (): void => {
+      this.audio.suspend();
       this.keys.clear(); this.touchKeys.clear();
       this.gui.cancelCarouselPointer();
       if (this.phase === 'racing' || this.phase === 'countdown') this.togglePause();
@@ -533,6 +619,8 @@ class NeonCircuitGame {
     window.addEventListener('blur', suspend, { signal: this.inputLifetime.signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) suspend(); }, { signal: this.inputLifetime.signal });
     // Pointer identity is independent of the GUI's current hover/press target, allowing two-finger driving.
+    canvas.addEventListener('pointerdown', () => this.audio.unlock(), {signal:this.inputLifetime.signal});
+    canvas.addEventListener('pointerup', event => this.releaseControl(event.pointerId), { signal: this.inputLifetime.signal });
     canvas.addEventListener('pointercancel', event => {
       this.touchKeys.delete(event.pointerId);
       this.gui.cancelCarouselPointer(event.pointerId);
@@ -555,7 +643,7 @@ class NeonCircuitGame {
       const controls = {
         throttle: this.held('w') || this.held('arrowup') ? 1 : 0,
         brake: this.held('s') || this.held('arrowdown') ? 1 : 0,
-        steer: (this.held('a') || this.held('arrowleft') ? 1 : 0) - (this.held('d') || this.held('arrowright') ? 1 : 0),
+        steer: this.native ? this.native.steering() : (this.held('a') || this.held('arrowleft') ? 1 : 0) - (this.held('d') || this.held('arrowright') ? 1 : 0),
       };
       this.accumulator += seconds;
       const events: string[] = [];
@@ -566,12 +654,15 @@ class NeonCircuitGame {
         this.accumulator -= 1 / 120;
       }
       const result = { events };
+      if(events.includes('boost')) this.audio.cue('boost');
       if (events.includes('wall')) {
+        this.native?.haptic(this.state.impact);
+        this.audio.cue('rail', .3+this.state.impact*.7,Math.sign(this.state.lateral)*.45);
         this.cameraImpact = Math.max(this.cameraImpact, this.state.impact);
         const center = sampleTrack(this.track, this.state.distance);
         const side = Math.sign(this.state.lateral);
-        const right = bankedRight(center.heading, center.pitch, center.bank);
-        const up = bankedUp(center.heading, center.pitch, center.bank);
+        const right = center.frame?.right ?? bankedRight(center.heading, center.pitch, center.bank);
+        const up = center.frame?.up ?? bankedUp(center.heading, center.pitch, center.bank);
         this.effects.collide([center.x + right[0] * side * (ROAD_HALF_WIDTH + 1) + up[0] * 5,
           center.y + right[1] * side * (ROAD_HALF_WIDTH + 1) + up[1] * 5,
           center.z + right[2] * side * (ROAD_HALF_WIDTH + 1) + up[2] * 5],
@@ -580,18 +671,20 @@ class NeonCircuitGame {
       if (result.events.includes('destroyed')) {
         this.phase = 'destroyed';
         this.keys.clear(); this.touchKeys.clear();
-        this.flashAnnouncement('赛车损毁', Number.POSITIVE_INFINITY);
+        this.flashAnnouncement(TEXT[this.language].destroyed, Number.POSITIVE_INFINITY);
       }
       if (result.events.includes('finish')) this.finishRace();
-      if (result.events.includes('lap')) this.flashAnnouncement(`LAP ${this.state.lap}`);
+      if (result.events.includes('lap')) {this.audio.cue('lap');this.flashAnnouncement(lapNotice(this.language,this.state.lap,TOTAL_LAPS));}
     }
     if (this.phase === 'racing' && this.state.elapsed >= this.announcementUntil) this.announcementText = '';
+    if(this.phase==='countdown' && this.racerModel.status==='loaded')this.audio.countdown(this.countdown<=.45?'GO':String(Math.max(1,Math.ceil(this.countdown-.4))) as '3'|'2'|'1');
+    this.audio.update(seconds,this.phase === 'racing',this.held('w') || this.held('arrowup'),this.state.speed/BOOST_MAX_SPEED,this.held('s')||this.held('arrowdown'));
     this.updateVisuals(timeMs, seconds);
     this.gui.animate(seconds);
     this.updateHud();
     this.world.update(timeMs, deltaMs);
     this.gui.flushCarouselCaptureLosses();
-    if (++this.validationFrames >= 24 && this.validationFrames < 1_000_000 && this.racerModel.status === 'loaded') {
+    if (!this.native && ++this.validationFrames >= 24 && this.validationFrames < 1_000_000 && this.racerModel.status === 'loaded') {
       this.validationFrames = 1_000_000;
       void this.finishValidation();
     }
@@ -624,16 +717,19 @@ class NeonCircuitGame {
     const pose = racePose(this.track, this.state);
     const targetPitch = -pose.pitch;
     this.visualPitch += (targetPitch - this.visualPitch) * (1 - Math.exp(-seconds * 7));
-    const steerAxis = (this.held('a') || this.held('arrowleft') ? 1 : 0) - (this.held('d') || this.held('arrowright') ? 1 : 0);
+    const steerAxis = this.native ? this.native.steering() : (this.held('a') || this.held('arrowleft') ? 1 : 0) - (this.held('d') || this.held('arrowright') ? 1 : 0);
     const targetBank = -steerAxis * Math.min(0.28, this.state.speed / CRUISE_MAX_SPEED * 0.28);
     this.visualBank += (targetBank - this.visualBank) * (1 - Math.exp(-seconds * 8));
     const hover = Math.sin(timeMs * 0.0065) * 0.75;
     const bank = pose.bank + this.visualBank;
+    const bodyFrame=pose.frame ? turnFrame(pose.frame,0,this.visualBank) : null;
     const bodyPosition = (offset: readonly number[]): [number, number, number] => {
+      if(bodyFrame) return [0,1,2].map(i=>[pose.x,pose.y,pose.z][i]!+bodyFrame.right[i]!*offset[0]!+bodyFrame.up[i]!*(offset[1]!+4.5+hover)+bodyFrame.forward[i]!*offset[2]!) as [number,number,number];
       const point = rotateBodyPoint(offset, this.visualPitch, pose.heading, bank);
       return [pose.x + point[0], pose.y + 4.5 + hover + point[1], pose.z + point[2]];
     };
     for (const part of this.carParts) {
+      if(pose.frame) { part.transform.setPosition(...part.offset).setRotation(...part.localRotation); continue; }
       part.transform.setPosition(...bodyPosition(part.offset))
         .setRotation(this.visualPitch + part.localRotation[0], pose.heading + part.localRotation[1], bank + part.localRotation[2]);
     }
@@ -650,7 +746,11 @@ class NeonCircuitGame {
     const damage = damageEnvelope(this.state.health);
     this.hullFire.update(this.effectClock, damage.fire);
     for (const part of this.fireParts) part.setScale(1, 3.5 + damage.fire * 6, 1);
-    this.effects.update(seconds, bodyPosition([0, 3.8, -11]), [Math.sin(pose.heading), 0, Math.cos(pose.heading)],
+    if(bodyFrame) {
+      const origin=bodyPosition([0,0,0]), basis=frameMatrix(bodyFrame,origin);
+      for(const part of this.carParts) part.transform.setMatrix(mat4.multiply(basis,part.transform.localMatrix));
+    }
+    this.effects.update(seconds, bodyPosition([0, 3.8, -11]), pose.frame?.forward ?? [Math.sin(pose.heading), 0, Math.cos(pose.heading)],
       damage.smokeRate, damage.smokeOpacity, effectsRunning);
     this.boostStrip.update(this.effectClock);
     this.rainbowRoad?.update(this.effectClock);
@@ -660,7 +760,7 @@ class NeonCircuitGame {
     const headingResponse = 1 - Math.exp(-seconds * (4.6 + speedRatio * 2.8));
     this.cameraHeading = lerpAngle(this.cameraHeading, pose.heading, headingResponse);
     this.camera.theta = this.cameraHeading + Math.PI + Math.sin(timeMs * 0.081) * shake * 0.038;
-    const portraitFraming = Math.max(1, 0.65 / (innerWidth / Math.max(1, innerHeight)));
+    const portraitFraming = Math.max(1, 0.65 / (this.engine.width / Math.max(1, this.engine.height)));
     this.camera.radius = (108 + speedRatio * 20) * portraitFraming;
     this.cameraComponent.fov += (speedFov(this.state.speed, BOOST_MAX_SPEED) - this.cameraComponent.fov) * (1 - Math.exp(-seconds * 3.5));
     this.camera.phi += (speedCameraPhi(this.state.speed, pose.pitch, BOOST_MAX_SPEED) - this.camera.phi) * (1 - Math.exp(-seconds * 3.5));
@@ -671,37 +771,52 @@ class NeonCircuitGame {
       pose.y + 11 + Math.sin(pose.pitch) * lookAhead + Math.sin(timeMs * 0.099) * shake * 4.5,
       pose.z + Math.cos(pose.heading) * forwardHorizontal * lookAhead,
     );
+    if(pose.frame) {
+      const f=pose.frame.forward,u=pose.frame.up,r=pose.frame.right;
+      const phi=speedCameraPhi(this.state.speed,0,BOOST_MAX_SPEED), radius=this.camera.radius;
+      const target=[pose.x+f[0]*lookAhead+u[0]*11,pose.y+f[1]*lookAhead+u[1]*11,pose.z+f[2]*lookAhead+u[2]*11] as TrackVector;
+      const back=mixAxes(f,u,-Math.sin(phi),Math.cos(phi));
+      const eye=[0,1,2].map(i=>target[i]!+back[i]!*radius+r[i]!*Math.sin(timeMs*.081)*shake*3) as unknown as TrackVector;
+      const z=unit(mixAxes(eye,target,1,-1)), x=unit(cross(u,z)), y=cross(z,x);
+      this.camera.setMatrix(frameMatrix({right:x,up:y,forward:z},eye));
+    }
     if (this.verificationOverview) {
       this.cameraComponent.fov = 0.96;
-      this.camera.set(9800 * TRACK_SCALE, -0.45, 0.8).setTarget(0, 1200 * TRACK_SCALE, 0);
+      if(this.sunny) this.camera.set(19500,-.1,.68).setTarget(-6100,3400,-2600);
+      else this.camera.set(9800 * TRACK_SCALE, -0.45, 0.8).setTarget(0, 1200 * TRACK_SCALE, 0);
     }
     this.effects.faceCamera(this.camera.theta, this.camera.phi);
     this.space?.update(this.effectClock, this.camera.eyePosition);
+    this.sunny?.update(this.camera.eyePosition);
   }
 
   private updateHud(): void {
     if (this.phase === 'countdown') this.announcementText = this.racerModel?.status !== 'loaded'
-      ? '正在加载赛车…' : this.countdown <= 0.45 ? 'GO' : String(Math.max(1, Math.ceil(this.countdown - 0.4)));
+      ? TEXT[this.language].loadingCar : this.countdown <= 0.45 ? 'GO' : String(Math.max(1, Math.ceil(this.countdown - 0.4)));
     this.gui.update({ phase: this.phase, speed: formatSpeed(this.state.speed),
       lap: `${Math.min(this.state.lap, TOTAL_LAPS)} / ${TOTAL_LAPS}`, time: formatTime(this.state.elapsed),
       best: Number.isFinite(this.bestTime) ? formatTime(this.bestTime) : '--:--.---', health: this.state.health,
       countdown: this.countdown, announcement: this.announcementText,
+      newRecord: this.newRecord, throttle: this.held('w') || this.held('arrowup'), brake: this.held('s') || this.held('arrowdown'),
       impact: this.phase === 'racing' ? this.cameraImpact : 0 });
   }
 
   private finishRace(): void {
     this.phase = 'finished';
     const isRecord = this.state.elapsed < this.bestTime;
+    this.newRecord = isRecord;
     if (isRecord) {
       this.bestTime = this.state.elapsed;
       void this.saves.save({ bestTime: this.bestTime });
       this.updateBestTime();
     }
-    this.announcementText = `${isRecord ? 'NEW RECORD · ' : ''}${formatTime(this.state.elapsed)}`;
+    this.announcementText = formatTime(this.state.elapsed);
     this.keys.clear(); this.touchKeys.clear(); this.updateHud();
   }
 
-  private restart(): void {
+  restart(): void {
+    this.audio.beginRace();
+    this.newRecord = false;
     this.state = createInitialRaceState();
     this.phase = 'countdown';
     this.countdown = 3.4;
@@ -718,7 +833,8 @@ class NeonCircuitGame {
     this.updateHud();
   }
 
-  private togglePause(): void {
+  togglePause(): void {
+    this.audio.stopDrive();
     this.keys.clear(); this.touchKeys.clear();
     if (this.phase === 'paused') {
       this.phase = this.phaseBeforePause;
@@ -738,6 +854,7 @@ class NeonCircuitGame {
 
   private startSelectedCircuit(): void {
     if (this.selectedCircuit === this.circuit.id) this.restart();
+    else if (this.native) this.native.changeCircuit(this.selectedCircuit);
     else {
       const url = new URL(location.href);
       url.searchParams.set('track', this.selectedCircuit);
@@ -746,7 +863,8 @@ class NeonCircuitGame {
     }
   }
 
-  private showHome(): void {
+  showHome(): void {
+    this.audio.stopDrive();
     this.phase = 'home';
     this.keys.clear(); this.touchKeys.clear();
     this.announcementText = '';
@@ -755,7 +873,7 @@ class NeonCircuitGame {
 
   private updateBestTime(): void { this.updateHud(); }
 
-  private snapshot(): RacerSnapshot {
+  snapshot(): RacerSnapshot {
     return {
       phase: this.phase,
       lap: this.state.lap,
@@ -773,6 +891,7 @@ class NeonCircuitGame {
       exhaustLength: this.exhaustLength,
       fov: this.cameraComponent.fov,
       reverseZ: this.engine.reverseZ && this.cameraComponent.reverseZ, depthFormat: this.engine.getDepthFormat(),
+      coaster: this.sunny ? {section:sampleTrack(this.track,this.state.distance).section!,roadUp:sampleTrack(this.track,this.state.distance).frame!.up,cameraUp:Array.from(this.camera.localMatrix.slice(4,7))} : null,
       cameraPhi: this.camera.phi, theme: this.circuit.theme, space: this.space?.counts ?? null, rainbowTime: this.rainbowRoad?.time ?? null,
       particles: this.effects.counts,
     };
@@ -789,8 +908,8 @@ class NeonCircuitGame {
     const status = this.validationErrors.length === 0 ? 'passed' : 'failed';
     document.body.dataset.renderStatus = status;
     const output = query<HTMLElement>('#result');
-    output.textContent = JSON.stringify({ schemaVersion: 1, revision: 'neon-circuit-speed-v13', status,
-      errors: this.validationErrors, checks, gui: this.gui.snapshot, modelStatus: this.racerModel.status, ...this.snapshot() });
+    output.textContent = JSON.stringify({ schemaVersion: 1, revision: 'neon-circuit-native-v14', status,
+      errors: this.validationErrors, checks, audio:this.audioState, gui: this.gui.snapshot, modelStatus: this.racerModel.status, ...this.snapshot() });
     output.dataset.status = status;
   }
 
@@ -843,7 +962,20 @@ class NeonCircuitGame {
         'rainbow shader changes actual GPU surface colours over time');
       texture.update(this.effectClock);
     }
-    check(this.gui.snapshot.routeCount === CIRCUITS.length, 'four actual route thumbnails');
+    check(this.gui.snapshot.language === 'zh' && this.gui.snapshot.title === '极速新星','Chinese is the default locale');
+    await click('settings'); await frames();
+    check(this.gui.snapshot.settingsVisible,'gear opens settings');
+    check(this.gui.snapshot.settingsBackdrop==='#020617a6','settings have a full screen translucent backdrop');
+    const selectedBeforeSettings = this.gui.snapshot.selected;
+    this.gui.keyboard('arrowright');
+    check(this.gui.snapshot.selected === selectedBeforeSettings,'settings block carousel shortcuts');
+    await click('language-en'); await frames();
+    check(this.gui.snapshot.language === 'en' && document.title === 'VELOCITY NOVA','English updates live labels and page title');
+    await click('language-ja'); await frames();
+    check(this.gui.snapshot.language === 'ja' && this.gui.snapshot.title === 'スピードノヴァ','Japanese updates live labels');
+    await click('language-zh'); await click('settings-done'); await frames();
+    check(!this.gui.snapshot.settingsVisible,'done closes settings');
+    check(this.gui.snapshot.routeCount === CIRCUITS.length, 'all actual route thumbnails');
     check(this.gui.snapshot.bounds.every(r => r.x >= 0 && r.y >= 0 && r.x + r.width <= innerWidth && r.y + r.height <= innerHeight), 'home fits viewport');
     check(document.querySelectorAll('button, svg, section, header, [data-control]').length === 0, 'all visible UI uses engine GUI');
     check(this.gui.snapshot.skinnedButtonsTransparent, 'image-skinned buttons and cards draw no extra rectangle or border');
@@ -975,8 +1107,8 @@ class NeonCircuitGame {
     await click('pause');
     await click('home-button');
     check(this.snapshot().phase === 'home' && this.gui.snapshot.homeVisible, 'return to course selection');
-    check(this.space ? this.space.counts.planets === 3 && this.space.counts.meteors === 36 && this.buildingCount === 0 : this.buildingCount > 150,
-      this.space ? 'cosmic panorama, three ringed planets and pooled meteor shower replace the city' : 'dense deterministic trackside skyline');
+    check(this.sunny ? this.track.samples.some(s=>s.frame!.up[1]<-0.9) && this.buildingCount===0 : this.space ? this.space.counts.planets === 3 && this.space.counts.meteors === 36 && this.buildingCount === 0 : this.buildingCount > 150,
+      this.sunny ? 'sunny panorama and an inverted coaster frame replace the city' : this.space ? 'cosmic panorama, three ringed planets and pooled meteor shower replace the city' : 'dense deterministic trackside skyline');
     this.restart();
     this.phase = 'racing';
     if (this.gui.snapshot.touchVisible) {
@@ -1008,11 +1140,37 @@ class NeonCircuitGame {
     await frames(2);
     check(this.state.boostRemaining === 0 && this.state.wallHits === 0 && this.state.speed > CRUISE_MAX_SPEED && this.state.speed < BOOST_MAX_SPEED
       && this.gui.snapshot.displaySpeed === formatSpeed(this.state.speed), 'overspeed decays gradually in simulation and speedometer');
+    const soundBank=this.audioState.backend as {error:string|null;buffers:number};
+    check(soundBank.error===null && soundBank.buffers===14,'fourteen shipped MIDI-derived WAVs decode successfully');
+    this.audio.unlock();this.audio.click();await frames(5);
+    check((this.audioState.played.click??0)>0 && (this.audioState.played.course??0)>0,'GUI activation and carousel use distinct audio cues');
+    this.state={...createInitialRaceState(),distance:this.track.length*BOOST_ZONES[0],speed:500};this.phase='racing';await frames(3);
+    check((this.audioState.played.boost??0)>0,'boost entry triggers the rising sound');
+    this.keys.add('w');await frames(20);
+    check(this.audioState.loops===2,'held racing throttle owns exactly two engine registers');
+    this.keys.clear();this.togglePause();await frames(2);
+    check(this.audioState.loops===0,'pause retires both engine registers');
+    this.restart();
+    for(const value of [3.2,2.2,1.2,.3]){this.countdown=value;await frames(3);}
+    check(['count-3','count-2','count-1','go'].every(id=>(this.audioState.played as Record<string,number>)[id]!>0),'countdown cues follow the displayed countdown');
+    this.countdown=0;await frames(3);
+    check(this.audioState.musicPlaying,'racing starts the thirty-second music loop');
+    this.state={...createInitialRaceState(),distance:this.track.length-1,speed:500};await frames(3);
+    check((this.audioState.played.lap??0)>0,'actual lap crossing plays a chime');
+    this.keys.add('s');await frames(3);this.keys.clear();
+    check((this.audioState.played.brake??0)>0,'moving brake input plays its cue');
+    this.bestTime=Infinity;this.state={...createInitialRaceState(),lap:3,distance:this.track.length-1,speed:500,elapsed:120};await frames(3);
+    for(let i=0;i<120 && this.gui.snapshot.recordStamp.age<.8;i++)await frames(1);
+    check((this.audioState.played.record??0)>0 && this.gui.snapshot.recordStamp.age>=.5,'record sound accompanies the stamp landing');
+    check(!this.audioState.musicPlaying,'music stops at the finish');
     this.showHome();
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot?.startsWith('home')) {
-      this.gui.select(shot === 'home-sky' ? 'sky-harbor' : shot === 'home-reactor' ? 'reactor-run' : shot === 'home-rainbow' ? 'rainbow-road' : CIRCUITS[0]!.id);
+      this.gui.select(shot === 'home-sky' ? 'sky-harbor' : shot === 'home-reactor' ? 'reactor-run' : shot === 'home-rainbow' ? 'rainbow-road' : shot === 'home-coaster' ? 'sky-coaster' : CIRCUITS[0]!.id);
       await settleCarousel();
+      if(shot.includes('-en')) this.changeLanguage('en');
+      if(shot.includes('-ja')) this.changeLanguage('ja');
+      if(shot.includes('settings')) await click('settings');
       if (shot === 'home-swipe') { this.gui.select(CIRCUITS[1]!.id); await frames(3); }
     } else {
       this.restart();
@@ -1029,17 +1187,33 @@ class NeonCircuitGame {
         await frames(9);
       }
       if (shot === 'countdown') { this.phase = 'countdown'; this.countdown = 2.8; }
+      if (shot === 'lap') {this.state={...this.state,lap:2};this.flashAnnouncement(lapNotice(this.language,2,3),5);}
       if (shot === 'amber') this.state = { ...this.state, health: 55 };
       if (shot === 'paused') { this.phaseBeforePause = 'racing'; this.phase = 'paused'; this.announcementText = 'PAUSED'; }
-      if (shot === 'destroyed') { this.state = { ...this.state, health: 0, destroyed: true }; this.phase = 'destroyed'; this.announcementText = '赛车损毁'; }
-      if (shot === 'finished') { this.state = { ...this.state, elapsed: 123.456, lap: 3 }; this.phase = 'finished'; this.announcementText = 'NEW RECORD · 02:03.456'; }
+      if (shot === 'destroyed') { this.state = { ...this.state, health: 0, destroyed: true }; this.phase = 'destroyed'; this.announcementText = TEXT[this.language].destroyed; }
+      if (shot === 'finished') { this.state = { ...this.state, elapsed: 123.456, lap: 3 }; this.newRecord = true; this.phase = 'finished'; this.announcementText = '02:03.456'; }
+    }
+    if(shot?.startsWith('coaster-') && shot !== 'coaster-overlook') {
+      const section=shot.slice(8), rows=this.track.samples.filter(s=>s.section===section);
+      const at=rows[Math.floor(rows.length*(section==='loop' || section==='roll' ? .5 : .42))]!;
+      this.state={...createInitialRaceState(),distance:at.distance};
     }
     await frames(shot === 'home-swipe' ? 1 : shot === 'collision' || shot === 'countdown' ? 2 : 55);
+    if(shot==='music-loop'){
+      const starts=this.audioState.played.music??0;await new Promise(resolve=>setTimeout(resolve,31_000));
+      check(this.audioState.musicPlaying && this.audioState.played.music===starts,'music crosses its thirty-second boundary without restarting its voice');
+    }
     if (shot === 'high-speed') {
       // A stationary diagnostic pose isolates lens/paint/HUD changes from steering.
       this.state = { ...this.state, speed: BOOST_MAX_SPEED };
       for (let i = 0; i < 120; i++) this.updateVisuals(performance.now(), 1 / 60);
       await frames(2);
+    }
+    if(shot === 'coaster-overlook') {
+      this.cameraComponent.fov=1.05;
+      this.camera.set(19500,-.1,.68).setTarget(-6100,3400,-2600);
+      this.sunny?.update(this.camera.eyePosition);
+      this.verificationOverview=true; await frames(2);
     }
     if (shot === 'space-overlook') { this.verificationOverview = true; await frames(2); }
     this.engine.stop();
@@ -1047,7 +1221,7 @@ class NeonCircuitGame {
 
   showStartupError(): void {
     if (!this.gui || !this.engine || !this.world) return;
-    this.phase = 'paused'; this.announcementText = '启动失败，请刷新页面重试。'; this.updateHud();
+    this.phase = 'paused'; this.announcementText = TEXT[this.language].startupError; this.updateHud();
     this.engine.on('update', ({ detail: { time, delta } }) => this.world.update(time, delta));
     this.engine.run();
   }
@@ -1144,7 +1318,8 @@ function formatTime(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}.${String(remainder).padStart(3, '0')}`;
 }
 
-const game = new NeonCircuitGame();
+if (typeof document !== 'undefined' && typeof location !== 'undefined') {
+const game = new NeonCircuitGame(new URLSearchParams(location.search).get('track'));
 async function main(): Promise<void> {
   await game.init(query<HTMLCanvasElement>('#canvas'));
 }
@@ -1159,3 +1334,9 @@ void main().catch(error => {
   game.showStartupError();
   console.error(error);
 });
+
+}
+
+function frameMatrix(frame:TrackFrame,position:TrackVector):Float32Array {
+  return new Float32Array([...frame.right,0,...frame.up,0,...frame.forward,0,...position,1]);
+}

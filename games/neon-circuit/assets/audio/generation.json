@@ -1,0 +1,170 @@
+{
+  "generator": "node --experimental-strip-types scripts/generate-neon-audio.mjs",
+  "method": "Original MIDI format-0 scores, decoded then rendered with deterministic FM synthesis; seeded noise adds impact texture. No external samples or SoundFont.",
+  "music": {
+    "seconds": 30,
+    "bpm": 128,
+    "bars": 16,
+    "meter": "4/4",
+    "arrangement": "Electronic drums, syncopated FM bass, chord pads and evolving arpeggios; delay tails wrap into the next loop."
+  },
+  "sampleRate": 44100,
+  "channels": 1,
+  "bits": 16,
+  "effects": [
+    {
+      "id": "record",
+      "seconds": 0.85,
+      "loop": false,
+      "midi": "record.mid",
+      "wav": "record.wav",
+      "notes": 4,
+      "peak": 0.8,
+      "rms": 0.11545272255338605,
+      "sha256": "f70e3fcc19a6ff09c34b043bc48474193ca2641ad515363dde41bdf5c7885612"
+    },
+    {
+      "id": "lap",
+      "seconds": 0.85,
+      "loop": false,
+      "midi": "lap.mid",
+      "wav": "lap.wav",
+      "notes": 3,
+      "peak": 0.8,
+      "rms": 0.19560837809857323,
+      "sha256": "3fa4719f93cfb54cb500dad0565705dba5ce2b956b76f66b3b67346b9f8753b8"
+    },
+    {
+      "id": "brake",
+      "seconds": 0.62,
+      "loop": false,
+      "midi": "brake.mid",
+      "wav": "brake.wav",
+      "notes": 2,
+      "peak": 0.8,
+      "rms": 0.14307477075827457,
+      "sha256": "41e41e2e52f3ec4f6dc95a35c7e9c7c8fc2200fff95b4f9a96c6323c0dd18a80"
+    },
+    {
+      "id": "count-3",
+      "seconds": 0.25,
+      "loop": false,
+      "midi": "count-3.mid",
+      "wav": "count-3.wav",
+      "notes": 1,
+      "peak": 0.8000000000000002,
+      "rms": 0.18411112774100913,
+      "sha256": "e8f8550561dbd7fc58b478c08d3493acb96d80e34a976784f69e3ea6257f2c42"
+    },
+    {
+      "id": "count-2",
+      "seconds": 0.25,
+      "loop": false,
+      "midi": "count-2.mid",
+      "wav": "count-2.wav",
+      "notes": 1,
+      "peak": 0.8,
+      "rms": 0.18167518157987156,
+      "sha256": "4c86925f12fea79b5f6230e9d4f86ec441e81bd282c80f63f10f1b608c20a262"
+    },
+    {
+      "id": "count-1",
+      "seconds": 0.25,
+      "loop": false,
+      "midi": "count-1.mid",
+      "wav": "count-1.wav",
+      "notes": 1,
+      "peak": 0.8,
+      "rms": 0.1846165599341376,
+      "sha256": "1d47f8b9b43ad55bcdb3e16614f3b200b98a6238d1bf71f64e600c031b5d9bd0"
+    },
+    {
+      "id": "go",
+      "seconds": 0.55,
+      "loop": false,
+      "midi": "go.mid",
+      "wav": "go.wav",
+      "notes": 2,
+      "peak": 0.8000000000000002,
+      "rms": 0.1606467138574099,
+      "sha256": "e89d3677a79b717feb706753996ff9bcd3e848e22773216421ff58d7372f4e13"
+    },
+    {
+      "id": "music",
+      "seconds": 30,
+      "loop": true,
+      "midi": "music.mid",
+      "wav": "music.wav",
+      "notes": 682,
+      "peak": 0.76,
+      "rms": 0.11039962719585916,
+      "sha256": "00dd46dcaf4d03f48bbc36a2db93e1996658d24e6d92f7d993a769b262858793"
+    },
+    {
+      "id": "click",
+      "seconds": 0.24,
+      "loop": false,
+      "midi": "click.mid",
+      "wav": "click.wav",
+      "notes": 2,
+      "peak": 0.8,
+      "rms": 0.20968392758962046,
+      "sha256": "b6fc84bdaddf52712f2750be454ed6b8bdd5dd3c6cf0942c8b49c27407f09149"
+    },
+    {
+      "id": "course",
+      "seconds": 0.52,
+      "loop": false,
+      "midi": "course.mid",
+      "wav": "course.wav",
+      "notes": 3,
+      "peak": 0.7999999999999999,
+      "rms": 0.20039207089877176,
+      "sha256": "814b7d8751d6dc0ebed683b7f78c97306ea1c56757fb1259e371340b6a983495"
+    },
+    {
+      "id": "rail",
+      "seconds": 0.62,
+      "loop": false,
+      "midi": "rail.mid",
+      "wav": "rail.wav",
+      "notes": 4,
+      "peak": 0.8,
+      "rms": 0.09849469304151583,
+      "sha256": "b46b519d3a21831dbbf0e43105a33afbd47cc3c3eab78d6bd095e6c9e39cb63c"
+    },
+    {
+      "id": "boost",
+      "seconds": 1.1,
+      "loop": false,
+      "midi": "boost.mid",
+      "wav": "boost.wav",
+      "notes": 5,
+      "peak": 0.8,
+      "rms": 0.1881398076956552,
+      "sha256": "c614e16147e2b1631ebed6af777bc9ca13af2625ab3c963e138f688bd374ee8b"
+    },
+    {
+      "id": "engine-low",
+      "seconds": 1,
+      "loop": true,
+      "midi": "engine-low.mid",
+      "wav": "engine-low.wav",
+      "notes": 1,
+      "peak": 0.58,
+      "rms": 0.2979263558557659,
+      "sha256": "adf75d90aebb4869f040b2befdeab1ddc289ef8b15fb1ebb6e1c3ec63ce62ed7"
+    },
+    {
+      "id": "engine-high",
+      "seconds": 1,
+      "loop": true,
+      "midi": "engine-high.mid",
+      "wav": "engine-high.wav",
+      "notes": 1,
+      "peak": 0.58,
+      "rms": 0.29648374627727114,
+      "sha256": "7b4fd8ca2ea6889ff0eb0755809b55649772fc7d94ec9df3c958f3ed87ddd655"
+    }
+  ]
+}

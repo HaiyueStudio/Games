@@ -1,0 +1,17 @@
+{
+  "title": "Orbital Drift",
+  "composer": "Original procedural composition for Sky Strike",
+  "seconds": 40,
+  "bpm": 96,
+  "bars": 16,
+  "key": "D minor",
+  "sampleRate": 44100,
+  "channels": 1,
+  "bytes": 3528044,
+  "peak": 0.7599999904632568,
+  "rms": 0.13458993493996602,
+  "seamDelta": 0.0037385630421340466,
+  "sha256": "f8b280ba0d825352c937255409b57b3dff556f6ce14370c8b2321babbc8a8036",
+  "source": "scripts/sky-music-score.mjs",
+  "loop": "Circular note tails and tempo-synchronised delay; no silent padding"
+}

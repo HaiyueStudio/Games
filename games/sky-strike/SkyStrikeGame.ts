@@ -22,6 +22,7 @@ import {
   TWIN_REVIVE_WINDOW_MS, TWIN_REVIVE_HEALTH_RATIO, TWIN_BUBBLE_HEALTH,
   TWIN_BUBBLE_BLAST_RADIUS, TWIN_BUBBLE_BLAST_DAMAGE, MAX_TWIN_BUBBLES,
   BOSS_BOMB_DAMAGE_MULTIPLIER,
+  SERPENT_BODY_BOMB_DAMAGE_MULTIPLIER,
   CARRIER_DEPLOY_INTERVAL_MS,
   CARRIER_ELITE_WAVE_INTERVAL,
   CARRIER_MAX_ELITES,
@@ -444,6 +445,7 @@ export class SkyStrikeGame {
     if (this.disposed) return;
     for (const input of this.pendingInput.splice(0)) input();
     const delta = Math.min(34, Math.max(0, deltaMs));
+    this.platform.audio?.music(this.phase === 'playing');
     this.platform.audio?.update(delta);
     this.levelCarousel?.update(delta);
     this.updateStars(delta);
@@ -731,6 +733,7 @@ export class SkyStrikeGame {
     this.mirrorLaser=null;this.blackHole.reset(level.id==='event-horizon');this.holeSpawnMs=1600;this.holeSpawnCount=0;
     if(level.id==='event-horizon')this.updateSpawns();
     this.bossWarningProgress = 0;
+    this.platform.audio?.bossWarning(false);
     this.enemyBullets.length = 0;
     this.hostileLasers.length = 0;this.mirrorLaser=null;
     this.bossLaser = null;
@@ -931,10 +934,12 @@ export class SkyStrikeGame {
     }
     if (!nextBossSpawn) {
       this.bossWarningProgress = 0;
+      this.platform.audio?.bossWarning(false);
       return;
     }
     const timeUntilBossMs = nextBossSpawn.atMs - this.levelElapsedMs;
     this.bossWarningProgress = calculateBossWarningProgress(timeUntilBossMs);
+    this.platform.audio?.bossWarning(this.phase === 'playing' && this.bossWarningProgress > 0);
   }
 
   private spawnEnemy(definition: EnemyDefinition, requestedX?: number, requestedY?: number, quantumPair = false): EnemyState {
@@ -1943,7 +1948,7 @@ export class SkyStrikeGame {
     if(enemy.definition.id==='black-hole'||enemy.definition.mirrorSides)return false;
     const boss = this.boss;
     const bossScale = source === 'bomb' ? BOSS_BOMB_DAMAGE_MULTIPLIER : 1;
-    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage * ((enemy.definition.tier === 'boss'||enemy.definition.segmentedPart==='serpent-turret') ? bossScale : source === 'bomb' && enemy.definition.tier === 'elite' ? 0.5 : 1));
+    const resolvedDamage = resolveEnemyDamage(enemy.definition, damage * (source === 'bomb' && enemy.definition.segmentedPart==='serpent-turret' ? SERPENT_BODY_BOMB_DAMAGE_MULTIPLIER : enemy.definition.tier === 'boss' ? bossScale : source === 'bomb' && enemy.definition.tier === 'elite' ? 0.5 : 1));
     if (resolvedDamage.targetDamage <= 0) return false;
     const effectiveDamage = Math.min(resolvedDamage.targetDamage, Math.max(0, enemy.hitPoints));
     enemy.hitPoints -= effectiveDamage;
@@ -2063,6 +2068,8 @@ export class SkyStrikeGame {
     this.mirrorLaser=null;this.blackHole.reset();this.pointerTarget=null;
     this.bombCrates.clear();
     this.platform.audio?.stopLasers();
+    this.platform.audio?.music(false);
+    this.platform.audio?.bossWarning(false);
     this.phase = 'game-over';
     this.highScore = Math.max(this.highScore, this.score);
     this.ui.pauseState(false, true);

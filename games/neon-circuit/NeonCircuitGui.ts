@@ -1,8 +1,11 @@
+import { LANGUAGES, LANGUAGE_NAMES, TEXT, LOCALE_GLYPHS, localizeCourse, type Language, type CopyKey } from './NeonLocale';
+import { browserNeonRaster, uploadNeonCanvas, type NeonRaster } from './NeonRaster';
 import { Entity, type World } from '@haiyue/engine';
-import { GuiButton, GuiElement, GuiImage, GuiLabel, GuiRoot, type GuiRect, type GuiPointerEvent } from '@haiyue/engine/gui';
+import { GuiButton, GuiElement, GuiImage, GuiLabel, GuiModal, GuiRoot, type GuiRect, type GuiPointerEvent } from '@haiyue/engine/gui';
 import { CircuitCarousel } from './CircuitCarousel';
 import { carouselMetrics, carouselOffset, projectCard, hitCarousel, carouselRelease, swipeStep } from './CarouselMath';
 import { HudDialTexture } from './HudDialTexture';
+import { HudSpriteTexture } from './HudSpriteTexture';
 import { healthRingColor } from './RacerEffects';
 import { CIRCUITS } from './RaceRules';
 
@@ -10,12 +13,14 @@ export type RacePhase = 'home' | 'countdown' | 'racing' | 'paused' | 'finished' 
 export interface RaceGuiState {
   phase: RacePhase; speed: string; lap: string; time: string; best: string;
   health: number; countdown: number; announcement: string; impact: number;
+  newRecord: boolean; throttle: boolean; brake: boolean;
 }
 interface Actions {
-  select(id: string): void; start(): void; restart(): void; pause(): void; home(): void;
+  stamp(): void; click(): void; language(value: Language): void; select(id: string): void; start(): void; restart(): void; pause(): void; home(): void;
   press(key: string, pointer: number): void; release(pointer: number): void;
 }
 const CYAN = '#55eaff', MUTED = '#91a9c3', WHITE = '#edf8ff';
+type Skin = 'button' | 'panel' | 'dial' | 'title' | 'timing' | 'pause' | 'gear' | 'settings';
 const COPY = ['选择你的赛道，驶入霓虹之夜。', '控制方向切入弯心，提前刹车，守住车体耐久。',
   'W / ↑ 加速   S / ↓ 刹车   A D / ← → 转向', 'P 暂停 / 继续   R 重开   方向键亦可驾驶',
   '赛道选择', '重开', '暂停', '继续', '开始竞速', '赛车损毁', '重试', '正在加载赛车…', '启动失败，请刷新页面重试。',
@@ -23,7 +28,7 @@ const COPY = ['选择你的赛道，驶入霓虹之夜。', '控制方向切入�
   '比赛暂停', '继续游戏', '返回首页', '再次挑战', '比赛完成', '左右滑动 / A D / ← → 切换赛道'];
 export const NEON_GUI_GLYPHS = [...new Set(Array.from(
   Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join('')
-  + COPY.join('') + CIRCUITS.map(c => c.name + c.subtitle + c.description + c.difficulty).join('') + '·→←↑↓↗—'
+  + LOCALE_GLYPHS + COPY.join('') + CIRCUITS.map(c => c.name + c.subtitle + c.description + c.difficulty).join('') + '·→←↑↓↗—●○Ⅱ新纪录！陀螺仪虚拟摇杆油门左右倾斜控制方向自动校准'
 ))].join('');
 
 function place(element: GuiElement, rect: GuiRect): void {
@@ -59,7 +64,7 @@ export class NeonCircuitGui {
   private readonly home: GuiElement;
   private readonly hud: GuiElement;
   private readonly cards: GuiButton[] = [];
-  private readonly images: ImageBitmap[] = [];
+  private readonly images: GPUTexture[] = [];
   private readonly buttons = new Map<string, GuiButton>();
   private readonly homeLabels: { label: GuiLabel; size: number }[] = [];
   private readonly start: GuiButton;
@@ -70,9 +75,9 @@ export class NeonCircuitGui {
   private readonly healthValue: GuiLabel;
   private readonly announcement: GuiLabel;
   private readonly countdownImage: GuiImage;
-  private readonly countdownFrames = new Map<string, ImageBitmap>();
+  private readonly countdownFrames = new Map<string, GPUTexture>();
   private readonly dial: HudDialTexture;
-  private readonly skins: { image: GuiImage; kind: 'button' | 'panel' | 'dial' | 'title' | 'timing' }[] = [];
+  private readonly skins: { image: GuiImage; kind: Skin }[] = [];
   private readonly courseHeader: GuiElement;
   private readonly speedPanel: GuiElement;
   private readonly stats: GuiElement;
@@ -86,14 +91,39 @@ export class NeonCircuitGui {
   private selected: string;
   private focusId = 'start-race';
   private homeScale = 1;
+  private nativeControls = false;
+  private language: Language = 'zh';
+  private mode: 'joystick' | 'gyro' = 'joystick';
+  private readonly translations: { label: GuiLabel; key: CopyKey }[] = [];
+  private readonly settingsLayer: GuiElement;
+  private readonly settingsPanel: GuiElement;
+  private readonly controlHint: GuiLabel;
+  private readonly courseName: GuiLabel;
+  private readonly activate = new Map<string, () => void>();
+  private readonly raceCircuitId: string;
+  private skinTextures: Record<Skin, GPUTexture> | null = null;
+  private readonly pedals = new Map<string, { sprite: HudSpriteTexture; image: GuiImage; label: GuiLabel; amount: number }>();
+  private readonly stampSprite: HudSpriteTexture;
+  private readonly stamp: GuiImage;
+  private stampArt: GPUTexture | null = null;
+  private stampAge = 0;
+  private readonly wheelSprite: HudSpriteTexture;
+  private readonly wheel: GuiImage;
+  private readonly lapArt: GuiImage;
+  private wheelOpacity = 0.36;
+  private wheelArt: GPUTexture | null = null;
+  private wheelState = { active: false, x: 0, y: 0, angle: 0 };
 
-  constructor(world: World, device: GPUDevice, circuitId: string, private readonly actions: Actions, coarsePointer = false) {
+  constructor(world: World, device: GPUDevice, circuitId: string, private readonly actions: Actions, coarsePointer = false, raster: NeonRaster = browserNeonRaster, safeInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 })) {
     this.dial = new HudDialTexture(device);
-    this.carousel = new CircuitCarousel(device);
+    this.stampSprite = new HudSpriteTexture(device);
+    this.wheelSprite = new HudSpriteTexture(device);
+    this.carousel = new CircuitCarousel(device, raster);
     this.carouselPosition = this.carouselTarget = CIRCUITS.findIndex(c => c.id === circuitId);
-    this.selected = circuitId; this.coarsePointer = coarsePointer;
+    this.raceCircuitId = circuitId; this.selected = circuitId; this.coarsePointer = coarsePointer;
     this.home = this.root.add(new GuiElement({ id: 'home', width: '100%', height: '100%', style: { backgroundColor: '#050b1bf5', radius: 0 } }));
-    const content = this.home.add(new GuiElement());
+    const safeHome = this.home.add(new GuiElement());
+    const content = safeHome.add(new GuiElement());
     box(content, p => {
       const compact = p.width < 760, baseWidth = compact ? 358 : 1080, baseHeight = compact ? 770 : p.height < 550 ? 480 : 660;
       const scale = Math.min((p.width - 32) / baseWidth, (p.height - 32) / baseHeight, compact ? 1.1 : 1.2);
@@ -109,14 +139,14 @@ export class NeonCircuitGui {
     const homeText = (parent: GuiElement, text: string, size: number, color = WHITE): GuiLabel => {
       const item = label(parent, text, size, color); this.homeLabels.push({ label: item, size }); return item;
     };
-    homeBox(homeText(content, 'HAIYUE / ANTI-GRAVITY LEAGUE', 11, CYAN), [0, 0, 800, 22]);
-    homeBox(homeText(content, 'NEON CIRCUIT', 54), [0, 42, 900, 72], [0, 38, 358, 58], [0, 22, 900, 58]);
+    homeBox(this.translate(homeText(content, '', 11, CYAN), 'league'), [0, 0, 800, 22]);
+    homeBox(this.translate(homeText(content, '', 54), 'title'), [0, 42, 900, 72], [0, 38, 358, 58], [0, 22, 900, 58]);
     // Mobile title size is handled in this label's layout to retain a readable single line.
     const title = this.homeLabels[1]!.label;
     const titleLayout = title.layout.bind(title);
-    title.layout = rect => { title.setFontSize((this.root.viewport.width < 760 ? 37 : 54) * this.homeScale); titleLayout(rect); };
-    homeBox(homeText(content, COPY[0]!, 15, MUTED), [0, 126, 900, 25], [0, 106, 358, 24], [0, 82, 900, 24]);
-    homeBox(homeText(content, COPY[1]!, 13, MUTED), [0, 153, 1000, 22], [0, 132, 358, 22], [0, 109, 1000, 22]);
+    title.layout = rect => { title.setFontSize((this.root.viewport.width < 760 ? (this.language === 'en' ? 32 : 37) : 54) * this.homeScale); titleLayout(rect); };
+    homeBox(homeText(content, TEXT[this.language].intro, 15, MUTED), [0, 126, 900, 25], [0, 106, 358, 24], [0, 82, 900, 24]);
+    homeBox(homeText(content, TEXT[this.language].advice, 13, MUTED), [0, 153, 1000, 22], [0, 132, 358, 22], [0, 109, 1000, 22]);
     this.carouselStage = content.add(new GuiElement({ id: 'course-carousel',
       onPointerDown: e => this.beginSwipe(e), onPointerMove: e => this.moveSwipe(e), onPointerUp: e => this.endSwipe(e) }));
     homeBox(this.carouselStage, [0, 184, 1080, 380], [0, 177, 358, 420], [0, 130, 1080, 250]);
@@ -136,7 +166,7 @@ export class NeonCircuitGui {
       };
       card.hitTest = (x,y) => {
         const p = this.carouselStage.rect;
-        return this.home.visible && hitCarousel(this.carouselPosition,p.width,p.height,x-p.x,y-p.y,CIRCUITS.length) === i ? card : null;
+        return this.home.visible && !this.settingsLayer?.visible && hitCarousel(this.carouselPosition,p.width,p.height,x-p.x,y-p.y,CIRCUITS.length) === i ? card : null;
       };
     }
     for (const [id, text, step] of [['previous-course','←',-1],['next-course','→',1]] as const) {
@@ -150,8 +180,10 @@ export class NeonCircuitGui {
     this.carouselHint.textAlign = 'center';
     this.start = content.add(this.button('start-race', '', () => this.actions.start()));
     homeBox(this.start, [730, 600, 350, 56], [0, 659, 358, 48], [730, 412, 350, 60]);
-    homeBox(homeText(content, COPY[2]!, 13, MUTED), [0, 594, 680, 24], [0, 718, 358, 22], [0, 412, 680, 24]);
-    homeBox(homeText(content, COPY[3]!, 12, MUTED), [0, 625, 690, 24], [0, 742, 358, 18], [0, 444, 690, 24]);
+    homeBox(homeText(content, TEXT[this.language].keys, 13, MUTED), [0, 594, 680, 24], [0, 718, 358, 22], [0, 412, 680, 24]);
+    homeBox(homeText(content, TEXT[this.language].keysMore, 12, MUTED), [0, 625, 690, 24], [0, 742, 358, 18], [0, 444, 690, 24]);
+
+    for (const [i, key] of (['intro', 'advice', 'keys', 'keysMore'] as const).entries()) this.translate(this.homeLabels[[2,3,5,6][i]!]!.label, key);
 
     this.hud = this.root.add(new GuiElement({ id: 'hud', width: '100%', height: '100%', visible: false }));
     for (let edge = 0; edge < 4; edge++) {
@@ -161,46 +193,50 @@ export class NeonCircuitGui {
     }
     const brand = this.courseHeader = this.hud.add(new GuiElement({ id: 'course-title', disabled: true }));
     box(brand, p => {
-      const width = p.width < 760 ? p.width - 32 : Math.min(460, p.width - 2 * (p.width >= 1100 ? 424 : p.height < 550 ? 190 : 248));
-      return [(p.width - width) / 2, p.width < 1100 ? 68 : 12, width, p.width < 1100 ? 50 : 78];
+      const width = p.width < 600 ? 154 : Math.min(260, Math.max(130, p.width - 600));
+      return [(p.width - width) / 2, 0, width, 30];
     });
     this.skin(brand, 'title');
-    const course = label(brand, CIRCUITS.find(c => c.id === circuitId)!.name, 21, WHITE, 'center');
-    box(course, p => { course.setFontSize(p.width < 300 ? 18 : 24); return [12, (p.height - 28) / 2, p.width - 24, 28]; });
+    const course = this.courseName = label(brand, CIRCUITS.find(c => c.id === circuitId)!.name, 21, WHITE, 'center');
+    box(course, p => { course.setFontSize(p.width < 180 ? 12 : 14); return [12, 3, p.width - 24, 22]; });
     const stats = this.stats = this.hud.add(new GuiElement({ id: 'race-timing', disabled: true }));
     box(stats, p => {
-      const width = p.width < 760 ? p.width - 96 : 290;
-      return [p.width - (p.width < 760 ? 72 : 110) - 12 - width, 16, width, 44];
+      const width = p.width < 600 ? Math.max(138, p.width - 176) : p.width < 1100 ? 218 : 280;
+      return [p.width - 54 - width, p.width < 600 ? 34 : 0, width, 42];
     });
     this.skin(stats, 'timing');
-    const stat = (name: string, index: number) => {
-      const caption = label(stats, name, 9, MUTED, 'center');
-      box(caption, p => { caption.setFontSize(p.width < 260 ? 8 : 9); return [index * p.width / 3, 5, p.width / 3, 12]; });
+    const stat = (name: CopyKey, index: number) => {
+      const caption = this.translate(label(stats, '', 9, MUTED, 'center'), name);
+      box(caption, p => { caption.setFontSize(p.width < 260 ? 7 : 8); const cell = p.width * 0.92 / 3; return [p.width * 0.04 + index * cell, 3, cell, 12]; });
       const value = label(stats, '', 15, WHITE, 'center');
-      box(value, p => { value.setFontSize(p.width < 260 ? 10 : 14); return [index * p.width / 3, 18, p.width / 3, 21]; });
+      box(value, p => { value.setFontSize(p.width < 260 ? 10 : 12); const cell = p.width * 0.92 / 3; return [p.width * 0.04 + index * cell, 18, cell, 19]; });
       return value;
     };
-    this.lap = stat('LAP', 0); this.time = stat('TIME', 1); this.best = stat('BEST', 2);
-    const pause = this.hud.add(this.button('pause', '暂停', () => this.actions.pause()));
-    box(pause, p => [p.width - (p.width < 760 ? 72 : 110), 16, p.width < 760 ? 56 : 94, 44]);
+    this.lap = stat('lap', 0); this.time = stat('time', 1); this.best = stat('best', 2);
+    const pause = this.hud.add(this.button('pause', '', () => this.actions.pause(), 'pause'));
+    box(pause, p => [p.width - 44, p.width < 600 ? 34 : 0, 44, 44]);
+    // Text is composited above image skins; background rectangles render below them.
+    const pauseSymbol = label(pause, 'Ⅱ', 22, WHITE, 'center');
+    pauseSymbol.disabled = true;
+    box(pauseSymbol, p => [0, 8, p.width, 28]);
     const speedPanel = this.speedPanel = this.hud.add(new GuiElement({ id: 'speed-hull-dial', disabled: true }));
-    box(speedPanel, p => { const size = p.width < 760 ? 144 : p.height < 550 ? 174 : 232; return [8, p.width < 760 ? 126 : 8, size, size]; });
+    box(speedPanel, p => { const size = (p.width < 760 ? 144 : p.height < 550 ? 174 : 232) * 0.8; return [0, p.width < 600 ? 34 : 0, size, size]; });
     const dialFace = speedPanel.add(new GuiElement({ disabled: true }));
     box(dialFace, p => [p.width * 0.06, p.height * 0.06, p.width * 0.88, p.height * 0.88]);
     this.skin(dialFace, 'dial');
     speedPanel.add(new GuiImage({ source: this.dial.texture, width: '100%', height: '100%', disabled: true }));
     this.speed = label(speedPanel, '000', 50, WHITE, 'center');
-    box(this.speed, p => { this.speed.setFontSize(p.width < 180 ? 30 : 44); return [0, p.height * 0.30, p.width, p.height * 0.3]; });
-    box(label(speedPanel, 'KM / H', 11, CYAN, 'center'), p => [0, p.height * 0.58, p.width, 18]);
-    this.healthValue = label(speedPanel, 'HULL 100%', 11, '#81edb0', 'center');
-    box(this.healthValue, p => [0, p.height * 0.68, p.width, 18]);
+    box(this.speed, p => { this.speed.setFontSize(p.width < 150 ? 24 : 35.2); return [0, p.height * 0.25, p.width, p.height * 0.3]; });
+    box(label(speedPanel, 'KM / H', 11 * 0.85, CYAN, 'center'), p => [0, p.height * 0.52, p.width, 14]);
+    this.healthValue = label(speedPanel, 'HULL 100%', 11 * 0.85, '#81edb0', 'center');
+    box(this.healthValue, p => [0, p.height * 0.64 - 4, p.width, 14]);
     for (const text of ['3', '2', '1', 'GO']) {
-      const canvas = new OffscreenCanvas(640, 420), ctx = canvas.getContext('2d')!;
+      const canvas = raster.canvas(640, 420), ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 260px "Arial Black", Arial, sans-serif';
       ctx.fillStyle = '#f5ffff'; ctx.strokeStyle = '#f5ffff'; ctx.lineWidth = 7;
       ctx.shadowColor = '#35dfff'; ctx.shadowBlur = 38;
       ctx.strokeText(text, 320, 224); ctx.fillText(text, 320, 224);
-      const image = canvas.transferToImageBitmap(); this.images.push(image); this.countdownFrames.set(text, image);
+      const image = uploadNeonCanvas(device, raster, canvas); this.images.push(image); this.countdownFrames.set(text, image);
     }
     this.countdownImage = this.hud.add(new GuiImage({ id: 'countdown', visible: false, disabled: true }));
     box(this.countdownImage, p => {
@@ -210,21 +246,33 @@ export class NeonCircuitGui {
       return [(p.width - width) / 2, p.height * 0.39 - height / 2, width, height];
     });
     this.announcement = label(this.hud, '', 38, WHITE, 'center');
-    this.announcement.setStyle({ backgroundColor: '#071426dc', radius: 8 });
-    box(this.announcement, p => { this.announcement.setFontSize(p.width < 760 ? 22 : 38); const width = Math.min(p.width - 32, 780); return [(p.width - width) / 2, p.height * 0.3, width, 72]; });
+    this.announcement.setStyle({ backgroundColor: '#00000000', radius: 0 });
+    this.lapArt=this.announcement.add(new GuiImage({width:'100%',height:'100%',disabled:true,uv:[0,0.35,1,0.3]}));
+    box(this.announcement, p => { this.announcement.setFontSize(p.width < 760 ? 18 : 28); const width = Math.min(p.width - 32, 600); return [(p.width - width) / 2, p.height * 0.25, width, p.width < 760 ? 64 : 84]; });
     this.touch = this.hud.add(new GuiElement({ id: 'touch-controls' }));
     box(this.touch, p => { this.touch.setVisible(this.mobile(p) && this.canDrive()); return [16, p.height - 78, p.width - 32, 58]; });
     for (const [i, [key, text]] of [['a', '←'], ['d', '→'], ['s', '刹车'], ['w', '加速']].entries()) {
-      const button = this.touch.add(new GuiButton({ id: `control-${key}`, text: text!, onPointerDown: e => this.actions.press(key!, e.pointerId),
+      const pedal = key === 's' || key === 'w';
+      const button = this.touch.add(new GuiButton({ id: `control-${key}`, text: pedal ? '' : text!, onPointerDown: e => this.actions.press(key!, e.pointerId),
         onPointerUp: e => this.actions.release(e.pointerId), style: { backgroundColor: '#0b263ce8', hoverBackgroundColor: '#195775', borderColor: '#367c98' } }));
-      this.buttons.set(button.id, button); this.skin(button, 'button');
+      this.buttons.set(button.id, button);
+      if (pedal) {
+        button.setStyle({ backgroundColor: '#00000000', hoverBackgroundColor: '#00000000', borderColor: '#00000000', radius: 0 });
+        const sprite = new HudSpriteTexture(device, 256, 208);
+        const image = button.add(new GuiImage({ source: sprite.texture, width: '100%', height: '100%', disabled: true }));
+        const caption = label(button, text!, 12, WHITE, 'center'); caption.disabled = true;
+        const entry = { sprite, image, label: caption, amount: 0 }; this.pedals.set(key!, entry);
+        box(caption, p => { caption.setFontSize(12 - entry.amount); return [0, p.height * (0.31 + entry.amount * 0.12), p.width, 22]; });
+      } else this.skin(button, 'button');
       box(button, p => { const width = Math.min(72, (p.width - 42) / 4); return [i < 2 ? i * (width + 10) : p.width - (4 - i) * width - (3 - i) * 10, 0, width, 58]; });
     }
-    // Last child captures all input above the dimmed race, including empty space.
+    // Transparent input blocker: gameplay stays visible outside the panel.
     this.modal = this.hud.add(new GuiElement({ id: 'race-modal', width: '100%', height: '100%', visible: false,
-      style: { backgroundColor: '#020714c9', radius: 0 } }));
+      style: { backgroundColor: '#00000000', radius: 0 } }));
     const panel = this.modal.add(new GuiElement({ id: 'pause-panel' }));
-    box(panel, p => { const width = Math.min(520, p.width - 32), height = Math.min(360, p.height - 32); return [(p.width - width) / 2, (p.height - height) / 2, width, height]; });
+    box(panel, p => { const width = Math.min(520, p.width - 32), height = Math.min(360, p.height - 32);
+      const impact = this.stampAge - 0.5, shake = this.current?.newRecord && impact > 0 && impact < 0.3 ? Math.sin(impact * 65) * 3 * Math.exp(-impact * 18) : 0;
+      return [(p.width - width) / 2, (p.height - height) / 2 + shake, width, height]; });
     this.skin(panel, 'panel');
     this.modalTitle = label(panel, '比赛暂停', 30, WHITE, 'center');
     box(this.modalTitle, p => { this.modalTitle.setFontSize(p.width < 400 ? 25 : 30); return [24, p.height * 0.14, p.width - 48, 40]; });
@@ -238,8 +286,77 @@ export class NeonCircuitGui {
       const button = panel.add(this.button(id, text, action));
       box(button, p => [p.width * 0.14, p.height * (0.46 + row * 0.21), p.width * 0.72, 50]);
     }
+    this.stamp = panel.add(new GuiImage({ source: this.stampSprite.texture, disabled: true, visible: false }));
+    box(this.stamp, p => { const size = p.width < 400 ? 108 : 132; return [p.width - size + 10, -22, size, size]; });
+    this.wheel = this.root.add(new GuiImage({ source: this.wheelSprite.texture, disabled: true, visible: false }));
+    box(this.wheel, () => [this.wheelState.x - 74, this.wheelState.y - 74, 148, 148]);
+    const gear = safeHome.add(this.button('settings', '', () => this.openSettings(true), 'gear'));
+    box(gear, p => [p.width - 52, 6, 46, 46]);
+    // GuiModal uses the renderer's separate overlay batches, so its skin and
+    // buttons are composited after the home labels and shared button texture.
+    this.settingsLayer = this.root.add(new GuiModal({ id: 'settings-modal', visible: false,
+      showCloseButton:false, showConfirmButton:false, showCancelButton:false, backdropColor:'#020617a6',
+      style: { backgroundColor: '#00000000', borderColor:'#00000000', radius: 0 } }));
+    box(this.settingsLayer,p => [0,0,p.width,p.height]);
+    this.settingsPanel = this.settingsLayer.add(new GuiElement({ id: 'settings-panel' }));
+    box(this.settingsPanel, p => { const i = safeInsets(), width = Math.min(620, p.width-i.left-i.right-24), height = Math.min(380,p.height-i.top-i.bottom-20);
+      return [i.left+(p.width-i.left-i.right-width)/2,i.top+(p.height-i.top-i.bottom-height)/2,width,height]; });
+    this.skin(this.settingsPanel, 'settings');
+    box(this.translate(label(this.settingsPanel, '', 25, WHITE, 'center'), 'settings'), p => [30,p.height*.13,p.width-60,36]);
+    box(this.translate(label(this.settingsPanel, '', 12, CYAN), 'language'), p => [p.width*.10,p.height*.27,p.width*.80,22]);
+    for (const [index, language] of LANGUAGES.entries()) {
+      const button = this.settingsPanel.add(this.button(`language-${language}`, LANGUAGE_NAMES[language], () => this.actions.language(language)));
+      box(button,p => [p.width*(.09+index*.28),p.height*.35,p.width*.26,42]);
+    }
+    box(this.translate(label(this.settingsPanel, '', 12, CYAN), 'controls'), p => [p.width*.10,p.height*.51,p.width*.80,22]);
+    this.controlHint = this.translate(label(this.settingsPanel, '', 12, MUTED, 'center'), 'desktopControls');
+    box(this.controlHint,p => [p.width*.08,p.height*.60,p.width*.84,28]);
+    const done = this.settingsPanel.add(this.button('settings-done', '', () => this.openSettings(false)));
+    box(done,p => [p.width*.28,p.height*.73,p.width*.44,42]);
+    for (const layer of [safeHome, this.hud]) box(layer, p => { const i = safeInsets(); return [i.left, i.top, p.width - i.left - i.right, p.height - i.top - i.bottom]; });
     const entity = new Entity('Neon Circuit GUI'); entity.addComponent(this.root); world.addEntity(entity);
-    this.select(circuitId, false);
+    this.setLanguage(this.language);
+  }
+
+  private translate(item: GuiLabel, key: CopyKey): GuiLabel {
+    this.translations.push({label:item,key}); item.setText(TEXT[this.language][key]); return item;
+  }
+  setLanguage(language: Language): void {
+    this.language = language;
+    for (const item of this.translations) item.label.setText(TEXT[language][item.key]);
+    for (const [id,key] of Object.entries({resume:'resume',restart:'retry','home-button':'home','settings-done':'done'})) this.buttons.get(id)?.setText(TEXT[language][key as CopyKey]);
+    for (const lang of LANGUAGES) this.buttons.get(`language-${lang}`)?.setText(`${language === lang ? '●' : '○'} ${LANGUAGE_NAMES[lang]}`);
+    this.pedals.get('s')!.label.setText(TEXT[language].brake);
+    this.pedals.get('w')!.label.setText(TEXT[language].throttle);
+    this.courseName.setText(localizeCourse(CIRCUITS.find(c => c.id === this.raceCircuitId)!,language).name);
+    this.carousel.setLanguage(language); this.updateMobileMode(this.mode); this.select(this.selected,false);
+    if(this.current) this.update(this.current);
+    this.home.markDirty(); this.settingsLayer.markDirty();
+  }
+  private openSettings(open: boolean): void {
+    if(open && this.current?.phase !== 'home') return;
+    this.cancelCarouselPointer(); this.settingsLayer.setVisible(open);
+    this.buttons.get(this.focusId)?.handleBlur(); this.focusId = open ? `language-${this.language}` : 'settings';
+    this.home.markDirty(); this.settingsLayer.markDirty();
+  }
+  configureMobileControls(mode: 'joystick' | 'gyro', choose: (mode: 'joystick' | 'gyro') => void, gyroAvailable = true): void {
+    this.nativeControls = true;
+    this.buttons.get('control-a')!.setVisible(false); this.buttons.get('control-d')!.setVisible(false);
+    this.controlHint.setVisible(false);
+    for (const [index,value] of (['joystick','gyro'] as const).entries()) {
+      const button = this.settingsPanel.add(this.button(`steering-${value}`, '', () => {if(value !== 'gyro' || gyroAvailable) choose(value);}));
+      button.disabled = value === 'gyro' && !gyroAvailable;
+      box(button,p => [p.width*(.09+index*.42),p.height*.59,p.width*.40,42]);
+    }
+    this.updateMobileMode(mode); this.select(this.selected,false);
+  }
+  updateMobileMode(mode: 'joystick' | 'gyro'): void {
+    this.mode=mode;
+    for(const value of ['joystick','gyro'] as const) this.buttons.get(`steering-${value}`)?.setText(`${mode === value ? '●' : '○'} ${TEXT[this.language][value]}`);
+    if(this.nativeControls) {
+      this.homeLabels[5]!.label.setText(TEXT[this.language][mode === 'gyro' ? 'gyroHint' : 'touchHint']);
+      this.homeLabels[6]!.label.setText('');
+    }
   }
 
   private mobile(rect: GuiRect): boolean { return rect.width < 760 || this.coarsePointer; }
@@ -248,7 +365,7 @@ export class NeonCircuitGui {
     this.select(CIRCUITS[(index + step + CIRCUITS.length) % CIRCUITS.length]!.id);
   }
   private beginSwipe(event: GuiPointerEvent): void {
-    if (this.current?.phase !== 'home' || this.gesture || event.button !== 0) return;
+    if (this.settingsLayer.visible || this.current?.phase !== 'home' || this.gesture || event.button !== 0) return;
     this.suppressCardClick = false;
     this.gesture = { pointer: event.pointerId, startedAt: event.nativeEvent.timeStamp, x: event.x, y: event.y, position: this.carouselPosition, dx: 0, dy: 0,
       samples: [{ x: event.x, time: event.nativeEvent.timeStamp }] };
@@ -298,6 +415,23 @@ export class NeonCircuitGui {
     this.captureLosses.clear();
   }
   animate(seconds: number): void {
+    for (const [key, pedal] of this.pedals) {
+      const down = this.canDrive() && (key === 'w' ? this.current?.throttle : this.current?.brake);
+      pedal.amount += ((down ? 1 : 0) - pedal.amount) * (1 - Math.exp(-seconds * 22));
+      if (this.skinTextures) pedal.sprite.render(this.skinTextures.button, { uv: [0,0.1,1,0.8], tilt: pedal.amount * 0.66, scale: 1 - pedal.amount * 0.07,
+        y: pedal.amount * 0.035, pivot: 0.42, brightness: 1 - pedal.amount * 0.23 });
+      pedal.label.markDirty();
+    }
+    if (this.stamp.visible && this.stampArt) {
+      const oldAge=this.stampAge;this.stampAge += seconds;
+      if(oldAge<.5 && this.stampAge>=.5)this.actions.stamp();
+      const t = Math.max(0, Math.min(1, (this.stampAge - 0.18) / 0.32)), after = Math.max(0, this.stampAge - 0.5);
+      this.stampSprite.render(this.stampArt, { rotation: -0.18 - (1-t)*0.12, scale: 0.80 + (1-t)**3*0.6 + Math.sin(after*32)*Math.exp(-after*18)*0.06,
+        y: -(1-t)*0.2, opacity: Math.min(1,t*3), brightness: 1 + Math.exp(-after*22)*0.15*t });
+      this.modal.markDirty();
+    }
+    this.wheelOpacity += ((this.wheelState.active ? 1 : 0.36)-this.wheelOpacity)*(1-Math.exp(-seconds*18));
+    if (this.wheel.visible && this.wheelArt) this.wheelSprite.render(this.wheelArt, { rotation: this.wheelState.angle, scale: 0.94, opacity:this.wheelOpacity });
     for (const skin of this.skins) if (skin.image.parent instanceof GuiButton) {
       const button = skin.image.parent;
       skin.image.setTint(button.pressed ? '#80bed5' : button.focused || button.hovered ? '#ffffff' : '#d4e8f2');
@@ -313,15 +447,17 @@ export class NeonCircuitGui {
     this.carouselStage.markDirty();
   }
   private canDrive(): boolean { return this.current?.phase === 'racing' || this.current?.phase === 'countdown'; }
-  private button(id: string, text: string, action: () => void): GuiButton {
-    const button = new GuiButton({ id, text, onClick: action, style: { backgroundColor: '#00000000',
+  private button(id: string, text: string, action: () => void, skin: Skin = 'button'): GuiButton {
+    const activate = () => {action();if(id !== 'previous-course' && id !== 'next-course') this.actions.click();};
+    const button = new GuiButton({ id, text, onClick: activate, style: { backgroundColor: '#00000000',
       hoverBackgroundColor: '#00000000', borderColor: '#00000000', color: WHITE, radius: 0 } });
-    this.buttons.set(id, button); this.skin(button, 'button'); return button;
+    this.buttons.set(id, button); this.activate.set(id,activate); this.skin(button, skin); return button;
   }
-  private skin(parent: GuiElement, kind: 'button' | 'panel' | 'dial' | 'title' | 'timing'): void {
+  private skin(parent: GuiElement, kind: Skin): void {
     const image = parent.add(new GuiImage({ width: '100%', height: '100%', disabled: true,
-      uv: kind === 'timing' ? [0, 0.31, 1, 0.35] : kind === 'button' ? [0, 0.1, 1, 0.8] : kind === 'title' ? [0, 0.30, 1, 0.36] : [0, 0, 1, 1], tint: '#d4e8f2' }));
+      uv: kind === 'timing' ? [0, 0, 1, 0.425] : kind === 'button' ? [0, 0.1, 1, 0.8] : kind === 'title' ? [0, 0.355, 1, 0.155] : kind === 'pause' ? [0.02, 0.02, 0.96, 0.96] : [0, 0, 1, 1], tint: kind === 'panel' ? '#d4e8f2b8' : '#d4e8f2' }));
     this.skins.push({ image, kind });
+    if (this.skinTextures) image.setSource(this.skinTextures[kind]);
     // Keep the native GUI hit target and focus outline around the image skin.
     if (parent instanceof GuiButton) {
       parent.setStyle({ color: WHITE, hoverColor: '#ffffff', backgroundColor: '#00000000', hoverBackgroundColor: '#00000000', borderColor: '#00000000', radius: 0 });
@@ -331,27 +467,36 @@ export class NeonCircuitGui {
       parent.on('pointerup', () => image.setTint('#ffffff'));
     }
   }
-  setSkins(button: GPUTexture, panel: GPUTexture, dial: GPUTexture, title: GPUTexture, timing: GPUTexture): void {
+  setSkins(button: GPUTexture, panel: GPUTexture, dial: GPUTexture, title: GPUTexture, timing: GPUTexture, pause: GPUTexture, gear: GPUTexture, settings: GPUTexture): void {
     this.carousel.setPanel(panel);
-    const textures = { button, panel, dial, title, timing };
+    const textures = this.skinTextures = { button, panel, dial, title, timing, pause, gear, settings };
     for (const skin of this.skins) skin.image.setSource(textures[skin.kind]);
+  }
+  setInteractiveArt(record: GPUTexture, wheel: GPUTexture): void { this.stampArt = record; this.wheelArt = wheel; }
+  setLapArt(texture:GPUTexture):void {this.lapArt.setSource(texture);}
+  updateWheel(active: boolean, x: number, y: number, steering: number, available = active): void {
+    this.wheelState = { active, x, y, angle: -steering * 1.05 };
+    this.wheel.setVisible(available && this.canDrive()); this.wheel.markDirty();
   }
   select(id: string, notify = true, destination?: number): void {
     this.selected = id;
     const index = CIRCUITS.findIndex(c => c.id === id);
     this.carouselTarget = destination ?? this.carouselTarget + carouselOffset(index, this.carouselTarget, CIRCUITS.length);
-    this.carouselHint.setText(`0${index + 1} / ${String(CIRCUITS.length).padStart(2, '0')}    左右滑动 / A D / ← → 切换赛道`);
-    this.start.setText(`开始竞速 · ${CIRCUITS.find(c => c.id === id)!.name} →`);
+    this.carouselHint.setText(`0${index + 1} / ${String(CIRCUITS.length).padStart(2, '0')}    ${TEXT[this.language][this.nativeControls ? 'swipe' : 'swipeKeys']}`);
+    this.start.setText(`${TEXT[this.language].start} · ${localizeCourse(CIRCUITS.find(c => c.id === id)!,this.language).name} →`);
     if (notify) this.actions.select(id);
   }
   update(state: RaceGuiState): void {
     const changedPhase = this.current?.phase !== state.phase;
     this.current = state;
-    if (changedPhase) this.cancelCarouselPointer();
+    if (changedPhase) this.stampAge = 0;
+    this.stamp.setVisible(state.phase === 'finished' && state.newRecord);
+    if (!this.canDrive()) this.wheel.setVisible(false);
+    if (changedPhase) { this.cancelCarouselPointer(); if(state.phase !== 'home') this.settingsLayer.setVisible(false); }
     this.home.setVisible(state.phase === 'home'); this.hud.setVisible(state.phase !== 'home');
     this.speed.setText(state.speed); this.lap.setText(state.lap); this.time.setText(state.time); this.best.setText(state.best);
     this.dial.update(state.health);
-    this.healthValue.setText(`HULL ${Math.ceil(state.health)}%`);
+    this.healthValue.setText(`${TEXT[this.language].hull} ${Math.ceil(state.health)}%`);
     const tint = healthRingColor(state.health);
     this.healthValue.setStyle({ color: `rgb(${Math.round(tint[0] * 255)},${Math.round(tint[1] * 255)},${Math.round(tint[2] * 255)})` });
     const digit = state.phase === 'countdown' ? this.countdownFrames.get(state.announcement) : undefined;
@@ -363,8 +508,9 @@ export class NeonCircuitGui {
     this.courseHeader.setVisible(!paused && !ended);
     this.speedPanel.setVisible(!paused && !ended);
     this.stats.setVisible(!paused && !ended);
-    this.modalTitle.setText(paused ? '比赛暂停' : state.phase === 'finished' ? '比赛完成' : '赛车损毁');
-    this.modalDetail.setText(state.phase === 'finished' ? state.announcement : CIRCUITS.find(c => c.id === this.selected)!.name);
+    this.modalTitle.setText(TEXT[this.language][paused ? 'paused' : state.phase === 'finished' ? state.newRecord ? 'record' : 'finished' : 'destroyed']);
+    this.modalTitle.setStyle({ color: state.phase === 'finished' && state.newRecord ? '#ffdb75' : WHITE });
+    this.modalDetail.setText(state.phase === 'finished' ? state.announcement : localizeCourse(CIRCUITS.find(c => c.id === this.selected)!,this.language).name);
     this.buttons.get('resume')!.setVisible(paused);
     this.buttons.get('restart')!.setVisible(ended);
     this.buttons.get('pause')!.setVisible(this.canDrive());
@@ -377,13 +523,15 @@ export class NeonCircuitGui {
     for (const edge of this.impactEdges) edge.setStyle({ backgroundColor: `rgba(255,72,27,${Math.min(0.6, state.impact * 0.6)})` });
   }
   private activeButtonIds(): string[] {
-    if (this.current?.phase === 'home') return ['start-race', 'previous-course', 'next-course'];
+    if (this.settingsLayer.visible) return [...LANGUAGES.map(l => `language-${l}`),...(this.nativeControls ? ['steering-joystick','steering-gyro'].filter(id => !this.buttons.get(id)?.disabled) : []),'settings-done'];
+    if (this.current?.phase === 'home') return ['start-race', 'previous-course', 'next-course', 'settings'];
     if (this.current?.phase === 'paused') return ['resume', 'home-button'];
     if (this.current?.phase === 'finished' || this.current?.phase === 'destroyed') return ['restart', 'home-button'];
     return ['pause'];
   }
   keyboard(key: string, shift = false): boolean {
-    const home = this.current?.phase === 'home';
+    const home = this.current?.phase === 'home' && !this.settingsLayer.visible;
+    if(this.settingsLayer.visible && key === 'escape') {this.openSettings(false);return true;}
     const index = CIRCUITS.findIndex(c => c.id === this.selected);
     if (home && ['a', 'd', 'arrowleft', 'arrowup', 'arrowright', 'arrowdown'].includes(key)) {
       this.select(CIRCUITS[(index + (key === 'a' || key === 'arrowleft' || key === 'arrowup' ? CIRCUITS.length - 1 : 1)) % CIRCUITS.length]!.id);
@@ -399,14 +547,11 @@ export class NeonCircuitGui {
       const next = this.buttons.get(this.focusId)!; next.handleFocus();
       return true;
     }
-    if (key === 'enter' || (home && key === ' ')) {
-      if (home) { if (this.focusId === 'previous-course') this.shiftCourse(-1); else if (this.focusId === 'next-course') this.shiftCourse(1); else this.actions.start(); }
-      else if (!this.activeButtonIds().includes(this.focusId)) return false;
-      else if (this.focusId === 'restart') this.actions.restart();
-      else if (this.focusId === 'home-button') this.actions.home();
-      else if (this.focusId === 'pause' || this.focusId === 'resume') this.actions.pause();
-      return true;
+    if (key === 'enter' || key === ' ') {
+      if(!this.activeButtonIds().includes(this.focusId)) return false;
+      this.activate.get(this.focusId)?.(); return true;
     }
+    if(this.settingsLayer.visible) return true;
     return false;
   }
   buttonRect(id: string): GuiRect {
@@ -421,11 +566,12 @@ export class NeonCircuitGui {
     }
     return { ...rect };
   }
-  get snapshot() { return { renderer: 'engine-gui', homeVisible: this.home.visible, selected: this.selected, routeCount: this.cards.length, carouselPosition: this.carouselPosition, carouselTarget: this.carouselTarget, carouselBounds: { ...this.carouselStage.rect },
+  get snapshot() { return { language:this.language,title:TEXT[this.language].title,courseName:this.courseName.text,settingsVisible:this.settingsLayer.visible,settingsBackdrop:(this.settingsLayer as GuiModal).backdropColor,settingsBounds:{...this.settingsPanel.rect}, renderer: 'engine-gui', homeVisible: this.home.visible, selected: this.selected, routeCount: this.cards.length, carouselPosition: this.carouselPosition, carouselTarget: this.carouselTarget, carouselBounds: { ...this.carouselStage.rect },
+    recordStamp: { visible: this.stamp.visible, age: this.stampAge }, wheel: { ...this.wheelState, opacity:this.wheelOpacity, visible: this.wheel.visible }, pedalPress: Object.fromEntries([...this.pedals].map(([key,p]) => [key,p.amount])), modalBackdrop: this.modal.style.backgroundColor, announcementSkin: {text:this.announcement.text,visible:this.announcement.visible,background:this.announcement.style.backgroundColor},
     skinnedButtonsTransparent: [...this.buttons.values()].every(b => b.style.borderColor === '#00000000' && b.style.backgroundColor === '#00000000'),
     modalVisible: this.modal.visible, activeButtons: this.activeButtonIds(), courseBounds: { ...this.courseHeader.rect }, timingBounds: { ...this.stats.rect }, dialBounds: { ...this.speedPanel.rect },
     instrumentsVisible: this.courseHeader.visible || this.speedPanel.visible || this.stats.visible,
     displaySpeed: this.speed.text, health: this.current?.health ?? 100, healthColor: healthRingColor(this.current?.health ?? 100), countdownVisible: this.countdownImage.visible, announcement: this.announcement.text, touchVisible: this.touch.visible,
     bounds: this.cards.map(card => ({ ...card.rect })), start: this.buttonRect('start-race'), buttons: Object.fromEntries([...this.buttons].map(([id, button]) => [id, { ...button.rect }])), viewport: { ...this.root.viewport } }; }
-  dispose(): void { this.carousel.destroy(); this.dial.destroy(); for (const image of this.images) image.close(); this.images.length = 0; }
+  dispose(): void { this.carousel.destroy(); this.dial.destroy(); this.stampSprite.destroy(); this.wheelSprite.destroy(); for (const pedal of this.pedals.values()) pedal.sprite.destroy(); for (const image of this.images) image.destroy(); this.images.length = 0; }
 }

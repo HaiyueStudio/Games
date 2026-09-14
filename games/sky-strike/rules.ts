@@ -99,6 +99,7 @@ export const INITIAL_BOMBS = 3;
 export const MAX_BOMBS = 5;
 export const BOMB_DAMAGE = 420;
 export const BOSS_BOMB_DAMAGE_MULTIPLIER = 0.3;
+export const SERPENT_BODY_BOMB_DAMAGE_MULTIPLIER = 0.2;
 export const CARRIER_DEPLOY_INTERVAL_MS = 3_000;
 export const CARRIER_ELITE_WAVE_INTERVAL = 3;
 export const CARRIER_MAX_ELITES = 2;

@@ -134,7 +134,7 @@ async function run() {
   }
 
   const startY = (innerHeight - panelHeight) / 2 + panelHeight * 0.91;
-  send('pointerdown', innerWidth / 2, startY); send('pointerup', innerWidth / 2, startY); await wait(150);
+  await click(innerWidth / 2, startY);
   check(game.snapshot().phase === 'playing', 'GUI start');
   if(scene==='serpent-segments') {
     engine.stop();const f=game as any;f.beginLevel(5);f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.pointerFiring=false;f.player.invulnerableMs=999999;
@@ -283,9 +283,26 @@ async function run() {
     check(game.snapshot().rendering.pendingUploadBytes===0,'new parts uploaded');
     result.textContent=JSON.stringify({status:'passed',checks:['hull-specific-parts',stage,'static-atlas','zero-frame-uploads'],state:game.snapshot()});result.dataset.status='passed';return;
   }
+  if(scene==='boss-warning-audio') {
+    engine.stop();const f=game as any;
+    const spawn=f.levelTimeline.find((s:any)=>ENEMY_DEFINITIONS.find(d=>d.id===s.enemyId)?.tier==='boss');check(!!spawn,'real boss timeline entry');
+    const sounds:string[]=[];const original=audioBackend.play.bind(audioBackend);audioBackend.play=(id,o)=>{const accepted=original(id,o);if(accepted)sounds.push(id);return accepted;};
+    f.enemies=[];f.enemyBullets=[];f.levelTimeline=[{...spawn,atMs:5000}];f.nextLevelSpawnIndex=0;f.levelElapsedMs=1000;
+    f.updateSpawns();check(!audio.snapshot().bossWarningPlaying,'no alarm before warning window');
+    f.levelElapsedMs=2100;f.updateSpawns();check(audio.snapshot().bossWarningPlaying,'alarm starts with actual boss warning');
+    for(let i=0;i<180;i++)f.updateBossWarning();check(sounds.filter(id=>id==='boss-warning').length===1,'one voice across all warning updates');
+    audio.lasers(true,true);for(let i=0;i<40;i++){audio.update(120);audio.play('bomb');audio.play('explosion-large');audio.play('shot-enemy');}
+    check(audioBackend.snapshot().voices<=12&&audioBackend.snapshot().error===null&&audio.snapshot().bossWarningPlaying,'warning coexists with music and dense effects');
+    f.pause();check(!audio.snapshot().bossWarningPlaying,'pause cancels warning');f.togglePause();await wait(120);f.updateBossWarning();check(audio.snapshot().bossWarningPlaying,'resume during warning restarts remaining window');
+    audio.settings(false);f.updateBossWarning();check(!audio.snapshot().bossWarningPlaying,'mute cancels warning');audio.settings(true,.65);f.updateBossWarning();check(audio.snapshot().bossWarningPlaying,'unmute within window restores warning');
+    f.levelElapsedMs=5000;f.updateSpawns();check(!!f.boss&&!audio.snapshot().bossWarningPlaying,'actual boss arrival stops warning');
+    f.beginLevel(0);check(!audio.snapshot().bossWarningPlaying,'next level starts without stale warning');
+    const state=audio.snapshot();game.dispose();check(audioBackend.snapshot().voices===0,'disposal clears all voices');
+    result.textContent=JSON.stringify({status:'passed',checks:['actual-three-second-boss-window','single-alarm-voice','dense-effects','pause-resume-mute','arrival-stops','level-reset'],audio:state});result.dataset.status='passed';return;
+  }
   if (scene === 'audio') {
     engine.stop();const f=game as any;f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.player.invulnerableMs=999999;
-    check(audioBackend.snapshot().buffers===19 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
+    check(audioBackend.snapshot().buffers===21 && audioBackend.snapshot().error===null,'all real WAV buffers decoded');
     audio.resume();await wait(80);check(audioBackend.snapshot().state==='running','WebAudio unlocked');
     audio.stop();
     for(const form of ['basic','red','blue']){f.weaponForm=form;f.player.fireCooldownMs=0;f.pointerFiring=true;game.update(16);check(audioBackend.snapshot().voices>0,'game fires '+form+' sound');audio.stop();}
@@ -293,14 +310,20 @@ async function run() {
     for(let i=0;i<70;i++){game.update(16);audio.play('bomb');audio.play('explosion-large');audio.play('shot-enemy');}
     check(audioBackend.snapshot().voices<=12&&audioBackend.snapshot().error===null,'dense effects obey voice budget without failure');
     check(audio.snapshot().loops===1,'loop survives higher-impact effects');
+    check(audio.snapshot().musicPlaying,'music plays alongside dense weapon effects');
     f.pointerFiring=false;game.update(16);check(audio.snapshot().loops===0,'laser release');
     audio.stop();for(const id of SKY_SOUND_IDS){audio.update(500);audio.play(id);check(audioBackend.snapshot().voices>0,'play '+id);audio.stop();}
     f.pointerFiring=true;game.update(16);game.suspend();await wait(80);check(audioBackend.snapshot().voices===0&&audioBackend.snapshot().state==='suspended','background silences audio');
     f.togglePause();await wait(80);check(audioBackend.snapshot().state==='running','resume after background');
     audio.pause();audio.resume();audio.pause();audio.resume();await wait(100);check(audioBackend.snapshot().state==='running','rapid pause/resume keeps latest intent');
     audio.settings(false);check(audioBackend.snapshot().voices===0,'mute stops all voices');audio.settings(true,.65);
+    game.update(16);check(audio.snapshot().musicPlaying,'unmute resumes music');
+    f.pause();game.update(16);check(!audio.snapshot().musicPlaying,'pause stops music');
+    f.returnHome();game.update(16);check(!audio.snapshot().musicPlaying,'home has no gameplay music');
+    f.startSortie();const musicDeadline=performance.now()+2000;do{await wait(16);game.update(16);}while(!audio.snapshot().musicPlaying&&performance.now()<musicDeadline);check(audio.snapshot().musicPlaying,'new sortie restores one music loop: '+JSON.stringify(audio.snapshot()));
+    f.finishSortie();game.update(16);check(!audio.snapshot().musicPlaying,'game over stops music');
     const beforeDispose=audio.snapshot();game.dispose();await wait(30);check(audioBackend.snapshot().state==='closed'&&audioBackend.snapshot().voices===0,'dispose closes audio');
-    result.textContent=JSON.stringify({status:'passed',checks:['19-decoded-effects','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
+    result.textContent=JSON.stringify({status:'passed',checks:['20-decoded-effects-and-40-second-music','game-weapon-audio','laser-lifecycle','12-voice-budget','background-resume','rapid-resume','mute-dispose'],audio:beforeDispose});result.dataset.status='passed';return;
   }
   if (scene === 'bomb-crates' || scene === 'crate-rules') {
     engine.stop();const f=game as any;
@@ -624,9 +647,11 @@ async function run() {
     for(const part of parts){part.x=240;part.y=365;}
     parts[8].x=20;parts[8].y=-600;
     f.activateBomb();near(hp-b.hitPoints,126,'head receives one reduced bomb hit');
-    check(parts.slice(0,8).every((p:any)=>!f.enemies.includes(p)),'bomb damages every body in area independently');
+    check(parts.slice(0,8).every((p:any)=>f.enemies.includes(p)&&p.hitPoints===36),'one bomb deals 84 damage and leaves each full-health body alive');
+    f.bombBlast=null;f.activateBomb();check(parts.slice(0,8).every((p:any)=>!f.enemies.includes(p)),'second bomb destroys only damaged bodies in range');
+    near(b.hitPoints,hp-252,'head retains its existing 30 percent bomb damage');
     check(f.enemies.includes(parts[8])&&parts[8].hitPoints===120,'out-of-range body receives no bomb damage');
-    f.damageEnemy(f.enemies.indexOf(parts[8]),parts[8],90);near(parts[8].hitPoints,30,'body hit affects only target');near(b.hitPoints,hp-126,'body damage never relays to head');
+    f.damageEnemy(f.enemies.indexOf(parts[8]),parts[8],90);near(parts[8].hitPoints,30,'body hit affects only target');near(b.hitPoints,hp-252,'body damage never relays to head');
     f.damageEnemy(f.enemies.indexOf(b),b,90);near(parts[8].hitPoints,30,'head hit does not drain body');
     f.damageEnemy(f.enemies.indexOf(parts[8]),parts[8],1000);check(!f.enemies.includes(parts[8]),'overkill destroys only target');
     hp=b.hitPoints;f.damageEnemy(f.enemies.indexOf(b),b,50);near(hp-b.hitPoints,50,'head damage after all parts destroyed');

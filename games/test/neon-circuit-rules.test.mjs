@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   BOOST_MAX_SPEED,
+  frameTurn,
+  createCoasterTrack,
   BOOST_DECELERATION,
   TRACK_SCALE,
   steeringYawRate,
@@ -140,12 +142,12 @@ test('manifest and page expose the racer, controls, timing, boost, and debug hoo
   assert.match(gui, /new GuiImage/);
   assert.doesNotMatch(html, /<(button|svg|section|header|dl)\b/);
   assert.match(html, /<pre id="result" hidden/);
-  assert.match(html, /neon-circuit-speed-v13/);
+  assert.match(html, /neon-circuit-native-v14/);
 });
 
 
-test('all four routes are distinct closed circuits with accurate, bounded thumbnails', () => {
-  assert.equal(CIRCUITS.length, 4);
+test('all five routes are distinct closed circuits with accurate, bounded thumbnails', () => {
+  assert.equal(CIRCUITS.length, 5);
   const maps = CIRCUITS.map(circuit => {
     const track = circuitTrack(circuit);
     assert.ok(track.length > 15_000);
@@ -158,7 +160,7 @@ test('all four routes are distinct closed circuits with accurate, bounded thumbn
     }
     return map.path;
   });
-  assert.equal(new Set(maps).size, 4);
+  assert.equal(new Set(maps).size, 5);
 });
 
 test('holding throttle without turning hits walls on every course', () => {
@@ -174,20 +176,20 @@ test('holding throttle without turning hits walls on every course', () => {
   }
 });
 
-test('deliberate steering and braking can complete all four courses without damage', () => {
+test('deliberate steering and braking can complete all five courses without damage', () => {
   for (const circuit of CIRCUITS) {
     const track = circuitTrack(circuit);
     let state = { ...createInitialRaceState(), lateral: -30 };
     for (let frame = 0; frame < 60 * 400 && !state.finished && !state.destroyed; frame++) {
       const here = sampleTrack(track, state.distance);
       const ahead = sampleTrack(track, state.distance + 8);
-      const curvature = Math.atan2(Math.sin(ahead.heading - here.heading), Math.cos(ahead.heading - here.heading)) / 8;
+      const curvature = frameTurn(here,ahead) / 8;
       const yaw = steeringYawRate(state.speed);
       const steer = Math.max(-1, Math.min(1, (curvature * state.speed - state.headingOffset * 3 - (state.lateral + 30) * 0.012) / yaw));
       let maxCurvature = Math.abs(curvature);
       for (let look = 40; look <= 800; look += 40) {
         const a = sampleTrack(track, state.distance + look), b = sampleTrack(track, state.distance + look + 8);
-        maxCurvature = Math.max(maxCurvature, Math.abs(Math.atan2(Math.sin(b.heading - a.heading), Math.cos(b.heading - a.heading))) / 8);
+        maxCurvature = Math.max(maxCurvature, Math.abs(frameTurn(a,b)) / 8);
       }
       const targetSpeed = Math.min(CRUISE_MAX_SPEED * 0.75, 0.58 / Math.max(0.0001, maxCurvature));
       state = stepRace(track, state, { throttle: state.speed < targetSpeed ? 1 : 0, brake: state.speed > targetSpeed + 10 ? 1 : 0, steer }, 1 / 60).state;
@@ -269,8 +271,8 @@ test('steering scrubs a small symmetric amount of speed without a discontinuous 
 
 
 test('beginner course comes first and Rainbow Road has a separated elevated crossing', () => {
-  assert.deepEqual(CIRCUITS.map(c => c.id), ['sky-harbor', 'neon-city', 'reactor-run', 'rainbow-road']);
-  assert.equal(new Set(CIRCUITS.map(c => c.theme)).size, 4);
+  assert.deepEqual(CIRCUITS.map(c => c.id), ['sky-harbor', 'neon-city', 'reactor-run', 'rainbow-road', 'sky-coaster']);
+  assert.equal(new Set(CIRCUITS.map(c => c.theme)).size, 5);
   const track = circuitTrack(CIRCUITS[3]);
   const ys = track.samples.map(p => p.y);
   assert.ok(Math.max(...ys) - Math.min(...ys) > 1700);
@@ -292,7 +294,7 @@ test('expanded courses preserve proportions and widths while easing curvature pe
   assert.equal(TRACK_SCALE, 1.8);
   assert.equal(ROAD_HALF_WIDTH, 92);
   for (const circuit of CIRCUITS) {
-    const expanded = circuitTrack(circuit), original = createRaceTrack(expanded.samples.length, circuit.points);
+    const expanded = circuitTrack(circuit), original = circuit.theme === 'daylight' ? createCoasterTrack() : createRaceTrack(expanded.samples.length, circuit.points);
     assert.ok(Math.abs(expanded.length / original.length - TRACK_SCALE) < 1e-10);
     for (let i=0;i<expanded.samples.length;i++) {
       const a=original.samples[i], b=expanded.samples[i];
