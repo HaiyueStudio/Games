@@ -21,7 +21,11 @@ export function damageEnvelope(health: number): { smokeRate: number; smokeOpacit
 
 export function speedFov(speed: number, maximumSpeed: number): number {
   const ratio = Math.min(1, Math.max(0, speed) / maximumSpeed);
-  return 0.96 - (ratio * ratio * (3 - 2 * ratio)) * 0.34;
+  // One smooth quadratic through 0 km/h = 60°, 360 = 40°, 522 = 30°.
+  // No slope break at cruise speed; the camera's existing time filter eases changes.
+  const cruiseRatio = 360 / 522;
+  const bend = (30 * cruiseRatio - 20) / (cruiseRatio * (1 - cruiseRatio));
+  return (60 - (30 - bend) * ratio - bend * ratio * ratio) * Math.PI / 180;
 }
 
 /** Raise the sightline as the lens narrows, and follow the road's uphill/downhill tangent. */

@@ -3,8 +3,8 @@ import test from 'node:test';
 import { NEON_SCENES, selectNeonScenes } from '../../scripts/neon-circuit-scenes.mjs';
 
 test('neon browser verifier defaults to the full unique scenario matrix', () => {
-  assert.equal(selectNeonScenes().length,40);
-  assert.equal(new Set(NEON_SCENES.map(row => row[0])).size,40);
+  assert.equal(selectNeonScenes().length,62);
+  assert.equal(new Set(NEON_SCENES.map(row => row[0])).size,62);
   assert.ok(NEON_SCENES.every(row => row.length === 5 && row[3] > 0 && row[4] > 0));
 });
 test('targeted neon verification preserves named scenarios and rejects typos', () => {

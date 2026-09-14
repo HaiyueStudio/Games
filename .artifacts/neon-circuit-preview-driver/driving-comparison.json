@@ -1,0 +1,435 @@
+{
+  "generatedAt": "2026-09-14T10:35:57.250999+00:00",
+  "kind": "deterministic fixed-step simulation",
+  "stepSeconds": 0.008333333333333333,
+  "seed": 1313822273,
+  "laps": 3,
+  "sourceSha256": "32b47a4bbca911e5d266896eb856b9fc59955339f4bd2bc18d2a4ac33721a56f",
+  "rulesSha256": "f6908754dff381ecfdee777dcdf03e07f8699bdd081013f0105017ce8d93916d",
+  "previousSourceSha256": "cc0f0b4d8d6fee77151fcbe967d863a1c537cf0f3a6e9341c1624128dd870f7a",
+  "before": [
+    {
+      "track": "sky-harbor",
+      "difficulty": "easy",
+      "time": 127.43,
+      "hits": 4,
+      "boost": 1,
+      "sideBoost": 0,
+      "max": 918,
+      "finished": true
+    },
+    {
+      "track": "sky-harbor",
+      "difficulty": "normal",
+      "time": 104.48,
+      "hits": 0,
+      "boost": 2,
+      "sideBoost": 0,
+      "max": 1023,
+      "finished": true
+    },
+    {
+      "track": "sky-harbor",
+      "difficulty": "hard",
+      "time": 84.53,
+      "hits": 0,
+      "boost": 30,
+      "sideBoost": 15,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "neon-city",
+      "difficulty": "easy",
+      "time": 136.14,
+      "hits": 10,
+      "boost": 5,
+      "sideBoost": 2,
+      "max": 1023,
+      "finished": true
+    },
+    {
+      "track": "neon-city",
+      "difficulty": "normal",
+      "time": 118.46,
+      "hits": 3,
+      "boost": 1,
+      "sideBoost": 0,
+      "max": 1023,
+      "finished": true
+    },
+    {
+      "track": "neon-city",
+      "difficulty": "hard",
+      "time": 100.95,
+      "hits": 0,
+      "boost": 30,
+      "sideBoost": 15,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "reactor-run",
+      "difficulty": "easy",
+      "time": 177.02,
+      "hits": 33,
+      "boost": 6,
+      "sideBoost": 5,
+      "max": 1061,
+      "finished": true
+    },
+    {
+      "track": "reactor-run",
+      "difficulty": "normal",
+      "time": 169.51,
+      "hits": 9,
+      "boost": 3,
+      "sideBoost": 1,
+      "max": 1054,
+      "finished": true
+    },
+    {
+      "track": "reactor-run",
+      "difficulty": "hard",
+      "time": 163.28,
+      "hits": 0,
+      "boost": 33,
+      "sideBoost": 21,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "rainbow-road",
+      "difficulty": "easy",
+      "time": 197.93,
+      "hits": 11,
+      "boost": 3,
+      "sideBoost": 3,
+      "max": 1058,
+      "finished": true
+    },
+    {
+      "track": "rainbow-road",
+      "difficulty": "normal",
+      "time": 167.49,
+      "hits": 2,
+      "boost": 3,
+      "sideBoost": 3,
+      "max": 1053,
+      "finished": true
+    },
+    {
+      "track": "rainbow-road",
+      "difficulty": "hard",
+      "time": 145.59,
+      "hits": 0,
+      "boost": 33,
+      "sideBoost": 18,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "sky-coaster",
+      "difficulty": "easy",
+      "time": 312.67,
+      "hits": 15,
+      "boost": 4,
+      "sideBoost": 1,
+      "max": 1067,
+      "finished": true
+    },
+    {
+      "track": "sky-coaster",
+      "difficulty": "normal",
+      "time": 260.42,
+      "hits": 8,
+      "boost": 1,
+      "sideBoost": 1,
+      "max": 1016,
+      "finished": true
+    },
+    {
+      "track": "sky-coaster",
+      "difficulty": "hard",
+      "time": 215.24,
+      "hits": 0,
+      "boost": 45,
+      "sideBoost": 30,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "ashfall",
+      "difficulty": "easy",
+      "time": 135.24,
+      "hits": 11,
+      "boost": 3,
+      "sideBoost": 2,
+      "max": 911,
+      "finished": true
+    },
+    {
+      "track": "ashfall",
+      "difficulty": "normal",
+      "time": 113.52,
+      "hits": 5,
+      "boost": 3,
+      "sideBoost": 0,
+      "max": 1060,
+      "finished": true
+    },
+    {
+      "track": "ashfall",
+      "difficulty": "hard",
+      "time": 95.13,
+      "hits": 0,
+      "boost": 30,
+      "sideBoost": 15,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "mobius-ring",
+      "difficulty": "easy",
+      "time": 165.36,
+      "hits": 15,
+      "boost": 4,
+      "sideBoost": 1,
+      "max": 932,
+      "finished": true
+    },
+    {
+      "track": "mobius-ring",
+      "difficulty": "normal",
+      "time": 135.54,
+      "hits": 4,
+      "boost": 2,
+      "sideBoost": 1,
+      "max": 1052,
+      "finished": true
+    },
+    {
+      "track": "mobius-ring",
+      "difficulty": "hard",
+      "time": 105.99,
+      "hits": 0,
+      "boost": 45,
+      "sideBoost": 30,
+      "max": 1450,
+      "finished": true
+    }
+  ],
+  "after": [
+    {
+      "track": "sky-harbor",
+      "difficulty": "easy",
+      "time": 84.98,
+      "hits": 8,
+      "boost": 22,
+      "sideBoost": 10,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "sky-harbor",
+      "difficulty": "normal",
+      "time": 81.56,
+      "hits": 1,
+      "boost": 27,
+      "sideBoost": 14,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "sky-harbor",
+      "difficulty": "hard",
+      "time": 79.56,
+      "hits": 0,
+      "boost": 30,
+      "sideBoost": 15,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "neon-city",
+      "difficulty": "easy",
+      "time": 99.01,
+      "hits": 10,
+      "boost": 25,
+      "sideBoost": 13,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "neon-city",
+      "difficulty": "normal",
+      "time": 95.85,
+      "hits": 2,
+      "boost": 28,
+      "sideBoost": 16,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "neon-city",
+      "difficulty": "hard",
+      "time": 92.43,
+      "hits": 0,
+      "boost": 33,
+      "sideBoost": 18,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "reactor-run",
+      "difficulty": "easy",
+      "time": 146.48,
+      "hits": 22,
+      "boost": 24,
+      "sideBoost": 14,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "reactor-run",
+      "difficulty": "normal",
+      "time": 140.34,
+      "hits": 7,
+      "boost": 31,
+      "sideBoost": 16,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "reactor-run",
+      "difficulty": "hard",
+      "time": 135.9,
+      "hits": 3,
+      "boost": 30,
+      "sideBoost": 21,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "rainbow-road",
+      "difficulty": "easy",
+      "time": 141.81,
+      "hits": 11,
+      "boost": 36,
+      "sideBoost": 23,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "rainbow-road",
+      "difficulty": "normal",
+      "time": 136.97,
+      "hits": 6,
+      "boost": 40,
+      "sideBoost": 25,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "rainbow-road",
+      "difficulty": "hard",
+      "time": 134.17,
+      "hits": 0,
+      "boost": 39,
+      "sideBoost": 24,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "sky-coaster",
+      "difficulty": "easy",
+      "time": 227.83,
+      "hits": 25,
+      "boost": 37,
+      "sideBoost": 23,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "sky-coaster",
+      "difficulty": "normal",
+      "time": 214.59,
+      "hits": 9,
+      "boost": 44,
+      "sideBoost": 30,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "sky-coaster",
+      "difficulty": "hard",
+      "time": 208.77,
+      "hits": 0,
+      "boost": 45,
+      "sideBoost": 30,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "ashfall",
+      "difficulty": "easy",
+      "time": 95.39,
+      "hits": 11,
+      "boost": 24,
+      "sideBoost": 12,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "ashfall",
+      "difficulty": "normal",
+      "time": 88.95,
+      "hits": 4,
+      "boost": 30,
+      "sideBoost": 15,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "ashfall",
+      "difficulty": "hard",
+      "time": 86.4,
+      "hits": 0,
+      "boost": 32,
+      "sideBoost": 20,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "mobius-ring",
+      "difficulty": "easy",
+      "time": 109.81,
+      "hits": 10,
+      "boost": 39,
+      "sideBoost": 27,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "mobius-ring",
+      "difficulty": "normal",
+      "time": 104.19,
+      "hits": 5,
+      "boost": 43,
+      "sideBoost": 28,
+      "max": 1450,
+      "finished": true
+    },
+    {
+      "track": "mobius-ring",
+      "difficulty": "hard",
+      "time": 100.89,
+      "hits": 0,
+      "boost": 45,
+      "sideBoost": 30,
+      "max": 1450,
+      "finished": true
+    }
+  ],
+  "tests": "78 neon-circuit tests passed, including additional seeds 123/456/789 on technical and inverted courses"
+}

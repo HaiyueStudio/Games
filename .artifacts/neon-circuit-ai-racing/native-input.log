@@ -1,0 +1,20 @@
+
+> @haiyue/native-neon-circuit@0.1.0 test
+> node --test test/*.test.mjs
+
+✔ temporary native canvases survive repeated same-frame uploads and release backing stores exactly once (10.858374ms)
+✔ font atlases remain valid across frames and release only after their scene is destroyed (1.615854ms)
+✔ many language redraws and consecutive courses keep the native surface count bounded (3.409871ms)
+✔ both UIKit landscape orientations map a lowered right edge to right steering (17.489952ms)
+✔ handheld position calibrates to neutral and hand tremor does not steer (1.233217ms)
+✔ screen-right tilt turns right, screen-left turns left, and output is bounded (1.913634ms)
+✔ smoothing agrees at 30/60/120 Hz and resume recalibrates without a steering jump (1.933478ms)
+✔ invalid sensor data never propagates a NaN into racing physics (0.996251ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3598.398048

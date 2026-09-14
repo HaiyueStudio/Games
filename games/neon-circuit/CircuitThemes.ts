@@ -9,6 +9,16 @@ export interface CircuitPalette {
 
 /** Whole-scene palettes, including asphalt, architecture, rails and the sky. */
 export const CIRCUIT_PALETTES: Readonly<Record<Circuit['theme'], CircuitPalette>> = {
+  mobius: {
+    roadA: [.025,.045,.09,1], roadB: [.04,.08,.13,1], rail: [.25,1,.8,1],
+    boost: [.9,1,1,1], marker: [.4,.65,.8,1], ground: [0,0,0,1],
+    accent: [.7,.35,1,1], white: [.85,1,1,1], sky: [.003,.002,.015,1],
+  },
+  volcanic: {
+    roadA: [.11,.065,.055,1], roadB: [.17,.095,.06,1], rail: [1,.22,.035,1],
+    boost: [1,.8,.25,1], marker: [.8,.57,.38,1], ground: [.035,.012,.008,1],
+    accent: [1,.46,.06,1], white: [1,.9,.72,1], sky: [.12,.025,.016,1],
+  },
   daylight: {
     roadA: [0.18,0.29,0.37,1], roadB: [0.72,0.82,0.88,1], rail: [0.1,0.75,0.92,1],
     boost: [1,0.65,0.17,1], marker: [0.86,0.94,1,1], ground: [0.3,0.65,0.85,1],

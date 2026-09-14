@@ -14,7 +14,7 @@
     {
       "atMs": 800,
       "enemyId": "scout",
-      "count": 5,
+      "count": 3,
       "intervalMs": 1000,
       "quantumPair": true,
       "position": {
@@ -28,6 +28,18 @@
       "enemyId": "bomber",
       "count": 3,
       "intervalMs": 1600,
+      "quantumPair": true,
+      "position": {
+        "mode": "random",
+        "minX": 85,
+        "maxX": 395
+      }
+    },
+    {
+      "atMs": 8000,
+      "enemyId": "crimson-lance",
+      "count": 1,
+      "intervalMs": 0,
       "quantumPair": true,
       "position": {
         "mode": "random",
@@ -50,7 +62,7 @@
     {
       "atMs": 15000,
       "enemyId": "stealth",
-      "count": 4,
+      "count": 2,
       "intervalMs": 1300,
       "quantumPair": true,
       "position": {
@@ -60,7 +72,7 @@
       }
     },
     {
-      "atMs": 21000,
+      "atMs": 17000,
       "enemyId": "crimson-lance",
       "count": 1,
       "intervalMs": 0,

@@ -1,0 +1,13 @@
+{
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "file": "volcano-panorama.png",
+      "prompt": "Use case: stylized-concept. Asset type: equirectangular 360 degree sky panorama for a high-speed futuristic racing game. Create an apocalyptic volcanic caldera world, seamless horizontal 2:1 panorama, 2048x1024. Horizon at vertical middle. Vast black basalt mountain ranges and several erupting volcanoes with molten orange lava running down their slopes, immense ash clouds with ember lit undersides, dark smoky red sky above, scorched cracked lava plain below. Cinematic detailed realistic game environment, clear readable silhouettes, bright lava against charcoal rock. No roads, vehicles, buildings, text, logos, frames, UI, watermark. Full opaque panorama, no transparency. Left and right edges must match, zenith mostly soft ash sky, nadir dark basalt. View from inside the caldera, distant volcano cones on horizon with distinct luminous eruptions."
+    },
+    {
+      "file": "volcanic-rock.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless square albedo texture for volcanic mountains and falling molten rocks in a 3D racing game. 1024x1024 top-down orthographic surface material, full frame dark charcoal rugged basalt rock with fissures of flowing orange-red molten lava, some white-hot narrow cores, irregular angular stone flakes and granular ash. Mostly detailed dark brown-black basalt (80 percent) with branched glowing lava cracks (20 percent). Uniform lighting, no perspective, no large mountains, no horizon, no objects, no text, no border, no baked cast shadows, seamless tileable on all four edges, opaque PNG."
+    }
+  ]
+}

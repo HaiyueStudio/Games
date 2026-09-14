@@ -1,7 +1,12 @@
+import { RaceOpponent, AI_DIFFICULTIES, raceProgress, raceWinner, type RaceMode, type AiDifficulty, type RaceWinner } from './RaceOpponent';
+import { readCameraMode, saveCameraMode, type CameraMode } from './CameraMode';
+import { VolcanicHazards } from './VolcanicHazards';
+import { VolcanoEnvironment } from './VolcanoEnvironment';
 import {NeonAudio} from './audio/NeonAudio';
 import {NeonBrowserAudio} from './audio/BrowserAudio';
 import { TEXT, readLanguage, saveLanguage, lapNotice, type Language, type LanguageStorage } from './NeonLocale';
 import { mat4 } from 'wgpu-matrix';
+import { hudMapPoint } from './HudMapMath';
 import { SunnyEnvironment } from './SunnyEnvironment';
 import { cross, dot, unit, mixAxes, turnFrame, type TrackFrame, type TrackVector } from './RaceRules';
 import { browserNeonRaster, uploadNeonCanvas, type NeonRaster } from './NeonRaster';
@@ -36,7 +41,8 @@ import {
   BOOST_DURATION_SECONDS,
   BOOST_MAX_SPEED,
   BOOST_PAD_HALF_WIDTH,
-  BOOST_ZONE_HALF_LENGTH,
+  BOOST_PAD_LENGTH,
+  BOOST_PADS,
   BOOST_ZONES,
   CRUISE_MAX_SPEED,
   BURN_HEALTH,
@@ -81,6 +87,9 @@ function isRacerSaveData(value: unknown): value is RacerSaveData {
 }
 
 interface RacerSnapshot {
+  readonly raceMode: RaceMode; readonly difficulty: AiDifficulty; readonly winner: RaceWinner; readonly opponent: RaceState | null; readonly opponentModel: string;
+  readonly cameraMode: CameraMode;
+  readonly fireballs: readonly import('./VolcanicHazards').FallingFireball[];
   readonly phase: Phase;
   readonly lap: number;
   readonly speed: number;
@@ -123,6 +132,7 @@ const THRUSTER_OFFSET_X = EXHAUST_SOCKETS[1][0];
 const THRUSTER_OFFSET_Z = EXHAUST_SOCKETS[1][2];
 
 export interface NeonNativeOptions {
+  raceMode?: RaceMode; difficulty?: AiDifficulty;
   haptic(impact:number):void;
   audio: NeonAudio;
   languageStorage: LanguageStorage;
@@ -140,6 +150,11 @@ export class NeonCircuitGame {
   get audioState() {return this.audio.snapshot();}
   private native: NeonNativeOptions | null = null;
   private language: Language = 'zh';
+  private cameraMode: CameraMode = 'chase';
+  private selectedCamera: CameraMode = 'chase';
+  private changeCamera(mode: CameraMode): void {
+    this.selectedCamera=mode;saveCameraMode(this.languageStorage,mode);this.gui.setCameraMode(mode);
+  }
   private languageStorage: LanguageStorage | undefined;
   get locale(): Language {return this.language;}
   private changeLanguage(language: Language): void {
@@ -158,6 +173,8 @@ export class NeonCircuitGame {
   private rainbowRoad: RainbowRoadTexture | null = null;
   private space: SpaceEnvironment | null = null;
   private sunny: SunnyEnvironment | null = null;
+  private volcano: VolcanoEnvironment | null = null;
+  private hazards: VolcanicHazards | null = null;
   private readonly track: RaceTrack;
   private selectedCircuit: string;
   private saves!: SingleSlotGameSave<RacerSaveData>;
@@ -170,6 +187,21 @@ export class NeonCircuitGame {
   private readonly materials = new Map<string, BlinnPhongMaterial>();
   private readonly validationErrors: string[] = [];
   private state = createInitialRaceState();
+  private raceMode: RaceMode = 'time-trial';
+  private selectedRaceMode: RaceMode = 'time-trial';
+  private difficulty: AiDifficulty = 'normal';
+  private selectedDifficulty: AiDifficulty = 'normal';
+  private opponentState = {...createInitialRaceState(),lateral:-30};
+  private opponent: RaceOpponent | null = null;
+  private opponentModel: GltfModelComponent | null = null;
+  private opponentTransform: CartesianTransform3D | null = null;
+  private winner: RaceWinner = null;
+  private changeRaceSetup(mode:RaceMode,difficulty:AiDifficulty):void {
+    this.selectedRaceMode=mode;this.selectedDifficulty=difficulty;
+    try {this.languageStorage?.setItem('neon.raceMode',mode);this.languageStorage?.setItem('neon.aiDifficulty',difficulty);} catch { /* Session choice still works. */ }
+    this.gui.setRaceSetup(mode,difficulty);
+  }
+
   private phase: Phase = 'home';
   private phaseBeforePause: Exclude<Phase, 'paused'> = 'racing';
   private countdown = 3.4;
@@ -180,7 +212,8 @@ export class NeonCircuitGame {
   private validationFrames = 0;
   private verificationOverview = false;
   private thrusterFlame!: ThrusterFlameTexture;
-  private racerModel!: GltfModelComponent;
+  private racerModel: GltfModelComponent | null = null;
+  private styledOpponentRoot: Entity | null = null;
   private styledRacerRoot: Entity | null = null;
   private racerPbrMaterialCount = 0;
   private hullFire!: HullFireTexture;
@@ -245,23 +278,42 @@ export class NeonCircuitGame {
   private async prepareScene(): Promise<void> {
     if(this.native) this.languageStorage=this.native.languageStorage;
     else {try {this.languageStorage = new URLSearchParams(location.search).has('verify') ? undefined : localStorage;} catch { /* Private browsing may block storage. */ }}
+    try {
+      this.raceMode=this.languageStorage?.getItem('neon.raceMode')==='duel'?'duel':'time-trial';
+      const d=this.languageStorage?.getItem('neon.aiDifficulty');if(AI_DIFFICULTIES.includes(d as AiDifficulty))this.difficulty=d as AiDifficulty;
+    } catch { /* Defaults remain usable. */ }
+    if(!this.native) {
+      const query=new URLSearchParams(location.search);
+      if(query.has('mode'))this.raceMode=query.get('mode')==='duel'?'duel':'time-trial';
+      if(AI_DIFFICULTIES.includes(query.get('difficulty') as AiDifficulty))this.difficulty=query.get('difficulty') as AiDifficulty;
+    }
+    if(this.native?.raceMode)this.raceMode=this.native.raceMode;
+    if(this.native?.difficulty)this.difficulty=this.native.difficulty;
+    this.selectedRaceMode=this.raceMode;this.selectedDifficulty=this.difficulty;
+    if(this.raceMode==='duel')this.opponent=new RaceOpponent(this.difficulty);
     this.language=readLanguage(this.languageStorage);
+    this.cameraMode=this.selectedCamera=readCameraMode(this.languageStorage);
+    if(!this.native && new URLSearchParams(location.search).get('view')==='first-person') this.cameraMode=this.selectedCamera='first-person';
     if(this.native)this.audio=this.native.audio;
     else {const backend=new NeonBrowserAudio();await backend.load();this.audio=new NeonAudio(backend);}
     this.engine.clearColor = { r: this.colors.sky[0], g: this.colors.sky[1], b: this.colors.sky[2], a: 1 };
-    this.saves = new SingleSlotGameSave<RacerSaveData>({ gameId: `neon-circuit-v4-${this.circuit.id}`,
+    this.saves = new SingleSlotGameSave<RacerSaveData>({ gameId: `neon-circuit-${this.circuit.id==='neon-city'?'v5':'v4'}-${this.circuit.id}`,
       name: '极速新星 最佳成绩', validateData: isRacerSaveData, ...(this.native ? { backend: this.native.saveBackend } : {}) });
     this.world = new World('Neon Circuit');
     this.setupRenderer();
     this.setupLighting();
     await this.loadEffectTextures();
-    if (this.circuit.theme === 'cosmic') {
+    if ((this.circuit.theme === 'cosmic' || this.circuit.theme === 'mobius')) {
       this.space = await SpaceEnvironment.create(this.world, this.engine.device, TRACK_SCALE, this.raster);
-      this.rainbowRoad = new RainbowRoadTexture(this.engine.device);
+      this.rainbowRoad = new RainbowRoadTexture(this.engine.device, this.circuit.theme === 'mobius' ? 'noise' : 'rainbow');
+    } else if(this.circuit.theme === 'volcanic') {
+      this.hazards=new VolcanicHazards(this.circuit.seed);
+      this.volcano=await VolcanoEnvironment.create(this.world,this.engine.device,this.raster,this.track);
     } else if(this.circuit.theme === 'daylight') this.sunny = await SunnyEnvironment.create(this.world,this.engine.device,this.raster);
     else this.buildEnvironment();
     this.buildTrack();
-    this.buildHoverCar();
+    if(this.cameraMode==='chase')this.buildHoverCar();
+    if(this.raceMode==='duel')this.buildOpponent();
     const saved = await this.saves.load();
     if (saved) this.bestTime = saved.bestTime;
     this.updateBestTime();
@@ -275,14 +327,23 @@ export class NeonCircuitGame {
   suspend(): void { this.audio?.suspend(); this.cancelInteraction(); if (this.phase === 'racing' || this.phase === 'countdown') this.togglePause(); }
   flushSave(): Promise<void> { return this.saves.flush(); }
   get guiView(): NeonCircuitGui { return this.gui; }
-  get modelStatus(): string { return this.racerModel.status; }
+  /** Diagnostic comparison against the real rendered chase camera, including its handedness. */
+  get mapRoadAlignment() {
+    const here = racePose(this.track,this.state), ahead = sampleTrack(this.track,this.state.distance+450);
+    const m = this.gui.snapshot.minimap, matrix = this.camera.localMatrix;
+    const next = hudMapPoint(m.projection,ahead,m.basis);
+    return { viewSide: matrix[0]!*(ahead.x-here.x)+matrix[1]!*(ahead.y-here.y)+matrix[2]!*(ahead.z-here.z),
+      mapSide: next.x-m.marker.x, next, marker:m.marker };
+  }
+  get modelStatus(): string { return this.racerModel?.status ?? 'skipped'; }
+  private get vehicleReady(): boolean { return (this.cameraMode==='first-person' || this.modelStatus==='loaded') && (this.raceMode!=='duel' || this.opponentModel?.status==='loaded'); }
   setState(next: Partial<RaceState>): void { this.state = { ...this.state, ...next }; }
   dispose(): void {
     if (this.disposed) return; this.disposed = true;
     if(this.native)this.audio.stopDrive();else this.audio?.dispose();
     this.cancelInteraction(); this.inputLifetime.abort(); this.engine.off('update', this.onFrame);
     this.world?.destroy(); this.gui?.dispose();
-    this.boostStrip?.destroy(); this.rainbowRoad?.destroy(); this.space?.destroy(); this.sunny?.destroy();
+    this.boostStrip?.destroy(); this.rainbowRoad?.destroy(); this.space?.destroy(); this.sunny?.destroy(); this.volcano?.destroy();
     this.hullFire?.destroy(); this.thrusterFlame?.destroy();
     for (const texture of this.effectTextures) texture.destroy(); this.effectTextures.length = 0;
   }
@@ -299,6 +360,8 @@ export class NeonCircuitGame {
     const [record, wheel] = await Promise.all([upload('gui-record'), upload('gui-wheel')]);
     this.gui.setInteractiveArt(record, wheel);
     this.gui.setLapArt(await upload('gui-lap'));
+    const [instruments,compass] = await Promise.all([upload('gui-instruments-v2'),upload('gui-compass-v2')]);
+    this.gui.setCompositeHudArt(instruments,compass);
     const sparkCanvas = this.raster.canvas(64, 64);
     const paint = sparkCanvas.getContext('2d') as CanvasRenderingContext2D;
     paint.strokeStyle = '#fff4c2'; paint.lineWidth = 3; paint.lineCap = 'round';
@@ -315,7 +378,7 @@ export class NeonCircuitGame {
     const start = racePose(this.track, this.state);
     this.cameraHeading = start.heading;
     const cameraEntity = new Entity('Chase camera');
-    this.cameraComponent = new Camera3D({ type: 'perspective', fov: speedFov(0, BOOST_MAX_SPEED), near: 1, far: (this.circuit.theme === 'cosmic' || this.circuit.theme === 'daylight' ? 30000 : 9500) * TRACK_SCALE });
+    this.cameraComponent = new Camera3D({ type: 'perspective', fov: speedFov(0, BOOST_MAX_SPEED), near: 1, far: ((this.circuit.theme === 'cosmic' || this.circuit.theme === 'mobius') || this.circuit.theme === 'daylight' || this.circuit.theme === 'volcanic' ? 30000 : 9500) * TRACK_SCALE });
     this.cameraComponent.reverseZ = true;
     cameraEntity.addComponent(this.cameraComponent);
     this.camera = new SphericalTransform3D({
@@ -327,19 +390,23 @@ export class NeonCircuitGame {
     cameraEntity.addComponent(this.camera);
     this.world.addEntity(cameraEntity);
 
-    this.world.addSystem(new GltfModelSystem({ priority: -20, loadTimeoutMs: 20_000, ...this.native?.modelOptions }));
+    if(this.cameraMode==='chase' || this.raceMode==='duel')this.world.addSystem(new GltfModelSystem({ priority: -20, loadTimeoutMs: 20_000, ...this.native?.modelOptions }));
     const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4, reverseZ: true });
     this.world.addSystem(render3D);
     this.gui = new NeonCircuitGui(this.world, this.engine.device, this.circuit.id, {
+      raceSetup: (mode,difficulty)=>this.changeRaceSetup(mode,difficulty),
+      camera: mode => this.changeCamera(mode),
       stamp: () => this.audio.cue('record'),
       click: () => this.audio.click(),
       language: value => this.changeLanguage(value),
-      select: id => { if(this.selectedCircuit!==id)this.audio.course(); this.selectedCircuit = id; }, start: () => this.startSelectedCircuit(),
+      select: id => { if(this.selectedCircuit!==id)this.audio.course(); this.selectedCircuit = id; }, start: mode => {this.changeRaceSetup(mode,this.selectedDifficulty);this.startSelectedCircuit();},
       restart: () => this.restart(), pause: () => this.togglePause(), home: () => this.showHome(),
       press: (key, pointer) => { if (this.phase === 'racing' || this.phase === 'countdown') this.touchKeys.set(pointer, key); },
       release: pointer => this.releaseControl(pointer),
     }, this.native ? true : matchMedia('(pointer: coarse)').matches, this.raster, this.native?.safeInsets);
     this.changeLanguage(this.language);
+    this.gui.setCameraMode(this.selectedCamera);
+    this.gui.setRaceSetup(this.selectedRaceMode,this.selectedDifficulty);
     this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: {
       ...this.native?.guiFont, chars: NEON_GUI_GLYPHS, fontSize: 48, atlasSize: 2048, fontFamily: 'Arial, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", sans-serif',
     } }));
@@ -479,9 +546,9 @@ export class NeonCircuitGame {
       }
     }
 
-    BOOST_ZONES.forEach((center, index) => {
-      const boostGeometry = overlay((center - BOOST_ZONE_HALF_LENGTH) * this.track.length, (center + BOOST_ZONE_HALF_LENGTH) * this.track.length,
-        -BOOST_PAD_HALF_WIDTH, BOOST_PAD_HALF_WIDTH, 0.55, [1 / 92, 1 / (BOOST_PAD_HALF_WIDTH * 2)]);
+    BOOST_PADS.forEach(({progress: center, lateral}, index) => {
+      const boostGeometry = overlay(center * this.track.length - BOOST_PAD_LENGTH / 2, center * this.track.length + BOOST_PAD_LENGTH / 2,
+        lateral - BOOST_PAD_HALF_WIDTH, lateral + BOOST_PAD_HALF_WIDTH, 0.55, [1 / 92, 1 / (BOOST_PAD_HALF_WIDTH * 2)]);
       const entity = new Entity(`Boost lane ${index}`);
       entity.addComponent(new Mesh3D(boostGeometry, new BasicMaterial({ texture: this.boostStrip.texture,
         color: this.colors.boost, sampler: { magFilter: 'linear', minFilter: 'linear', addressModeU: 'repeat', addressModeV: 'clamp-to-edge' } })));
@@ -501,7 +568,7 @@ export class NeonCircuitGame {
 
   private extrusionPath(lateral=0, vertical=0): PathExtrusionPoint[] {
     const path=this.track.samples.map(s=>this.extrusionPoint(s.distance,lateral,vertical));
-    if(!this.sunnyTheme) return path;
+    if(!this.track.samples[0]?.frame) return path;
     return path.map((point,i)=>{
       const prev=path[(i+path.length-1)%path.length]!.position, next=path[(i+1)%path.length]!.position;
       const f=unit(mixAxes(next,prev,1,-1)), r=unit(cross(Math.abs(f[1])<0.96?[0,1,0]:[0,0,1],f)), u=cross(f,r);
@@ -522,6 +589,13 @@ export class NeonCircuitGame {
       ],
       roll: sample.bank,
     };
+  }
+
+  private buildOpponent():void {
+    const entity=new Entity('AI rival · magenta');
+    this.opponentTransform=new CartesianTransform3D({scale:[RACER_MODEL_SCALE,RACER_MODEL_SCALE,RACER_MODEL_SCALE],anchor:[0,60*RACER_MODEL_SCALE,0]});
+    this.opponentModel=new GltfModelComponent({src:'./assets/wraith-raider.glb',autoLoad:true,clearPrevious:true,baseColorFactor:[1,.3,.8,1]});
+    entity.addComponent(this.opponentTransform);entity.addComponent(this.opponentModel);this.world.addEntity(entity);
   }
 
   private buildHoverCar(): void {
@@ -633,7 +707,7 @@ export class NeonCircuitGame {
 
   private tick(timeMs: number, deltaMs: number): void {
     const seconds = Math.max(0, Math.min(0.05, deltaMs * 0.001));
-    if (this.phase === 'countdown' && this.racerModel.status === 'loaded') {
+    if (this.phase === 'countdown' && this.vehicleReady) {
       this.countdown -= seconds;
       if (this.countdown <= 0) {
         this.phase = 'racing';
@@ -648,10 +722,27 @@ export class NeonCircuitGame {
       this.accumulator += seconds;
       const events: string[] = [];
       while (this.accumulator >= 1 / 120) {
-        const result = stepRace(this.track, this.state, controls, 1 / 120);
+        const before=this.state,oldOpponent=this.opponentState;
+        const result = stepRace(this.track, this.state, controls, 1 / 120, this.raceMode!=='duel');
         this.state = result.state;
         events.push(...result.events);
+        if(this.hazards) {
+          const impact=this.hazards.step(before,this.state,this.track.length,1/120,this.raceMode!=='duel',false,this.opponent?oldOpponent:undefined);this.state=impact.state;
+          if(impact.hit>0) {
+            this.cameraImpact=Math.max(this.cameraImpact,impact.hit);this.native?.haptic(impact.hit);
+            this.audio.cue('rail',impact.hit);
+            const p=racePose(this.track,this.state);this.effects.collide([p.x,p.y+8,p.z],[0,1,0],[Math.sin(p.heading),0,Math.cos(p.heading)],impact.hit);
+            if(this.state.destroyed)events.push('destroyed');
+          }
+        }
+        if(this.opponent) {
+          const aiControls=this.opponent.update(this.track,oldOpponent,1/120,this.hazards?.balls);
+          this.opponentState=stepRace(this.track,oldOpponent,aiControls,1/120,false).state;
+          if(this.hazards)this.opponentState=this.hazards.step(oldOpponent,this.opponentState,this.track.length,1/120,false,true).state;
+          this.winner=raceWinner(this.track,before,this.state,oldOpponent,this.opponentState);
+        }
         this.accumulator -= 1 / 120;
+        if(this.winner) {this.accumulator=0;break;}
       }
       const result = { events };
       if(events.includes('boost')) this.audio.cue('boost');
@@ -673,26 +764,27 @@ export class NeonCircuitGame {
         this.keys.clear(); this.touchKeys.clear();
         this.flashAnnouncement(TEXT[this.language].destroyed, Number.POSITIVE_INFINITY);
       }
-      if (result.events.includes('finish')) this.finishRace();
-      if (result.events.includes('lap')) {this.audio.cue('lap');this.flashAnnouncement(lapNotice(this.language,this.state.lap,TOTAL_LAPS));}
+      if (result.events.includes('finish') || this.winner) this.finishRace();
+      if (!this.winner && result.events.includes('lap')) {this.audio.cue('lap');this.flashAnnouncement(lapNotice(this.language,this.state.lap,TOTAL_LAPS));}
     }
     if (this.phase === 'racing' && this.state.elapsed >= this.announcementUntil) this.announcementText = '';
-    if(this.phase==='countdown' && this.racerModel.status==='loaded')this.audio.countdown(this.countdown<=.45?'GO':String(Math.max(1,Math.ceil(this.countdown-.4))) as '3'|'2'|'1');
+    if(this.phase==='countdown' && this.vehicleReady)this.audio.countdown(this.countdown<=.45?'GO':String(Math.max(1,Math.ceil(this.countdown-.4))) as '3'|'2'|'1');
     this.audio.update(seconds,this.phase === 'racing',this.held('w') || this.held('arrowup'),this.state.speed/BOOST_MAX_SPEED,this.held('s')||this.held('arrowdown'));
     this.updateVisuals(timeMs, seconds);
     this.gui.animate(seconds);
     this.updateHud();
     this.world.update(timeMs, deltaMs);
     this.gui.flushCarouselCaptureLosses();
-    if (!this.native && ++this.validationFrames >= 24 && this.validationFrames < 1_000_000 && this.racerModel.status === 'loaded') {
+    if (!this.native && ++this.validationFrames >= 24 && this.validationFrames < 1_000_000 && this.vehicleReady) {
       this.validationFrames = 1_000_000;
       void this.finishValidation();
     }
   }
 
   private styleRacerMaterials(): void {
-    const root = this.racerModel.runtimeRoot;
-    if (!root || root === this.styledRacerRoot) return;
+    for(const opponent of [false,true]) {
+    const root = (opponent?this.opponentModel:this.racerModel)?.runtimeRoot;
+    if (!root || root === (opponent?this.styledOpponentRoot:this.styledRacerRoot)) continue;
     const pending = [root], styled = new Set<PbrMaterial>();
     while (pending.length) {
       const node = pending.pop()!;
@@ -703,17 +795,28 @@ export class NeonCircuitGame {
       // Preserve imported colours/textures, with a polished paint finish and a
       // separate smooth dielectric windshield. The loader owns these materials.
       const glass = material.alphaMode === 'blend';
+      if(opponent && !glass) {material.baseColor=[1,.25,.75,1];material.emissiveFactor=[.045,0,.065];}
       material.metallic = glass ? 0 : 0.12;
       material.roughness = glass ? 0.16 : 0.38;
       material.clearcoatFactor = glass ? 0 : 0.22;
       material.clearcoatRoughnessFactor = 0.22;
     }
-    this.racerPbrMaterialCount = styled.size;
-    this.styledRacerRoot = root;
+    if(opponent)this.styledOpponentRoot=root;
+    else {this.racerPbrMaterialCount = styled.size;this.styledRacerRoot = root;}
+    }
   }
 
   private updateVisuals(timeMs: number, seconds: number): void {
     this.styleRacerMaterials();
+    if(this.opponentTransform) {
+      const p=racePose(this.track,this.opponentState),t=this.opponentTransform;
+      t.setScale(RACER_MODEL_SCALE,RACER_MODEL_SCALE,RACER_MODEL_SCALE);
+      if(p.frame) {
+        t.setPosition(0,0,0).setRotation(0,0,0);
+        const origin=[p.x+p.frame.up[0]*4.5,p.y+p.frame.up[1]*4.5,p.z+p.frame.up[2]*4.5] as TrackVector;
+        t.setMatrix(mat4.multiply(frameMatrix(p.frame,origin),t.localMatrix));
+      } else t.setPosition(p.x,p.y+4.5,p.z).setRotation(-p.pitch,p.heading,p.bank);
+    }
     const pose = racePose(this.track, this.state);
     const targetPitch = -pose.pitch;
     this.visualPitch += (targetPitch - this.visualPitch) * (1 - Math.exp(-seconds * 7));
@@ -742,16 +845,16 @@ export class NeonCircuitGame {
     const thrust = this.phase === 'racing' && accelerating && !this.state.destroyed;
     const effectsRunning = this.phase === 'racing' || this.phase === 'destroyed';
     if (this.phase !== 'paused') this.effectClock += seconds;
-    this.thrusterFlame.update(this.effectClock, speedRatio, boostStrength, this.state.destroyed ? 0 : thrust ? 1 : 0.48);
+    this.thrusterFlame?.update(this.effectClock, speedRatio, boostStrength, this.state.destroyed ? 0 : thrust ? 1 : 0.48);
     const damage = damageEnvelope(this.state.health);
-    this.hullFire.update(this.effectClock, damage.fire);
+    this.hullFire?.update(this.effectClock, damage.fire);
     for (const part of this.fireParts) part.setScale(1, 3.5 + damage.fire * 6, 1);
     if(bodyFrame) {
       const origin=bodyPosition([0,0,0]), basis=frameMatrix(bodyFrame,origin);
       for(const part of this.carParts) part.transform.setMatrix(mat4.multiply(basis,part.transform.localMatrix));
     }
     this.effects.update(seconds, bodyPosition([0, 3.8, -11]), pose.frame?.forward ?? [Math.sin(pose.heading), 0, Math.cos(pose.heading)],
-      damage.smokeRate, damage.smokeOpacity, effectsRunning);
+      this.cameraMode==='first-person'?0:damage.smokeRate, damage.smokeOpacity, effectsRunning);
     this.boostStrip.update(this.effectClock);
     this.rainbowRoad?.update(this.effectClock);
     this.cameraImpact *= Math.exp(-seconds * 5);
@@ -780,6 +883,13 @@ export class NeonCircuitGame {
       const z=unit(mixAxes(eye,target,1,-1)), x=unit(cross(u,z)), y=cross(z,x);
       this.camera.setMatrix(frameMatrix({right:x,up:y,forward:z},eye));
     }
+    if(this.cameraMode==='first-person') {
+      const f=pose.frame?.forward ?? unit([Math.sin(pose.heading)*Math.cos(pose.pitch),Math.sin(pose.pitch),Math.cos(pose.heading)*Math.cos(pose.pitch)]);
+      const u=pose.frame?.up ?? bankedUp(pose.heading,pose.pitch,pose.bank);
+      const z=mixAxes(f,f,-1,0),x=unit(cross(u,z)),y=cross(z,x);
+      const eye=[pose.x+u[0]*13,pose.y+u[1]*13+Math.sin(timeMs*.099)*shake*1.2,pose.z+u[2]*13] as TrackVector;
+      this.camera.setMatrix(frameMatrix({right:x,up:y,forward:z},eye));
+    }
     if (this.verificationOverview) {
       this.cameraComponent.fov = 0.96;
       if(this.sunny) this.camera.set(19500,-.1,.68).setTarget(-6100,3400,-2600);
@@ -788,14 +898,16 @@ export class NeonCircuitGame {
     this.effects.faceCamera(this.camera.theta, this.camera.phi);
     this.space?.update(this.effectClock, this.camera.eyePosition);
     this.sunny?.update(this.camera.eyePosition);
+    this.volcano?.update(this.effectClock,this.camera.eyePosition,this.hazards?.balls ?? []);
   }
 
   private updateHud(): void {
-    if (this.phase === 'countdown') this.announcementText = this.racerModel?.status !== 'loaded'
+    if (this.phase === 'countdown') this.announcementText = !this.vehicleReady
       ? TEXT[this.language].loadingCar : this.countdown <= 0.45 ? 'GO' : String(Math.max(1, Math.ceil(this.countdown - 0.4)));
-    this.gui.update({ phase: this.phase, speed: formatSpeed(this.state.speed),
+    this.gui.update({ raceMode:this.raceMode,position:raceProgress(this.state,this.track)>=raceProgress(this.opponentState,this.track)?1:2,winner:this.winner,
+      ...(this.opponent?{opponentPose:racePose(this.track,this.opponentState)}:{}),cameraMode:this.cameraMode, pose: racePose(this.track, this.state), phase: this.phase, speed: formatSpeed(this.state.speed),
       lap: `${Math.min(this.state.lap, TOTAL_LAPS)} / ${TOTAL_LAPS}`, time: formatTime(this.state.elapsed),
-      best: Number.isFinite(this.bestTime) ? formatTime(this.bestTime) : '--:--.---', health: this.state.health,
+      best: Number.isFinite(this.bestTime) ? formatTime(this.bestTime) : '--:--.---', health: this.state.health, damageSide:this.state.damageSide,
       countdown: this.countdown, announcement: this.announcementText,
       newRecord: this.newRecord, throttle: this.held('w') || this.held('arrowup'), brake: this.held('s') || this.held('arrowdown'),
       impact: this.phase === 'racing' ? this.cameraImpact : 0 });
@@ -803,6 +915,11 @@ export class NeonCircuitGame {
 
   private finishRace(): void {
     this.phase = 'finished';
+    if(this.raceMode==='duel') {
+      this.newRecord=false;
+      this.announcementText=`${TEXT[this.language][this.difficulty]} · ${formatTime(this.winner==='opponent'?this.opponentState.elapsed:this.state.elapsed)}`;
+      this.keys.clear();this.touchKeys.clear();this.updateHud();return;
+    }
     const isRecord = this.state.elapsed < this.bestTime;
     this.newRecord = isRecord;
     if (isRecord) {
@@ -817,7 +934,11 @@ export class NeonCircuitGame {
   restart(): void {
     this.audio.beginRace();
     this.newRecord = false;
-    this.state = createInitialRaceState();
+    this.state = {...createInitialRaceState(),lateral:this.raceMode==='duel'?30:0};
+    this.opponentState={...createInitialRaceState(),lateral:-30};
+    this.winner=null;this.difficulty=this.selectedDifficulty;
+    this.opponent=this.raceMode==='duel'?new RaceOpponent(this.difficulty):null;
+    this.hazards?.reset();
     this.phase = 'countdown';
     this.countdown = 3.4;
     this.keys.clear();
@@ -853,12 +974,14 @@ export class NeonCircuitGame {
   }
 
   private startSelectedCircuit(): void {
-    if (this.selectedCircuit === this.circuit.id) this.restart();
+    if (this.selectedCircuit === this.circuit.id && this.selectedCamera===this.cameraMode && this.selectedRaceMode===this.raceMode) this.restart();
     else if (this.native) this.native.changeCircuit(this.selectedCircuit);
     else {
       const url = new URL(location.href);
       url.searchParams.set('track', this.selectedCircuit);
       url.searchParams.set('race', '1');
+      url.searchParams.set('view',this.selectedCamera);
+      url.searchParams.set('mode',this.selectedRaceMode);url.searchParams.set('difficulty',this.selectedDifficulty);
       location.assign(url.href);
     }
   }
@@ -875,6 +998,8 @@ export class NeonCircuitGame {
 
   snapshot(): RacerSnapshot {
     return {
+      raceMode:this.raceMode,difficulty:this.difficulty,winner:this.winner,opponent:this.opponent?{...this.opponentState}:null,opponentModel:this.opponentModel?.status??'skipped',
+      cameraMode:this.cameraMode, fireballs:(this.hazards?.balls??[]).map(ball=>({...ball})),
       phase: this.phase,
       lap: this.state.lap,
       speed: this.state.speed,
@@ -891,7 +1016,7 @@ export class NeonCircuitGame {
       exhaustLength: this.exhaustLength,
       fov: this.cameraComponent.fov,
       reverseZ: this.engine.reverseZ && this.cameraComponent.reverseZ, depthFormat: this.engine.getDepthFormat(),
-      coaster: this.sunny ? {section:sampleTrack(this.track,this.state.distance).section!,roadUp:sampleTrack(this.track,this.state.distance).frame!.up,cameraUp:Array.from(this.camera.localMatrix.slice(4,7))} : null,
+      coaster: this.track.samples[0]?.frame ? {section:sampleTrack(this.track,this.state.distance).section!,roadUp:sampleTrack(this.track,this.state.distance).frame!.up,cameraUp:Array.from(this.camera.localMatrix.slice(4,7))} : null,
       cameraPhi: this.camera.phi, theme: this.circuit.theme, space: this.space?.counts ?? null, rainbowTime: this.rainbowRoad?.time ?? null,
       particles: this.effects.counts,
     };
@@ -909,7 +1034,7 @@ export class NeonCircuitGame {
     document.body.dataset.renderStatus = status;
     const output = query<HTMLElement>('#result');
     output.textContent = JSON.stringify({ schemaVersion: 1, revision: 'neon-circuit-native-v14', status,
-      errors: this.validationErrors, checks, audio:this.audioState, gui: this.gui.snapshot, modelStatus: this.racerModel.status, ...this.snapshot() });
+      errors: this.validationErrors, checks, audio:this.audioState, gui: this.gui.snapshot, modelStatus: this.modelStatus, ...this.snapshot() });
     output.dataset.status = status;
   }
 
@@ -940,6 +1065,134 @@ export class NeonCircuitGame {
       target.handlePointerUp({ ...event, type: 'pointerup' }); target.handleClick(event);
       this.gui.flushCarouselCaptureLosses();
     };
+    if(new URLSearchParams(location.search).get('shot')?.startsWith('home-actions')) {
+      this.showHome();await frames();const actions=this.gui.snapshot.homeActions;
+      check(actions.solo.text===TEXT.zh.timeTrial && actions.duel.text===TEXT.zh.duel,'home exposes solo time trial and AI racing directly');
+      check(actions.solo.y+actions.solo.height<=actions.duel.y && actions.duel.x+actions.duel.width<=actions.difficulty.x && actions.difficulty.x+actions.difficulty.width<=innerWidth,'stacked mode buttons and the secondary difficulty button fit the viewport');
+      const view=this.gui.snapshot;
+      const oldScale=Math.min((innerWidth-32)/1080,(innerHeight-32)/(innerHeight<550?480:660),1.2);
+      check(innerWidth<760 ? view.carouselCardSize.cardWidth<view.carouselBounds.width : Math.abs(view.carouselCardSize.cardHeight-.94*(innerHeight<550?250:380)*oldScale*1.5)<.01,'carousel is 50 percent larger in landscape and fits portrait width');
+      const original=this.selectedCircuit;await click('next-course');check(this.selectedCircuit!==original && view.arrowStyle==='translucent-glow','flat glowing right arrow changes the course');
+      await click('previous-course');check(this.selectedCircuit===original,'flat glowing left arrow returns to the original course');
+      for(const expected of ['hard','easy','normal'] as const) {await click('cycle-difficulty');check(this.selectedDifficulty===expected,`difficulty cycles to ${expected}`);}
+      check(this.phase==='home','difficulty selection does not start a race');
+      await click('start-race');check(this.phase==='countdown' && this.raceMode==='time-trial','solo main button starts time trial without a mode dialog');
+      check(this.opponent===null && this.opponentModel===null,'solo mode loads no opponent');
+      check(this.gui.snapshot.minimap.opponent[3]===0,'solo minimap hides the rival marker');
+      this.showHome();await frames(2);return;
+    }
+    if(this.raceMode==='duel') {
+      const shot=new URLSearchParams(location.search).get('shot')??'duel-race';
+      this.showHome();await frames();
+      check(this.opponentModel?.status==='loaded','duel loads a real visible rival ship');
+      const actions=this.gui.snapshot.homeActions;
+      check(actions.solo.y+actions.solo.height<=actions.duel.y && actions.duel.x+actions.duel.width<=actions.difficulty.x && Math.abs(actions.duel.y-actions.difficulty.y)<1,'home stacks solo and AI buttons with a separate difficulty action');
+      check(actions.solo.text===TEXT[this.language].timeTrial && actions.duel.text===TEXT[this.language].duel,'both race modes are directly labelled on the home screen');
+      for(const d of ['easy','normal','hard'] as const) {await click('cycle-difficulty');check(this.selectedDifficulty===d,`secondary button cycles ${d} difficulty`);}
+      check(this.phase==='home' && this.opponentState.elapsed===0,'difficulty changes never start a race');
+      await click('settings');await click('language-en');await click('settings-done');
+      check(this.gui.snapshot.homeActions.solo.text===TEXT.en.timeTrial && this.gui.snapshot.homeActions.duel.text===TEXT.en.duel,'direct race buttons support English');
+      this.changeLanguage('zh');
+      await click('start-duel');check(this.phase==='countdown' && this.opponentState.elapsed===0,'AI main button starts the shared countdown directly');
+      this.countdown=.01;await frames(12);
+      check(this.opponentState.speed>0 && this.opponentState.distance>0,'AI accelerates and moves through real fixed-step driving');
+      this.state={...this.state,speed:1000,lateral:RAIL_LIMIT,headingOffset:.9,lateralSpeed:700};await frames(3);
+      check(this.state.wallHits>0 && this.state.health===100 && this.state.speed<700,'player wall impact slows without losing hull');
+      this.opponentState={...this.opponentState,speed:1000,lateral:RAIL_LIMIT,headingOffset:.9,lateralSpeed:700};await frames(3);
+      check(this.opponentState.wallHits>0 && this.opponentState.health===100,'AI receives the same non-damaging wall penalty');
+      this.togglePause();const playerTime=this.state.elapsed,botTime=this.opponentState.elapsed;await frames(5);
+      check(this.state.elapsed===playerTime && this.opponentState.elapsed===botTime,'pause freezes both racers');
+      await click('resume');await frames(3);check(this.opponentState.elapsed>botTime,'resume restarts AI simulation');
+      if(this.hazards) {
+        this.hazards.balls.length=0;this.hazards.balls.push({id:9001,distance:this.state.distance,lateral:this.state.lateral,age:2,fallTime:1.9,radius:30,hit:false});
+        this.state={...this.state,speed:600};const hitBefore=this.state.speed;await frames(2);
+        check(this.hazards.balls[0]?.hit===true && this.state.health===100 && this.state.speed<hitBefore,'actual volcanic impact slows the player without hull loss');
+      }
+      const best=this.bestTime;
+      this.state={...createInitialRaceState(),distance:this.track.length-1,lap:3,speed:500};await frames(3);
+      check(this.winner==='player' && this.phase==='finished','player crossing first wins immediately');
+      check(this.bestTime===best && !this.newRecord,'duels cannot replace time-trial records');
+      await click('restart');check(this.winner===null && this.opponentState.elapsed===0 && this.opponentState.wallHits===0,'restart resets AI, winner and progress');
+      this.countdown=.01;await frames(2);this.opponentState={...({...createInitialRaceState(),lateral:-30}),distance:this.track.length-1,lap:3,speed:500};await frames(3);
+      check(this.winner==='opponent' && this.gui.snapshot.resultTitle===TEXT[this.language].opponentWin,'AI finishing first displays a loss');
+      const finishTime=this.state.elapsed;await frames(4);check(this.state.elapsed===finishTime,'finish freezes the whole competition');
+      this.restart();this.countdown=.01;await frames(2);
+      this.state={...createInitialRaceState(),lateral:30};this.opponentState={...({...createInitialRaceState(),lateral:-30}),distance:85};await frames(2);
+      check(this.gui.snapshot.minimap.opponent[3]===1,'spatial minimap tracks the opponent with a distinct marker');
+      this.phase='countdown';this.countdown=3.4;this.opponentState={...this.state};this.updateHud();await frames(2);
+      const overlapping=await this.gui.inspectMapMarkers();
+      check(overlapping.playerPixels>20 && overlapping.opponentPixels>20,'GPU keeps both yellow player and magenta rival visible at the exact same map position');
+      this.opponentState={...this.state,distance:(this.state.distance+this.track.length*.25)%this.track.length};this.updateHud();await frames(2);
+      const separated=await this.gui.inspectMapMarkers(),map=this.gui.snapshot.minimap;
+      check(separated.playerPixels>20 && separated.opponentPixels>20 && Math.hypot(map.opponent[0]!-map.marker.x,map.opponent[1]!-map.marker.y)>.05,'GPU renders a distinct opponent marker at its actual separated 3D position');
+      this.phase='racing';this.announcementText='';
+      if(shot!=='duel-marker-separated')this.opponentState={...this.state,distance:this.state.distance+25};
+      if(shot==='duel-setup') {this.showHome();await frames(2);}
+      if(shot==='duel-result') {this.state={...this.state,lap:3,distance:this.track.length-1,speed:500};await frames(3);}
+      await frames(2);return;
+    }
+    if(this.cameraMode==='first-person') {
+      this.showHome(); await frames();
+      check(this.modelStatus==='skipped' && this.racerModel===null && this.carParts.length===0,'first person creates no glTF component or ship effects');
+      check(this.gui.snapshot.routeCount===7,'seven distinct routes are available in first person');
+      await click('settings'); await click('camera-chase');
+      check(this.gui.snapshot.cameraMode==='chase','settings select chase view');
+      await click('camera-first-person'); await click('language-ja');
+      check(this.gui.snapshot.cameraMode==='first-person' && this.locale==='ja','first-person choice survives language change');
+      await click('language-zh');await click('settings-done');await click('start-race');
+      check(this.phase==='countdown' && this.vehicleReady,'first-person countdown does not wait for a model');
+      this.countdown=.01;await frames(3);
+      check(this.snapshot().phase==='racing','first-person countdown reaches the race');
+      const pose=racePose(this.track,this.state),m=this.camera.localMatrix;
+      check(Math.hypot(m[12]!-pose.x,m[13]!-pose.y,m[14]!-pose.z)<16,'first-person camera sits at the vehicle');
+      check(!this.gui.snapshot.windshield.visible,'undamaged glass is completely clear');
+      for(const [health,stage] of [[90,1],[60,2],[30,3],[10,4]] as const) {
+        this.state={...createInitialRaceState(),health};await frames(2);
+        check(this.gui.snapshot.windshield.visible && this.gui.snapshot.windshield.stage===stage,`windshield fracture severity ${stage} follows hull damage`);
+      }
+      this.restart();await frames(2);
+      check(!this.gui.snapshot.windshield.visible && this.modelStatus==='skipped','restart clears cracks without loading a model');
+      this.phase='racing';this.togglePause();const elapsed=this.state.elapsed;await frames(4);
+      check(this.state.elapsed===elapsed && this.snapshot().phase==='paused','first-person pause freezes simulation');
+      this.togglePause();
+      check(this.snapshot().phase==='racing','first-person resumes normally');
+      this.state=createInitialRaceState();await frames(2);
+      let previousSeed=-1;
+      for(const side of [1,1,-1]) {
+        this.state={...this.state,distance:0,speed:650,lateral:side*RAIL_LIMIT,lateralSpeed:side*500,headingOffset:side*.7,collisionCooldown:0};
+        await frames(2);
+        const cracks=this.gui.snapshot.windshield.clusters,last=cracks[cracks.length-1]!;
+        check(last.side===-side && (side>0?last.x<.25:last.x>.75),'actual rail impact fractures its visible glass side');
+        if(previousSeed>=0 && side===1)check(last.seed!==previousSeed,'repeated same-side impacts generate a different fracture');
+        previousSeed=last.seed;
+      }
+      this.state=createInitialRaceState();await frames(2);
+
+      if(this.hazards) {
+        this.hazards.reset();this.state={...createInitialRaceState(),speed:400};
+        for(let i=0;i<300 && !this.hazards.balls.length;i++)await frames(1);
+        check(this.hazards.balls.length>0,'volcano launches a timed warning ahead of the vehicle');
+        const ball=this.hazards.balls[0]!;
+        this.state={...createInitialRaceState(),distance:ball.distance,lateral:ball.lateral};
+        this.togglePause();const age=ball.age;await frames(5);
+        check(ball.age===age,'pause freezes falling fireballs');this.togglePause();
+        for(let i=0;i<300 && this.state.health===100;i++)await frames(1);
+        check(this.state.health<100 && this.gui.snapshot.windshield.visible,'actual fireball impact damages first-person glass');
+        check((this.audioState.played.rail??0)>0,'fireball impact produces collision feedback');
+      }
+      const shot=new URLSearchParams(location.search).get('shot');
+      this.hazards?.reset();this.state={...createInitialRaceState(),health:shot==='fp-damage'?25:100};
+      if(this.sunny) {const rows=this.track.samples.filter(s=>s.section==='loop');this.state={...this.state,distance:rows[Math.floor(rows.length*.5)]!.distance};}
+      if(this.hazards)this.hazards.balls.push({id:99,distance:380,lateral:-32,age:1.3,fallTime:1.8,radius:30,hit:false});
+      if(shot==='fp-glass-left' || shot==='fp-glass-right') {
+        this.state=createInitialRaceState();await frames(2);
+        const side=shot==='fp-glass-left'?1:-1;
+        this.state={...this.state,speed:650,lateral:side*RAIL_LIMIT,lateralSpeed:side*500,headingOffset:side*.7};await frames(2);
+      }
+
+      // Freeze simulation, retaining the racing HUD for a repeatable screenshot.
+      await frames(2);this.engine.stop();return;
+    }
     this.showHome();
     await frames();
     check(this.engine.reverseZ && this.cameraComponent.reverseZ && this.engine.getDepthFormat() === 'depth32float',
@@ -950,16 +1203,16 @@ export class NeonCircuitGame {
         const buffer = this.engine.device.createBuffer({ size: 256, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
         try {
           const encoder = this.engine.device.createCommandEncoder();
-          encoder.copyTextureToBuffer({ texture: texture.texture, origin: [256, 128] }, { buffer, bytesPerRow: 256 }, [1, 1]);
+          encoder.copyTextureToBuffer({ texture: texture.texture, origin: [224, 128] }, { buffer, bytesPerRow: 256 }, [64, 1]);
           this.engine.device.queue.submit([encoder.finish()]);
           await buffer.mapAsync(GPUMapMode.READ);
-          return new Uint8Array(buffer.getMappedRange()).slice(0, 4);
+          return new Uint8Array(buffer.getMappedRange()).slice(0, 256);
         } finally { buffer.destroy(); }
       };
       texture.update(0); const before = await pixel();
       texture.update(4); const after = await pixel();
-      check(before[3] === 255 && after[3] === 255 && before.slice(0, 3).some((value, i) => Math.abs(value - after[i]!) > 20),
-        'rainbow shader changes actual GPU surface colours over time');
+      check(before[3] === 255 && after[3] === 255 && before.some((value, i) => i % 4 !== 3 && Math.abs(value - after[i]!) > 20),
+        'animated road shader changes actual GPU surface colours over time');
       texture.update(this.effectClock);
     }
     check(this.gui.snapshot.language === 'zh' && this.gui.snapshot.title === '极速新星','Chinese is the default locale');
@@ -1036,7 +1289,7 @@ export class NeonCircuitGame {
     origin = this.gui.snapshot.carouselTarget;
     await swipe(180,0,false,40);
     check(origin - this.gui.snapshot.carouselTarget >= 2, 'fast right throw retains reverse momentum across multiple cards');
-    check(this.styledRacerRoot === this.racerModel.runtimeRoot && this.racerPbrMaterialCount > 0,
+    check(this.styledRacerRoot === this.racerModel?.runtimeRoot && this.racerPbrMaterialCount > 0,
       'loaded racer retains imported PBR materials with environment lighting and paint finish');
     this.gui.select(this.circuit.id); await settleCarousel();
     await click(`track-${this.circuit.id}`);
@@ -1047,10 +1300,28 @@ export class NeonCircuitGame {
     const hud = this.gui.snapshot;
     check(hud.dialBounds.x < 32 && hud.dialBounds.y < innerHeight / 3
       && Math.abs(hud.courseBounds.x + hud.courseBounds.width / 2 - innerWidth / 2) < 1
-      && (innerWidth < 760 || hud.courseBounds.x >= hud.dialBounds.x + hud.dialBounds.width)
-      && this.gui.buttonRect('pause').x > innerWidth - 130 && hud.activeButtons.join() === 'pause'
-      && hud.timingBounds.x >= 0 && hud.timingBounds.x + hud.timingBounds.width < this.gui.buttonRect('pause').x
-      && hud.timingBounds.y === this.gui.buttonRect('pause').y,  'dial at upper left, centered course label, skinned timing left of the upper-right pause');
+      && hud.timingBounds.x >= hud.dialBounds.x + hud.dialBounds.width - .01
+      && hud.timingBounds.x + hud.timingBounds.width < hud.instrumentsBounds.x + hud.instrumentsBounds.width
+      && hud.instrumentsBounds.x + hud.instrumentsBounds.width < hud.minimap.frameBounds.x
+      && hud.activeButtons.join() === 'pause' && this.gui.buttonRect('pause').width >= 44
+      && this.gui.buttonRect('pause').x + this.gui.buttonRect('pause').width <= innerWidth + .01,
+      'integrated left instrument/timing and right compass/pause stay separate and on screen');
+    const beforeMap = this.gui.snapshot.minimap, savedMapState = this.state;
+    this.state = {...this.state,headingOffset:.55}; await frames(3);
+    check(Math.hypot(...this.gui.snapshot.minimap.basis.right.map((v,i)=>v-beforeMap.basis.right[i]!))>.2,
+      'compass rotates with the actual racer heading');
+    this.state = {...this.state,distance:this.track.length*.27,headingOffset:0}; await frames(3);
+    const movedMap = this.gui.snapshot.minimap;
+    check(movedMap.trackId === this.circuit.id && movedMap.visible
+      && Math.hypot(movedMap.marker.x-beforeMap.marker.x,movedMap.marker.y-beforeMap.marker.y)>.03,
+      'minimap uses the selected course and follows the racer position');
+    await frames(40);
+    const roadAlignment=this.mapRoadAlignment;
+    check(roadAlignment.viewSide*roadAlignment.mapSide>0,'upcoming road lies on the same side in the actual chase camera and minimap');
+    check(this.gui.snapshot.timingRows===2 && this.gui.snapshot.lapReadout.bounds.x>innerWidth/2
+      && this.gui.buttonRect('pause').y<12 && this.gui.snapshot.lapReadout.text.includes(this.gui.snapshot.language==='zh'?'圈数':TEXT[this.language].lap),
+      'two timing rows remain on the left, lap moves onto compass, pause docks at upper right');
+    this.state = savedMapState; await frames(2);
     await click('pause');
     const pausedCountdown = this.countdown, pausedEffectTime = this.effectClock;
     await frames(3);
@@ -1107,7 +1378,7 @@ export class NeonCircuitGame {
     await click('pause');
     await click('home-button');
     check(this.snapshot().phase === 'home' && this.gui.snapshot.homeVisible, 'return to course selection');
-    check(this.sunny ? this.track.samples.some(s=>s.frame!.up[1]<-0.9) && this.buildingCount===0 : this.space ? this.space.counts.planets === 3 && this.space.counts.meteors === 36 && this.buildingCount === 0 : this.buildingCount > 150,
+    check(this.volcano ? this.circuit.theme==='volcanic' && this.hazards!==null && this.buildingCount===0 : this.sunny ? this.track.samples.some(s=>s.frame!.up[1]<-0.9) && this.buildingCount===0 : this.space ? this.space.counts.planets === 3 && this.space.counts.meteors === 36 && this.buildingCount === 0 : this.buildingCount > 150,
       this.sunny ? 'sunny panorama and an inverted coaster frame replace the city' : this.space ? 'cosmic panorama, three ringed planets and pooled meteor shower replace the city' : 'dense deterministic trackside skyline');
     this.restart();
     this.phase = 'racing';
@@ -1163,6 +1434,15 @@ export class NeonCircuitGame {
     for(let i=0;i<120 && this.gui.snapshot.recordStamp.age<.8;i++)await frames(1);
     check((this.audioState.played.record??0)>0 && this.gui.snapshot.recordStamp.age>=.5,'record sound accompanies the stamp landing');
     check(!this.audioState.musicPlaying,'music stops at the finish');
+    if(this.circuit.theme==='mobius') {
+      for(const index of [0,this.track.samples.length/2]) {
+        const sample=this.track.samples[index]!;
+        this.state={...createInitialRaceState(),distance:sample.distance};this.phase='racing';await frames(3);
+        const view=this.snapshot().coaster!;
+        check(dot(view.roadUp as TrackVector,view.cameraUp as TrackVector)>.8
+          && Math.sign(view.roadUp[1]!)===(index===0?1:-1),`Mobius ${sample.section} face carries the ship and camera continuously`);
+      }
+    }
     this.showHome();
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot?.startsWith('home')) {
@@ -1175,7 +1455,7 @@ export class NeonCircuitGame {
     } else {
       this.restart();
       const onBoost = shot === 'boost';
-      this.state = { ...createInitialRaceState(), distance: onBoost ? this.track.length * (BOOST_ZONES[0] - BOOST_ZONE_HALF_LENGTH) - 45 : this.track.length * 0.18,
+      this.state = { ...createInitialRaceState(), distance: onBoost ? this.track.length * BOOST_ZONES[0] - BOOST_PAD_LENGTH / 2 - 45 : this.track.length * 0.18,
         health: shot === 'fire' ? 18 : shot === 'smoke' ? 45 : 100,
         speed: shot === 'accelerating' || shot === 'coasting' ? CRUISE_MAX_SPEED * 0.92 : 0 };
       this.cameraHeading = sampleTrack(this.track, this.state.distance).heading;
@@ -1188,17 +1468,27 @@ export class NeonCircuitGame {
       }
       if (shot === 'countdown') { this.phase = 'countdown'; this.countdown = 2.8; }
       if (shot === 'lap') {this.state={...this.state,lap:2};this.flashAnnouncement(lapNotice(this.language,2,3),5);}
+      if (shot === 'compass-turn') this.state = {...this.state,distance:this.track.length*.18,headingOffset:0};
+      if (shot === 'map-bend-right' || shot === 'map-bend-left') {
+        const side=shot==='map-bend-right'?1:-1;
+        const bend=this.track.samples.find(s=>{const a=sampleTrack(this.track,s.distance+450);return (-(a.x-s.x)*Math.cos(s.heading)+(a.z-s.z)*Math.sin(s.heading))*side>45;})!;
+        this.state={...createInitialRaceState(),distance:bend.distance,lateral:30};this.cameraHeading=bend.heading;
+      }
       if (shot === 'amber') this.state = { ...this.state, health: 55 };
       if (shot === 'paused') { this.phaseBeforePause = 'racing'; this.phase = 'paused'; this.announcementText = 'PAUSED'; }
       if (shot === 'destroyed') { this.state = { ...this.state, health: 0, destroyed: true }; this.phase = 'destroyed'; this.announcementText = TEXT[this.language].destroyed; }
       if (shot === 'finished') { this.state = { ...this.state, elapsed: 123.456, lap: 3 }; this.newRecord = true; this.phase = 'finished'; this.announcementText = '02:03.456'; }
+    }
+    if(shot==='volcano') {
+      this.state={...createInitialRaceState()};this.cameraHeading=sampleTrack(this.track,0).heading;
+      await frames(55);this.hazards!.balls.push({id:99,distance:300,lateral:25,age:1.5,fallTime:1.8,radius:32,hit:false});
     }
     if(shot?.startsWith('coaster-') && shot !== 'coaster-overlook') {
       const section=shot.slice(8), rows=this.track.samples.filter(s=>s.section===section);
       const at=rows[Math.floor(rows.length*(section==='loop' || section==='roll' ? .5 : .42))]!;
       this.state={...createInitialRaceState(),distance:at.distance};
     }
-    await frames(shot === 'home-swipe' ? 1 : shot === 'collision' || shot === 'countdown' ? 2 : 55);
+    await frames(shot === 'home-swipe' || shot==='volcano' ? 1 : shot === 'collision' || shot === 'countdown' ? 2 : 55);
     if(shot==='music-loop'){
       const starts=this.audioState.played.music??0;await new Promise(resolve=>setTimeout(resolve,31_000));
       check(this.audioState.musicPlaying && this.audioState.played.music===starts,'music crosses its thirty-second boundary without restarting its voice');
@@ -1213,8 +1503,12 @@ export class NeonCircuitGame {
       this.cameraComponent.fov=1.05;
       this.camera.set(19500,-.1,.68).setTarget(-6100,3400,-2600);
       this.sunny?.update(this.camera.eyePosition);
+    this.volcano?.update(this.effectClock,this.camera.eyePosition,this.hazards?.balls ?? []);
       this.verificationOverview=true; await frames(2);
     }
+    if (shot === 'map3d-twist') { this.state={...createInitialRaceState(),distance:this.track.samples[this.track.samples.length/4]!.distance}; await frames(3); }
+    if (shot === 'map3d-loop') { const peak=this.track.samples.reduce((a,b)=>a.frame!.forward[1]>b.frame!.forward[1]?a:b);this.state={...createInitialRaceState(),distance:peak.distance};await frames(3); }
+    if (shot === 'mobius-back') { this.state={...createInitialRaceState(),distance:this.track.samples[this.track.samples.length/2]!.distance}; await frames(3); }
     if (shot === 'space-overlook') { this.verificationOverview = true; await frames(2); }
     this.engine.stop();
   }

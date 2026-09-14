@@ -40,6 +40,7 @@ export interface RaceState {
   readonly destroyed: boolean;
   readonly impact: number;
   readonly collisionCooldown: number;
+  readonly damageSide: -1 | 0 | 1;
 }
 
 export interface RaceStepResult {
@@ -66,7 +67,13 @@ export const CRUISE_MAX_SPEED = 1000;
 export const BOOST_MAX_SPEED = 1450;
 export const BOOST_DURATION_SECONDS = 1.8;
 export const BOOST_ZONES = Object.freeze([0.08, 0.275, 0.47, 0.675, 0.865] as const);
-export const BOOST_ZONE_HALF_LENGTH = 0.0065;
+export const BOOST_PAD_LENGTH = 96;
+export interface BoostPad { readonly progress: number; readonly lateral: number }
+/** Shared by collision rules and road meshes: short, staggered pads in all three lanes. */
+export const BOOST_PADS: readonly BoostPad[] = Object.freeze(BOOST_ZONES.flatMap(progress => [
+  { progress, lateral: 0 }, { progress: progress + 0.032, lateral: -58 },
+  { progress: progress + 0.064, lateral: 58 },
+]).map(pad => Object.freeze(pad)));
 
 export const TRACK_CONTROL_POINTS: readonly TrackControlPoint[] = Object.freeze([
   { x: 0, y: 72, z: -3_260 },
@@ -82,17 +89,17 @@ export const TRACK_CONTROL_POINTS: readonly TrackControlPoint[] = Object.freeze(
   { x: 850, y: 158, z: 2_420 },
   { x: 20, y: 286, z: 2_520 },
   { x: -720, y: 458, z: 2_320 },
-  { x: -1_210, y: 365, z: 1_790 },
-  { x: -1_080, y: 214, z: 1_180 },
-  { x: -1_610, y: 126, z: 780 },
-  { x: -2_350, y: 232, z: 720 },
-  { x: -2_950, y: 396, z: 210 },
+  { x: -1360, y: 365, z: 1740 },
+  { x: -1550, y: 214, z: 1300 },
+  { x: -2000, y: 126, z: 920 },
+  { x: -2500, y: 232, z: 650 },
+  { x: -2930, y: 396, z: 200 },
   { x: -3_220, y: 318, z: -610 },
   { x: -3_060, y: 168, z: -1_430 },
   { x: -2_560, y: 112, z: -2_120 },
   { x: -1_840, y: 268, z: -2_650 },
-  { x: -1_050, y: 442, z: -2_810 },
-  { x: -520, y: 315, z: -2_410 },
+  { x: -1180, y: 442, z: -2860 },
+  { x: -570, y: 315, z: -2880 },
 ]);
 
 export function createRaceTrack(segmentCount = 360, controlPoints: readonly TrackControlPoint[] = TRACK_CONTROL_POINTS): RaceTrack {
@@ -146,18 +153,19 @@ export function createInitialRaceState(): RaceState {
     destroyed: false,
     impact: 0,
     collisionCooldown: 0,
+    damageSide: 0,
   };
 }
 
 /** Fixed, bounded integration keeps wall damage and cornering stable across render rates. */
-export function stepRace(track: RaceTrack, state: RaceState, controls: RaceControls, deltaSeconds: number): RaceStepResult {
+export function stepRace(track: RaceTrack, state: RaceState, controls: RaceControls, deltaSeconds: number, damageEnabled = true): RaceStepResult {
   if (state.finished || state.destroyed) return { state, events: [] };
   const dt = clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
   if (dt === 0) return { state, events: [] };
   const count = Math.ceil(dt / (1 / 120));
   const events: RaceStepResult['events'][number][] = [];
   for (let index = 0; index < count; index++) {
-    const result = integrateRace(track, state, controls, dt / count);
+    const result = integrateRace(track, state, controls, dt / count, damageEnabled);
     state = result.state;
     events.push(...result.events);
     if (state.finished || state.destroyed) break;
@@ -169,7 +177,7 @@ export function steeringYawRate(speed: number): number {
   return 0.62 + Math.min(1, Math.max(0, speed) / (CRUISE_MAX_SPEED * 0.77)) * 0.34;
 }
 
-function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControls, dt: number): RaceStepResult {
+function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControls, dt: number, damageEnabled: boolean): RaceStepResult {
   const throttle = clamp01(controls.throttle);
   const brake = clamp01(controls.brake);
   const steer = clamp(controls.steer, -1, 1);
@@ -194,17 +202,20 @@ function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControl
   let lateralSpeed = state.lateralSpeed + (speed * Math.sin(headingOffset) - state.lateralSpeed) * (1 - Math.exp(-dt * 14));
   let lateral = state.lateral + lateralSpeed * dt;
   let health = state.health;
+  let damageSide = state.damageSide;
   let wallHits = state.wallHits;
   let impact = state.impact * Math.exp(-dt * 7);
   let collisionCooldown = Math.max(0, state.collisionCooldown - dt);
   if (Math.abs(lateral) > RAIL_LIMIT) {
     const side = Math.sign(lateral);
+    // Engine camera screen-right is the negative road-right axis, also when inverted.
+    damageSide = side > 0 ? -1 : 1;
     const normalSpeed = Math.abs(lateralSpeed);
     const incidence = clamp01(normalSpeed / Math.max(1, speed));
     lateral = side * RAIL_LIMIT;
     if (collisionCooldown <= 0) {
       const severity = clamp01(speed / BOOST_MAX_SPEED * (0.35 + incidence * 0.9));
-      health -= 2 + 42 * (speed / CRUISE_MAX_SPEED) ** 2 * (0.16 + incidence * 0.84);
+      if (damageEnabled) health -= 2 + 42 * (speed / CRUISE_MAX_SPEED) ** 2 * (0.16 + incidence * 0.84);
       impact = Math.max(impact, 0.18 + severity * 0.82);
       speed *= 0.48 - incidence * 0.26;
       boostRemaining = 0;
@@ -213,7 +224,7 @@ function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControl
       events.push('wall');
     } else {
       // Sustained scraping still costs hull and speed, without a hit every frame.
-      health -= (2 + normalSpeed * 0.025) * dt;
+      if (damageEnabled) health -= (2 + normalSpeed * 0.025) * dt;
       speed *= Math.exp(-dt * 3);
     }
     lateralSpeed = -side * normalSpeed * 0.28;
@@ -240,14 +251,14 @@ function integrateRace(track: RaceTrack, state: RaceState, controls: RaceControl
       events.push('lap');
     }
   }
-  const zone = boostZoneAt(distance / track.length, lateral);
+  const zone = boostZoneAt(distance / track.length, lateral, track.length);
   if (!destroyed && !finished && collisionCooldown === 0 && zone >= 0 && zone !== state.activeBoostZone) {
     boostRemaining = BOOST_DURATION_SECONDS;
     speed = Math.max(speed, CRUISE_MAX_SPEED * 0.9);
     events.push('boost');
   }
   return { state: { distance, speed, lateral, lateralSpeed, lap, elapsed: state.elapsed + dt,
-    boostRemaining, activeBoostZone: zone, wallHits, finished, headingOffset, health, destroyed, impact, collisionCooldown }, events };
+    boostRemaining, activeBoostZone: zone, wallHits, finished, headingOffset, health, destroyed, impact, collisionCooldown, damageSide }, events };
 }
 
 export function sampleTrack(track: RaceTrack, distance: number): TrackSample {
@@ -289,10 +300,10 @@ export function racePose(track: RaceTrack, state: Pick<RaceState, 'distance' | '
   };
 }
 
-export function boostZoneAt(progress: number, lateral: number): number {
-  if (Math.abs(lateral) > BOOST_PAD_HALF_WIDTH) return -1;
+export function boostZoneAt(progress: number, lateral: number, trackLength = 34000): number {
   const wrapped = ((progress % 1) + 1) % 1;
-  return BOOST_ZONES.findIndex(center => circularDistance(wrapped, center) <= BOOST_ZONE_HALF_LENGTH);
+  return BOOST_PADS.findIndex(pad => Math.abs(lateral - pad.lateral) <= BOOST_PAD_HALF_WIDTH
+    && circularDistance(wrapped, pad.progress) * trackLength <= BOOST_PAD_LENGTH / 2);
 }
 
 function catmullRomPoint(points: readonly TrackControlPoint[], index: number, t: number): TrackControlPoint {
@@ -364,7 +375,7 @@ export interface Circuit {
   readonly difficulty: string;
   readonly description: string;
   readonly color: string;
-  readonly theme: 'harbor' | 'neon' | 'reactor' | 'cosmic' | 'daylight';
+  readonly theme: 'harbor' | 'neon' | 'reactor' | 'cosmic' | 'daylight' | 'volcanic' | 'mobius';
   readonly seed: number;
   readonly points: readonly TrackControlPoint[];
 }
@@ -431,6 +442,37 @@ export function createCoasterTrack(scale=1): RaceTrack {
   return {samples,length:distance+Math.hypot(...mixAxes(vertices[0]!.p,vertices[n-1]!.p,1,-1))};
 }
 
+/** Oriented double cover of one half-twisted ribbon. The 12-unit slab separates its
+ * two drivable faces; one lap traverses both faces before the frame closes. */
+export function createMobiusTrack(scale = TRACK_SCALE): RaceTrack {
+  const count = 1440, radius = 1900 * scale, halfThickness = 6;
+  const vertices = Array.from({length: count}, (_, i) => {
+    const angle = i / count * Math.PI * 4;
+    const radial: TrackVector = [Math.cos(angle), 0, Math.sin(angle)];
+    const right = mixAxes(radial, [0,1,0], Math.cos(angle / 2), Math.sin(angle / 2));
+    const forward: TrackVector = [-Math.sin(angle), 0, Math.cos(angle)];
+    // The transported frame keeps right × up = forward in the engine's road frame.
+    const up = cross(forward, right);
+    return {p: [radius * Math.cos(angle) + up[0] * halfThickness,
+      1400 * scale + up[1] * halfThickness, radius * Math.sin(angle) + up[2] * halfThickness] as TrackVector,
+      // Radial and tangent must use the same parameterization.
+      angle};
+  });
+  // Use the actual offset curve tangent, so physics, camera and mesh share a frame.
+  let distance = 0;
+  const samples: TrackSample[] = vertices.map((v,i) => {
+    const a=v.angle;
+    const radial: TrackVector=[Math.cos(a),0,Math.sin(a)];
+    const desired=mixAxes(radial,[0,1,0],Math.cos(a/2),Math.sin(a/2));
+    const forward=unit(mixAxes(vertices[(i+1)%count]!.p,vertices[(i+count-1)%count]!.p,1,-1));
+    const right=unit(mixAxes(desired,forward,1,-dot(desired,forward))),up=cross(forward,right);
+    if(i) distance+=Math.hypot(...mixAxes(v.p,vertices[i-1]!.p,1,-1));
+    return {x:v.p[0],y:v.p[1],z:v.p[2],distance,heading:Math.atan2(forward[0],forward[2]),
+      pitch:Math.asin(forward[1]),bank:a/2,frame:{right,up,forward},section:i<count/2?'front':'back'};
+  });
+  return {samples,length:distance+Math.hypot(...mixAxes(vertices[0]!.p,vertices[count-1]!.p,1,-1))};
+}
+
 export const CIRCUITS: readonly Circuit[] = [
   { id: 'sky-harbor', name: '云端港湾', subtitle: 'SKY HARBOR', difficulty: '入门 · 高速宽弯',
     description: '沿空港外环加速，在开阔长弯中掌握转向与刹车。', color: '#ffbf69', theme: 'harbor', seed: 0x2fa192,
@@ -456,6 +498,14 @@ export const CIRCUITS: readonly Circuit[] = [
   { id: 'sky-coaster', name: '晴空回旋', subtitle: 'SKY COASTER', difficulty: '极限 · 回环螺旋',
     description: '飞越晴空云海，穿过垂直回环、翻转天桥与盘旋上升的螺旋路。', color: '#58dcff', theme: 'daylight', seed: 0x534b5943,
     points: createCoasterTrack().samples },
+  { id: 'ashfall', name: '熔火末途', subtitle: 'ASHFALL', difficulty: '生存 · 火山落火',
+    description: '穿越喷发的火山与熔岩裂谷，观察落点预警，避开砸向路面的火球。', color: '#ff7747', theme: 'volcanic', seed: 0x41534846,
+    points: points([[0,240,-3000],[1400,300,-3000],[2900,600,-2200],[3300,900,-700],
+      [2500,760,600],[1200,450,1200],[800,300,2400],[-600,500,3000],[-2200,800,2200],
+      [-3000,1100,700],[-2500,850,-700],[-1500,420,-2000]]) },
+  { id: 'mobius-ring', name: '莫比乌斯星环', subtitle: 'MOBIUS ORBIT', difficulty: '极限 · 双面星环',
+    description: '沿半扭转的星环驶向路面背面，在流动的星云纹路中完成双面巡航。',
+    color: '#77ffe1', theme: 'mobius', seed: 0x4d4f4249, points: createMobiusTrack(1).samples },
 ];
 
 export function circuitById(id: string | null): Circuit {
@@ -474,6 +524,7 @@ export function trackMap(track: RaceTrack): { path: string; start: readonly [num
 }
 
 export function circuitTrack(circuit: Circuit): RaceTrack {
+  if(circuit.theme === 'mobius') return createMobiusTrack();
   if(circuit.theme === 'daylight') return createCoasterTrack(TRACK_SCALE);
   // Enlarge the route, not the ship/road width. Keep the original mesh sampling density.
   return createRaceTrack(Math.ceil(520 * TRACK_SCALE), circuit.points.map(p => ({ x: p.x * TRACK_SCALE, y: p.y * TRACK_SCALE, z: p.z * TRACK_SCALE })));

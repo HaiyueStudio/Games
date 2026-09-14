@@ -70,7 +70,7 @@ test('cyan pads grant boost and allow the racer to exceed cruise speed', () => {
   for (let index = 0; index < 60; index++) result = stepRace(track, result.state, { throttle: 1, brake: 0, steer: 0 }, 1 / 120);
   assert.ok(result.state.speed > CRUISE_MAX_SPEED);
   assert.ok(result.state.speed <= BOOST_MAX_SPEED);
-  assert.equal(boostZoneAt(BOOST_ZONES[1], 0), 1);
+  assert.equal(boostZoneAt(BOOST_ZONES[1], 0), 3);
   assert.equal(boostZoneAt(BOOST_ZONES[1], 50), -1);
 });
 
@@ -146,8 +146,8 @@ test('manifest and page expose the racer, controls, timing, boost, and debug hoo
 });
 
 
-test('all five routes are distinct closed circuits with accurate, bounded thumbnails', () => {
-  assert.equal(CIRCUITS.length, 5);
+test('all seven routes are distinct closed circuits with accurate, bounded thumbnails', () => {
+  assert.equal(CIRCUITS.length, 7);
   const maps = CIRCUITS.map(circuit => {
     const track = circuitTrack(circuit);
     assert.ok(track.length > 15_000);
@@ -160,7 +160,7 @@ test('all five routes are distinct closed circuits with accurate, bounded thumbn
     }
     return map.path;
   });
-  assert.equal(new Set(maps).size, 5);
+  assert.equal(new Set(maps).size, 7);
 });
 
 test('holding throttle without turning hits walls on every course', () => {
@@ -176,7 +176,7 @@ test('holding throttle without turning hits walls on every course', () => {
   }
 });
 
-test('deliberate steering and braking can complete all five courses without damage', () => {
+test('deliberate steering and braking can complete all seven courses without damage', () => {
   for (const circuit of CIRCUITS) {
     const track = circuitTrack(circuit);
     let state = { ...createInitialRaceState(), lateral: -30 };
@@ -271,8 +271,8 @@ test('steering scrubs a small symmetric amount of speed without a discontinuous 
 
 
 test('beginner course comes first and Rainbow Road has a separated elevated crossing', () => {
-  assert.deepEqual(CIRCUITS.map(c => c.id), ['sky-harbor', 'neon-city', 'reactor-run', 'rainbow-road', 'sky-coaster']);
-  assert.equal(new Set(CIRCUITS.map(c => c.theme)).size, 5);
+  assert.deepEqual(CIRCUITS.map(c => c.id), ['sky-harbor', 'neon-city', 'reactor-run', 'rainbow-road', 'sky-coaster', 'ashfall', 'mobius-ring']);
+  assert.equal(new Set(CIRCUITS.map(c => c.theme)).size, 7);
   const track = circuitTrack(CIRCUITS[3]);
   const ys = track.samples.map(p => p.y);
   assert.ok(Math.max(...ys) - Math.min(...ys) > 1700);
@@ -293,7 +293,8 @@ test('beginner course comes first and Rainbow Road has a separated elevated cros
 test('expanded courses preserve proportions and widths while easing curvature per metre', () => {
   assert.equal(TRACK_SCALE, 1.8);
   assert.equal(ROAD_HALF_WIDTH, 92);
-  for (const circuit of CIRCUITS) {
+  // Mobius keeps its slab thickness fixed; its ribbon scale is tested separately.
+  for (const circuit of CIRCUITS.filter(c => c.theme !== 'mobius')) {
     const expanded = circuitTrack(circuit), original = circuit.theme === 'daylight' ? createCoasterTrack() : createRaceTrack(expanded.samples.length, circuit.points);
     assert.ok(Math.abs(expanded.length / original.length - TRACK_SCALE) < 1e-10);
     for (let i=0;i<expanded.samples.length;i++) {

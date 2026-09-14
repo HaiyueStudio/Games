@@ -38,9 +38,12 @@ test('FOV narrows gradually with speed and stays bounded at extreme inputs', () 
   assert.ok(speedFov(CRUISE_MAX_SPEED, BOOST_MAX_SPEED) > speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED));
   assert.equal(speedFov(-20, BOOST_MAX_SPEED), speedFov(0, BOOST_MAX_SPEED));
   assert.equal(speedFov(5000, BOOST_MAX_SPEED), speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED));
-  assert.ok(speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED) >= 0.6);
-  assert.ok(speedFov(0, BOOST_MAX_SPEED) - speedFov(CRUISE_MAX_SPEED, BOOST_MAX_SPEED) > 0.25);
-  assert.ok(speedFov(BOOST_MAX_SPEED, BOOST_MAX_SPEED) < 0.65);
+  for (const [speed, degrees] of [[0, 60], [CRUISE_MAX_SPEED, 40], [BOOST_MAX_SPEED, 30]]) {
+    assert.ok(Math.abs(speedFov(speed, BOOST_MAX_SPEED) * 180 / Math.PI - degrees) < 1e-10);
+  }
+  for (let speed = 1; speed <= BOOST_MAX_SPEED; speed++) {
+    assert.ok(speedFov(speed, BOOST_MAX_SPEED) < speedFov(speed - 1, BOOST_MAX_SPEED));
+  }
 });
 
 

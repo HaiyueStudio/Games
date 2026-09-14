@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-09-14T08:07:14.067187+00:00",
+  "status": "passed",
+  "installed": true,
+  "gameTests": 68,
+  "nativeTests": 8,
+  "browserChecks": {
+    "glass-left": 19,
+    "glass-right": 19,
+    "first-person-damage": 23,
+    "map-bend-right": 71
+  },
+  "browserTotal": 132,
+  "browserBundleSha256": "3fb994da3738d1bed1e5512afd396f98cca78d366475c9e9ea653e8884e45e4f",
+  "nativeBundleSha256": "9ac13c5a1d07d839a28294b7462ce564b7b9304318748e7a59d1ea09de4cb2cc",
+  "sourceSha256": {
+    "Games/games/neon-circuit/RaceRules.ts": "30c0075ea4ce5a34185602c32eeb3e0788f3aa0ba5607bc8581f75fa77b6e972",
+    "Games/games/neon-circuit/WindshieldDamage.ts": "5c0eb2d825aeb8f446ec3eb18c351d9badc0bb5221f56d0ebced43e2668f836d",
+    "Games/games/neon-circuit/WindshieldGlass.ts": "d0f9c2612804e6b1135c116f5a94ea4cbf827cfe62585b30be489ec0bb14e30b",
+    "Games/games/neon-circuit/NeonCircuitGui.ts": "b22a4a0e766557201677208792d1e7319a8f14b00f8050f4dac84420caa77b7c",
+    "Games/games/neon-circuit/main.ts": "fb6dd1daa4dea9b2e5d2d70bb1cbf488327712a5f09050dafa766f59e8111448",
+    "Games/games/neon-circuit/VolcanicHazards.ts": "a4b93d867afab4131ce4dce8ea94cfc7700e90929dcbac8aa2f375bb2d70bd14"
+  },
+  "nativeScope": "Build, resource verification, typecheck and installation. Browser screenshots validate directional fractures; no new native endurance claim.",
+  "curvature": {
+    "middleBefore": 0.003444833342104596,
+    "middleAfter": 0.0015883722520959884,
+    "closingBefore": 0.005322169931501085,
+    "closingAfter": 0.001437444711899042
+  }
+}

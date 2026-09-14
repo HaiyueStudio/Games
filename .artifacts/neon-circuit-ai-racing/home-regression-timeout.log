@@ -1,0 +1,11 @@
+file:///Users/qingque/Desktop/HaiyueStudio/Engine/scripts/webgpu-gate/chrome-runner.mjs:670
+  throw new Error(`Timed out waiting for ${label}${detail ? ` (${detail})` : ''}.`);
+        ^
+
+Error: Timed out waiting for Chrome/WebGPU fixture result.
+    at waitFor (file:///Users/qingque/Desktop/HaiyueStudio/Engine/scripts/webgpu-gate/chrome-runner.mjs:670:9)
+    at async runChrome (file:///Users/qingque/Desktop/HaiyueStudio/Engine/scripts/webgpu-gate/chrome-runner.mjs:222:29)
+    at async runChromeWebGpuFixture (file:///Users/qingque/Desktop/HaiyueStudio/Engine/scripts/webgpu-gate/chrome-runner.mjs:38:20)
+    at async file:///Users/qingque/Desktop/HaiyueStudio/Games/scripts/verify-neon-circuit.mjs:16:18
+
+Node.js v24.19.0

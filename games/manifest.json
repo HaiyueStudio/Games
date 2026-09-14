@@ -202,6 +202,8 @@
         "neon-circuit/assets/gui-pause.png",
         "neon-circuit/assets/gui-record.png",
         "neon-circuit/assets/gui-wheel.png",
+        "neon-circuit/assets/volcano-panorama.png",
+        "neon-circuit/assets/volcanic-rock.png",
         "neon-circuit/assets/sunny-panorama.png",
         "neon-circuit/assets/gui-lap.png",
         "neon-circuit/assets/gui-settings-gear.png",
@@ -234,7 +236,11 @@
         "neon-circuit/assets/audio/music.mid",
         "neon-circuit/assets/audio/music.wav",
         "neon-circuit/assets/audio/record.mid",
-        "neon-circuit/assets/audio/record.wav"
+        "neon-circuit/assets/audio/record.wav",
+        "neon-circuit/assets/gui-instruments.png",
+        "neon-circuit/assets/gui-compass.png",
+        "neon-circuit/assets/gui-instruments-v2.png",
+        "neon-circuit/assets/gui-compass-v2.png"
       ],
       "screenshot": {
         "required": false,

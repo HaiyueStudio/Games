@@ -10,7 +10,7 @@ test('carousel wraps three or four courses without losing the unwrapped rotation
   }
 });
 test('perspective projection and pointer inverse agree across responsive layouts and transitions', () => {
-  for(const count of [3,4,5]) for(const [width,height] of [[1080,380],[358,420],[805,186]]) for(const position of [0,0.3,1,1.9,2.6,3.8]) {
+  for(const count of [3,4,5]) for(const [width,height] of [[1080,380],[358,420],[805,186],[740,570],[740,375],[358,438]]) for(const position of [0,0.3,1,1.9,2.6,3.8]) {
     for(let i=0;i<count;i++) for(const [u,v] of [[0.15,0.2],[0.5,0.5],[0.85,0.8]]) {
       const p=projectCard(i,position,width,height,u,v,count), uv=cardUv(i,position,width,height,p.x,p.y,count);
       assert.ok(Math.abs(uv.u-u)<1e-9 && Math.abs(uv.v-v)<1e-9);
@@ -18,7 +18,7 @@ test('perspective projection and pointer inverse agree across responsive layouts
   }
 });
 test('front card wins, side cards remain clickable and the hidden fourth card never intercepts input', () => {
-  for(const count of [3,4,5]) for(const [width,height] of [[1080,380],[358,420],[805,186]]) for(let position=0;position<count;position++) {
+  for(const count of [3,4,5]) for(const [width,height] of [[1080,380],[358,420],[805,186],[740,570],[740,375],[358,438]]) for(let position=0;position<count;position++) {
     assert.equal(hitCarousel(position,width,height,width/2,height/2,count),position);
     const visible=new Set();
     for(let y=0;y<height;y+=5) for(let x=0;x<width;x+=5) visible.add(hitCarousel(position,width,height,x,y,count));
@@ -35,7 +35,7 @@ test('swipes ignore tap jitter and vertical movement but accept short horizontal
 });
 
 test('every recognised short horizontal drag advances even with zero release velocity', () => {
-  for (const [width,height] of [[1080,380],[358,420],[805,186]]) {
+  for (const [width,height] of [[1080,380],[358,420],[805,186],[740,570],[740,375],[358,438]]) {
     for (const start of [-3,0,2,6]) for (const dx of [-36,-20,-9,9,20,36]) {
       assert.equal(carouselRelease(start,dx,0,width,height,0),start-Math.sign(dx));
     }

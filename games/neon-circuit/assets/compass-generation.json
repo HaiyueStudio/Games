@@ -1,0 +1,16 @@
+{
+  "tool": "built-in image_gen",
+  "processing": "Original RGBA images copied unchanged; shared WebGPU GUI controls display the artwork and draw live telemetry and the rotating map.",
+  "assets": [
+    {
+      "path": "gui-instruments.png",
+      "prompt": "Use case: ui-mockup. Asset type: finished transparent PNG game HUD skin, not a screenshot. Create one cohesive futuristic racing instrument panel for the mobile game VELOCITY NOVA. Wide landscape canvas, aspect ratio 2.13:1. The left part is a circular speedometer housing centered at x=23.5%, y=50%, outside diameter 94% of canvas height, seamlessly connected to a slim horizontal right-hand telemetry wing filling x=47%..98%. Brushed dark titanium, restrained cyan luminous trim, tiny amber accents, clean sharp sci-fi industrial details matching a dark neon racing HUD. The round dial interior is dark navy with fine short peripheral tick marks but EMPTY center for live speed and health text. No numbers or words. The right wing has THREE stacked quiet empty dark navy rows for real-time lap/time/best readouts, separated by extremely thin cyan lines; no symbols or text in those rows. One continuous outer silhouette and rim joins dial and telemetry. Slim rim, keep central areas uncluttered and readable at small size. Orthographic front view, absolutely no perspective. Actual alpha transparency outside the panel, no solid background, no checkerboard baked into image, no drop shadow rectangle. Whole silhouette visible, tight 2% transparent margin. No logos, no typography, no extra objects.",
+      "source": "exec-ba278484-cda4-4c9d-9d7a-624cd3e1207b.png"
+    },
+    {
+      "path": "gui-compass.png",
+      "prompt": "Use case: ui-mockup. Asset type: finished transparent PNG racing game HUD frame. Single integrated sci-fi COMPASS + PAUSE control housing. Canvas landscape 4:3 aspect ratio. Main circular compass centered exactly x=37.5%, y=50%, outer diameter 94% of canvas height; keep its entire interior inside radius 38% of canvas height perfectly transparent, because the game draws a rotating map there. A clean thin dark titanium rim with cyan luminous compass tick marks and four small amber cardinal indicators. NO letters, NO numbers, NO map, NO compass needle. On the right, a smaller empty circular button socket centered x=85%, y=65%, diameter 31% of canvas height, structurally connected to the large compass rim with a tapered dark titanium connector. Empty button center dark navy, game adds pause bars. Render one continuous designed silhouette, sleek coherent mechanical trim, restrained cyan glow and small amber accents, very crisp readable at small size. Orthographic flat front elevation, no perspective, no text, no logos. Actual alpha transparency outside the shape AND in the large circular map opening, no background rectangle, no checkerboard baked into image. Full housing fits with minimal margins.",
+      "source": "exec-e6d9f11d-d6d1-4b67-8aa1-adab34db2c60.png"
+    }
+  ]
+}
