@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-09-14T11:20:39.928216+00:00",
+  "status": "passed",
+  "targetsDegrees": {
+    "0 km/h": 60,
+    "360 km/h": 40,
+    "522 km/h": 30
+  },
+  "focusedTests": 78,
+  "typechecks": {
+    "Games": "passed",
+    "Native": "passed"
+  },
+  "matrixFrames": 720,
+  "browserChecks": 145,
+  "scenes": [
+    {
+      "name": "high-speed",
+      "checks": 71,
+      "status": "passed",
+      "browserErrors": 0,
+      "fov": 0.5253998670570245
+    },
+    {
+      "name": "high-speed-mobile",
+      "checks": 74,
+      "status": "passed",
+      "browserErrors": 0,
+      "fov": 0.5243676968859019
+    }
+  ],
+  "bundleSha256": "836f2d4d0584b7d43f4877bf916b85e52c21e5d9ce186a7336673c694eac4de1",
+  "effectsSha256": "dd0c5eda8b1cea3bf28d54ae21f506dbea6f365af968fe3e39a6e23350dfae20",
+  "fullSuiteReference": "../neon-circuit-preview-driver/validation-summary.json",
+  "ios": {
+    "build": "passed",
+    "install": "passed",
+    "bundledResourcesVerified": 53,
+    "bundleId": "org.haiyue.native.neoncircuit",
+    "bundleSha256": "a51c0d265fb15461d870a1315fe4235393c849d082c55b4bde6cfc0accc5ba0a",
+    "launch": "blocked by device lock; installation succeeded"
+  }
+}

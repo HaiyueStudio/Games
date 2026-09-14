@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { runChromeWebGpuFixture } from '../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const output = resolve(root, '.artifacts/neon-circuit-preview-driver');
+const output = resolve(root, '.artifacts/neon-circuit-fov-60-40-30');
 mkdirSync(output, { recursive: true });
 const sha = file => createHash('sha256').update(readFileSync(resolve(root, file))).digest('hex');
 const modelSha = sha('games/neon-circuit/assets/wraith-raider.glb');
