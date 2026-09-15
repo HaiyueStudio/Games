@@ -475,11 +475,15 @@ export class NeonCircuitGui {
   }
   animate(seconds: number): void {
     for (const [key, pedal] of this.pedals) {
+      if (!this.touch.visible) continue;
       const down = this.canDrive() && (key === 'w' ? this.current?.throttle : this.current?.brake);
-      pedal.amount += ((down ? 1 : 0) - pedal.amount) * (1 - Math.exp(-seconds * 22));
+      const previous = pedal.amount;
+      const target = down ? 1 : 0;
+      pedal.amount += (target - pedal.amount) * (1 - Math.exp(-seconds * 22));
+      if (Math.abs(target - pedal.amount) < 0.0001) pedal.amount = target;
       if (this.skinTextures) pedal.sprite.render(this.skinTextures.button, { uv: [0,0.1,1,0.8], tilt: pedal.amount * 0.66, scale: 1 - pedal.amount * 0.07,
         y: pedal.amount * 0.035, pivot: 0.42, brightness: 1 - pedal.amount * 0.23 });
-      pedal.label.markDirty();
+      if (pedal.amount !== previous) pedal.label.markDirty();
     }
     if (this.stamp.visible && this.stampArt) {
       const oldAge=this.stampAge;this.stampAge += seconds;
@@ -540,7 +544,8 @@ export class NeonCircuitGui {
   setLapArt(texture:GPUTexture):void {this.lapArt.setSource(texture);}
   updateWheel(active: boolean, x: number, y: number, steering: number, available = active): void {
     this.wheelState = { active, x, y, angle: -steering * 1.05 };
-    this.wheel.setVisible(available && this.canDrive()); this.wheel.markDirty();
+    // The wheel stays anchored; rotating its existing texture does not need GUI layout.
+    this.wheel.setVisible(available && this.canDrive());
   }
   select(id: string, notify = true, destination?: number): void {
     this.selected = id;

@@ -70,6 +70,8 @@ export class HullFireTexture {
   private readonly pipeline: GPURenderPipeline;
   private readonly bindGroup: GPUBindGroup;
   private readonly view: GPUTextureView;
+  private lastTime = NaN;
+  private lastIntensity = NaN;
 
   constructor(private readonly device: GPUDevice) {
     this.texture = device.createTexture({
@@ -100,6 +102,12 @@ export class HullFireTexture {
   }
 
   update(timeSeconds: number, intensity: number): void {
+    // A healthy hull needs one transparent frame, not a noise shader every frame.
+    intensity = Math.max(0, Math.min(1, intensity));
+    if (intensity === 0) timeSeconds = 0;
+    if (this.lastTime === timeSeconds && this.lastIntensity === intensity) return;
+    this.lastTime = timeSeconds;
+    this.lastIntensity = intensity;
     this.uniformValues[0] = timeSeconds;
     this.uniformValues[1] = intensity;
     this.uniformValues[2] = 0;

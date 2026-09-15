@@ -6,6 +6,7 @@ export class BoostStripTexture {
   private readonly group: GPUBindGroup;
   private readonly view: GPUTextureView;
   private readonly values = new Float32Array(4);
+  private lastPhase = NaN;
 
   constructor(private readonly device: GPUDevice, source: GPUTexture) {
     this.texture = device.createTexture({ label: 'NeonCircuit.boostScroll', size: [256, 256], format: 'rgba8unorm',
@@ -42,6 +43,8 @@ export class BoostStripTexture {
 
   update(seconds: number): void {
     this.values[0] = (seconds * 0.62) % 1;
+    if (this.values[0] === this.lastPhase) return;
+    this.lastPhase = this.values[0]!;
     this.device.queue.writeBuffer(this.uniform, 0, this.values);
     const encoder = this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });

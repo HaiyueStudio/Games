@@ -71,6 +71,7 @@ export class ThrusterFlameTexture {
   private readonly pipeline: GPURenderPipeline;
   private readonly bindGroup: GPUBindGroup;
   private readonly view: GPUTextureView;
+  private readonly previousValues = new Float32Array(4).fill(NaN);
 
   constructor(private readonly device: GPUDevice) {
     this.texture = device.createTexture({
@@ -101,10 +102,12 @@ export class ThrusterFlameTexture {
   }
 
   update(timeSeconds: number, speedRatio: number, boostStrength: number, intensity = 1): void {
-    this.uniformValues[0] = timeSeconds;
+    this.uniformValues[0] = intensity > 0 ? timeSeconds : 0;
     this.uniformValues[1] = speedRatio;
     this.uniformValues[2] = boostStrength;
     this.uniformValues[3] = intensity;
+    if (this.uniformValues.every((value, index) => value === this.previousValues[index])) return;
+    this.previousValues.set(this.uniformValues);
     this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformValues);
     const encoder = this.device.createCommandEncoder({ label: 'NeonCircuit.thrusterFlame.encoder' });
     const pass = encoder.beginRenderPass({

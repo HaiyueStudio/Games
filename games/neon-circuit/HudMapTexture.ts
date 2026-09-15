@@ -21,7 +21,7 @@ export class HudMapTexture {
   private basis = hudMapBasis({x:0,y:0,z:0,heading:0,pitch:0,bank:0});
   private marker = {x:.5,y:.5,depth:0};
   private readonly values = new Float32Array(24);
-  private last = '';
+  private readonly previousValues = new Float32Array(24).fill(NaN);
   constructor(private readonly device: GPUDevice, track: RaceTrack, color: string) {
     this.projection=hudMapProjection(track);this.count=track.samples.length;
     const data=new Float32Array(this.count*6);
@@ -99,7 +99,8 @@ export class HudMapTexture {
     this.values.set([this.marker.x,this.marker.y,this.marker.depth,0],12);
     const rival=opponent?hudMapPoint(this.projection,opponent,this.basis):null;
     this.values.set(rival?[rival.x,rival.y,rival.depth,1]:[0,0,0,0],20);
-    const key=Array.from(this.values).join(',');if(key===this.last)return;this.last=key;
+    if(this.values.every((value,index)=>value===this.previousValues[index]))return;
+    this.previousValues.set(this.values);
     this.device.queue.writeBuffer(this.uniform,0,this.values);
     const encoder=this.device.createCommandEncoder();
     const pass=encoder.beginRenderPass({colorAttachments:[{view:this.view,loadOp:'clear',storeOp:'store',clearValue:[0,0,0,0]}],depthStencilAttachment:{view:this.depthView,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'discard'}});
