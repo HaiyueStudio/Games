@@ -38,6 +38,50 @@ async function run() {
   };
   engine.on('update', update); engine.run(); await wait(500);
   const scene = new URLSearchParams(location.search).get('scene');
+  if(scene==='performance-regression') {
+    engine.stop(); const f=game as any, layer=battle as any, device=engine.device;
+    const width=430,height=932,bytesPerRow=Math.ceil(width*4/256)*256;
+    const bullets:any[]=[];
+    for(let y=70;y<890;y+=48)for(let x=26;x<420;x+=48)bullets.push({x,y,radius:5,hostile:true,color:(x+y)%3?'#ff4268':'#55baff',rotation:0});
+    // Deliberate overlap, touching bounds, rotated player shots and every special bullet.
+    bullets.push(...[{x:205,y:205},{x:210,y:210},{x:212,y:208,hostile:false,rotation:1.1},
+      {x:160,y:400,bubbleHealth:9,radius:25},{x:165,y:405,reflected:true,vx:80,vy:160},
+      {x:300,y:650,crystalShard:true,rotation:1.4}].map(b=>({radius:5,hostile:true,color:'#ed65ff',...b})));
+    const capture=async(optimized:boolean)=>{
+      battle.begin(240);battle.rect(240,480,480,960,'#182135');
+      if(optimized)f.drawBullets(bullets);else for(const bullet of bullets)f.drawBullets([bullet]);
+      const target=device.createTexture({size:[width,height],format:engine.format,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
+      const msaa=device.createTexture({size:[width,height],format:engine.format,sampleCount:4,usage:GPUTextureUsage.RENDER_ATTACHMENT});
+      const readback=device.createBuffer({size:bytesPerRow*height,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+      try {
+        const encoder=device.createCommandEncoder(),pass=encoder.beginRenderPass({colorAttachments:[{view:msaa.createView(),resolveTarget:target.createView(),loadOp:'clear',storeOp:'store',clearValue:{r:0,g:0,b:0,a:1}}]});
+        const stats=layer.renderer.render(pass,layer.commands,engine.displayWidth,engine.displayHeight);pass.end();
+        encoder.copyTextureToBuffer({texture:target},{buffer:readback,bytesPerRow},[width,height]);device.queue.submit([encoder.finish()]);
+        await readback.mapAsync(GPUMapMode.READ);return {pixels:new Uint8Array(readback.getMappedRange()).slice(),drawCalls:stats.drawCalls};
+      }finally{readback.destroy();target.destroy();msaa.destroy();}
+    };
+    const before=await capture(false),after=await capture(true);let changed=0;
+    for(let i=0;i<before.pixels.length;i++)if(before.pixels[i]!==after.pixels[i])changed++;
+    check(changed===0,`bullet blending changed ${changed} bytes`);
+    check(after.drawCalls<before.drawCalls*.6,'disjoint bullets reduce draw calls by at least 40%');
+    const pool=layer.commandPool.slice();for(let frame=0;frame<100;frame++){battle.begin(240);f.drawBullets(bullets);}
+    check(layer.commandPool.length===pool.length&&pool.every((v:any,i:number)=>v===layer.commandPool[i]),'command pool reuses all warmed objects');
+    // Shrinking, growing, sorting, errors and reuse must not leak previous command fields.
+    const renderer=layer.renderer, originalWrite=device.queue.writeBuffer.bind(device.queue),scratch:unknown[]=[];
+    device.queue.writeBuffer=((buffer:any,offset:any,data:any,...rest:any[])=>{if(data instanceof ArrayBuffer)scratch.push(data);originalWrite(buffer,offset,data,...rest);}) as any;
+    try{await capture(true);await capture(true);}finally{device.queue.writeBuffer=originalWrite;}
+    check(scratch.length===2&&scratch[0]===scratch[1],'renderer reuses instance staging buffer');
+    f.phase='playing';f.playerBullets.length=0;f.enemies.length=0;f.enemyBullets.length=0;f.asteroids.clear();
+    Object.assign(f.player,{x:240,y:842,health:1,lives:3,invulnerableMs:0});
+    const rock={kind:'asteroid',x:100,y:100,radius:15,health:100};f.asteroids.rocks.push(rock);
+    const originals=Array.from({length:12},(_,i)=>({x:i===8?240:i===6||i===7?100:400,y:i===8?842:i===6||i===7?100:200,radius:4,damage:7,hostile:true,color:'#ff4268'}));
+    f.enemyBullets.push(...originals);let rockHits=0;const damageRock=f.damageAsteroid;f.damageAsteroid=()=>{rockHits++;};
+    try{f.resolveCollisions();}finally{f.damageAsteroid=damageRock;}
+    check(f.player.lives===2&&f.player.health===100,'one lost life only');
+    check(rockHits===2,'remaining bullets hit cover during respawn immunity exactly once');
+    check(f.enemyBullets.length===3&&f.enemyBullets.every((b:any,i:number)=>b===originals[i+9]),'prefix clearing does not revisit processed bullets or skip survivors');
+    result.textContent=JSON.stringify({status:'passed',checks:['exact-bullet-pixel-parity','bounded-disjoint-batching','100-frame-command-reuse','instance-staging-reuse','respawn-prefix-collision-traversal'],changedBytes:changed,drawCalls:{before:before.drawCalls,after:after.drawCalls},commands:pool.length});result.dataset.status='passed';return;
+  }
   if(scene==='preview-switch-frames') {
     engine.stop();const f=game as any,menu=f.levelCarousel;
     const width=128,height=256,bytesPerRow=512,device=engine.device;

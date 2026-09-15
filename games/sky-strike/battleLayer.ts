@@ -21,6 +21,8 @@ export async function loadSkySprites(prefix = ''): Promise<IndexedSpritePlaneDes
   if (!index.ok || !data.ok) throw new Error('Sky Strike sprite pack could not be loaded.');
   return unpackSkySprites(await index.json(), new Uint8Array(await data.arrayBuffer()));
 }
+const EMPTY_FLAMES: readonly FlameCone[] = [];
+const EMPTY_NOZZLES: readonly FlameNozzle[] = [];
 const colors = new Map<string, [number, number, number, number]>();
 function tint(hex: string): [number, number, number, number] {
   let value = colors.get(hex);
@@ -44,6 +46,8 @@ export class SkyStrikeBattleLayer extends System {
   readonly renderPipelineOptions = { pass: 'isolated' as const, depth: false, loadOp: 'clear' as const, sort: 40 };
   private readonly renderer: IndexedSpriteRenderer;
   private readonly commands: IndexedSpriteDrawCommand[] = [];
+  private readonly commandPool: { -readonly [K in keyof IndexedSpriteDrawCommand]: IndexedSpriteDrawCommand[K] }[] = [];
+  private composingPreview = false;
   private readonly sources = new Map<string, IndexedSpritePlaneDescriptor>();
   private readonly guiTextures = new Map<string, GPUTexture>();
   private guiTextureBytes = 0;
@@ -81,10 +85,10 @@ export class SkyStrikeBattleLayer extends System {
   /** Bake the existing GPU sprite commands once per hull; no Canvas 2D or per-frame uploads. */
   guiComposition(key:string,draw:(layer:SkyStrikeBattleLayer)=>void):{source:GPUTexture;sourceKey:string;aspect:number} {
     const cached=this.previews.get(key);if(cached)return cached;
-    const saved=this.commands.splice(0),view=this.view,sx=this.shakeX,sy=this.shakeY;
+    const saved=this.commands.splice(0),view=this.view,sx=this.shakeX,sy=this.shakeY,composing=this.composingPreview;this.composingPreview=true;
     let commands:IndexedSpriteDrawCommand[];
     try {this.view={scale:1,left:0,width:480,visibleWidth:480,cameraX:0};this.shakeX=this.shakeY=0;draw(this);commands=this.commands.splice(0);}
-    finally {this.commands.length=0;this.commands.push(...saved);this.view=view;this.shakeX=sx;this.shakeY=sy;}
+    finally {this.composingPreview=composing;this.commands.length=0;this.commands.push(...saved);this.view=view;this.shakeX=sx;this.shakeY=sy;}
     if(!commands.length)throw new Error(`Empty boss preview: ${key}`);
     let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
     for(const c of commands){const s=this.sources.get(c.spriteId)!,a=c.rotationRadians??0;
@@ -112,7 +116,7 @@ export class SkyStrikeBattleLayer extends System {
     const result={source:texture,sourceKey:key,aspect:th/tw};this.previews.set(key,result);this.guiTextures.set(key,texture);this.guiTextureBytes+=tw*th*4;return result;
   }
   begin(playerX: number, shakeX = 0, shakeY = 0): void {
-    this.flames=[];this.nozzles=[];this.cores=[];
+    this.flames=EMPTY_FLAMES;this.nozzles=EMPTY_NOZZLES;this.cores.length=0;
     this.commands.length = 0; this.view = skyStrikeViewport(this.engine.displayWidth, this.engine.displayHeight, playerX);
     this.shakeX = shakeX; this.shakeY = shakeY;
   }
@@ -120,9 +124,13 @@ export class SkyStrikeBattleLayer extends System {
     if (opacity <= 0 || width <= 0 || height <= 0) return;
     const source = this.sources.get(id); if (!source) throw new Error(`Missing battle sprite ${id}`);
     const scale = this.view.scale;
-    this.commands.push({ spriteId: id, x: this.view.left + (x - this.view.cameraX + this.shakeX) * scale, y: (y + this.shakeY) * scale,
-      axisX: source.width / 2, axisY: source.height / 2, scaleX: width / source.width * scale, scaleY: height / source.height * scale,
-      rotationRadians: rotation, flipY, opacity: Math.min(1, opacity), tint: tint(color), sampling: 'linear', blend: additive ? 'additive' : 'alpha' });
+    const index = this.commands.length;
+    const command = this.composingPreview ? { spriteId: id, x: 0, y: 0 } as typeof this.commandPool[number]
+      : this.commandPool[index] ??= { spriteId: id, x: 0, y: 0 };
+    command.spriteId=id;command.x=this.view.left+(x-this.view.cameraX+this.shakeX)*scale;command.y=(y+this.shakeY)*scale;
+    command.axisX=source.width/2;command.axisY=source.height/2;command.scaleX=width/source.width*scale;command.scaleY=height/source.height*scale;
+    command.rotationRadians=rotation;command.flipY=flipY;command.opacity=Math.min(1,opacity);command.tint=tint(color);
+    command.sampling='linear';command.blend=additive?'additive':'alpha';this.commands.push(command);
   }
   rect(x: number, y: number, width: number, height: number, color: string, alpha = 1, rotation = 0): void { this.sprite('fx:solid', x, y, width, height, rotation, alpha, color); }
   glow(x: number, y: number, radius: number, color: string, alpha = 1): void { this.sprite('fx:glow', x, y, radius * 2, radius * 2, 0, alpha, color, true); }
@@ -152,5 +160,5 @@ export class SkyStrikeBattleLayer extends System {
     else {const {passEncoder,ownsPass}=beginRenderCommandPass(context);draw(passEncoder);if(ownsPass)passEncoder.end();}
     return this;
   }
-  override destroy(): this { this.flamePass?.destroy();this.lens?.destroy(); this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.previews.clear(); this.guiTextureBytes = 0; this.commands.length = 0; return super.destroy(); }
+  override destroy(): this { this.flamePass?.destroy();this.lens?.destroy(); this.renderer.dispose(); for (const texture of this.guiTextures.values()) texture.destroy(); this.guiTextures.clear(); this.previews.clear(); this.guiTextureBytes = 0; this.commands.length = 0; this.commandPool.length = 0; return super.destroy(); }
 }

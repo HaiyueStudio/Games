@@ -1832,11 +1832,10 @@ export class SkyStrikeGame {
       }
       this.playerBullets.splice(i, 1);
     }
-    // Losing a life can clear part of this array; snapshot identities keep traversal valid.
+    // Descend in place. A lost life removes a prefix; adjust the cursor by that exact count.
     // Neutral cover still intercepts hostile fire during player invulnerability.
-    for (const bullet of [...this.enemyBullets].reverse()) {
-      const i = this.enemyBullets.indexOf(bullet);
-      if (i < 0) continue;
+    for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
+      const bullet = this.enemyBullets[i]!;
       let rock: Asteroid | null = null, first = Infinity;
       for (const candidate of this.asteroids.rocks) {
         const t = sweptCircleTime(bullet, candidate);
@@ -1845,7 +1844,12 @@ export class SkyStrikeGame {
       const playerHit = this.player.invulnerableMs <= 0 ? sweptCircleTime(bullet, this.player) : null;
       if (rock && (playerHit === null || first <= playerHit)) {
         this.damageAsteroid(rock, bullet.damage); this.enemyBullets.splice(i, 1);
-      } else if (playerHit !== null) { this.enemyBullets.splice(i, 1); this.damagePlayer(bullet.damage); }
+      } else if (playerHit !== null) {
+        this.enemyBullets.splice(i, 1);
+        const beforeDamage = this.enemyBullets.length;
+        this.damagePlayer(bullet.damage);
+        i -= beforeDamage - this.enemyBullets.length;
+      }
     }
     if (this.player.invulnerableMs > 0) return;
     for (const rock of this.asteroids.rocks) if (sweptCircleTime(rock, this.player) !== null) {
@@ -2425,7 +2429,32 @@ export class SkyStrikeGame {
     if(this.laserFiring) { const pulse=1+Math.sin(this.elapsedMs*0.04)*0.18; r.ring(p.x,p.y-28,11*pulse,'#cb66ff',0.9,0.6); r.glow(p.x,p.y-28,22*pulse,'#bc65ff',0.8); }
   }
   private drawBullets(bullets: Bullet[]): void {
-    for(const b of bullets) {
+    for(let start = 0; start < bullets.length;) {
+      const b = bullets[start]!;
+      if (!b.crystalShard && !b.reflected && b.bubbleHealth === undefined) {
+        // Reorder only disjoint sprite footprints. Bounded lookahead avoids an
+        // all-pairs scan; touching/overlapping bullets keep their original order.
+        let end = start + 1;
+        for (; end < Math.min(bullets.length, start + 32); end++) {
+          const next = bullets[end]!;
+          if (next.crystalShard || next.reflected || next.bubbleHealth !== undefined) break;
+          const radius = (next.hostile ? next.radius * 3 : 16) + 2;
+          let overlaps = false;
+          for (let j = start; j < end; j++) {
+            const prior = bullets[j]!, sum = radius + (prior.hostile ? prior.radius * 3 : 16) + 2;
+            if (Math.abs(next.x - prior.x) < sum && Math.abs(next.y - prior.y) < sum) { overlaps = true; break; }
+          }
+          if (overlaps) break;
+        }
+        for (let j = start; j < end; j++) { const v = bullets[j]!; this.battle.glow(v.x,v.y,v.hostile?v.radius*3:16,v.color,0.65); }
+        for (let j = start; j < end; j++) {
+          const v = bullets[j]!;
+          if(v.hostile) { this.battle.disc(v.x,v.y,v.radius,v.color); this.battle.disc(v.x,v.y,v.radius*0.4,'#fff4ff',0.85); }
+          else this.battle.sprite('fx:disc',v.x,v.y,4.8,22,v.rotation??0,1,v.color);
+        }
+        start = end; continue;
+      }
+      start++;
       if(b.crystalShard){this.battle.glow(b.x,b.y,20,b.color,.55);this.battle.sprite('fx:mirror-triangle',b.x,b.y,19,29,b.rotation??0,1,b.color);continue;}
       if(b.reflected){this.battle.glow(b.x,b.y,18,'#ff80d9',.75);this.battle.sprite('fx:disc',b.x,b.y,7,19,Math.atan2(b.vy,b.vx)+Math.PI/2,1,'#ffe7fc');continue;}
       if(b.bubbleHealth!==undefined) {
@@ -2435,9 +2464,6 @@ export class SkyStrikeGame {
         this.battle.ring(b.x,b.y,b.radius*0.78,b.color,0.25+0.5*b.bubbleHealth/TWIN_BUBBLE_HEALTH);
         this.battle.disc(b.x-6,b.y-7,4,'#ffffff',0.8);continue;
       }
-      this.battle.glow(b.x,b.y,b.hostile?b.radius*3:16,b.color,0.65);
-      if(b.hostile) { this.battle.disc(b.x,b.y,b.radius,b.color); this.battle.disc(b.x,b.y,b.radius*0.4,'#fff4ff',0.85); }
-      else this.battle.sprite('fx:disc',b.x,b.y,4.8,22,b.rotation??0,1,b.color);
     }
   }
   private drawImpacts(): void {
