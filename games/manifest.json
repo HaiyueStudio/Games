@@ -68,7 +68,16 @@
         "2d",
         "game-workflow"
       ],
-      "assets": [],
+      "assets": [
+        "calendar-puzzle/assets/audio/date.wav",
+        "calendar-puzzle/assets/audio/place.wav",
+        "calendar-puzzle/assets/audio/rotate.wav",
+        "calendar-puzzle/assets/audio/flip.wav",
+        "calendar-puzzle/assets/audio/shuffle.wav",
+        "calendar-puzzle/assets/audio/win.wav",
+        "calendar-puzzle/assets/audio/settings.wav",
+        "calendar-puzzle/assets/audio/back.wav"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null

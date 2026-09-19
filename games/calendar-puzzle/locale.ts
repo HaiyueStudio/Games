@@ -1,7 +1,13 @@
 export type CalendarLanguage = 'zh' | 'en' | 'ja';
-export const CALENDAR_COPY = {
+const HINT_COPY = {
+  zh: { hint: '提示', solving: '正在寻找可行的拼法…', hintPlace: '将闪烁拼块放入同色轮廓，可旋转或翻转', hintAdjust: '当前摆法无法完成，请调整高亮拼块', hintUnavailable: '暂未找到解，请稍后再试', hintNone: '这个日期暂无可用解' },
+  en: { hint: 'Hint', solving: 'Finding a solution…', hintPlace: 'Match the glowing piece to its outline; rotate or flip', hintAdjust: 'This layout is blocked. Reposition the glowing piece', hintUnavailable: 'No hint yet. Please try again', hintNone: 'No solution for this date' },
+  ja: { hint: 'ヒント', solving: '解き方を探しています…', hintPlace: '光るピースを同じ色の枠へ。回転・反転もできます', hintAdjust: '今の配置では完成できません。光るピースを移動', hintUnavailable: 'ヒントを取得できません。もう一度お試しください', hintNone: 'この日付の解が見つかりません' },
+} as const;
+const BASE_COPY = {
   zh: { calendar: '万年历', history: '通关记录', cleared: '已通关', chooseDate: '选择日期，开始新的挑战', back: '返回拼图', viewHistory: '查看记录', continue: '继续', recorded: '这一天已点亮！', total: '累计通关', title: '日历拼图', tray: '拼图块', help: '空出所选月份、日期和星期', rotate: '旋转', flip: '翻转', reset: '打乱', settings: '设置', month: '月份', day: '日期', weekday: '星期', language: '语言', today: '今天', done: '完成', won: '拼图完成！', progress: '已放置', months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], weekdays: ['周日','周一','周二','周三','周四','周五','周六'] },
   en: { calendar: 'Calendar', history: 'History', cleared: 'Completed', chooseDate: 'Pick a date for your next puzzle', back: 'Back to puzzle', viewHistory: 'View history', continue: 'Continue', recorded: 'Another day completed!', total: 'Days completed', title: 'Calendar Puzzle', tray: 'PIECES', help: 'Leave the month, date and weekday uncovered', rotate: 'Rotate', flip: 'Flip', reset: 'Shuffle', settings: 'Settings', month: 'Month', day: 'Date', weekday: 'Weekday', language: 'Language', today: 'Today', done: 'Done', won: 'Puzzle complete!', progress: 'Placed', months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], weekdays: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] },
   ja: { calendar: 'カレンダー', history: 'クリア記録', cleared: 'クリア済み', chooseDate: '日付を選んで挑戦しよう', back: 'パズルに戻る', viewHistory: '記録を見る', continue: '続ける', recorded: 'この日をクリア！', total: 'クリア日数', title: 'カレンダーパズル', tray: 'ピース', help: '月・日・曜日のマスを残そう', rotate: '回転', flip: '反転', reset: 'シャッフル', settings: '設定', month: '月', day: '日', weekday: '曜日', language: '言語', today: '今日', done: '完了', won: 'パズル完成！', progress: '配置', months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], weekdays: ['日曜','月曜','火曜','水曜','木曜','金曜','土曜'] },
 } as const;
+export const CALENDAR_COPY = { zh: { ...BASE_COPY.zh, ...HINT_COPY.zh }, en: { ...BASE_COPY.en, ...HINT_COPY.en }, ja: { ...BASE_COPY.ja, ...HINT_COPY.ja } };
 export const CALENDAR_GLYPHS = [...new Set(Array.from(JSON.stringify(CALENDAR_COPY) + '中文 English 日本語 ⚙ × ‹ › « » ▦ ✓ 0123456789 / · -'))].join('');

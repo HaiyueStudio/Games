@@ -1,3 +1,5 @@
+import { CalendarAudio, type CalendarAudioBackend } from './audio/CalendarAudio';
+import { CalendarBrowserAudio } from './audio/BrowserAudio';
 import { BasicMaterial, Camera3D, CartesianTransform3D, ColorSRGB, Entity, Mesh3D, HaiyueEngine, World, createPlane3D } from '@haiyue/engine';
 import { type MaterialTextureSource, type CssMaterialStyle } from '@haiyue/engine/material';
 import { Render3DSystem } from '@haiyue/engine/systems';
@@ -5,6 +7,7 @@ import { requireEngineCanvas } from '@haiyue/engine/experimental';
 import {
   type GuiFontOptions,
   GuiButton,
+  GuiImage,
   GuiElement,
   GuiLabel,
   GuiRoot,
@@ -14,6 +17,11 @@ import {
 import type { GameSaveBackend } from '@haiyue/engine/save';
 import { calendarLayout, calendarViewport, calendarPointer } from './viewport';
 import { calendarTray, calendarOrientedCells } from './tray';
+import { CalendarSolverClient, type CalendarSolverWorker } from './solver-client';
+import { type CalendarPlacement } from './solver';
+import { CalendarHintOverlay, calendarIconSource } from './hint-ui';
+import { calendarMotionCells, type CalendarPiecePose } from './motion';
+import { CALENDAR_STYLE } from './calendar-style';
 import { CalendarHistoryView } from './calendar-ui';
 import { CalendarCelebration } from './celebration';
 import { calendarDateKey, calendarDaysInMonth, calendarWeekday, recordCalendarCompletion } from './model';
@@ -112,6 +120,8 @@ export interface CalendarPuzzlePlatform {
   createCanvas2D?: (width: number, height: number) => HTMLCanvasElement;
   textureFromCanvas?: (canvas: HTMLCanvasElement, key: string) => MaterialTextureSource;
   saveBackend?: GameSaveBackend;
+  createSolverWorker?: () => CalendarSolverWorker;
+  audioBackend?: CalendarAudioBackend;
 }
 
 /** Design coordinates share one scale with world picking and the orthographic camera. */
@@ -155,13 +165,25 @@ export class CalendarPuzzleGame {
   private readonly ui = new Map<string, GuiElement>();
   private readonly localized: Array<() => void> = [];
   private shuffleSeed = 20260919;
+  private readonly audio: CalendarAudio;
+  private readonly solver: CalendarSolverClient;
+  private hintOverlay!: CalendarHintOverlay;
+  private hintBusy = false;
+  private hintRevision = 0;
+  private hintCompatible = true;
+  private readonly motions = new Map<PieceState, { from: CalendarPiecePose; to: CalendarPiecePose; start: number; duration: number; lift: number }>();
   private get copy() { return CALENDAR_COPY[this.language]; }
   private readonly updateFrame = ({ detail: { time } }: { detail: { time: number } }): void => {
     this.resizeView();
     this.updateSelectionPulse(time);
     this.celebration?.update();
+    this.hintOverlay?.update(time);
+    this.updateMotions();
+    this.audio.update();
   };
   constructor(private readonly platform: CalendarPuzzlePlatform = {}) {
+    this.audio = new CalendarAudio(platform.audioBackend ?? new CalendarBrowserAudio());
+    this.solver = new CalendarSolverClient(platform.createSolverWorker);
     this.saves = new SingleSlotGameSave<CalendarPuzzleSaveData>({
       gameId: 'calendar-puzzle', name: '日历拼图 自动存档', validateData: isCalendarPuzzleSaveData,
       ...(platform.saveBackend ? { backend: platform.saveBackend } : {}),
@@ -191,6 +213,8 @@ export class CalendarPuzzleGame {
     if (key === 'r') {
       event.preventDefault();
       this.rotateSelected();
+    } else if (key === 'h') {
+      event.preventDefault(); void this.requestHint();
     } else if (key === 'f') {
       event.preventDefault();
       this.flipSelected();
@@ -206,6 +230,7 @@ export class CalendarPuzzleGame {
     });
     if (!this.platform.engine) await this.engine.init();
 
+    await this.audio.load();
     this.layout = calendarLayout(this.engine.displayWidth, this.engine.displayHeight);
     this.scene = this.engine.createScene({
       name: 'CalendarPuzzle',
@@ -235,7 +260,7 @@ export class CalendarPuzzleGame {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.cancelInteraction();
+    this.cancelInteraction(); this.cancelHint(); this.finishMotions(); this.audio.dispose();
     for (const remove of this.removeInput.splice(0)) remove();
     this.engine?.off('update', this.updateFrame);
     this.world?.destroy();
@@ -243,13 +268,14 @@ export class CalendarPuzzleGame {
   }
   async flushSave(): Promise<void> { await this.saves.flush(); }
   snapshot() {
-    return { language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
+    return { audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
       ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect }])),
       month: this.selectedMonth, day: this.selectedDay, weekday: this.selectedWeekday,
       dragging: !!this.drag, placed: this.pieces.filter(piece => piece.placed).length,
       occupied: this.occupancy.size, pieces: this.pieces.map(piece => ({ id: piece.def.id,
         x: piece.x, y: piece.y, scale: piece.scale, cells: this.orientedCells(piece), rotation: piece.rotation, flipped: piece.flipped, placed: piece.placed })) };
   }
+  suspendAudio(): void { this.audio.suspend(); }
   cancelInteraction(): void {
     const drag = this.drag;
     this.drag = null;
@@ -268,7 +294,7 @@ export class CalendarPuzzleGame {
   private resizeView(): void {
     const next = calendarLayout(this.engine.displayWidth, this.engine.displayHeight);
     if (next.width !== this.layout.width || next.height !== this.layout.height) {
-      this.cancelInteraction();
+      this.cancelInteraction(); this.finishMotions();
       this.layout = next;
       for (const [visual, rect] of this.textLayouts) this.resizeText(visual, rect());
       const homes = calendarTray(next.tray.width, next.tray.height, this.shuffleSeed, this.pieces);
@@ -323,9 +349,9 @@ export class CalendarPuzzleGame {
   private buildStaticUI(): void {
     this.responsiveText('Background', '', () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }),
       { backgroundColor: '#f4f8f5', borderWidth: 0, resolutionScale: 1 }, 0.01);
-    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width, height: 56 }), this.labelStyle(40, '#183c3b', 800, 'left'), 0.2);
-    this.statusVisual = this.responsiveText('Subtitle', this.copy.help, () => ({ x: this.layout.edge, y: 88, width: this.layout.tray.width, height: 34 }), this.labelStyle(19, '#52716a', 500, 'left'), 0.2);
-    this.responsiveText('BoardBack', '', () => ({ x: this.layout.board.x - 14, y: this.layout.board.y - 14, width: 536, height: 610 }), this.cardStyle('#dfeee6', '#b7d6c8', 12), 0.05);
+    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width - 286, height: 56 }), this.labelStyle(40, '#183c3b', 800, 'left'), 0.2);
+    this.statusVisual = this.responsiveText('Subtitle', this.copy.help, () => ({ x: this.layout.edge, y: this.layout.height - 64, width: this.layout.tray.width, height: 34 }), this.labelStyle(19, '#52716a', 500, 'left'), 0.2);
+    this.responsiveText('BoardBack', '', () => ({ x: this.layout.board.x - 14, y: this.layout.board.y - 14, width: 536, height: 610 }), this.cardStyle(CALENDAR_STYLE.panel.background, CALENDAR_STYLE.panel.border, CALENDAR_STYLE.panel.radius / 2), 0.05);
   }
 
   private buildBoard(): void {
@@ -383,13 +409,18 @@ export class CalendarPuzzleGame {
       element.layout = () => { element.rect = rect(); element.setFontSize(size * this.layout.scale); };
       this.localized.push(() => element.setText(caption()));
     };
-    button('settings', () => '⚙', () => ({ x: this.layout.width - this.layout.edge - 56, y: 20, width: 56, height: 56 }), () => this.toggleSettings(true));
-    for (const [index, id, caption, action] of [
-      [0, 'rotate', () => this.copy.rotate, () => this.rotateSelected()],
-      [1, 'flip', () => this.copy.flip, () => this.flipSelected()],
-      [2, 'shuffle', () => this.copy.reset, () => this.resetPieces()],
-    ] as const) button(id, caption, () => ({ x: this.layout.tray.x + index * (this.layout.tray.width / 3), y: this.layout.height - 80, width: this.layout.tray.width / 3 - 12, height: 58 }), action);
-    button('calendar', () => `${this.copy.calendar} · ${this.selectedYear}/${this.selectedMonth}/${this.selectedDay}`, () => ({ x: this.layout.board.x, y: 20, width: this.layout.board.width - 76, height: 56 }), () => this.toggleHistory(!this.historyOpen));
+    button('settings', () => '⚙', () => ({ x: this.layout.width - this.layout.edge - 56, y: 12, width: 56, height: 56 }), () => this.toggleSettings(true));
+    const raster = { canvas: (w: number, h: number) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas };
+    for (const [index, id, action] of [
+      [0, 'rotate', () => this.rotateSelected()], [1, 'flip', () => this.flipSelected()],
+      [2, 'shuffle', () => this.resetPieces(true)], [3, 'hint', () => { void this.requestHint(); }],
+    ] as const) {
+      const rect = () => ({ x: this.layout.tray.x + this.layout.tray.width - 266 + index * 70, y: 24, width: 56, height: 56 });
+      button(id, () => '', rect, action);
+      place(id + 'Icon', new GuiImage({ source: calendarIconSource(id, raster), disabled: true }), () => ({ x: rect().x + 8, y: rect().y + 8, width: 40, height: 40 }));
+    }
+    this.hintOverlay = new CalendarHintOverlay(root, () => this.layout, raster);
+    button('calendar', () => `${this.copy.calendar} · ${this.selectedYear}/${this.selectedMonth}/${this.selectedDay}`, () => ({ x: this.layout.board.x, y: 12, width: this.layout.board.width - 76, height: 56 }), () => this.toggleHistory(!this.historyOpen));
     this.historyView = new CalendarHistoryView({ root, layout: () => this.layout, language: () => this.language, register: (id, element) => this.ui.set(id, element), choose: (year, month, day) => this.chooseDate(year, month, day), close: () => this.toggleHistory(false) });
     place('backdrop', new GuiElement({ style: { backgroundColor: 'rgba(22,51,47,0.24)', radius: 0 }, onClick: () => this.toggleSettings(false) }), () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }), true);
     place('panel', new GuiElement({ style: { backgroundColor: '#f8fcf9', radius: 22 } }), panel, true);
@@ -399,20 +430,22 @@ export class CalendarPuzzleGame {
       const control = button(lang, () => caption, () => ({ x: panel().x + 38 + index * 237, y: panel().y + 158, width: 218, height: 66 }), () => this.setLanguage(lang), true);
       this.localized.push(() => control.setStyle({ backgroundColor: this.language === lang ? '#c9ebe0' : '#ffffff', borderColor: this.language === lang ? '#17847b' : '#b7d6c8' }));
     }
-    button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312, width: 300, height: 66 }), () => { this.toggleSettings(false); this.toggleHistory(true); }, true);
+    button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312, width: 300, height: 66 }), () => { this.toggleSettings(false, false); this.toggleHistory(true); }, true);
     button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312, width: 218, height: 66 }), () => this.toggleSettings(false), true);
     this.celebration = new CalendarCelebration({ root, layout: () => this.layout, language: () => this.language, canvas: (w, h) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas, register: (id, element) => this.ui.set(id, element), close: history => this.closeCelebration(history) });
     rootEntity.addComponent(root); this.world.addEntity(rootEntity);
     this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { ...this.platform.guiFont, chars: CALENDAR_GLYPHS, fontSize: 40, atlasSize: 2048 } }));
     this.refreshLanguage();
   }
-  private toggleSettings(open: boolean): void {
-    this.cancelInteraction(); this.settingsOpen = open;
+  private toggleSettings(open: boolean, feedback = true): void {
+    if (feedback && open !== this.settingsOpen) this.audio.cue(open ? 'settings' : 'back');
+    this.cancelInteraction(); this.cancelHint(); this.finishMotions(); this.settingsOpen = open;
     this.historyView.setVisible(this.historyOpen && !open);
     for (const control of this.mainControls) control.setVisible(!open);
     for (const control of this.settingControls) control.setVisible(open);
   }
   private setLanguage(language: CalendarLanguage): void {
+    if (language !== this.language) this.audio.cue('settings');
     this.language = language; this.refreshLanguage(); this.saveState();
   }
   private refreshLanguage(): void {
@@ -426,8 +459,9 @@ export class CalendarPuzzleGame {
     return cell.kind === 'month' ? this.copy.months[Number(cell.key.slice(1)) - 1]! : cell.kind === 'weekday' ? this.copy.weekdays[Number(cell.key.slice(1))]! : cell.label;
   }
 
-  private toggleHistory(open: boolean): void {
-    this.cancelInteraction(); this.historyOpen = open;
+  private toggleHistory(open: boolean, feedback = true): void {
+    if (feedback && open !== this.historyOpen) this.audio.cue(open ? 'settings' : 'back');
+    this.cancelInteraction(); this.cancelHint(); this.finishMotions(); this.historyOpen = open;
     if (open) this.historyView.open(this.selectedYear, this.selectedMonth, this.selectedDay, this.completedDates);
     else this.historyView.setVisible(false);
     this.updateStatus();
@@ -436,14 +470,15 @@ export class CalendarPuzzleGame {
     const changed = year !== this.selectedYear || month !== this.selectedMonth || day !== this.selectedDay;
     this.selectedYear = year; this.selectedMonth = month; this.selectedDay = day;
     this.selectedWeekday = calendarWeekday(year, month, day);
-    this.toggleHistory(false);
+    this.audio.cue('date'); this.toggleHistory(false, false);
     if (changed) this.applySelectedDate(true);
     this.refreshLanguage(); this.saveState();
   }
   private closeCelebration(history: boolean): void {
     this.celebration?.hide();
     for (const control of this.mainControls) control.setVisible(!this.settingsOpen);
-    if (history) this.toggleHistory(true);
+    this.audio.cue('back');
+    if (history) this.toggleHistory(true, false);
   }
   private daysInSelectedMonth(month: number): number { return calendarDaysInMonth(this.selectedYear, month); }
 
@@ -453,7 +488,8 @@ export class CalendarPuzzleGame {
       this.removeInput.push(() => canvas.removeEventListener(type, handler as EventListener));
     };
     listen('pointerdown', (event) => {
-      if (this.drag) return;
+      this.audio.unlock();
+      if (this.drag || this.motions.size) return;
       if (this.isGuiPointerEvent(event)) return;
       const point = this.canvasPoint(event);
 
@@ -463,6 +499,7 @@ export class CalendarPuzzleGame {
         return;
       }
       event.preventDefault();
+      this.cancelHint(piece);
       this.setSelectedPiece(piece);
       this.bringPieceToFront(piece);
       const original = { x: piece.x, y: piece.y, scale: piece.scale, placed: piece.placed, row: piece.row, col: piece.col };
@@ -505,6 +542,7 @@ export class CalendarPuzzleGame {
         this.setPiecePosition(piece, original.x, original.y); this.syncPieceStyle(piece);
         this.handlePieceClick(piece, point); this.saveState(); return;
       }
+      this.audio.cue('place');
       if (!this.snapPiece(piece)) {
         if (piece.x < this.layout.board.x - 30) piece.scale = this.trayScale();
         this.syncPieceStyle(piece);
@@ -514,6 +552,11 @@ export class CalendarPuzzleGame {
     };
     listen('pointerup', release);
     listen('pointercancel', () => this.cancelInteraction());
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      const visibility = () => { if (document.hidden) this.audio.suspend(); };
+      document.addEventListener('visibilitychange', visibility);
+      this.removeInput.push(() => document.removeEventListener('visibilitychange', visibility));
+    }
     if (this.platform.keyboard !== false && typeof window !== 'undefined') {
       window.addEventListener('keydown', this.keydownHandler);
       this.removeInput.push(() => window.removeEventListener('keydown', this.keydownHandler));
@@ -662,7 +705,9 @@ export class CalendarPuzzleGame {
   }
 
   private trayScale(): number { return calendarTray(this.layout.tray.width, this.layout.tray.height, this.shuffleSeed, this.pieces)[0]!.scale; }
-  private layoutTray(): void {
+  private layoutTray(animate = false): void {
+    this.cancelHint(); this.finishMotions();
+    const previous = this.pieces.map(piece => this.piecePose(piece));
     this.cancelInteraction(); this.selectedPiece = null; this.won = false; this.celebration?.hide();
     this.occupancy.clear(); this.resetPieceLayers();
     const homes = calendarTray(this.layout.tray.width, this.layout.tray.height, this.shuffleSeed);
@@ -672,35 +717,70 @@ export class CalendarPuzzleGame {
       piece.placed = false; piece.row = -1; piece.col = -1;
       this.rebuildPieceVisuals(piece);
       this.setPiecePosition(piece, this.layout.tray.x + home.x, this.layout.tray.y + home.y);
+      if (animate) this.animatePiece(piece, previous[index]!, 420, index * 14, 30);
     });
     this.updateStatus();
   }
-  private resetPieces(): void { this.shuffleSeed++; this.layoutTray(); this.saveState(); }
+  private resetPieces(animate = false): void { if (animate && (this.settingsOpen || this.historyOpen || this.motions.size)) return; if (animate) this.audio.cue('shuffle'); this.shuffleSeed++; this.layoutTray(animate); this.saveState(); }
 
-  private rotateSelected(): void {
+  private rotateSelected(): void { this.transformSelected(false); }
+  private flipSelected(): void { this.transformSelected(true); }
+  private transformSelected(flip: boolean): void {
     this.lastPieceClick = null;
-    if (!this.selectedPiece) return;
-    this.clearPieceOccupancy(this.selectedPiece);
-    this.selectedPiece.rotation = (this.selectedPiece.rotation + 1) % 4;
-    this.rebuildPieceVisuals(this.selectedPiece);
-    if (!this.snapPiece(this.selectedPiece)) {
-      this.syncPieceStyle(this.selectedPiece);
-      this.updateStatus();
-    }
+    const piece = this.selectedPiece;
+    if (!piece || this.settingsOpen || this.historyOpen || this.motions.size) return;
+    this.audio.cue(flip ? 'flip' : 'rotate');
+    this.cancelHint(piece);
+    const from = this.piecePose(piece);
+    this.clearPieceOccupancy(piece);
+    if (flip) piece.flipped = !piece.flipped; else piece.rotation = (piece.rotation + 1) % 4;
+    this.rebuildPieceVisuals(piece);
+    if (!this.snapPiece(piece)) { this.syncPieceStyle(piece); this.updateStatus(); }
+    this.animatePiece(piece, from, flip ? 300 : 240);
     this.saveState();
   }
-
-  private flipSelected(): void {
-    this.lastPieceClick = null;
-    if (!this.selectedPiece) return;
-    this.clearPieceOccupancy(this.selectedPiece);
-    this.selectedPiece.flipped = !this.selectedPiece.flipped;
-    this.rebuildPieceVisuals(this.selectedPiece);
-    if (!this.snapPiece(this.selectedPiece)) {
-      this.syncPieceStyle(this.selectedPiece);
-      this.updateStatus();
+  private piecePose(piece: PieceState): CalendarPiecePose { return { x: piece.x, y: piece.y, scale: piece.scale, rotation: piece.rotation, flipped: piece.flipped }; }
+  private animatePiece(piece: PieceState, from: CalendarPiecePose, duration: number, delay = 0, lift = 0): void {
+    this.motions.set(piece, { from, to: this.piecePose(piece), start: performance.now() + delay, duration, lift });
+    this.updateMotions();
+  }
+  private finishMotions(): void {
+    for (const [piece] of this.motions) { piece.visuals.forEach(v => v.transform.setRotation(0,0,0)); this.setPiecePosition(piece, piece.x, piece.y); }
+    this.motions.clear();
+  }
+  private updateMotions(): void {
+    const now = performance.now();
+    for (const [piece, motion] of this.motions) {
+      const t = Math.max(0, (now - motion.start) / motion.duration);
+      if (t >= 1) { this.motions.delete(piece); piece.visuals.forEach(v => v.transform.setRotation(0,0,0)); this.setPiecePosition(piece,piece.x,piece.y); continue; }
+      const cells = calendarMotionCells(piece.def.cells, motion.from, motion.to, t, motion.lift);
+      cells.forEach((cell, i) => { const v = piece.visuals[i]!; v.transform.setScale(cell.scaleX, 1, cell.scale); v.transform.setRotation(0, cell.angle, 0); v.transform.setPosition(...this.rectToWorld({x:cell.x,y:cell.y,width:CELL*cell.scale,height:CELL*cell.scale},this.pieceRenderLayer(piece))); });
     }
-    this.saveState();
+  }
+  private cancelHint(keep?: PieceState): void {
+    this.hintRevision++; this.solver.cancel(); this.hintBusy = false;
+    if (!keep || this.hintOverlay?.placement?.piece !== this.pieces.indexOf(keep)) this.hintOverlay?.hide();
+  }
+  private async requestHint(): Promise<void> {
+    if (this.hintBusy || this.drag || this.motions.size || this.settingsOpen || this.historyOpen || this.won) return;
+    this.cancelHint(); const revision = this.hintRevision;
+    this.hintBusy = true; this.updateStatus();
+    try {
+      const fixed = this.pieces.flatMap((p,piece) => p.placed ? [{piece,row:p.row,col:p.col,rotation:p.rotation,flipped:p.flipped}] : []);
+      const result = await this.solver.solve({ month:this.selectedMonth,day:this.selectedDay,weekday:this.selectedWeekday,fixed });
+      if (!result || revision !== this.hintRevision || this.disposed) return;
+      this.hintBusy = false;
+      if (result.status !== 'solved') { this.updateStatus(result.status === 'unsolvable' ? this.copy.hintNone : this.copy.hintUnavailable); return; }
+      const sameCells = (p: PieceState, target: CalendarPlacement) => {
+        const key = (cells: Point[], row: number, col: number) => cells.map(c => `${row+c.y},${col+c.x}`).sort().join(';');
+        return p.placed && key(this.orientedCells(p),p.row,p.col) === key(calendarOrientedCells(p.def.cells,target.rotation,target.flipped),target.row,target.col);
+      };
+      const choices = result.solution.filter(target => result.compatible ? !this.pieces[target.piece]!.placed : this.pieces[target.piece]!.placed && !sameCells(this.pieces[target.piece]!,target));
+      const target = choices.find(p => this.pieces[p.piece] === this.selectedPiece) ?? choices[0];
+      if (!target) { this.updateStatus(); return; }
+      this.hintCompatible = result.compatible;
+      this.setSelectedPiece(this.pieces[target.piece]!); this.hintOverlay.show(target); this.updateStatus();
+    } catch { if (revision === this.hintRevision && !this.disposed) { this.hintBusy=false; this.updateStatus(this.copy.hintUnavailable); } }
   }
 
   private setSelectedPiece(piece: PieceState | null): void {
@@ -746,6 +826,7 @@ export class CalendarPuzzleGame {
     this.occupyPiece(piece);
     this.setPiecePosition(piece, snapX, snapY);
     this.syncPieceStyle(piece);
+    if (this.hintOverlay.placement?.piece === this.pieces.indexOf(piece)) this.cancelHint();
     this.checkWin();
     return true;
   }
@@ -766,7 +847,7 @@ export class CalendarPuzzleGame {
         this.won = true;
         this.completedDates = recordCalendarCompletion(this.completedDates, calendarDateKey(this.selectedYear, this.selectedMonth, this.selectedDay));
         this.saveState();
-        if (celebrate) { this.setSelectedPiece(null); this.mainControls.forEach(control => control.setVisible(false)); this.celebration.show(); }
+        if (celebrate) { this.audio.cue('win'); this.setSelectedPiece(null); this.mainControls.forEach(control => control.setVisible(false)); this.celebration.show(); }
       }
       this.updateStatus(this.copy.won);
     } else {
@@ -776,7 +857,7 @@ export class CalendarPuzzleGame {
 
   private updateStatus(message?: string): void {
     const count = this.pieces.filter(piece => piece.placed).length;
-    if (this.statusVisual) this.setText(this.statusVisual, message ?? (this.historyOpen ? this.copy.chooseDate : this.won ? this.copy.won : count ? `${this.copy.progress} ${count} / ${PIECES.length}` : this.copy.help));
+    if (this.statusVisual) this.setText(this.statusVisual, message ?? (this.hintBusy ? this.copy.solving : this.hintOverlay?.placement ? this.hintCompatible ? this.copy.hintPlace : this.copy.hintAdjust : this.historyOpen ? this.copy.chooseDate : this.won ? this.copy.won : count ? `${this.copy.progress} ${count} / ${PIECES.length}` : this.copy.help));
   }
 
   private pickPiece(point: Point): PieceState | null {
@@ -1041,10 +1122,10 @@ export class CalendarPuzzleGame {
 
   private cellStyle(target: boolean): CssMaterialStyle {
     return {
-      backgroundColor: target ? '#c6efe6' : '#ffffff',
-      borderColor: target ? '#17847b' : '#c9ded4',
+      backgroundColor: target ? CALENDAR_STYLE.selected.background : CALENDAR_STYLE.cell.background,
+      borderColor: target ? CALENDAR_STYLE.selected.border : CALENDAR_STYLE.cell.border,
       borderWidth: target ? 4 : 2,
-      borderRadius: 7,
+      borderRadius: CALENDAR_STYLE.cell.radius,
       padding: 0,
       textAlign: 'center',
       verticalAlign: 'middle',
@@ -1052,7 +1133,7 @@ export class CalendarPuzzleGame {
       lineHeight: 1,
       fontFamily: 'Arial, Helvetica, sans-serif',
       fontWeight: 900,
-      color: target ? '#0d786b' : '#416259',
+      color: target ? CALENDAR_STYLE.selected.text : CALENDAR_STYLE.cell.text,
     };
   }
 

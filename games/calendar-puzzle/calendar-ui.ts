@@ -1,4 +1,5 @@
 import { GuiButton, GuiElement, GuiLabel, type GuiRoot } from '@haiyue/engine/gui';
+import { CALENDAR_STYLE } from './calendar-style';
 import { CALENDAR_COPY, type CalendarLanguage } from './locale';
 import { calendarDateKey, calendarMonthCells, shiftCalendarMonth } from './model';
 import { calendarLayout } from './viewport';
@@ -28,33 +29,39 @@ export class CalendarHistoryView {
       const control = place(id, new GuiLabel({ text: text(), textAlign: 'center', style: { color: '#416259' } }), rect);
       control.layout = () => { control.rect = rect(); control.setFontSize(size * options.layout().scale); };
       this.labels.push(() => control.setText(text()));
+      return control;
     };
     const button = (id: string, text: () => string, rect: () => Rect, action: () => void) => {
       const control = place(id, new GuiButton({ text: text(), onClick: action }), rect);
       this.labels.push(() => { control.text = text(); control.markDirty(); }); return control;
     };
-    place('calendarPanel', new GuiElement({ style: { backgroundColor: '#f8fcf9', borderColor: '#b7d6c8', radius: 18 } }),
-      () => ({ x: area().x - 14, y: area().y - 14, width: 536, height: 610 }));
+    // Plain GuiElement renders a fill, not borderColor. Draw both layers explicitly
+    // so the inset cannot cover the straight edges of the underlying board frame.
+    const frame = CALENDAR_STYLE.panel;
+    const outer = place('calendarPanel', new GuiElement({ style: { backgroundColor: frame.border } }),
+      () => { outer.style.radius = frame.radius * options.layout().scale; return { x: area().x - 14, y: area().y - 14, width: 536, height: 610 }; });
+    const inner = place('calendarPanelFill', new GuiElement({ style: { backgroundColor: frame.background } }),
+      () => { inner.style.radius = (frame.radius - frame.borderWidth) * options.layout().scale; return { x: area().x - 14 + frame.borderWidth, y: area().y - 14 + frame.borderWidth, width: 536 - frame.borderWidth * 2, height: 610 - frame.borderWidth * 2 }; });
     label('calendarTitle', () => `${this.year} / ${this.copy.months[this.month - 1]}`, () => ({ x: area().x + 106, y: area().y + 4, width: 296, height: 46 }), 27);
     for (const [id, text, offset, x] of [['previousYear','«',-12,0],['previousMonth','‹',-1,53],['nextMonth','›',1,402],['nextYear','»',12,455]] as const) {
       button(id, () => text, () => ({ x: area().x + x, y: area().y + 4, width: 48, height: 46 }), () => {
         Object.assign(this, shiftCalendarMonth(this.year, this.month, offset)); this.refresh();
       });
     }
-    for (let i = 0; i < 7; i++) label(`week${i}`, () => this.copy.weekdays[i]!, () => ({ x: area().x + i * 73, y: area().y + 68, width: 64, height: 34 }), 20);
+    for (let i = 0; i < 7; i++) label(`week${i}`, () => this.copy.weekdays[i]!, () => ({ x: area().x + i * 74, y: area().y + 54, width: 64, height: 28 }), 20);
     for (let i = 0; i < 42; i++) {
       const control = place(`calendarDay${i}`, new GuiButton({ onClick: () => {
         const day = calendarMonthCells(this.year, this.month)[i];
         if (day) options.choose(this.year, this.month, day);
-      } }), () => ({ x: area().x + i % 7 * 73, y: area().y + 114 + Math.floor(i / 7) * 57, width: 64, height: 49 }));
+      } }), () => ({ x: area().x + i % 7 * 74, y: area().y + 88 + Math.floor(i / 7) * 74, width: 64, height: 64 }));
       this.days.push(control);
     }
-    place('completedLegend', new GuiElement({ style: { backgroundColor: '#cfedce', radius: 5 } }), () => ({ x: area().x + 12, y: area().y + 466, width: 22, height: 22 }));
-    label('historyCount', () => `${this.copy.cleared} · ${this.completed.size}`, () => ({ x: area().x + 40, y: area().y + 459, width: 450, height: 36 }), 21);
-    button('calendarToday', () => this.copy.today, () => ({ x: area().x, y: area().y + 518, width: 152, height: 54 }), () => {
+    place('completedLegend', new GuiElement({ style: { backgroundColor: CALENDAR_STYLE.completed, radius: 5 } }), () => ({ x: area().x + 198, y: area().y + 479, width: 22, height: 22 }));
+    label('historyCount', () => `${this.copy.cleared} · ${this.completed.size}`, () => ({ x: area().x + 234, y: area().y + 472, width: 264, height: 36 }), 21).setTextAlign('left');
+    button('calendarToday', () => this.copy.today, () => ({ x: area().x, y: area().y + 532, width: 152, height: 50 }), () => {
       const now = new Date(); options.choose(now.getFullYear(), now.getMonth() + 1, now.getDate());
     });
-    button('calendarBack', () => this.copy.back, () => ({ x: area().x + 170, y: area().y + 518, width: 338, height: 54 }), options.close);
+    button('calendarBack', () => this.copy.back, () => ({ x: area().x + 170, y: area().y + 532, width: 338, height: 50 }), options.close);
     this.setVisible(false);
   }
   private get copy() { return CALENDAR_COPY[this.options.language()]; }
@@ -72,7 +79,8 @@ export class CalendarHistoryView {
       if (!day) return;
       const key = calendarDateKey(this.year, this.month, day), completed = this.completed.has(key);
       button.text = String(day);
-      button.setStyle({ backgroundColor: completed ? '#cfedce' : '#ffffff', borderColor: key === this.selected ? '#17847b' : '#d6e5df', radius: 10 });
+      const selected = key === this.selected;
+      button.setStyle({ backgroundColor: completed ? CALENDAR_STYLE.completed : selected ? CALENDAR_STYLE.selected.background : CALENDAR_STYLE.cell.background, borderColor: selected ? CALENDAR_STYLE.selected.border : CALENDAR_STYLE.cell.border, color: selected ? CALENDAR_STYLE.selected.text : CALENDAR_STYLE.cell.text, radius: CALENDAR_STYLE.cell.radius * this.options.layout().scale });
       button.markDirty();
     });
   }
