@@ -24,7 +24,7 @@ import { calendarMotionCells, type CalendarPiecePose } from './motion';
 import { CALENDAR_STYLE } from './calendar-style';
 import { CalendarHistoryView } from './calendar-ui';
 import { CalendarCelebration } from './celebration';
-import { calendarDateKey, calendarDaysInMonth, calendarWeekday, recordCalendarCompletion } from './model';
+import { calendarDateKey, calendarDaysInMonth, calendarWeekday, recordCalendarCompletion, recordCalendarResult } from './model';
 import { CALENDAR_COPY, CALENDAR_GLYPHS, type CalendarLanguage } from './locale';
 import { requiredItemAt } from '../arrayAccess';
 import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
@@ -154,6 +154,8 @@ export class CalendarPuzzleGame {
   private celebration!: CalendarCelebration;
   private historyOpen = false;
   private completedDates: string[] = [];
+  private starredDates: string[] = [];
+  private hintUsed = false;
   private won = false;
   private layout = calendarLayout(1600, 720);
   private readonly textLayouts = new Map<TextVisual, () => Rect>();
@@ -268,7 +270,7 @@ export class CalendarPuzzleGame {
   }
   async flushSave(): Promise<void> { await this.saves.flush(); }
   snapshot() {
-    return { audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
+    return { audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
       ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect }])),
       month: this.selectedMonth, day: this.selectedDay, weekday: this.selectedWeekday,
       dragging: !!this.drag, placed: this.pieces.filter(piece => piece.placed).length,
@@ -462,7 +464,7 @@ export class CalendarPuzzleGame {
   private toggleHistory(open: boolean, feedback = true): void {
     if (feedback && open !== this.historyOpen) this.audio.cue(open ? 'settings' : 'back');
     this.cancelInteraction(); this.cancelHint(); this.finishMotions(); this.historyOpen = open;
-    if (open) this.historyView.open(this.selectedYear, this.selectedMonth, this.selectedDay, this.completedDates);
+    if (open) this.historyView.open(this.selectedYear, this.selectedMonth, this.selectedDay, this.completedDates, this.starredDates);
     else this.historyView.setVisible(false);
     this.updateStatus();
   }
@@ -619,6 +621,9 @@ export class CalendarPuzzleGame {
     }
     this.language = saved.language ?? 'zh';
     this.completedDates = recordCalendarCompletion(saved.completedDates ?? [], '');
+    this.starredDates = recordCalendarCompletion(saved.starredDates ?? [], '').filter(date => this.completedDates.includes(date));
+    // Old saves did not track assistance, so they cannot establish a clean win.
+    this.hintUsed = saved.hintUsed ?? true;
     this.selectedYear = saved.year ?? this.currentDate.getFullYear();
     this.selectedMonth = saved.month;
     this.selectedDay = Math.min(saved.day, this.daysInSelectedMonth(saved.month));
@@ -652,6 +657,7 @@ export class CalendarPuzzleGame {
   private saveState(): void {
     this.saves.save({
       year: this.selectedYear, completedDates: [...this.completedDates],
+      starredDates: [...this.starredDates], hintUsed: this.hintUsed,
       language: this.language, layoutVersion: 2, layoutWidth: this.layout.width, layoutHeight: this.layout.height,
       month: this.selectedMonth,
       day: this.selectedDay,
@@ -721,7 +727,7 @@ export class CalendarPuzzleGame {
     });
     this.updateStatus();
   }
-  private resetPieces(animate = false): void { if (animate && (this.settingsOpen || this.historyOpen || this.motions.size)) return; if (animate) this.audio.cue('shuffle'); this.shuffleSeed++; this.layoutTray(animate); this.saveState(); }
+  private resetPieces(animate = false): void { if (animate && (this.settingsOpen || this.historyOpen || this.motions.size)) return; if (animate) this.audio.cue('shuffle'); this.hintUsed = false; this.shuffleSeed++; this.layoutTray(animate); this.saveState(); }
 
   private rotateSelected(): void { this.transformSelected(false); }
   private flipSelected(): void { this.transformSelected(true); }
@@ -780,6 +786,8 @@ export class CalendarPuzzleGame {
       if (!target) { this.updateStatus(); return; }
       this.hintCompatible = result.compatible;
       this.setSelectedPiece(this.pieces[target.piece]!); this.hintOverlay.show(target); this.updateStatus();
+      this.hintUsed = true;
+      this.saveState();
     } catch { if (revision === this.hintRevision && !this.disposed) { this.hintBusy=false; this.updateStatus(this.copy.hintUnavailable); } }
   }
 
@@ -845,7 +853,9 @@ export class CalendarPuzzleGame {
     if (this.occupancy.size === required && this.pieces.every(piece => piece.placed)) {
       if (!this.won) {
         this.won = true;
-        this.completedDates = recordCalendarCompletion(this.completedDates, calendarDateKey(this.selectedYear, this.selectedMonth, this.selectedDay));
+        const result = recordCalendarResult(this.completedDates, this.starredDates, calendarDateKey(this.selectedYear, this.selectedMonth, this.selectedDay), this.hintUsed);
+        this.completedDates = result.completedDates;
+        this.starredDates = result.starredDates;
         this.saveState();
         if (celebrate) { this.audio.cue('win'); this.setSelectedPiece(null); this.mainControls.forEach(control => control.setVisible(false)); this.celebration.show(); }
       }

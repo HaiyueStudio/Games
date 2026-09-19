@@ -34,3 +34,26 @@ test('history is immutable, year-specific, deduplicated and rejects invalid date
   assert.equal(isCalendarPuzzleSaveData({...save,completedDates:['2024-02-30']}),false);
   assert.equal(isCalendarPuzzleSaveData({month:9,day:19,weekday:6,pieces:[]}),true);
 });
+
+test('assisted wins have no star; a clean replay earns one without losing it on later assisted wins', async () => {
+  const { recordCalendarResult } = await import('../calendar-puzzle/model.ts');
+  const key='2024-02-29';
+  const assisted=recordCalendarResult([],[],key,true);
+  assert.deepEqual(assisted,{completedDates:[key],starredDates:[]});
+  const clean=recordCalendarResult(assisted.completedDates,assisted.starredDates,key,false);
+  assert.deepEqual(clean,{completedDates:[key],starredDates:[key]});
+  assert.deepEqual(recordCalendarResult(clean.completedDates,clean.starredDates,key,true),clean);
+  assert.deepEqual(assisted.starredDates,[]);
+  const other=recordCalendarResult(clean.completedDates,clean.starredDates,'2025-02-28',true);
+  assert.deepEqual(other.starredDates,[key]);
+});
+test('save data preserves assistance and stars while accepting old history without inventing stars', () => {
+  const save={year:2024,month:2,day:29,weekday:4,pieces:[],completedDates:['2024-02-29'],starredDates:['2024-02-29'],hintUsed:true};
+  assert.equal(isCalendarPuzzleSaveData(JSON.parse(JSON.stringify(save))),true);
+  assert.equal(isCalendarPuzzleSaveData({...save,hintUsed:'false'}),false);
+  assert.equal(isCalendarPuzzleSaveData({...save,starredDates:['2024-02-30']}),false);
+  assert.equal(isCalendarPuzzleSaveData({...save,starredDates:['2024-02-28']}),false);
+  const {starredDates,hintUsed,...legacy}=save;
+  assert.equal(isCalendarPuzzleSaveData(legacy),true);
+  assert.equal(legacy.starredDates,undefined);
+});

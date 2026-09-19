@@ -9,8 +9,10 @@ type Rect = { x: number; y: number; width: number; height: number };
 export class CalendarHistoryView {
   private readonly controls: GuiElement[] = [];
   private readonly days: GuiButton[] = [];
+  private readonly stars: GuiLabel[] = [];
   private readonly labels: Array<() => void> = [];
   private completed = new Set<string>();
+  private starred = new Set<string>();
   private selected = '';
   year = 2026;
   month = 1;
@@ -55,6 +57,10 @@ export class CalendarHistoryView {
         if (day) options.choose(this.year, this.month, day);
       } }), () => ({ x: area().x + i % 7 * 74, y: area().y + 88 + Math.floor(i / 7) * 74, width: 64, height: 64 }));
       this.days.push(control);
+      const star = label(`calendarStar${i}`, () => '★', () => ({ x: area().x + i % 7 * 74 + 44, y: area().y + 88 + Math.floor(i / 7) * 74 + 2, width: 18, height: 18 }), 17);
+      star.disabled = true;
+      star.setStyle({ color: '#b77718' });
+      this.stars.push(star);
     }
     place('completedLegend', new GuiElement({ style: { backgroundColor: CALENDAR_STYLE.completed, radius: 5 } }), () => ({ x: area().x + 198, y: area().y + 479, width: 22, height: 22 }));
     label('historyCount', () => `${this.copy.cleared} · ${this.completed.size}`, () => ({ x: area().x + 234, y: area().y + 472, width: 264, height: 36 }), 21).setTextAlign('left');
@@ -65,9 +71,9 @@ export class CalendarHistoryView {
     this.setVisible(false);
   }
   private get copy() { return CALENDAR_COPY[this.options.language()]; }
-  open(year: number, month: number, day: number, completed: readonly string[]): void {
+  open(year: number, month: number, day: number, completed: readonly string[], starred: readonly string[] = []): void {
     this.year = year; this.month = month; this.selected = calendarDateKey(year, month, day);
-    this.completed = new Set(completed); this.setVisible(true);
+    this.completed = new Set(completed); this.starred = new Set(starred); this.setVisible(true);
   }
   setVisible(visible: boolean): void {
     this.visible = visible; for (const control of this.controls) control.setVisible(visible); this.refresh();
@@ -76,6 +82,7 @@ export class CalendarHistoryView {
     for (const update of this.labels) update();
     calendarMonthCells(this.year, this.month).forEach((day, i) => {
       const button = this.days[i]!; button.setVisible(this.visible && day !== null);
+      this.stars[i]!.setVisible(this.visible && day !== null && this.starred.has(calendarDateKey(this.year, this.month, day)));
       if (!day) return;
       const key = calendarDateKey(this.year, this.month, day), completed = this.completed.has(key);
       button.text = String(day);
@@ -84,5 +91,5 @@ export class CalendarHistoryView {
       button.markDirty();
     });
   }
-  snapshot() { return { year: this.year, month: this.month, cells: calendarMonthCells(this.year, this.month).map(day => day ? { day, completed: this.completed.has(calendarDateKey(this.year, this.month, day)) } : null) }; }
+  snapshot() { return { year: this.year, month: this.month, cells: calendarMonthCells(this.year, this.month).map(day => day ? { day, completed: this.completed.has(calendarDateKey(this.year, this.month, day)), starred: this.starred.has(calendarDateKey(this.year, this.month, day)) } : null) }; }
 }

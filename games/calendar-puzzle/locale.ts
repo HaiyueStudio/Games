@@ -10,4 +10,4 @@ const BASE_COPY = {
   ja: { calendar: 'カレンダー', history: 'クリア記録', cleared: 'クリア済み', chooseDate: '日付を選んで挑戦しよう', back: 'パズルに戻る', viewHistory: '記録を見る', continue: '続ける', recorded: 'この日をクリア！', total: 'クリア日数', title: 'カレンダーパズル', tray: 'ピース', help: '月・日・曜日のマスを残そう', rotate: '回転', flip: '反転', reset: 'シャッフル', settings: '設定', month: '月', day: '日', weekday: '曜日', language: '言語', today: '今日', done: '完了', won: 'パズル完成！', progress: '配置', months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], weekdays: ['日曜','月曜','火曜','水曜','木曜','金曜','土曜'] },
 } as const;
 export const CALENDAR_COPY = { zh: { ...BASE_COPY.zh, ...HINT_COPY.zh }, en: { ...BASE_COPY.en, ...HINT_COPY.en }, ja: { ...BASE_COPY.ja, ...HINT_COPY.ja } };
-export const CALENDAR_GLYPHS = [...new Set(Array.from(JSON.stringify(CALENDAR_COPY) + '中文 English 日本語 ⚙ × ‹ › « » ▦ ✓ 0123456789 / · -'))].join('');
+export const CALENDAR_GLYPHS = [...new Set(Array.from(JSON.stringify(CALENDAR_COPY) + '中文 English 日本語 ⚙ × ‹ › « » ▦ ✓ ★ 0123456789 / · -'))].join('');

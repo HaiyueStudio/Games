@@ -36,6 +36,8 @@ export interface CalendarPuzzleSaveData {
   language?: 'zh' | 'en' | 'ja';
   year?: number;
   completedDates?: string[];
+  starredDates?: string[];
+  hintUsed?: boolean;
   layoutVersion?: number;
   layoutWidth?: number;
   layoutHeight?: number;
@@ -118,6 +120,8 @@ export function isCalendarPuzzleSaveData(value: unknown): value is CalendarPuzzl
   return isRecord(value)
     && (value.year === undefined || (isNonNegativeInteger(value.year) && value.year >= 1 && value.year <= 9999 && (value.day as number) <= calendarDaysInMonth(value.year, value.month as number)))
     && (value.completedDates === undefined || (Array.isArray(value.completedDates) && value.completedDates.every(isCalendarDateKey)))
+    && (value.starredDates === undefined || (Array.isArray(value.starredDates) && value.starredDates.every(date => isCalendarDateKey(date) && Array.isArray(value.completedDates) && value.completedDates.includes(date))))
+    && (value.hintUsed === undefined || typeof value.hintUsed === 'boolean')
     && (value.language === undefined || ['zh','en','ja'].includes(value.language as string))
     && isNonNegativeInteger(value.month) && value.month >= 1 && value.month <= 12
     && isNonNegativeInteger(value.day) && value.day >= 1 && value.day <= 31
@@ -170,4 +174,11 @@ export function shiftCalendarMonth(year: number, month: number, offset: number) 
 }
 export function recordCalendarCompletion(dates: readonly string[], key: string): string[] {
   return [...new Set([...dates, key].filter(isCalendarDateKey))].sort();
+}
+
+/** A clean replay can earn a star; assisted replays never remove an earned star. */
+export function recordCalendarResult(completed: readonly string[], starred: readonly string[], key: string, hintUsed: boolean) {
+  const completedDates = recordCalendarCompletion(completed, key);
+  const starredDates = recordCalendarCompletion(starred, hintUsed ? '' : key).filter(date => completedDates.includes(date));
+  return { completedDates, starredDates };
 }
