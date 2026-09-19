@@ -1,30 +1,36 @@
 import { BasicMaterial, Camera3D, CartesianTransform3D, ColorSRGB, Entity, Mesh3D, HaiyueEngine, World, createPlane3D } from '@haiyue/engine';
-import { type CssMaterialStyle } from '@haiyue/engine/material';
+import { type MaterialTextureSource, type CssMaterialStyle } from '@haiyue/engine/material';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { requireEngineCanvas } from '@haiyue/engine/experimental';
 import {
+  type GuiFontOptions,
   GuiButton,
-  GuiRadio,
+  GuiElement,
+  GuiLabel,
   GuiRoot,
   GuiSelect,
   GuiSystem,
 } from '@haiyue/engine/gui';
+import type { GameSaveBackend } from '@haiyue/engine/save';
+import { calendarLayout, calendarViewport, calendarPointer } from './viewport';
+import { calendarTray, calendarOrientedCells } from './tray';
+import { CalendarHistoryView } from './calendar-ui';
+import { CalendarCelebration } from './celebration';
+import { calendarDateKey, calendarDaysInMonth, calendarWeekday, recordCalendarCompletion } from './model';
+import { CALENDAR_COPY, CALENDAR_GLYPHS, type CalendarLanguage } from './locale';
 import { requiredItemAt } from '../arrayAccess';
 import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
 import {
   CALENDAR_BOARD_CELLS as BOARD_CELLS,
   CALENDAR_PIECES as PIECES,
-  CALENDAR_WEEKDAYS as WEEKDAYS,
   calendarCellKey as cellKey,
   isCalendarPuzzleSaveData,
-  normalizeCalendarCells as normalizeCells,
   type CalendarBoardCell as BoardCell,
   type CalendarPieceDefinition as PieceDef,
   type CalendarPoint as Point,
   type CalendarPuzzleSaveData,
 } from './model';
 
-type DoubleClickAction = 'rotate' | 'flip';
 
 interface Rect {
   x: number;
@@ -41,6 +47,9 @@ interface TileVisual {
 }
 
 interface TextVisual {
+  key: string;
+  transform: CartesianTransform3D;
+  initialRect: Rect;
   material: BasicMaterial;
   rect: Rect;
   text: string;
@@ -49,6 +58,7 @@ interface TextVisual {
 
 interface PieceState {
   def: PieceDef;
+  scale: number;
   rotation: number;
   flipped: boolean;
   layer: number;
@@ -68,6 +78,7 @@ interface DragState {
   offsetY: number;
   startX: number;
   startY: number;
+  original: { x: number; y: number; scale: number; placed: boolean; row: number; col: number };
 }
 
 interface LastPieceClick {
@@ -81,39 +92,81 @@ const CANVAS_W = 1200;
 const CANVAS_H = 720;
 const VIEW_W = 12;
 const VIEW_H = CANVAS_H / CANVAS_W * VIEW_W;
-const CELL = 48;
-const GAP = 5;
+const CELL = 64;
+const GAP = 10;
 const PITCH = CELL + GAP;
 const BOARD_ROWS = 8;
 const BOARD_COLS = 7;
-const BOARD_LEFT = 392;
-const BOARD_TOP = 132;
-const BOARD_PAD = 16;
-const WORK_AREA = { x: 28, y: 104, width: 1144, height: 590 };
-const SNAP_DISTANCE = 28;
-const PIECE_HOME_POSITIONS: Point[] = [
-  { x: 54, y: 130 },
-  { x: 54, y: 310 },
-  { x: 54, y: 510 },
-  { x: 245, y: 120 },
-  { x: 245, y: 310 },
-  { x: 245, y: 500 },
-  { x: 820, y: 122 },
-  { x: 820, y: 315 },
-  { x: 820, y: 470 },
-  { x: 560, y: 620 },
-];
+const SNAP_DISTANCE = 36;
 
 function contains(rect: Rect, point: Point): boolean {
   return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
 }
 
+export interface CalendarPuzzlePlatform {
+  engine?: HaiyueEngine;
+  autoRun?: boolean;
+  keyboard?: boolean;
+  touchControls?: boolean;
+  guiFont?: GuiFontOptions;
+  createCanvas2D?: (width: number, height: number) => HTMLCanvasElement;
+  textureFromCanvas?: (canvas: HTMLCanvasElement, key: string) => MaterialTextureSource;
+  saveBackend?: GameSaveBackend;
+}
+
+/** Design coordinates share one scale with world picking and the orthographic camera. */
+class CalendarGuiRoot extends GuiRoot {
+  override layout(width: number, height: number): void {
+    const view = calendarViewport(width, height);
+    if (this.viewport.width !== width || this.viewport.height !== height) this.root.markDirty();
+    this.viewport = { x: 0, y: 0, width, height };
+    this.theme.fontSize = 25 * view.scale;
+    this.root.layout({ x: 0, y: 0, width: view.width, height: view.height });
+    const scaleElement = (element: GuiElement): void => {
+      const r = element.rect;
+      element.rect = { x: r.x * view.scale, y: r.y * view.scale, width: r.width * view.scale, height: r.height * view.scale };
+      if (element instanceof GuiSelect) element.optionHeight = 56 * view.scale;
+      for (const child of element.children) scaleElement(child);
+    };
+    for (const child of this.root.children) scaleElement(child);
+    this.root.rect = this.viewport;
+  }
+}
+
 export class CalendarPuzzleGame {
-  private readonly saves = new SingleSlotGameSave<CalendarPuzzleSaveData>({
-    gameId: 'calendar-puzzle',
-    name: 'Calendar Puzzle 自动存档',
-    validateData: isCalendarPuzzleSaveData,
-  });
+  private readonly saves: SingleSlotGameSave<CalendarPuzzleSaveData>;
+  private readonly removeInput: Array<() => void> = [];
+  private disposed = false;
+  private camera!: Camera3D;
+  private statusVisual?: TextVisual;
+  private titleVisual?: TextVisual;
+  private historyView!: CalendarHistoryView;
+  private celebration!: CalendarCelebration;
+  private historyOpen = false;
+  private completedDates: string[] = [];
+  private won = false;
+  private layout = calendarLayout(1600, 720);
+  private readonly textLayouts = new Map<TextVisual, () => Rect>();
+  private language: CalendarLanguage = 'zh';
+  private settingsOpen = false;
+  private guiRoot!: CalendarGuiRoot;
+  private readonly mainControls: GuiElement[] = [];
+  private readonly settingControls: GuiElement[] = [];
+  private readonly ui = new Map<string, GuiElement>();
+  private readonly localized: Array<() => void> = [];
+  private shuffleSeed = 20260919;
+  private get copy() { return CALENDAR_COPY[this.language]; }
+  private readonly updateFrame = ({ detail: { time } }: { detail: { time: number } }): void => {
+    this.resizeView();
+    this.updateSelectionPulse(time);
+    this.celebration?.update();
+  };
+  constructor(private readonly platform: CalendarPuzzlePlatform = {}) {
+    this.saves = new SingleSlotGameSave<CalendarPuzzleSaveData>({
+      gameId: 'calendar-puzzle', name: '日历拼图 自动存档', validateData: isCalendarPuzzleSaveData,
+      ...(platform.saveBackend ? { backend: platform.saveBackend } : {}),
+    });
+  }
   private engine!: HaiyueEngine;
   private scene!: ReturnType<HaiyueEngine['createScene']>;
   private world!: World;
@@ -125,18 +178,16 @@ export class CalendarPuzzleGame {
   private drag: DragState | null = null;
   private lastPieceClick: LastPieceClick | null = null;
   private pieceLayerCounter = 0;
-  private doubleClickAction: DoubleClickAction = 'rotate';
-  private guiHitRects: Rect[] = [];
   private targetKeys = new Set<string>();
   private currentDate = new Date();
+  private selectedYear = this.currentDate.getFullYear();
   private selectedMonth = this.currentDate.getMonth() + 1;
   private selectedDay = this.currentDate.getDate();
   private selectedWeekday = this.currentDate.getDay();
-  private monthSelect!: GuiSelect<number>;
-  private daySelect!: GuiSelect<number>;
-  private weekdaySelect!: GuiSelect<number>;
   private readonly keydownHandler = (event: KeyboardEvent): void => {
     const key = event.key.toLowerCase();
+    if (key === 'escape') { this.toggleSettings(false); this.closeCelebration(false); this.toggleHistory(false); return; }
+    if (this.settingsOpen || this.historyOpen || this.celebration?.visible) return;
     if (key === 'r') {
       event.preventDefault();
       this.rotateSelected();
@@ -147,15 +198,19 @@ export class CalendarPuzzleGame {
   };
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = this.platform.engine ?? new HaiyueEngine({
       canvas,
       clearColor: { r: 0.92, g: 0.96, b: 0.92, a: 1 },
       msaaSamples: 4,
+      defaults: { assetManager: { texture: { format: 'rgba8unorm-srgb' } } },
     });
-    await this.engine.init();
+    if (!this.platform.engine) await this.engine.init();
 
+    this.layout = calendarLayout(this.engine.displayWidth, this.engine.displayHeight);
     this.scene = this.engine.createScene({
       name: 'CalendarPuzzle',
+      defaults: { assetManager: { texture: { format: 'rgba8unorm-srgb' } } },
+      view: { clearColor: { r: 0.9, g: 0.94, b: 0.92, a: 1 } },
       render3D: false,
       render2D: false,
       gui: false,
@@ -171,15 +226,73 @@ export class CalendarPuzzleGame {
     await this.loadOrStart();
 
     this.engine.switchScene(this.scene);
-    this.engine.on('update', ({ detail: { time } }) => {
-      this.updateSelectionPulse(time);
-    });
-    this.engine.run();
+    this.resizeView();
+    this.engine.on('update', this.updateFrame);
+    if (this.platform.autoRun !== false) this.engine.run();
   }
 
-  stop(): void {
-    window.removeEventListener('keydown', this.keydownHandler);
-    this.engine?.destroy();
+  stop(): void { this.dispose(); }
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.cancelInteraction();
+    for (const remove of this.removeInput.splice(0)) remove();
+    this.engine?.off('update', this.updateFrame);
+    this.world?.destroy();
+    if (!this.platform.engine) this.engine?.destroy();
+  }
+  async flushSave(): Promise<void> { await this.saves.flush(); }
+  snapshot() {
+    return { language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
+      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect }])),
+      month: this.selectedMonth, day: this.selectedDay, weekday: this.selectedWeekday,
+      dragging: !!this.drag, placed: this.pieces.filter(piece => piece.placed).length,
+      occupied: this.occupancy.size, pieces: this.pieces.map(piece => ({ id: piece.def.id,
+        x: piece.x, y: piece.y, scale: piece.scale, cells: this.orientedCells(piece), rotation: piece.rotation, flipped: piece.flipped, placed: piece.placed })) };
+  }
+  cancelInteraction(): void {
+    const drag = this.drag;
+    this.drag = null;
+    this.lastPieceClick = null;
+    if (!drag) return;
+    this.engine.canvas?.releasePointerCapture?.(drag.pointerId);
+    Object.assign(drag.piece, drag.original);
+    if (drag.original.placed) {
+      for (const cell of this.orientedCells(drag.piece)) {
+        this.occupancy.set(cellKey(drag.piece.row + cell.y, drag.piece.col + cell.x), drag.piece.def.id);
+      }
+    }
+    this.setPiecePosition(drag.piece, drag.original.x, drag.original.y);
+    this.syncPieceStyle(drag.piece);
+  }
+  private resizeView(): void {
+    const next = calendarLayout(this.engine.displayWidth, this.engine.displayHeight);
+    if (next.width !== this.layout.width || next.height !== this.layout.height) {
+      this.cancelInteraction();
+      this.layout = next;
+      for (const [visual, rect] of this.textLayouts) this.resizeText(visual, rect());
+      const homes = calendarTray(next.tray.width, next.tray.height, this.shuffleSeed, this.pieces);
+      this.pieces.forEach((piece, i) => {
+        const home = homes[i]!;
+        if (piece.placed) this.setPiecePosition(piece, next.board.x + piece.col * PITCH, next.board.y + piece.row * PITCH);
+        else { piece.scale = home.scale; this.setPiecePosition(piece, next.tray.x + home.x, next.tray.y + home.y); }
+      });
+      this.guiRoot?.root.markDirty();
+    }
+    this.camera.orthoLeft = -next.width / 200; this.camera.orthoRight = next.width / 200;
+    this.camera.orthoTop = next.height / 200; this.camera.orthoBottom = -next.height / 200;
+  }
+  private resizeText(visual: TextVisual, rect: Rect): void {
+    const changed = rect.width !== visual.rect.width || rect.height !== visual.rect.height;
+    visual.rect = rect;
+    visual.transform.setPosition(...this.rectToWorld(rect, visual.key.startsWith('Cell_') ? 0.12 : visual.key === 'Background' ? 0.01 : visual.key === 'BoardBack' ? 0.05 : 0.2));
+    visual.transform.setScale(rect.width / visual.initialRect.width, 1, rect.height / visual.initialRect.height);
+    if (changed) this.setTextStyle(visual, visual.style);
+  }
+  private responsiveText(name: string, text: string, rect: () => Rect, style: CssMaterialStyle, layer: number): TextVisual {
+    const visual = this.createText(name, text, rect(), style, layer);
+    this.textLayouts.set(visual, rect);
+    return visual;
   }
 
   private setupScene(): void {
@@ -192,6 +305,7 @@ export class CalendarPuzzleGame {
       top: VIEW_H / 2,
       bottom: -VIEW_H / 2,
     });
+    this.camera = camera;
     const transform = new CartesianTransform3D({ position: [0, 8, 0] });
     transform.setRotation(-Math.PI / 2, 0, 0);
 
@@ -203,41 +317,26 @@ export class CalendarPuzzleGame {
     // adding this entity to the World leaves RenderIntegration rendering from
     // the detached default camera.
     this.scene.setCamera(camEntity);
-    this.scene.addSystem(new Render3DSystem(this.engine, camEntity, { loadOp: 'clear', transparentSort: false }));
+    this.scene.addSystem(new Render3DSystem(this.engine, camEntity, { loadOp: 'clear', transparentSort: false, toneMapping: 'none' }));
   }
 
   private buildStaticUI(): void {
-    this.createText('Background', '', { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H }, {
-      backgroundColor: '#eef6f1',
-      borderColor: '#eef6f1',
-      borderWidth: 0,
-      borderRadius: 0,
-    }, 0.01);
-    this.createText('Title', '日历拼图', { x: 54, y: 28, width: 190, height: 48 }, this.labelStyle(40, '#22313a', 900, 'left'), 0.2);
-    this.createText('Subtitle', '空出月份、日期、星期三格；拖拽拼图块到棋盘附近自动吸附。', { x: 54, y: 74, width: 520, height: 30 }, this.labelStyle(16, '#63717c', 800, 'left'), 0.2);
-
-    this.createText('BoardBack', '', {
-      x: BOARD_LEFT - 12,
-      y: BOARD_TOP - 12,
-      width: BOARD_COLS * PITCH - GAP + BOARD_PAD * 2 + 24,
-      height: BOARD_ROWS * PITCH - GAP + BOARD_PAD * 2 + 24,
-    }, this.cardStyle('#c9904f', '#8a5b2b', 7), 0.05);
-
+    this.responsiveText('Background', '', () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }),
+      { backgroundColor: '#f4f8f5', borderWidth: 0, resolutionScale: 1 }, 0.01);
+    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width, height: 56 }), this.labelStyle(40, '#183c3b', 800, 'left'), 0.2);
+    this.statusVisual = this.responsiveText('Subtitle', this.copy.help, () => ({ x: this.layout.edge, y: 88, width: this.layout.tray.width, height: 34 }), this.labelStyle(19, '#52716a', 500, 'left'), 0.2);
+    this.responsiveText('BoardBack', '', () => ({ x: this.layout.board.x - 14, y: this.layout.board.y - 14, width: 536, height: 610 }), this.cardStyle('#dfeee6', '#b7d6c8', 12), 0.05);
   }
 
   private buildBoard(): void {
     for (const cell of BOARD_CELLS) this.validCells.set(cellKey(cell.row, cell.col), cell);
-    const origin = this.boardOrigin();
     for (let row = 0; row < BOARD_ROWS; row++) {
       for (let col = 0; col < BOARD_COLS; col++) {
         const item = this.validCells.get(cellKey(row, col));
         if (!item) continue;
-        const mat = this.createText(`Cell_${row}_${col}`, item.label, {
-          x: origin.x + col * PITCH,
-          y: origin.y + row * PITCH,
-          width: CELL,
-          height: CELL,
-        }, this.cellStyle(false), 0.12);
+        const mat = this.responsiveText(`Cell_${row}_${col}`, this.cellLabel(item), () => ({
+          x: this.layout.board.x + col * PITCH, y: this.layout.board.y + row * PITCH, width: CELL, height: CELL,
+        }), this.cellStyle(false), 0.12);
         this.boardMats.set(cellKey(row, col), mat);
       }
     }
@@ -246,6 +345,7 @@ export class CalendarPuzzleGame {
   private buildPieces(): void {
     this.pieces = PIECES.map((def, index) => ({
       def,
+      scale: 1,
       rotation: 0,
       flipped: false,
       layer: index,
@@ -262,175 +362,98 @@ export class CalendarPuzzleGame {
 
   private setupGui(): void {
     const rootEntity = new Entity('CalendarPuzzleGui');
-    const guiRoot = new GuiRoot({
-      theme: {
-        fontSize: 24,
-        radius: 8,
-        colors: {
-          text: '#26323a',
-          textMuted: '#6d7b86',
-          primary: '#0f766e',
-          danger: '#dc2626',
-          background: '#fffaf0',
-          surface: '#f4d7a1',
-          border: '#c7924e',
-          hover: '#f0c878',
-          active: '#e5b765',
-          disabled: '#94a3b8',
-        },
-      },
-    });
-
-    const monthRect = { x: 656, y: 28, width: 120, height: 42 };
-    const dayRect = { x: 786, y: 28, width: 120, height: 42 };
-    const weekdayRect = { x: 916, y: 28, width: 120, height: 42 };
-    const todayRect = { x: 1046, y: 28, width: 94, height: 42 };
-    const resetRect = { x: 656, y: 78, width: 120, height: 36 };
-    const rotateRadioRect = { x: 800, y: 82, width: 88, height: 30 };
-    const flipRadioRect = { x: 902, y: 82, width: 88, height: 30 };
-    this.guiHitRects = [todayRect, resetRect, rotateRadioRect, flipRadioRect];
-
-    this.monthSelect = guiRoot.add(new GuiSelect<number>({
-      x: monthRect.x,
-      y: 28,
-      width: monthRect.width,
-      height: monthRect.height,
-      value: this.selectedMonth,
-      options: this.monthOptions(),
-      optionHeight: 34,
-      maxVisibleOptions: 6,
-      onChange: (value) => this.onMonthSelected(value),
-    }));
-    this.daySelect = guiRoot.add(new GuiSelect<number>({
-      x: dayRect.x,
-      y: dayRect.y,
-      width: dayRect.width,
-      height: dayRect.height,
-      value: this.selectedDay,
-      options: this.dayOptions(this.selectedMonth),
-      optionHeight: 34,
-      maxVisibleOptions: 7,
-      onChange: (value) => this.onDaySelected(value),
-    }));
-    this.weekdaySelect = guiRoot.add(new GuiSelect<number>({
-      x: weekdayRect.x,
-      y: weekdayRect.y,
-      width: weekdayRect.width,
-      height: weekdayRect.height,
-      value: this.selectedWeekday,
-      options: this.weekdayOptions(),
-      optionHeight: 34,
-      maxVisibleOptions: 7,
-      onChange: (value) => this.onWeekdaySelected(value),
-    }));
-    guiRoot.add(new GuiButton({
-      x: todayRect.x,
-      y: todayRect.y,
-      width: todayRect.width,
-      height: todayRect.height,
-      text: '今天',
-      variant: 'default',
-      onClick: () => this.setToday(),
-    }));
-    guiRoot.add(new GuiButton({
-      x: resetRect.x,
-      y: resetRect.y,
-      width: resetRect.width,
-      height: resetRect.height,
-      text: '重置',
-      variant: 'default',
-      onClick: () => this.resetPieces(),
-    }));
-    guiRoot.add(new GuiRadio<DoubleClickAction>({
-      x: rotateRadioRect.x,
-      y: rotateRadioRect.y,
-      width: rotateRadioRect.width,
-      height: rotateRadioRect.height,
-      label: '旋转',
-      group: 'double-click-action',
-      value: 'rotate',
-      checked: this.doubleClickAction === 'rotate',
-      onChange: (value) => {
-        this.lastPieceClick = null;
-        this.doubleClickAction = value;
-      },
-    }));
-    guiRoot.add(new GuiRadio<DoubleClickAction>({
-      x: flipRadioRect.x,
-      y: flipRadioRect.y,
-      width: flipRadioRect.width,
-      height: flipRadioRect.height,
-      label: '翻转',
-      group: 'double-click-action',
-      value: 'flip',
-      checked: this.doubleClickAction === 'flip',
-      onChange: (value) => {
-        this.lastPieceClick = null;
-        this.doubleClickAction = value;
-      },
-    }));
-
-    rootEntity.addComponent(guiRoot);
-    this.world.addEntity(rootEntity);
-    this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
+    const root = this.guiRoot = new CalendarGuiRoot({ theme: { fontSize: 25, radius: 10, colors: {
+      text: '#183c3b', textMuted: '#52716a', primary: '#17847b', danger: '#d14d58', background: '#f4f8f5',
+      surface: '#ffffff', border: '#b7d6c8', hover: '#d9eee6', active: '#bde0d3', disabled: '#91a39d',
+    } } });
+    const panel = () => ({ x: (this.layout.width - 780) / 2, y: (this.layout.height - 420) / 2, width: 780, height: 420 });
+    const place = <T extends GuiElement>(id: string, element: T, rect: () => Rect, setting = false): T => {
+      element.layout = () => { element.rect = rect(); };
+      root.add(element); this.ui.set(id, element);
+      (setting ? this.settingControls : this.mainControls).push(element);
+      element.setVisible(!setting);
+      return element;
+    };
+    const button = (id: string, caption: () => string, rect: () => Rect, action: () => void, setting = false) => {
+      const element = place(id, new GuiButton({ text: caption(), onClick: action }), rect, setting);
+      this.localized.push(() => { element.text = caption(); element.markDirty(); }); return element;
+    };
+    const label = (id: string, caption: () => string, rect: () => Rect, size = 22) => {
+      const element = place(id, new GuiLabel({ text: caption(), style: { color: '#52716a' } }), rect, true);
+      element.layout = () => { element.rect = rect(); element.setFontSize(size * this.layout.scale); };
+      this.localized.push(() => element.setText(caption()));
+    };
+    button('settings', () => '⚙', () => ({ x: this.layout.width - this.layout.edge - 56, y: 20, width: 56, height: 56 }), () => this.toggleSettings(true));
+    for (const [index, id, caption, action] of [
+      [0, 'rotate', () => this.copy.rotate, () => this.rotateSelected()],
+      [1, 'flip', () => this.copy.flip, () => this.flipSelected()],
+      [2, 'shuffle', () => this.copy.reset, () => this.resetPieces()],
+    ] as const) button(id, caption, () => ({ x: this.layout.tray.x + index * (this.layout.tray.width / 3), y: this.layout.height - 80, width: this.layout.tray.width / 3 - 12, height: 58 }), action);
+    button('calendar', () => `${this.copy.calendar} · ${this.selectedYear}/${this.selectedMonth}/${this.selectedDay}`, () => ({ x: this.layout.board.x, y: 20, width: this.layout.board.width - 76, height: 56 }), () => this.toggleHistory(!this.historyOpen));
+    this.historyView = new CalendarHistoryView({ root, layout: () => this.layout, language: () => this.language, register: (id, element) => this.ui.set(id, element), choose: (year, month, day) => this.chooseDate(year, month, day), close: () => this.toggleHistory(false) });
+    place('backdrop', new GuiElement({ style: { backgroundColor: 'rgba(22,51,47,0.24)', radius: 0 }, onClick: () => this.toggleSettings(false) }), () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }), true);
+    place('panel', new GuiElement({ style: { backgroundColor: '#f8fcf9', radius: 22 } }), panel, true);
+    label('settingsTitle', () => this.copy.settings, () => ({ x: panel().x + 38, y: panel().y + 24, width: 600, height: 52 }), 34);
+    label('languageLabel', () => this.copy.language, () => ({ x: panel().x + 38, y: panel().y + 106, width: 600, height: 36 }));
+    for (const [index, lang, caption] of [[0,'zh','中文'],[1,'en','English'],[2,'ja','日本語']] as const) {
+      const control = button(lang, () => caption, () => ({ x: panel().x + 38 + index * 237, y: panel().y + 158, width: 218, height: 66 }), () => this.setLanguage(lang), true);
+      this.localized.push(() => control.setStyle({ backgroundColor: this.language === lang ? '#c9ebe0' : '#ffffff', borderColor: this.language === lang ? '#17847b' : '#b7d6c8' }));
+    }
+    button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312, width: 300, height: 66 }), () => { this.toggleSettings(false); this.toggleHistory(true); }, true);
+    button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312, width: 218, height: 66 }), () => this.toggleSettings(false), true);
+    this.celebration = new CalendarCelebration({ root, layout: () => this.layout, language: () => this.language, canvas: (w, h) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas, register: (id, element) => this.ui.set(id, element), close: history => this.closeCelebration(history) });
+    rootEntity.addComponent(root); this.world.addEntity(rootEntity);
+    this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { ...this.platform.guiFont, chars: CALENDAR_GLYPHS, fontSize: 40, atlasSize: 2048 } }));
+    this.refreshLanguage();
+  }
+  private toggleSettings(open: boolean): void {
+    this.cancelInteraction(); this.settingsOpen = open;
+    this.historyView.setVisible(this.historyOpen && !open);
+    for (const control of this.mainControls) control.setVisible(!open);
+    for (const control of this.settingControls) control.setVisible(open);
+  }
+  private setLanguage(language: CalendarLanguage): void {
+    this.language = language; this.refreshLanguage(); this.saveState();
+  }
+  private refreshLanguage(): void {
+    for (const localize of this.localized) localize();
+    this.historyView.refresh();
+    if (this.titleVisual) this.setText(this.titleVisual, this.copy.title);
+    for (const cell of BOARD_CELLS) { const visual = this.boardMats.get(cellKey(cell.row, cell.col)); if (visual) this.setText(visual, this.cellLabel(cell)); }
+    this.updateStatus();
+  }
+  private cellLabel(cell: BoardCell): string {
+    return cell.kind === 'month' ? this.copy.months[Number(cell.key.slice(1)) - 1]! : cell.kind === 'weekday' ? this.copy.weekdays[Number(cell.key.slice(1))]! : cell.label;
   }
 
-  private monthOptions(): Array<{ label: string; value: number }> {
-    return Array.from({ length: 12 }, (_, index) => {
-      const value = index + 1;
-      return { label: `${value}月`, value };
-    });
+  private toggleHistory(open: boolean): void {
+    this.cancelInteraction(); this.historyOpen = open;
+    if (open) this.historyView.open(this.selectedYear, this.selectedMonth, this.selectedDay, this.completedDates);
+    else this.historyView.setVisible(false);
+    this.updateStatus();
   }
-
-  private dayOptions(month: number): Array<{ label: string; value: number }> {
-    return Array.from({ length: this.daysInSelectedMonth(month) }, (_, index) => {
-      const value = index + 1;
-      return { label: `${value}日`, value };
-    });
+  private chooseDate(year: number, month: number, day: number): void {
+    const changed = year !== this.selectedYear || month !== this.selectedMonth || day !== this.selectedDay;
+    this.selectedYear = year; this.selectedMonth = month; this.selectedDay = day;
+    this.selectedWeekday = calendarWeekday(year, month, day);
+    this.toggleHistory(false);
+    if (changed) this.applySelectedDate(true);
+    this.refreshLanguage(); this.saveState();
   }
-
-  private weekdayOptions(): Array<{ label: string; value: number }> {
-    return WEEKDAYS.map((label, value) => ({ label, value }));
+  private closeCelebration(history: boolean): void {
+    this.celebration?.hide();
+    for (const control of this.mainControls) control.setVisible(!this.settingsOpen);
+    if (history) this.toggleHistory(true);
   }
-
-  private onMonthSelected(month: number): void {
-    this.selectedMonth = month;
-    const maxDay = this.daysInSelectedMonth(month);
-    this.daySelect.options = this.dayOptions(month);
-    if (this.selectedDay > maxDay) this.selectedDay = 1;
-    this.daySelect.setValue(this.selectedDay, false);
-    this.daySelect.markDirty();
-    this.applySelectedDate(true);
-  }
-
-  private onDaySelected(day: number): void {
-    this.selectedDay = day;
-    this.applySelectedDate(true);
-  }
-
-  private onWeekdaySelected(weekday: number): void {
-    this.selectedWeekday = weekday;
-    this.applySelectedDate(true);
-  }
-
-  private setToday(): void {
-    const today = new Date();
-    this.selectedMonth = today.getMonth() + 1;
-    this.selectedDay = today.getDate();
-    this.selectedWeekday = today.getDay();
-    this.monthSelect.setValue(this.selectedMonth, false);
-    this.daySelect.options = this.dayOptions(this.selectedMonth);
-    this.daySelect.setValue(this.selectedDay, false);
-    this.weekdaySelect.setValue(this.selectedWeekday, false);
-    this.applySelectedDate(true);
-  }
-
-  private daysInSelectedMonth(month: number): number {
-    return new Date(this.currentDate.getFullYear(), month, 0).getDate();
-  }
+  private daysInSelectedMonth(month: number): number { return calendarDaysInMonth(this.selectedYear, month); }
 
   private bindInput(canvas: HTMLCanvasElement): void {
-    canvas.addEventListener('pointerdown', (event) => {
+    const listen = (type: string, handler: (event: PointerEvent) => void): void => {
+      canvas.addEventListener(type, handler as EventListener);
+      this.removeInput.push(() => canvas.removeEventListener(type, handler as EventListener));
+    };
+    listen('pointerdown', (event) => {
+      if (this.drag) return;
       if (this.isGuiPointerEvent(event)) return;
       const point = this.canvasPoint(event);
 
@@ -442,12 +465,16 @@ export class CalendarPuzzleGame {
       event.preventDefault();
       this.setSelectedPiece(piece);
       this.bringPieceToFront(piece);
+      const original = { x: piece.x, y: piece.y, scale: piece.scale, placed: piece.placed, row: piece.row, col: piece.col };
+      const offsetX = (point.x - piece.x) / piece.scale, offsetY = (point.y - piece.y) / piece.scale;
       this.clearPieceOccupancy(piece);
+      piece.scale = 1;
+      this.setPiecePosition(piece, point.x - offsetX, point.y - offsetY);
       this.drag = {
+        original,
         piece,
         pointerId: event.pointerId,
-        offsetX: point.x - piece.x,
-        offsetY: point.y - piece.y,
+        offsetX, offsetY,
         startX: point.x,
         startY: point.y,
       };
@@ -457,7 +484,7 @@ export class CalendarPuzzleGame {
       if (event.isTrusted) canvas.setPointerCapture(event.pointerId);
     });
 
-    canvas.addEventListener('pointermove', (event) => {
+    listen('pointermove', (event) => {
       if (!this.drag || event.pointerId !== this.drag.pointerId) return;
       const point = this.canvasPoint(event);
       this.setPiecePosition(this.drag.piece, point.x - this.drag.offsetX, point.y - this.drag.offsetY);
@@ -468,42 +495,41 @@ export class CalendarPuzzleGame {
       if (!this.drag || event.pointerId !== this.drag.pointerId) return;
       const point = this.canvasPoint(event);
       const piece = this.drag.piece;
+      const original = this.drag.original;
       const moved = Math.hypot(point.x - this.drag.startX, point.y - this.drag.startY);
       this.drag = null;
-      if (event.isTrusted && canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      if (event.isTrusted && canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      if (moved <= 6) {
+        Object.assign(piece, original);
+        if (piece.placed) this.occupyPiece(piece);
+        this.setPiecePosition(piece, original.x, original.y); this.syncPieceStyle(piece);
+        this.handlePieceClick(piece, point); this.saveState(); return;
+      }
       if (!this.snapPiece(piece)) {
+        if (piece.x < this.layout.board.x - 30) piece.scale = this.trayScale();
         this.syncPieceStyle(piece);
         this.updateStatus();
       }
-      if (moved <= 6) this.handlePieceClick(piece, point);
       this.saveState();
     };
-    canvas.addEventListener('pointerup', release);
-    canvas.addEventListener('pointercancel', release);
-
-    window.addEventListener('keydown', this.keydownHandler);
+    listen('pointerup', release);
+    listen('pointercancel', () => this.cancelInteraction());
+    if (this.platform.keyboard !== false && typeof window !== 'undefined') {
+      window.addEventListener('keydown', this.keydownHandler);
+      this.removeInput.push(() => window.removeEventListener('keydown', this.keydownHandler));
+    }
   }
 
   private canvasPoint(event: PointerEvent | MouseEvent): Point {
     const rect = requireEngineCanvas(this.engine).getBoundingClientRect();
-    return {
-      x: (event.clientX - rect.left) * CANVAS_W / rect.width,
-      y: (event.clientY - rect.top) * CANVAS_H / rect.height,
-    };
+    return calendarPointer(event.clientX, event.clientY, rect);
   }
 
   private isGuiPointerEvent(event: PointerEvent | MouseEvent): boolean {
-    const point = this.canvasPoint(event);
-    return this.isInGuiElement(this.monthSelect, point) ||
-      this.isInGuiElement(this.daySelect, point) ||
-      this.isInGuiElement(this.weekdaySelect, point) ||
-      this.guiHitRects.some(guiRect => contains(guiRect, point));
-  }
-
-  private isInGuiElement(select: GuiSelect<number>, point: Point): boolean {
-    if (contains(select.rect, point)) return true;
-    if (!select.open) return false;
-    return contains(select.popupRect, point);
+    if (this.settingsOpen || this.historyOpen || this.celebration.visible) return true;
+    const rect = requireEngineCanvas(this.engine).getBoundingClientRect();
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    return this.mainControls.some(control => control.visible && contains(control.rect, point));
   }
 
   private handlePieceClick(piece: PieceState, point: Point): void {
@@ -515,11 +541,7 @@ export class CalendarPuzzleGame {
       Math.hypot(point.x - last.x, point.y - last.y) <= 14;
     if (doubleClick) {
       this.lastPieceClick = null;
-      if (this.doubleClickAction === 'flip') {
-        this.flipSelected();
-      } else {
-        this.rotateSelected();
-      }
+      this.rotateSelected();
       return;
     }
     this.lastPieceClick = { piece, time: now, x: point.x, y: point.y };
@@ -532,7 +554,7 @@ export class CalendarPuzzleGame {
   }
 
   private boardOrigin(): Point {
-    return { x: BOARD_LEFT + BOARD_PAD, y: BOARD_TOP + BOARD_PAD };
+    return { x: this.layout.board.x, y: this.layout.board.y };
   }
 
   private applySelectedDate(resetPieces: boolean): void {
@@ -552,15 +574,17 @@ export class CalendarPuzzleGame {
       this.saveState();
       return;
     }
+    this.language = saved.language ?? 'zh';
+    this.completedDates = recordCalendarCompletion(saved.completedDates ?? [], '');
+    this.selectedYear = saved.year ?? this.currentDate.getFullYear();
     this.selectedMonth = saved.month;
     this.selectedDay = Math.min(saved.day, this.daysInSelectedMonth(saved.month));
-    this.selectedWeekday = saved.weekday;
-    this.monthSelect.setValue(this.selectedMonth, false);
-    this.daySelect.options = this.dayOptions(this.selectedMonth);
-    this.daySelect.setValue(this.selectedDay, false);
-    this.weekdaySelect.setValue(this.selectedWeekday, false);
+    this.selectedWeekday = calendarWeekday(this.selectedYear, this.selectedMonth, this.selectedDay);
     this.applySelectedDate(false);
     this.occupancy.clear();
+    saved.pieces.forEach((data, index) => { const piece = this.pieces[index]!; piece.rotation = data.rotation % 4; piece.flipped = data.flipped; piece.placed = false; });
+    const homes = calendarTray(this.layout.tray.width, this.layout.tray.height, this.shuffleSeed, this.pieces);
+    const sameLayout = saved.layoutVersion === 2 && saved.layoutWidth === this.layout.width && saved.layoutHeight === this.layout.height;
     saved.pieces.forEach((data, index) => {
       const piece = requiredItemAt(this.pieces, index, 'calendar puzzle pieces');
       piece.rotation = data.rotation % 4;
@@ -570,20 +594,27 @@ export class CalendarPuzzleGame {
       piece.col = data.col;
       piece.placed = data.placed && this.canPlace(piece, data.row, data.col);
       this.rebuildPieceVisuals(piece);
-      this.setPiecePosition(piece, data.x, data.y);
+      const home = homes[index]!;
+      piece.scale = piece.placed ? 1 : sameLayout ? data.scale ?? home.scale : home.scale;
+      this.setPiecePosition(piece, piece.placed ? this.layout.board.x + piece.col * PITCH : sameLayout ? data.x : this.layout.tray.x + home.x,
+        piece.placed ? this.layout.board.y + piece.row * PITCH : sameLayout ? data.y : this.layout.tray.y + home.y);
       if (piece.placed) this.occupyPiece(piece);
       this.syncPieceStyle(piece);
     });
+    this.refreshLanguage();
     this.updateStatus();
-    this.checkWin();
+    this.checkWin(false);
   }
 
   private saveState(): void {
     this.saves.save({
+      year: this.selectedYear, completedDates: [...this.completedDates],
+      language: this.language, layoutVersion: 2, layoutWidth: this.layout.width, layoutHeight: this.layout.height,
       month: this.selectedMonth,
       day: this.selectedDay,
       weekday: this.selectedWeekday,
       pieces: this.pieces.map(piece => ({
+        scale: piece.scale,
         rotation: piece.rotation,
         flipped: piece.flipped,
         layer: piece.layer,
@@ -619,12 +650,7 @@ export class CalendarPuzzleGame {
   }
 
   private orientedCells(piece: PieceState): Point[] {
-    let cells = piece.def.cells.map(cell => ({ ...cell }));
-    if (piece.flipped) cells = cells.map(cell => ({ x: -cell.x, y: cell.y }));
-    for (let i = 0; i < piece.rotation % 4; i++) {
-      cells = cells.map(cell => ({ x: cell.y, y: -cell.x }));
-    }
-    return normalizeCells(cells);
+    return calendarOrientedCells(piece.def.cells, piece.rotation, piece.flipped);
   }
 
   private pieceBounds(piece: PieceState): { width: number; height: number } {
@@ -635,70 +661,21 @@ export class CalendarPuzzleGame {
     };
   }
 
+  private trayScale(): number { return calendarTray(this.layout.tray.width, this.layout.tray.height, this.shuffleSeed, this.pieces)[0]!.scale; }
   private layoutTray(): void {
-    this.occupancy.clear();
-    this.resetPieceLayers();
-    for (let index = 0; index < this.pieces.length; index++) {
-      const piece = requiredItemAt(this.pieces, index, 'calendar puzzle pieces');
-      this.clearPieceOccupancy(piece);
-      piece.rotation = 0;
-      piece.flipped = false;
+    this.cancelInteraction(); this.selectedPiece = null; this.won = false; this.celebration?.hide();
+    this.occupancy.clear(); this.resetPieceLayers();
+    const homes = calendarTray(this.layout.tray.width, this.layout.tray.height, this.shuffleSeed);
+    this.pieces.forEach((piece, index) => {
+      const home = homes[index]!;
+      piece.rotation = home.rotation; piece.flipped = home.flipped; piece.scale = home.scale;
+      piece.placed = false; piece.row = -1; piece.col = -1;
       this.rebuildPieceVisuals(piece);
-      const home = PIECE_HOME_POSITIONS[index] ?? this.randomPiecePosition(piece);
-      this.setPiecePosition(piece, home.x, home.y);
-      piece.row = -1;
-      piece.col = -1;
-      piece.placed = false;
-    }
-    this.updateStatus('拖动拼图块到棋盘附近会自动吸附。');
-  }
-
-  private resetPieces(): void {
-    this.layoutTray();
-    this.saveState();
-  }
-
-  private shufflePieces(): void {
-    this.occupancy.clear();
-    this.resetPieceLayers();
-    for (const piece of this.pieces) {
-      this.clearPieceOccupancy(piece);
-      piece.rotation = Math.floor(Math.random() * 4);
-      piece.flipped = Math.random() > 0.5;
-      this.rebuildPieceVisuals(piece);
-      const position = this.randomPiecePosition(piece);
-      this.setPiecePosition(piece, position.x, position.y);
-      piece.row = -1;
-      piece.col = -1;
-      piece.placed = false;
-    }
+      this.setPiecePosition(piece, this.layout.tray.x + home.x, this.layout.tray.y + home.y);
+    });
     this.updateStatus();
   }
-
-  private randomPiecePosition(piece: PieceState): Point {
-    const bounds = this.pieceBounds(piece);
-    const width = bounds.width * PITCH - GAP;
-    const height = bounds.height * PITCH - GAP;
-    const boardRect = {
-      x: BOARD_LEFT - 24,
-      y: BOARD_TOP - 24,
-      width: BOARD_COLS * PITCH + BOARD_PAD * 2 + 48,
-      height: BOARD_ROWS * PITCH + BOARD_PAD * 2 + 48,
-    };
-    for (let attempt = 0; attempt < 80; attempt++) {
-      const point = {
-        x: WORK_AREA.x + Math.random() * Math.max(1, WORK_AREA.width - width),
-        y: WORK_AREA.y + Math.random() * Math.max(1, WORK_AREA.height - height),
-      };
-      const rect = { x: point.x, y: point.y, width, height };
-      if (!this.overlaps(rect, boardRect)) return point;
-    }
-    return { x: WORK_AREA.x + 12, y: WORK_AREA.y + 12 };
-  }
-
-  private overlaps(a: Rect, b: Rect): boolean {
-    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-  }
+  private resetPieces(): void { this.shuffleSeed++; this.layoutTray(); this.saveState(); }
 
   private rotateSelected(): void {
     this.lastPieceClick = null;
@@ -736,7 +713,7 @@ export class CalendarPuzzleGame {
   private clearPieceOccupancy(piece: PieceState): void {
     if (!piece.placed) return;
     for (const cell of this.orientedCells(piece)) this.occupancy.delete(cellKey(piece.row + cell.y, piece.col + cell.x));
-    piece.placed = false;
+    piece.placed = false; this.won = false;
   }
 
   private canPlace(piece: PieceState, row: number, col: number): boolean {
@@ -755,12 +732,14 @@ export class CalendarPuzzleGame {
 
   private snapPiece(piece: PieceState): boolean {
     const origin = this.boardOrigin();
+    if (piece.scale !== 1) return false;
     const approxCol = Math.round((piece.x - origin.x) / PITCH);
     const approxRow = Math.round((piece.y - origin.y) / PITCH);
     const snapX = origin.x + approxCol * PITCH;
     const snapY = origin.y + approxRow * PITCH;
     const distance = Math.hypot(piece.x - snapX, piece.y - snapY);
     if (distance > SNAP_DISTANCE || !this.canPlace(piece, approxRow, approxCol)) return false;
+    piece.scale = 1;
     piece.row = approxRow;
     piece.col = approxCol;
     piece.placed = true;
@@ -780,23 +759,31 @@ export class CalendarPuzzleGame {
     this.syncPieceStyle(piece, invalid);
   }
 
-  private checkWin(): void {
+  private checkWin(celebrate = true): void {
     const required = [...this.validCells.keys()].filter(key => !this.targetKeys.has(key)).length;
     if (this.occupancy.size === required && this.pieces.every(piece => piece.placed)) {
-      this.updateStatus('完成！目标日期被正确空出。');
+      if (!this.won) {
+        this.won = true;
+        this.completedDates = recordCalendarCompletion(this.completedDates, calendarDateKey(this.selectedYear, this.selectedMonth, this.selectedDay));
+        this.saveState();
+        if (celebrate) { this.setSelectedPiece(null); this.mainControls.forEach(control => control.setVisible(false)); this.celebration.show(); }
+      }
+      this.updateStatus(this.copy.won);
     } else {
       this.updateStatus();
     }
   }
 
-  private updateStatus(_message?: string): void {
+  private updateStatus(message?: string): void {
+    const count = this.pieces.filter(piece => piece.placed).length;
+    if (this.statusVisual) this.setText(this.statusVisual, message ?? (this.historyOpen ? this.copy.chooseDate : this.won ? this.copy.won : count ? `${this.copy.progress} ${count} / ${PIECES.length}` : this.copy.help));
   }
 
   private pickPiece(point: Point): PieceState | null {
     const orderedPieces = [...this.pieces].sort((a, b) => b.layer - a.layer);
     for (const piece of orderedPieces) {
       for (const cell of this.orientedCells(piece)) {
-        if (contains({ x: piece.x + cell.x * PITCH, y: piece.y + cell.y * PITCH, width: CELL, height: CELL }, point)) return piece;
+        if (contains({ x: piece.x + cell.x * PITCH * piece.scale, y: piece.y + cell.y * PITCH * piece.scale, width: CELL * piece.scale, height: CELL * piece.scale }, point)) return piece;
       }
     }
     return null;
@@ -817,14 +804,15 @@ export class CalendarPuzzleGame {
 
   private setPiecePosition(piece: PieceState, x: number, y: number): void {
     const bounds = this.pieceBounds(piece);
-    const width = bounds.width * PITCH - GAP;
-    const height = bounds.height * PITCH - GAP;
-    piece.x = Math.max(8, Math.min(CANVAS_W - width - 8, x));
-    piece.y = Math.max(8, Math.min(CANVAS_H - height - 8, y));
+    const width = (bounds.width * PITCH - GAP) * piece.scale;
+    const height = (bounds.height * PITCH - GAP) * piece.scale;
+    piece.x = Math.max(8, Math.min(this.layout.width - width - 8, x));
+    piece.y = Math.max(8, Math.min(this.layout.height - height - 8, y));
     const cells = this.orientedCells(piece);
     for (let i = 0; i < piece.visuals.length; i++) {
       const cell = requiredItemAt(cells, i, 'calendar piece cells');
-      const rect = { x: piece.x + cell.x * PITCH, y: piece.y + cell.y * PITCH, width: CELL, height: CELL };
+      const rect = { x: piece.x + cell.x * PITCH * piece.scale, y: piece.y + cell.y * PITCH * piece.scale, width: CELL * piece.scale, height: CELL * piece.scale };
+      requiredItemAt(piece.visuals, i, 'calendar piece visuals').transform.setScale(piece.scale, 1, piece.scale);
       requiredItemAt(piece.visuals, i, 'calendar piece visuals').transform.setPosition(...this.rectToWorld(rect, this.pieceRenderLayer(piece)));
     }
   }
@@ -900,47 +888,48 @@ export class CalendarPuzzleGame {
       ...style,
     };
     const material = new BasicMaterial({
-      texture: this.drawTextTexture(text, resolvedStyle),
+      texture: this.drawTextTexture(text, resolvedStyle, name),
       blending: 'normal',
       depthWrite: false,
       cullMode: null,
     });
     const entity = new Entity(name);
-    entity.addComponent(new CartesianTransform3D({ position: this.rectToWorld(rect, layer) }));
+    const transform = new CartesianTransform3D({ position: this.rectToWorld(rect, layer) });
+    entity.addComponent(transform);
     entity.addComponent(new Mesh3D(createPlane3D({
       width: rect.width / CANVAS_W * VIEW_W,
       height: rect.height / CANVAS_H * VIEW_H,
       normal: 'y',
     }), material));
     this.world.addEntity(entity);
-    return { material, rect, text, style: resolvedStyle };
+    return { key: name, transform, initialRect: { ...rect }, material, rect, text, style: resolvedStyle };
   }
 
   private setText(visual: TextVisual, text: string): void {
     if (visual.text === text) return;
     visual.text = text;
-    visual.material.texture = this.drawTextTexture(visual.text, visual.style);
+    visual.material.texture = this.drawTextTexture(visual.text, visual.style, visual.key);
   }
 
   private setTextStyle(visual: TextVisual, style: CssMaterialStyle): void {
     visual.style = {
+      ...style,
       width: Math.max(1, Math.floor(visual.rect.width)),
       height: Math.max(1, Math.floor(visual.rect.height)),
       resolutionScale: 2,
-      ...style,
     };
-    visual.material.texture = this.drawTextTexture(visual.text, visual.style);
+    visual.material.texture = this.drawTextTexture(visual.text, visual.style, visual.key);
   }
 
-  private drawTextTexture(text: string, style: CssMaterialStyle): HTMLCanvasElement {
+  private drawTextTexture(text: string, style: CssMaterialStyle, key: string): MaterialTextureSource {
     const width = Math.max(1, Math.floor(style.width ?? 1));
     const height = Math.max(1, Math.floor(style.height ?? 1));
     const dpr = Math.max(1, Math.min(4, style.resolutionScale ?? 2));
-    const canvas = document.createElement('canvas');
+    const canvas = this.platform.createCanvas2D?.(Math.floor(width * dpr), Math.floor(height * dpr)) ?? document.createElement('canvas');
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
     const context = canvas.getContext('2d');
-    if (!context) return canvas;
+    if (!context) throw new Error('Calendar puzzle requires Canvas 2D text rasterization.');
     context.scale(dpr, dpr);
     context.clearRect(0, 0, width, height);
 
@@ -961,7 +950,7 @@ export class CalendarPuzzleGame {
       }
     }
 
-    if (!text) return canvas;
+    if (!text) return this.platform.textureFromCanvas?.(canvas, key) ?? canvas;
     const padding = this.normalizePadding(style.padding ?? 0);
     const contentX = padding[3];
     const contentY = padding[0];
@@ -991,7 +980,7 @@ export class CalendarPuzzleGame {
       context.fillText(line, x, y, contentWidth);
       y += lineHeight;
     }
-    return canvas;
+    return this.platform.textureFromCanvas?.(canvas, key) ?? canvas;
   }
 
   private normalizePadding(padding: CssMaterialStyle['padding']): [number, number, number, number] {
@@ -1016,9 +1005,9 @@ export class CalendarPuzzleGame {
     const centerX = rect.x + rect.width / 2;
     const centerY = rect.y + rect.height / 2;
     return [
-      (centerX / CANVAS_W - 0.5) * VIEW_W,
+      (centerX - this.layout.width / 2) / 100,
       layer,
-      (centerY / CANVAS_H - 0.5) * VIEW_H,
+      (centerY - this.layout.height / 2) / 100,
     ];
   }
 
@@ -1052,18 +1041,18 @@ export class CalendarPuzzleGame {
 
   private cellStyle(target: boolean): CssMaterialStyle {
     return {
-      backgroundColor: target ? '#ecfeff' : '#fff4d5',
-      borderColor: target ? '#0ea5a3' : 'rgba(65,48,24,0.16)',
+      backgroundColor: target ? '#c6efe6' : '#ffffff',
+      borderColor: target ? '#17847b' : '#c9ded4',
       borderWidth: target ? 4 : 2,
       borderRadius: 7,
       padding: 0,
       textAlign: 'center',
       verticalAlign: 'middle',
-      fontSize: 18,
+      fontSize: 24,
       lineHeight: 1,
       fontFamily: 'Arial, Helvetica, sans-serif',
       fontWeight: 900,
-      color: target ? '#0f766e' : 'rgba(38,50,58,0.66)',
+      color: target ? '#0d786b' : '#416259',
     };
   }
 

@@ -21,6 +21,7 @@ export interface CalendarPieceDefinition {
 }
 
 export interface CalendarPieceSaveState {
+  scale?: number;
   rotation: number;
   flipped: boolean;
   layer: number;
@@ -32,6 +33,12 @@ export interface CalendarPieceSaveState {
 }
 
 export interface CalendarPuzzleSaveData {
+  language?: 'zh' | 'en' | 'ja';
+  year?: number;
+  completedDates?: string[];
+  layoutVersion?: number;
+  layoutWidth?: number;
+  layoutHeight?: number;
   month: number;
   day: number;
   weekday: number;
@@ -109,11 +116,15 @@ export function normalizeCalendarCells(cells: readonly CalendarPoint[]): Calenda
 
 export function isCalendarPuzzleSaveData(value: unknown): value is CalendarPuzzleSaveData {
   return isRecord(value)
+    && (value.year === undefined || (isNonNegativeInteger(value.year) && value.year >= 1 && value.year <= 9999 && (value.day as number) <= calendarDaysInMonth(value.year, value.month as number)))
+    && (value.completedDates === undefined || (Array.isArray(value.completedDates) && value.completedDates.every(isCalendarDateKey)))
+    && (value.language === undefined || ['zh','en','ja'].includes(value.language as string))
     && isNonNegativeInteger(value.month) && value.month >= 1 && value.month <= 12
     && isNonNegativeInteger(value.day) && value.day >= 1 && value.day <= 31
     && isNonNegativeInteger(value.weekday) && value.weekday <= 6
     && Array.isArray(value.pieces)
     && value.pieces.every(piece => isRecord(piece)
+      && (piece.scale === undefined || (isFiniteNumber(piece.scale) && piece.scale > 0 && piece.scale <= 1))
       && isNonNegativeInteger(piece.rotation)
       && typeof piece.flipped === 'boolean'
       && isNonNegativeInteger(piece.layer)
@@ -132,4 +143,31 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isNonNegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+/** Gregorian calendar helpers use UTC and explicitly handle years 1–99. */
+export function calendarDaysInMonth(year: number, month: number): number {
+  return month === 2 ? (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+export function calendarWeekday(year: number, month: number, day: number): number {
+  const date = new Date(0); date.setUTCFullYear(year, month - 1, day); date.setUTCHours(12, 0, 0, 0); return date.getUTCDay();
+}
+export function calendarDateKey(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+export function isCalendarDateKey(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number) as [number, number, number];
+  return year >= 1 && year <= 9999 && month >= 1 && month <= 12 && day >= 1 && day <= calendarDaysInMonth(year, month);
+}
+export function calendarMonthCells(year: number, month: number): Array<number | null> {
+  const start = calendarWeekday(year, month, 1), days = calendarDaysInMonth(year, month);
+  return Array.from({ length: 42 }, (_, i) => i >= start && i < start + days ? i - start + 1 : null);
+}
+export function shiftCalendarMonth(year: number, month: number, offset: number) {
+  const index = Math.min(9999 * 12 - 1, Math.max(0, (year - 1) * 12 + month - 1 + offset));
+  return { year: Math.floor(index / 12) + 1, month: index % 12 + 1 };
+}
+export function recordCalendarCompletion(dates: readonly string[], key: string): string[] {
+  return [...new Set([...dates, key].filter(isCalendarDateKey))].sort();
 }
