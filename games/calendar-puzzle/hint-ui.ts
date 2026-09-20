@@ -28,6 +28,8 @@ export class CalendarHintOverlay {
   private readonly surface: CalendarRasterSurface;
   private lastPiece = -1;
   private source: GuiImageSource | undefined;
+  private pulseUntil = 0;
+  get isAnimating(): boolean { return !!this.placement && performance.now() < this.pulseUntil; }
   placement: CalendarPlacement | null = null;
   private cells: Array<{x:number;y:number}> = [];
   constructor(private readonly root: GuiRoot, private readonly layout: () => ReturnType<typeof calendarLayout>, private readonly raster: CalendarRaster) {
@@ -40,6 +42,7 @@ export class CalendarHintOverlay {
     }
   }
   show(p:CalendarPlacement):void {
+    this.pulseUntil = performance.now() + 1200;
     this.placement=p;const piece=CALENDAR_PIECES[p.piece]!;
     this.cells=calendarOrientedCells(piece.cells,p.rotation,p.flipped);
     if (this.lastPiece !== p.piece || !this.source) {
@@ -53,5 +56,5 @@ export class CalendarHintOverlay {
   }
   hide():void {this.placement=null;this.images.forEach(image=>image.setVisible(false));}
   dispose():void {this.hide();this.surface.dispose();this.source=undefined;this.lastPiece=-1;}
-  update(time:number):void {if(this.placement)this.images.forEach(image=>image.setTint(`rgba(255,255,255,${.72+.28*Math.sin(time*.006)**2})`));}
+  update(time:number):void {if(this.placement)this.images.forEach(image=>image.setTint(`rgba(255,255,255,${time < this.pulseUntil ? .72+.28*Math.sin(time*.006)**2 : 1})`));}
 }

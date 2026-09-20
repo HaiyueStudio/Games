@@ -12,6 +12,7 @@ export class CalendarCelebration {
   private startedAt = 0;
   private animating = false;
   visible = false;
+  get isAnimating(): boolean { return this.visible && this.animating; }
   constructor(private readonly options: {
     root: GuiRoot; layout: () => ReturnType<typeof calendarLayout>; language: () => CalendarLanguage;
     canvas: (width: number, height: number) => HTMLCanvasElement;

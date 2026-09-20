@@ -16,6 +16,7 @@ export class CalendarAudio {
   private disposed = false;
   constructor(backend: CalendarAudioBackend) { this.backend = backend; }
   async load(): Promise<void> { await this.backend.load?.(); }
+  get hasPending(): boolean { return this.pending.size > 0; }
   unlock(): void { if (!this.disposed) this.backend.unlock(); }
   cue(id: CalendarSound, now = performance.now()): void {
     if (this.disposed || now - (this.last.get(id) ?? -Infinity) < 65) return;

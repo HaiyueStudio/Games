@@ -106,6 +106,8 @@ function contains(rect: Rect, point: Point): boolean {
 }
 
 export interface CalendarPuzzlePlatform {
+  /** Wake a host-owned demand loop after input or asynchronous state changes. */
+  requestRender?: () => void;
   engine?: HaiyueEngine;
   autoRun?: boolean;
   keyboard?: boolean;
@@ -195,6 +197,7 @@ export class CalendarPuzzleGame {
   private pieces: PieceState[] = [];
   private occupancy = new Map<string, string>();
   private selectedPiece: PieceState | null = null;
+  private selectionPulseUntil = 0;
   private drag: DragState | null = null;
   private readonly pieceGesture = new CalendarPieceGesture();
   private pieceLayerCounter = 0;
@@ -205,6 +208,7 @@ export class CalendarPuzzleGame {
   private selectedDay = this.currentDate.getDate();
   private selectedWeekday = this.currentDate.getDay();
   private readonly keydownHandler = (event: KeyboardEvent): void => {
+    this.platform.requestRender?.();
     const key = event.key.toLowerCase();
     if (key === 'escape') { this.toggleSettings(false); this.closeCelebration(false); this.toggleHistory(false); return; }
     if (this.settingsOpen || this.historyOpen || this.celebration?.visible) return;
@@ -267,6 +271,11 @@ export class CalendarPuzzleGame {
     if (!this.platform.engine) this.engine?.destroy();
   }
   async flushSave(): Promise<void> { await this.saves.flush(); }
+  needsAnimationFrame(): boolean {
+    return !this.disposed && (this.motions.size > 0 || this.celebration?.isAnimating === true
+      || (!!this.selectedPiece && performance.now() < this.selectionPulseUntil)
+      || this.hintOverlay?.isAnimating === true || this.audio.hasPending);
+  }
   snapshot() {
     return { audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
       ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect }])),
@@ -484,8 +493,9 @@ export class CalendarPuzzleGame {
 
   private bindInput(canvas: HTMLCanvasElement): void {
     const listen = (type: string, handler: (event: PointerEvent) => void): void => {
-      canvas.addEventListener(type, handler as EventListener);
-      this.removeInput.push(() => canvas.removeEventListener(type, handler as EventListener));
+      const wake = (event: PointerEvent) => { this.platform.requestRender?.(); handler(event); };
+      canvas.addEventListener(type, wake as EventListener);
+      this.removeInput.push(() => canvas.removeEventListener(type, wake as EventListener));
     };
     listen('pointerdown', (event) => {
       this.audio.unlock();
@@ -583,7 +593,7 @@ export class CalendarPuzzleGame {
 
   private updateSelectionPulse(time: number): void {
     if (!this.selectedPiece) return;
-    const pulse = 0.14 + (Math.sin(time * 0.006) + 1) * 0.13;
+    const pulse = time < this.selectionPulseUntil ? 0.14 + (Math.sin(time * 0.006) + 1) * 0.13 : 0.2;
     this.syncPieceStyle(this.selectedPiece, false, pulse, false);
   }
 
@@ -736,6 +746,7 @@ export class CalendarPuzzleGame {
   }
   private piecePose(piece: PieceState): CalendarPiecePose { return { x: piece.x, y: piece.y, scale: piece.scale, rotation: piece.rotation, flipped: piece.flipped }; }
   private animatePiece(piece: PieceState, from: CalendarPiecePose, duration: number, delay = 0, lift = 0): void {
+    this.platform.requestRender?.();
     this.motions.set(piece, { from, to: this.piecePose(piece), start: performance.now() + delay, duration, lift });
     this.updateMotions();
   }
@@ -781,6 +792,8 @@ export class CalendarPuzzleGame {
   }
 
   private setSelectedPiece(piece: PieceState | null): void {
+    this.selectionPulseUntil = piece ? performance.now() + 900 : 0;
+    this.platform.requestRender?.();
     const previous = this.selectedPiece;
     this.selectedPiece = piece;
     if (previous) this.syncPieceStyle(previous);
@@ -855,6 +868,7 @@ export class CalendarPuzzleGame {
   }
 
   private updateStatus(message?: string): void {
+    this.platform.requestRender?.();
     const count = this.pieces.filter(piece => piece.placed).length;
     if (this.statusVisual) this.setText(this.statusVisual, message ?? (this.hintBusy ? this.copy.solving : this.hintOverlay?.placement ? this.hintCompatible ? this.copy.hintPlace : this.copy.hintAdjust : this.historyOpen ? this.copy.chooseDate : this.won ? this.copy.won : count ? `${this.copy.progress} ${count} / ${PIECES.length}` : this.copy.help));
   }
