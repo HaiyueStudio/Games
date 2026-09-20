@@ -7,7 +7,7 @@ export const CALENDAR_SOLVER_MODEL = { board: CALENDAR_BOARD_CELLS, pieces: CALE
 
 /** Exact cover (Algorithm X / dancing links). Self-contained so web/native workers share it. */
 export function solveCalendarPuzzle(input: CalendarSolveInput, model: typeof CALENDAR_SOLVER_MODEL): CalendarSolveResult {
-  const start = Date.now(); let nodes = 0, limited = false;
+  let nodes = 0, limited = false;
   const result = (status: CalendarSolveResult['status'], solution: CalendarPlacement[] = [], compatible = true): CalendarSolveResult => ({ status, solution, compatible, nodes });
   if (!Number.isInteger(input.month) || input.month < 1 || input.month > 12 || !Number.isInteger(input.day) || input.day < 1 || input.day > 31 || !Number.isInteger(input.weekday) || input.weekday < 0 || input.weekday > 6 || !Array.isArray(input.fixed) || input.fixed.length > model.pieces.length) return result('invalid');
   const blocked = new Set([`m${input.month}`, `d${input.day}`, `w${input.weekday}`]);
@@ -44,7 +44,9 @@ export function solveCalendarPuzzle(input: CalendarSolveInput, model: typeof CAL
     const row = keys.get(key(p.piece, ids as number[])); if (row === undefined) return result('invalid');
     ids.forEach(i => occupied.add(i!)); fixedPieces.add(p.piece); fixedRows.push(row);
   }
-  function search(pinned: number[]): CalendarPlacement[] | null {
+  function search(pinned: number[], budgetMs: number, nodeBudget: number): CalendarPlacement[] | null {
+    const start = Date.now(), firstNode = nodes;
+    limited = false;
     const columns = cells.length + model.pieces.length;
     const size = columns + 1 + candidates.reduce((n, c) => n + c.columns.length, 0);
     const L = new Int32Array(size), R = new Int32Array(size), U = new Int32Array(size), D = new Int32Array(size), C = new Int32Array(size), S = new Int32Array(columns + 1), rowId = new Int32Array(size);
@@ -76,7 +78,7 @@ export function solveCalendarPuzzle(input: CalendarSolveInput, model: typeof CAL
     const chosen = pinned.slice();
     for (const row of pinned) { const first = heads[row]!; let n = first; do { cover(C[n]!); n = R[n]!; } while (n !== first); }
     function visit(): boolean {
-      if (++nodes % 256 === 0 && (nodes > 2_000_000 || Date.now() - start > 5000)) { limited = true; return false; }
+      if (++nodes % 256 === 0 && (nodes - firstNode > nodeBudget || Date.now() - start > budgetMs)) { limited = true; return false; }
       if (R[0] === 0) return true;
       let c = R[0]!; for (let j = R[c]!; j !== 0; j = R[j]!) if (S[j]! < S[c]!) c = j;
       if (S[c] === 0) return false;
@@ -92,11 +94,12 @@ export function solveCalendarPuzzle(input: CalendarSolveInput, model: typeof CAL
     }
     return visit() ? chosen.map(row => candidates[row]!.placement).sort((a,b) => a.piece - b.piece) : null;
   }
-  const solution = search(fixedRows);
+  const solution = search(fixedRows, fixedRows.length ? 1200 : 5000, fixedRows.length ? 400_000 : 2_000_000);
   if (solution) return result('solved', solution);
-  if (limited) return result('limit');
   if (fixedRows.length) {
-    const alternative = search([]);
+    // A difficult partial board must not consume the budget for a fresh
+    // full-date solution. It can still provide a useful correction hint.
+    const alternative = search([], 5000, 2_000_000);
     if (alternative) return result('solved', alternative, false);
   }
   return result(limited ? 'limit' : 'unsolvable');

@@ -1,8 +1,8 @@
 export type CalendarLanguage = 'zh' | 'en' | 'ja';
 const HINT_COPY = {
-  zh: { hint: '提示', solving: '正在寻找可行的拼法…', hintPlace: '将闪烁拼块放入同色轮廓，可旋转或翻转', hintAdjust: '当前摆法无法完成，请调整高亮拼块', hintUnavailable: '暂未找到解，请稍后再试', hintNone: '这个日期暂无可用解' },
-  en: { hint: 'Hint', solving: 'Finding a solution…', hintPlace: 'Match the glowing piece to its outline; rotate or flip', hintAdjust: 'This layout is blocked. Reposition the glowing piece', hintUnavailable: 'No hint yet. Please try again', hintNone: 'No solution for this date' },
-  ja: { hint: 'ヒント', solving: '解き方を探しています…', hintPlace: '光るピースを同じ色の枠へ。回転・反転もできます', hintAdjust: '今の配置では完成できません。光るピースを移動', hintUnavailable: 'ヒントを取得できません。もう一度お試しください', hintNone: 'この日付の解が見つかりません' },
+  zh: { hint: '提示', solving: '正在寻找可行的拼法…', hintPlace: '将闪烁拼块放入同色轮廓，可旋转或翻转', hintAdjust: '参考另一种拼法，请调整高亮拼块', hintUnavailable: '暂未找到解，请稍后再试', hintNone: '这个日期暂无可用解' },
+  en: { hint: 'Hint', solving: 'Finding a solution…', hintPlace: 'Match the glowing piece to its outline; rotate or flip', hintAdjust: 'Try this solution. Reposition the glowing piece', hintUnavailable: 'No hint yet. Please try again', hintNone: 'No solution for this date' },
+  ja: { hint: 'ヒント', solving: '解き方を探しています…', hintPlace: '光るピースを同じ色の枠へ。回転・反転もできます', hintAdjust: '別の解き方です。光るピースを移動', hintUnavailable: 'ヒントを取得できません。もう一度お試しください', hintNone: 'この日付の解が見つかりません' },
 } as const;
 const BASE_COPY = {
   zh: { calendar: '万年历', history: '通关记录', cleared: '已通关', chooseDate: '选择日期，开始新的挑战', back: '返回拼图', viewHistory: '查看记录', continue: '继续', recorded: '这一天已点亮！', total: '累计通关', title: '日历拼图', tray: '拼图块', help: '空出所选月份、日期和星期', rotate: '旋转', flip: '翻转', reset: '打乱', settings: '设置', month: '月份', day: '日期', weekday: '星期', language: '语言', today: '今天', done: '完成', won: '拼图完成！', progress: '已放置', months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], weekdays: ['周日','周一','周二','周三','周四','周五','周六'] },

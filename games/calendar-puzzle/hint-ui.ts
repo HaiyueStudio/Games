@@ -3,6 +3,7 @@ import { CALENDAR_PIECES } from './model';
 import { calendarOrientedCells } from './tray';
 import type { CalendarPlacement } from './solver';
 import { calendarLayout } from './viewport';
+import { CalendarRasterSurface } from './raster-surface';
 export type CalendarIcon = 'rotate' | 'flip' | 'shuffle' | 'hint';
 export interface CalendarRaster {
   canvas: (w: number, h: number) => HTMLCanvasElement;
@@ -24,9 +25,13 @@ export function calendarIconSource(name: CalendarIcon, raster: CalendarRaster): 
 }
 export class CalendarHintOverlay {
   private readonly images: GuiImage[] = [];
+  private readonly surface: CalendarRasterSurface;
+  private lastPiece = -1;
+  private source: GuiImageSource | undefined;
   placement: CalendarPlacement | null = null;
   private cells: Array<{x:number;y:number}> = [];
   constructor(private readonly root: GuiRoot, private readonly layout: () => ReturnType<typeof calendarLayout>, private readonly raster: CalendarRaster) {
+    this.surface = new CalendarRasterSurface(raster.canvas, !!raster.texture);
     for(let i=0;i<5;i++) {
       const image=new GuiImage({disabled:true,visible:false});
       image.layout=()=>{const board=layout().board,c=this.cells[i]??{x:0,y:0},p=this.placement;
@@ -37,12 +42,16 @@ export class CalendarHintOverlay {
   show(p:CalendarPlacement):void {
     this.placement=p;const piece=CALENDAR_PIECES[p.piece]!;
     this.cells=calendarOrientedCells(piece.cells,p.rotation,p.flipped);
-    const canvas=this.raster.canvas(128,128);canvas.width=128;canvas.height=128;const c=canvas.getContext('2d')!;
+    if (this.lastPiece !== p.piece || !this.source) {
+    const canvas=this.surface.acquire(128,128);const c=canvas.getContext('2d')!;
     c.scale(2,2);c.fillStyle=piece.color;c.globalAlpha=.16;c.fillRect(2,2,60,60);c.globalAlpha=1;c.strokeStyle=piece.color;c.lineWidth=5;c.lineCap='round';
     for(const [x,y,sx,sy] of [[4,4,1,1],[60,4,-1,1],[4,60,1,-1],[60,60,-1,-1]]){c.beginPath();c.moveTo(x!+sx!*16,y!);c.lineTo(x!,y!);c.lineTo(x!,y!+sy!*16);c.stroke();}
-    const source=(this.raster.texture?.(canvas,'calendar-hint-target')??canvas) as GuiImageSource;
-    this.images.forEach((image,i)=>{image.setSource(source);image.setVisible(i<this.cells.length);});this.root.root.markDirty();
+    this.source=(this.raster.texture?.(canvas,'calendar-hint-target')??canvas) as GuiImageSource;
+    this.lastPiece=p.piece;
+    }
+    this.images.forEach((image,i)=>{image.setSource(this.source!);image.setVisible(i<this.cells.length);});this.root.root.markDirty();
   }
   hide():void {this.placement=null;this.images.forEach(image=>image.setVisible(false));}
+  dispose():void {this.hide();this.surface.dispose();this.source=undefined;this.lastPiece=-1;}
   update(time:number):void {if(this.placement)this.images.forEach(image=>image.setTint(`rgba(255,255,255,${.72+.28*Math.sin(time*.006)**2})`));}
 }

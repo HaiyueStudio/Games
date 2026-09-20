@@ -38,13 +38,49 @@ test('incompatible legal position returns a complete alternative instead of a co
  }
  assert.ok(found);
 });
-test('worker cancellation and request IDs prevent stale hints',async()=>{
- const workers=[];const client=new CalendarSolverClient(()=>{const w={onmessage:null,onerror:null,postMessage(d){this.message=d;},terminate(){this.terminated=true;}};workers.push(w);return w;});
- const first=client.solve(input),second=client.solve(input);assert.equal(await first,null);assert.equal(workers[0].terminated,true);
- const w=workers[1],result=solve(input,model);
- w.onmessage({data:{kind:'calendar-solution',id:-1,result}});assert.ok(w.onmessage);
- w.onmessage({data:{kind:'calendar-solution',id:w.message.id,result}});assert.equal(await second,result);assert.equal(w.terminated,true);
- const third=client.solve(input);client.cancel();assert.equal(await third,null);
+test('partial-search time limit still permits a complete fallback solution',()=>{
+ const difficult={month:1,day:8,weekday:0,fixed:[{piece:0,row:1,col:0,rotation:0,flipped:false}]};
+ const now=Date.now;let calls=0;
+ // Expire only the partial-search budget, then let the fallback clock advance normally.
+ Date.now=()=>++calls===1?0:6000;
+ let result;try{result=solve(difficult,model);}finally{Date.now=now;}
+ verify(difficult,result);assert.equal(result.compatible,false);assert.ok(calls>=3);
+});
+function clientFixture() {
+ const workers=[];
+ const client=new CalendarSolverClient(()=>{
+  const w={onmessage:null,onerror:null,messages:[],postMessage(d){this.messages.push(d);},terminate(){this.terminated=true;}};
+  workers.push(w);return w;
+ });
+ const reply=(w,result,id=w.messages.at(-1).id)=>w.onmessage({data:{kind:'calendar-solution',id,result}});
+ return {client,workers,reply};
+}
+test('repeated hints reuse one worker; cancelling drops stale results and bounds the queue',async()=>{
+ const {client,workers,reply}=clientFixture(),result=solve(input,model);
+ const first=client.solve(input),second=client.solve(input),third=client.solve(input);
+ assert.equal(await first,null);assert.equal(await second,null);
+ const w=workers[0];assert.equal(workers.length,1);assert.equal(w.messages.length,1);assert.ok(!w.terminated);
+ reply(w,result,-1);assert.equal(w.messages.length,1);
+ reply(w,result);assert.equal(w.messages.length,2);assert.equal(w.messages[1].id,3);
+ reply(w,result,1); // stale response cannot finish the latest request
+ reply(w,result);assert.equal(await third,result);
+ for(let i=0;i<20;i++){const request=client.solve(input);reply(w,result);assert.equal(await request,result);}
+ assert.equal(workers.length,1);assert.ok(!w.terminated);
+ const cancelled=client.solve(input);client.cancel();assert.equal(await cancelled,null);
+ reply(w,result);assert.ok(!w.terminated);
+ client.dispose();assert.equal(w.terminated,true);assert.equal(w.onmessage,null);
+ assert.equal(await client.solve(input),null);assert.equal(workers.length,1);
+});
+test('worker error and timeout recover for the newest request without retaining old callbacks',async(t)=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {client,workers,reply}=clientFixture(),result=solve(input,model);
+ const first=client.solve(input);const rejected=assert.rejects(first,/worker failed/);
+ workers[0].onerror(new Error('worker failed'));await rejected;assert.equal(workers[0].terminated,true);
+ const slow=client.solve(input);const next=client.solve(input);assert.equal(await slow,null);
+ t.mock.timers.tick(8000);assert.equal(workers[1].terminated,true);assert.equal(workers.length,3);
+ reply(workers[2],result);assert.equal(await next,result);
+ const active=client.solve(input),waiting=client.solve(input);client.dispose();
+ assert.equal(await active,null);assert.equal(await waiting,null);assert.equal(workers[2].terminated,true);
 });
 test('rotation, flip and shuffle end exactly at logical tile positions',()=>{
  const rounded=cells=>cells.map(c=>`${Math.round(c.x*1e6)},${Math.round(c.y*1e6)}`).sort();

@@ -18,6 +18,8 @@ import type { GameSaveBackend } from '@haiyue/engine/save';
 import { calendarLayout, calendarViewport, calendarPointer } from './viewport';
 import { calendarTray, calendarOrientedCells } from './tray';
 import { CalendarSolverClient, type CalendarSolverWorker } from './solver-client';
+import { CalendarPieceGesture } from './piece-gesture';
+import { CalendarRasterSurface } from './raster-surface';
 import { type CalendarPlacement } from './solver';
 import { CalendarHintOverlay, calendarIconSource } from './hint-ui';
 import { calendarMotionCells, type CalendarPiecePose } from './motion';
@@ -84,16 +86,8 @@ interface DragState {
   pointerId: number;
   offsetX: number;
   offsetY: number;
-  startX: number;
-  startY: number;
+  started: boolean;
   original: { x: number; y: number; scale: number; placed: boolean; row: number; col: number };
-}
-
-interface LastPieceClick {
-  piece: PieceState;
-  time: number;
-  x: number;
-  y: number;
 }
 
 const CANVAS_W = 1200;
@@ -169,6 +163,7 @@ export class CalendarPuzzleGame {
   private shuffleSeed = 20260919;
   private readonly audio: CalendarAudio;
   private readonly solver: CalendarSolverClient;
+  private readonly textSurface: CalendarRasterSurface;
   private hintOverlay!: CalendarHintOverlay;
   private hintBusy = false;
   private hintRevision = 0;
@@ -184,6 +179,7 @@ export class CalendarPuzzleGame {
     this.audio.update();
   };
   constructor(private readonly platform: CalendarPuzzlePlatform = {}) {
+    this.textSurface = new CalendarRasterSurface((w, h) => platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), !!platform.textureFromCanvas);
     this.audio = new CalendarAudio(platform.audioBackend ?? new CalendarBrowserAudio());
     this.solver = new CalendarSolverClient(platform.createSolverWorker);
     this.saves = new SingleSlotGameSave<CalendarPuzzleSaveData>({
@@ -200,7 +196,7 @@ export class CalendarPuzzleGame {
   private occupancy = new Map<string, string>();
   private selectedPiece: PieceState | null = null;
   private drag: DragState | null = null;
-  private lastPieceClick: LastPieceClick | null = null;
+  private readonly pieceGesture = new CalendarPieceGesture();
   private pieceLayerCounter = 0;
   private targetKeys = new Set<string>();
   private currentDate = new Date();
@@ -262,7 +258,9 @@ export class CalendarPuzzleGame {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.cancelInteraction(); this.cancelHint(); this.finishMotions(); this.audio.dispose();
+    this.cancelInteraction(); this.cancelHint(); this.solver.dispose(); this.finishMotions(); this.audio.dispose();
+    this.textSurface.dispose();
+    this.hintOverlay?.dispose();
     for (const remove of this.removeInput.splice(0)) remove();
     this.engine?.off('update', this.updateFrame);
     this.world?.destroy();
@@ -281,7 +279,7 @@ export class CalendarPuzzleGame {
   cancelInteraction(): void {
     const drag = this.drag;
     this.drag = null;
-    this.lastPieceClick = null;
+    this.pieceGesture.cancel();
     if (!drag) return;
     this.engine.canvas?.releasePointerCapture?.(drag.pointerId);
     Object.assign(drag.piece, drag.original);
@@ -492,11 +490,12 @@ export class CalendarPuzzleGame {
     listen('pointerdown', (event) => {
       this.audio.unlock();
       if (this.drag || this.motions.size) return;
-      if (this.isGuiPointerEvent(event)) return;
+      if (this.isGuiPointerEvent(event)) { this.pieceGesture.cancel(); return; }
       const point = this.canvasPoint(event);
 
       const piece = this.pickPiece(point);
       if (!piece) {
+        this.pieceGesture.cancel();
         this.setSelectedPiece(null);
         return;
       }
@@ -506,16 +505,13 @@ export class CalendarPuzzleGame {
       this.bringPieceToFront(piece);
       const original = { x: piece.x, y: piece.y, scale: piece.scale, placed: piece.placed, row: piece.row, col: piece.col };
       const offsetX = (point.x - piece.x) / piece.scale, offsetY = (point.y - piece.y) / piece.scale;
-      this.clearPieceOccupancy(piece);
-      piece.scale = 1;
-      this.setPiecePosition(piece, point.x - offsetX, point.y - offsetY);
+      this.pieceGesture.begin(piece.def.id, { clientX: event.clientX, clientY: event.clientY }, performance.now(), event.pointerType || 'mouse');
       this.drag = {
         original,
         piece,
         pointerId: event.pointerId,
         offsetX, offsetY,
-        startX: point.x,
-        startY: point.y,
+        started: false,
       };
       // Synthetic pointer events are used when this game is embedded in PadOS.
       // They are not eligible for native pointer capture, but PadOS already
@@ -525,24 +521,22 @@ export class CalendarPuzzleGame {
 
     listen('pointermove', (event) => {
       if (!this.drag || event.pointerId !== this.drag.pointerId) return;
-      const point = this.canvasPoint(event);
-      this.setPiecePosition(this.drag.piece, point.x - this.drag.offsetX, point.y - this.drag.offsetY);
-      this.previewDrop(this.drag.piece);
+      if (this.pieceGesture.move(event)) this.moveDraggedPiece(this.drag, this.canvasPoint(event));
     });
 
     const release = (event: PointerEvent) => {
-      if (!this.drag || event.pointerId !== this.drag.pointerId) return;
-      const point = this.canvasPoint(event);
-      const piece = this.drag.piece;
-      const original = this.drag.original;
-      const moved = Math.hypot(point.x - this.drag.startX, point.y - this.drag.startY);
+      const drag = this.drag;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const action = this.pieceGesture.end(event, performance.now());
+      const piece = drag.piece;
+      if (action === 'drag') this.moveDraggedPiece(drag, this.canvasPoint(event));
       this.drag = null;
       if (event.isTrusted && canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-      if (moved <= 6) {
-        Object.assign(piece, original);
-        if (piece.placed) this.occupyPiece(piece);
-        this.setPiecePosition(piece, original.x, original.y); this.syncPieceStyle(piece);
-        this.handlePieceClick(piece, point); this.saveState(); return;
+      if (action !== 'drag') {
+        // A tap keeps the tray scale and board occupancy intact throughout both presses.
+        if (action === 'double-tap') this.rotateSelected();
+        this.saveState();
+        return;
       }
       this.audio.cue('place');
       if (!this.snapPiece(piece)) {
@@ -577,25 +571,20 @@ export class CalendarPuzzleGame {
     return this.mainControls.some(control => control.visible && contains(control.rect, point));
   }
 
-  private handlePieceClick(piece: PieceState, point: Point): void {
-    const now = performance.now();
-    const last = this.lastPieceClick;
-    const doubleClick = !!last &&
-      last.piece === piece &&
-      now - last.time <= 320 &&
-      Math.hypot(point.x - last.x, point.y - last.y) <= 14;
-    if (doubleClick) {
-      this.lastPieceClick = null;
-      this.rotateSelected();
-      return;
+  private moveDraggedPiece(drag: DragState, point: Point): void {
+    if (!drag.started) {
+      drag.started = true;
+      this.clearPieceOccupancy(drag.piece);
+      drag.piece.scale = 1;
     }
-    this.lastPieceClick = { piece, time: now, x: point.x, y: point.y };
+    this.setPiecePosition(drag.piece, point.x - drag.offsetX, point.y - drag.offsetY);
+    this.previewDrop(drag.piece);
   }
 
   private updateSelectionPulse(time: number): void {
     if (!this.selectedPiece) return;
     const pulse = 0.14 + (Math.sin(time * 0.006) + 1) * 0.13;
-    this.syncPieceStyle(this.selectedPiece, false, pulse);
+    this.syncPieceStyle(this.selectedPiece, false, pulse, false);
   }
 
   private boardOrigin(): Point {
@@ -732,7 +721,7 @@ export class CalendarPuzzleGame {
   private rotateSelected(): void { this.transformSelected(false); }
   private flipSelected(): void { this.transformSelected(true); }
   private transformSelected(flip: boolean): void {
-    this.lastPieceClick = null;
+    this.pieceGesture.cancel();
     const piece = this.selectedPiece;
     if (!piece || this.settingsOpen || this.historyOpen || this.motions.size) return;
     this.audio.cue(flip ? 'flip' : 'rotate');
@@ -937,19 +926,19 @@ export class CalendarPuzzleGame {
     return 0.32 + piece.layer * 0.004 + (piece === this.selectedPiece ? 0.04 : 0);
   }
 
-  private syncPieceStyle(piece: PieceState, invalid = false, pulse = 0.12): void {
+  private syncPieceStyle(piece: PieceState, invalid = false, pulse = 0.12, updatePosition = true): void {
     const selected = piece === this.selectedPiece;
     const color = invalid ? '#ef8d79' : selected ? this.lightenHex(piece.def.color, pulse) : piece.def.color;
     const styleKey = `${color}_${selected ? 1 : 0}_${invalid ? 1 : 0}`;
     if (piece.styleKey === styleKey) {
-      this.setPiecePosition(piece, piece.x, piece.y);
+      if (updatePosition) this.setPiecePosition(piece, piece.x, piece.y);
       return;
     }
     piece.styleKey = styleKey;
     for (const visual of piece.visuals) {
       visual.material.color = ColorSRGB.fromHex(color);
     }
-    this.setPiecePosition(piece, piece.x, piece.y);
+    if (updatePosition) this.setPiecePosition(piece, piece.x, piece.y);
   }
 
   private createTile(piece: PieceState): TileVisual {
@@ -1016,9 +1005,7 @@ export class CalendarPuzzleGame {
     const width = Math.max(1, Math.floor(style.width ?? 1));
     const height = Math.max(1, Math.floor(style.height ?? 1));
     const dpr = Math.max(1, Math.min(4, style.resolutionScale ?? 2));
-    const canvas = this.platform.createCanvas2D?.(Math.floor(width * dpr), Math.floor(height * dpr)) ?? document.createElement('canvas');
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(height * dpr);
+    const canvas = this.textSurface.acquire(Math.floor(width * dpr), Math.floor(height * dpr));
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Calendar puzzle requires Canvas 2D text rasterization.');
     context.scale(dpr, dpr);
