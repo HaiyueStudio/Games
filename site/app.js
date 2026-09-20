@@ -21,6 +21,7 @@ const gameDetails = {
   'sokoban-3d': { genre: 'puzzle', description: 'Push every crate into place in a dimensional warehouse.', mark: '⬡' },
   'spider-solitaire': { genre: 'cards', description: 'Build descending runs and complete all eight suits.', mark: '♠' },
   sudoku: { genre: 'puzzle', description: 'A clean number puzzle with notes, checks, and saved progress.', mark: '9' },
+  'led-sudoku': { genre: 'puzzle', description: 'Read partial LED segments, narrow the candidates, and combine diagonal, killer, missing-cell and consecutive rules.', mark: 'LED' },
   tetris: { genre: 'arcade', description: 'Stack falling pieces, clear lines, and keep the board alive.', mark: '▥' },
   'wfc-map': { genre: 'procedural', description: 'Watch wave function collapse assemble a fresh tiled world.', mark: '⌘' },
 };

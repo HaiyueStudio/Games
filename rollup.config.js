@@ -38,7 +38,13 @@ const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
       sourcemap: true,
       inlineDynamicImports: true,
     },
-    plugins: haiyuePlugins({ declaration: false, tsconfig: './tsconfig.rollup.json' }),
+    plugins: haiyuePlugins({ declaration: false, tsconfig: entry.id === 'led-sudoku' ? './games/led-sudoku/tsconfig.rollup.json' : './tsconfig.rollup.json' }),
   }));
+
+if (games.some(entry => entry.id === 'led-sudoku')) configs.push({
+  input: 'games/led-sudoku/generator.worker.ts',
+  output: { file: 'games/led-sudoku/generator.worker.js', format: 'iife', name: 'LedSudokuGenerator', sourcemap: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/led-sudoku/tsconfig.worker.json' }),
+});
 
 export default configs;

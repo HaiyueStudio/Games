@@ -4,7 +4,7 @@ import { calendarOrientedCells } from './tray';
 import type { CalendarPlacement } from './solver';
 import { calendarLayout } from './viewport';
 import { CalendarRasterSurface } from './raster-surface';
-export type CalendarIcon = 'rotate' | 'flip' | 'shuffle' | 'hint';
+export type CalendarIcon = 'rotate' | 'flip' | 'shuffle' | 'hint' | 'settings';
 export interface CalendarRaster {
   canvas: (w: number, h: number) => HTMLCanvasElement;
   texture: ((canvas: HTMLCanvasElement, key: string) => unknown) | undefined;
@@ -13,6 +13,12 @@ export function calendarIconSource(name: CalendarIcon, raster: CalendarRaster): 
   const canvas = raster.canvas(128,128); canvas.width=128; canvas.height=128;
   const c = canvas.getContext('2d')!; c.scale(2,2); c.strokeStyle='#17847b'; c.fillStyle='#17847b'; c.lineWidth=3.6; c.lineCap='round'; c.lineJoin='round';
   const path=(points:number[][])=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x!,y!):c.moveTo(x!,y!));c.stroke();};
+  if(name==='settings') {
+    // Draw inside a padded texture, independent of Android font glyph bearings.
+    c.beginPath();
+    for(let i=0;i<64;i++) { const angle=i*Math.PI/32-Math.PI/2,r=[20,20,25,25,25,25,20,20][i%8]!; const x=32+Math.cos(angle)*r,y=32+Math.sin(angle)*r; if(i)c.lineTo(x,y);else c.moveTo(x,y); }
+    c.closePath();c.stroke();c.beginPath();c.arc(32,32,8,0,Math.PI*2);c.stroke();
+  }
   if(name==='rotate') {
     // Counterclockwise arc ends on a horizontal tangent; use a single, balanced arrowhead.
     c.beginPath(); c.arc(33,34,18,Math.PI*.9,-Math.PI/2,true); c.stroke();

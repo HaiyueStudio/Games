@@ -40,3 +40,21 @@ test('Calendar puzzle save validation checks dates and piece state', () => {
   assert.equal(isCalendarPuzzleSaveData({ ...save, month: 13 }), false);
   assert.equal(isCalendarPuzzleSaveData({ ...save, pieces: [{ ...piece, x: Number.NaN }] }), false);
 });
+
+test('all six language choices survive save validation without losing progress', async () => {
+  const { CALENDAR_LANGUAGES } = await import('../calendar-puzzle/model.ts');
+  const { CALENDAR_COPY, CALENDAR_GLYPHS } = await import('../calendar-puzzle/locale.ts');
+  const save = { year: 2026, month: 9, day: 20, weekday: 0, completedDates: ['2026-09-19'], starredDates: ['2026-09-19'], pieces: [] };
+  assert.deepEqual(CALENDAR_LANGUAGES.map(option => option.value), ['zh', 'en', 'ja', 'fr', 'de', 'es']);
+  for (const { value } of CALENDAR_LANGUAGES) {
+    assert.equal(isCalendarPuzzleSaveData({ ...save, language: value }), true);
+    const copy = CALENDAR_COPY[value];
+    assert.deepEqual(Object.keys(copy).sort(), Object.keys(CALENDAR_COPY.en).sort());
+    assert.equal(copy.months.length, 12); assert.equal(copy.weekdays.length, 7);
+    for (const text of Object.values(copy).flat()) {
+      assert.ok(text.length > 0);
+      for (const glyph of text) assert.ok(CALENDAR_GLYPHS.includes(glyph), `missing ${glyph} for ${value}`);
+    }
+  }
+  assert.equal(isCalendarPuzzleSaveData({ ...save, language: 'invalid' }), false);
+});

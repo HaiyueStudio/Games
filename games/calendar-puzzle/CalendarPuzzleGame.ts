@@ -1,3 +1,5 @@
+import { CalendarRewardView, REWARD_COPY, REWARD_GLYPHS } from './reward-ui';
+import type { CalendarRewards } from './rewards';
 import { CalendarPurchaseView, PURCHASE_COPY, PURCHASE_GLYPHS } from './purchase-ui';
 import { canPlayCalendarDate, type CalendarPurchases } from './purchases';
 import { CalendarAudio, type CalendarAudioBackend } from './audio/CalendarAudio';
@@ -33,6 +35,7 @@ import { CALENDAR_COPY, CALENDAR_GLYPHS, type CalendarLanguage } from './locale'
 import { requiredItemAt } from '../arrayAccess';
 import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
 import {
+  CALENDAR_LANGUAGES,
   CALENDAR_BOARD_CELLS as BOARD_CELLS,
   CALENDAR_PIECES as PIECES,
   calendarCellKey as cellKey,
@@ -109,6 +112,7 @@ function contains(rect: Rect, point: Point): boolean {
 
 export interface CalendarPuzzlePlatform {
   purchases?: CalendarPurchases;
+  rewards?: CalendarRewards;
   /** Wake a host-owned demand loop after input or asynchronous state changes. */
   requestRender?: () => void;
   engine?: HaiyueEngine;
@@ -160,7 +164,10 @@ export class CalendarPuzzleGame {
   private readonly textLayouts = new Map<TextVisual, () => Rect>();
   private language: CalendarLanguage = 'zh';
   private settingsOpen = false;
+  private languageSelect?: GuiSelect<CalendarLanguage>;
   private purchaseView?: CalendarPurchaseView;
+  private rewardView?: CalendarRewardView;
+  private hintBadge?: GuiLabel;
   private guiRoot!: CalendarGuiRoot;
   private readonly mainControls: GuiElement[] = [];
   private readonly settingControls: GuiElement[] = [];
@@ -214,8 +221,8 @@ export class CalendarPuzzleGame {
   private readonly keydownHandler = (event: KeyboardEvent): void => {
     this.platform.requestRender?.();
     const key = event.key.toLowerCase();
-    if (key === 'escape') { this.togglePurchase(false); this.toggleSettings(false); this.closeCelebration(false); this.toggleHistory(false); return; }
-    if (this.purchaseView?.visible || this.settingsOpen || this.historyOpen || this.celebration?.visible) return;
+    if (key === 'escape') { if (this.platform.rewards?.snapshot().busy) return; this.toggleRewards(false); this.togglePurchase(false); this.toggleSettings(false); this.closeCelebration(false); this.toggleHistory(false); return; }
+    if (this.rewardView?.visible || this.purchaseView?.visible || this.settingsOpen || this.historyOpen || this.celebration?.visible) return;
     if (key === 'r') {
       event.preventDefault();
       this.rotateSelected();
@@ -264,11 +271,14 @@ export class CalendarPuzzleGame {
           if (!this.canPlayDate()) this.togglePurchase(true);
         }
         entitled = next;
+        this.platform.rewards?.refresh();
         this.purchaseView?.refresh(); this.platform.requestRender?.();
       }));
       if (!this.canPlayDate()) this.togglePurchase(true);
     }
 
+    if (this.platform.rewards) this.removeInput.push(this.platform.rewards.subscribe(() => this.refreshRewards()));
+    this.refreshRewards();
     this.engine.switchScene(this.scene);
     this.resizeView();
     this.engine.on('update', this.updateFrame);
@@ -295,8 +305,8 @@ export class CalendarPuzzleGame {
       || this.hintOverlay?.isAnimating === true || this.audio.hasPending);
   }
   snapshot() {
-    return { purchases: this.platform.purchases?.snapshot(), purchaseOpen: this.purchaseView?.visible ?? false, audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
-      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect }])),
+    return { solver: this.solver.snapshot(), rewards: this.platform.rewards?.snapshot(), rewardOpen: this.rewardView?.visible ?? false, languageMenu: this.languageSelect ? { open: this.languageSelect.open, popup: this.languageSelect.popupRect, optionHeight: this.languageSelect.optionHeight, scrollY: this.languageSelect.scrollY, values: this.languageSelect.options.map(option => option.value) } : null, purchases: this.platform.purchases?.snapshot(), purchaseOpen: this.purchaseView?.visible ?? false, audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
+      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect, hovered: value.hovered, pressed: value.pressed, focused: value.focused }])),
       month: this.selectedMonth, day: this.selectedDay, weekday: this.selectedWeekday,
       dragging: !!this.drag, placed: this.pieces.filter(piece => piece.placed).length,
       occupied: this.occupancy.size, pieces: this.pieces.map(piece => ({ id: piece.def.id,
@@ -376,7 +386,7 @@ export class CalendarPuzzleGame {
   private buildStaticUI(): void {
     this.responsiveText('Background', '', () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }),
       { backgroundColor: '#f4f8f5', borderWidth: 0, resolutionScale: 1 }, 0.01);
-    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width - 286, height: 56 }), this.labelStyle(40, '#183c3b', 800, 'left'), 0.2);
+    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width - 324, height: 56 }), this.labelStyle(40, '#183c3b', 800, 'left'), 0.2);
     this.statusVisual = this.responsiveText('Subtitle', this.copy.help, () => ({ x: this.layout.edge, y: this.layout.height - 64, width: this.layout.tray.width, height: 34 }), this.labelStyle(19, '#52716a', 500, 'left'), 0.2);
     this.responsiveText('BoardBack', '', () => ({ x: this.layout.board.x - 14, y: this.layout.board.y - 14, width: 536, height: 610 }), this.cardStyle(CALENDAR_STYLE.panel.background, CALENDAR_STYLE.panel.border, CALENDAR_STYLE.panel.radius / 2), 0.05);
   }
@@ -436,15 +446,25 @@ export class CalendarPuzzleGame {
       element.layout = () => { element.rect = rect(); element.setFontSize(size * this.layout.scale); };
       this.localized.push(() => element.setText(caption()));
     };
-    button('settings', () => '⚙', () => ({ x: this.layout.width - this.layout.edge - 56, y: 12, width: 56, height: 56 }), () => this.toggleSettings(true));
+    const settingsRect = () => ({ x: this.layout.width - this.layout.edge - 56, y: 12, width: 56, height: 56 });
+    button('settings', () => '', settingsRect, () => this.toggleSettings(true));
     const raster = { canvas: (w: number, h: number) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas };
+    place('settingsIcon', new GuiImage({ source: calendarIconSource('settings', raster), disabled: true }), () => ({ x: settingsRect().x + 8, y: settingsRect().y + 8, width: 40, height: 40 }));
     for (const [index, id, action] of [
       [0, 'rotate', () => this.rotateSelected()], [1, 'flip', () => this.flipSelected()],
-      [2, 'shuffle', () => this.resetPieces(true)], [3, 'hint', () => { void this.requestHint(); }],
+      [2, 'hint', () => { void this.requestHint(); }], [3, 'shuffle', () => this.resetPieces(true)],
     ] as const) {
-      const rect = () => ({ x: this.layout.tray.x + this.layout.tray.width - 266 + index * 70, y: 24, width: 56, height: 56 });
+      const rect = () => ({ x: this.layout.tray.x + this.layout.tray.width - 304 + index * 70 + (id === 'shuffle' ? 38 : 0), y: 24, width: 56, height: 56 });
       button(id, () => '', rect, action);
       place(id + 'Icon', new GuiImage({ source: calendarIconSource(id, raster), disabled: true }), () => ({ x: rect().x + 8, y: rect().y + 8, width: 40, height: 40 }));
+    }
+    place('shuffleDivider', new GuiElement({ disabled: true, style: { backgroundColor: '#b7d6c8', radius: 0 } }),
+      () => ({ x: this.layout.tray.x + this.layout.tray.width - 83, y: 36, width: 2, height: 32 }));
+    if (this.platform.rewards) {
+      this.hintBadge = place('hintCount', new GuiLabel({text:'',textAlign:'center',disabled:true,style:{color:'#17847b',backgroundColor:'#ffffff',radius:9}}),
+        () => ({x:this.layout.tray.x+this.layout.tray.width-122,y:64,width:28,height:20}));
+      const badgeLayout = this.hintBadge.layout;
+      this.hintBadge.layout = r => {badgeLayout(r);this.hintBadge!.setFontSize(15*this.layout.scale);};
     }
     this.hintOverlay = new CalendarHintOverlay(root, () => this.layout, raster);
     button('calendar', () => `${this.copy.calendar} · ${this.selectedYear}/${this.selectedMonth}/${this.selectedDay}`, () => ({ x: this.layout.board.x, y: 12, width: this.layout.board.width - 76, height: 56 }), () => this.toggleHistory(!this.historyOpen));
@@ -453,11 +473,13 @@ export class CalendarPuzzleGame {
     place('panel', new GuiElement({ style: { backgroundColor: '#f8fcf9', radius: 22 } }), panel, true);
     label('settingsTitle', () => this.copy.settings, () => ({ x: panel().x + 38, y: panel().y + 24, width: 600, height: 52 }), 34);
     label('languageLabel', () => this.copy.language, () => ({ x: panel().x + 38, y: panel().y + 106, width: 600, height: 36 }));
-    for (const [index, lang, caption] of [[0,'zh','中文'],[1,'en','English'],[2,'ja','日本語']] as const) {
-      const control = button(lang, () => caption, () => ({ x: panel().x + 38 + index * 237, y: panel().y + 158, width: 218, height: 66 }), () => this.setLanguage(lang), true);
-      this.localized.push(() => control.setStyle({ backgroundColor: this.language === lang ? '#c9ebe0' : '#ffffff', borderColor: this.language === lang ? '#17847b' : '#b7d6c8' }));
-    }
-    if (this.platform.purchases) button('settingsPurchases', () => PURCHASE_COPY[this.language].title, () => ({ x: panel().x + 38, y: panel().y + 240, width: 692, height: 54 }), () => this.togglePurchase(true), true);
+    const languageSelect = this.languageSelect = place('languageSelect', new GuiSelect<CalendarLanguage>({
+      value: this.language, options: CALENDAR_LANGUAGES.map(option => ({ ...option })),
+      optionHeight: 56, maxVisibleOptions: 6, onChange: language => this.setLanguage(language),
+    }), () => ({ x: panel().x + 38, y: panel().y + 140, width: 692, height: 64 }), true);
+    this.localized.push(() => languageSelect.setValue(this.language));
+    if (this.platform.purchases) button('settingsPurchases', () => PURCHASE_COPY[this.language].title, () => ({ x: panel().x + 38, y: panel().y + 240, width: this.platform.rewards ? 334 : 692, height: 54 }), () => this.togglePurchase(true), true);
+    if (this.platform.rewards) button('rewardPrivacy', () => REWARD_COPY[this.language].privacy, () => ({x:panel().x+388,y:panel().y+240,width:342,height:54}), () => {void this.platform.rewards!.privacy();}, true);
     button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312, width: 300, height: 66 }), () => { this.toggleSettings(false, false); this.toggleHistory(true); }, true);
     button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312, width: 218, height: 66 }), () => this.toggleSettings(false), true);
     this.celebration = new CalendarCelebration({ root, layout: () => this.layout, language: () => this.language, canvas: (w, h) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas, register: (id, element) => this.ui.set(id, element), close: history => this.closeCelebration(history) });
@@ -466,17 +488,36 @@ export class CalendarPuzzleGame {
       register: (id, element) => this.ui.set(id, element), close: () => this.togglePurchase(false),
       today: () => { this.togglePurchase(false); const today = new Date(); this.chooseDate(today.getFullYear(), today.getMonth() + 1, today.getDate()); },
     });
+    if (this.platform.rewards) this.rewardView = new CalendarRewardView({
+      root, layout:()=>this.layout, language:()=>this.language, rewards:this.platform.rewards,
+      register:(id,element)=>this.ui.set(id,element), close:()=>this.toggleRewards(false),
+      use:()=>{this.toggleRewards(false);void this.requestHint();}, buy:()=>{this.toggleRewards(false);this.togglePurchase(true);},
+    });
     rootEntity.addComponent(root); this.world.addEntity(rootEntity);
-    this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { ...this.platform.guiFont, chars: [...new Set(CALENDAR_GLYPHS + PURCHASE_GLYPHS)].join(''), fontSize: 40, atlasSize: 2048 } }));
+    this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { ...this.platform.guiFont, chars: [...new Set(CALENDAR_GLYPHS + PURCHASE_GLYPHS + REWARD_GLYPHS + JSON.stringify(CALENDAR_LANGUAGES))].join(''), fontSize: 40, atlasSize: 2048 } }));
     this.refreshLanguage();
   }
   private canPlayDate(year = this.selectedYear, month = this.selectedMonth, day = this.selectedDay): boolean {
     return !this.platform.purchases || canPlayCalendarDate(this.platform.purchases.snapshot().entitled, year, month, day);
   }
   private allowPlay(): boolean {
-    if (this.purchaseView?.visible) return false;
+    if (this.rewardView?.visible || this.platform.rewards?.snapshot().busy || this.purchaseView?.visible) return false;
     if (this.canPlayDate()) return true;
     this.togglePurchase(true); return false;
+  }
+  private refreshRewards(): void {
+    const state=this.platform.rewards?.snapshot();
+    if (!state) return;
+    this.hintBadge?.setText(state.unlimited ? '∞' : String(state.free+state.credits));
+    this.rewardView?.refresh();
+    this.ui.get('rewardPrivacy')?.setVisible(this.settingsOpen && state.privacyRequired);
+    this.platform.requestRender?.();
+  }
+  private toggleRewards(open: boolean): void {
+    if (!this.rewardView || this.platform.rewards?.snapshot().busy) return;
+    this.cancelInteraction(); this.cancelHint(); this.finishMotions();
+    for (const control of this.mainControls) control.setVisible(!open);
+    this.rewardView.setVisible(open); this.updateStatus(); this.platform.requestRender?.();
   }
   private togglePurchase(open: boolean): void {
     if (!this.purchaseView) return;
@@ -486,17 +527,20 @@ export class CalendarPuzzleGame {
     this.purchaseView.setVisible(open); this.platform.requestRender?.();
   }
   private toggleSettings(open: boolean, feedback = true): void {
+    this.languageSelect?.setOpen(false);
     if (feedback && open !== this.settingsOpen) this.audio.cue(open ? 'settings' : 'back');
     this.cancelInteraction(); this.cancelHint(); this.finishMotions(); this.settingsOpen = open;
     this.historyView.setVisible(this.historyOpen && !open);
     for (const control of this.mainControls) control.setVisible(!open);
     for (const control of this.settingControls) control.setVisible(open);
+    this.refreshRewards();
   }
   private setLanguage(language: CalendarLanguage): void {
     if (language !== this.language) this.audio.cue('settings');
     this.language = language; this.refreshLanguage(); this.saveState();
   }
   private refreshLanguage(): void {
+    this.refreshRewards();
     this.purchaseView?.refresh();
     for (const localize of this.localized) localize();
     this.historyView.refresh();
@@ -619,7 +663,7 @@ export class CalendarPuzzleGame {
   }
 
   private isGuiPointerEvent(event: PointerEvent | MouseEvent): boolean {
-    if (this.purchaseView?.visible || this.settingsOpen || this.historyOpen || this.celebration.visible) return true;
+    if (this.rewardView?.visible || this.purchaseView?.visible || this.settingsOpen || this.historyOpen || this.celebration.visible) return true;
     const rect = requireEngineCanvas(this.engine).getBoundingClientRect();
     const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     return this.mainControls.some(control => control.visible && contains(control.rect, point));
@@ -812,16 +856,25 @@ export class CalendarPuzzleGame {
     if (!keep || this.hintOverlay?.placement?.piece !== this.pieces.indexOf(keep)) this.hintOverlay?.hide();
   }
   private async requestHint(): Promise<void> {
-    if (this.platform.purchases && !this.platform.purchases.snapshot().entitled) { this.togglePurchase(true); return; }
+    if (this.platform.purchases && !this.platform.purchases.snapshot().entitled && !this.platform.rewards) { this.togglePurchase(true); return; }
     if (!this.allowPlay()) return;
     if (this.hintBusy || this.drag || this.motions.size || this.settingsOpen || this.historyOpen || this.won) return;
+    if (this.hintOverlay.placement) { this.platform.requestRender?.(); return; }
+    const fixed = this.pieces.flatMap((p,piece) => p.placed ? [{piece,row:p.row,col:p.col,rotation:p.rotation,flipped:p.flipped}] : []);
+    const input = { month:this.selectedMonth,day:this.selectedDay,weekday:this.selectedWeekday,fixed };
+    const cached = this.solver.cached(input);
+    const allowance = this.platform.rewards?.snapshot();
+    // A cached, already delivered result can still be redisplayed for free.
+    // Never launch a search just to discover that a new hint needs a reward.
+    if (!cached && allowance && !allowance.unlimited && allowance.free + allowance.credits === 0) {
+      this.toggleRewards(true); return;
+    }
     this.cancelHint(); const revision = this.hintRevision;
     this.hintBusy = true; this.updateStatus();
     try {
-      const fixed = this.pieces.flatMap((p,piece) => p.placed ? [{piece,row:p.row,col:p.col,rotation:p.rotation,flipped:p.flipped}] : []);
-      const result = await this.solver.solve({ month:this.selectedMonth,day:this.selectedDay,weekday:this.selectedWeekday,fixed });
+      const result = cached ?? await this.solver.solve(input);
       if (!result || revision !== this.hintRevision || this.disposed) return;
-      if (this.platform.purchases && !this.platform.purchases.snapshot().entitled) { this.cancelHint(); return; }
+      if (!this.canPlayDate()) { this.cancelHint(); return; }
       this.hintBusy = false;
       if (result.status !== 'solved') { this.updateStatus(result.status === 'unsolvable' ? this.copy.hintNone : this.copy.hintUnavailable); return; }
       const sameCells = (p: PieceState, target: CalendarPlacement) => {
@@ -831,6 +884,8 @@ export class CalendarPuzzleGame {
       const choices = result.solution.filter(target => result.compatible ? !this.pieces[target.piece]!.placed : this.pieces[target.piece]!.placed && !sameCells(this.pieces[target.piece]!,target));
       const target = choices.find(p => this.pieces[p.piece] === this.selectedPiece) ?? choices[0];
       if (!target) { this.updateStatus(); return; }
+      const resultKey = `${this.selectedYear}/${this.selectedMonth}/${this.selectedDay}:${target.piece}:${target.row}:${target.col}:${target.rotation}:${target.flipped}`;
+      if (this.platform.rewards && !this.platform.rewards.consume(resultKey)) { this.toggleRewards(true); return; }
       this.hintCompatible = result.compatible;
       this.setSelectedPiece(this.pieces[target.piece]!); this.hintOverlay.show(target); this.updateStatus();
       this.hintUsed = true;

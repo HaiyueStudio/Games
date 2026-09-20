@@ -582,6 +582,28 @@
       "ci": "manual"
     },
     {
+      "id": "led-sudoku",
+      "thumbnail": "screenshots/led-sudoku.png",
+      "title": "LED 灯管数独",
+      "entry": "led-sudoku/main.ts",
+      "capabilities": [
+        "2d",
+        "game-workflow",
+        "input",
+        "worker",
+        "experimental-render-integration"
+      ],
+      "assets": [
+        "led-sudoku/generator.worker.js"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "tetris",
       "thumbnail": "screenshots/tetris.webp",
       "title": "tetris",

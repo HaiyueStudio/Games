@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "game": "led-sudoku",
+  "generatedAt": "2026-09-20T06:42:32.717187+00:00",
+  "scope": "UI update and conditional diagonal hint text",
+  "tests": {
+    "ledSudokuPassed": 50,
+    "integrationPassed": 4,
+    "browserChecksPassed": 16,
+    "typecheck": true,
+    "targetBuild": true,
+    "eslint": true,
+    "diffCheck": true
+  },
+  "browser": {
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "mobileDocumentWidth": 390,
+    "mobileDialogStartButtonBottom": 757.15,
+    "mobileViewportHeight": 844,
+    "visualChecks": [
+      "seven dark tubes in empty LED cells",
+      "LED timer including zero",
+      "3x3 candidates",
+      "new puzzle settings dialog",
+      "classic numeric board",
+      "completion border and undo reset"
+    ]
+  },
+  "hashes": {
+    "index.html": "b4a734deb822543b409183a6381846f679b3a3f3aedc8425530ee807fac220ab",
+    "main.ts": "5ac6eeb22b81d19360fca4eedb8827255ff7299e5d8562afe7c36471c6b740a8",
+    "LedSudokuGame.ts": "b84b92edf1fb9b74f839e7580b24c8defb1991901373edf94e5eb459de6e626e",
+    "board-view.ts": "e7408f1f1b986403e822968318b1857e171c5093c53abf0232c2495a8f30f0e3",
+    "generator-client.ts": "ebdbf71d6bf01df765449b6cc75a7093376bf88c706e6c8eac5afa3325448351",
+    "browser-smoke.mjs": "fafcec12cce1656c007049765d4240a9ff5f4bb65e23317bf75fdf048bfc5800",
+    "generator.worker.ts": "ca366f7ab6adbeef9074706cbd7a1ebb242d238725566e835fcd791a614a78f3",
+    "led-display.ts": "cfcfdc3fd5da9161fd67c8d1bfa3630b60cd2363cd6a41597d58b2fdd7f499d6",
+    "rules.ts": "698a832ae1b584deb7173d49e080899796b3f78d97074b6bbc34d8a91db15293",
+    "session.ts": "f57856af0424ebb2c26b0363d8e0855000d606ebbda764eeb0a72fb66c3f79d4",
+    "style.css": "056e1077e282ddc3a822bf3360f68d16a26946980ee284a6b2f4970152ce1b1b"
+  }
+}

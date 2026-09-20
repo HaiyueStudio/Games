@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "game": "led-sudoku",
+  "baseRevision": "681c1f246ef5eef399c7f23244ab51fa410fcba0",
+  "dirty": true,
+  "generatedAt": "2026-09-20T05:39:20.935485+00:00",
+  "runtime": "v24.19.0",
+  "seed": 20260920,
+  "unitTests": {
+    "passed": 43,
+    "ruleCombinations": 32,
+    "difficulties": 3
+  },
+  "browser": {
+    "runtime": "Codex In-app Browser",
+    "rendering": "Haiyue WebGPU",
+    "smokePassed": true,
+    "checks": 11,
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "mobileDocumentWidth": 390,
+    "mobileBoardWidth": 344
+  },
+  "hashes": {
+    "rules.ts": "da2b16322e6b223e35fbba7e6d9e5d91184c48dc119d08bcade5cd380d8b781e",
+    "session.ts": "f57856af0424ebb2c26b0363d8e0855000d606ebbda764eeb0a72fb66c3f79d4",
+    "board-view.ts": "05f50092d7bb34beffb0eff38c0147292ada00597ef8ec292f9514b410fc345f",
+    "LedSudokuGame.ts": "e4c98f30f24b36435dbc45ae202d99fa871cb14628b44aa1bfd3079ac9c5e838",
+    "generator-client.ts": "ebdbf71d6bf01df765449b6cc75a7093376bf88c706e6c8eac5afa3325448351",
+    "generator.worker.ts": "ca366f7ab6adbeef9074706cbd7a1ebb242d238725566e835fcd791a614a78f3",
+    "main.ts": "5ac6eeb22b81d19360fca4eedb8827255ff7299e5d8562afe7c36471c6b740a8",
+    "index.html": "407aa58fba7bf658506b56d28835a1e5f2ae9b437e1c4069b7a9469902964ccb",
+    "style.css": "923366b7472377b354b93fbbff1be3510ea63b900b33767de227ea96795eba35",
+    "browser-smoke.mjs": "744bc48f9d3bbea2fea119e454bcded1ce6eafaa205066cf63dc19877eb94f2d",
+    "tsconfig.rollup.json": "03216ab4108e175fc99c9810fbcbf0bcf769a380d5336cb896ce9094c84a89f7",
+    "tsconfig.worker.json": "cd45453bf94bedea68065662870b7061b9a32e6e17e35e77e60d00c54cd74e36"
+  },
+  "integrationHashes": {
+    "games/manifest.json": "ec78c7e3b59ca3379e68daa7928358000865d795f6ba2758ee07b80df1539313",
+    "rollup.config.js": "5e0b4bda4a8e737843ab77c53dc40c98d8b2973685415953606ad3f0544b2d95",
+    "scripts/build-games.mjs": "2be75dc13e1262770d6ad850afd7261b67218a9d4f006c84d17f9692d2da208e",
+    "site/app.js": "a9b4da827b6961d33a711c576a32caf18e829859431dc821d1acd3179fdf4818",
+    "site/screenshots/led-sudoku.png": "929b2a87a4b31ab19af13254e0ea65eb675a4f40fd766f7b64f807cefcf1f380"
+  },
+  "targetBuild": {
+    "passed": true,
+    "mainSeconds": 19.6,
+    "workerSeconds": 1.8
+  }
+}

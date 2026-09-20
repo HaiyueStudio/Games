@@ -1,3 +1,10 @@
+export const CALENDAR_LANGUAGES = [
+  { value: 'zh', label: '中文' }, { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' }, { value: 'fr', label: 'Français' },
+  { value: 'de', label: 'Deutsch' }, { value: 'es', label: 'Español' },
+] as const;
+export type CalendarLanguage = typeof CALENDAR_LANGUAGES[number]['value'];
+
 export type CalendarCellKind = 'month' | 'day' | 'weekday';
 
 export interface CalendarPoint {
@@ -33,7 +40,7 @@ export interface CalendarPieceSaveState {
 }
 
 export interface CalendarPuzzleSaveData {
-  language?: 'zh' | 'en' | 'ja';
+  language?: CalendarLanguage;
   year?: number;
   completedDates?: string[];
   starredDates?: string[];
@@ -122,7 +129,7 @@ export function isCalendarPuzzleSaveData(value: unknown): value is CalendarPuzzl
     && (value.completedDates === undefined || (Array.isArray(value.completedDates) && value.completedDates.every(isCalendarDateKey)))
     && (value.starredDates === undefined || (Array.isArray(value.starredDates) && value.starredDates.every(date => isCalendarDateKey(date) && Array.isArray(value.completedDates) && value.completedDates.includes(date))))
     && (value.hintUsed === undefined || typeof value.hintUsed === 'boolean')
-    && (value.language === undefined || ['zh','en','ja'].includes(value.language as string))
+    && (value.language === undefined || CALENDAR_LANGUAGES.some(language => language.value === value.language))
     && isNonNegativeInteger(value.month) && value.month >= 1 && value.month <= 12
     && isNonNegativeInteger(value.day) && value.day >= 1 && value.day <= 31
     && isNonNegativeInteger(value.weekday) && value.weekday <= 6

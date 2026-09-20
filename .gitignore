@@ -18,3 +18,6 @@ desktop.ini
 .artifacts/spider-gui/
 
 .artifacts/sky-native/
+
+/games/led-sudoku/generator.worker.js
+/games/led-sudoku/generator.worker.js.map

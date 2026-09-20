@@ -26,7 +26,9 @@ async function buildGame(game) {
     ? ['games/gravity-maze/dist']
     : game === 'mugen'
       ? ['games/mugen/dist']
-      : [`games/${game}/bundle.js`];
+      : game === 'led-sudoku'
+        ? ['games/led-sudoku/bundle.js', 'games/led-sudoku/generator.worker.js']
+        : [`games/${game}/bundle.js`];
   try {
     await runRollupOnce({
       cwd: repositoryRoot,
