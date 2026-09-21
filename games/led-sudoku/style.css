@@ -3,7 +3,7 @@
 @media(min-width:901px){.app{max-width:1100px;padding:0 32px}.workspace{grid-template-columns:minmax(0,630px) 322px;gap:34px;justify-content:space-between}}
 /* Focus the play view on the board and a nine-cell input pad. */
 .session {align-items:flex-end}
-#timer {display:block;max-width:100%;object-fit:contain;filter:drop-shadow(0 0 8px #83ffc126)}
+#timer {display:block;max-width:100%;object-fit:contain}
 #new {margin:0;min-height:46px;font-size:14px;padding:13px 18px}
 .keypad {grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .keypad button {height:76px;border-radius:7px;background:linear-gradient(145deg,#10252d,#08151b)}
@@ -63,3 +63,42 @@
   #new-dialog .rule {padding:9px 0}
   #new-dialog .generation-note {margin:12px 0 8px}
 }
+.hint-lesson {padding:16px;margin-top:14px;border:1px solid #59716f;border-radius:10px;background:#0b2028}
+.hint-lesson[hidden] {display:none}
+.lesson-heading {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lesson-heading h2 {font-size:17px;color:#ffd18a;margin:0}
+#lesson-close {min-width:44px;min-height:44px;font-size:24px}
+#lesson-body {white-space:pre-line;font-size:15px;line-height:1.8;min-height:84px}
+.hint-lesson small {color:#9ac0c6;font-size:11px}
+.hint-lesson .actions {margin-top:14px}
+.hint-lesson .actions button {min-height:44px;flex:1}
+
+/* Pencil marks are exclusions, with the same neutral key frame. */
+.keypad button { position:relative; }
+.keypad button[aria-pressed=true] { border-color:#29464e; background:linear-gradient(145deg,#10252d,#08151b); box-shadow:none; }
+.keypad button.is-crossed::after { content:''; position:absolute; width:34px; height:2px; background:#dc9aa7; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-40deg); pointer-events:none; }
+
+.skin-picker{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.skin-picker select{font:inherit;padding:8px;border-radius:6px;background:var(--panel);color:var(--text);border:1px solid var(--line)}
+:root[data-theme="light-blue"]{color-scheme:light;--bg:#edf6fc;--panel:#f7fbff;--line:#adc9dc;--text:#183c55;--muted:#536f84;--mint:#1669a6;--cyan:#246b87;--amber:#8b5100}
+[data-theme="light-blue"] body{background:linear-gradient(145deg,#f7fbff,#e6f2fb)}
+[data-theme="light-blue"] button,[data-theme="light-blue"] .keypad button,[data-theme="light-blue"] .keypad button[aria-pressed=true]{background:#f7fbff;border-color:#adc9dc;color:var(--text)}
+[data-theme="light-blue"] button:hover:not(:disabled),[data-theme="light-blue"] button.active{background:#d5eafa;border-color:#1669a6}
+[data-theme="light-blue"] button.primary{background:#1669a6;color:#fff;border-color:#1669a6}
+[data-theme="light-blue"] .panel,[data-theme="light-blue"] dialog,[data-theme="light-blue"] .hint-lesson{background:#f7fbff;border-color:#adc9dc;box-shadow:none}
+[data-theme="light-blue"] .board-frame{background:#f3f9fe;border-color:#789db7;box-shadow:none}
+[data-theme="light-blue"] #busy{background:#f3f9feee}
+[data-theme="light-blue"] #status,[data-theme="light-blue"] dialog p,[data-theme="light-blue"] .hint-lesson small{color:#536f84}
+[data-theme="light-blue"] .rule{border-color:#c8dce9}
+[data-theme="light-blue"] .rule input{background:#d2e3ef;border-color:#96b7cf}
+[data-theme="light-blue"] .rule input:checked{background:#b4d4eb;border-color:#1669a6}
+[data-theme="light-blue"] .rule input:checked:after{background:#1669a6}
+[data-theme="light-blue"] .keypad button.is-crossed::after{background:#a43e5e}
+[data-theme="light-blue"] .plain-digit{color:#146999}
+[data-theme="light-blue"] .hint-lesson h2{color:#916000}
+[data-theme="light-blue"] .brand-sub{border-color:#adc9dc}
+[data-theme="light-blue"] .board-frame.is-complete{border-color:#1669a6;animation-name:completed-board-light}
+@keyframes completed-board-light{0%,100%{border-color:#1669a6}50%{border-color:#88b6d6}}
+[data-theme="light-blue"] #cell-rules{color:#536f84}
+[data-theme="light-blue"] .rules-list{scrollbar-color:#96b7cf #edf6fc}
+@media(max-width:700px){header .brand-sub{display:none}.skin-picker{font-size:10px;gap:4px}.skin-picker select{max-width:94px}.skin-picker~button{font-size:10px}}

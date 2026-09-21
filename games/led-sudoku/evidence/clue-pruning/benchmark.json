@@ -1,0 +1,545 @@
+{
+  "method": "Separate Node processes, serialized AB then BA; 6 configurations x 3 fixed seeds per process. Verification outside generation timer. No tests/builds running during these measurements. Process-local skyscraper caches reused after first sample.",
+  "beforeSourceSHA256": "0eae2ca97e24d7138009a9ab28bdef24cdabe799b0802c0ea2597dfb59647fd2",
+  "afterSourceSHA256": "8f74543d45071f1bf818bfc361a59db8ecdfb41cdbf87e15ee165782e6c7d8af",
+  "runs": [
+    {
+      "order": "AB",
+      "before": {
+        "node": "v24.19.0",
+        "platform": "darwin",
+        "arch": "x64",
+        "samples": [
+          {
+            "name": "normal",
+            "seed": 39,
+            "ms": 27.2,
+            "nodes": 197,
+            "sha256": "bdea08a84cd7a18e0a17a0146655dfbf4db93b102a88db12f9be0a76655f0582"
+          },
+          {
+            "name": "normal",
+            "seed": 20260920,
+            "ms": 11.35,
+            "nodes": 57,
+            "sha256": "9fe4e79238770e0c636ce5ce7a379ec623e798c802cc4dc5cd0cc58475f77d14"
+          },
+          {
+            "name": "normal",
+            "seed": 20260921,
+            "ms": 15.69,
+            "nodes": 57,
+            "sha256": "0d30687162b9da32a1db77175c417a97461de7bec7984b0215d022a208b8e545"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 39,
+            "ms": 207.46,
+            "nodes": 572,
+            "sha256": "68522bd2c01ff588d53a5827762875902b21cdbe9fe0e10f6ca138219ef312dc"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260920,
+            "ms": 67.69,
+            "nodes": 3389,
+            "sha256": "588f0b8b5dd2c4c0aafe3241b4ba0fa9688afb666c8baeb43d3cc7633ab22cb7"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260921,
+            "ms": 20.42,
+            "nodes": 687,
+            "sha256": "d5923b4abf81d4d059fa6fc362242058292e422a84339508e5f6fc601a1f1b5b"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 39,
+            "ms": 94.31,
+            "nodes": 300,
+            "sha256": "0097ef934bb2238a5c25e99ffe6a7fa630e9a75f6586fb6fcb5cd250ad2d187d"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260920,
+            "ms": 419.69,
+            "nodes": 720,
+            "sha256": "8e8417709d6f18d2bd0ca8b0a48a05fdd12b046b0c19ea2d52ccb8af8185a74f"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260921,
+            "ms": 128.26,
+            "nodes": 5330,
+            "sha256": "40d3ace73e1e9cf2c4a777be18da523bbd451d14e7cdf84c3e552f6487e5df2e"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 39,
+            "ms": 2446.35,
+            "nodes": 157,
+            "sha256": "4a946d2ad8aba7b6987b5e452056e3129ae3dfda78356342fb3289cb5c15758f"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260920,
+            "ms": 2597.61,
+            "nodes": 134,
+            "sha256": "be660a227118c4e76019d8cf9fb78643c51f22eb2a650cc2dc5cf647b1999c17"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260921,
+            "ms": 1220.58,
+            "nodes": 109,
+            "sha256": "26d1b9f585dc39cc5b7ecd8e50801d0fbd7c7960ea4ee5934d1adc21b0af1da5"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 39,
+            "ms": 171.84,
+            "nodes": 119,
+            "sha256": "6005d7997ad85f8ac27f8cd66e30503718937e7d5568a566a658feca5870ad58"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260920,
+            "ms": 164.2,
+            "nodes": 667,
+            "sha256": "407241aa98391abdda960c7ec6fc7491325fe623ca903a635b0758aeebf2a40b"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260921,
+            "ms": 111.12,
+            "nodes": 198,
+            "sha256": "da54a54dcafc67d637baa04f52c4e038b91ef6905da1d81b2eeb0586bce8f34f"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 39,
+            "ms": 396.19,
+            "nodes": 137,
+            "sha256": "546b2f4c2e81188905de0ea0b6448f423bd94b13899db7e5a35cb3e18e203f67"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260920,
+            "ms": 457.33,
+            "nodes": 168,
+            "sha256": "095f0aee9b8f06389ee4594eae76bc00297b29cc796dca6b6454eb73dc0a8742"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260921,
+            "ms": 562.83,
+            "nodes": 74,
+            "sha256": "4c0d20cafa4bae3f7253636013406a622717ccc98849a40ade6e3cd2f1eaebeb"
+          }
+        ]
+      },
+      "after": {
+        "node": "v24.19.0",
+        "platform": "darwin",
+        "arch": "x64",
+        "samples": [
+          {
+            "name": "normal",
+            "seed": 39,
+            "ms": 22.92,
+            "nodes": 197,
+            "sha256": "bdea08a84cd7a18e0a17a0146655dfbf4db93b102a88db12f9be0a76655f0582"
+          },
+          {
+            "name": "normal",
+            "seed": 20260920,
+            "ms": 8.27,
+            "nodes": 57,
+            "sha256": "9fe4e79238770e0c636ce5ce7a379ec623e798c802cc4dc5cd0cc58475f77d14"
+          },
+          {
+            "name": "normal",
+            "seed": 20260921,
+            "ms": 5.53,
+            "nodes": 57,
+            "sha256": "0d30687162b9da32a1db77175c417a97461de7bec7984b0215d022a208b8e545"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 39,
+            "ms": 116.39,
+            "nodes": 572,
+            "sha256": "68522bd2c01ff588d53a5827762875902b21cdbe9fe0e10f6ca138219ef312dc"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260920,
+            "ms": 26.82,
+            "nodes": 3389,
+            "sha256": "588f0b8b5dd2c4c0aafe3241b4ba0fa9688afb666c8baeb43d3cc7633ab22cb7"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260921,
+            "ms": 12.43,
+            "nodes": 687,
+            "sha256": "d5923b4abf81d4d059fa6fc362242058292e422a84339508e5f6fc601a1f1b5b"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 39,
+            "ms": 72.12,
+            "nodes": 300,
+            "sha256": "0097ef934bb2238a5c25e99ffe6a7fa630e9a75f6586fb6fcb5cd250ad2d187d"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260920,
+            "ms": 262.3,
+            "nodes": 720,
+            "sha256": "8e8417709d6f18d2bd0ca8b0a48a05fdd12b046b0c19ea2d52ccb8af8185a74f"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260921,
+            "ms": 97.25,
+            "nodes": 6297,
+            "sha256": "fccbfb363f1b72801c2dad520622fd9281479567432eb50ef3dd3fe091f548e8"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 39,
+            "ms": 2264.66,
+            "nodes": 157,
+            "sha256": "4a946d2ad8aba7b6987b5e452056e3129ae3dfda78356342fb3289cb5c15758f"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260920,
+            "ms": 2445.4,
+            "nodes": 134,
+            "sha256": "be660a227118c4e76019d8cf9fb78643c51f22eb2a650cc2dc5cf647b1999c17"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260921,
+            "ms": 878.36,
+            "nodes": 109,
+            "sha256": "26d1b9f585dc39cc5b7ecd8e50801d0fbd7c7960ea4ee5934d1adc21b0af1da5"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 39,
+            "ms": 117.26,
+            "nodes": 119,
+            "sha256": "6005d7997ad85f8ac27f8cd66e30503718937e7d5568a566a658feca5870ad58"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260920,
+            "ms": 118.24,
+            "nodes": 667,
+            "sha256": "407241aa98391abdda960c7ec6fc7491325fe623ca903a635b0758aeebf2a40b"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260921,
+            "ms": 65.03,
+            "nodes": 198,
+            "sha256": "da54a54dcafc67d637baa04f52c4e038b91ef6905da1d81b2eeb0586bce8f34f"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 39,
+            "ms": 410.39,
+            "nodes": 137,
+            "sha256": "546b2f4c2e81188905de0ea0b6448f423bd94b13899db7e5a35cb3e18e203f67"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260920,
+            "ms": 367.96,
+            "nodes": 168,
+            "sha256": "528f61e82cfb34a7abc82bf0b167b086732773ad84c0c4dd97ffef9c10e2dba3"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260921,
+            "ms": 381.98,
+            "nodes": 74,
+            "sha256": "4c0d20cafa4bae3f7253636013406a622717ccc98849a40ade6e3cd2f1eaebeb"
+          }
+        ]
+      }
+    },
+    {
+      "order": "BA",
+      "before": {
+        "node": "v24.19.0",
+        "platform": "darwin",
+        "arch": "x64",
+        "samples": [
+          {
+            "name": "normal",
+            "seed": 39,
+            "ms": 25.84,
+            "nodes": 197,
+            "sha256": "bdea08a84cd7a18e0a17a0146655dfbf4db93b102a88db12f9be0a76655f0582"
+          },
+          {
+            "name": "normal",
+            "seed": 20260920,
+            "ms": 10.81,
+            "nodes": 57,
+            "sha256": "9fe4e79238770e0c636ce5ce7a379ec623e798c802cc4dc5cd0cc58475f77d14"
+          },
+          {
+            "name": "normal",
+            "seed": 20260921,
+            "ms": 12.87,
+            "nodes": 57,
+            "sha256": "0d30687162b9da32a1db77175c417a97461de7bec7984b0215d022a208b8e545"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 39,
+            "ms": 125.72,
+            "nodes": 572,
+            "sha256": "68522bd2c01ff588d53a5827762875902b21cdbe9fe0e10f6ca138219ef312dc"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260920,
+            "ms": 28.43,
+            "nodes": 3389,
+            "sha256": "588f0b8b5dd2c4c0aafe3241b4ba0fa9688afb666c8baeb43d3cc7633ab22cb7"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260921,
+            "ms": 14.42,
+            "nodes": 687,
+            "sha256": "d5923b4abf81d4d059fa6fc362242058292e422a84339508e5f6fc601a1f1b5b"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 39,
+            "ms": 74.67,
+            "nodes": 300,
+            "sha256": "0097ef934bb2238a5c25e99ffe6a7fa630e9a75f6586fb6fcb5cd250ad2d187d"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260920,
+            "ms": 306.66,
+            "nodes": 720,
+            "sha256": "8e8417709d6f18d2bd0ca8b0a48a05fdd12b046b0c19ea2d52ccb8af8185a74f"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260921,
+            "ms": 111.61,
+            "nodes": 5330,
+            "sha256": "40d3ace73e1e9cf2c4a777be18da523bbd451d14e7cdf84c3e552f6487e5df2e"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 39,
+            "ms": 2229.62,
+            "nodes": 157,
+            "sha256": "4a946d2ad8aba7b6987b5e452056e3129ae3dfda78356342fb3289cb5c15758f"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260920,
+            "ms": 2367.16,
+            "nodes": 134,
+            "sha256": "be660a227118c4e76019d8cf9fb78643c51f22eb2a650cc2dc5cf647b1999c17"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260921,
+            "ms": 922.73,
+            "nodes": 109,
+            "sha256": "26d1b9f585dc39cc5b7ecd8e50801d0fbd7c7960ea4ee5934d1adc21b0af1da5"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 39,
+            "ms": 151.76,
+            "nodes": 119,
+            "sha256": "6005d7997ad85f8ac27f8cd66e30503718937e7d5568a566a658feca5870ad58"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260920,
+            "ms": 147.66,
+            "nodes": 667,
+            "sha256": "407241aa98391abdda960c7ec6fc7491325fe623ca903a635b0758aeebf2a40b"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260921,
+            "ms": 94.75,
+            "nodes": 198,
+            "sha256": "da54a54dcafc67d637baa04f52c4e038b91ef6905da1d81b2eeb0586bce8f34f"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 39,
+            "ms": 341.95,
+            "nodes": 137,
+            "sha256": "546b2f4c2e81188905de0ea0b6448f423bd94b13899db7e5a35cb3e18e203f67"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260920,
+            "ms": 385.42,
+            "nodes": 168,
+            "sha256": "095f0aee9b8f06389ee4594eae76bc00297b29cc796dca6b6454eb73dc0a8742"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260921,
+            "ms": 484.71,
+            "nodes": 74,
+            "sha256": "4c0d20cafa4bae3f7253636013406a622717ccc98849a40ade6e3cd2f1eaebeb"
+          }
+        ]
+      },
+      "after": {
+        "node": "v24.19.0",
+        "platform": "darwin",
+        "arch": "x64",
+        "samples": [
+          {
+            "name": "normal",
+            "seed": 39,
+            "ms": 22.45,
+            "nodes": 197,
+            "sha256": "bdea08a84cd7a18e0a17a0146655dfbf4db93b102a88db12f9be0a76655f0582"
+          },
+          {
+            "name": "normal",
+            "seed": 20260920,
+            "ms": 6.12,
+            "nodes": 57,
+            "sha256": "9fe4e79238770e0c636ce5ce7a379ec623e798c802cc4dc5cd0cc58475f77d14"
+          },
+          {
+            "name": "normal",
+            "seed": 20260921,
+            "ms": 6.16,
+            "nodes": 57,
+            "sha256": "0d30687162b9da32a1db77175c417a97461de7bec7984b0215d022a208b8e545"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 39,
+            "ms": 114.13,
+            "nodes": 572,
+            "sha256": "68522bd2c01ff588d53a5827762875902b21cdbe9fe0e10f6ca138219ef312dc"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260920,
+            "ms": 25.79,
+            "nodes": 3389,
+            "sha256": "588f0b8b5dd2c4c0aafe3241b4ba0fa9688afb666c8baeb43d3cc7633ab22cb7"
+          },
+          {
+            "name": "LED challenge",
+            "seed": 20260921,
+            "ms": 10.8,
+            "nodes": 687,
+            "sha256": "d5923b4abf81d4d059fa6fc362242058292e422a84339508e5f6fc601a1f1b5b"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 39,
+            "ms": 70.76,
+            "nodes": 300,
+            "sha256": "0097ef934bb2238a5c25e99ffe6a7fa630e9a75f6586fb6fcb5cd250ad2d187d"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260920,
+            "ms": 257.7,
+            "nodes": 720,
+            "sha256": "8e8417709d6f18d2bd0ca8b0a48a05fdd12b046b0c19ea2d52ccb8af8185a74f"
+          },
+          {
+            "name": "classic challenge",
+            "seed": 20260921,
+            "ms": 94.53,
+            "nodes": 6297,
+            "sha256": "fccbfb363f1b72801c2dad520622fd9281479567432eb50ef3dd3fe091f548e8"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 39,
+            "ms": 2272.47,
+            "nodes": 157,
+            "sha256": "4a946d2ad8aba7b6987b5e452056e3129ae3dfda78356342fb3289cb5c15758f"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260920,
+            "ms": 2429.3,
+            "nodes": 134,
+            "sha256": "be660a227118c4e76019d8cf9fb78643c51f22eb2a650cc2dc5cf647b1999c17"
+          },
+          {
+            "name": "advanced challenge",
+            "seed": 20260921,
+            "ms": 876.43,
+            "nodes": 109,
+            "sha256": "26d1b9f585dc39cc5b7ecd8e50801d0fbd7c7960ea4ee5934d1adc21b0af1da5"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 39,
+            "ms": 152.01,
+            "nodes": 119,
+            "sha256": "6005d7997ad85f8ac27f8cd66e30503718937e7d5568a566a658feca5870ad58"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260920,
+            "ms": 130.53,
+            "nodes": 667,
+            "sha256": "407241aa98391abdda960c7ec6fc7491325fe623ca903a635b0758aeebf2a40b"
+          },
+          {
+            "name": "killer challenge",
+            "seed": 20260921,
+            "ms": 62.53,
+            "nodes": 198,
+            "sha256": "da54a54dcafc67d637baa04f52c4e038b91ef6905da1d81b2eeb0586bce8f34f"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 39,
+            "ms": 321.54,
+            "nodes": 137,
+            "sha256": "546b2f4c2e81188905de0ea0b6448f423bd94b13899db7e5a35cb3e18e203f67"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260920,
+            "ms": 362.64,
+            "nodes": 168,
+            "sha256": "528f61e82cfb34a7abc82bf0b167b086732773ad84c0c4dd97ffef9c10e2dba3"
+          },
+          {
+            "name": "multi-rule challenge",
+            "seed": 20260921,
+            "ms": 351.87,
+            "nodes": 74,
+            "sha256": "4c0d20cafa4bae3f7253636013406a622717ccc98849a40ade6e3cd2f1eaebeb"
+          }
+        ]
+      }
+    }
+  ]
+}

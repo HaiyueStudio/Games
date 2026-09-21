@@ -1,0 +1,252 @@
+{
+  "worldId": "pp-intro",
+  "rooms": [
+    {
+      "id": "pp-intro",
+      "name": "Intro · 入门",
+      "size": 11,
+      "spawn": [5, 0, 9],
+      "walls": [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 0, 4],
+        [0, 0, 5],
+        [0, 0, 6],
+        [0, 0, 7],
+        [0, 0, 8],
+        [0, 0, 9],
+        [0, 0, 10],
+        [1, 0, 0],
+        [1, 0, 10],
+        [2, 0, 0],
+        [2, 0, 10],
+        [3, 0, 0],
+        [3, 0, 10],
+        [4, 0, 0],
+        [4, 0, 10],
+        [5, 0, 0],
+        [6, 0, 0],
+        [6, 0, 10],
+        [7, 0, 0],
+        [7, 0, 10],
+        [8, 0, 0],
+        [8, 0, 10],
+        [9, 0, 0],
+        [9, 0, 10],
+        [10, 0, 0],
+        [10, 0, 1],
+        [10, 0, 2],
+        [10, 0, 3],
+        [10, 0, 4],
+        [10, 0, 5],
+        [10, 0, 6],
+        [10, 0, 7],
+        [10, 0, 8],
+        [10, 0, 9],
+        [10, 0, 10]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 0, 4],
+        [0, 0, 5],
+        [0, 0, 6],
+        [0, 0, 7],
+        [0, 0, 8],
+        [0, 0, 9],
+        [0, 0, 10],
+        [1, 0, 0],
+        [1, 0, 10],
+        [2, 0, 0],
+        [2, 0, 10],
+        [3, 0, 0],
+        [3, 0, 10],
+        [4, 0, 0],
+        [4, 0, 10],
+        [5, 0, 0],
+        [6, 0, 0],
+        [6, 0, 10],
+        [7, 0, 0],
+        [7, 0, 10],
+        [8, 0, 0],
+        [8, 0, 10],
+        [9, 0, 0],
+        [9, 0, 10],
+        [10, 0, 0],
+        [10, 0, 1],
+        [10, 0, 2],
+        [10, 0, 3],
+        [10, 0, 4],
+        [10, 0, 5],
+        [10, 0, 6],
+        [10, 0, 7],
+        [10, 0, 8],
+        [10, 0, 9],
+        [10, 0, 10]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 0,
+      "hint": "Intro 章节 · 走进关卡开始。完成后返回本章，再次进入会重置内部。南侧绿色出口返回致敬馆，也可按 E。",
+      "boxes": [
+        {
+          "id": "pp-gateway-1",
+          "pos": [2, 0, 2],
+          "size": 1,
+          "inside": "pp-intro1-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 1",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-2",
+          "pos": [4, 0, 2],
+          "size": 1,
+          "inside": "pp-intro2-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 2",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-3",
+          "pos": [6, 0, 2],
+          "size": 1,
+          "inside": "pp-intro3-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 3",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-4",
+          "pos": [8, 0, 2],
+          "size": 1,
+          "inside": "pp-intro4-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 4",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-5",
+          "pos": [2, 0, 4],
+          "size": 1,
+          "inside": "pp-intro5-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 5",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-6",
+          "pos": [4, 0, 4],
+          "size": 1,
+          "inside": "pp-intro6-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 6",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-7",
+          "pos": [6, 0, 4],
+          "size": 1,
+          "inside": "pp-intro7-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 7",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-8",
+          "pos": [8, 0, 4],
+          "size": 1,
+          "inside": "pp-intro8-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 8",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-9",
+          "pos": [2, 0, 6],
+          "size": 1,
+          "inside": "pp-intro9-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Intro 9",
+          "required": false,
+          "color": "blue"
+        }
+      ],
+      "doorWidths": [
+        0.82,
+        0.82,
+        0.82,
+        0.82
+      ],
+      "exitLabel": "返回致敬馆"
+    }
+  ],
+  "levels": [
+    {
+      "$ref": "intro-01.json"
+    },
+    {
+      "$ref": "intro-02.json"
+    },
+    {
+      "$ref": "intro-03.json"
+    },
+    {
+      "$ref": "intro-04.json"
+    },
+    {
+      "$ref": "intro-05.json"
+    },
+    {
+      "$ref": "intro-06.json"
+    },
+    {
+      "$ref": "intro-07.json"
+    },
+    {
+      "$ref": "intro-08.json"
+    },
+    {
+      "$ref": "intro-09.json"
+    }
+  ]
+}

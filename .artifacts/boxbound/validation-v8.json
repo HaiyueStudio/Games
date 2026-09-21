@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-browser-diagnostic",
+  "renderRevision": 8,
+  "rulesRevision": 5,
+  "generatedAt": "2026-09-20T11:48:06.284008+00:00",
+  "revision": "6364898d0186054663a48324d400155f1c220be3",
+  "dirty": true,
+  "bundleSha256": "864814f919a0568a875af63cf0e155a49e8fe314b224905d2d49a7daf82a1238",
+  "sourceSha256": {
+    "games/boxbound/levels.ts": "c2d60acbf2bdef3b3f30fda549f16e22b8610f34c335b6101bc8d4f980cd25cb",
+    "games/boxbound/main.ts": "db6842efdd7416b7ee5ae53f238cc551427677e246cd3d068965ec061d1e54ec",
+    "games/boxbound/model.ts": "8c0351709f3031bf49e896fba94e90337e965fdefe1c28a5ac9a9352dc3d0b9d",
+    "games/boxbound/saves.ts": "a496d2a15a4c0b81630fc3aac47bd5369fde7b7d709dcf6b3d6baff5145729b2",
+    "games/boxbound/scene.ts": "8d428ae4f81cd0ff1d2df0bb85b29b61b3a408159008aca7dc14e845c7d05acb",
+    "games/boxbound/visuals.ts": "8e4aeef048909167a3f84a93a455548c3b7294283e36648c6f20f154698575d4",
+    "games/boxbound/style.css": "aa9c21caf82d2e107c99ed2c49a308864140e5bab2019db2effa9ecc5e4e8024",
+    "games/boxbound/index.html": "4963932d216e0f467d5ff00346358da507534e28a30a9e9d6405e5fea8813a11",
+    "games/boxbound/README.md": "5a14d448c3a616847f1611fbb2554021d8ef30dd83065d6bd21cf9bdab57ee66",
+    "games/test/boxbound.test.mjs": "dce6d08c2fc749a86faa24ecfeb9346f93c23847ee334acd0d27c1e9817461d4",
+    "scripts/verify-boxbound.mjs": "4ac458140bc94b613e16a535d4576ef7a730dae0195bc58b33f1eb433644ad7a"
+  },
+  "screenshots": {
+    "undo-step-1440": "e52c63f30092ed446128e731d678c724ac2ea34f2d4161b0e9aebf915fa152f7",
+    "undo-box-1440": "2dffe77eb91b47c704d1ef5214b23e54a1a0618ccb4c148e7ca440c71a6bc6f5",
+    "outer-wall-1440": "9d54d366f0a2a16c74545670f493efeb5287eb6fbb7cbe807485bb753fd5587b",
+    "pressure-open-1440": "1e04586ee177a16a0b68cc527054573786dbb3913f422bceedd1a23ad869df7a",
+    "pressure-closed-1440": "521c5211552d030a28415cba24d9e30e8e6eea1c28416579f720e68537d9029c",
+    "box-entry-1440": "dca57ab323e99abe53a1b196e209933e21ee431e46ae9deaad2e220af9ddada3",
+    "box-exit-1440": "14b86ca19a0f65e2fb7cd557fa53c4468f1806d927753d0e40dcc87bfc7a66f0",
+    "box-outside-1440": "bd1a760275d6dbf33de9bb80921d9db8b96b20f225676084d16c9f8a498c9fe6",
+    "home-1440": "08571d8602f3bde49a4520129680c8ff9843c23d559484926725d1068beb976f",
+    "world-1440": "e4a5e90284389f6404cc26e138d0a7726580a2bb6ef8a8549e9e3aa1c28d8689",
+    "level-1440": "900a59d344df44a3dd058f515fbdf593e68651074b8ef0ca9f259992dd79e9fe",
+    "level-390": "2bcb57e3308849a46308db28a397e67cd71709136c669c36c722c1b222004d96",
+    "colors-1440": "d5b93311f098a7d7c75cda0739b5b5226860d7d50ec9be10198f031636ba092a",
+    "celebration-1440": "5d621db86ec75ac222ed93475dd937207594651c7c1a2b1ff91c62187560ba4f",
+    "transition-1440": "bb5e463a000731ff99a5835e61ec0d3ff5232622a719c339509ffb7d4e336e35",
+    "jump-1440": "a71a93e40f684e85692a619e8c7ce7c6f921ec1b5e6251531b11bb3029056b9d",
+    "climb-1440": "99199efbf9414c22b899ae08f2824de72793752e9edb79e4507b91bb32122097",
+    "descent-1440": "78452fe3bb2ba5cf874cfc413a1477088b585b70cac607a5ead9a4fdb7fc9b8b"
+  },
+  "browserViews": 18,
+  "browserCases": 602,
+  "webGpuErrors": 0,
+  "visualReview": [
+    "undo-step-1440",
+    "undo-box-1440",
+    "outer-wall-1440"
+  ],
+  "focusedTests": {
+    "pass": 56,
+    "fail": 0
+  },
+  "checks": {
+    "typecheck": "passed",
+    "boxboundTypecheck": "passed",
+    "boxboundEslint": "passed",
+    "build": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "fullTests": {
+    "command": "npm test -- --test-concurrency=2",
+    "tests": 879,
+    "pass": 848,
+    "fail": 2,
+    "cancelled": 9,
+    "skipped": 20,
+    "unrelatedFailures": [
+      "✖ HYMUGEN v1 is byte-exact, round-trips canonically, excludes raw source bytes, and rejects tampering or unknown fields (106.104438ms)",
+      "✖ local Petra package completes the asset-viewer pipeline with official duplicate and legacy bounds semantics (41868.553776ms)",
+      "✖ Petra executable audit has no remaining strict import gap in the legacy G08 profile (61940.707967ms)",
+      "✖ G08 Petra native profile strictly imports the complete active CMD/CNS graph (32834.654319ms)",
+      "✖ Petra multipart gauge keeps both player groups intact in the lower screen area (39147.287451ms)",
+      "✖ G08 Petra native human path enters movement and attack states deterministically (30574.315705ms)",
+      "✖ Petra human back input walks away without activating a projectile attack (38342.922331ms)",
+      "✖ G08 Petra native jump applies vertical velocity instead of only changing animation (49851.316019ms)",
+      "✖ G08 Petra EmanonAI activates from AILevel and produces a deterministic autonomous trace (47142.543597ms)",
+      "✖ G08 Petra extended AI trace reaches advanced, helper, effect and audio paths deterministically (110053.068549ms)",
+      "✖ viewer product is manifest-backed and exposes required controls without private Engine imports (18.922385ms)"
+    ]
+  }
+}

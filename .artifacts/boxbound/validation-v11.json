@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-browser-diagnostic",
+  "renderRevision": 11,
+  "rulesRevision": 7,
+  "generatedAt": "2026-09-20T12:59:09.122845+00:00",
+  "revision": "6364898d0186054663a48324d400155f1c220be3",
+  "dirty": true,
+  "bundleSha256": "fbc6e260cb4a448708fa68d3dbada57e0c937ef55bf970ec0649259eed3b6e34",
+  "worldJsonSha256": "a0e8ce5baf73791f1176cdb71c851b244e512dd2beb5b8f19b380832ac0951f8",
+  "sourceSha256": {
+    "games/boxbound/history.ts": "8677c63236514d6ab5855258f940d9926dd8b1c75aac74a146df4aa25068ef5a",
+    "games/boxbound/performance.ts": "769342a6cdcc32c05f9d147b063bd6efcdbe4ee6a875d9275c45bde83f51d96d",
+    "games/boxbound/main.ts": "45c53d4c2e7d3136e0e2f0414659cbedf1aa10c782583266b4989e375a332290",
+    "games/boxbound/visuals.ts": "8e4aeef048909167a3f84a93a455548c3b7294283e36648c6f20f154698575d4",
+    "games/boxbound/levels.ts": "53ac530d105327cfb2ec91694be3fe311f1c6aa7075b0d770f3acf34472fd3d9",
+    "games/boxbound/saves.ts": "a496d2a15a4c0b81630fc3aac47bd5369fde7b7d709dcf6b3d6baff5145729b2",
+    "games/boxbound/decorations.ts": "92315553dabbf2d0abdf95073d33d9edc59679f919a1c3035d7c654cb71bc60a",
+    "games/boxbound/model.ts": "0082b2f1227f6cb7a76261509d3be67a3f4f7c524c9ebfb1bd4b9006129a7abd",
+    "games/boxbound/scene.ts": "23f12e47ed88bc45e8e108c9b9eab1aeaf2f4ea320d0e05a5a782c98b171e8af",
+    "games/boxbound/world-map.ts": "974feabd2a679e54e91480d3e67923a344370f7bf736414c85b81a2ffc75a8e5",
+    "games/boxbound/world.json": "a0e8ce5baf73791f1176cdb71c851b244e512dd2beb5b8f19b380832ac0951f8",
+    "games/boxbound/README.md": "db302f66bd5bb71702c4bcbd5ae5cae8ca865b2d00c26750a6ce7ae45720b4a1",
+    "games/test/boxbound.test.mjs": "178ca957f9a05554c9a4a43ed445ab8f08686277a8a20a8ed75592cfddcf6208",
+    "scripts/verify-boxbound.mjs": "43ec2fa9d0495efdeda0650aa2aa4f4471f02c4ab4cdbeb0b28e1f0009610a14"
+  },
+  "screenshots": {
+    "undo-step-1440": "e52c63f30092ed446128e731d678c724ac2ea34f2d4161b0e9aebf915fa152f7",
+    "undo-box-1440": "2dffe77eb91b47c704d1ef5214b23e54a1a0618ccb4c148e7ca440c71a6bc6f5",
+    "outer-wall-1440": "9d54d366f0a2a16c74545670f493efeb5287eb6fbb7cbe807485bb753fd5587b",
+    "pressure-open-1440": "2a38aacf4d6dcac81c6df65ef4ed624c6d941e9b9b31c20fe9e1ee5704ab8296",
+    "pressure-closed-1440": "1b191bb40232b40c6e2bc488c431cf93f20bd47301ea7ec7eda371a3bc8d628e",
+    "box-entry-1440": "dca57ab323e99abe53a1b196e209933e21ee431e46ae9deaad2e220af9ddada3",
+    "box-exit-1440": "14b86ca19a0f65e2fb7cd557fa53c4468f1806d927753d0e40dcc87bfc7a66f0",
+    "box-outside-1440": "bd1a760275d6dbf33de9bb80921d9db8b96b20f225676084d16c9f8a498c9fe6",
+    "home-1440": "c5dea7c652ec9e7406e986b25133d5a88af10d219d0717d6a1b018e2dc288013",
+    "world-1440": "e6526145aba8a0f1fd23d52361ed948ecb171d20fa0caf4fe7621879f4461c17",
+    "decorations-1440": "cec2827f23e624aaf950c53b0cdfc1ea6e1b45b94c0a548a7f65343dab74696f",
+    "level-1440": "6550a0d7329c4aead458217d35c52af0cdeff592e3c67c9b888a5b814115b69b",
+    "level-390": "2bcb57e3308849a46308db28a397e67cd71709136c669c36c722c1b222004d96",
+    "colors-1440": "475e89bd2460a3a45081e2f08897efb5252c51b2dde232622a6bc47bdea5c029",
+    "celebration-1440": "490a2008f466cac076592a5ba9ac95c10ebcb69fcb66616e511e195ba3870929",
+    "transition-1440": "93bf337b696ee7add23f2edf5d46028c60bcc38648e6559582e257b7be2b10dc",
+    "jump-1440": "6c8293b2d95b5f0a6735e52653374a962980dc73fa21e6e569c323bf74948fae",
+    "climb-1440": "44051283f1ef7ae84f07dc85ed0e674bf39a2f281ce09f7b12d22bc0df725094",
+    "descent-1440": "0b9451623bf7a6afc0d1220722f30197ae5bdc3ef27a1d94788e8aff9eab6e32"
+  },
+  "visualReview": [
+    "decorations-1440",
+    "level-390"
+  ],
+  "focusedTests": {
+    "passCount": 77,
+    "failCount": 0
+  },
+  "browserViews": 19,
+  "browserCases": 637,
+  "performanceAssertions": 12,
+  "webGpuErrors": 0,
+  "checks": {
+    "boxboundTypecheck": "passed",
+    "boxboundEslint": "passed",
+    "build": "passed",
+    "gitDiffCheck": "passed",
+    "worldJsonHttpBytesAndHash": "passed"
+  },
+  "engineModified": false,
+  "fullRepositoryTests": "Not run, per user request for game-only changes.",
+  "workload": "Shared Chrome/WebGPU runner: 19 gameplay views; performance: 96 moves, 44 room displays, 48 crate-transfer displays, 30 idle samples and four disposals. Temporary browser and memory saves."
+}

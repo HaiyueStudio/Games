@@ -20,7 +20,7 @@ import {
 } from '@haiyue/engine/gui';
 import type { GameSaveBackend } from '@haiyue/engine/save';
 import { calendarLayout, calendarViewport, calendarPointer } from './viewport';
-import { calendarTray, calendarOrientedCells } from './tray';
+import { calendarTray, calendarOrientedCells, calendarPieceContains } from './tray';
 import { CalendarSolverClient, type CalendarSolverWorker } from './solver-client';
 import { CalendarPieceGesture } from './piece-gesture';
 import { CalendarRasterSurface } from './raster-surface';
@@ -978,9 +978,8 @@ export class CalendarPuzzleGame {
   private pickPiece(point: Point): PieceState | null {
     const orderedPieces = [...this.pieces].sort((a, b) => b.layer - a.layer);
     for (const piece of orderedPieces) {
-      for (const cell of this.orientedCells(piece)) {
-        if (contains({ x: piece.x + cell.x * PITCH * piece.scale, y: piece.y + cell.y * PITCH * piece.scale, width: CELL * piece.scale, height: CELL * piece.scale }, point)) return piece;
-      }
+      const local = { x: (point.x - piece.x) / piece.scale, y: (point.y - piece.y) / piece.scale };
+      if (calendarPieceContains(this.orientedCells(piece), local, CELL, GAP)) return piece;
     }
     return null;
   }

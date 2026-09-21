@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-browser-diagnostic",
+  "renderRevision": 13,
+  "rulesRevision": 8,
+  "generatedAt": "2026-09-20T14:07:50.937872+00:00",
+  "revision": "6364898d0186054663a48324d400155f1c220be3",
+  "dirty": true,
+  "bundleSha256": "fc0085f389e769cbd6939afd381921205471e0bddf0d63e78d3ba62699e6de21",
+  "sourceSha256": {
+    "games/boxbound/history.ts": "8677c63236514d6ab5855258f940d9926dd8b1c75aac74a146df4aa25068ef5a",
+    "games/boxbound/parabox-source.json": "f9dbc0f9ede6700880d80f8dedfa6896db1233d58946018e806946ba68e2a67f",
+    "games/boxbound/index.html": "f162a89ce245948df20d6eda5f307e1e0a3400c141e7964bb73db298e3c81c46",
+    "games/boxbound/performance.ts": "769342a6cdcc32c05f9d147b063bd6efcdbe4ee6a875d9275c45bde83f51d96d",
+    "games/boxbound/main.ts": "080af0545e0e7573b4a93c2857b825b4804051f4442c1239a4b3447c5c9ee419",
+    "games/boxbound/visuals.ts": "d14ac95cefa662899a2fa00a7e8f443e18f795b414eb61cf937ab0d1563187b7",
+    "games/boxbound/levels.ts": "1ab7bdf1a8e3faa70d64d6b663dfe52555bcede314c803d82322cbc3d60b9120",
+    "games/boxbound/audio.ts": "bd526bfd9d843c306660a4c4830627127e74f4c410fbb4904448fb39eff07493",
+    "games/boxbound/saves.ts": "a496d2a15a4c0b81630fc3aac47bd5369fde7b7d709dcf6b3d6baff5145729b2",
+    "games/boxbound/decorations.ts": "6de2cd0fdaf1d214a2f5bf59ca506616731e6fb430f3ec47d9b712271ebb0955",
+    "games/boxbound/model.ts": "5a07350c8c31cd71cde4d32704db3bb8972979c9ee922f28dfc4b5ea2270ecfb",
+    "games/boxbound/README.md": "4ab5ad74c2d7b23dc2c2e3e5cbe7ac67f72909f8d4e4e0c5f4d9a46619d4bb1b",
+    "games/boxbound/scene.ts": "ab783f570e1ea0e5d8fe0c0626e221851d03f48e294019df6612ddd95aacf7ad",
+    "games/boxbound/world-map.ts": "e97273782567dac755ec59d384d8851a21f61514761d709cdd4fb42fa5b6f00c",
+    "games/boxbound/style.css": "4ac23898af085d81d9bdb87c1e8ed542c464480929681abc2d1b059363dc92d2",
+    "games/boxbound/tsconfig.json": "3912e7b34953c4f654ebe8dca03e2d0d427ef46cf53ab24e4fb2907bd95dcfaf",
+    "games/boxbound/parabox-solutions.json": "bfb836df341a4fb07c958df2e542a052e7a76592b7b4ddd423b731476cedda75",
+    "games/boxbound/world.json": "f8e6ad71642e48625f0d22e7bbe596fc1ab7676bd13cb18eb5e3af97f24ed6ca",
+    "games/boxbound/sound-events.ts": "592c1c98d99274f739ad02e2a35bbbeb6a2a7dbc5d687b1a0e6048ffbbe722d7",
+    "games/test/boxbound.test.mjs": "284eafc4874a9342b0e6def4b85fb398c7f534f927b9eec7fd1ab979ab63d19e",
+    "games/test/boxbound-performance.test.mjs": "f0a4bde9fdd0e3b8c32c555579be493fd810ee462edff054d3f8483cd0264363",
+    "scripts/verify-boxbound.mjs": "e62ed8fa6914c9055d3b45195bfe5d98edc46e0a44aa592954ccf69b4fc85fed"
+  },
+  "focusedTests": {
+    "passCount": 97,
+    "failCount": 0
+  },
+  "browserViews": 24,
+  "browserCases": 834,
+  "webGpuErrors": 0,
+  "results": {
+    "parabox-hub-1440": {
+      "cases": 38,
+      "artifactSha256": "d9bca366449c94eacf51da72899004e8f0660d1616e0e9ca49dafc259c45162c",
+      "generatedAt": "2026-09-20T14:02:39.008Z"
+    },
+    "parabox-hub-390": {
+      "cases": 38,
+      "artifactSha256": "032bd48ec344b8fe9b395471ed5f616f33785de030b616d8a4c88a1c2230770c",
+      "generatedAt": "2026-09-20T14:02:51.716Z"
+    },
+    "parabox-intro-1440": {
+      "cases": 38,
+      "artifactSha256": "62608cd6129f320677b78c9b63b4d7549ab2644ae0e48c9e81b74e8f472c810b",
+      "generatedAt": "2026-09-20T14:03:04.747Z"
+    },
+    "parabox-nested-1440": {
+      "cases": 38,
+      "artifactSha256": "baf9e665a605f121ebff590bd86d401a4f2714802293b118e8517dff970b5bc4",
+      "generatedAt": "2026-09-20T14:03:19.044Z"
+    },
+    "gate-recoil-1440": {
+      "cases": 45,
+      "artifactSha256": "c12dd8b2a8bb5f253e93d2d4faf202769748df31d3b568d33793b9070ce778d2",
+      "generatedAt": "2026-09-20T14:03:31.647Z"
+    },
+    "undo-step-1440": {
+      "cases": 37,
+      "artifactSha256": "4c52195ef0494bb2e4343b234df46bc121ae84d5b667418e9c300a343cc8080c",
+      "generatedAt": "2026-09-20T14:03:43.979Z"
+    },
+    "undo-box-1440": {
+      "cases": 37,
+      "artifactSha256": "ad54201cb452740cf891bd66d332beef90febb46447bb7eba0bf3e2eb3d0c87c",
+      "generatedAt": "2026-09-20T14:03:55.901Z"
+    },
+    "outer-wall-1440": {
+      "cases": 37,
+      "artifactSha256": "6a4430dfad60ae4cfbb96175fd47410a384fe341851eb9706b0dfb9cd2d2bf73",
+      "generatedAt": "2026-09-20T14:04:08.906Z"
+    },
+    "pressure-open-1440": {
+      "cases": 38,
+      "artifactSha256": "e39ad183588eebc679400611cd661ee81f6e427d270c718fc970da29948147d4",
+      "generatedAt": "2026-09-20T14:04:20.027Z"
+    },
+    "pressure-closed-1440": {
+      "cases": 38,
+      "artifactSha256": "f6ba27e13e561b1b6a662be86f3f7de1a96d957b2664e6a0ed918482aa483010",
+      "generatedAt": "2026-09-20T14:04:31.947Z"
+    },
+    "box-entry-1440": {
+      "cases": 40,
+      "artifactSha256": "cb3d98324c426fb4f9f90347f0e16e36ee89d164917669314d3b8c2ceff542dc",
+      "generatedAt": "2026-09-20T14:04:43.631Z"
+    },
+    "box-exit-1440": {
+      "cases": 40,
+      "artifactSha256": "66ff733cc05f9831b3ebfe4c32b4dff3a4110459b6db3c5832d3db4284f3ab3d",
+      "generatedAt": "2026-09-20T14:04:55.029Z"
+    },
+    "box-outside-1440": {
+      "cases": 40,
+      "artifactSha256": "460f76805c258b50a8bc5ffc36ae4e22a69ea49150c70a7ae759d4cc11eb97d7",
+      "generatedAt": "2026-09-20T14:05:06.745Z"
+    },
+    "home-1440": {
+      "cases": 29,
+      "artifactSha256": "abcff40225d8232987938a59a52604b83d8608fbdf0d084e6b64cd406a59d5ae",
+      "generatedAt": "2026-09-20T14:05:17.819Z"
+    },
+    "world-1440": {
+      "cases": 29,
+      "artifactSha256": "de32014b76e1308d5b20340b92b65ea1c0569496b004d4f93d5d5355480a45ac",
+      "generatedAt": "2026-09-20T14:05:28.674Z"
+    },
+    "decorations-1440": {
+      "cases": 35,
+      "artifactSha256": "d1ac6ff5f06cdf1871b721601762c96ac4305439eb0aba91d5a5437c92346cf9",
+      "generatedAt": "2026-09-20T14:05:39.317Z"
+    },
+    "level-1440": {
+      "cases": 29,
+      "artifactSha256": "e77756146ecc3498495af5901361d46ad27d8a12eee4f75014b7cc54b9434566",
+      "generatedAt": "2026-09-20T14:05:49.429Z"
+    },
+    "level-390": {
+      "cases": 29,
+      "artifactSha256": "a61cb265f270335b4186c950cc8aae5163ac3891b4182100a7563465cb7ded78",
+      "generatedAt": "2026-09-20T14:05:58.837Z"
+    },
+    "colors-1440": {
+      "cases": 30,
+      "artifactSha256": "910ac40caa2b025cfe28833c23ceea428be41468a1b883f90f0d9b235ce6ede4",
+      "generatedAt": "2026-09-20T14:06:09.711Z"
+    },
+    "celebration-1440": {
+      "cases": 29,
+      "artifactSha256": "624ddc05166211759ffddbb416af88e205d3214cc93fcaaede5bebe38093be28",
+      "generatedAt": "2026-09-20T14:06:19.658Z"
+    },
+    "transition-1440": {
+      "cases": 30,
+      "artifactSha256": "e10f8cc568d1727006081556c592464726fca0ffca2cae4885f17f79b29223b0",
+      "generatedAt": "2026-09-20T14:06:29.903Z"
+    },
+    "jump-1440": {
+      "cases": 30,
+      "artifactSha256": "9b171b0332826d6382951e8ec3eb7037d76c1820bdfff2d7847b35b3d95dd3bf",
+      "generatedAt": "2026-09-20T14:06:40.376Z"
+    },
+    "climb-1440": {
+      "cases": 30,
+      "artifactSha256": "a346e44c6f5b4ae8d510c4cbb230b0b1680ba1667cc5abf3c6ed15312a646d88",
+      "generatedAt": "2026-09-20T14:06:51.651Z"
+    },
+    "descent-1440": {
+      "cases": 30,
+      "artifactSha256": "17d5c90fb3d6458920d6d46df5a5864464cc976abbc00dace60d416e08101ae9",
+      "generatedAt": "2026-09-20T14:07:02.069Z"
+    }
+  },
+  "screenshots": {
+    "parabox-hub-1440": "683f5410125c38a5319c6398d585109c80e3b732c8feff7f961a797b31f434cf",
+    "parabox-hub-390": "9fc83afb01af1798e6c60bea83dd753293c3f5cb5493d7f5c629e03187974efe",
+    "parabox-intro-1440": "7a56c41be0943c9aed759f2374aa65565cf02217d3b3350366ca44d1cd7ed9de",
+    "parabox-nested-1440": "faec6c46c19dd6cb29ccf19a3e32059427097384b6c4e09693e4af2eb505390a",
+    "gate-recoil-1440": "5a0249828f1cbb559bdd2119864a44831fab825229d5712a5c25a846168e745c",
+    "undo-step-1440": "873d1c5b39d5f607af716c2d53209989a9a3fe419685f197a95938223e297161",
+    "undo-box-1440": "95ed08129eb03e36341a08194ff37e50aff7300aefd2d033748dfea680eaf61a",
+    "outer-wall-1440": "1c84a1d0f01d2e5b3b2d5450ec84c079d84ad9b7ecb8584778280cd9fb564ade",
+    "pressure-open-1440": "c7062d3978cfc3587234f5367b0f89a31645b821a982483b31bd479e139994a2",
+    "pressure-closed-1440": "9b3ffa51976f991089e90c6989ec143a16190879efe7e0515e3651f9d5c4900a",
+    "box-entry-1440": "589e06397b3286de7ba2ddec5eb6cd75d439abfb35ce8a313cd297033280764a",
+    "box-exit-1440": "341376f9146a50527162e9555cd9c5883a3ecc26dd7897669689676479b25230",
+    "box-outside-1440": "f92f14ca152cf386b5ee4090ec8d7d29d88282c55ac73ddf4e5fe6d697e9ce5c",
+    "home-1440": "cd6614367cc9af1aaef945a8269454568e5d5a630b3a85620bacadd8012c745c",
+    "world-1440": "3f78abe518dc669c718538c26d560bf4e4d47835d0ecba5ea51ef33fc7ba7842",
+    "decorations-1440": "f74a913b34912c0818c20a55e6b0da3366ab28d40ad0f6d501879e4c05c5f54f",
+    "level-1440": "4818c69773a7e7fbf5eb20096d7103add9993b3f32644eb02e6aca6803c7970a",
+    "level-390": "5820ae78c7f2cd953bfd1a979da3451a50d1c61e9917a7bf38d664e69780f502",
+    "colors-1440": "2658d0ae1e22fd99907adc3f828083a5f61401172a324105851385d8a64e626c",
+    "celebration-1440": "f90809dbe2cba9b55ce964d0ea4030d741c3a90bf9ff670db691a7e0cd2e43c9",
+    "transition-1440": "98064a90f135b1689b44f691c5888987b21bfc91d570d4bb29cf262c449fedfc",
+    "jump-1440": "758002420c620191875890b281dc4417e2c8df19444ea8ad1baf19cbef404490",
+    "climb-1440": "44f8df889177d1b1a0146d5e9641578254fc606b1e0d95e04441f19e70a952d2",
+    "descent-1440": "ccb38a9e2ef9ba2777023c1bcaa9eb68a1ac487344616bb473736f2c47ba5171"
+  },
+  "visualReview": [
+    "parabox-hub-1440",
+    "parabox-hub-390",
+    "parabox-intro-1440",
+    "parabox-nested-1440",
+    "world-1440"
+  ],
+  "scope": "Boxbound only; no Engine changes or whole-repository tests. Temporary shared Chrome/WebGPU runner, memory saves; live player tab untouched.",
+  "content": {
+    "originalLevels": 10,
+    "tributeLevels": [
+      "Intro 1",
+      "Intro 2",
+      "Intro 3",
+      "Intro 4",
+      "Intro 5",
+      "Intro 6",
+      "Intro 7",
+      "Intro 8",
+      "Intro 9",
+      "Enter 1"
+    ],
+    "rooms": 36,
+    "boxes": 59,
+    "source": "Community transcription pinned in parabox-source.json, not official export",
+    "solutions": "Ten direction-only paths replayed with validState after every action; nested reset and return verified."
+  }
+}

@@ -40,7 +40,7 @@ export async function run(tab, origin = 'http://127.0.0.1:8317') {
   for (const rule of ['diagonal', 'missing', 'killer', 'renban', 'consecutive']) await p.locator(`#${rule}`).check();
   await p.locator('#start-new').click();
   await p.locator('#busy').waitFor({ state: 'hidden', timeoutMs: 15000 });
-  assert.match(await text('mode-label'), /对角线 \+ 缺一门 \+ 杀手 \+ Renban \+ 差 1/);
+  assert.match(await text('mode-label'), /对角线 \+ 缺一门 \+ 杀手 \+ 连续数 \+ 差 1/);
   assert.match(await text('progress'), /25 \/ 72/);
   await p.locator('#new').click();
   await p.locator('#led').uncheck();
@@ -94,4 +94,43 @@ export async function runVariants(tab, origin = 'http://127.0.0.1:8317') {
   await p.locator('#undo').click(); assert.doesNotMatch(await text('progress'), /已完成/);
   assert.equal((await tab.dev.logs({ levels: ['error'], limit: 30 })).length, 0);
   return { passed: true, checks: ['four rule controls', 'parity and inequality candidates', 'partial exclusion set', 'surrounding cell filtering', 'all ten rules', 'combined save restore', 'classic variants', 'completion and undo', 'console errors'] };
+}
+
+/** Advanced rules and conflict UI; no private game state or storage access. */
+export async function runAdvanced(tab, origin='http://127.0.0.1:8317') {
+ const p=tab.playwright, text=id=>p.locator(`#${id}`).textContent();
+ await tab.goto(`${origin}/games/led-sudoku/?seed=20260921&thermometer=1&skyscraper=1&xv=1&quadruple=1`);
+ await p.locator('#busy').waitFor({state:'hidden',timeoutMs:30000});
+ assert.equal(await p.locator('#glow').count(),0);assert.match(await text('active-rules'),/温度计 · 摩天大楼 · XV · 四数和/);
+ assert.match(await text('cell-rules'),/摩天大楼.*XV 全标记/s);
+ await p.locator('#digit-4').click();assert.match(await text('progress'),/26 \/ 81/);await p.locator('#undo').click();
+ await p.locator('#new').click();
+ for(const [on,off] of [['renban','thermometer'],['missing','skyscraper'],['inequality','xv'],['exclusion','quadruple'],['thermometer','renban'],['skyscraper','missing'],['xv','inequality'],['quadruple','exclusion']]) {
+  await p.locator(`#${on}`).check();
+  assert.equal(await p.evaluate(id=>document.getElementById(id).checked,off),false);assert.match(await text('rule-notice'),/已关闭/);
+ }
+ await p.locator('#consecutive').check();assert.equal(await p.evaluate(()=>document.getElementById('xv').checked),false);
+ await p.locator('#xv').check();assert.equal(await p.evaluate(()=>document.getElementById('consecutive').checked),false);
+ await p.locator('#cancel-new').click();assert.match(await text('active-rules'),/温度计 · 摩天大楼 · XV · 四数和/);
+ await p.locator('#new').click();await p.locator('#led').uncheck();await p.locator('#start-new').click();
+ await p.locator('#busy').waitFor({state:'hidden',timeoutMs:30000});assert.match(await text('mode-label'),/常规.*温度计.*摩天大楼.*XV.*四数和/);
+ await tab.goto(`${origin}/games/led-sudoku/`);await p.locator('#busy').waitFor({state:'hidden',timeoutMs:30000});assert.match(await text('status'),/已恢复/);assert.match(await text('mode-label'),/常规/);
+ assert.equal((await tab.dev.logs({levels:['error'],limit:20})).length,0);
+ return {passed:true,checks:['no glow control','four active rules','visible clue explanations','candidate placement and undo','five symmetric rule conflicts','cancel preserves game','classic advanced game','advanced save restore','console errors']};
+}
+
+/** Ordered purple-line wording must agree between the live game and settings. */
+export async function runOrdered(tab, origin='http://127.0.0.1:8317') {
+  const p=tab.playwright;
+  await tab.goto(`${origin}/games/led-sudoku/?seed=39&renban=1`);
+  await p.locator('#busy').waitFor({state:'hidden',timeoutMs:30000});
+  assert.match(await p.locator('#mode-label').textContent(),/连续数/);
+  await p.locator('#help').click();
+  assert.match(await p.locator('#line-rule-help').textContent(),/每步差 1，全部升序或全部降序，不能乱序或中途转向/);
+  await p.locator('#close-help').click();await p.locator('#new').click();
+  const label=await p.locator('label').filter({has:p.locator('#renban')}).textContent();
+  assert.match(label,/连续数 · 升\/降/);assert.match(label,/每步差 1，全部升序或全部降序/);
+  await p.locator('#cancel-new').click();
+  assert.equal((await tab.dev.logs({levels:['error']})).length,0);
+  return {passed:true,seed:39,checks:['current rule label','ordered help','ordered settings','console errors']};
 }

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-browser-diagnostic",
+  "renderRevision": 10,
+  "rulesRevision": 6,
+  "generatedAt": "2026-09-20T12:36:25.389680+00:00",
+  "revision": "6364898d0186054663a48324d400155f1c220be3",
+  "dirty": true,
+  "bundleSha256": "681addc9255dd5f25e5f02af91359e91586d89fb58d3007fadc241987878694e",
+  "sourceSha256": {
+    "games/boxbound/levels.ts": "c3198f7a9f6910848725980c3a751887dc31e24d24b50f61fd40771207f09719",
+    "games/boxbound/main.ts": "0ff9795c0a6cf967f6fef679661c10c0c573b72464eddd42b723afec61925fa6",
+    "games/boxbound/README.md": "f3e228d6f9c6f21800e1ea69eb782de301489e478d935eccfa3ec0a2f1591b62",
+    "games/test/boxbound.test.mjs": "3ae1c9031802bcebf85f8682011a11c7acc62149b3afa01ad163e5ffd9509fb2",
+    "games/test/boxbound-performance.test.mjs": "f0a4bde9fdd0e3b8c32c555579be493fd810ee462edff054d3f8483cd0264363"
+  },
+  "screenshots": {
+    "spacing-pressure-open-1440": "9c24e257b2f6458d2e7451db42e307d7fc2ea256f103653dee3e4031155b7ab7",
+    "spacing-pressure-closed-1440": "d4b2812d8e2661e5922c7192a57ec4213dfe855ad364d272ab78e7677827ee7a",
+    "spacing-level-390": "2bcb57e3308849a46308db28a397e67cd71709136c669c36c722c1b222004d96"
+  },
+  "visualReview": [
+    "spacing-pressure-open-1440",
+    "spacing-pressure-closed-1440",
+    "spacing-level-390"
+  ],
+  "focusedTests": {
+    "pass": 71,
+    "fail": 0
+  },
+  "browserViews": 3,
+  "browserCases": 105,
+  "webGpuErrors": 0,
+  "checks": {
+    "boxboundTypecheck": "passed",
+    "boxboundEslint": "passed",
+    "build": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "engineModified": false,
+  "fullRepositoryTests": "Not run, per user request for game-only changes.",
+  "workload": "Existing shared Chrome WebGPU runner: pressure-open/pressure-closed at 1440x1000 and level at 390x844; unchanged case-count/error/screenshot checks."
+}

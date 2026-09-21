@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-browser-diagnostic",
+  "rulesRevision": 3,
+  "generatedAt": "2026-09-20T09:37:05.793457+00:00",
+  "revision": "6364898d0186054663a48324d400155f1c220be3",
+  "dirty": true,
+  "bundleSha256": "4f14c01281beb1f0f44609a1136b448de7b79199b0b8a40492b3ff8af9bb50da",
+  "sourceSha256": {
+    "games/boxbound/main.ts": "70211ac9dc18e873fa81298fd52f75b4ad3e50184a99974b5c4b0fead0a38332",
+    "games/boxbound/visuals.ts": "f1bc8167e2d519e347fc05efdb027a8b67290a70a646385fb9f2e6cf2b311d87",
+    "games/boxbound/levels.ts": "af4dbbba967518d7b7d44643d6de9eb7cf3ab823321dddd64248c5e6260c2a63",
+    "games/boxbound/saves.ts": "a496d2a15a4c0b81630fc3aac47bd5369fde7b7d709dcf6b3d6baff5145729b2",
+    "games/boxbound/model.ts": "034dda4ea8023d03a618a23d5c0493bcc95dc56a211c40771ebbadafc2728b64",
+    "games/boxbound/scene.ts": "0efc5ff59e9c1e238ff019141a32f5779f9bd54843873979f17aa660a0f83011",
+    "games/boxbound/style.css": "aa9c21caf82d2e107c99ed2c49a308864140e5bab2019db2effa9ecc5e4e8024",
+    "games/boxbound/index.html": "4963932d216e0f467d5ff00346358da507534e28a30a9e9d6405e5fea8813a11",
+    "games/test/boxbound.test.mjs": "74f5e5a04b35190eacbf3dcdaf298ff84a4a6dd5a2a35d4e4eefd7f0417853b3",
+    "scripts/verify-boxbound.mjs": "eb0c6b05806a02477a5cd619a2120c227c01159a6b63796dff227ddd5577f78f"
+  },
+  "screenshots": {
+    "home-1440": "6fa6733f99f2fa671f4f99ca460282565f97e5e463d9118f0cb217242e6a38a4",
+    "world-1440": "49becf479e235295323b7d2ccb300b0c51265d3da46061ce9fa7f54769eeaa39",
+    "level-1440": "cbb67307e2aeb306be4b8a88e15ef01421bd461c6a3f858844dd7297226fef4a",
+    "level-390": "4f429b775ea9fc985079fe9326f6b3744cb6028d3cb1984136cc426b5740505c",
+    "colors-1440": "740718748418b6e7dd0a0d12568d3b84a2bd9507ba26cf8057aa7e7cb21e553e",
+    "celebration-1440": "c0e05951796b0ca300ffa30351cf0fdf3f918ea8eebf6a36d55f807a99dab97c",
+    "transition-1440": "f80331380604014c99e7d847381e66c8ba3d432e0c8bfb0a1d2cd7a95341efb4",
+    "jump-1440": "2d46e543a8504ba5ff0c0b4bceb1775df8e8a4a834df2575a9bf5a7b5b3c0774"
+  },
+  "browserCases": 155,
+  "focusedTests": {
+    "pass": 41
+  },
+  "fullTests": {
+    "total": 837,
+    "pass": 806,
+    "fail": 2,
+    "cancelled": 9,
+    "skipped": 20
+  }
+}

@@ -1,0 +1,412 @@
+{
+  "worldId": "pp-enter",
+  "rooms": [
+    {
+      "id": "pp-enter",
+      "name": "Enter · 进入",
+      "size": 13,
+      "spawn": [6, 0, 11],
+      "walls": [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 0, 4],
+        [0, 0, 5],
+        [0, 0, 6],
+        [0, 0, 7],
+        [0, 0, 8],
+        [0, 0, 9],
+        [0, 0, 10],
+        [0, 0, 11],
+        [0, 0, 12],
+        [1, 0, 0],
+        [1, 0, 12],
+        [2, 0, 0],
+        [2, 0, 12],
+        [3, 0, 0],
+        [3, 0, 12],
+        [4, 0, 0],
+        [4, 0, 12],
+        [5, 0, 0],
+        [5, 0, 12],
+        [6, 0, 0],
+        [7, 0, 0],
+        [7, 0, 12],
+        [8, 0, 0],
+        [8, 0, 12],
+        [9, 0, 0],
+        [9, 0, 12],
+        [10, 0, 0],
+        [10, 0, 12],
+        [11, 0, 0],
+        [11, 0, 12],
+        [12, 0, 0],
+        [12, 0, 1],
+        [12, 0, 2],
+        [12, 0, 3],
+        [12, 0, 4],
+        [12, 0, 5],
+        [12, 0, 6],
+        [12, 0, 7],
+        [12, 0, 8],
+        [12, 0, 9],
+        [12, 0, 10],
+        [12, 0, 11],
+        [12, 0, 12]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 0, 4],
+        [0, 0, 5],
+        [0, 0, 6],
+        [0, 0, 7],
+        [0, 0, 8],
+        [0, 0, 9],
+        [0, 0, 10],
+        [0, 0, 11],
+        [0, 0, 12],
+        [1, 0, 0],
+        [1, 0, 12],
+        [2, 0, 0],
+        [2, 0, 12],
+        [3, 0, 0],
+        [3, 0, 12],
+        [4, 0, 0],
+        [4, 0, 12],
+        [5, 0, 0],
+        [5, 0, 12],
+        [6, 0, 0],
+        [7, 0, 0],
+        [7, 0, 12],
+        [8, 0, 0],
+        [8, 0, 12],
+        [9, 0, 0],
+        [9, 0, 12],
+        [10, 0, 0],
+        [10, 0, 12],
+        [11, 0, 0],
+        [11, 0, 12],
+        [12, 0, 0],
+        [12, 0, 1],
+        [12, 0, 2],
+        [12, 0, 3],
+        [12, 0, 4],
+        [12, 0, 5],
+        [12, 0, 6],
+        [12, 0, 7],
+        [12, 0, 8],
+        [12, 0, 9],
+        [12, 0, 10],
+        [12, 0, 11],
+        [12, 0, 12]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 0,
+      "hint": "Enter 章节 · 走进关卡开始。完成后返回本章，再次进入会重置内部。南侧绿色出口返回致敬馆，也可按 E。",
+      "boxes": [
+        {
+          "id": "pp-gateway-10",
+          "pos": [3, 0, 2],
+          "size": 1,
+          "inside": "pp-enter1-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 1",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-11",
+          "pos": [5, 0, 2],
+          "size": 1,
+          "inside": "pp-enter2-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 2",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-12",
+          "pos": [7, 0, 2],
+          "size": 1,
+          "inside": "pp-enter3-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 3",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-13",
+          "pos": [9, 0, 2],
+          "size": 1,
+          "inside": "pp-enter4-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 4",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-14",
+          "pos": [3, 0, 4],
+          "size": 1,
+          "inside": "pp-enter5-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 5",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-15",
+          "pos": [5, 0, 4],
+          "size": 1,
+          "inside": "pp-enter6-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 6",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-16",
+          "pos": [7, 0, 4],
+          "size": 1,
+          "inside": "pp-enter7-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 7",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-17",
+          "pos": [9, 0, 4],
+          "size": 1,
+          "inside": "pp-enter8-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 8",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-18",
+          "pos": [3, 0, 6],
+          "size": 1,
+          "inside": "pp-enter9-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 9",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-19",
+          "pos": [5, 0, 6],
+          "size": 1,
+          "inside": "pp-enter10-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 10",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-20",
+          "pos": [7, 0, 6],
+          "size": 1,
+          "inside": "pp-enter11-lr",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 11",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-21",
+          "pos": [9, 0, 6],
+          "size": 1,
+          "inside": "pp-enter12-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 12",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-22",
+          "pos": [3, 0, 8],
+          "size": 1,
+          "inside": "pp-enter13-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 13",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-23",
+          "pos": [5, 0, 8],
+          "size": 1,
+          "inside": "pp-enter14-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 14",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-24",
+          "pos": [7, 0, 8],
+          "size": 1,
+          "inside": "pp-enter15-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 15",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-25",
+          "pos": [9, 0, 8],
+          "size": 1,
+          "inside": "pp-enter16-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 16",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-26",
+          "pos": [3, 0, 10],
+          "size": 1,
+          "inside": "pp-enter17-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 17",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-gateway-27",
+          "pos": [5, 0, 10],
+          "size": 1,
+          "inside": "pp-enter18-la",
+          "fixed": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Enter 18",
+          "required": false,
+          "color": "coral"
+        }
+      ],
+      "doorWidths": [
+        0.82,
+        0.82,
+        0.82,
+        0.82
+      ],
+      "exitLabel": "返回致敬馆"
+    }
+  ],
+  "levels": [
+    {
+      "$ref": "enter-01.json"
+    },
+    {
+      "$ref": "enter-02.json"
+    },
+    {
+      "$ref": "enter-03.json"
+    },
+    {
+      "$ref": "enter-04.json"
+    },
+    {
+      "$ref": "enter-05.json"
+    },
+    {
+      "$ref": "enter-06.json"
+    },
+    {
+      "$ref": "enter-07.json"
+    },
+    {
+      "$ref": "enter-08.json"
+    },
+    {
+      "$ref": "enter-09.json"
+    },
+    {
+      "$ref": "enter-10.json"
+    },
+    {
+      "$ref": "enter-11.json"
+    },
+    {
+      "$ref": "enter-12.json"
+    },
+    {
+      "$ref": "enter-13.json"
+    },
+    {
+      "$ref": "enter-14.json"
+    },
+    {
+      "$ref": "enter-15.json"
+    },
+    {
+      "$ref": "enter-16.json"
+    },
+    {
+      "$ref": "enter-17.json"
+    },
+    {
+      "$ref": "enter-18.json"
+    }
+  ]
+}

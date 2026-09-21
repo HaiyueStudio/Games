@@ -1,0 +1,252 @@
+{
+  "worldId": "pp-hub",
+  "rooms": [
+    {
+      "id": "pp-hub",
+      "name": "Parabox 致敬馆",
+      "size": 13,
+      "spawn": [6, 0, 11],
+      "walls": [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 0, 4],
+        [0, 0, 5],
+        [0, 0, 6],
+        [0, 0, 7],
+        [0, 0, 8],
+        [0, 0, 9],
+        [0, 0, 10],
+        [0, 0, 11],
+        [0, 0, 12],
+        [1, 0, 0],
+        [1, 0, 12],
+        [2, 0, 0],
+        [2, 0, 12],
+        [3, 0, 0],
+        [3, 0, 12],
+        [4, 0, 0],
+        [4, 0, 12],
+        [5, 0, 0],
+        [5, 0, 12],
+        [6, 0, 0],
+        [7, 0, 0],
+        [7, 0, 12],
+        [8, 0, 0],
+        [8, 0, 12],
+        [9, 0, 0],
+        [9, 0, 12],
+        [10, 0, 0],
+        [10, 0, 12],
+        [11, 0, 0],
+        [11, 0, 12],
+        [12, 0, 0],
+        [12, 0, 1],
+        [12, 0, 2],
+        [12, 0, 3],
+        [12, 0, 4],
+        [12, 0, 5],
+        [12, 0, 6],
+        [12, 0, 7],
+        [12, 0, 8],
+        [12, 0, 9],
+        [12, 0, 10],
+        [12, 0, 11],
+        [12, 0, 12]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [0, 0, 3],
+        [0, 0, 4],
+        [0, 0, 5],
+        [0, 0, 6],
+        [0, 0, 7],
+        [0, 0, 8],
+        [0, 0, 9],
+        [0, 0, 10],
+        [0, 0, 11],
+        [0, 0, 12],
+        [1, 0, 0],
+        [1, 0, 12],
+        [2, 0, 0],
+        [2, 0, 12],
+        [3, 0, 0],
+        [3, 0, 12],
+        [4, 0, 0],
+        [4, 0, 12],
+        [5, 0, 0],
+        [5, 0, 12],
+        [6, 0, 0],
+        [7, 0, 0],
+        [7, 0, 12],
+        [8, 0, 0],
+        [8, 0, 12],
+        [9, 0, 0],
+        [9, 0, 12],
+        [10, 0, 0],
+        [10, 0, 12],
+        [11, 0, 0],
+        [11, 0, 12],
+        [12, 0, 0],
+        [12, 0, 1],
+        [12, 0, 2],
+        [12, 0, 3],
+        [12, 0, 4],
+        [12, 0, 5],
+        [12, 0, 6],
+        [12, 0, 7],
+        [12, 0, 8],
+        [12, 0, 9],
+        [12, 0, 10],
+        [12, 0, 11],
+        [12, 0, 12]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 0,
+      "hint": "八个章节，106 个盒中谜题。进入章节选择关卡；南侧绿色出口返回群岛，也可按 E。",
+      "boxes": [
+        {
+          "id": "pp-chapter-intro",
+          "pos": [3, 0, 5],
+          "size": 1,
+          "inside": "pp-intro",
+          "fixed": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Intro · 入门",
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-chapter-enter",
+          "pos": [6, 0, 5],
+          "size": 1,
+          "inside": "pp-enter",
+          "fixed": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Enter · 进入",
+          "required": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-chapter-empty",
+          "pos": [9, 0, 5],
+          "size": 1,
+          "inside": "pp-empty",
+          "fixed": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Empty · 空盒",
+          "required": false,
+          "color": "gold"
+        },
+        {
+          "id": "pp-chapter-eat",
+          "pos": [3, 0, 2],
+          "size": 1,
+          "inside": "pp-eat",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Eat · 吞入",
+          "color": "gold"
+        },
+        {
+          "id": "pp-chapter-reference",
+          "pos": [6, 0, 2],
+          "size": 1,
+          "inside": "pp-reference",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Reference · 引用",
+          "color": "blue"
+        },
+        {
+          "id": "pp-chapter-swap",
+          "pos": [9, 0, 2],
+          "size": 1,
+          "inside": "pp-swap",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Swap · 交换",
+          "color": "coral"
+        },
+        {
+          "id": "pp-chapter-center",
+          "pos": [3, 0, 8],
+          "size": 1,
+          "inside": "pp-center",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Center · 中心",
+          "color": "gold"
+        },
+        {
+          "id": "pp-chapter-clone",
+          "pos": [9, 0, 8],
+          "size": 1,
+          "inside": "pp-clone",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Clone · 克隆",
+          "color": "blue"
+        }
+      ],
+      "decorations": [
+        {
+          "id": "pp-red-friend",
+          "type": 5,
+          "pos": [6, 0, 9],
+          "message": "红方：欢迎来到 Parabox 致敬馆！八个章节藏在盒子里，通关后返回本章。感谢 Patrick Traynor 创造盒中世界。"
+        }
+      ],
+      "doorWidths": [
+        0.82,
+        0.82,
+        0.82,
+        0.82
+      ],
+      "exitLabel": "返回口袋群岛"
+    }
+  ],
+  "worlds": [
+    {
+      "$ref": "intro/world.json"
+    },
+    {
+      "$ref": "enter/world.json"
+    },
+    {
+      "$ref": "empty/world.json"
+    },
+    {
+      "$ref": "eat/world.json"
+    },
+    {
+      "$ref": "reference/world.json"
+    },
+    {
+      "$ref": "swap/world.json"
+    },
+    {
+      "$ref": "center/world.json"
+    },
+    {
+      "$ref": "clone/world.json"
+    }
+  ]
+}

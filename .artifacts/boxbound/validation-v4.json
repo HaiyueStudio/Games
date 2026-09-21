@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-browser-diagnostic",
+  "rulesRevision": 4,
+  "generatedAt": "2026-09-20T10:00:23.782284+00:00",
+  "revision": "6364898d0186054663a48324d400155f1c220be3",
+  "dirty": true,
+  "bundleSha256": "27f4d9a7925e3e63057e64f881f0147193d04c98b0d389b6ad46b73bb1dd60a8",
+  "sourceSha256": {
+    "games/boxbound/main.ts": "5f1f2deccd34500f24d16d5113f8f6a7f7a6ec999426c2881865c5d70b5ae584",
+    "games/boxbound/visuals.ts": "f1bc8167e2d519e347fc05efdb027a8b67290a70a646385fb9f2e6cf2b311d87",
+    "games/boxbound/levels.ts": "618335acb1fd6f27c4b772b69cd2ecc4b297e1686a269aeea18ff2c2b6751ab1",
+    "games/boxbound/saves.ts": "a496d2a15a4c0b81630fc3aac47bd5369fde7b7d709dcf6b3d6baff5145729b2",
+    "games/boxbound/model.ts": "235723c22c4753ca816e5e12f7d71011b6f521fb0666e9735097c0e86db47b61",
+    "games/boxbound/scene.ts": "080f83e4b339555964262cf2d0e4f8bdcf87a06f8009bd5ff741b9becd82eac1",
+    "games/boxbound/style.css": "aa9c21caf82d2e107c99ed2c49a308864140e5bab2019db2effa9ecc5e4e8024",
+    "games/boxbound/index.html": "4963932d216e0f467d5ff00346358da507534e28a30a9e9d6405e5fea8813a11",
+    "games/test/boxbound.test.mjs": "b58b368fcb8c46ab27cd7e5597b65a90064683c5ae0584ecc60cff57ebef6648",
+    "scripts/verify-boxbound.mjs": "fa3d79918337540cf3736c6ea8f4336f2a9f61ecf2c3bcaa862310fea787b1c7"
+  },
+  "screenshots": {
+    "home-1440": "59a3a0d77db2cf4cdf3c0eba1b9e93daa3606560e8387237c27038b492d4ecd0",
+    "world-1440": "f91bdd55c81f68678dca62e320dc741204d7765c9d9bfc25bfa489cff4fbb743",
+    "level-1440": "def7f1a55aeec876b2cfb99291d4f135ec7216b2f4dd18f2cd542f7cc862ad5d",
+    "level-390": "340ee3467be1db66eb4fc11c1bfcd8e8b8611849e98f71ce2d3d31398475b261",
+    "colors-1440": "96e05ca324d8c20ad02fbb56364469d38103ce3dc6717e9a1db040ae0c809058",
+    "celebration-1440": "dc49edf5f14b13665dfb551da7c1f8378d923fb9e0923785fbc79dd2f425daaf",
+    "transition-1440": "e58f4c3c367b40d6a11e67b295bda36268a36b42fafe62148f7670896d3aaa1b",
+    "jump-1440": "98651d8fce4e5f3c9936ceebfc3d852afed9dd131ba26be67fe6a8bb611070bc"
+  },
+  "browserCases": 187,
+  "focusedTests": {
+    "pass": 46
+  },
+  "fullTests": {
+    "command": "npm test -- --test-concurrency=2",
+    "total": 842,
+    "pass": 803,
+    "fail": 8,
+    "cancelled": 11,
+    "skipped": 20,
+    "unrelatedFailures": [
+      "led-sudoku variants flags 2/11/14 with LED enabled and disabled",
+      "HYMUGEN fingerprint",
+      "MUGEN virtual list slots",
+      "11 Petra timeouts"
+    ]
+  }
+}

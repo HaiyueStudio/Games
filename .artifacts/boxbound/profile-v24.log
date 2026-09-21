@@ -1,0 +1,358 @@
+{
+  "summary": {
+    "walk-warm": {
+      "samples": 48,
+      "medianMs": 7.025000035762787,
+      "p95Ms": 12.464999973773956
+    },
+    "walk-repeat": {
+      "samples": 48,
+      "medianMs": 7.26500004529953,
+      "p95Ms": 10.1700000166893
+    },
+    "rooms-warm": {
+      "samples": 22,
+      "medianMs": 19.100000023841858,
+      "p95Ms": 33.99000000953674
+    },
+    "rooms-repeat": {
+      "samples": 22,
+      "medianMs": 19.709999978542328,
+      "p95Ms": 27.530000030994415
+    },
+    "transfer-warm": {
+      "samples": 24,
+      "medianMs": 16.5100000500679,
+      "p95Ms": 16.980000019073486
+    },
+    "transfer-repeat": {
+      "samples": 24,
+      "medianMs": 16.26500004529953,
+      "p95Ms": 18.064999997615814
+    },
+    "nested-warm": {
+      "samples": 16,
+      "medianMs": 45.785000026226044,
+      "p95Ms": 76.34999996423721
+    },
+    "nested-repeat": {
+      "samples": 16,
+      "medianMs": 46.5799999833107,
+      "p95Ms": 55.939999997615814
+    },
+    "recursive-warm": {
+      "samples": 16,
+      "medianMs": 5.195000052452087,
+      "p95Ms": 5.460000038146973
+    },
+    "recursive-repeat": {
+      "samples": 16,
+      "medianMs": 4.819999992847443,
+      "p95Ms": 5.73499995470047
+    },
+    "idleTwoFrames": {
+      "samples": 30,
+      "medianMs": 33.31999999284744,
+      "p95Ms": 34.03999996185303
+    }
+  },
+  "samples": [
+    {
+      "name": "start",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 1440,
+      "destroyedParts": 0,
+      "rebuilds": 2,
+      "transformWrites": 3,
+      "geometries": 92,
+      "materials": 23,
+      "labels": 11,
+      "sceneExtractions": 1,
+      "gpu": {
+        "buffers": 535,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 144082216
+      }
+    },
+    {
+      "name": "walk-warm",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 1440,
+      "destroyedParts": 0,
+      "rebuilds": 50,
+      "transformWrites": 1347,
+      "geometries": 92,
+      "materials": 23,
+      "labels": 11,
+      "sceneExtractions": 49,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 143459448
+      }
+    },
+    {
+      "name": "walk-repeat",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 1440,
+      "destroyedParts": 0,
+      "rebuilds": 98,
+      "transformWrites": 2691,
+      "geometries": 92,
+      "materials": 23,
+      "labels": 11,
+      "sceneExtractions": 97,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 143459448
+      }
+    },
+    {
+      "name": "rooms-warm",
+      "entities": 1701,
+      "parts": 1697,
+      "createdParts": 8448,
+      "destroyedParts": 6751,
+      "rebuilds": 120,
+      "transformWrites": 76118,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 119,
+      "gpu": {
+        "buffers": 724,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145152032
+      }
+    },
+    {
+      "name": "rooms-repeat",
+      "entities": 1701,
+      "parts": 1697,
+      "createdParts": 16662,
+      "destroyedParts": 14965,
+      "rebuilds": 142,
+      "transformWrites": 150000,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 141,
+      "gpu": {
+        "buffers": 724,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145152032
+      }
+    },
+    {
+      "name": "transfer-warm",
+      "entities": 1695,
+      "parts": 1691,
+      "createdParts": 16846,
+      "destroyedParts": 15155,
+      "rebuilds": 166,
+      "transformWrites": 216368,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 165,
+      "gpu": {
+        "buffers": 714,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145104096
+      }
+    },
+    {
+      "name": "transfer-repeat",
+      "entities": 1695,
+      "parts": 1691,
+      "createdParts": 16846,
+      "destroyedParts": 15155,
+      "rebuilds": 190,
+      "transformWrites": 281432,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 189,
+      "gpu": {
+        "buffers": 714,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145104096
+      }
+    },
+    {
+      "name": "nested-warm",
+      "entities": 3376,
+      "parts": 3372,
+      "createdParts": 74247,
+      "destroyedParts": 70875,
+      "rebuilds": 223,
+      "transformWrites": 388729,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 13,
+      "sceneExtractions": 206,
+      "gpu": {
+        "buffers": 1182,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 148839936
+      }
+    },
+    {
+      "name": "nested-repeat",
+      "entities": 3376,
+      "parts": 3372,
+      "createdParts": 128775,
+      "destroyedParts": 125403,
+      "rebuilds": 255,
+      "transformWrites": 493969,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 13,
+      "sceneExtractions": 222,
+      "gpu": {
+        "buffers": 1182,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 148839936
+      }
+    },
+    {
+      "name": "recursive-warm",
+      "entities": 1360,
+      "parts": 1356,
+      "createdParts": 128952,
+      "destroyedParts": 127596,
+      "rebuilds": 272,
+      "transformWrites": 517158,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 0,
+      "sceneExtractions": 239,
+      "gpu": {
+        "buffers": 535,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145659248
+      }
+    },
+    {
+      "name": "recursive-repeat",
+      "entities": 1360,
+      "parts": 1356,
+      "createdParts": 128952,
+      "destroyedParts": 127596,
+      "rebuilds": 288,
+      "transformWrites": 537910,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 0,
+      "sceneExtractions": 255,
+      "gpu": {
+        "buffers": 535,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145659248
+      }
+    },
+    {
+      "name": "idle-start",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 130158,
+      "destroyedParts": 128718,
+      "rebuilds": 289,
+      "transformWrites": 538371,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 11,
+      "sceneExtractions": 256,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145327224
+      }
+    },
+    {
+      "name": "idle-end",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 130158,
+      "destroyedParts": 128718,
+      "rebuilds": 289,
+      "transformWrites": 538371,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 11,
+      "sceneExtractions": 256,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145327224
+      }
+    }
+  ],
+  "teardown": [
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    }
+  ]
+}

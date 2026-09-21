@@ -1,0 +1,358 @@
+{
+  "summary": {
+    "walk-warm": {
+      "samples": 48,
+      "medianMs": 7.024999976158142,
+      "p95Ms": 12.379999995231628
+    },
+    "walk-repeat": {
+      "samples": 48,
+      "medianMs": 7.25,
+      "p95Ms": 9.949999988079071
+    },
+    "rooms-warm": {
+      "samples": 22,
+      "medianMs": 18.39500004053116,
+      "p95Ms": 27.97000002861023
+    },
+    "rooms-repeat": {
+      "samples": 22,
+      "medianMs": 17.694999992847443,
+      "p95Ms": 27
+    },
+    "transfer-warm": {
+      "samples": 24,
+      "medianMs": 17.150000035762787,
+      "p95Ms": 18.915000021457672
+    },
+    "transfer-repeat": {
+      "samples": 24,
+      "medianMs": 16.615000009536743,
+      "p95Ms": 18.950000047683716
+    },
+    "nested-warm": {
+      "samples": 16,
+      "medianMs": 45.844999969005585,
+      "p95Ms": 67.95999997854233
+    },
+    "nested-repeat": {
+      "samples": 16,
+      "medianMs": 47.77499997615814,
+      "p95Ms": 56.485000014305115
+    },
+    "recursive-warm": {
+      "samples": 16,
+      "medianMs": 5.614999949932098,
+      "p95Ms": 6.115000009536743
+    },
+    "recursive-repeat": {
+      "samples": 16,
+      "medianMs": 5.055000007152557,
+      "p95Ms": 5.699999988079071
+    },
+    "idleTwoFrames": {
+      "samples": 30,
+      "medianMs": 33.3400000333786,
+      "p95Ms": 34.31999999284744
+    }
+  },
+  "samples": [
+    {
+      "name": "start",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 1440,
+      "destroyedParts": 0,
+      "rebuilds": 2,
+      "transformWrites": 3,
+      "geometries": 92,
+      "materials": 23,
+      "labels": 11,
+      "sceneExtractions": 1,
+      "gpu": {
+        "buffers": 535,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 144077960
+      }
+    },
+    {
+      "name": "walk-warm",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 1440,
+      "destroyedParts": 0,
+      "rebuilds": 50,
+      "transformWrites": 1347,
+      "geometries": 92,
+      "materials": 23,
+      "labels": 11,
+      "sceneExtractions": 49,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 143455192
+      }
+    },
+    {
+      "name": "walk-repeat",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 1440,
+      "destroyedParts": 0,
+      "rebuilds": 98,
+      "transformWrites": 2691,
+      "geometries": 92,
+      "materials": 23,
+      "labels": 11,
+      "sceneExtractions": 97,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 143455192
+      }
+    },
+    {
+      "name": "rooms-warm",
+      "entities": 1701,
+      "parts": 1697,
+      "createdParts": 8448,
+      "destroyedParts": 6751,
+      "rebuilds": 120,
+      "transformWrites": 76118,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 119,
+      "gpu": {
+        "buffers": 724,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145139264
+      }
+    },
+    {
+      "name": "rooms-repeat",
+      "entities": 1701,
+      "parts": 1697,
+      "createdParts": 16662,
+      "destroyedParts": 14965,
+      "rebuilds": 142,
+      "transformWrites": 150000,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 141,
+      "gpu": {
+        "buffers": 724,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145139264
+      }
+    },
+    {
+      "name": "transfer-warm",
+      "entities": 1695,
+      "parts": 1691,
+      "createdParts": 16846,
+      "destroyedParts": 15155,
+      "rebuilds": 166,
+      "transformWrites": 216368,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 165,
+      "gpu": {
+        "buffers": 714,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145095584
+      }
+    },
+    {
+      "name": "transfer-repeat",
+      "entities": 1695,
+      "parts": 1691,
+      "createdParts": 16846,
+      "destroyedParts": 15155,
+      "rebuilds": 190,
+      "transformWrites": 281432,
+      "geometries": 143,
+      "materials": 27,
+      "labels": 10,
+      "sceneExtractions": 189,
+      "gpu": {
+        "buffers": 714,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145095584
+      }
+    },
+    {
+      "name": "nested-warm",
+      "entities": 3376,
+      "parts": 3372,
+      "createdParts": 74247,
+      "destroyedParts": 70875,
+      "rebuilds": 223,
+      "transformWrites": 388729,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 13,
+      "sceneExtractions": 206,
+      "gpu": {
+        "buffers": 1182,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 148827168
+      }
+    },
+    {
+      "name": "nested-repeat",
+      "entities": 3376,
+      "parts": 3372,
+      "createdParts": 128775,
+      "destroyedParts": 125403,
+      "rebuilds": 255,
+      "transformWrites": 493969,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 13,
+      "sceneExtractions": 222,
+      "gpu": {
+        "buffers": 1182,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 148827168
+      }
+    },
+    {
+      "name": "recursive-warm",
+      "entities": 1360,
+      "parts": 1356,
+      "createdParts": 128952,
+      "destroyedParts": 127596,
+      "rebuilds": 272,
+      "transformWrites": 517158,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 0,
+      "sceneExtractions": 239,
+      "gpu": {
+        "buffers": 535,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145650736
+      }
+    },
+    {
+      "name": "recursive-repeat",
+      "entities": 1360,
+      "parts": 1356,
+      "createdParts": 128952,
+      "destroyedParts": 127596,
+      "rebuilds": 288,
+      "transformWrites": 537910,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 0,
+      "sceneExtractions": 255,
+      "gpu": {
+        "buffers": 535,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145650736
+      }
+    },
+    {
+      "name": "idle-start",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 130158,
+      "destroyedParts": 128718,
+      "rebuilds": 289,
+      "transformWrites": 538371,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 11,
+      "sceneExtractions": 256,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145322968
+      }
+    },
+    {
+      "name": "idle-end",
+      "entities": 1444,
+      "parts": 1440,
+      "createdParts": 130158,
+      "destroyedParts": 128718,
+      "rebuilds": 289,
+      "transformWrites": 538371,
+      "geometries": 256,
+      "materials": 29,
+      "labels": 11,
+      "sceneExtractions": 256,
+      "gpu": {
+        "buffers": 509,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 145322968
+      }
+    }
+  ],
+  "teardown": [
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    }
+  ]
+}

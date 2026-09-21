@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(specifier, context, next) { return next(specifier.startsWith('./') && !/\.[a-z]+$/i.test(specifier) ? `${specifier}.ts` : specifier, context); } });
-const { generate, DEFAULT_OPTIONS, SEGMENTS, DIGITS, candidates, ledAllows, search, units, validBoard, findHint, isSaveData, exclusionDigits, exclusionCells, cellRuleDetails } = await import('../led-sudoku/rules.ts');
+const { generate, DEFAULT_OPTIONS, SEGMENTS, DIGITS, candidates, ledAllows, search, units, validBoard, findHint, isSaveData, exclusionDigits, exclusionCells, cellRuleDetails, analyzeSingles, meetsChallenge } = await import('../led-sudoku/rules.ts');
 const { place, complete } = await import('../led-sudoku/session.ts');
 const blank = (opts = {}) => ({ version: 1, seed: 1, options: { ...DEFAULT_OPTIONS, ...opts }, givens: Array(81).fill(0), lights: Array(81).fill(0), blocked: Array(81).fill(false), cages: [], lines: [], dots: [] });
 const saved = g => ({ ...g, board: g.puzzle.givens.slice(), notes: Array(81).fill(0), elapsed: 12, assisted: false });
@@ -67,6 +67,7 @@ for (let flags = 0; flags < 32; flags++) test(`all rule combinations retain exac
     if (options.renban) assert(p.lines.length >= 1);
     if (options.killer) assert.equal(p.cages.flatMap(c => c.cells).length, options.missing ? 72 : 81);
     assert(isSaveData(saved(g)));
+    if (difficulty === 'hard') assert(meetsChallenge(analyzeSingles(p)));
     const h = findHint(p, p.givens); if (h) assert.equal(h.value, solution[h.cell]);
   }
 });
@@ -78,7 +79,7 @@ test('placement preserves givens, filters LED candidates and immutably supports 
   const s = saved(generate(DEFAULT_OPTIONS, 7));
   const i = s.puzzle.lights.findIndex(Boolean), v = s.solution[i], given = s.puzzle.givens.findIndex(Boolean);
   assert.equal(place(s, given, 0), null);
-  const noted = place(s, i, v, true); assert(noted); assert.equal(noted.board[i], 0); assert(noted.notes[i]); assert.equal(s.notes[i], 0);
+  const noted = place(s, i, v, true); assert(noted); assert.equal(noted.board[i], 0); assert(noted.crossed[i] & 1<<(v-1)); assert.equal(s.notes[i], 0);
   const filled = place(noted, i, v); assert.equal(filled.board[i], v); assert.equal(filled.notes[i], 0); assert.equal(s.board[i], 0);
   const erased = place(filled, i, 0); assert.equal(erased.board[i], 0); assert.equal(erased.puzzle.lights[i], s.puzzle.lights[i]);
   const invalid = DIGITS.find(d => !candidates(s.puzzle, s.board, i).includes(d)); if (invalid) assert.equal(place(s, i, invalid), null);
@@ -217,10 +218,11 @@ for (let flags = 1; flags < 16; flags++) for (const led of [true, false]) test(`
   const g = generate(options, 1040 + flags), p = g.puzzle;
   assert(validBoard(p, g.solution, true)); assert(isSaveData(saved(g)));
   const proof = search(p); assert.equal(proof.count, 1); assert(!proof.exhausted); assert.deepEqual(proof.solution, g.solution);
-  if (options.inequality) { assert.equal(p.inequalities.length, 24); for (const [a, b] of p.inequalities) assert(g.solution[a] < g.solution[b]); }
-  if (options.multiDiagonal) { assert.equal(p.slants.length, 3); for (const line of p.slants) { const vs = line.filter(i => !p.blocked[i]).map(i => g.solution[i]); assert.equal(new Set(vs).size, vs.length); } }
-  if (options.parity) { assert.equal(p.parity.filter(Boolean).length, 24); assert(p.parity.every((v, i) => !v || g.solution[i] % 2 === (v === 1 ? 1 : 0))); }
-  if (options.exclusion) { assert(p.exclusions.length >= 4); for (const e of p.exclusions) { assert(exclusionCells(e.at).every(i => !exclusionDigits(e).includes(g.solution[i]))); if (!led) assert.equal(e.mask, 0); } }
+  if (options.difficulty === 'hard') assert(meetsChallenge(analyzeSingles(p)));
+  if (options.inequality) { assert(p.inequalities.length >= 1 && p.inequalities.length <= (options.difficulty === 'hard' ? 12 : 24)); assert(p.inequalities.every(([a,b]) => !(p.givens[a] && p.givens[b]) && p.givens[a] !== 1 && p.givens[b] !== 9)); for (const [a, b] of p.inequalities) assert(g.solution[a] < g.solution[b]); }
+  if (options.multiDiagonal) { assert(p.slants.length >= 2 && p.slants.length <= 3); for (const line of p.slants) { const vs = line.filter(i => !p.blocked[i]).map(i => g.solution[i]); assert.equal(new Set(vs).size, vs.length); } }
+  if (options.parity) { assert(p.parity.some(Boolean)); assert(p.parity.every((v,i) => !v || !p.givens[i])); assert(p.parity.every((v, i) => !v || g.solution[i] % 2 === (v === 1 ? 1 : 0))); }
+  if (options.exclusion) { assert(p.exclusions.length >= 1); for (const e of p.exclusions) { assert(exclusionCells(e.at).every(i => !exclusionDigits(e).includes(g.solution[i]))); if (!led) assert.equal(e.mask, 0); } }
   if (!led) assert(p.lights.every(v => !v));
   const hint = findHint(p, p.givens); if (hint) assert.equal(hint.value, g.solution[hint.cell]);
 });

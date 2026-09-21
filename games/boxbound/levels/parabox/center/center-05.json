@@ -1,0 +1,141 @@
+{
+  "rooms": [
+    {
+      "id": "pp-center5-lr",
+      "name": "Center 5",
+      "size": 7,
+      "walls": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [3, 0, 0],
+        [4, 0, 0],
+        [5, 0, 0],
+        [6, 0, 0],
+        [0, 0, 1],
+        [6, 0, 1],
+        [0, 0, 2],
+        [6, 0, 2],
+        [0, 0, 3],
+        [6, 0, 3],
+        [0, 0, 4],
+        [6, 0, 4],
+        [0, 0, 5],
+        [6, 0, 5],
+        [0, 0, 6],
+        [1, 0, 6],
+        [2, 0, 6],
+        [3, 0, 6],
+        [4, 0, 6],
+        [5, 0, 6],
+        [6, 0, 6]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [3, 0, 0],
+        [4, 0, 0],
+        [5, 0, 0],
+        [6, 0, 0],
+        [0, 0, 1],
+        [6, 0, 1],
+        [0, 0, 2],
+        [6, 0, 2],
+        [0, 0, 3],
+        [6, 0, 3],
+        [0, 0, 4],
+        [6, 0, 4],
+        [0, 0, 5],
+        [6, 0, 5],
+        [0, 0, 6],
+        [1, 0, 6],
+        [2, 0, 6],
+        [3, 0, 6],
+        [4, 0, 6],
+        [5, 0, 6],
+        [6, 0, 6]
+      ],
+      "goals": [
+        [3, 0, 3]
+      ],
+      "home": [5, 0, 5],
+      "level": 83,
+      "hint": "Patrick’s Parabox · Center 5。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-center5-lr-1",
+          "pos": [1, 0, 2],
+          "size": 1,
+          "inside": "pp-center5-la",
+          "fixed": false,
+          "required": false,
+          "color": "gold"
+        },
+        {
+          "id": "pp-center5-lr-2",
+          "pos": [1, 0, 3],
+          "size": 1,
+          "inside": "pp-center5-lb",
+          "fixed": false,
+          "required": false,
+          "color": "gold"
+        },
+        {
+          "id": "pp-center5-lr-3",
+          "pos": [1, 0, 4],
+          "size": 1,
+          "inside": "pp-center5-lc",
+          "fixed": false,
+          "required": false,
+          "color": "gold"
+        }
+      ],
+      "spawn": [5, 0, 3]
+    },
+    {
+      "id": "pp-center5-la",
+      "name": "Center 5",
+      "size": 5,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 83,
+      "hint": "Patrick’s Parabox · Center 5。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    },
+    {
+      "id": "pp-center5-lb",
+      "name": "Center 5",
+      "size": 5,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 83,
+      "hint": "Patrick’s Parabox · Center 5。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    },
+    {
+      "id": "pp-center5-lc",
+      "name": "Center 5",
+      "size": 5,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 83,
+      "hint": "Patrick’s Parabox · Center 5。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    }
+  ]
+}

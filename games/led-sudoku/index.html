@@ -3,15 +3,21 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#061015"><title>流光数独 · LED SUDOKU | Haiyue</title><link rel="stylesheet" href="./style.css"></head>
 <body>
 <div class="app">
-  <header><a class="brand" href="../../"><span class="brand-mark">▥</span> HAIYUE <span class="brand-sub">PLAY LAB</span></a><span class="online"><i></i> LED LOGIC SYSTEM / 01</span><button id="help" class="quiet">玩法说明 ↗</button></header>
+  <header><a class="brand" href="../../"><span class="brand-mark">▥</span> HAIYUE <span class="brand-sub">PLAY LAB</span></a><span class="online"><i></i> LED LOGIC SYSTEM / 01</span><label class="skin-picker">皮肤 <select id="skin-select" aria-label="皮肤"><option value="dark">深色流光</option><option value="light-blue">晴空浅蓝</option></select></label><button id="preferences" class="quiet">&#9881; &#35774;&#32622;</button><button id="help" class="quiet">玩法说明 ↗</button></header>
   <main>
     <section class="heading"><div><div class="eyebrow">LIGHT UP YOUR LOGIC</div><h1>流光数独 <span>LED SUDOKU</span></h1><p>从一束光开始，推理每一个数字。</p></div><div class="session"><span>SESSION TIME</span><canvas id="timer" role="img" aria-label="用时 00:00" width="360" height="120"></canvas><small id="save-status">自动存档已就绪</small></div></section>
     <div class="workspace">
       <section class="board-column">
         <div class="board-toolbar"><span id="mode-label">标准 · LED</span><span id="progress">正在启动引擎…</span></div>
         <div id="board-frame" class="board-frame"><canvas id="board" width="630" height="630" tabindex="0" role="application" aria-label="数独棋盘。方向键移动，数字键填数，退格擦除，N 切换笔记。"></canvas><div id="busy" role="status">正在点亮灯管…</div></div>
-        <div class="board-bottom"><span><i class="dot cyan"></i>完整已知数</span><span id="led-legend"><i class="dot amber"></i>局部灯段线索</span><span><i class="dot mint"></i>你的填数</span><button id="glow" class="quiet" aria-pressed="true">辉光 开</button></div>
+        <div class="board-bottom"><span><i class="dot cyan"></i>完整已知数</span><span id="led-legend"><i class="dot amber"></i>局部灯段线索</span><span><i class="dot mint"></i>你的填数</span></div>
         <div class="actions"><button id="hint">◈ 提示</button><button id="explain">推理解释</button><button id="undo">↶ 撤销</button><button id="erase">⌫ 擦除</button><button id="solve" class="quiet">显示答案</button></div>
+        <section id="hint-lesson" class="hint-lesson" aria-label="分步推理" hidden>
+          <div class="lesson-heading"><h2 id="lesson-title"></h2><button id="lesson-close" aria-label="关闭讲解">×</button></div>
+          <p id="lesson-body" aria-live="polite"></p>
+          <small>金框：当前观察 · 青框：依据 · 划线数字：排除</small>
+          <div class="actions"><button id="lesson-previous">上一步</button><button id="lesson-next" class="primary">下一步</button></div>
+        </section>
         <div id="status" role="status" aria-live="polite">Haiyue 引擎准备中</div>
       </section>
       <aside>
@@ -24,28 +30,44 @@
   </main>
   <footer><span>POWERED BY HAIYUE ENGINE</span><span id="seed-label">SEVEN SEGMENTS. ONE SOLUTION.</span></footer>
 </div>
+<dialog id="preferences-dialog" aria-labelledby="preferences-title">
+  <h2 id="preferences-title">设置</h2>
+  <label class="rule"><span>禁用基础规则自动剔除候选数<small>开启后 1–9 全部可选；行列宫、LED 和附加规则都不会自动删减候选或更新其他格的笔记。笔记点击划去，再点恢复；提示仍可主动使用。</small></span><input id="manual-candidates" type="checkbox"></label>
+  <button id="preferences-done" class="primary">完成</button>
+</dialog>
 <dialog id="new-dialog" aria-labelledby="new-title">
   <div class="dialog-heading"><div><span class="eyebrow">A FRESH START</span><h2 id="new-title">新数独</h2></div><button id="cancel-new" class="quiet" aria-label="关闭新数独面板">✕</button></div>
   <p class="dialog-intro">选择难度，组合你的规则。</p>
   <span class="section-label">难度</span>
   <div class="difficulty" role="group" aria-label="下一局难度"><button data-difficulty="easy">入门</button><button data-difficulty="normal" class="active">标准</button><button data-difficulty="hard">挑战</button></div>
+  <p class="fine">挑战：仅靠唯一候选和唯一位置无法解完，需要进一步组合推理。</p>
   <span class="section-label rules-label">额外规则</span>
   <div class="rules-list" role="group" aria-label="可组合的数独规则">
   <label class="rule led-rule"><span>LED 灯管 <em>默认开启</em><small>部分灯段作为线索；关闭后使用常规数字题面</small></span><input id="led" type="checkbox" checked></label>
+  <label class="rule"><span>阶梯数独 <small>12 个九宫格、108 格；行列跨空白缺口，仍各含 1–9。可与 LED、奇偶组合。</small></span><input id="staircase" type="checkbox"></label>
+  <label class="rule"><span>无缘数独 <small>左上、右上、左下、右下紧邻格不能同数</small></span><input id="antiKing" type="checkbox"></label>
+  <label class="rule"><span>不连续数独 <small>上下左右相邻格不能相差 1；斜角不限</small></span><input id="nonConsecutive" type="checkbox"></label>
+  <label class="rule"><span>额外区域 <small>对称的九格色块区域，像额外的宫一样不重复</small></span><input id="extraRegion" type="checkbox"></label>
   <label class="rule"><span>对角线 <small>两条对角线数字不重复</small></span><input id="diagonal" type="checkbox"></label>
   <label class="rule"><span>缺一门 <small>每行、列、宫各有一个黑格，不填数</small></span><input id="missing" type="checkbox"></label>
   <label class="rule"><span>杀手数独 <small>虚线笼内不重复，数字和等于标注</small></span><input id="killer" type="checkbox"></label>
-  <label class="rule"><span>连续数 · Renban <small>紫线上的数连续，顺序不限</small></span><input id="renban" type="checkbox"></label>
+  <label class="rule"><span>连续数 · 升/降 <small>沿整条紫线每步差 1，全部升序或全部降序</small></span><input id="renban" type="checkbox"></label>
   <label class="rule"><span>相邻连续 · 差 1 <small>白点两侧差 1；无点则不能差 1</small></span><input id="consecutive" type="checkbox"></label>
   <label class="rule"><span>数比数独 <small>格间大于、小于符号；尖端指向较小数</small></span><input id="inequality" type="checkbox"></label>
   <label class="rule"><span>多对角线数独 <small>多条连接盘面边缘的金色斜线，线上不重复</small></span><input id="multiDiagonal" type="checkbox"></label>
   <label class="rule"><span>排除点数独 <small>交点圆圈排除周围四格的数字；可结合 LED</small></span><input id="exclusion" type="checkbox"></label>
   <label class="rule"><span>奇偶数独 <small>蓝底为偶数，红底为奇数；无底色不限制</small></span><input id="parity" type="checkbox"></label>
+  <label class="rule"><span>温度计数独 <small>青绿圆灯泡到平头严格递增；与连续数互斥</small></span><input id="thermometer" type="checkbox"></label>
+  <label class="rule"><span>小杀手数独 <small>外围斜箭头表示沿线数字之和；与摩天大楼、缺一门互斥</small></span><input id="littleKiller" type="checkbox"></label>
+  <label class="rule"><span>摩天大楼数独 <small>外圈数字表示可见楼数；与缺一门互斥</small></span><input id="skyscraper" type="checkbox"></label>
+  <label class="rule"><span>XV 数独 <small>V 和为 5，X 和为 10，全部标记；与数比、差 1 互斥</small></span><input id="xv" type="checkbox"></label>
+  <label class="rule"><span>四数和数独 <small>菱形 Σ 标注周围四格之和；与排除点互斥</small></span><input id="quadruple" type="checkbox"></label>
   </div>
+  <p id="rule-notice" class="fine" role="status"></p>
   <p class="fine generation-note">每局验证唯一解 · 开始后将替换当前棋局</p>
   <button id="start-new" class="primary">开始新数独 <span>↗</span></button>
 </dialog>
-<dialog id="help-dialog"><h2>读懂灯光</h2><p>每行、列、3×3 宫内数字不重复。青色数字是固定已知数；琥珀色只是答案的一部分灯段，仍需填入完整数字。暗灯段没有排除含义。全暗灯管格也可填数；只有带 × 的黑格不填。</p><p>中间横管亮起时，1 和 7 无法匹配，因此被排除。候选面板显示规则候选经 LED 过滤后的结果。</p><p>点击“新数独”设置难度和规则，再点“开始新数独”应用。LED 规则默认开启，关闭后重新生成常规数字题面，仍保证唯一解。缺一门的黑格不填数，剩余八格不要求包含所有 1–9；对角线与缺一门组合时，只约束可填格不重复。</p><p>杀手虚线笼数字总和等于左上角标注，笼内不重复。紫色 Renban 线上数字组成连续整数，顺序不限。白点是另一种独立规则：相邻格差 1 必须标点，无点禁止差 1。</p><p>数比：格间符号的尖端指向较小的数字。多对角线：金色虚线连接盘面边缘，相同编号标记一条斜线，其可填格数字不重复；短斜线不要求包含全部 1–9。排除点：交点圆圈内的普通数字不能出现在周围四格；琥珀灯管圆圈会排除全部匹配亮段的数字，暗段未知。例如左上竖管排除 4、5、6、8、9；再亮底横管则排除 5、6、8、9。点击周围格子可查看实际排除列表。关闭 LED 后所有排除点使用普通数字。奇偶：蓝底标“偶”的格子只能填 2、4、6、8，红底标“奇”的格子只能填 1、3、5、7、9，无标记不限制。</p><p>方向键选择格子，1–9 填数，N 切换笔记，Backspace / Delete 擦除，Ctrl / ⌘ + Z 撤销。红色数字表示与答案不符。完成后边框缓慢闪烁四次并保持亮起；撤销后恢复正常。</p><button id="close-help" class="primary">开始推理</button></dialog>
+<dialog id="help-dialog"><h2>读懂灯光</h2><p>阶梯数独：12 个九宫格、108 格；行列跨空白缺口，仍各含 1–9。可与 LED、奇偶组合。 空白缺口不是格子，不填数字。</p><p>不连续数独：上下左右相邻的可填格不能相差 1，例如 3 旁边不能填 2 或 4；斜角不限制。不添加额外记号，与白点连续数、紫色连续线互斥。</p><p>额外区域：每个有边界的色块区域含 9 格，像额外的宫一样恰好包含 1–9 各一次；普通行列宫仍然有效。可采用对称的偏移方宫或不规则形状，字母标识不同区域。不能与缺一门、奇偶底色同时启用。</p><p>每行、列、3×3 宫内数字不重复。青色数字是固定已知数；琥珀色只是答案的一部分灯段，仍需填入完整数字。暗灯段没有排除含义。全暗灯管格也可填数；只有带 × 的黑格不填。</p><p>中间横管亮起时，1 和 7 无法匹配，因此被排除。候选面板显示规则候选经 LED 过滤后的结果。</p><p>点击“新数独”设置难度和规则，再点“开始新数独”应用。LED 规则默认开启，关闭后重新生成常规数字题面，仍保证唯一解。缺一门的黑格不填数，剩余八格不要求包含所有 1–9；对角线与缺一门组合时，只约束可填格不重复。</p><p>杀手虚线笼数字总和等于左上角标注，笼内不重复。<span id="line-rule-help">连续数：沿整条紫线每步差 1，全部升序或全部降序，不能乱序或中途转向。</span>白点是另一种独立规则：相邻格差 1 必须标点，无点禁止差 1。</p><p>数比：格间符号的尖端指向较小的数字。多对角线：金色虚线连接盘面边缘，相同编号标记一条斜线，其可填格数字不重复；短斜线不要求包含全部 1–9。排除点：交点圆圈内的普通数字不能出现在周围四格；琥珀灯管圆圈会排除全部匹配亮段的数字，暗段未知。例如左上竖管排除 4、5、6、8、9；再亮底横管则排除 5、6、8、9。点击周围格子可查看实际排除列表。关闭 LED 后所有排除点使用普通数字。奇偶：蓝底标“偶”的格子只能填 2、4、6、8，红底标“奇”的格子只能填 1、3、5、7、9，无标记不限制。</p><p>温度计：青绿色管道从圆灯泡到平头严格递增。摩天大楼：从外圈数字所在的一侧向内看，高楼遮住后方矮楼，数字是可见楼数。XV：紫色字母牌 V 表示相邻和为 5，X 表示和为 10，所有符合条件的边都标出，无牌的边不能和为 5 或 10。四数和：蓝色菱形 Σ 数字是周围四格的总和，不额外要求四格互异。</p><p>为避免重叠与混淆，温度计与连续数、XV 与数比或差 1、四数和与排除点互斥；摩天大楼与缺一门也不能同时开启。开启新规则会自动关闭冲突规则并显示说明。</p><p>方向键选择格子，1–9 填数，N 切换笔记，Backspace / Delete 擦除，Ctrl / ⌘ + Z 撤销。红色数字表示与答案不符。完成后边框缓慢闪烁四次并保持亮起；撤销后恢复正常。</p><button id="close-help" class="primary">开始推理</button></dialog>
 <dialog id="confirm-dialog"><h2 id="confirm-title"></h2><p id="confirm-copy"></p><div class="actions"><button id="cancel-confirm">继续当前棋局</button><button id="accept-confirm" class="primary">确认</button></div></dialog>
 <script type="module" src="./bundle.js"></script>
 </body></html>

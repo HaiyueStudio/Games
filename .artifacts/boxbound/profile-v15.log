@@ -1,0 +1,262 @@
+{
+  "summary": {
+    "walk-warm": {
+      "samples": 48,
+      "medianMs": 3.4049999713897705,
+      "p95Ms": 3.8799999952316284
+    },
+    "walk-repeat": {
+      "samples": 48,
+      "medianMs": 3.2950000166893005,
+      "p95Ms": 4.409999966621399
+    },
+    "rooms-warm": {
+      "samples": 22,
+      "medianMs": 3.1699999570846558,
+      "p95Ms": 8.564999997615814
+    },
+    "rooms-repeat": {
+      "samples": 22,
+      "medianMs": 3.049999952316284,
+      "p95Ms": 7.870000004768372
+    },
+    "transfer-warm": {
+      "samples": 24,
+      "medianMs": 3.2049999833106995,
+      "p95Ms": 4.064999997615814
+    },
+    "transfer-repeat": {
+      "samples": 24,
+      "medianMs": 3.090000033378601,
+      "p95Ms": 3.449999988079071
+    },
+    "idleTwoFrames": {
+      "samples": 30,
+      "medianMs": 33.33499997854233,
+      "p95Ms": 34.174999952316284
+    }
+  },
+  "samples": [
+    {
+      "name": "start",
+      "entities": 890,
+      "parts": 886,
+      "createdParts": 886,
+      "destroyedParts": 0,
+      "rebuilds": 2,
+      "transformWrites": 3,
+      "geometries": 59,
+      "materials": 18,
+      "labels": 11,
+      "sceneExtractions": 1,
+      "gpu": {
+        "buffers": 363,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 142151776
+      }
+    },
+    {
+      "name": "walk-warm",
+      "entities": 890,
+      "parts": 886,
+      "createdParts": 886,
+      "destroyedParts": 0,
+      "rebuilds": 50,
+      "transformWrites": 1347,
+      "geometries": 59,
+      "materials": 18,
+      "labels": 11,
+      "sceneExtractions": 49,
+      "gpu": {
+        "buffers": 339,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141840304
+      }
+    },
+    {
+      "name": "walk-repeat",
+      "entities": 890,
+      "parts": 886,
+      "createdParts": 886,
+      "destroyedParts": 0,
+      "rebuilds": 98,
+      "transformWrites": 2691,
+      "geometries": 59,
+      "materials": 18,
+      "labels": 11,
+      "sceneExtractions": 97,
+      "gpu": {
+        "buffers": 339,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141840304
+      }
+    },
+    {
+      "name": "rooms-warm",
+      "entities": 368,
+      "parts": 364,
+      "createdParts": 1554,
+      "destroyedParts": 1190,
+      "rebuilds": 120,
+      "transformWrites": 6755,
+      "geometries": 87,
+      "materials": 19,
+      "labels": 0,
+      "sceneExtractions": 119,
+      "gpu": {
+        "buffers": 316,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141889984
+      }
+    },
+    {
+      "name": "rooms-repeat",
+      "entities": 368,
+      "parts": 364,
+      "createdParts": 2744,
+      "destroyedParts": 2380,
+      "rebuilds": 142,
+      "transformWrites": 11197,
+      "geometries": 87,
+      "materials": 19,
+      "labels": 0,
+      "sceneExtractions": 141,
+      "gpu": {
+        "buffers": 316,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141889984
+      }
+    },
+    {
+      "name": "transfer-warm",
+      "entities": 354,
+      "parts": 350,
+      "createdParts": 2756,
+      "destroyedParts": 2406,
+      "rebuilds": 166,
+      "transformWrites": 13496,
+      "geometries": 87,
+      "materials": 21,
+      "labels": 0,
+      "sceneExtractions": 165,
+      "gpu": {
+        "buffers": 296,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141789856
+      }
+    },
+    {
+      "name": "transfer-repeat",
+      "entities": 354,
+      "parts": 350,
+      "createdParts": 2768,
+      "destroyedParts": 2418,
+      "rebuilds": 190,
+      "transformWrites": 15548,
+      "geometries": 87,
+      "materials": 21,
+      "labels": 0,
+      "sceneExtractions": 189,
+      "gpu": {
+        "buffers": 296,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141789856
+      }
+    },
+    {
+      "name": "idle-start",
+      "entities": 890,
+      "parts": 886,
+      "createdParts": 3304,
+      "destroyedParts": 2418,
+      "rebuilds": 191,
+      "transformWrites": 15932,
+      "geometries": 87,
+      "materials": 21,
+      "labels": 11,
+      "sceneExtractions": 190,
+      "gpu": {
+        "buffers": 339,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141840304
+      }
+    },
+    {
+      "name": "idle-end",
+      "entities": 890,
+      "parts": 886,
+      "createdParts": 3304,
+      "destroyedParts": 2418,
+      "rebuilds": 191,
+      "transformWrites": 15932,
+      "geometries": 87,
+      "materials": 21,
+      "labels": 11,
+      "sceneExtractions": 190,
+      "gpu": {
+        "buffers": 339,
+        "textures": 13,
+        "querySets": 0,
+        "estimatedBytes": 141840304
+      }
+    }
+  ],
+  "teardown": [
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    },
+    {
+      "gpu": {
+        "buffers": 1,
+        "textures": 2,
+        "querySets": 0,
+        "estimatedBytes": 41353216
+      },
+      "entities": 0,
+      "parts": 0,
+      "geometries": 0,
+      "materials": 0
+    }
+  ]
+}

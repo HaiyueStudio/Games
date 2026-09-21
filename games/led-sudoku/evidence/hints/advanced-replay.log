@@ -1,0 +1,276 @@
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1, 4 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1, 4 ] },
+  { cell: 80, digits: [ 1, 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 3, 9 ] }, { cell: 20, digits: [ 9 ] } ]
+eliminate XV 候选配对 [ { cell: 12, digits: [ 1, 7 ] }, { cell: 21, digits: [ 1 ] } ]
+eliminate 显性数对 [
+  { cell: 3, digits: [ 4, 6 ] },
+  { cell: 4, digits: [ 6 ] },
+  { cell: 13, digits: [ 6 ] },
+  { cell: 14, digits: [ 4 ] }
+]
+eliminate 显性数对 [ { cell: 57, digits: [ 4, 6 ] }, { cell: 75, digits: [ 4, 6 ] } ]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 4, 6 ] } ]
+eliminate XV 候选配对 [ { cell: 2, digits: [ 2, 8 ] } ]
+eliminate XV 候选配对 [ { cell: 10, digits: [ 8 ] } ]
+eliminate XV 候选配对 [ { cell: 20, digits: [ 4, 6 ] } ]
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 19, digits: [ 8 ] }
+]
+eliminate 显性三数组 [
+  { cell: 2, digits: [ 3, 6 ] },
+  { cell: 10, digits: [ 1, 6 ] },
+  { cell: 19, digits: [ 1, 6 ] }
+]
+eliminate 显性数对 [
+  { cell: 56, digits: [ 2, 8 ] },
+  { cell: 65, digits: [ 2 ] },
+  { cell: 74, digits: [ 2, 8 ] }
+]
+eliminate XV 候选配对 [ { cell: 19, digits: [ 4 ] } ]
+eliminate XV 候选配对 [ { cell: 59, digits: [ 3 ] } ]
+eliminate XV 候选配对 [ { cell: 67, digits: [ 3 ] } ]
+eliminate XV 候选配对 [ { cell: 65, digits: [ 3 ] }, { cell: 74, digits: [ 3 ] } ]
+eliminate 显性数对 [ { cell: 2, digits: [ 4 ] }, { cell: 56, digits: [ 6 ] } ]
+place 2 5
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1, 4 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1, 4 ] },
+  { cell: 80, digits: [ 1, 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 3, 9 ] }, { cell: 20, digits: [ 9 ] } ]
+eliminate XV 候选配对 [ { cell: 12, digits: [ 1, 7 ] }, { cell: 21, digits: [ 1 ] } ]
+eliminate 显性数对 [
+  { cell: 3, digits: [ 4, 6 ] },
+  { cell: 4, digits: [ 6 ] },
+  { cell: 13, digits: [ 6 ] },
+  { cell: 14, digits: [ 4 ] }
+]
+eliminate 显性数对 [ { cell: 57, digits: [ 4, 6 ] }, { cell: 75, digits: [ 4, 6 ] } ]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 4, 6 ] } ]
+eliminate XV 候选配对 [ { cell: 10, digits: [ 8 ] } ]
+eliminate XV 候选配对 [ { cell: 20, digits: [ 4, 6 ] } ]
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 19, digits: [ 8 ] }
+]
+eliminate 显性三数组 [ { cell: 10, digits: [ 1, 6 ] }, { cell: 19, digits: [ 1, 6 ] } ]
+eliminate 显性数对 [
+  { cell: 56, digits: [ 2, 8 ] },
+  { cell: 65, digits: [ 2 ] },
+  { cell: 74, digits: [ 2, 8 ] }
+]
+eliminate 显性三数组 [
+  { cell: 55, digits: [ 4, 6 ] },
+  { cell: 64, digits: [ 4, 6 ] },
+  { cell: 73, digits: [ 4, 6 ] }
+]
+eliminate XV 候选配对 [ { cell: 18, digits: [ 1 ] }, { cell: 19, digits: [ 4 ] } ]
+place 18 6
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1, 4 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1, 4 ] },
+  { cell: 80, digits: [ 1, 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 3, 4, 9 ] }, { cell: 20, digits: [ 4, 9 ] } ]
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 10, digits: [ 8 ] },
+  { cell: 19, digits: [ 8 ] }
+]
+eliminate 显性数对 [ { cell: 10, digits: [ 1 ] }, { cell: 19, digits: [ 1 ] } ]
+place 19 9
+place 28 6
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1, 4 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1, 4 ] },
+  { cell: 80, digits: [ 1, 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 3, 4 ] }, { cell: 20, digits: [ 4 ] } ]
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 10, digits: [ 8 ] }
+]
+eliminate 显性数对 [
+  { cell: 56, digits: [ 2, 8 ] },
+  { cell: 65, digits: [ 2 ] },
+  { cell: 74, digits: [ 2, 8 ] }
+]
+eliminate 显性三数组 [
+  { cell: 55, digits: [ 4 ] },
+  { cell: 64, digits: [ 4 ] },
+  { cell: 73, digits: [ 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 12, digits: [ 1, 4, 7 ] }, { cell: 21, digits: [ 1 ] } ]
+place 12 6
+place 21 4
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1, 4 ] },
+  { cell: 80, digits: [ 1, 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 11, digits: [ 3 ] } ]
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 10, digits: [ 8 ] }
+]
+eliminate 显性数对 [
+  { cell: 56, digits: [ 2, 8 ] },
+  { cell: 65, digits: [ 2 ] },
+  { cell: 74, digits: [ 2, 8 ] }
+]
+eliminate 显性三数组 [
+  { cell: 55, digits: [ 4 ] },
+  { cell: 64, digits: [ 4 ] },
+  { cell: 73, digits: [ 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 59, digits: [ 3 ] } ]
+eliminate XV 候选配对 [ { cell: 67, digits: [ 3 ] } ]
+eliminate XV 候选配对 [ { cell: 65, digits: [ 3 ] }, { cell: 74, digits: [ 3 ] } ]
+eliminate 显性数对 [ { cell: 56, digits: [ 6 ] } ]
+place 56 3
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 10, digits: [ 8 ] }
+]
+eliminate 显性数对 [ { cell: 74, digits: [ 2, 8 ] } ]
+eliminate 显性数对 [
+  { cell: 55, digits: [ 4 ] },
+  { cell: 64, digits: [ 4 ] },
+  { cell: 73, digits: [ 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1, 4 ] },
+  { cell: 80, digits: [ 1, 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 67, digits: [ 3 ] } ]
+eliminate XV 候选配对 [ { cell: 70, digits: [ 2 ] }, { cell: 79, digits: [ 2 ] } ]
+eliminate 显性三数组 [
+  { cell: 64, digits: [ 1 ] },
+  { cell: 69, digits: [ 6 ] },
+  { cell: 71, digits: [ 6 ] }
+]
+place 64 5
+eliminate 显性数对 [
+  { cell: 0, digits: [ 2 ] },
+  { cell: 9, digits: [ 2 ] },
+  { cell: 10, digits: [ 8 ] }
+]
+eliminate 显性数对 [ { cell: 74, digits: [ 2, 8 ] } ]
+eliminate 显性数对 [ { cell: 55, digits: [ 4 ] }, { cell: 73, digits: [ 4 ] } ]
+place 55 8
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 74, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 73, digits: [ 4 ] } ]
+place 73 1
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 74, digits: [ 2 ] } ]
+place 74 6
+place 65 4
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate XV 候选配对 [ { cell: 8, digits: [ 2 ] }, { cell: 17, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 7, digits: [ 1, 4 ] }, { cell: 26, digits: [ 1 ] } ]
+eliminate 显性数对 [
+  { cell: 62, digits: [ 1, 4 ] },
+  { cell: 71, digits: [ 1 ] },
+  { cell: 80, digits: [ 4 ] }
+]
+eliminate XV 候选配对 [ { cell: 67, digits: [ 3 ] } ]
+eliminate XV 候选配对 [ { cell: 70, digits: [ 2 ] }, { cell: 79, digits: [ 2 ] } ]
+place 70 1
+place 79 4
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 71, digits: [ 6 ] } ]
+place 71 2
+place 61 6
+place 69 3
+place 67 6
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 26, digits: [ 1 ] } ]
+eliminate 显性三数组 [ { cell: 59, digits: [ 7 ] }, { cell: 75, digits: [ 7 ] } ]
+eliminate XV 候选配对 [ { cell: 6, digits: [ 2, 8 ] } ]
+place 6 6
+place 51 2
+place 52 9
+place 53 6
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 26, digits: [ 1 ] } ]
+eliminate 显性三数组 [ { cell: 59, digits: [ 7 ] }, { cell: 75, digits: [ 7 ] } ]
+eliminate XV 候选配对 [ { cell: 76, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 58, digits: [ 7 ] } ]
+place 58 2
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 26, digits: [ 1 ] } ]
+eliminate 显性数对 [ { cell: 59, digits: [ 7 ] }, { cell: 75, digits: [ 7 ] } ]
+eliminate 显性数对 [ { cell: 80, digits: [ 7 ] } ]
+eliminate 显性数对 [ { cell: 78, digits: [ 5, 9 ] } ]
+place 78 8
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 26, digits: [ 1 ] } ]
+eliminate 显性数对 [ { cell: 59, digits: [ 7 ] }, { cell: 75, digits: [ 7 ] } ]
+eliminate 显性数对 [ { cell: 80, digits: [ 7 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 4, digits: [ 3 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 13, digits: [ 1 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 14, digits: [ 7 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 59, digits: [ 5 ] } ]
+place 59 4
+eliminate 显性数对 [ { cell: 0, digits: [ 2 ] }, { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 26, digits: [ 1 ] } ]
+eliminate 显性数对 [ { cell: 75, digits: [ 7 ] } ]
+eliminate 显性数对 [ { cell: 80, digits: [ 7 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 4, digits: [ 3 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 13, digits: [ 1 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 14, digits: [ 7 ] } ]
+eliminate 候选推理链：检验假设 [ { cell: 3, digits: [ 1 ] } ]
+place 3 7
+place 4 8
+place 7 2
+eliminate 显性数对 [ { cell: 9, digits: [ 2 ] } ]
+eliminate 显性数对 [ { cell: 14, digits: [ 3 ] }, { cell: 17, digits: [ 1 ] } ]
+place 17 4
+place 8 1
+place 0 3
+place 9 1
+place 10 7
+place 13 3
+place 14 5
+place 15 9
+place 23 2
+place 20 8
+place 11 2
+place 26 5
+place 62 7
+place 76 7
+place 77 3
+place 80 9
+place 75 5
+place 57 1
+stopped 72
+{
+  elims: 116,
+  placed: 46,
+  techniques: [ 'XV 候选配对', '显性数对', '显性三数组', '候选推理链：检验假设' ],
+  ms: 3203.55388
+}

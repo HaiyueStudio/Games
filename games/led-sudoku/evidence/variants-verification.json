@@ -14,7 +14,9 @@
     "typecheck": true,
     "eslint": true,
     "targetBuild": true,
-    "diffCheck": true
+    "diffCheck": true,
+    "repositoryBuild": true,
+    "integrationTestsPassed": 4
   },
   "browser": {
     "viewports": [
@@ -50,5 +52,16 @@
     "rules.ts": "dcdad26f72d955763327eddbfc026d1dc2283a71febee72ca485d31acabf61d7",
     "session.ts": "f57856af0424ebb2c26b0363d8e0855000d606ebbda764eeb0a72fb66c3f79d4",
     "style.css": "ed7891b0fe4bc10ea89d34c793451b6068c88b6b4343b209cd271d92786a8775"
-  }
+  },
+  "repositoryTests": {
+    "passed": false,
+    "total": 766,
+    "passedCount": 736,
+    "failed": 9,
+    "cancelled": 1,
+    "skipped": 20,
+    "durationSeconds": 450.523,
+    "note": "Run started before the missing-cell plus slant save-validator fix. Seven LED failures were fixed; all 86 LED tests then passed. Remaining failures are the pre-existing MUGEN HYMUGEN hash assertion, viewer virtual-list assertion, and Petra 30-second timeout."
+  },
+  "testHash": "d8794b113117b9163e374a6c81b4194ae69dd65a3da2e957ba78ad90b60407ad"
 }

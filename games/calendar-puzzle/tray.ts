@@ -4,6 +4,22 @@ export function calendarOrientedCells(cells: readonly CalendarPoint[], rotation:
   for (let i = 0; i < rotation % 4; i++) result = result.map(p => ({ x: p.y, y: -p.x }));
   return normalizeCalendarCells(result);
 }
+/** Hit the connected piece surface, including seams, without filling missing cells. */
+export function calendarPieceContains(cells: readonly CalendarPoint[], point: CalendarPoint, cellSize: number, gap: number): boolean {
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.y < 0) return false;
+  const pitch = cellSize + gap;
+  const col = Math.floor(point.x / pitch), row = Math.floor(point.y / pitch);
+  const betweenColumns = point.x - col * pitch > cellSize;
+  const betweenRows = point.y - row * pitch > cellSize;
+  const has = (x: number, y: number) => cells.some(cell => cell.x === x && cell.y === y);
+  const here = has(col, row);
+  if (!betweenColumns && !betweenRows) return here;
+  if (betweenColumns && !betweenRows) return here && has(col + 1, row);
+  if (!betweenColumns) return here && has(col, row + 1);
+  // Close the tiny seam junction at a bend or a 2×2 block, but not between
+  // two diagonally touching cells or at an exposed outer corner.
+  return Number(here) + Number(has(col + 1, row)) + Number(has(col, row + 1)) + Number(has(col + 1, row + 1)) >= 3;
+}
 /** Seeded rectangle packing: every shuffled piece remains visible and selectable. */
 export function calendarTray(width: number, height: number, seed: number, orientations?: Array<{ rotation: number; flipped: boolean }>) {
   let state = seed >>> 0;

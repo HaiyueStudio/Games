@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "checks": [
+    "no glow control",
+    "four active rules",
+    "visible clue explanations",
+    "candidate placement and undo",
+    "five symmetric rule conflicts",
+    "cancel preserves game",
+    "classic advanced game",
+    "advanced save restore",
+    "console errors"
+  ]
+}

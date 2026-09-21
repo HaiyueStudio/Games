@@ -1,0 +1,272 @@
+{
+  "rooms": [
+    {
+      "id": "pp-clone20-vla",
+      "name": "Clone 20",
+      "size": 7,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 112,
+      "hint": "Patrick’s Parabox · Clone 20。R 重玩；E 返回本章。目标不限箱子颜色。 外层空域中的盒子可推，但不能进入。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-clone20-vla-1",
+          "pos": [
+            3,
+            0,
+            3
+          ],
+          "size": 1,
+          "inside": "pp-clone20-la",
+          "fixed": false,
+          "required": false,
+          "color": "blue"
+        }
+      ],
+      "entryRoom": "pp-clone20-la",
+      "spawn": [
+        0,
+        0,
+        0
+      ],
+      "void": true
+    },
+    {
+      "id": "pp-clone20-la",
+      "name": "Clone 20",
+      "size": 7,
+      "walls": [
+        [
+          4,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          3,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          6
+        ],
+        [
+          1,
+          0,
+          6
+        ],
+        [
+          2,
+          0,
+          6
+        ],
+        [
+          3,
+          0,
+          6
+        ]
+      ],
+      "barriers": [
+        [
+          4,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          5
+        ],
+        [
+          3,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          6
+        ],
+        [
+          1,
+          0,
+          6
+        ],
+        [
+          2,
+          0,
+          6
+        ],
+        [
+          3,
+          0,
+          6
+        ]
+      ],
+      "goals": [
+        [
+          5,
+          0,
+          3
+        ],
+        [
+          6,
+          0,
+          3
+        ]
+      ],
+      "home": null,
+      "level": 112,
+      "hint": "Patrick’s Parabox · Clone 20。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-clone20-la-1",
+          "pos": [
+            2,
+            0,
+            0
+          ],
+          "size": 1,
+          "inside": null,
+          "fixed": false,
+          "required": false,
+          "color": "gold"
+        },
+        {
+          "id": "pp-clone20-la-2",
+          "pos": [
+            4,
+            0,
+            0
+          ],
+          "size": 1,
+          "inside": "pp-clone20-lb",
+          "fixed": false,
+          "required": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-clone20-la-3",
+          "pos": [
+            1,
+            0,
+            5
+          ],
+          "size": 1,
+          "inside": "pp-clone20-la",
+          "fixed": false,
+          "required": false,
+          "color": "blue",
+          "cloneOf": "pp-clone20-vla-1"
+        }
+      ],
+      "spawn": [
+        3,
+        0,
+        3
+      ]
+    },
+    {
+      "id": "pp-clone20-lb",
+      "name": "Clone 20",
+      "size": 3,
+      "walls": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          2,
+          0,
+          2
+        ]
+      ],
+      "barriers": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          2
+        ],
+        [
+          2,
+          0,
+          2
+        ]
+      ],
+      "goals": [],
+      "home": [
+        1,
+        0,
+        1
+      ],
+      "level": 112,
+      "hint": "Patrick’s Parabox · Clone 20。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    }
+  ]
+}
