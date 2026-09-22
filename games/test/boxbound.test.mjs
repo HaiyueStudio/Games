@@ -31,6 +31,14 @@ const {
 } = await import('../boxbound/visuals.ts');
 const { MemorySaveBackend } = await import('@haiyue/engine/save');
 const dirs = { w: [0, 0, -1], s: [0, 0, 1], a: [-1, 0, 0], d: [1, 0, 0] };
+// Gallery puzzle boxes can be closed on all four sides. Use actual climb+dive actions.
+function enterGateway(s) {
+  const climbed=advanceGame(s,{type:'move',dir:dirs.w,jump:true});
+  assert.ok(climbed.changed);assert.equal(climbed.state.player.pos[1],1);
+  const entered=advanceGame(climbed.state,{type:'dive'});assert.ok(entered.changed);
+  return entered;
+}
+
 test('up/down motion clears the full body around ledges in all directions, including late airborne steering', () => {
   for (const d of Object.values(dirs))
     for (const initialLift of [0, 0.25, 0.7, 0.99]) {
@@ -146,7 +154,7 @@ test('Boxbound graph is valid and all rooms are cubic with ten independent world
     s.boxes.filter((b) => b.room === 'world' && b.inside && !b.portal).length,
     10,
   );
-  assert.equal(Object.values(s.rooms).filter((r) => r.level === 0).length, 10);
+  assert.equal(Object.values(s.rooms).filter((r) => r.level === 0).length, 13);
 });
 test('failed pushes are atomic and leave initial state untouched', () => {
   const s = level(1);
@@ -355,7 +363,7 @@ test('one-high walls have flat narrow doors that admit players but block whole c
     );
   }
 });
-test('studded wall tops reject jumping and same-height approach from a crate', () => {
+test('forbidden wall tops reject jumping and same-height approach from a crate', () => {
   const s = level(1);
   s.player.pos = [1, 0, 1];
   assert.equal(
@@ -468,7 +476,7 @@ test('old five-slot journeys migrate geometry and colors without resetting progr
   assert.deepEqual(upgradeState(migrated), migrated);
   const saves = new BoxboundSaves(new MemorySaveBackend());
   await saves.save(1, old);
-  assert.equal((await saves.load(1)).rulesRevision, 13);
+  assert.equal((await saves.load(1)).rulesRevision, 16);
   await saves.service.dispose();
 });
 
@@ -596,7 +604,7 @@ test('revision 3 migrates narrow door geometry without losing a crate resting in
   s.boxes.find((b) => b.id === 'crate-1').pos = [3, 0, 6];
   s.player.pos = [3, 0, 5];
   const next = upgradeState(s);
-  assert.equal(next.rulesRevision, 13);
+  assert.equal(next.rulesRevision, 16);
   assert.equal(next.boxes.length, s.boxes.length);
   assert.notDeepEqual(
     next.boxes.find((b) => b.id === 'crate-1').pos,
@@ -819,6 +827,7 @@ test('pressure plate opens for a player and closes immediately after departure; 
     gate = start.rooms.world.gates[0],
     plate = start.rooms.world.buttons[0];
   assert.ok(!gateOpen(start, 'world', gate));
+  start.player.pos=[5,0,15];
   const pressed = play(start, 'w');
   assert.ok(
     platePressed(pressed, 'world', plate) &&
@@ -837,12 +846,13 @@ test('a crate holds a button, the player can replace its weight, and a large cra
   const start = createGame(),
     plate = start.rooms.world.buttons[0],
     gate = start.rooms.world.gates[0];
-  const held = play(start, 'a a w d');
+  const held = play(start, 'd d d d w a a a a a a');
   assert.ok(
     platePressed(held, 'world', plate) && gateOpen(held, 'world', gate),
   );
   assert.notDeepEqual(held.player.pos, plate.pos);
-  const replaced = play(held, 'd');
+  held.player.pos=[5,0,15];
+  const replaced = play(held, 'w');
   assert.ok(gatePowered(replaced, 'world', gate));
   const released = play(replaced, 's');
   assert.ok(!gateOpen(released, 'world', gate));
@@ -851,7 +861,7 @@ test('a crate holds a button, the player can replace its weight, and a large cra
   big.rooms.world.barriers = [];
   const box = big.boxes.find((b) => b.id === 'island-weight');
   box.size = 2;
-  box.pos = [7, 0, 13];
+  box.pos = [4, 0, 13];
   assert.ok(platePressed(big, 'world', plate));
   box.pos[1] = 1;
   assert.ok(!platePressed(big, 'world', plate));
@@ -909,7 +919,7 @@ test('closed gates block full crate collisions and failed pushes preserve the me
 });
 test('pressure mechanisms survive five-slot saves and revision 4 upgrades preserve progress and exported crates', async () => {
   const saves = new BoxboundSaves(new MemorySaveBackend()),
-    held = play(createGame(), 'a a w d');
+    held = play(createGame(), 'd d d d w a a a a a a');
   for (let slot = 1; slot <= 5; slot++) {
     await saves.save(slot, held);
     const loaded = await saves.load(slot);
@@ -932,7 +942,7 @@ test('pressure mechanisms survive five-slot saves and revision 4 upgrades preser
   const snapshot = clone(old),
     next = upgradeState(old);
   assert.ok(validState(next));
-  assert.equal(next.rulesRevision, 13);
+  assert.equal(next.rulesRevision, 16);
   assert.equal(next.moves, 38);
   assert.deepEqual(next.completed, [2, 4]);
   assert.deepEqual(old, snapshot);
@@ -1014,7 +1024,7 @@ test('exterior gates disappear when powered and movable crates are not drawn as 
     outerExitBarriers(s).some((b) => b.kind === 'gate' && b.direction[2] === 1),
   );
   const weight = s.boxes.find((b) => b.id === 'island-weight');
-  weight.pos = [8, 0, 14];
+  weight.pos = [...s.rooms.world.buttons[0].pos];
   assert.ok(!outerExitBarriers(s).some((b) => b.kind === 'gate'));
   weight.pos = [9, 0, 11];
   assert.ok(!outerExitBarriers(s).some((b) => b.direction[0] === 1));
@@ -1108,7 +1118,7 @@ test('the spaced island gate rejects walking or jumping off the plate but has a 
     assert.equal(blocked.changed, false);
     assert.deepEqual(blocked.state.player.pos, alone.player.pos);
   }
-  const crossed = play(start, 'a a w d w d w w');
+  const crossed = play(start, 'd d d d w a a a a a a d d w w w');
   assert.deepEqual(crossed.player.pos, [8, 0, 11]);
   assert.ok(gatePowered(crossed, 'world', crossed.rooms.world.gates[0]));
   assert.ok(validState(crossed));
@@ -1129,7 +1139,7 @@ test('revision 5 spacing migration preserves progress, moved weights and occupie
     old.moves = 123;
     const original = clone(old), next = upgradeState(old);
     assert.ok(validState(next), kind);
-    assert.equal(next.rulesRevision, 13);
+    assert.equal(next.rulesRevision, 16);
     assert.deepEqual(old, original);
     assert.deepEqual(next.completed, old.completed);
     assert.equal(next.moves, old.moves);
@@ -1137,7 +1147,7 @@ test('revision 5 spacing migration preserves progress, moved weights and occupie
     assert.deepEqual(next.rooms['level-1'], old.rooms['level-1']);
     assert.deepEqual(next.boxes.find((b) => b.id === exported.id), exported);
     const migratedWeight = next.boxes.find((b) => b.id === weight.id);
-    if (kind === 'untouched') assert.deepEqual(migratedWeight.pos, [7, 0, 14]);
+    if (kind === 'untouched') assert.deepEqual(migratedWeight.pos, [11, 0, 14]);
     if (kind === 'moved') assert.deepEqual(migratedWeight.pos, weight.pos);
     assert.equal(next.boxes.length, old.boxes.length);
     assert.deepEqual(upgradeState(next), next);
@@ -1146,8 +1156,8 @@ test('revision 5 spacing migration preserves progress, moved weights and occupie
 
 test('JSON authors the entire finite world graph, including nested and self-referencing rooms', () => {
   const s = parseWorldMap(authoredMap);
-  assert.equal(Object.keys(s.rooms).length, 255);
-  assert.equal(s.boxes.length, 452);
+  assert.equal(Object.keys(s.rooms).length, 406);
+  assert.equal(s.boxes.length, 699);
   assert.ok(s.boxes.some((b) => b.inside === b.room));
   assert.deepEqual(new Set(s.rooms.world.decorations.map((d) => d.type)), new Set([1, 2, 3, 4]));
   assert.equal(s.rooms.world.decorations.length, 20);
@@ -1199,7 +1209,7 @@ test('all decoration types block walking, jumping and pushing without changing t
 
 test('world decoration obstacles leave ground routes to all ten level entrances', async () => {
   const { solid, within } = await import('../boxbound/model.ts');
-  const s = createGame(), room = s.rooms.world;
+  const s = play(createGame(),'d d d d w a a a a a a'), room = s.rooms.world;
   const seen = new Set(), pending = [s.player.pos];
   while (pending.length) {
     const p = pending.pop(), key = p.join(',');
@@ -1250,7 +1260,7 @@ test('unpowered gates eject the player after a crate is pushed clear in all four
   for (const dir of Object.values(dirs)) {
     const s = createGame(), room = s.rooms.world, gate = room.gates[0];
     room.walls = []; room.barriers = []; room.decorations = [];
-    gate.pos = [8, 0, 8]; room.buttons[0].pos = [1, 0, 1];
+    gate.pos = [8, 0, 8]; gate.width=1; room.buttons[0].pos = [1, 0, 1];
     const box = s.boxes.find((b) => b.id === 'island-weight');
     box.pos = [...gate.pos];
     s.player.pos = gate.pos.map((v, i) => v - dir[i]);
@@ -1270,7 +1280,7 @@ test('unpowered gates eject the player after a crate is pushed clear in all four
 test('powered gates permit pushing through and a large crate keeps covering the gate until fully clear', () => {
   const s = createGame(), room = s.rooms.world, gate = room.gates[0];
   room.walls = []; room.barriers = []; room.decorations = [];
-  gate.pos = [8, 0, 8]; room.buttons[0].pos = [1, 0, 1];
+  gate.pos = [8, 0, 8]; gate.width=1; room.buttons[0].pos = [1, 0, 1];
   const box = s.boxes.find((b) => b.id === 'island-weight');
   box.pos = [8, 0, 8]; s.player.pos = [8, 0, 9];
   const weight = s.boxes.find((b) => b.id === 'crate-1');
@@ -1294,7 +1304,7 @@ test('blocked gate pushes are atomic and recoil can be undone as one move', asyn
   const { remember } = await import('../boxbound/history.ts');
   const s = createGame(), gate = s.rooms.world.gates[0];
   const box = s.boxes.find((b) => b.id === 'island-weight');
-  box.pos = [...gate.pos]; s.player.pos = [8, 0, 13];
+  box.pos = [8,0,12]; s.player.pos = [8, 0, 13];
   s.rooms.world.walls.push([8, 0, 11]);
   const blocked = transition(s, { type: 'move', dir: dirs.w });
   assert.equal(blocked.changed, false);
@@ -1331,6 +1341,7 @@ test('sound events distinguish steps, pushes, jumps, landings, buttons and both 
   const s = createGame();
   const step = transition(s, { type: 'move', dir: dirs.a });
   assert.ok(soundCues(s, step.state, { type: 'move', dir: dirs.a }).some((c) => c.name === 'step'));
+  s.player.pos=[5,0,15];
   const press = transition(s, { type: 'move', dir: dirs.w });
   const pressed = soundCues(s, press.state, { type: 'move', dir: dirs.w }).map((c) => c.name);
   assert.ok(pressed.includes('button') && pressed.includes('gate-down'));
@@ -1395,9 +1406,9 @@ for (const [n,path] of Object.entries(paraboxPaths)) test(`Parabox ${n}: complet
   assert.ok(!reset.completed.includes(Number(n)+10));
   const left=transition(s,{type:'leave'});assert.ok(left.changed);assert.equal(left.state.player.room,s.boxes.find(b=>b.id===`pp-gateway-${n}`).room);assert.ok(validState(left.state));
 });
-test('museum has eight chapter gateways, a red friend and 116 unique completion IDs',async()=>{
+test('museum has eleven chapter gateways, a red friend and 165 unique completion IDs',async()=>{
   const {levelIds}=await import('../boxbound/model.ts');const s=createGame();
-  assert.equal(levelIds(s).length,116);assert.equal(s.boxes.filter(b=>b.room==='pp-hub'&&b.portal).length,8);
+  assert.equal(levelIds(s).length,165);assert.equal(s.boxes.filter(b=>b.room==='pp-hub'&&b.portal).length,11);
   s.player={room:'world',pos:[8,0,3],facing:[0,0,-1],route:[]};
   const entered=transition(s,{type:'move',dir:dirs.w});assert.equal(entered.state.player.room,'pp-hub');
   const walk=transition(entered.state,{type:'move',dir:dirs.w});
@@ -1405,7 +1416,7 @@ test('museum has eight chapter gateways, a red friend and 116 unique completion 
   assert.deepEqual(greet.state.player.pos,[6,0,10]);
   let puzzle=museumLevel(1);puzzle.player.pos=[4,0,3];
   const jumped=transition(puzzle,{type:'move',dir:dirs.d,jump:true});assert.equal(jumped.state.player.pos[1],0);
-  puzzle.completed=[20];assert.ok(validState(puzzle));puzzle.completed=[117];assert.equal(validState(puzzle),false);
+  puzzle.completed=[20];assert.ok(validState(puzzle));puzzle.completed=[166];assert.equal(validState(puzzle),false);
 });
 test('revision 7 journeys in all five slots add museum without losing moved crates or progress',async()=>{
   const saves=new BoxboundSaves(new MemorySaveBackend());
@@ -1415,15 +1426,15 @@ test('revision 7 journeys in all five slots add museum without losing moved crat
     s.completed=[1,3];s.moves=slot*9;
     const gift=s.boxes.find(b=>b.id==='gift-7');gift.room='world';gift.pos=[8,0,2];
     await saves.save(slot,s);const loaded=await saves.load(slot);
-    assert.ok(validState(loaded));assert.equal(loaded.rulesRevision,13);assert.equal(loaded.moves,slot*9);assert.deepEqual(loaded.completed,[1,3]);
+    assert.ok(validState(loaded));assert.equal(loaded.rulesRevision,16);assert.equal(loaded.moves,slot*9);assert.deepEqual(loaded.completed,[1,3]);
     assert.ok(loaded.boxes.some(b=>b.id==='pp-museum'));assert.equal(loaded.boxes.find(b=>b.id==='gift-7').room,'world');
-    assert.equal(loaded.boxes.length,s.boxes.length+420);
+    assert.equal(loaded.boxes.length,s.boxes.length+createGame().boxes.filter(b=>b.id.startsWith('pp-')).length);
     assert.deepEqual(upgradeState(loaded),loaded);
   }}finally{await saves.service.dispose();}
 });
-test('community first-eight-chapters transcription maps every wall, goal, actor and inner reference with the authored Eat 8 correction',()=>{
+test('community first-eleven-chapters transcription maps every wall, goal, actor and inner reference with the authored Eat 8 correction',()=>{
   const source=JSON.parse(readFileSync(new URL('../boxbound/parabox-source.json',import.meta.url),'utf8'));
-  const s=createGame();assert.equal(Object.keys(source.levels).length,106);
+  const s=createGame();assert.equal(Object.keys(source.levels).length,155);
   for(const [name,code] of Object.entries(source.levels))for(const chunk of code.split('|').slice(1)){
     if (!chunk.includes(':')) continue;
     const aliases=Object.fromEntries(code.split('|').filter(c=>!c.includes(':')).map(c=>{const [id,ref]=c.split(';');return [id,ref.split(',')[1]];}));
@@ -1542,6 +1553,8 @@ test('chapter layout has exactly 9/18/14 independent movable level boxes with en
 test('entry priority is configurable and a blocked push falls back to entry; replay keeps achievements and exterior identities',()=>{
   let s=createGame(),gate=s.boxes.find(b=>b.id==='pp-gateway-1');
   s.player={room:gate.room,pos:[gate.pos[0],0,gate.pos[2]+1],facing:dirs.w,route:[]};
+  s.rooms[gate.inside].walls=s.rooms[gate.inside].walls.filter(p=>p.join()!=='3,0,6');
+  s.rooms[gate.inside].barriers=s.rooms[gate.inside].barriers.filter(p=>p.join()!=='3,0,6');
   const original=clone(gate);let entered=advanceGame(s,{type:'move',dir:dirs.w});
   assert.equal(entered.state.player.room,gate.inside);assert.deepEqual(entered.state.boxes.find(b=>b.id===gate.id),original);
   gate.entryPriority='push';const pushed=advanceGame(s,{type:'move',dir:dirs.w});
@@ -1586,13 +1599,13 @@ for(const [n,path] of Object.entries({...chapterPaths,...advancedPaths}))test(`c
     {box:'pp-museum',from:'world',entry:[8,0,3]},
     {box:chapter.id,from:'pp-hub',entry:[chapter.pos[0],0,chapter.pos[2]+1]},
   ]};
-  s=advanceGame(s,{type:'move',dir:dirs.w}).state;const original=clone(s);
+  s=enterGateway(s).state;const original=clone(s);
   for(const c of path){const next=advanceGame(s,{type:'move',dir:dirs[c]});assert.ok(next.changed,`${n}: blocked ${c}`);s=next.state;assert.ok(validState(s));}
   assert.equal(finishedLevel(s),level);assert.ok(goalsSatisfied(s,level));
   const out=returnFromCompletedLevel(s,level);assert.ok(out);assert.equal(out.player.room,gate.room);assert.equal(out.player.route.length,2);
   const outside=clone(out.boxes.filter(b=>out.rooms[b.room].level!==level));
   out.player.pos=[gate.pos[0],0,gate.pos[2]+1];
-  const replay=advanceGame(out,{type:'move',dir:dirs.w}).state;
+  const replay=enterGateway(out).state;
   assert.equal(replay.player.room,original.player.room);assert.deepEqual(replay.player.pos,original.player.pos);
   assert.ok(replay.completed.includes(level));assert.notEqual(finishedLevel(replay),level);
   assert.deepEqual(replay.boxes.filter(b=>replay.rooms[b.room].level!==level),outside);
@@ -1641,7 +1654,7 @@ test('Boxbound manifest ships every nested level file without stale asset refere
   const entry=JSON.parse(readFileSync(new URL('../manifest.json',import.meta.url),'utf8')).entries.find(e=>e.id==='boxbound');
   for(const asset of entry.assets) assert.ok(existsSync(new URL('../'+asset,import.meta.url)),asset);
   const maps=readdirSync(new URL('../boxbound/levels/',import.meta.url),{recursive:true}).filter(p=>p.endsWith('.json')).map(p=>'boxbound/levels/'+p).sort();
-  assert.equal(maps.length,127);
+  assert.equal(maps.length,179);
   assert.deepEqual(entry.assets.filter(p=>p.startsWith('boxbound/levels/')).sort(),maps);
 });
 
@@ -1772,7 +1785,7 @@ test('revision 9 saves gain the four exits without resetting position, moved box
     old.player={room:id,pos:[...old.rooms[id].spawn],facing:dirs.s,route:[...(id==='pp-hub'?[]:[{box:'pp-museum',from:'world',entry:[8,0,3]}]),{box:owner.id,from:owner.room,entry:[owner.pos[0],0,owner.pos[2]+1]}]};
     old.boxes.find(b=>b.id==='pp-gateway-1').pos=[3,0,3];
     const before=clone(old),next=upgradeState(old);
-    assert.equal(next.rulesRevision,13);assert.deepEqual(next.player,before.player);assert.deepEqual(next.boxes,before.boxes);
+    assert.equal(next.rulesRevision,16);assert.deepEqual(next.player,before.player);assert.deepEqual(next.boxes,before.boxes);
     assert.deepEqual(next.completed,before.completed);assert.equal(next.moves,108);assert.deepEqual(old,before);
     const step=advanceGame(next,{type:'move',dir:dirs.s});assert.ok(step.changed);
     assert.equal(advanceGame(step.state,{type:'move',dir:dirs.s}).state.player.room,owner.room);
@@ -1828,7 +1841,7 @@ test('all 65 new chapter puzzles enter their authored spawn, preserve valid move
   for (let n = 42; n <= 106; n++) {
     const initial = createGame(), gate = initial.boxes.find(b => b.id === `pp-gateway-${n}`);
     initial.player = {room: gate.room, pos: [gate.pos[0],0,gate.pos[2]+1], facing: dirs.w, route: []};
-    const entered = advanceGame(initial,{type:'move',dir:dirs.w});
+    const entered = enterGateway(initial);
     assert.ok(entered.changed, `${n}: entry`); const original=entered.state; let s=original;
     assert.equal(s.rooms[s.player.room].level,n+10); assert.ok(validState(s),`${n}: spawn`);
     for(let i=0;i<16;i++) {
@@ -1842,7 +1855,7 @@ test('all 65 new chapter puzzles enter their authored spawn, preserve valid move
       }
     }
     if(s.rooms[s.player.room].level !== n+10) {
-      s.player.pos=[gate.pos[0],0,gate.pos[2]+1];s=advanceGame(s,{type:'move',dir:dirs.w}).state;
+      s.player.pos=[gate.pos[0],0,gate.pos[2]+1];s=enterGateway(s).state;
     }
     const reset=resetLevel(s);assert.equal(reset.player.room,original.player.room);assert.deepEqual(reset.player.pos,original.player.pos);
     const exit=advanceGame(reset,{type:'leave'});assert.ok(exit.changed);assert.equal(exit.state.player.room,gate.room);
@@ -1854,7 +1867,7 @@ test('revision 10 saves gain the five chapters without resetting existing puzzle
   old.boxes=old.boxes.filter(b=>old.rooms[b.room]&&(!b.inside||old.rooms[b.inside]));
   old.completed=[1,11,40];old.moves=327;old.boxes.find(b=>b.id==='pp-chapter-intro').pos=[2,0,6];
   const previous=clone(old), next=upgradeState(old);
-  assert.ok(validState(next));assert.equal(next.rulesRevision,13);assert.deepEqual(next.player,previous.player);
+  assert.ok(validState(next));assert.equal(next.rulesRevision,16);assert.deepEqual(next.player,previous.player);
   assert.deepEqual(next.completed,previous.completed);assert.equal(next.moves,327);
   for(const b of previous.boxes)assert.deepEqual(next.boxes.find(v=>v.id===b.id),b);
   assert.equal(next.boxes.length,fresh.boxes.length);assert.deepEqual(old,previous);
@@ -1889,7 +1902,7 @@ function referenceStart(n=54) {
     {box:'pp-museum',from:'world',entry:[8,0,3]},
     {box:chapter.id,from:'pp-hub',entry:[chapter.pos[0],0,chapter.pos[2]+1]},
   ]};
-  return advanceGame(s,{type:'move',dir:dirs.w}).state;
+  return enterGateway(s).state;
 }
 function replayReferencePrefix() {
   let s=referenceStart();
@@ -1920,7 +1933,7 @@ test('Reference 1 A-B-A cycle exits the actual path box and solves without escap
 test('revision 11 repairs the saved Reference cycle bookmark without resetting moved boxes or progress',()=>{
   const s=replayReferencePrefix();s.rulesRevision=11;s.player.route.pop();s.completed=[11];s.moves=123;
   const next=upgradeState(s);
-  assert.equal(next.rulesRevision,13);assert.equal(next.player.route.at(-1).box,'pp-reference1-la-1');
+  assert.equal(next.rulesRevision,16);assert.equal(next.player.route.at(-1).box,'pp-reference1-la-1');
   assert.deepEqual(next.boxes,s.boxes);assert.deepEqual(next.player.pos,s.player.pos);assert.deepEqual(next.completed,[11]);assert.equal(next.moves,123);
 });
 test('exit-level leaves a recursive puzzle safely without resetting its interior or earning completion',()=>{
@@ -1953,13 +1966,14 @@ test('room theme overrides validate, and recursive/cloned occurrences keep the a
 });
 
 
-test('compact chapter galleries keep every level in four columns with one-tile corridors',()=>{
+test('compact chapter galleries keep every level in their authored grids with one-tile corridors',()=>{
   const s=createGame();
-  for(const [chapter,count] of Object.entries({intro:9,enter:18,empty:14,eat:12,reference:10,swap:5,center:14,clone:24})){
+  for(const [chapter,count] of Object.entries({intro:9,enter:18,empty:14,eat:12,reference:10,swap:5,center:14,clone:24,transfer:29,open:12,flip:8})){
     const id=`pp-${chapter}`,room=s.rooms[id],gates=s.boxes.filter(b=>b.room===id&&b.levelEntry);
-    assert.equal(gates.length,count);assert.equal(room.size,Math.max(4,Math.ceil(count/4))*2+3);
-    assert.equal(new Set(gates.map(b=>b.pos[0])).size,4);
-    gates.forEach((b,i)=>{assert.equal(b.pos[0],(room.size>>1)-3+(i%4)*2);assert.equal(b.pos[2],2+Math.floor(i/4)*2);});
+    const columns=chapter==='transfer'?6:chapter==='clone'?5:4;
+    assert.equal(gates.length,count);assert.equal(room.size,Math.max(columns,Math.ceil(count/columns))*2+3);
+    assert.equal(new Set(gates.map(b=>b.pos[0])).size,columns);
+    gates.forEach((b,i)=>{assert.equal(b.pos[0],(room.size>>1)-(columns-1)+(i%columns)*2);assert.equal(b.pos[2],2+Math.floor(i/columns)*2);});
     assert(!solid(s,id,room.spawn));
   }
   assert(validState(s));
@@ -1975,4 +1989,61 @@ test('revision 12 compact galleries preserve puzzle state, completed levels and 
   const gate=next.boxes.find(b=>b.id==='pp-gateway-9');assert.deepEqual(next.player.route[2].entry,[gate.pos[0],0,gate.pos[2]+1]);
   assert(validState(advanceGame(next,{type:'exit-level'}).state));assert.deepEqual(old,before);assert.deepEqual(upgradeState(next),next);
   old.player.room='pp-intro';old.player.pos=[14,0,15];old.player.route.pop();const migrated=upgradeState(old);assert(validState(migrated));assert(migrated.player.pos.every(v=>v<11));
+});
+
+function doorwayFixture(openSide=null) {
+ const s=createGame(), gate=s.boxes.find(b=>b.id==='pp-gateway-1'), room=s.rooms[gate.inside];
+ if(openSide){const p=openSide[0]?[openSide[0]>0?6:0,0,1]:[1,0,openSide[2]>0?6:0];
+  room.walls=room.walls.filter(w=>w.join()!==p.join());room.barriers=room.barriers.filter(w=>w.join()!==p.join());}
+ return {s,gate,room};
+}
+test('closed puzzle faces push without resetting contents; blocked faces cannot teleport or dive',()=>{
+ for(const dir of Object.values(dirs)){
+  const {s,gate}=doorwayFixture();gate.pos=[5,0,5];s.player={room:gate.room,pos:gate.pos.map((v,i)=>v-dir[i]),facing:dir,route:[]};
+  const crate=s.boxes.find(b=>b.room===gate.inside);crate.pos=[2,0,3];const before=clone(s);
+  const pushed=advanceGame(s,{type:'move',dir});assert.ok(pushed.changed);assert.equal(pushed.state.player.room,gate.room);
+  assert.deepEqual(pushed.state.boxes.find(b=>b.id===gate.id).pos,gate.pos.map((v,i)=>v+dir[i]));
+  assert.deepEqual(pushed.state.boxes.find(b=>b.id===crate.id),crate);assert.deepEqual(s,before);
+  assert.equal(advanceGame(s,{type:'dive'}).changed,false);
+  s.rooms[gate.room].walls.push(gate.pos.map((v,i)=>v+dir[i]));assert.equal(advanceGame(s,{type:'move',dir}).changed,false);
+ }
+});
+test('only the matching open side admits players, including off-center openings on all four sides',async()=>{
+ const {boundaryEntrances}=await import('../boxbound/model.ts');
+ for(const side of Object.values(dirs))for(const from of Object.values(dirs)){
+  const {s,gate,room}=doorwayFixture(side);gate.pos=[5,0,5];const dir=from.map(v=>-v);
+  s.player={room:gate.room,pos:gate.pos.map((v,i)=>v+from[i]),facing:dir,route:[]};
+  assert.deepEqual(boundaryEntrances(room).map(e=>e.direction),[side]);
+  const next=advanceGame(s,{type:'move',dir});assert.ok(next.changed);
+  assert.equal(next.state.player.room,from.join()===side.join()?gate.inside:gate.room);
+  if(from.join()===side.join())assert.deepEqual(next.state.player.pos,room.spawn);
+ }
+});
+test('closed puzzle entry requires climbing onto its original box and diving; undo snapshots stay unchanged',()=>{
+ const {s,gate,room}=doorwayFixture();s.player={room:gate.room,pos:[gate.pos[0],0,gate.pos[2]+1],facing:dirs.w,route:[]};
+ const before=clone(s), entered=enterGateway(s);
+ assert.equal(entered.state.player.room,gate.inside);assert.deepEqual(entered.state.player.pos,room.spawn);
+ assert.deepEqual(entered.state.boxes.find(b=>b.id===gate.id),gate);assert.deepEqual(s,before);assert.ok(validState(entered.state));
+});
+
+test('revision 14 Transfer and Clone galleries compact safely without resetting puzzles or progress',()=>{
+ for(const [chapter,oldSize,oldX,level,newSize] of [['transfer',19,2,112,15],['clone',15,4,88,13]]){
+  const old=museumLevel(level);old.rulesRevision=14;old.completed=[11,93];old.moves=86;
+  const id='pp-'+chapter,r=old.rooms[id];r.size=oldSize;r.spawn=[oldSize>>1,0,oldSize-2];
+  r.walls=[];for(let x=0;x<oldSize;x++)for(let z=0;z<oldSize;z++)if((x===0||z===0||x===oldSize-1||z===oldSize-1)&&!(x===(oldSize>>1)&&z===oldSize-1))r.walls.push([x,0,z]);r.barriers=clone(r.walls);
+  old.boxes.filter(b=>b.room===id&&b.levelEntry).forEach((b,i)=>b.pos=[oldX+i%4*2,0,2+Math.floor(i/4)*2]);
+  const gate=old.boxes.find(b=>b.id===`pp-gateway-${level}`);old.player.route.at(-1).entry=[gate.pos[0],0,gate.pos[2]+1];
+  const before=clone(old),inside=old.boxes.filter(b=>old.rooms[b.room].level===level+10);
+  const next=upgradeState(old);assert.ok(validState(next));assert.equal(next.rulesRevision,16);assert.equal(next.rooms[id].size,newSize);
+  assert.deepEqual(next.player.pos,old.player.pos);assert.deepEqual(next.completed,old.completed);assert.equal(next.moves,86);
+  assert.deepEqual(next.boxes.filter(b=>next.rooms[b.room].level===level+10),inside);
+  const relocated=next.boxes.find(b=>b.id===gate.id);assert.deepEqual(next.player.route.at(-1).entry,[relocated.pos[0],0,relocated.pos[2]+1]);
+  const returned=advanceGame(next,{type:'exit-level'});assert.ok(returned.changed);assert.equal(returned.state.player.room,id);assert.ok(validState(returned.state));
+  assert.deepEqual(old,before);assert.deepEqual(upgradeState(next),next);
+  for(const pos of [[chapter==='transfer'?10:2,0,2],[oldSize-2,0,oldSize-2]]){
+   const gallery=clone(old);gallery.player.room=id;gallery.player.pos=pos;gallery.player.route.pop();
+   const moved=upgradeState(gallery);assert.ok(validState(moved));assert.ok(moved.player.pos.every(v=>v<newSize));
+   assert.deepEqual(moved.boxes.filter(b=>b.room===id&&b.levelEntry).map(b=>b.pos),createGame().boxes.filter(b=>b.room===id&&b.levelEntry).map(b=>b.pos));
+  }
+ }
 });

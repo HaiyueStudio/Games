@@ -29,6 +29,7 @@ export class CalendarPurchaseView {
   private priceCaption = '';
   private readonly restore: GuiButton;
   private readonly retry: GuiButton;
+  private readonly free: GuiElement;
   constructor(private readonly options: {
     root: GuiRoot; layout: () => ReturnType<typeof calendarLayout>; language: () => CalendarLanguage;
     raster: CalendarRaster; purchases: CalendarPurchases; close: () => void; today: () => void;
@@ -47,6 +48,7 @@ export class CalendarPurchaseView {
       const element = place(id, new GuiLabel({ text: value(), textAlign: 'center', style: { color: '#183c3b' } }), 30, y, 760, 48);
       element.layout = () => { element.rect = { x: box().x + 30, y: box().y + y, width: 760, height: 48 }; element.setFontSize(size * options.layout().scale); };
       this.labels.push(() => element.setText(value()));
+      return element;
     };
     const button = (id: string, value: () => string, x: number, y: number, width: number, action: () => void) => {
       const element = place(id, new GuiButton({ text: value(), onClick: action }), x, y, width, 60);
@@ -54,11 +56,12 @@ export class CalendarPurchaseView {
     };
     label('purchaseTitle', () => this.state.entitled ? this.copy.owned : this.copy.title, 25, 32);
     label('purchaseFeatures', () => this.copy.features, 85);
-    label('purchaseFree', () => this.copy.free, 125, 20);
-    label('purchaseStatus', () => this.copy[this.state.phase], 180, 21);
+    this.free = label('purchaseFree', () => this.copy.free, 125, 20);
+    label('purchaseStatus', () => this.state.entitled && this.state.phase === 'ready' ? '' : this.copy[this.state.phase], 180, 21);
     this.buy = button('purchaseBuy', () => this.state.price ? '' : this.copy.buy, 40, 250, 360, () => { void options.purchases.purchase(); });
     this.priceImage = place('purchasePrice', new GuiImage({ disabled: true }), 50, 256, 340, 48);
     this.restore = button('purchaseRestore', () => this.copy.restore, 420, 250, 360, () => { void options.purchases.restore(); });
+    this.restore.layout = () => { this.restore.rect = { x: box().x + (this.state.entitled ? 230 : 420), y: box().y + 250, width: 360, height: 60 }; };
     this.retry = button('purchaseRetry', () => this.copy.retry, 40, 335, 230, () => { void options.purchases.refresh(); });
     button('purchaseToday', () => this.copy.today, 295, 335, 230, options.today);
     button('purchaseClose', () => this.copy.close, 550, 335, 230, options.close);
@@ -71,12 +74,14 @@ export class CalendarPurchaseView {
   refresh(): void {
     for (const label of this.labels) label();
     const state = this.state;
+    this.buy.setVisible(this.visible && !state.entitled);
+    this.free.setVisible(this.visible && !state.entitled);
     this.buy.disabled = state.busy || state.entitled || !state.canPurchase || !state.price || state.phase === 'pending';
     this.restore.disabled = state.busy;
     this.retry.disabled = state.busy;
     // Rasterize the exact store string using the platform font. A fixed glyph
     // atlas cannot anticipate every currency, script or non-breaking separator.
-    const caption = state.price ? `${this.copy.buy} · ${state.price}` : '';
+    const caption = state.price && !state.entitled ? `${this.copy.buy} · ${state.price}` : '';
     const key = `${caption}:${this.buy.disabled}`;
     if (caption && key !== this.priceCaption) {
       const canvas = this.priceSurface.acquire(680, 96), c = canvas.getContext('2d')!;

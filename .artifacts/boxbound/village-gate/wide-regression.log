@@ -1,0 +1,38 @@
+✔ Boxbound graph is valid and all rooms are cubic with ten independent world gates (41.216201ms)
+✔ revision 2 migration removes tall walls and sills and settles unsupported actors (248.527223ms)
+✔ all four doorway widths gate crate export atomically; full-width permits transport (387.546442ms)
+✔ revision 3 migrates narrow door geometry without losing a crate resting in an old opening (231.650106ms)
+✔ pressure plate opens for a player and closes immediately after departure; closed bars cannot be walked or jumped through (52.0409ms)
+✔ an unpowered gate waits for a player or box in its doorway and closes when the cell clears (112.112879ms)
+✔ gate channels are local to their room and any linked button can hold them open (28.370899ms)
+✔ closed gates block full crate collisions and failed pushes preserve the mechanism (78.609415ms)
+✔ pressure mechanisms survive five-slot saves and revision 4 upgrades preserve progress and exported crates (1851.801111ms)
+✔ malformed mechanism positions, channels, IDs and wall overlaps are rejected in saves (106.605498ms)
+✔ exterior gates disappear when powered and movable crates are not drawn as walls (20.503649ms)
+✔ all authored rooms separate every pressure plate from gates, including diagonal adjacency (21.68618ms)
+✔ the spaced island gate rejects walking or jumping off the plate but has a crate-held solution (223.176254ms)
+✔ revision 5 spacing migration preserves progress, moved weights and occupied destinations (525.691704ms)
+✔ map loading rejects invalid references, decorations, overlaps and adjacent mechanisms (431.612879ms)
+✔ world decoration obstacles leave ground routes to all ten level entrances (163.307142ms)
+✔ revision 6 decoration migration safely moves obstructed actors and preserves progress (197.291006ms)
+✔ unpowered gates eject the player after a crate is pushed clear in all four directions (319.5974ms)
+✔ powered gates permit pushing through and a large crate keeps covering the gate until fully clear (30.843549ms)
+✔ blocked gate pushes are atomic and recoil can be undone as one move (43.402926ms)
+✔ recoil animation keeps the full player body clear of raised bars and returns to rest (3.531745ms)
+✔ sound events distinguish steps, pushes, jumps, landings, buttons and both gate directions (108.056017ms)
+✔ museum has eleven chapter gateways, a red friend and 165 unique completion IDs (74.819516ms)
+✔ revision 7 journeys in all five slots add museum without losing moved crates or progress (1007.018683ms)
+✔ revision 8 saves migrate the current puzzle route into its chapter without resetting progress (104.874823ms)
+✔ revision 9 saves gain the four exits without resetting position, moved boxes or progress (549.67768ms)
+✔ revision 10 saves gain the five chapters without resetting existing puzzle or world state (138.806521ms)
+✔ revision 11 repairs the saved Reference cycle bookmark without resetting moved boxes or progress (158.351012ms)
+✔ revision 12 compact galleries preserve puzzle state, completed levels and safe return bookmarks (249.541461ms)
+✔ revision 14 Transfer and Clone galleries compact safely without resetting puzzles or progress (853.602875ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8812.955822

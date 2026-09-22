@@ -1,5 +1,6 @@
 import {
   repairPlayerRoute,
+  playerMirrored,
   solid,
   transition,
   initialNestedSpawn,
@@ -98,6 +99,7 @@ export function upgradeState(saved: State): State {
   for (const [id, room] of Object.entries(next.rooms)) {
     const definition = fresh.rooms[id];
     if (!definition) continue;
+    room.name = definition.name;
     room.hint = definition.hint;
     if (id.startsWith('pp-') && definition.doorWidths) room.doorWidths = clone(definition.doorWidths);
     if (definition.entryRoom) room.entryRoom = definition.entryRoom;
@@ -135,11 +137,12 @@ export function upgradeState(saved: State): State {
       room.doorWidths = clone(definition.doorWidths!);
     }
   }
-  if ((saved.rulesRevision ?? 1) < 13) {
+  const resizedGalleries = new Set<string>();
+  if ((saved.rulesRevision ?? 1) < 15) {
     // Compact only the galleries. Puzzle interiors, completion and exported
     // objects retain their state; return bookmarks follow the relocated gates.
     const galleries = new Set(fresh.boxes.filter(b => b.levelEntry && next.rooms[b.room]!.size !== fresh.rooms[b.room]!.size).map(b => b.room));
-    for (const id of galleries) next.rooms[id] = clone(fresh.rooms[id]!);
+    for (const id of galleries) { next.rooms[id] = clone(fresh.rooms[id]!); resizedGalleries.add(id); }
     for (const box of next.boxes) {
       const definition = fresh.boxes.find(b => b.id === box.id);
       if (definition?.levelEntry && galleries.has(box.room) && box.room === definition.room) box.pos = [...definition.pos];
@@ -150,6 +153,17 @@ export function upgradeState(saved: State): State {
     }
   }
   const world = next.rooms.world!;
+  if ((saved.rulesRevision ?? 1) < 16) {
+    const oldPlate = world.buttons?.find(b=>b.id==='island-button');
+    const newPlate = fresh.rooms.world!.buttons!.find(b=>b.id==='island-button')!;
+    // Preserve a previously solved entrance even though its plate moves sideways.
+    if (oldPlate) for (const box of next.boxes)
+      if (box.room==='world' && box.size===1 && box.pos.every((v,i)=>v===oldPlate.pos[i])) box.pos=[...newPlate.pos];
+    const starter=next.boxes.find(b=>b.id==='island-weight');
+    if (starter?.room==='world' && starter.pos[0]===7 && starter.pos[1]===0 && [13,14].includes(starter.pos[2]))
+      starter.pos=[...fresh.boxes.find(b=>b.id==='island-weight')!.pos];
+    world.walls=clone(fresh.rooms.world!.walls);
+  }
   world.buttons = clone(fresh.rooms.world!.buttons!);
   world.gates = clone(fresh.rooms.world!.gates!);
   world.hint = fresh.rooms.world!.hint;
@@ -157,6 +171,13 @@ export function upgradeState(saved: State): State {
   const weight = next.boxes.find((b) => b.id === 'island-weight');
   if ((saved.rulesRevision ?? 1) < 6 && weight?.room === 'world' && weight.pos.every((v, i) => v === [7, 0, 13][i]))
     weight.pos = [7, 0, 14];
+  // A relocated gateway may now occupy the old player cell. Move the player
+  // first so the generic collision repair cannot displace the authored layout.
+  if (resizedGalleries.has(next.player.room)) {
+    const room = next.rooms[next.player.room]!;
+    if (!within(room, next.player.pos) || solid(next, room.id, next.player.pos) || wallBlocksTop(room, next.player.pos))
+      next.player.pos = nearest(room, next.player.pos, p => p[1] === 0 && !solid(next, room.id, p) && !wallBlocksTop(room, p));
+  }
   // Older journeys may have exported crates here. Keep them and their routes.
   for (const w of fresh.rooms.world!.walls)
     if (!world.walls.some((p) => p.every((v, i) => v === w[i])))
@@ -208,7 +229,7 @@ export function upgradeState(saved: State): State {
   }
   repairPlayerRoute(next);
   next.rulesRevision = fresh.rulesRevision!;
-  next.message = '旅程已保留，章节布局已收紧为每行四关。Esc 可返回关卡外层。';
+  next.message = '旅程已保留，章节布局已更新。Esc 可返回关卡外层。';
   return next;
 }
 function nearest(room: Room, origin: Vec, free: (p: Vec) => boolean): Vec {
@@ -240,6 +261,7 @@ export function resetLevel(state: State): State {
   next.player = {
     ...clone(state.player),
     room: root,
+    mirrored: gatewayIndex < 0 ? playerMirrored(state) : (state.player.route[gatewayIndex]!.mirrored ?? false) !== !!next.boxes.find(b => b.id === state.player.route[gatewayIndex]!.box)?.flipped,
     route: gatewayIndex < 0 ? clone(state.player.route) : clone(state.player.route.slice(0, gatewayIndex + 1)),
     pos: room.spawn ? [...room.spawn] : [Math.floor(room.size / 2), 0, room.size - 2],
     facing: [0, 0, -1],

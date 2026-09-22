@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T04:03:20.947632+00:00",
+  "scope": "Boxbound chapter layout only; no Engine changes or full-repository tests",
+  "rulesRevision": 15,
+  "layouts": {
+    "Transfer": {
+      "columns": 6,
+      "capacity": 36,
+      "puzzles": 29,
+      "oldSize": 19,
+      "newSize": 15
+    },
+    "Clone": {
+      "columns": 5,
+      "capacity": 25,
+      "puzzles": 24,
+      "oldSize": 15,
+      "newSize": 13
+    }
+  },
+  "typecheck": "passed",
+  "targetedTests": 7,
+  "browserChecks": 64,
+  "browserEvidence": "Native/examples/boxbound/evidence/chapter-layouts/",
+  "androidBuild": "passed",
+  "androidInstall": "passed",
+  "saves": "Puzzle interiors, completion and moves retained; gallery return bookmarks relocated; player/entrance overlap repaired before box collision repair.",
+  "bundleSha256": "02c66e5bc785ea7ad399ce843cfb31ca8072cbaf4891991ccb6254c5c0000a3a",
+  "apkSha256": "69022cabc683128b1eb03660c179a76937caf6611c398457e2577c267c34c15d"
+}

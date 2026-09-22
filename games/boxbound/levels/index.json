@@ -1,20 +1,12 @@
 {
   "schemaVersion": 1,
-  "rulesRevision": 13,
+  "rulesRevision": 16,
   "rootRoom": "world",
   "spawn": {
-    "pos": [
-      8,
-      0,
-      15
-    ],
-    "facing": [
-      0,
-      0,
-      -1
-    ]
+    "pos": [8, 0, 15],
+    "facing": [0, 0, -1]
   },
-  "greeting": "欢迎来到口袋群岛。每一个小世界，都等你轻轻推开。",
+  "greeting": "欢迎来到新手村。每一个小世界，都等你轻轻推开。",
   "worlds": [
     {
       "$ref": "islands/world.json"

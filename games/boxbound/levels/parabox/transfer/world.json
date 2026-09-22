@@ -1,0 +1,604 @@
+{
+  "worldId": "pp-transfer",
+  "rooms": [
+    {
+      "id": "pp-transfer",
+      "name": "Transfer · 转移",
+      "size": 15,
+      "spawn": [7, 0, 13],
+      "walls": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [3, 0, 0],
+        [4, 0, 0],
+        [5, 0, 0],
+        [6, 0, 0],
+        [7, 0, 0],
+        [8, 0, 0],
+        [9, 0, 0],
+        [10, 0, 0],
+        [11, 0, 0],
+        [12, 0, 0],
+        [13, 0, 0],
+        [14, 0, 0],
+        [0, 0, 1],
+        [14, 0, 1],
+        [0, 0, 2],
+        [14, 0, 2],
+        [0, 0, 3],
+        [14, 0, 3],
+        [0, 0, 4],
+        [14, 0, 4],
+        [0, 0, 5],
+        [14, 0, 5],
+        [0, 0, 6],
+        [14, 0, 6],
+        [0, 0, 7],
+        [14, 0, 7],
+        [0, 0, 8],
+        [14, 0, 8],
+        [0, 0, 9],
+        [14, 0, 9],
+        [0, 0, 10],
+        [14, 0, 10],
+        [0, 0, 11],
+        [14, 0, 11],
+        [0, 0, 12],
+        [14, 0, 12],
+        [0, 0, 13],
+        [14, 0, 13],
+        [0, 0, 14],
+        [1, 0, 14],
+        [2, 0, 14],
+        [3, 0, 14],
+        [4, 0, 14],
+        [5, 0, 14],
+        [6, 0, 14],
+        [8, 0, 14],
+        [9, 0, 14],
+        [10, 0, 14],
+        [11, 0, 14],
+        [12, 0, 14],
+        [13, 0, 14],
+        [14, 0, 14]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [3, 0, 0],
+        [4, 0, 0],
+        [5, 0, 0],
+        [6, 0, 0],
+        [7, 0, 0],
+        [8, 0, 0],
+        [9, 0, 0],
+        [10, 0, 0],
+        [11, 0, 0],
+        [12, 0, 0],
+        [13, 0, 0],
+        [14, 0, 0],
+        [0, 0, 1],
+        [14, 0, 1],
+        [0, 0, 2],
+        [14, 0, 2],
+        [0, 0, 3],
+        [14, 0, 3],
+        [0, 0, 4],
+        [14, 0, 4],
+        [0, 0, 5],
+        [14, 0, 5],
+        [0, 0, 6],
+        [14, 0, 6],
+        [0, 0, 7],
+        [14, 0, 7],
+        [0, 0, 8],
+        [14, 0, 8],
+        [0, 0, 9],
+        [14, 0, 9],
+        [0, 0, 10],
+        [14, 0, 10],
+        [0, 0, 11],
+        [14, 0, 11],
+        [0, 0, 12],
+        [14, 0, 12],
+        [0, 0, 13],
+        [14, 0, 13],
+        [0, 0, 14],
+        [1, 0, 14],
+        [2, 0, 14],
+        [3, 0, 14],
+        [4, 0, 14],
+        [5, 0, 14],
+        [6, 0, 14],
+        [8, 0, 14],
+        [9, 0, 14],
+        [10, 0, 14],
+        [11, 0, 14],
+        [12, 0, 14],
+        [13, 0, 14],
+        [14, 0, 14]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 0,
+      "hint": "Transfer 章节 · 进入盒子挑战，完成后返回本章。南侧出口 / E 返回致敬馆。",
+      "boxes": [
+        {
+          "id": "pp-gateway-107",
+          "pos": [2, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer1-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 1",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-108",
+          "pos": [4, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer2-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 2",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-109",
+          "pos": [6, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer3-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 3",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-110",
+          "pos": [8, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer4-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 4",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-111",
+          "pos": [10, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer5-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 5",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-112",
+          "pos": [12, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer6-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 6",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-113",
+          "pos": [2, 0, 4],
+          "size": 1,
+          "inside": "pp-transfer7-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 7",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-114",
+          "pos": [4, 0, 4],
+          "size": 1,
+          "inside": "pp-transfer8-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 8",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-115",
+          "pos": [6, 0, 4],
+          "size": 1,
+          "inside": "pp-transfer9-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 9",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-116",
+          "pos": [8, 0, 4],
+          "size": 1,
+          "inside": "pp-transfer10-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 10",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-117",
+          "pos": [10, 0, 4],
+          "size": 1,
+          "inside": "pp-transfer11-la",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 11",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-118",
+          "pos": [12, 0, 4],
+          "size": 1,
+          "inside": "pp-transfer12-la",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 12",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-119",
+          "pos": [2, 0, 6],
+          "size": 1,
+          "inside": "pp-transfer13-la",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 13",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-120",
+          "pos": [4, 0, 6],
+          "size": 1,
+          "inside": "pp-transfer14-la",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 14",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-121",
+          "pos": [6, 0, 6],
+          "size": 1,
+          "inside": "pp-transfer15-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 15",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-122",
+          "pos": [8, 0, 6],
+          "size": 1,
+          "inside": "pp-transfer16-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 16",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-123",
+          "pos": [10, 0, 6],
+          "size": 1,
+          "inside": "pp-transfer17-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 17",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-124",
+          "pos": [12, 0, 6],
+          "size": 1,
+          "inside": "pp-transfer18-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 18",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-125",
+          "pos": [2, 0, 8],
+          "size": 1,
+          "inside": "pp-transfer19-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 19",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-126",
+          "pos": [4, 0, 8],
+          "size": 1,
+          "inside": "pp-transfer20-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 20",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-127",
+          "pos": [6, 0, 8],
+          "size": 1,
+          "inside": "pp-transfer21-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 21",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-128",
+          "pos": [8, 0, 8],
+          "size": 1,
+          "inside": "pp-transfer22-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 22",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-129",
+          "pos": [10, 0, 8],
+          "size": 1,
+          "inside": "pp-transfer23-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 23",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-130",
+          "pos": [12, 0, 8],
+          "size": 1,
+          "inside": "pp-transfer24-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 24",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-131",
+          "pos": [2, 0, 10],
+          "size": 1,
+          "inside": "pp-transfer25-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 25",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-132",
+          "pos": [4, 0, 10],
+          "size": 1,
+          "inside": "pp-transfer26-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 26",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-133",
+          "pos": [6, 0, 10],
+          "size": 1,
+          "inside": "pp-transfer27-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 27",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-134",
+          "pos": [8, 0, 10],
+          "size": 1,
+          "inside": "pp-transfer28-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 28",
+          "color": "blue"
+        },
+        {
+          "id": "pp-gateway-135",
+          "pos": [10, 0, 10],
+          "size": 1,
+          "inside": "pp-transfer29-lr",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "levelEntry": true,
+          "entryPriority": "enter",
+          "label": "Transfer 29",
+          "color": "blue"
+        }
+      ],
+      "doorWidths": [
+        0.82,
+        0.82,
+        0.82,
+        0.82
+      ],
+      "exitLabel": "返回致敬馆"
+    }
+  ],
+  "levels": [
+    {
+      "$ref": "transfer-01.json"
+    },
+    {
+      "$ref": "transfer-02.json"
+    },
+    {
+      "$ref": "transfer-03.json"
+    },
+    {
+      "$ref": "transfer-04.json"
+    },
+    {
+      "$ref": "transfer-05.json"
+    },
+    {
+      "$ref": "transfer-06.json"
+    },
+    {
+      "$ref": "transfer-07.json"
+    },
+    {
+      "$ref": "transfer-08.json"
+    },
+    {
+      "$ref": "transfer-09.json"
+    },
+    {
+      "$ref": "transfer-10.json"
+    },
+    {
+      "$ref": "transfer-11.json"
+    },
+    {
+      "$ref": "transfer-12.json"
+    },
+    {
+      "$ref": "transfer-13.json"
+    },
+    {
+      "$ref": "transfer-14.json"
+    },
+    {
+      "$ref": "transfer-15.json"
+    },
+    {
+      "$ref": "transfer-16.json"
+    },
+    {
+      "$ref": "transfer-17.json"
+    },
+    {
+      "$ref": "transfer-18.json"
+    },
+    {
+      "$ref": "transfer-19.json"
+    },
+    {
+      "$ref": "transfer-20.json"
+    },
+    {
+      "$ref": "transfer-21.json"
+    },
+    {
+      "$ref": "transfer-22.json"
+    },
+    {
+      "$ref": "transfer-23.json"
+    },
+    {
+      "$ref": "transfer-24.json"
+    },
+    {
+      "$ref": "transfer-25.json"
+    },
+    {
+      "$ref": "transfer-26.json"
+    },
+    {
+      "$ref": "transfer-27.json"
+    },
+    {
+      "$ref": "transfer-28.json"
+    },
+    {
+      "$ref": "transfer-29.json"
+    }
+  ]
+}

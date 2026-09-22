@@ -18,7 +18,8 @@ export interface Cage { cells: number[]; sum: number; }
 export interface Exclusion { at: number; digit: number; mask: number; }
 export interface Puzzle { version: 1; seed: number; options: Options; givens: number[]; lights: number[]; blocked: boolean[]; cages: Cage[]; /** Missing only in legacy unordered Renban saves. */ lineRule?: 'ordered'; lines: number[][]; dots: [number, number][]; inequalities?: [number, number][]; slants?: number[][]; exclusions?: Exclusion[]; parity?: number[]; thermometers?: number[][]; skyClues?: SkyClues; xvClues?: XVClue[]; fourSums?: FourSum[]; extraRegions?: number[][]; littleKillers?: LittleKillerClue[]; }
 export interface Generated { puzzle: Puzzle; solution: number[]; }
-export interface SaveData extends Generated { board: number[]; notes: number[]; /** Explicit crossed-out candidates; omitted in legacy saves. */ crossed?: number[]; elapsed: number; assisted: boolean; /** Number of verified logical eliminations replayed for this board. */ deductionSteps?: number; }
+export interface UndoMove { board: number[]; notes: number[]; crossed?: number[]; deductionSteps?: number; }
+export interface SaveData extends Generated { undoHistory?: UndoMove[]; board: number[]; notes: number[]; /** Explicit crossed-out candidates; omitted in legacy saves. */ crossed?: number[]; elapsed: number; assisted: boolean; /** Number of verified logical eliminations replayed for this board. */ deductionSteps?: number; }
 export function ledAllows(mask: number, digit: number): boolean { return digit >= 1 && digit <= 9 && ((SEGMENTS[digit]! & mask) === mask); }
 export function neighbors(i: number): number[] { return [i % 9 > 0 ? i - 1 : -1, i % 9 < 8 ? i + 1 : -1, i - 9, i + 9].filter(j => j >= 0 && j < 81); }
 /** Corner-touching cells only; never wraps across a board edge. */
@@ -571,6 +572,11 @@ export function isSaveData(value: unknown): value is SaveData {
     if (optionConflict(p.options)) return false;
     if (!nums(p.givens, 9) || !nums(p.lights, 127) || !nums(s.solution, 9) || !nums(s.board, 9) || !nums(s.notes, 511) || !Array.isArray(p.blocked) || p.blocked.length !== boardLength(p) || !p.blocked.every(v => typeof v === 'boolean') || !Number.isFinite(s.elapsed) || s.elapsed < 0 || typeof s.assisted !== 'boolean') return false;
     if (s.crossed !== undefined && (!nums(s.crossed, 511) || s.crossed.some((m,i)=>m && (p.blocked[i] || s.board[i])))) return false;
+    if (s.undoHistory !== undefined && (!Array.isArray(s.undoHistory) || s.undoHistory.length > 200 || !s.undoHistory.every(m =>
+      m && nums(m.board,9) && nums(m.notes,511) && (m.crossed === undefined || nums(m.crossed,511)) &&
+      (m.deductionSteps === undefined || Number.isInteger(m.deductionSteps) && m.deductionSteps >= 0 && m.deductionSteps <= boardLength(p)*9) &&
+      p.givens.every((v,i)=>(!v || m.board[i]===v) && (!p.blocked[i] || (!m.board[i] && !m.notes[i] && !m.crossed?.[i]))) &&
+      (!m.crossed || m.crossed.every((v,i)=>!v || !m.board[i]))))) return false;
     if (p.options.led === false && p.lights.some(Boolean)) return false;
     const group = (a: unknown): a is number[] => Array.isArray(a) && a.length > 0 && a.length <= 9 && new Set(a).size === a.length && a.every(i => Number.isInteger(i) && i >= 0 && i < boardLength(p) && !p.blocked[i]);
     const little=p.littleKillers??[];

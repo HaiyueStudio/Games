@@ -1,0 +1,134 @@
+{
+  "rooms": [
+    {
+      "id": "pp-flip6-la",
+      "name": "Flip 6",
+      "size": 7,
+      "walls": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 0, 1],
+        [4, 0, 3],
+        [6, 0, 3],
+        [4, 0, 4],
+        [4, 0, 5],
+        [5, 0, 5],
+        [4, 0, 6],
+        [5, 0, 6],
+        [6, 0, 6]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 0, 1],
+        [4, 0, 3],
+        [6, 0, 3],
+        [4, 0, 4],
+        [4, 0, 5],
+        [5, 0, 5],
+        [4, 0, 6],
+        [5, 0, 6],
+        [6, 0, 6]
+      ],
+      "goals": [
+        [5, 0, 4],
+        [6, 0, 4]
+      ],
+      "home": [6, 0, 5],
+      "level": 163,
+      "hint": "Patrick’s Parabox · Flip 6。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-flip6-la-1",
+          "pos": [1, 0, 1],
+          "size": 1,
+          "inside": "pp-flip6-la",
+          "fixed": false,
+          "required": false,
+          "flipped": true,
+          "color": "coral"
+        },
+        {
+          "id": "pp-flip6-la-2",
+          "pos": [2, 0, 3],
+          "size": 1,
+          "inside": "pp-flip6-lb",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "coral"
+        },
+        {
+          "id": "pp-flip6-la-3",
+          "pos": [2, 0, 5],
+          "size": 1,
+          "inside": "pp-flip6-lc",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "coral"
+        }
+      ],
+      "spawn": [4, 0, 2],
+      "recursiveRoot": true
+    },
+    {
+      "id": "pp-flip6-lb",
+      "name": "Flip 6",
+      "size": 3,
+      "walls": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [2, 0, 2]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [2, 0, 2]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 163,
+      "hint": "Patrick’s Parabox · Flip 6。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    },
+    {
+      "id": "pp-flip6-lc",
+      "name": "Flip 6",
+      "size": 3,
+      "walls": [
+        [0, 0, 0],
+        [2, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [1, 0, 2],
+        [2, 0, 2]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [2, 0, 0],
+        [0, 0, 1],
+        [0, 0, 2],
+        [1, 0, 2],
+        [2, 0, 2]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 163,
+      "hint": "Patrick’s Parabox · Flip 6。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    }
+  ]
+}

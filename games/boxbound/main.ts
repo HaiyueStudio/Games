@@ -1,3 +1,4 @@
+import {viewAction, playerMirrored} from './model';
 import { HaiyueEngine } from '@haiyue/engine';
 import { MemorySaveBackend } from '@haiyue/engine/save';
 import { createGame, resetLevel, advanceGame } from './levels';
@@ -112,7 +113,7 @@ async function main() {
       `${String(state.completed.length).padStart(2, '0')} / ${levelIds(state).length}`;
     $('progress-bar').style.width = `${state.completed.length / levelIds(state).length * 100}%`;
     $('breadcrumb').textContent = [
-      '口袋群岛',
+      state.rooms.world!.name,
       ...state.player.route.map(
         (f) =>
           state.rooms[state.boxes.find((b) => b.id === f.box)!.inside!]!.name,
@@ -203,7 +204,7 @@ async function main() {
     if (throttle && now - lastInput < 145) return;
     lastInput = now;
     const old = state;
-    const result = advanceGame(state, action);
+    const result = advanceGame(state, viewAction(state, action));
     state = result.state;
     if (result.changed) {
       audio.schedule(soundCues(old, state, action, result.recoil, scene.airborne, result.playerCrossing));
@@ -293,7 +294,7 @@ async function main() {
   function help() {
     clearDirections();
     $('dialog-content').innerHTML =
-      `<div class="eyebrow">A SMALL GUIDE</div><h2>世界，藏在盒子里。</h2><p>将彩色箱子推到相同颜色的方框，再让小方站上笑脸终点。蓝箱、珊瑚红箱与金箱不能互相替代。内层房间的箱子也要全部归位。</p><div class="help-grid"><b>方向键 / WASD</b><span>沿格点移动、推动箱子。</span><b>J</b><span>单按原地起跳；按住方向再按 J，或起跳后按方向，可跳上一级台阶或盒顶。</span><b>K</b><span>从盒顶下钻，或进入面前的盒子。</span><b>Esc</b><span>退出当前独立关卡，回到关卡盒子外，保留探索与通关进度。</span><b>E / 边缘开口</b><span>离开当前盒子，回到外层。出口平坦，无需跳跃。</span><b>Z / R</b><span>撤销一步 / 重玩当前小世界及其内层房间，留在当前入口。</span></div><p>带小房间的盒子拥有独立的立方体空间。盒子可以比外观看起来更大！紫色盒子包含自身的引用，进入和离开时会提示 ∞− 与 ∞+。石质基座的房间不能推动；带白色绑带的彩色箱子可以推动。门洞显示每个可进入的方向。围墙统一一格高，顶部九宫格圆点表示不可攀上；光滑台阶和盒顶可以跳上。窄门净宽 0.82 格，只允许角色通过；整格宽门可运输箱子。进入盒子时镜头会靠近入口，带你走进小世界。</p><p>圆形压力按钮可以由角色或箱子压住，压住时铁栅栏降下，离开后升起。箱子留在门洞时会卡住栅栏；推开箱子后若没有压住按钮，栅栏会升起并把角色弹回。通关庆祝结束后会自动转场回到入口所在的大场景。盒内始终保留完整父场景，视野外的物件由渲染器剔除。通关过的关卡盒子会插上小红旗。右上角可开关音效。</p><div class="face-row"><img src="assets/smile.svg" alt="笑脸"><img src="assets/confused.svg" alt="困惑脸"><img src="assets/tired.svg" alt="疲惫脸"></div><p>五个存档互相独立，通关小关卡后自动保存。首页选存档后继续；世界地图就是关卡入口，没有关卡选择页。</p>`;
+      `<div class="eyebrow">A SMALL GUIDE</div><h2>世界，藏在盒子里。</h2><p>将彩色箱子推到相同颜色的方框，再让小方站上笑脸终点。蓝箱、珊瑚红箱与金箱不能互相替代。内层房间的箱子也要全部归位。</p><div class="help-grid"><b>方向键 / WASD</b><span>沿格点移动、推动箱子。</span><b>J</b><span>单按原地起跳；按住方向再按 J，或起跳后按方向，可跳上一级台阶或盒顶。</span><b>K</b><span>从盒顶下钻，或从面前盒子有开口的一侧进入。四周封闭的关卡先跳上盒顶再下钻。</span><b>Esc</b><span>退出当前独立关卡，回到关卡盒子外，保留探索与通关进度。</span><b>E / 边缘开口</b><span>离开当前盒子，回到外层。出口平坦，无需跳跃。</span><b>Z / R</b><span>撤销一步 / 重玩当前小世界及其内层房间，留在当前入口。</span></div><p>带小房间的盒子拥有独立的立方体空间。盒子可以比外观看起来更大！紫色盒子包含自身的引用，进入和离开时会提示 ∞− 与 ∞+。石质基座的房间不能推动；顶部有白色方框的纯色箱子可以推动。关卡盒子封闭的侧面同样可以推动，有开口的一侧才允许进入。门洞显示每个可进入的方向。围墙统一一格高，圆弧墙顶表示不可攀上；光滑台阶和盒顶可以跳上。窄门净宽 0.82 格，只允许角色通过；整格宽门可运输箱子。进入盒子时镜头会靠近入口，带你走进小世界。</p><p>圆形压力按钮可以由角色或箱子压住，压住时铁栅栏降下，离开后升起。箱子留在门洞时会卡住栅栏；推开箱子后若没有压住按钮，栅栏会升起并把角色弹回。通关庆祝结束后会自动转场回到入口所在的大场景。盒内始终保留完整父场景，视野外的物件由渲染器剔除。通关过的关卡盒子会插上小红旗。右上角可开关音效。</p><div class="face-row"><img src="assets/smile.svg" alt="笑脸"><img src="assets/confused.svg" alt="困惑脸"><img src="assets/tired.svg" alt="疲惫脸"></div><p>五个存档互相独立，通关小关卡后自动保存。首页选存档后继续；世界地图就是关卡入口，没有关卡选择页。</p>`;
     dialog.showModal();
   }
   async function start(fresh: boolean) {
@@ -524,6 +525,7 @@ async function main() {
       )
         await advance(scene.transitioning ? 1460 : 640);
     };
+    const climbToRoof = async () => { tap('j'); tap('w'); await wait(); };
     const assert = (v: unknown, name: string) => {
       if (!v) throw new Error(`Verification: ${name}`);
       cases.push(name);
@@ -566,7 +568,7 @@ async function main() {
     );
     tap('z');
     await wait();
-    for (const k of ['a', 'a', 'w', 'd', 'w', 'd', 'w', 'w']) {
+    for (const k of 'ddddwaaaaaaddwww') {
       tap(k);
       await wait();
     }
@@ -706,9 +708,9 @@ async function main() {
     assert(
       scene.diagnostics.fadedWalls === 0 &&
         scene.diagnostics.wallHeight === 1 &&
-        scene.diagnostics.studs ===
-          state.rooms[state.player.room]!.barriers!.length * 9,
-      'opaque one-high walls have nine studs per forbidden top',
+        scene.diagnostics.archedWallCells ===
+          state.rooms[state.player.room]!.barriers!.length,
+      'opaque one-high barriers have continuous arched tops',
     );
     if (params.get('view') === 'celebration') engine.stop();
     await advance(1100);
@@ -779,7 +781,7 @@ async function main() {
       state = createGame(); state.player.pos = [8, 0, 3]; history = [];
       scene.cancelMotion(); render(); await wait(); tap('w'); await wait();
       assert(state.player.room === 'pp-hub' && state.player.route.length === 1, 'museum remains a box in the island');
-      assert(state.boxes.filter((b) => b.room === 'pp-hub' && b.inside).length === 8, 'museum contains eight chapter boxes');
+      assert(state.boxes.filter((b) => b.room === 'pp-hub' && b.inside).length === 11, 'museum contains eleven chapter boxes');
       tap('w'); await wait(); tap('w'); await wait();
       assert(state.message.includes('红方'), 'red friend greets the player');
       state.player.pos = [3, 0, 6]; scene.cancelMotion(); render(); await wait(); tap('w'); await wait();
@@ -787,14 +789,14 @@ async function main() {
       assert(state.boxes.filter((b) => b.room === state.player.room && b.levelEntry).length === 9, 'Intro chapter contains nine independent puzzles');
       const gateway = state.boxes.find((b) => b.id === 'pp-gateway-1')!;
       state.player.pos = [gateway.pos[0], 0, gateway.pos[2] + 1]; scene.cancelMotion(); render(); await wait();
-      tap('w'); await wait();
-      assert(state.player.room === 'pp-intro1-lr' && gateway.pos[2] === 2, 'level entry takes priority over pushing a movable box');
-      assert($('completed').textContent?.endsWith('/ 116'), 'progress includes originals and 106 tribute puzzles');
+      await climbToRoof(); tap('k'); await wait();
+      assert(state.player.room === 'pp-intro1-lr' && gateway.pos[2] === 2, 'closed level entry requires climbing and diving without pushing the box');
+      assert($('completed').textContent?.endsWith('/ 165'), 'progress includes originals and 155 tribute puzzles');
       for (const key of 'wwdddsswwwaaaa') { tap(key); await wait(); }
       assert(state.completed.includes(11) && scene.celebrating, 'first completion celebrates');
       await advance(2500); await wait();
       assert(state.player.room === 'pp-intro' && state.player.route.length === 2, 'completion returns one level boundary to its chapter');
-      state.player.pos = [gateway.pos[0], 0, gateway.pos[2] + 1]; scene.cancelMotion(); render(); await wait(); tap('w'); await wait();
+      state.player.pos = [gateway.pos[0], 0, gateway.pos[2] + 1]; scene.cancelMotion(); render(); await wait(); await climbToRoof(); tap('k'); await wait();
       assert(state.completed.includes(11) && !finishedLevel(state) && state.boxes.find((b) => b.id === 'pp-intro1-lr-1')!.pos[2] === 3, 're-entry restores interior while keeping earned completion');
       for (const key of 'wwdddsswwwaaaa') { tap(key); await wait(); }
       assert(scene.celebrating, 'replayed puzzle celebrates again');
@@ -809,7 +811,7 @@ async function main() {
         }
         const id = recursive ? 'pp-gateway-21' : params.get('view') === 'parabox-nested' ? 'pp-gateway-9' : 'pp-gateway-8';
         const g = state.boxes.find((b) => b.id === id)!;
-        state.player.pos = [g.pos[0], 0, g.pos[2] + 1]; scene.cancelMotion(); render(); await wait(); tap('w');
+        state.player.pos = [g.pos[0], 0, g.pos[2] + 1]; scene.cancelMotion(); render(); await wait(); await climbToRoof(); tap('k');
         if (params.get('view') === 'parabox-zoom') { await advance(300); engine.stop(); }
         else {
           await wait();
@@ -979,6 +981,15 @@ async function main() {
       probe.schedule([{ name: 'jump', delay: 0 }]);
       probe.dispose(); probe.dispose();
       assert(probe.diagnostics.disposed && probe.diagnostics.voices === 0 && probe.diagnostics.buffers === 0 && probe.diagnostics.audioNodes === 0, 'audio disposal releases samples, nodes and voices idempotently');
+      state = createGame(); scene.cancelMotion(); render(); await wait();
+      const beforePlateWalk = scene.resourceSnapshot();
+      tap('w'); await advance(160);
+      const liveGate = scene.diagnostics.mechanisms.find(m => m.kind === 'gate')!;
+      assert(liveGate.powered && liveGate.offset < 0 && liveGate.offset > -1.18, 'walking onto a plate animates the existing gate');
+      await wait(); tap('s'); await wait();
+      const afterPlateWalk = scene.resourceSnapshot();
+      assert(afterPlateWalk.rebuilds === beforePlateWalk.rebuilds && afterPlateWalk.walkUpdates === beforePlateWalk.walkUpdates + 2 && afterPlateWalk.createdParts === beforePlateWalk.createdParts, 'plate press and release update materials and mechanisms without rebuilding the world');
+      assert(scene.diagnostics.mechanisms.find(m => m.kind === 'gate')!.offset === 0, 'reused gate closes completely after release');
       state = createGame();
       state.boxes.find((b) => b.id === 'island-weight')!.pos = [8, 0, 12];
       state.player.pos = [8, 0, 13];
@@ -1026,7 +1037,7 @@ async function main() {
       state.player = { room: gateway.room, pos: [gateway.pos[0], 0, gateway.pos[2] + 1], facing: [0, 0, -1],
         route: [{ box: 'pp-museum', from: 'world', entry: [8, 0, 3] },
           { box: 'pp-chapter-eat', from: 'pp-hub', entry: [3, 0, 3] }] };
-      scene.cancelMotion(); history = []; render(); await wait(); tap('w'); await wait();
+      scene.cancelMotion(); history = []; render(); await wait(); await climbToRoof(); tap('k'); await wait();
       assert(scene.topExpression().smile === 5 && scene.topExpression().laugh === 0, 'top expression shows the same resting smile');
       for (const key of 'wddwdssdsaaa') { tap(key); await wait(); }
       tap('a'); await advance(260);
@@ -1041,7 +1052,8 @@ async function main() {
         state = createGame(); const box = state.boxes.find((b) => b.id === 'pp-gateway-83')!;
         state.player = { room: box.room, pos: [box.pos[0], 0, box.pos[2] + 1], facing: [0, 0, -1],
           route: [{ box: 'pp-museum', from: 'world', entry: [8, 0, 3] }, { box: 'pp-chapter-clone', from: 'pp-hub', entry: [9, 0, 9] }] };
-        state = advanceGame(state, { type: 'move', dir: [0, 0, -1] }).state;
+        state = advanceGame(state, { type: 'move', dir: [0, 0, -1], jump: true }).state;
+        state = advanceGame(state, {type:'dive'}).state;
       }
       scene.cancelMotion(); history = []; render(); await wait(); engine.stop();
     }
@@ -1220,6 +1232,89 @@ async function main() {
       else { tap('z'); await wait(); tap('s'); await advance(300); }
       engine.stop();
     }
+    if (params.get('view')?.startsWith('village-gate')) {
+      state=createGame();history=[];pendingCompletion=null;scene.cancelMotion();render();await wait();
+      const gate=state.rooms.world!.gates![0]!;
+      assert(gate.width===3 && gate.axis==='x','village gate is one configurable three-cell assembly');
+      for(const key of 'aaaw'){tap(key);await wait();}
+      assert(gateOpen(state,'world',gate),'left pressure plate lowers the gate');
+      tap('s');await wait();assert(!gateOpen(state,'world',gate),'leaving the plate raises the gate');
+      state=createGame();history=[];scene.cancelMotion();render();await wait();
+      for(const key of 'ddddwaaaaaaddwww'){tap(key);await wait();}
+      assert(state.player.pos.join()==='8,0,11' && gatePowered(state,'world',gate),'right crate can be pushed onto left plate and player crosses the wide gate');
+      assert(state.boxes.find(b=>b.id==='island-weight')!.pos.join()==='5,0,14','crate remains on the left plate');
+      if(params.get('view')==='village-gate'){state=createGame();history=[];scene.cancelMotion();render();await wait();}
+    }
+    if (params.get('view')?.startsWith('compact-grid-')) {
+      const chapter=params.get('view')!.slice('compact-grid-'.length), columns=chapter==='transfer'?6:5;
+      state=createGame();history=[];pendingCompletion=null;
+      const id='pp-'+chapter,room=state.rooms[id]!,owner=state.boxes.find(b=>b.inside===id)!;
+      state.player={room:id,pos:[...room.spawn!],facing:[0,0,-1],route:[
+        {box:'pp-museum',from:'world',entry:[8,0,3]},
+        {box:owner.id,from:owner.room,entry:[owner.pos[0],0,owner.pos[2]+1]},
+      ]};
+      const gates=state.boxes.filter(b=>b.room===id&&b.levelEntry);
+      assert(room.size===columns*2+3 && gates.length===(chapter==='transfer'?29:24),'compact grid preserves every puzzle');
+      assert(gates.every((b,i)=>b.pos[0]===2+i%columns*2 && b.pos[2]===2+Math.floor(i/columns)*2),'chapter uses its configured columns and one-cell corridors');
+      scene.cancelMotion();render();await wait();
+      tap('s');await wait();tap('s');await wait();
+      assert(state.player.room==='pp-hub','compact gallery south exit returns to the museum');
+      state.player={room:id,pos:[...room.spawn!],facing:[0,0,-1],route:[
+        {box:'pp-museum',from:'world',entry:[8,0,3]},
+        {box:owner.id,from:owner.room,entry:[owner.pos[0],0,owner.pos[2]+1]},
+      ]};scene.cancelMotion();render();await wait();
+    }
+    if (['mirror-chapters', 'mirror-enter'].includes(params.get('view') ?? '')) {
+      state = createGame(); history = []; pendingCompletion = null;
+      assert(state.rooms.world!.name === '新手村', 'initial world uses the new name');
+      for (const [chapter,count] of [['transfer',29],['open',12],['flip',8]] as const)
+        assert(state.boxes.filter(b=>b.room === 'pp-'+chapter && b.levelEntry).length === count, chapter+' chapter keeps every available puzzle');
+      const gate=state.boxes.find(b=>b.id==='pp-gateway-148')!;
+      state.player={room:gate.room,pos:[gate.pos[0],1,gate.pos[2]],facing:[0,0,-1],route:[]};
+      scene.cancelMotion();render();await wait();tap('k');await wait();
+      assert(state.player.room==='pp-flip1-la','dive into the mirrored self-reference puzzle');
+      let reflectedEntries = 0;
+      for(const key of 'aaassswwddddsddddawwaaaasawaawwwwwd'){
+        const beforeFlip = playerMirrored(state);
+        const screenKey = beforeFlip && (key === 'a' || key === 'd') ? (key === 'a' ? 'd' : 'a') : key;
+        tap(screenKey);await wait();
+        const snapshot = scene.occurrenceSnapshot(), current = scene.diagnostics.playerInstances.find(p=>p.layer==='current')!;
+        assert(snapshot.mirrored === playerMirrored(state), 'active occurrence keeps its mirror orientation');
+        assert(snapshot.winding === (snapshot.mirrored ? 'cw' : 'ccw') && snapshot.rootScale === (snapshot.mirrored ? -1 : 1), 'mirror hierarchy keeps visible front faces');
+        assert(snapshot.playerWorld.every((v,i)=>Math.abs(v-current.position[i]!*(i===0&&snapshot.mirrored?-1:1))<1e-4), 'engine world transform reflects the player with the map');
+        if(!beforeFlip && playerMirrored(state)) {
+          reflectedEntries++;
+          const mirroredState=clone(state);
+          tap('z');await wait();assert(!playerMirrored(state)&&!scene.occurrenceSnapshot().mirrored,'undo restores the previous occurrence orientation');
+          tap(screenKey);await wait();assert(playerMirrored(state)&&state.player.pos.join()===mirroredState.player.pos.join(),'re-entering restores the mirrored occurrence');
+          if(params.get('view')==='mirror-enter') break;
+        }
+      }
+      assert(reflectedEntries>0,'Flip 1 solution crosses a mirrored occurrence');
+      if(params.get('view') !== 'mirror-enter') {
+        assert(state.completed.includes(158),'Flip 1 completes using the independently generated reference solution');
+        await advance(2500);await wait();
+        assert(state.player.room==='pp-flip','mirror completion returns to its chapter');
+        state.player.pos=[gate.pos[0],1,gate.pos[2]];scene.cancelMotion();render();await wait();tap('k');await wait();
+        const copies=scene.diagnostics.playerInstances;
+        assert(copies.length===3,'mirror self-reference renders current, parent and child players');
+        const current=copies.find(p=>p.layer==='current')!;
+        for(const copy of copies.filter(p=>p.owner)){
+          const mapping=containmentTransform(state,copy.owner!,copy.layer==='child');
+          const expected=transformPoint(current.position,mapping);
+          assert(mapping.flipX===true && copy.position.every((v,i)=>Math.abs(v-expected[i]!)<1e-6),'mirrored player occurrence agrees with its containment transform');
+        }
+        const self=state.boxes.find(b=>b.id==='pp-flip1-la-1')!;
+        self.fixed=true;state.player.pos=[2,0,4];scene.cancelMotion();render();await wait();
+        tap('d');await advance(300);
+        assert(scene.transitioning && scene.occurrenceSnapshot().mirrored,'mirror orientation is retained throughout the entry zoom');
+        await wait();
+        assert(state.player.pos.join()==='8,0,4' && scene.occurrenceSnapshot().mirrored,'entering the fixed mirror shows the same reflected layout as its preview');
+        tap('d');await wait();assert(state.player.pos[0]===7,'keyboard right moves visually right inside a mirror');
+        tap('z');await wait();tap('z');await wait();assert(!scene.occurrenceSnapshot().mirrored,'undoing direct mirror entry restores the outer orientation');
+        tap('d');await wait();
+      }
+    }
     if (['theme-nested','theme-inside','theme-gallery'].includes(params.get('view') ?? '')) {
       const seedTheme = (id: string) => {
         state = createGame();
@@ -1293,7 +1388,10 @@ async function main() {
       await advance(WALK_MS / 2); await advance(WALK_MS / 2);
       assert(scene.moving && Math.abs(scene.diagnostics.playerPosition[2] - 2.5) < .001,
         'queued movement starts after landing and also animates continuously');
-      await wait(); tap('z'); await advance(WALK_MS / 2);
+      await wait();
+      const walked = scene.resourceSnapshot();
+      assert(walked.rebuilds === warm.rebuilds && walked.walkUpdates >= warm.walkUpdates + 2, 'ordinary walks update original actor poses without rebuilding room models');
+      tap('z'); await advance(WALK_MS / 2);
       assert(scene.moving && Math.abs(scene.diagnostics.playerPosition[2] - 2.5) < .001,
         'undo uses the same readable movement speed');
       await wait();

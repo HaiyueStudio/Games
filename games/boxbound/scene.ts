@@ -1,5 +1,9 @@
+import {playerMirrored} from './model';
+import {decorationParts,DECORATION_BEVEL_SEGMENTS,DECORATION_RADIAL_SEGMENTS} from './decoration-mesh';
+import { labelIsNear } from './label-visibility';
 import { browserLabels, type BoxboundLabels, type BoxboundLabel } from './labels';
 import { THEME_COLORS, roomMaterialKeys } from './themes';
+import { archedWalls, type SurfaceMesh } from './wall-mesh';
 import { mapRoomTheme } from './world-map';
 import {
   HaiyueEngine,
@@ -16,16 +20,17 @@ import {
 import {
   createRoundedBox3D,
   createCylinder3D,
-  type Geometry3D,
+  createPlane3D,
+  Geometry3D,
 } from '@haiyue/engine/geometry';
 import { Render3DSystem } from '@haiyue/engine/systems';
+import { computeBoundingSphere, transformBoundingSphere } from '@haiyue/engine/math';
 import {
   RenderIntegration,
   getEngineGPUResourceTracker,
 } from '@haiyue/engine/experimental';
 import { mat4 } from 'wgpu-matrix';
 import {
-  DOOR_DIRECTIONS,
   type Box,
   type Room,
   type BoxTransfer,
@@ -36,9 +41,11 @@ import {
   eq,
   platePressed,
   gateOpen,
+  gateCells,
   gatePowered,
   outerExitBarriers,
   entrances,
+  boundaryEntrances,
   boxColor,
   goalColor,
 } from './model';
@@ -93,9 +100,10 @@ const COLORS: Record<string, Color> = {
   shadow: [0.66, 0.74, 0.64, 1],
   leaf: [0.37, 0.61, 0.46, 1],
 };
-// Floor tiles top out at 0.045. Keep goal paint just above them, below the
-// contained room's 0.055 floor origin even when a parent cell is magnified.
-const GOAL_MARKER_Y = 0.048;
+// Flat tiles sit at 0.004; keep goal paint above them and below child floors.
+const GOAL_FRAME = [[0, -0.36, 0.78, 0.065], [0, 0.36, 0.78, 0.065],
+  [-0.36, 0, 0.065, 0.72], [0.36, 0, 0.065, 0.72]] as const;
+const GOAL_MARKER_Y = 0.009;
 const GOAL_MARKER_HEIGHT = 0.004;
 const GOAL_MARKER_RADIUS = 0.002;
 const boxSurfaceColor = (box: Box): string => box.fixed && !box.portal
@@ -131,6 +139,9 @@ interface Actor {
 }
 export class BoxboundScene {
   readonly world = new World('Boxbound');
+  private readonly occurrenceTransform = new CartesianTransform3D();
+  private readonly occurrenceRoot = new Entity('Current occurrence').addComponent(this.occurrenceTransform);
+  private mirrored = false;
   readonly camera = new Camera3D({
     type: 'perspective',
     fov: MAP_FOV,
@@ -150,6 +161,8 @@ export class BoxboundScene {
   private partPool: Part[] = [];
   private partCursor = 0;
   private reusableParts: Part[] = [];
+  private reusableShapes = new Map<string, Part[]>();
+  private reusedStatic = new Set<Part>();
   private reservedParts = new Map<string, Part>();
   private buildingActor: string | undefined;
   private actorPartIndex = 0;
@@ -162,6 +175,16 @@ export class BoxboundScene {
   private labelsDirty = true;
   private disposed = false;
   private needsFrame = true;
+  private presentationOnly = false;
+  /** Refresh the engine GUI without recalculating a settled 3D scene. */
+  requestPresent = (): void => { this.presentationOnly = true; };
+  get hasPendingFrame(): boolean { return this.needsFrame || this.presentationOnly || this.wasAnimating || this.moving || this.transitioning || this.airborne || this.celebrating; }
+  private integration!: RenderIntegration;
+  attachOverlay(entity: Entity, system: import('@haiyue/engine/gui').GuiSystem): void {
+    this.world.addEntity(entity); this.world.addSystem(system); this.integration.register(system, { pass: 'shared' }); this.requestPresent();
+  }
+  private renderedMood = '';
+  private walkUpdates = 0;
   private wasAnimating = false;
   private renderedHome = true;
   private renderedWidth = 0;
@@ -174,6 +197,47 @@ export class BoxboundScene {
   private viewProjection = mat4.identity();
   private inverseView = mat4.identity();
   private renderer!: Render3DSystem;
+  applyQuality(msaa: boolean, pixelRatio: number): void {
+    this.engine.msaaSamples = msaa ? 4 : 1;
+    this.renderer.msaaSamples = this.engine.msaaSamples;
+    if (this.engine.devicePixelRatio !== pixelRatio) this.engine.devicePixelRatio = pixelRatio;
+    this.invalidate();
+  }
+  labelSnapshot() { return this.labels.map(({room,outer,anchor,visible})=>({room,outer,anchor,visible})); }
+  private shadowLights: DirectionalLight[] = [];
+  /** Debug A/B switch; normal play starts with shadows disabled. */
+  setShadowsEnabled(enabled: boolean): void {
+    for (const light of this.shadowLights) {
+      if (light.castShadow === enabled) continue;
+      light.castShadow = enabled;
+      light.markDirty();
+    }
+    this.invalidate();
+  }
+  /** On-demand diagnostics only: count each rendered occurrence, including parent/LOD. */
+  triangleSnapshot() {
+    // Reuse the renderer's actual last view (including its projection settings).
+    const frustum = this.renderer.frustum;
+    const geometries = new Map<Geometry3D, { triangles: number; sphere: ReturnType<typeof computeBoundingSphere> }>();
+    let total = 0, inFrustum = 0, meshesInFrustum = 0;
+    const byColor: Record<string, number> = {};
+    for (const part of this.partPool) {
+      const geometry = part.mesh.geometry as Geometry3D;
+      let entry = geometries.get(geometry);
+      if (!entry) {
+        entry = { triangles: (geometry.indices?.length ?? geometry.positions.length / 3) / 3,
+          sphere: computeBoundingSphere(geometry.positions) };
+        geometries.set(geometry, entry);
+      }
+      total += entry.triangles;
+      byColor[part.color] = (byColor[part.color] ?? 0) + entry.triangles;
+      if (frustum.containsSphere(transformBoundingSphere(entry.sphere, this.world.frameData.transforms.getWorldMatrix(part.entity) ?? part.t.localMatrix))) {
+        inFrustum += entry.triangles;
+        meshesInFrustum++;
+      }
+    }
+    return { total, inFrustum, meshes: this.partPool.length, meshesInFrustum, byColor };
+  }
   resourceSnapshot() {
     const gpu = getEngineGPUResourceTracker(this.engine);
     return {
@@ -182,6 +246,7 @@ export class BoxboundScene {
       createdParts: this.createdParts,
       destroyedParts: this.destroyedParts,
       rebuilds: this.rebuilds,
+      walkUpdates: this.walkUpdates,
       wallLayoutBuilds: this.wallLayoutBuilds,
       occlusionPasses: this.occlusionPasses,
       transformWrites: this.transformWrites,
@@ -189,6 +254,12 @@ export class BoxboundScene {
       materials: this.materials.size,
       labels: this.labelRoot.count,
       sceneExtractions: this.renderer.sceneExtractionCount,
+      renderProfile: this.renderer.renderProfile,
+      batches: this.renderer.lastGpuDrivenBatchCount,
+      shadowsEnabled: this.shadowLights.some((light) => light.castShadow),
+      shadowPasses: this.renderer.lastDirectionalShadowPassCount,
+      shadowCasters: this.renderer.lastDirectionalShadowCasterCount,
+      shadowCacheHit: this.renderer.lastDirectionalShadowCacheHit,
       frustumCulling: this.renderer.renderSettings.frustumCulling,
       visibleMeshes: this.renderer.lastVisibleCount,
       totalMeshes: this.renderer.lastTotalCount,
@@ -228,15 +299,16 @@ export class BoxboundScene {
   private occlusionPasses = 0;
   // Weak keys do not retain rooms from old saves. The signature also handles
   // editor/fixture mutations of a wall array in place without stale geometry.
-  private wallLayouts = new WeakMap<Room, { signature: string; pieces: ReturnType<typeof wallPieces> }>();
-  private roomWalls(room: Room): ReturnType<typeof wallPieces> {
-    const signature = JSON.stringify([room.size, room.walls, room.doorWidths]);
+  private wallLayouts = new WeakMap<Room, { signature: string; pieces: ReturnType<typeof wallPieces>; arches: ReturnType<typeof archedWalls> }>();
+  private roomWalls(room: Room) {
+    const signature = JSON.stringify([room.size, room.walls, room.barriers, room.doorWidths]);
     let layout = this.wallLayouts.get(room);
     if (!layout || layout.signature !== signature) {
-      layout = { signature, pieces: wallPieces(room) };
+      const forbidden = new Set((room.barriers ?? []).map(p => p.join(',')));
+      layout = { signature, pieces: wallPieces({...room, walls: room.walls.filter(p => !forbidden.has(p.join(',')))}), arches: archedWalls(room) };
       this.wallLayouts.set(room, layout); this.wallLayoutBuilds++;
     }
-    return layout.pieces;
+    return layout;
   }
   goalMarkerPalette(): number[][] {
     return this.partPool.filter((p) => p.color === 'neutralGoal').map((p) =>
@@ -257,11 +329,13 @@ export class BoxboundScene {
   private parentBase: SpaceTransform | undefined;
   private outerStaticParts: { part: Part; position: Vec }[] = [];
   private outerLabels: { entry: { node: BoxboundLabel; pos: Vec }; position: Vec }[] = [];
-  private previewMotions: { parts: { part: Part; offset: Vec }[]; from: Vec; to: Vec; step: number }[] = [];
+  private previewMotions: { parts: { part: Part; offset: Vec }[]; from: Vec; to: Vec; step: number; flipX: boolean }[] = [];
   private playerCopies: { owner: string; layer: 'parent' | 'child'; transform: SpaceTransform; parts: Part[] }[] = [];
   private mechanisms: {
     id: string;
     kind: 'button' | 'gate';
+    room: string;
+    indicators?: Part[];
     parts: Part[];
     from: number;
     to: number;
@@ -337,7 +411,7 @@ export class BoxboundScene {
       powered: boolean;
       offset: number;
     }[],
-    studs: 0,
+    archedWallCells: 0,
     wallHeight: 0,
     jumping: false,
     transitioning: false,
@@ -349,6 +423,7 @@ export class BoxboundScene {
     cameraPhi: MAP_PHI,
     cameraTheta: MAP_THETA,
     displayedRoom: '',
+    mirrored: false,
     fadedWalls: 0,
     doorCount: 0,
     celebrating: false,
@@ -360,11 +435,11 @@ export class BoxboundScene {
     return this.clock() - this.celebrateStart < CELEBRATION_MS;
   }
 
-  private labels: { node: BoxboundLabel; pos: Vec }[] = [];
+  private labels: { node: BoxboundLabel; pos: Vec; anchor: Vec; room: string; outer: boolean; visible: boolean }[] = [];
   home = true;
   mood = 'smile';
   private readonly labelRoot: BoxboundLabels;
-  private newLabel() { const entry = { node:this.labelRoot.create(),pos:[0,0,0] as Vec }; this.labels.push(entry); return entry; }
+  private newLabel() { const entry = { node:this.labelRoot.create(),pos:[0,0,0] as Vec,anchor:[0,0,0] as Vec,room:'',outer:false,visible:false }; this.labels.push(entry); return entry; }
   constructor(
     readonly engine: HaiyueEngine,
     private canvas: Pick<HTMLCanvasElement, 'width' | 'height' | 'clientWidth' | 'clientHeight'> & {style: {opacity:string}},
@@ -376,12 +451,14 @@ export class BoxboundScene {
       .addComponent(this.camera)
       .addComponent(this.orbit);
     this.world.addEntity(cam);
+    this.world.addEntity(this.occurrenceRoot);
     this.world.addEntity(
       new Entity('Sun').addComponent(
         new DirectionalLight({
           direction: [-0.5, -1, -0.4],
           color: [1, 0.95, 0.83],
           intensity: 2.2,
+          castShadow: false,
         }),
       ),
     );
@@ -400,18 +477,23 @@ export class BoxboundScene {
           direction: [0.8, -0.3, 0.8],
           color: [0.69, 0.82, 1],
           intensity: 0.5,
+          castShadow: false,
         }),
       ),
     );
+    for (const entity of this.world.entities.values()) {
+      const light = entity.getComponent(DirectionalLight);
+      if (light) this.shadowLights.push(light);
+    }
     this.world.addSystem(
       (this.renderer = new Render3DSystem(engine, cam, {
         priority: 20,
         loadOp: 'clear',
-        renderProfile: 'batched',
+        renderProfile: engine.renderProfile,
         toneMapping: 'none',
       })),
     );
-    const integration = new RenderIntegration(engine, {
+    const integration = this.integration = new RenderIntegration(engine, {
       label: 'Boxbound.render',
     });
     this.world.addRuntimeIntegration(integration);
@@ -420,30 +502,61 @@ export class BoxboundScene {
     engine.on('resize', this.invalidate);
     engine.on('device-restored', this.invalidate);
   }
+  private reflectedGeometry = new WeakMap<Geometry3D, Geometry3D>();
+  private mirrorGeometry(source: Geometry3D): Geometry3D {
+    let mirrored = this.reflectedGeometry.get(source);
+    if (!mirrored) {
+      mirrored = new Geometry3D({
+        positions: source.positions.map((v, i) => i % 3 === 0 ? -v : v),
+        ...(source.normals ? {normals: source.normals.map((v, i) => i % 3 === 0 ? -v : v)} : {}),
+        ...(source.indices ? {indices: source.indices.map((_, i, a) => a[i % 3 === 1 ? i + 1 : i % 3 === 2 ? i - 1 : i]!)} : {}),
+        textureCoordinates: [...source.textureCoordinates].map(([set, data]) => ({set, data})),
+      });
+      this.reflectedGeometry.set(source, mirrored); this.reflectedGeometry.set(mirrored, source);
+      this.geometries.set(`reflected/${source.id}`, mirrored);
+      this.geometryRadii.set(mirrored, this.geometryRadii.get(source)!);
+      this.geometrySizes.set(mirrored, this.geometrySizes.get(source)!);
+    }
+    return mirrored;
+  }
+  /** Actual engine world transform, used by browser/native mirror regressions. */
+  occurrenceSnapshot() {
+    const part = this.actors.find(a => a.player)?.parts[0];
+    return {mirrored: this.mirrored, rootScale: this.occurrenceTransform.scale[0],
+      playerWorld: part ? Array.from(part.t.worldMatrix).slice(12, 15) : [],
+      winding: part?.mesh.geometry.frontFace};
+  }
   private part(
     pos: Vec,
     size: Vec,
     color: string,
     radius = 0.08,
     cylinder: boolean | 'cone' = false,
+    surface?: 'plane' | SurfaceMesh,
+    detail = 3,
   ): Part {
     if (this.drawingSpace) pos = transformPoint(pos, this.drawingSpace);
-    const k = size.join() + ':' + radius + ':' + cylinder;
+    if (surface && typeof surface !== 'string' && this.drawingSpace?.flipX)
+      surface = {...surface, flipX:!surface.flipX};
+    const k = size.join() + ':' + radius + ':' + cylinder + ':' + detail + (surface ? ':' + (typeof surface === 'string' ? surface : surface.key + ':' + (surface.scale ?? 1) + ':' + !!surface.flipX) : '');
     let g = this.geometries.get(k);
     if (!g) {
-      g = cylinder
+      g = surface === 'plane' ? createPlane3D({width:size[0],height:size[2],normal:'y'})
+        : surface ? new Geometry3D({positions:new Float32Array(surface.positions.map((v,i) => v * (surface.scale ?? 1) * (surface.flipX && i%3===0 ? -1 : 1))),
+          normals:new Float32Array(surface.normals.map((v,i)=>v*(surface.flipX&&i%3===0?-1:1))),indices:new Uint32Array(surface.flipX?surface.indices.map((_,i,a)=>a[i%3===1?i+1:i%3===2?i-1:i]!):surface.indices)})
+        : cylinder
         ? createCylinder3D({
             radiusTop: cylinder === 'cone' ? 0 : size[0] / 2,
             radiusBottom: size[0] / 2,
             height: size[1],
-            radialSegments: cylinder === 'cone' ? 8 : 32,
+            radialSegments: cylinder === 'cone' || detail < 3 ? DECORATION_RADIAL_SEGMENTS : 32,
           })
         : createRoundedBox3D({
             width: size[0],
             height: size[1],
             depth: size[2],
             radius: Math.min(radius, ...size.map((v) => v / 2)),
-            segments: 3,
+            segments: detail,
           });
       this.geometries.set(k, g);
       this.geometryRadii.set(g, Math.hypot(...size) / 2);
@@ -451,7 +564,12 @@ export class BoxboundScene {
     }
     const m = this.material(color);
     const key = this.buildingActor ? `${this.buildingActor}:${this.actorPartIndex++}` : undefined;
-    let part = key ? this.reservedParts.get(key) : this.reusableParts.pop();
+    let part = key ? this.reservedParts.get(key) : undefined;
+    if (!key) { const bucket=this.reusableShapes.get(g.id+':'+color); do {part=bucket?.pop();}while(part && this.reusedStatic.has(part)); }
+    if (!key) {
+      if (!part) do { part=this.reusableParts.pop(); } while(part && this.reusedStatic.has(part));
+      if (part) this.reusedStatic.add(part);
+    }
     if (key) this.reservedParts.delete(key);
     if (!part) {
       const t = new CartesianTransform3D({ position: pos });
@@ -459,7 +577,7 @@ export class BoxboundScene {
       const entity = new Entity('Boxbound part')
         .addComponent(t)
         .addComponent(mesh);
-      this.world.addEntity(entity);
+      this.occurrenceRoot.addChild(entity);
       part = {
         entity, t, mesh, color,
         position: [...pos],
@@ -514,9 +632,10 @@ export class BoxboundScene {
   private finishParts(): void {
     this.diagnostics.actorEntities = this.actors.map((a) => ({ id: a.id, entities: a.parts.map((p) => p.entity.id) }));
     for (const part of [...this.reusableParts, ...this.reservedParts.values()]) {
+      if (this.reusedStatic.has(part)) continue;
       part.entity.destroy(); this.destroyedParts++;
     }
-    this.reusableParts = []; this.reservedParts.clear();
+    this.reusableParts = []; this.reservedParts.clear(); this.reusableShapes.clear(); this.reusedStatic.clear();
     // Retain only live render objects; a smaller room cannot keep the island alive.
     for (let i = this.partCursor; i < this.partPool.length; i++) {
       this.partPool[i]!.entity.destroy();
@@ -588,10 +707,10 @@ export class BoxboundScene {
           actorId: part.actorKey?.split(':')[0], externalGroup: part.externalGroup, alpha: part.alpha,
           position: transformPoint(part.position, mapping),
           scale: part.scale.map((v) => v * mapping.scale) as Vec,
-          color: part.color, geometry: part.mesh.geometry as Geometry3D, material: part.mesh.material as PbrMaterial,
+          color: part.color, geometry: mapping.flipX ? this.mirrorGeometry(part.mesh.geometry as Geometry3D) : part.mesh.geometry as Geometry3D, material: part.mesh.material as PbrMaterial,
         }]);
       const cameraFrom = { radius: this.orbit.radius * mapping.scale, phi: this.orbit.phi, theta: this.orbit.theta,
-        target: transformPoint(Array.from(this.orbit.target) as Vec, mapping) };
+        target: transformPoint(transformPoint(Array.from(this.orbit.target) as Vec, {scale:1,offset:[0,0,0],flipX:this.mirrored}), mapping) };
       this.cancelMotion();
       // A multi-level return still needs the intermediate room's first-level LOD.
       // Replace only its terminal child with the retained detailed source room.
@@ -630,7 +749,8 @@ export class BoxboundScene {
     if (!previous) this.cancelMotion();
     const takeoff = jump ? jumpPose(this.clock() - this.jumpStart).lift : 0;
     if (jump) this.jumpStart = -Infinity;
-    this.rebuild(state, previous, jump, transfers);
+    if (!previous || restoring || reset || recoil || transfers.length || !this.reuseWalk(state, previous, jump))
+      this.rebuild(state, previous, jump, transfers);
     const player = this.actors.find((a) => a.player);
     if (jump && player) {
       player.from[1] += takeoff;
@@ -639,6 +759,34 @@ export class BoxboundScene {
     if (restoring) this.celebrateStart = -Infinity;
     if (Number.isFinite(this.celebrateStart))
       this.celebrateStart += this.duration;
+  }
+  /** A plain walk/jump changes actor poses, not walls, floors, previews or labels. */
+  private reuseWalk(state: State, previous: State, jump: boolean): boolean {
+    if (!this.state || this.current !== state.player.room || previous.player.room !== state.player.room ||
+      state.rooms !== previous.rooms || this.renderedMood !== this.mood ||
+      JSON.stringify(state.player.route) !== JSON.stringify(previous.player.route) ||
+      JSON.stringify(state.completed) !== JSON.stringify(previous.completed) ||
+      finishedLevel(state) !== finishedLevel(previous) || this.actors.some(a => a.retiring) ||
+      state.boxes.length !== previous.boxes.length || state.boxes.some((b,i) => {
+        const old=previous.boxes[i]!;
+        return Object.keys(b).some(k => k==='pos' ? !eq(b.pos,old.pos) : b[k as keyof Box] !== old[k as keyof Box]);
+      })) return false;
+    const room=state.rooms[state.player.room]!;
+    if ((this.parentSpace || this.playerCopies.length) && room.buttons?.some(b => eq(b.pos,state.player.pos) || eq(b.pos,previous.player.pos))) return false;
+    this.state=state; this.start=this.clock(); this.jump=jump; this.celebrateStart=-Infinity; this.walkUpdates++;
+    for(const a of this.actors){a.from=a.player?this.at(previous.player.pos):[...a.to];a.to=a.player?this.at(state.player.pos):a.to;a.travel=undefined;a.settled=!a.player;}
+    for(const m of this.mechanisms){
+      const r=state.rooms[m.room]!,id=m.id.replace(/^outer\//,'');m.from=m.to;
+      if(m.kind==='button'){
+        const plate=r.buttons!.find(b=>b.id===id)!;m.active=m.powered=platePressed(state,r.id,plate);m.to=m.active?-.04:0;
+        const part=m.parts[0]!;part.color=m.active?'mint':'gold';part.mesh.material=this.material(part.color);
+      }else{
+        const gate=r.gates!.find(g=>g.id===id)!;m.active=gateOpen(state,r.id,gate);m.powered=gatePowered(state,r.id,gate);m.to=m.active?-1.18:0;
+        for(const part of m.indicators??[]){part.color=m.powered?'mint':'gold';part.mesh.material=this.material(part.color);}
+      }
+    }
+    this.previewMotions=[];
+    return true;
   }
   private measureDuration(): void {
     this.duration = Math.max(
@@ -658,6 +806,7 @@ export class BoxboundScene {
     transfers: BoxTransfer[] = [],
   ): void {
     this.state = state;
+    this.renderedMood = this.mood;
     this.celebrateStart =
       previous && finishedLevel(state) !== null && finishedLevel(previous) !== finishedLevel(state)
         ? this.clock()
@@ -693,6 +842,8 @@ export class BoxboundScene {
     const retained = new Set(retiring.flatMap((a) => a.parts));
     // Reserve actor parts by identity before reusing any static scene objects.
     this.reusableParts = this.partPool.filter((p) => !p.actorKey).reverse();
+    this.reusableShapes.clear(); this.reusedStatic.clear();
+    for(const part of this.reusableParts){const key=part.mesh.geometry.id+':'+part.color;const bucket=this.reusableShapes.get(key)??[];bucket.push(part);this.reusableShapes.set(key,bucket);}
     this.reservedParts = new Map(this.partPool.filter((p) => p.actorKey && !retained.has(p)).map((p) => [p.actorKey!, p]));
     this.partPool = []; this.entities = []; this.partCursor = 0;
     this.previewExclusions = new Set(transfers.filter((t) => t.fromRoom !== t.toRoom && (t.fromRoom === state.player.room || t.toRoom === state.player.room)).map((t) => t.box));
@@ -845,13 +996,13 @@ export class BoxboundScene {
       [Math.floor(i / n), 0, i % n] as Vec);
     for (const [x, y, z] of tiles)
       this.part(
-        this.at([x, y + 0.015, z]),
-        [0.95, 0.06, 0.95],
+        this.at([x, y + 0.004, z]),
+        [1, 0, 1],
         (x + z) % 2 ? palette.tile : palette.floor,
-        0.06,
+        0, false, 'plane',
       );
     // Walls retain their actual collision height. Connected voxels share solid runs.
-    const pieces = this.roomWalls(r);
+    const {pieces, arches} = this.roomWalls(r);
     for (const [index, run] of pieces.entries()) {
       this.drawingExternalGroup = outer ? `wall/${r.id}/${index}` : undefined;
       const min = this.at(run.min),
@@ -868,25 +1019,22 @@ export class BoxboundScene {
       wall.wallSurface = {room:r.id,top:false,lod:false}; cap.wallSurface = {room:r.id,top:true,lod:false};
       if (!outer) this.walls.push({ min, max, parts: [wall, cap], faded: false });
     }
-    this.drawingExternalGroup = undefined;
-    if (!outer) this.diagnostics.roundedWallPieces = this.walls.length;
-    if (!outer) this.diagnostics.studs = 0;
-    if (!outer) this.diagnostics.wallHeight = Math.max(0, ...r.walls.map((p) => p[1] + 1));
-    for (const wall of r.barriers ?? []) {
-      const index = pieces.findIndex((run) => wall.every((v, i) => v >= run.min[i]! && v < run.max[i]!));
-      this.drawingExternalGroup = outer ? `wall/${r.id}/${index}` : undefined;
-      for (const dx of [-0.25, 0, 0.25])
-        for (const dz of [-0.25, 0, 0.25]) {
-          this.part(
-            this.at([wall[0] + dx, wall[1] + 1.085, wall[2] + dz]),
-            [0.13, 0.115, 0.13],
-            palette.stud,
-            0.057,
-          );
-          if (!outer) this.diagnostics.studs++;
-        }
+    for (const [index, arch] of arches.entries()) {
+      this.drawingExternalGroup = outer ? `wall/${r.id}/arch-${index}` : undefined;
+      const min=this.at(arch.min),max=this.at(arch.max),center=this.at(arch.center),parts: Part[]=[];
+      for (const [surface,color,top] of [[arch.body,palette.wall,false],[arch.roof,palette.wallTop,true]] as const) {
+        if (!surface.indices.length) continue;
+        const part=this.part(center,arch.size,color,0,false,surface);
+        part.wallSurface={room:r.id,top,lod:false};parts.push(part);
+      }
+      if (!outer) this.walls.push({min,max,parts,faded:false});
     }
     this.drawingExternalGroup = undefined;
+    if (!outer) {
+      this.diagnostics.roundedWallPieces = this.walls.length;
+      this.diagnostics.archedWallCells = r.barriers?.length ?? 0;
+      this.diagnostics.wallHeight = Math.max(0, ...r.walls.map((p) => p[1] + 1));
+    }
     if (r.exitLabel) {
       for (const { direction: d } of entrances(r)) {
         const mid = Math.floor(n / 2), p = this.at([mid + d[0] * mid, 0, mid + d[2] * mid]);
@@ -900,6 +1048,7 @@ export class BoxboundScene {
         }
         const entry = this.labels[this.labelCursor++] ?? this.newLabel();
         entry.node.text(r.exitLabel);
+        entry.room=r.id; entry.outer=outer; entry.anchor=[...p];
         entry.pos = this.drawingSpace ? transformPoint([p[0], 0.36, p[2]], this.drawingSpace) : [p[0], 0.36, p[2]];
       }
     }
@@ -947,6 +1096,7 @@ export class BoxboundScene {
         id: (outer ? 'outer/' : '') + plate.id,
         ...(this.drawingSpace ? { space: this.drawingSpace } : {}),
         kind: 'button',
+        room: r.id,
         parts,
         from: wasPressed ? -0.04 : 0,
         to: pressed ? -0.04 : 0,
@@ -958,47 +1108,50 @@ export class BoxboundScene {
       const open = gateOpen(state, r.id, gate),
         powered = gatePowered(state, r.id, gate);
       const wasOpen = previous ? gateOpen(previous, r.id, gate) : open;
-      const [x, y, z] = gate.pos,
+      const [x, y, z] = gate.pos, width = gate.width ?? 1,
         across = gate.axis === 'x';
       const pos = (u: number, height: number): Vec => [
-        x + (across ? u : 0),
+        x + (across ? u + (width-1)/2 : 0),
         y + height,
-        z + (across ? 0 : u),
+        z + (across ? 0 : u + (width-1)/2),
       ];
+      const indicators: Part[] = [];
       for (const sign of [-1, 1]) {
         this.part(
-          this.at(pos(sign * 0.57, 0.54)),
+          this.at(pos(sign * (width/2+0.07), 0.54)),
           [0.12, 1.08, 0.12],
           'iron',
           0.025,
         );
-        this.part(
-          this.at(pos(sign * 0.57, 1.105)),
+        indicators.push(this.part(
+          this.at(pos(sign * (width/2+0.07), 1.105)),
           [0.17, 0.09, 0.17],
           powered ? 'mint' : 'gold',
           0.035,
-        );
+        ));
       }
       this.part(
         this.at(pos(0, 0.047)),
-        across ? [1.03, 0.025, 0.22] : [0.22, 0.025, 1.03],
+        across ? [width+0.03, 0.025, 0.22] : [0.22, 0.025, width+0.03],
         'iron',
         0.01,
       );
       const parts: Part[] = [];
-      for (const u of [-0.4, -0.2, 0, 0.2, 0.4])
+      for (const u of Array.from({length:width*5},(_,i)=>-width/2+0.1+i*0.2))
         mechanismPart(parts, pos(u, 0.58), [0.055, 1.02, 0.055], 'iron');
       for (const h of [0.23, 0.92])
         mechanismPart(
           parts,
           pos(0, h),
-          across ? [0.95, 0.07, 0.075] : [0.075, 0.07, 0.95],
+          across ? [width-0.05, 0.07, 0.075] : [0.075, 0.07, width-0.05],
           'iron',
         );
       this.mechanisms.push({
         id: (outer ? 'outer/' : '') + gate.id,
         ...(this.drawingSpace ? { space: this.drawingSpace } : {}),
         kind: 'gate',
+        room: r.id,
+        indicators,
         parts,
         from: wasOpen ? -1.18 : 0,
         to: open ? -1.18 : 0,
@@ -1052,12 +1205,12 @@ export class BoxboundScene {
     const complete =
       !!b.inside && state.completed.includes(state.rooms[b.inside]!.level);
     const color = boxSurfaceColor(b);
-    const addPart = (o: Vec, size: Vec, c: string, rad = 0.09, alpha = 1) => {
+    const addPart = (o: Vec, size: Vec, c: string, rad = 0.09, alpha = 1, surface?: 'plane' | SurfaceMesh, shape: boolean | 'cone' = false, detail = 3) => {
       const part = this.part(
         [p[0] + o[0], p[1] + o[1], p[2] + o[2]],
         size,
         c,
-        rad,
+        rad, shape, surface, detail,
       );
       part.offset = o;
       part.alpha = alpha;
@@ -1070,6 +1223,7 @@ export class BoxboundScene {
       this.drawContainer(b, addPart, !this.drawingSpace);
       if (!b.levelEntry && (b.room === 'world' || b.portal)) {
         const entry = this.labels[this.labelCursor++] ?? this.newLabel();
+        entry.room=b.room; entry.outer=!!this.drawingSpace; entry.anchor=[p[0]+center,p[1],p[2]+center];
         entry.node.text((b.label ?? String(state.rooms[b.inside]!.level).padStart(2, '0')) + (complete ? ' ✓' : ''), complete);
         entry.pos = this.drawingSpace ? transformPoint([p[0], 1.35, p[2]], this.drawingSpace) : [p[0], 1.35, p[2]];
       }
@@ -1080,50 +1234,11 @@ export class BoxboundScene {
         color,
         0.1 * unit,
       );
-      addPart(
-        [center, 0.9 * unit, center],
-        [0.25 * unit, 0.045 * unit, 0.83 * unit],
-        'cream',
-        0.015 * unit,
-      );
-      for (const d of [
-        [1, 0, 0],
-        [-1, 0, 0],
-        [0, 0, 1],
-        [0, 0, -1],
-      ] as Vec[]) {
-        const dx = d[0],
-          dz = d[2];
-        addPart(
-          [
-            center + dx * 0.445 * unit,
-            0.46 * unit,
-            center + dz * 0.445 * unit,
-          ],
-          dx
-            ? [0.025 * unit, 0.36 * unit, 0.36 * unit]
-            : [0.36 * unit, 0.36 * unit, 0.025 * unit],
-          'cream',
-          0.04 * unit,
-        );
-        const bars = color === 'coral' ? 2 : color === 'gold' ? 3 : 1;
-        for (let k = 0; k < bars; k++)
-          addPart(
-            [
-              center +
-                dx * 0.464 * unit +
-                dz * (k - (bars - 1) / 2) * 0.075 * unit,
-              0.46 * unit,
-              center +
-                dz * 0.464 * unit +
-                dx * (k - (bars - 1) / 2) * 0.075 * unit,
-            ],
-            dx
-              ? [0.026 * unit, 0.18 * unit, 0.045 * unit]
-              : [0.045 * unit, 0.18 * unit, 0.026 * unit],
-            color,
-            0.009 * unit,
-          );
+      // A flat white target outline; no side badges or raised ribbon geometry.
+      for (const [x, z, w, d] of GOAL_FRAME) {
+        const scale = unit * 0.8;
+        addPart([center + x * scale, unit * 0.894, center + z * scale],
+          [w * scale, 0, d * scale], 'white', 0, 1, 'plane');
       }
     }
     if (complete && b.levelEntry) {
@@ -1144,30 +1259,35 @@ export class BoxboundScene {
     });
     this.buildingActor = undefined;
   }
-  private drawContainer(b: Box, addPart: (o: Vec, size: Vec, color: string, radius?: number, alpha?: number) => Part, countDoors = false): void {
+  private drawContainer(b: Box, addPart: (o: Vec, size: Vec, color: string, radius?: number, alpha?: number, surface?: 'plane' | SurfaceMesh, shape?: boolean | 'cone', detail?: number) => Part, countDoors = false): void {
     const state = this.state!, unit = b.size, center = (unit - 1) / 2;
     const complete = state.completed.includes(state.rooms[b.inside!]!.level);
     const color = boxSurfaceColor(b);
     // Transparent cubic casing, actual first child room at its real scale.
     // Its children are terminal LOD boxes; cyclic maps cannot expand forever.
     const inner = state.rooms[b.inside!]!, step = unit / inner.size, palette = roomMaterialKeys(mapRoomTheme(inner));
-    const map = (v: Vec): Vec => [center + (v[0] - (inner.size - 1) / 2) * step,
+    const map = (v: Vec): Vec => [center + (v[0] - (inner.size - 1) / 2) * step * (b.flipped ? -1 : 1),
       unit * 0.055 + v[1] * step, center + (v[2] - (inner.size - 1) / 2) * step];
-    const mini = (v: Vec, size: Vec, c: string, radius = 0.06) =>
-      addPart(map(v), size.map((x) => x * step) as Vec, c, radius * step);
+    const mini = (v: Vec, size: Vec, c: string, radius = 0.06, surface?: 'plane' | SurfaceMesh, shape: boolean | 'cone' = false, detail = 3) =>
+      addPart(map(v), size.map((x) => x * step) as Vec, c, radius * step, 1,
+        surface && typeof surface !== 'string' ? {...surface,scale:step,flipX:!!b.flipped} : surface, shape, detail);
     mini([(inner.size - 1) / 2, -0.12, (inner.size - 1) / 2], [inner.size, 0.24, inner.size], palette.floor);
     const tiles = inner.floorTiles ?? Array.from({length: inner.size * inner.size}, (_, i) => [Math.floor(i / inner.size), 0, i % inner.size] as Vec);
     for (const [x, y, z] of tiles)
-      mini([x, y + 0.015, z], [0.95, 0.06, 0.95], (x + z) % 2 ? palette.tile : palette.floor);
-    for (const run of this.roomWalls(inner)) {
+      mini([x, y + 0.004, z], [1, 0, 1], (x + z) % 2 ? palette.tile : palette.floor, 0, 'plane');
+    for (const run of this.roomWalls(inner).pieces) {
       const v = run.min.map((x, i) => (x + run.max[i]!) / 2) as Vec;
       const size = run.min.map((x, i) => run.max[i]! - x) as Vec;
       mini(v, size, palette.wall, 0.085).wallSurface = {room:inner.id,top:false,lod:true};
       mini([v[0], run.max[1] - 0.04, v[2]], [size[0], 0.165, size[2]], palette.wallTop, 0.08).wallSurface = {room:inner.id,top:true,lod:true};
     }
+    for (const arch of this.roomWalls(inner).arches) {
+      if (arch.body.indices.length) mini(arch.center,arch.size,palette.wall,0,arch.body).wallSurface={room:inner.id,top:false,lod:true};
+      if (arch.roof.indices.length) mini(arch.center,arch.size,palette.wallTop,0,arch.roof).wallSurface={room:inner.id,top:true,lod:true};
+    }
     for (let i = 0; i < inner.goals.length; i++) {
       const g = inner.goals[i]!, c = inner.anyGoalColor ? 'neutralGoal' : goalColor(inner, i);
-      for (const [x, z, w, d] of [[0, -0.36, 0.78, 0.065], [0, 0.36, 0.78, 0.065], [-0.36, 0, 0.065, 0.72], [0.36, 0, 0.065, 0.72]])
+      for (const [x, z, w, d] of GOAL_FRAME)
         mini([g[0] + x!, g[1] + GOAL_MARKER_Y, g[2] + z!], [w!, GOAL_MARKER_HEIGHT, d!], c, GOAL_MARKER_RADIUS);
     }
     if (inner.home) {
@@ -1189,30 +1309,24 @@ export class BoxboundScene {
       const old = this.drawingPrevious?.boxes.find((v) => v.id === child.id && v.room === child.room);
       if (old && !eq(old.pos, child.pos)) this.previewMotions.push({
         parts: this.partPool.slice(firstPart).map((part) => ({ part, offset: [...part.offset] })),
-        from: [...old.pos], to: [...child.pos], step,
+        from: [...old.pos], to: [...child.pos], step, flipX:!!b.flipped,
       });
       this.buildingPreviewBox = parentPreview;
     }
     for (const plate of inner.buttons ?? []) mini([plate.pos[0], plate.pos[1] + 0.07, plate.pos[2]], [0.48, 0.08, 0.48], platePressed(state, inner.id, plate) ? 'mint' : 'gold');
     for (const gate of inner.gates ?? []) {
       const h = gateOpen(state, inner.id, gate) ? 0.04 : 1;
-      for (const x of [-0.35, 0, 0.35]) mini([gate.pos[0] + (gate.axis === 'x' ? x : 0), gate.pos[1] + h / 2, gate.pos[2] + (gate.axis === 'z' ? x : 0)], [0.06, h, 0.06], 'iron', 0.01);
+      for (const cell of gateCells(gate)) for (const x of [-0.35, 0, 0.35]) mini([cell[0] + (gate.axis === 'x' ? x : 0), cell[1] + h / 2, cell[2] + (gate.axis === 'z' ? x : 0)], [0.06, h, 0.06], 'iron', 0.01);
     }
-    for (const d of inner.decorations ?? []) {
-      const g = d.pos;
-      if (d.type === DecorationType.RoundTree || d.type === DecorationType.PineTree) {
-        mini([g[0], 0.4, g[2]], [0.24, 0.8, 0.24], 'wood');
-        mini([g[0], 1.3, g[2]], [0.85, 1.25, 0.85], 'leaf', 0.35);
-      } else mini([g[0], 0.35, g[2]], [0.75, 0.7, 0.7], d.type === DecorationType.RedFriend ? 'redFriend' : d.type === DecorationType.Rock ? 'stoneTop' : 'leaf', 0.18);
-    }
+    for (const d of inner.decorations ?? []) for (const piece of decorationParts(d.type))
+      mini(d.pos.map((v,i)=>v+piece.offset[i]!) as Vec,piece.size,piece.color,piece.radius,undefined,piece.shape,DECORATION_BEVEL_SEGMENTS);
     // Thin translucent panels preserve a cubic silhouette without an opaque lid.
     for (const sign of [-1, 1]) {
-      addPart([center + sign * unit * 0.48, unit * 0.49, center], [unit * 0.015, unit * 0.98, unit * 0.98], color, 0.004, 0.12);
-      addPart([center, unit * 0.49, center + sign * unit * 0.48], [unit * 0.98, unit * 0.98, unit * 0.015], color, 0.004, 0.12);
-      for (const side of [-1, 1]) addPart([center + sign * unit * 0.48, unit * 0.49, center + side * unit * 0.48], [unit * 0.018, unit * 0.98, unit * 0.018], color, 0.004);
+      addPart([center + sign * unit * 0.48, unit * 0.49, center], [unit * 0.015, unit * 0.98, unit * 0.98], color, 0.004, 0.24);
+      addPart([center, unit * 0.49, center + sign * unit * 0.48], [unit * 0.98, unit * 0.98, unit * 0.015], color, 0.004, 0.24);
     }
     addPart([center, unit * 0.985, center], [unit * 0.98, unit * 0.015, unit * 0.98], color, 0.004, 0.06);
-    const doors = b.portal ? DOOR_DIRECTIONS : entrances(inner).map((d) => d.direction);
+    const doors = (b.portal ? boundaryEntrances(inner) : entrances(inner)).map(e => e.direction);
     for (const d of doors) {
       if (countDoors) this.doorCount++;
       addPart([center + d[0] * unit * 0.49, unit * 0.025, center + d[2] * unit * 0.49],
@@ -1224,7 +1338,7 @@ export class BoxboundScene {
     const context = this.diagnostics.outerContext;
     if (!context) return;
     this.parentSpace = containmentTransform(this.state!, context.owner, false);
-    this.parentBase = { scale: this.parentSpace.scale, offset: [...this.parentSpace.offset] };
+    this.parentBase = { ...this.parentSpace, offset: [...this.parentSpace.offset] };
     this.drawingSpace = this.parentSpace; this.drawingOuter = true;
     const start = this.partCursor, firstLabel = this.labelCursor;
     this.drawRoom(this.state!.rooms[context.parent]!, previous, transfers, true);
@@ -1237,36 +1351,8 @@ export class BoxboundScene {
   }
   /** Geometry and collision type come from the same numeric decoration enum. */
   private decoration(pos: Vec, type: DecorationKind): void {
-    const add = (offset: Vec, size: Vec, color: string, radius = 0.08,
-      shape: boolean | 'cone' = false) => this.part(
-        this.at([pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2]]),
-        size, color, radius, shape,
-      );
-    if (type === DecorationType.RedFriend) {
-      add([0, 0.44, 0], [0.76, 0.8, 0.76], 'redFriend', 0.1);
-      for (const x of [-0.18, 0.18]) {
-        add([x, 0.54, 0.386], [0.075, 0.1, 0.026], 'ink', 0.018);
-        add([x, 0.54, -0.386], [0.075, 0.1, 0.026], 'ink', 0.018);
-      }
-      add([0, 0.34, 0.39], [0.14, 0.035, 0.025], 'ink', 0.012);
-    } else if (type === DecorationType.Rock) {
-      add([0, 0.29, 0], [0.78, 0.58, 0.68], 'stoneTop', 0.18);
-      add([-0.14, 0.55, -0.04], [0.28, 0.055, 0.27], 'cream', 0.025);
-    } else if (type === DecorationType.Shrub) {
-      add([0, 0.3, 0], [0.7, 0.6, 0.68], 'leaf', 0.23);
-      add([0.18, 0.58, 0.06], [0.43, 0.43, 0.45], 'mint', 0.2);
-    } else {
-      add([0, 0.42, 0], [0.24, 0.84, 0.24], 'wood', 0.025, true);
-      if (type === DecorationType.RoundTree) {
-        add([-0.08, 1.19, 0], [0.86, 0.98, 0.85], 'leaf', 0.36);
-        add([0.18, 1.55, 0.04], [0.58, 0.65, 0.65], 'mint', 0.28);
-        add([-0.25, 1.28, 0.31], [0.12, 0.13, 0.12], 'gold', 0.05);
-      } else {
-        add([0, 0.91, 0], [0.92, 0.91, 0.92], 'leaf', 0, 'cone');
-        add([0, 1.36, 0], [0.73, 0.86, 0.73], 'mint', 0, 'cone');
-        add([0, 1.76, 0], [0.5, 0.76, 0.5], 'leaf', 0, 'cone');
-      }
-    }
+    for (const piece of decorationParts(type))
+      this.part(this.at(pos.map((v,i)=>v+piece.offset[i]!) as Vec),piece.size,piece.color,piece.radius,piece.shape,undefined,DECORATION_BEVEL_SEGMENTS);
   }
   private jump = false;
 
@@ -1290,12 +1376,7 @@ export class BoxboundScene {
         );
       return;
     }
-    for (const [dx, dz, w, d] of [
-      [0, -0.36, 0.78, 0.065],
-      [0, 0.36, 0.78, 0.065],
-      [-0.36, 0, 0.065, 0.72],
-      [0.36, 0, 0.065, 0.72],
-    ])
+    for (const [dx, dz, w, d] of GOAL_FRAME)
       this.part(
         [p[0] + dx!, p[1] + GOAL_MARKER_Y, p[2] + dz!],
         [w!, GOAL_MARKER_HEIGHT, d!],
@@ -1319,6 +1400,7 @@ export class BoxboundScene {
       const extent = [x * c + z * s, y, z * c + x * s];
       for (let i = 0; i < 3; i++) { group.min[i] = Math.min(group.min[i]!, part.position[i]! - extent[i]!); group.max[i] = Math.max(group.max[i]!, part.position[i]! + extent[i]!); }
     }
+    if(!groups.size){this.diagnostics.fadedOuterObjects.length=0;return;}
     const room = this.state!.rooms[this.current]!, mid = (room.size - 1) / 2;
     const targets: Vec[] = [];
     if (!planar) {
@@ -1327,6 +1409,7 @@ export class BoxboundScene {
       const player = this.actors.find((a) => a.player)!; targets.push([...player.parts[0]!.position]);
     }
     const eye = Array.from(this.orbit.eyePosition) as Vec;
+    if (this.mirrored) eye[0] *= -1;
     this.diagnostics.fadedOuterObjects = [];
     for (const [id, group] of groups) {
       const faded = !planar && group.max[1] > .05 && targets.some((target) => occludesPoint(eye, target, group.min, group.max));
@@ -1355,8 +1438,13 @@ export class BoxboundScene {
       this.renderedWidth === this.canvas.width &&
       this.renderedHeight === this.canvas.height &&
       this.targetVersion === this.engine.getRenderPassDescriptorVersion()
-    ) return;
+    ) { if(this.presentationOnly){this.presentationOnly=false;this.world.update(time,delta);} return; }
+    this.presentationOnly=false;
     const now = this.clock();
+    this.mirrored = playerMirrored(this.state);
+    this.diagnostics.mirrored = this.mirrored;
+    const sign = this.mirrored ? -1 : 1;
+    if (this.occurrenceTransform.scale[0] !== sign) this.occurrenceTransform.setScale(sign, 1, 1);
     const portal = this.portal;
     const travel = portal
       ? portalPose(Math.max(0, now - portal.started))
@@ -1389,6 +1477,7 @@ export class BoxboundScene {
         this.measureDuration();
       }
     }
+    tx *= sign;
     const bounce = jumpPose(now - this.jumpStart);
     const elapsed = now - this.start;
     const celebration = celebrationPose(this.clock() - this.celebrateStart);
@@ -1408,7 +1497,7 @@ export class BoxboundScene {
     for (const motion of this.previewMotions) {
       const position = movementPose(motion.from, motion.to, elapsed, false, false, this.duration).position;
       for (const { part, offset } of motion.parts)
-        for (const i of [0, 1, 2]) part.offset[i] = offset[i]! + (position[i]! - motion.to[i]!) * motion.step;
+        for (const i of [0, 1, 2]) part.offset[i] = offset[i]! + (position[i]! - motion.to[i]!) * motion.step * (i===0 && motion.flipX ? -1 : 1);
     }
     Object.assign(this.diagnostics, {
       wallRuns: this.walls.length,
@@ -1558,7 +1647,7 @@ export class BoxboundScene {
     this.diagnostics.playerInstances = [{ layer: 'current', position: [...player.parts[0]!.position], scale: player.parts[0]!.scale[0] }];
     for (const copy of this.playerCopies) {
       const base = copy.layer === 'parent' ? this.parentSpace ?? copy.transform : copy.transform;
-      const transform = { scale: base.scale, offset: [...base.offset] as Vec };
+      const transform = { ...base, offset: [...base.offset] as Vec };
       // Keep a miniature attached to its actual moving container, not its target cell.
       const owner = this.actors.find((a) => a.id === copy.owner);
       if (copy.layer === 'child' && owner) {
@@ -1580,7 +1669,7 @@ export class BoxboundScene {
     let back = 0, front = 0;
     for (const part of this.partPool) {
       const extent = this.geometryRadii.get(part.mesh.geometry as Geometry3D)! * Math.max(Math.abs(part.scale[0]), Math.abs(part.scale[1]), Math.abs(part.scale[2]));
-      const depth = (part.position[0] - tx) * basis.back[0] + (part.position[1] - ty) * basis.back[1] + (part.position[2] - tz) * basis.back[2];
+      const depth = (part.position[0] * sign - tx) * basis.back[0] + (part.position[1] - ty) * basis.back[1] + (part.position[2] - tz) * basis.back[2];
       back = Math.min(back, depth - extent); front = Math.max(front, depth + extent);
     }
     const near = Math.max(.001, Math.min(.1, radius * .01)), far = Math.max(100, radius - back + 4);
@@ -1602,26 +1691,33 @@ export class BoxboundScene {
     this.fadeExterior(planar);
     this.diagnostics.cameraDepthRange = { min: radius - front, max: radius - back, near, far };
     this.diagnostics.fadedWalls = 0;
-    if ((cameraChanged || this.labelsDirty) && this.labels.length) {
+    if ((cameraChanged || this.labelsDirty || this.moving || this.transitioning || this.wasAnimating) && this.labels.length) {
       const vp = mat4.multiply(
         this.camera.projectionMatrix,
         mat4.inverse(this.orbit.localMatrix, this.inverseView),
         this.viewProjection,
       );
-      for (const { node, pos } of this.labels) {
-        const [x, y, z] = pos;
+      for (const entry of this.labels) {
+        const {node,pos}=entry;
+        const [px, y, z] = pos;
+        const x = px * sign;
         const w = vp[3]! * x + vp[7]! * y + vp[11]! * z + vp[15]!;
         const sx = (vp[0]! * x + vp[4]! * y + vp[8]! * z + vp[12]!) / w,
           sy = (vp[1]! * x + vp[5]! * y + vp[9]! * z + vp[13]!) / w;
         const depth = (vp[2]! * x + vp[6]! * y + vp[10]! * z + vp[14]!) / w;
-        node.project(((sx + 1) * width) / 2, ((1 - sy) * height) / 2, depth >= 0 && depth <= 1);
+        entry.visible = depth >= 0 && depth <= 1 && labelIsNear(entry.room,this.current,entry.outer,entry.anchor,player.parts[0]!.position);
+        node.project(((sx + 1) * width) / 2, ((1 - sy) * height) / 2, entry.visible);
       }
     }
     this.labelsDirty = false;
+    // A reflected hierarchy reverses triangle winding. Reuse the same geometry
+    // and material objects, updating the engine's pipeline state only on parity changes.
+    for (const geometry of this.geometries.values()) geometry.frontFace = this.mirrored ? 'cw' : 'ccw';
+    const renderedState=this.state, renderedHome=this.home;
     this.world.update(time, delta);
-    this.needsFrame = false;
+    this.needsFrame = renderedState !== this.state || renderedHome !== this.home;
     this.wasAnimating = this.moving || this.transitioning || this.airborne || this.celebrating;
-    this.renderedHome = this.home;
+    this.renderedHome = renderedHome;
     this.renderedWidth = this.canvas.width;
     this.renderedHeight = this.canvas.height;
     this.targetVersion = this.engine.getRenderPassDescriptorVersion();
@@ -1645,10 +1741,11 @@ export class BoxboundScene {
     this.entities = [];
     this.actors = [];
     this.playerCopies = []; this.outerStaticParts = []; this.outerLabels = []; this.previewMotions = []; this.parentSpace = undefined; this.parentBase = undefined;
-    this.reusableParts = []; this.reservedParts.clear(); this.previewExclusions.clear(); this.boxInstances.clear();
+    this.reusableParts = []; this.reservedParts.clear(); this.reusableShapes.clear(); this.reusedStatic.clear(); this.previewExclusions.clear(); this.boxInstances.clear();
     this.diagnostics.actorEntities = []; this.diagnostics.boxInstances = [];
     this.mechanisms = [];
     this.labelRoot.clear();
+    this.reflectedGeometry = new WeakMap();
     this.geometries.clear(); this.geometryRadii = new WeakMap();
     this.materials.clear(); this.geometrySizes = new WeakMap();
   }

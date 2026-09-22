@@ -1,0 +1,111 @@
+{
+  "rooms": [
+    {
+      "id": "pp-open8-la",
+      "name": "Open 8",
+      "size": 7,
+      "walls": [],
+      "barriers": [],
+      "goals": [
+        [3, 0, 4],
+        [2, 0, 4],
+        [2, 0, 2],
+        [4, 0, 2]
+      ],
+      "home": null,
+      "level": 153,
+      "hint": "Patrick’s Parabox · Open 8。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-open8-la-1",
+          "pos": [3, 0, 2],
+          "size": 1,
+          "inside": "pp-open8-lb",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "gold"
+        }
+      ],
+      "spawn": [3, 0, 1],
+      "recursiveRoot": true
+    },
+    {
+      "id": "pp-open8-lb",
+      "name": "Open 8",
+      "size": 7,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 153,
+      "hint": "Patrick’s Parabox · Open 8。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-open8-lb-1",
+          "pos": [3, 0, 3],
+          "size": 1,
+          "inside": "pp-open8-lc",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "gold"
+        }
+      ]
+    },
+    {
+      "id": "pp-open8-lc",
+      "name": "Open 8",
+      "size": 7,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": [3, 0, 1],
+      "level": 153,
+      "hint": "Patrick’s Parabox · Open 8。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-open8-lc-1",
+          "pos": [3, 0, 3],
+          "size": 1,
+          "inside": "pp-open8-ld",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "gold"
+        }
+      ]
+    },
+    {
+      "id": "pp-open8-ld",
+      "name": "Open 8",
+      "size": 7,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 153,
+      "hint": "Patrick’s Parabox · Open 8。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-open8-ld-1",
+          "pos": [3, 0, 3],
+          "size": 1,
+          "inside": "pp-open8-la",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "gold"
+        }
+      ]
+    }
+  ]
+}

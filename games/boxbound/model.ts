@@ -14,6 +14,8 @@ export interface IronGate {
   pos: Vec;
   channel: string;
   axis: 'x' | 'z';
+  /** Cell count along axis; pos is the first cell. Omitted means one. */
+  width?: number;
 }
 export interface Room {
   /** Optional authored palette; otherwise assigned once from the world graph. */
@@ -56,6 +58,8 @@ export interface Box {
   inside: string | null;
   /** Shared interior; boundary exits emerge through this original box. */
   cloneOf?: string;
+  /** Horizontal reflection of the interior relative to its containing room. */
+  flipped?: boolean;
   fixed: boolean;
   /** Museum gateways use an explicit interior spawn and return through E. */
   portal?: boolean;
@@ -82,16 +86,29 @@ export interface BoxTransfer {
  * Transient movement evidence, never part of a saved game state. */
 export interface PlayerCrossing { container: string; entering: boolean }
 export interface Frame {
+  /** Display orientation outside this occurrence, retained across recursive exits. */
+  mirrored?: boolean;
   box: string;
   from: string;
   entry: Vec;
   cycle?: 'infinitesimal' | 'infinite' | 'cycle';
 }
 export interface Player {
+  /** Current occurrence orientation; room coordinates remain canonical. */
+  mirrored?: boolean;
   room: string;
   pos: Vec;
   facing: Vec;
   route: Frame[];
+}
+/** Legacy states derive orientation from their finite navigation route. */
+export function playerMirrored(s: State): boolean {
+  return s.player.mirrored ?? s.player.route.reduce((flip, f) => flip !== !!s.boxes.find(b => b.id === f.box)?.flipped, false);
+}
+/** Convert screen-relative input exactly once, when the action is executed. */
+export function viewAction(s: State, action: Action): Action {
+  return action.type === 'move' && playerMirrored(s)
+    ? {...action, dir: [-action.dir[0], action.dir[1], action.dir[2]]} : action;
 }
 export interface State {
   version: 1;
@@ -116,8 +133,9 @@ export const clone = <T>(x: T): T => structuredClone(x);
 export function copyState(state: State): State {
   return {
     ...state,
-    boxes: clone(state.boxes),
-    player: clone(state.player),
+    boxes: state.boxes.map(box => ({ ...box, pos: [...box.pos] })),
+    player: { ...state.player, pos: [...state.player.pos], facing: [...state.player.facing],
+      route: state.player.route.map(frame => ({ ...frame, entry: [...frame.entry] })) },
     completed: [...state.completed],
   };
 }
@@ -183,27 +201,25 @@ export function gatePowered(s: State, room: string, gate: IronGate): boolean {
     (p) => p.channel === gate.channel && platePressed(s, room, p),
   );
 }
-/** Crates hold the bars down. Player occupancy is temporary during a transaction or legacy load; transition ejects an unpowered player. */
+/** Gate geometry and collisions share one integer-cell footprint. */
+export function gateCells(gate: IronGate): Vec[] {
+  return Array.from({length:gate.width ?? 1}, (_,i)=>[gate.pos[0]+(gate.axis==='x'?i:0),gate.pos[1],gate.pos[2]+(gate.axis==='z'?i:0)] as Vec);
+}
+export function gateContains(gate: IronGate, p: Vec): boolean {
+  const axis=gate.axis==='x'?0:2, other=axis===0?2:0;
+  return p[other]===gate.pos[other] && p[axis]>=gate.pos[axis] && p[axis]<gate.pos[axis]+(gate.width ?? 1);
+}
+const gateHeldByBox = (s: State, room: string, gate: IronGate): boolean => gateCells(gate).some(p=>!!boxAt(s,room,p));
+/** Crates hold the whole gate down. Unpowered players are ejected by transition. */
 export function gateOpen(s: State, room: string, gate: IronGate): boolean {
-  return (
-    gatePowered(s, room, gate) ||
-    (s.player.room === room && eq(s.player.pos, gate.pos)) ||
-    !!boxAt(s, room, gate.pos)
-  );
+  return gatePowered(s,room,gate) || gateHeldByBox(s,room,gate) ||
+    (s.player.room===room && s.player.pos[1]===gate.pos[1] && gateContains(gate,s.player.pos));
 }
 export function gateBlocks(s: State, room: string, p: Vec): boolean {
-  return (s.rooms[room]!.gates ?? []).some(
-    (g) => eq(g.pos, p) && !gateOpen(s, room, g),
-  );
+  return (s.rooms[room]!.gates ?? []).some(g=>p[1]===g.pos[1] && gateContains(g,p) && !gateOpen(s,room,g));
 }
 function gateBlocksTop(s: State, room: string, p: Vec): boolean {
-  return (s.rooms[room]!.gates ?? []).some(
-    (g) =>
-      g.pos[0] === p[0] &&
-      g.pos[2] === p[2] &&
-      p[1] > g.pos[1] &&
-      !gateOpen(s, room, g),
-  );
+  return (s.rooms[room]!.gates ?? []).some(g=>p[1]>g.pos[1] && gateContains(g,p) && !gateOpen(s,room,g));
 }
 export function solid(s: State, room: string, p: Vec, except = ''): boolean {
   return (
@@ -253,6 +269,7 @@ export function entryPoint(
   const p: Vec = relative.map((v) =>
     Math.min(r.size - 1, Math.max(0, Math.floor(v * r.size))),
   ) as Vec;
+  if (r.planar && d[0] && relative[2] === .5 && r.size % 2 === 0) p[2] = r.size / 2 - 1;
   if (d[0]) p[0] = d[0] > 0 ? 0 : r.size - 1;
   else if (d[2]) p[2] = d[2] > 0 ? 0 : r.size - 1;
   else {
@@ -280,6 +297,20 @@ export function entrances(
     return height === 0
       ? [{ direction, height, width: doorwayWidth(room, direction) }]
       : [];
+  });
+}
+/** Independent gateways use an authored spawn, but only wall openings grant side access.
+ * Scan the whole edge: imported Parabox openings need not be centered. */
+export function boundaryEntrances(room: Room): { direction: Vec; height: number; width: number }[] {
+  return DOOR_DIRECTIONS.flatMap(direction => {
+    const axis = direction[0] ? 0 : 2, across = direction[0] ? 2 : 0;
+    const p: Vec = [0, 0, 0]; p[axis] = direction[axis]! > 0 ? room.size - 1 : 0;
+    for (let i = 0; i < room.size; i++) {
+      p[across] = i;
+      if (!room.walls.some(w => eq(w, p)) && !decorationAt(room, p))
+        return [{direction, height: 0, width: doorwayWidth(room, direction)}];
+    }
+    return [];
   });
 }
 export const boxColor = (box: Box): CrateColor => box.color ?? 'blue';
@@ -355,20 +386,37 @@ export function leaveIndependentLevel(s: State, level = s.rooms[s.player.room]!.
   const pos = [...candidates, ...rest].find((p) => p[1] === 0 && within(parent, p) && !solid(s, parent.id, p) &&
     !wallBlocksTop(parent, p) && !decorationBlocksTop(parent, p) && !gateBlocksTop(s, parent.id, p));
   if (!pos) return false;
-  s.player = { room: parent.id, pos: [...pos], facing: [...s.player.facing], route: clone(s.player.route.slice(0, index)) };
+  s.player = { mirrored: frame.mirrored ?? s.player.route.slice(0,index).reduce((flip,f)=>flip !== !!s.boxes.find(b=>b.id===f.box)?.flipped,false), room: parent.id, pos: [...pos], facing: [...s.player.facing], route: clone(s.player.route.slice(0, index)) };
   s.paradox = 'none'; s.message = `回到「${parent.name}」，继续探索吧。`;
   return true;
 }
-/** Follow adjacent room boundaries until a real parent cell is reached. */
-function exitDestination(s: State, first: Box, direction: Vec, size: number, aperture = size): { owner: Box; pos: Vec } | null {
-  let owner = first;
+/** Reflections affect crossing coordinates, never canonical movement within a room. */
+const reflectedDirection = (d: Vec, flipped?: boolean): Vec => [flipped ? -d[0] : d[0], d[1], d[2]];
+function restoreBoxes(s: State, snapshot: Box[]): void {
+  s.boxes.forEach((box, i) => { delete box.flipped; Object.assign(box, snapshot[i]!); });
+}
+function crossingEntry(room: Room, d: Vec, fraction?: number): Vec {
+  if (fraction === undefined) return entryPoint(room, d);
+  const across = d[0] ? 2 : 0;
+  const p = entryPoint(room, d);
+  // Exact boundaries follow the source's clockwise tie-break convention.
+  p[across] = Math.max(0, Math.min(room.size - 1, d[0] ? Math.floor(fraction * room.size) : Math.ceil(fraction * room.size) - 1));
+  return p;
+}
+/** Follow adjacent room boundaries while retaining the exit-face fraction. */
+function exitDestination(s: State, first: Box, direction: Vec, size: number, aperture = size, source?: Vec): { owner: Box; pos: Vec; direction: Vec; fraction: number; flipped: boolean } | null {
+  let owner = first, d: Vec = [...direction], flipped = false;
+  const inner = s.rooms[first.inside!]!;
+  let fraction = source ? (source[d[0] ? 2 : 0] + .5) / inner.size : .5;
   const visited = new Set<string>();
   while (!visited.has(owner.id)) {
     visited.add(owner.id);
-    const pos = add(owner.pos, direction.map((v) => v > 0 ? owner.size : v < 0 ? -size : 0) as Vec);
+    if (owner.flipped) { d = reflectedDirection(d, true); flipped = !flipped; if (d[2]) fraction = 1 - fraction; }
+    const pos = add(owner.pos, d.map((v) => v > 0 ? owner.size : v < 0 ? -size : 0) as Vec);
     const parent = s.rooms[owner.room]!;
-    if (within(parent, pos) && within(parent, add(pos, [size - 1, size - 1, size - 1]))) return { owner, pos };
-    if (doorwayWidth(parent, direction) < aperture) return null;
+    if (within(parent, pos) && within(parent, add(pos, [size - 1, size - 1, size - 1]))) return { owner, pos, direction: d, fraction, flipped };
+    if (doorwayWidth(parent, d) < aperture) return null;
+    fraction = (owner.pos[d[0] ? 2 : 0] + fraction * owner.size) / parent.size;
     const next = ownerFor(s, parent.id);
     if (!next) return null;
     owner = next;
@@ -382,6 +430,7 @@ function push(
   d: Vec,
   visiting: Set<string>,
   transfers: BoxTransfer[],
+  transferOnly = false,
 ): boolean {
   if (b.fixed) return false;
   const token = `${b.id}/${b.room}/${d.join()}`;
@@ -407,9 +456,9 @@ function push(
     )
       return false;
     const firstOwner = ownerFor(s, b.room);
-    const destination = firstOwner && b.id !== firstOwner.id ? exitDestination(s, firstOwner, d, b.size) : null;
+    const destination = firstOwner && b.id !== firstOwner.id ? exitDestination(s, firstOwner, d, b.size, b.size, b.pos) : null;
     if (destination && firstOwner) {
-      const { owner, pos: outside } = destination;
+      const { owner, pos: outside, direction: outward, fraction, flipped } = destination;
       const snapshot = clone(s.boxes),
         count = transfers.length;
       const blockers = s.boxes.filter(
@@ -423,12 +472,13 @@ function push(
       );
       if (
         blockers.every((other) =>
-          push(s, other, d, new Set(visiting), transfers),
+          push(s, other, outward, new Set(visiting), transfers),
         ) &&
         freeCube(s, b, owner.room, outside)
       ) {
         const fromRoom = b.room,
           from: Vec = [...b.pos];
+        if (flipped && b.inside) b.flipped = !b.flipped;
         b.room = owner.room;
         b.pos = outside;
         settleBox(s, b);
@@ -444,12 +494,14 @@ function push(
         });
         return true;
       }
-      s.boxes.forEach((box, i) => Object.assign(box, snapshot[i]!));
+      restoreBoxes(s, snapshot);
       transfers.length = count;
       // Exiting one container may immediately enter a blocked adjacent container.
+      if (flipped && b.inside) b.flipped = !b.flipped;
       if (blockers.length === 1 && blockers[0]!.inside &&
-        insertBox(s, b, blockers[0]!, d, new Set(visiting), transfers)) return true;
-      if (blockers.length === 1 && swallow(s, b, blockers[0]!, d, owner.room, outside, visiting, transfers)) {
+        insertBox(s, b, blockers[0]!, outward, new Set(visiting), transfers, fraction)) return true;
+      restoreBoxes(s, snapshot);
+      if (blockers.length === 1 && swallow(s, b, blockers[0]!, outward, owner.room, outside, visiting, transfers)) {
         transfers.push({ box: b.id, container: firstOwner.id, fromRoom: snapshot.find((v) => v.id === b.id)!.room,
           toRoom: b.room, from: [...snapshot.find((v) => v.id === b.id)!.pos], to: [...b.pos], direction: [...d], entering: false });
         return true;
@@ -472,7 +524,7 @@ function push(
       count = transfers.length;
     if (
       obstacles.every((blocker) =>
-        push(s, blocker, d, new Set(visiting), transfers),
+        push(s, blocker, d, new Set(visiting), transfers, transferOnly),
       ) &&
       freeCube(s, b, b.room, next)
     ) {
@@ -480,10 +532,10 @@ function push(
       settleBox(s, b);
       return true;
     }
-    s.boxes.forEach((box, i) => Object.assign(box, snapshot[i]!));
+    restoreBoxes(s, snapshot);
     transfers.length = count;
     if (
-      obstacles.length === 1 &&
+      !transferOnly && obstacles.length === 1 &&
       obstacle.inside &&
       !obstacle.portal &&
       b.size <= s.rooms[obstacle.inside]!.size
@@ -507,27 +559,30 @@ function swallow(s: State, b: Box, other: Box, d: Vec, room: string, next: Vec, 
   if (insertBox(s, other, b, d.map((v) => -v) as Vec, new Set(visiting), transfers) && freeCube(s, b, room, next)) {
     b.room = room; b.pos = [...next]; settleBox(s, b); return true;
   }
-  s.boxes.forEach((box, i) => Object.assign(box, backup[i]!)); transfers.length = count;
+  restoreBoxes(s, backup); transfers.length = count;
   return false;
 }
 /** Recursive entry through an occupied doorway: displace its occupant first,
  * otherwise follow that occupant's interior. All failed attempts roll back. */
-function insertBox(s: State, b: Box, container: Box, d: Vec, visiting: Set<string>, transfers: BoxTransfer[]): boolean {
+function insertBox(s: State, b: Box, container: Box, d: Vec, visiting: Set<string>, transfers: BoxTransfer[], fraction?: number): boolean {
   if (b.fixed || s.rooms[container.room]!.void || !container.inside || container.portal || visiting.has('enter:' + container.id)) return false;
   visiting.add('enter:' + container.id);
-  const inner = s.rooms[container.inside]!, at = entryPoint(inner, d);
+  d = reflectedDirection(d, container.flipped);
+  if (container.flipped && d[2] && fraction !== undefined) fraction = 1 - fraction;
+  const inner = s.rooms[container.inside]!, at = crossingEntry(inner, d, fraction);
   if (doorwayWidth(inner, d.map((v) => -v) as Vec) < b.size) return false;
   const backup = clone(s.boxes), count = transfers.length;
+  if (container.flipped && b.inside) b.flipped = !b.flipped;
   const occupant = boxAt(s, inner.id, at, b.id);
-  if (occupant && !push(s, occupant, d, new Set(visiting), transfers)) {
-    if (insertBox(s, b, occupant, d, visiting, transfers)) return true;
+  if (occupant && !push(s, occupant, d, new Set(visiting), transfers, fraction !== undefined)) {
+    if (insertBox(s, b, occupant, d, visiting, transfers, fraction === undefined ? undefined : fraction * inner.size - at[d[0] ? 2 : 0])) return true;
   } else if (freeCube(s, b, inner.id, at)) {
     const fromRoom = b.room, from: Vec = [...b.pos];
     b.room = inner.id; b.pos = at; settleBox(s, b);
     transfers.push({ box: b.id, container: container.id, fromRoom, toRoom: b.room, from, to: [...b.pos], direction: [...d], entering: true });
     return true;
   }
-  s.boxes.forEach((box, i) => Object.assign(box, backup[i]!)); transfers.length = count;
+  restoreBoxes(s, backup); transfers.length = count;
   return false;
 }
 /** Product of linear scale ratios around a reference cycle, evaluated in log space. */
@@ -544,22 +599,30 @@ export function classifyScaleCycle(
       : 'infinite';
 }
 export type PrepareEntry = (state: State, box: Box) => void;
-function enter(s: State, b: Box, d: Vec, transfers: BoxTransfer[], prepare?: PrepareEntry, depth = 0): boolean {
+function enter(s: State, b: Box, d: Vec, transfers: BoxTransfer[], prepare?: PrepareEntry, depth = 0, fraction?: number): boolean {
   if (!b.inside || s.rooms[b.room]!.void || depth >= 32) return false;
+  s.player.mirrored = playerMirrored(s);
+  d = reflectedDirection(d, b.flipped);
+  if (b.flipped && d[2] && fraction !== undefined) fraction = 1 - fraction;
+  // Reject closed faces before resetting puzzle contents or trying a push fallback.
+  if (b.portal && d[1] === 0 && !boundaryEntrances(s.rooms[b.inside]!).some(
+    e => eq(e.direction, d.map(v => -v) as Vec) && e.width >= PLAYER_WIDTH)) return false;
   if (b.levelEntry) prepare?.(s, b);
   const r = s.rooms[b.inside]!,
-    p: Vec = b.portal && r.spawn ? [...r.spawn] : entryPoint(r, d);
+    p: Vec = b.portal && r.spawn ? [...r.spawn] : crossingEntry(r, d, fraction);
   if (!b.portal && d[1] === 0 && doorwayWidth(r, d.map((v) => -v) as Vec) < PLAYER_WIDTH)
     return false;
 
   const nestedSpawn = b.levelEntry && !!r.entryRoom;
   const occupant = nestedSpawn ? undefined : boxAt(s, r.id, p);
-  if (occupant && (d[1] !== 0 || !push(s, occupant, d, new Set(), transfers))) {
+  if (occupant && (d[1] !== 0 || !push(s, occupant, d, new Set(), transfers, fraction !== undefined))) {
     if (!occupant.inside || d[1] !== 0) return false;
     const player = clone(s.player), boxes = clone(s.boxes), count = transfers.length;
-    s.player.route.push({ box: b.id, from: s.player.room, entry: [...s.player.pos] });
+    s.player.route.push({ box: b.id, from: s.player.room, entry: [...s.player.pos], mirrored: playerMirrored(s) });
+    s.player.mirrored = !!s.player.mirrored !== !!b.flipped;
+    s.player.facing = d[1] ? reflectedDirection(s.player.facing, b.flipped) : [...d];
     s.player.room = r.id; s.player.pos = p;
-    if (enter(s, occupant, d, transfers, prepare, depth + 1)) return true;
+    if (enter(s, occupant, d, transfers, prepare, depth + 1, fraction === undefined ? undefined : fraction * r.size - p[d[0] ? 2 : 0])) return true;
     s.player = player; s.boxes = boxes; transfers.length = count;
     return false;
   }
@@ -568,6 +631,7 @@ function enter(s: State, b: Box, d: Vec, transfers: BoxTransfer[], prepare?: Pre
   const repeated =
     s.player.room === r.id || s.player.route.some((f) => f.from === r.id);
   const frame: Frame = {
+    mirrored: playerMirrored(s),
     box: b.id,
     from: s.player.room,
     entry: [...s.player.pos],
@@ -587,6 +651,8 @@ function enter(s: State, b: Box, d: Vec, transfers: BoxTransfer[], prepare?: Pre
       edges.map((edge) => edge.size / s.rooms[edge.inside!]!.size),
     );
   }
+  s.player.mirrored = playerMirrored(s) !== !!b.flipped;
+  s.player.facing = d[1] ? reflectedDirection(s.player.facing, b.flipped) : [...d];
   s.player.route.push(frame);
   s.player.room = r.id;
   s.player.pos = p;
@@ -617,14 +683,17 @@ export function initialNestedSpawn(s: State, root: string): void {
       return null;
     };
     for (const child of routeTo(r.id, new Set()) ?? []) {
-      s.player.route.push({ box: child.id, from: child.room, entry: [...s.player.pos] });
+      const mirrored = playerMirrored(s);
+      s.player.route.push({ box: child.id, from: child.room, entry: [...s.player.pos], mirrored });
+      s.player.mirrored = mirrored !== !!child.flipped;
+      s.player.facing = reflectedDirection(s.player.facing, child.flipped);
       s.player.room = child.inside!;
       s.player.pos = [...(s.rooms[child.inside!]!.spawn ?? entryPoint(s.rooms[child.inside!]!, [0, 0, -1]))];
     }
   }
 }
 export function outerExitPosition(owner: Box, direction: Vec): Vec {
-  return add(owner.pos, direction.map((v) => (v > 0 ? owner.size : v)) as Vec);
+  return add(owner.pos, reflectedDirection(direction, owner.flipped).map((v) => (v > 0 ? owner.size : v)) as Vec);
 }
 export interface OuterBarrier {
   direction: Vec;
@@ -689,7 +758,7 @@ function exit(s: State, transfers: BoxTransfer[], d?: Vec, prepare?: PrepareEntr
       )
     )
       continue;
-    const destination = exitDestination(s, b, dir, 1, PLAYER_WIDTH);
+    const destination = exitDestination(s, b, dir, 1, PLAYER_WIDTH, s.player.pos);
     if (!destination) continue;
     const outerOwner = destination.owner, p = destination.pos;
     const outerRoom = outerOwner.room;
@@ -711,23 +780,27 @@ function exit(s: State, transfers: BoxTransfer[], d?: Vec, prepare?: PrepareEntr
       count = transfers.length;
     const occupant = boxAt(s, outerRoom, p);
     if (
-      (occupant && !push(s, occupant, dir, new Set(), transfers)) ||
+      (occupant && !push(s, occupant, destination.direction, new Set(), transfers)) ||
       solid(s, outerRoom, p)
     ) {
-      s.boxes.forEach((box, i) => Object.assign(box, snapshot[i]!));
+      restoreBoxes(s, snapshot);
       transfers.length = count;
       if (occupant?.inside) {
         const before = clone(s.player);
+        s.player.mirrored = playerMirrored(s) !== destination.flipped;
+        s.player.facing = [...destination.direction];
         s.player.room = outerRoom; s.player.pos = [...b.pos];
         leaveRoute();
-        if (enter(s, occupant, dir, transfers, prepare)) return true;
+        if (enter(s, occupant, destination.direction, transfers, prepare, 0, destination.fraction)) return true;
         s.player = before;
-        s.boxes.forEach((box, i) => Object.assign(box, snapshot[i]!));
+        restoreBoxes(s, snapshot);
         transfers.length = count;
       }
       continue;
     }
     const repeated = recursiveExit ? 'infinitesimal' : f.cycle;
+    s.player.mirrored = playerMirrored(s) !== destination.flipped;
+    s.player.facing = [...destination.direction];
     s.player.room = outerRoom;
     s.player.pos = p;
     leaveRoute();
@@ -821,6 +894,7 @@ export function transition(
       const index = s.player.route.findLastIndex((f) => s.boxes.find((b) => b.id === f.box)?.portal);
       if (index >= 0) {
         const gateway = s.boxes.find((b) => b.id === s.player.route[index]!.box)!;
+        s.player.mirrored = (s.player.route[index]!.mirrored ?? false) !== !!gateway.flipped;
         s.player.room = gateway.inside!;
         s.player.route = s.player.route.slice(0, index + 1);
       }
@@ -898,24 +972,25 @@ export function transition(
   if (ok) {
     const room = s.rooms[s.player.room]!;
     const gate = room.gates?.find((g) =>
-      g.pos[0] === s.player.pos[0] && g.pos[2] === s.player.pos[2] &&
+      gateContains(g, s.player.pos) &&
       s.player.pos[1] >= g.pos[1] && s.player.pos[1] <= g.pos[1] + 1 &&
-      !gatePowered(s, room.id, g) && !boxAt(s, room.id, g.pos));
+      !gatePowered(s, room.id, g) && !gateHeldByBox(s, room.id, g));
     if (gate) {
+      const contact: Vec = [s.player.pos[0],gate.pos[1],s.player.pos[2]];
       const candidates = [
         ...(state.player.room === room.id ? [state.player.pos] : []),
-        add(gate.pos, s.player.facing.map((v) => -v) as Vec),
-        ...DOOR_DIRECTIONS.map((d) => add(gate.pos, d)),
+        add(contact, s.player.facing.map((v) => -v) as Vec),
+        ...DOOR_DIRECTIONS.map((d) => add(contact, d)),
       ];
       const safe = candidates.find((p) => within(room, p) &&
-        (p[0] !== gate.pos[0] || p[2] !== gate.pos[2]) &&
+        !gateContains(gate, p) &&
         !solid(s, room.id, p) && !wallBlocksTop(room, p) &&
         !decorationBlocksTop(room, p) && !gateBlocksTop(s, room.id, p) &&
         fitsDoorways(room, p, PLAYER_WIDTH));
       if (safe) {
         s.player.pos = [...safe];
         fall(s);
-        recoil = { room: room.id, gate: gate.id, at: [...gate.pos], to: [...s.player.pos] };
+        recoil = { room: room.id, gate: gate.id, at: contact, to: [...s.player.pos] };
         s.message = '栅栏弹起，把你轻轻弹回了！用箱子压住按钮再通过。';
       } else {
         ok = false;
@@ -971,17 +1046,18 @@ function validateState(value: unknown): value is State {
     return false;
   if (
     !Object.entries(s.rooms).every(
-      ([id, r]) =>
-        r &&
+      ([id, r]) => {
+        const wallKeys = new Set(r.walls.map(p => p.join()));
+        return r &&
         r.id === id &&
         Number.isInteger(r.size) &&
-        r.size >= 3 &&
+        r.size >= 2 &&
         r.size <= 32 &&
         typeof r.name === 'string' &&
         (r.theme === undefined || isRoomTheme(r.theme)) &&
         typeof r.hint === 'string' &&
         Number.isInteger(r.level) && r.level >= 0 &&
-        (r.spawn === undefined || (vec(r.spawn) && within(r, r.spawn) && !r.walls.some((w) => eq(w, r.spawn!)))) &&
+        (r.spawn === undefined || (vec(r.spawn) && within(r, r.spawn) && !wallKeys.has(r.spawn.join()))) &&
         (r.exitLabel === undefined || (typeof r.exitLabel === 'string' && r.exitLabel.length > 0 && r.exitLabel.length <= 64)) &&
         (r.entryRoom === undefined || (!!s.rooms[r.entryRoom] && !!s.rooms[r.entryRoom]?.spawn)) &&
         (r.recursiveRoot === undefined || typeof r.recursiveRoot === 'boolean') &&
@@ -1003,7 +1079,7 @@ function validateState(value: unknown): value is State {
         (r.barriers === undefined ||
           (Array.isArray(r.barriers) &&
             r.barriers.every(
-              (p) => vec(p) && r.walls.some((w) => eq(w, p)),
+              (p) => vec(p) && wallKeys.has(p.join()),
             ))) &&
         (r.buttons === undefined ||
           (Array.isArray(r.buttons) &&
@@ -1018,7 +1094,7 @@ function validateState(value: unknown): value is State {
                 p.channel.length > 0 &&
                 vec(p.pos) &&
                 within(r, p.pos) &&
-                !r.walls.some((w) => eq(w, p.pos)),
+                !wallKeys.has(p.pos.join()),
             ))) &&
         (r.gates === undefined ||
           (Array.isArray(r.gates) &&
@@ -1030,9 +1106,10 @@ function validateState(value: unknown): value is State {
                 g.id.length > 0 &&
                 (g.axis === 'x' || g.axis === 'z') &&
                 vec(g.pos) &&
-                within(r, g.pos) &&
-                !r.walls.some((w) => eq(w, g.pos)) &&
-                !(r.buttons ?? []).some((p) => eq(p.pos, g.pos)) &&
+                (g.width === undefined || (Number.isInteger(g.width) && g.width >= 1 && g.width <= r.size)) &&
+                gateCells(g).every(cell => within(r,cell) && !wallKeys.has(cell.join()) &&
+                  !(r.buttons ?? []).some(p=>eq(p.pos,cell)) &&
+                  !r.gates!.some(other=>other!==g && other.pos[1]===cell[1] && gateContains(other,cell))) &&
                 (r.buttons ?? []).some((p) => p.channel === g.channel),
             ))) &&
         (r.floorTiles === undefined ||
@@ -1049,13 +1126,14 @@ function validateState(value: unknown): value is State {
               isDecorationKind(d.type) && vec(d.pos) && within(r, d.pos) &&
               d.pos[1] + DECORATION_SPECS[d.type].height <= r.size &&
               ![...r.walls, ...r.goals, ...(r.home ? [r.home] : []),
-                ...(r.buttons ?? []).map((b) => b.pos), ...(r.gates ?? []).map((g) => g.pos)]
+                ...(r.buttons ?? []).map((b) => b.pos), ...(r.gates ?? []).flatMap(gateCells)]
                 .some((p) => p[0] === d.pos[0] && p[2] === d.pos[2] &&
                   p[1] >= d.pos[1] && p[1] < d.pos[1] + DECORATION_SPECS[d.type].height),
             ))) &&
         Array.isArray(r.goals) &&
         r.goals.every((p) => vec(p) && within(r, p)) &&
-        (r.home === null || (vec(r.home) && within(r, r.home))),
+        (r.home === null || (vec(r.home) && within(r, r.home)));
+      },
     )
   )
     return false;
@@ -1069,6 +1147,7 @@ function validateState(value: unknown): value is State {
         Number.isInteger(b.size) &&
         b.size >= 1 &&
         b.size <= 8 &&
+        (b.flipped === undefined || typeof b.flipped === 'boolean') &&
         within(s.rooms[b.room]!, b.pos) &&
         within(
           s.rooms[b.room]!,
@@ -1092,6 +1171,7 @@ function validateState(value: unknown): value is State {
     return false;
   return (
     !!s.rooms[s.player.room] &&
+    (s.player.mirrored === undefined || typeof s.player.mirrored === 'boolean') &&
     vec(s.player.pos) &&
     within(s.rooms[s.player.room]!, s.player.pos) &&
     vec(s.player.facing) &&
@@ -1102,6 +1182,7 @@ function validateState(value: unknown): value is State {
         f &&
         s.boxes.some((b) => b.id === f.box) &&
         !!s.rooms[f.from] &&
+        (f.mirrored === undefined || typeof f.mirrored === 'boolean') &&
         vec(f.entry),
     ) &&
     ['none', 'infinitesimal', 'infinite', 'cycle'].includes(s.paradox) &&

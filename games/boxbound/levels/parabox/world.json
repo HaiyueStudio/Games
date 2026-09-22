@@ -107,7 +107,7 @@
       "goals": [],
       "home": null,
       "level": 0,
-      "hint": "八个章节，106 个盒中谜题。进入章节选择关卡；南侧绿色出口返回群岛，也可按 E。",
+      "hint": "十一个章节，155 个盒中谜题。进入章节选择关卡；南侧绿色出口返回新手村，也可按 E。",
       "boxes": [
         {
           "id": "pp-chapter-intro",
@@ -204,6 +204,42 @@
           "entryPriority": "enter",
           "label": "Clone · 克隆",
           "color": "blue"
+        },
+        {
+          "id": "pp-chapter-transfer",
+          "pos": [2, 0, 10],
+          "size": 1,
+          "inside": "pp-transfer",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Transfer · 转移",
+          "color": "blue"
+        },
+        {
+          "id": "pp-chapter-open",
+          "pos": [8, 0, 10],
+          "size": 1,
+          "inside": "pp-open",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Open · 开放",
+          "color": "gold"
+        },
+        {
+          "id": "pp-chapter-flip",
+          "pos": [10, 0, 10],
+          "size": 1,
+          "inside": "pp-flip",
+          "fixed": false,
+          "required": false,
+          "portal": true,
+          "entryPriority": "enter",
+          "label": "Flip · 镜像",
+          "color": "coral"
         }
       ],
       "decorations": [
@@ -211,7 +247,7 @@
           "id": "pp-red-friend",
           "type": 5,
           "pos": [6, 0, 9],
-          "message": "红方：欢迎来到 Parabox 致敬馆！八个章节藏在盒子里，通关后返回本章。感谢 Patrick Traynor 创造盒中世界。"
+          "message": "红方：欢迎来到 Parabox 致敬馆！十一个章节藏在盒子里，通关后返回本章。感谢 Patrick Traynor 创造盒中世界。"
         }
       ],
       "doorWidths": [
@@ -247,6 +283,15 @@
     },
     {
       "$ref": "clone/world.json"
+    },
+    {
+      "$ref": "transfer/world.json"
+    },
+    {
+      "$ref": "open/world.json"
+    },
+    {
+      "$ref": "flip/world.json"
     }
   ]
 }

@@ -1,3 +1,5 @@
+> 以下为旧版 DOM UI 的历史验证。当前引擎 GUI 的验证见 `Native/examples/led-sudoku/evidence/gui/README.md`。
+
 # LED Sudoku 本地验收
 
 2026-09-20，Node v24.19.0，Codex In-app Browser（真实 WebGPU 页面）。这是本地功能/视觉验收，非性能基线。

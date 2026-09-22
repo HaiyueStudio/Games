@@ -1,4 +1,4 @@
-import { ownerFor, boxAt, boxColor, goalColor, gateOpen, platePressed, type State, type Vec, type CrateColor } from './model';
+import { ownerFor, boxAt, boxColor, goalColor, gateOpen, gateContains, platePressed, type State, type Vec, type CrateColor } from './model';
 import type { DecorationKind } from './decorations';
 export interface OuterCell {
   source: Vec;
@@ -38,7 +38,7 @@ export function outerContext(state: State): { parent: string; owner: string; sca
     if (box) cell.box = { id: box.id, color: boxColor(box), inside: !!box.inside, fixed: box.fixed, portal: !!box.portal, size: box.size, offset: box.pos.map((v, i) => v - source[i]! + (i === 1 ? 0 : (box.size - 1) / 2)) as Vec };
     const goal = parent.goals.findIndex(same);
     if (goal >= 0) cell.goal = parent.anyGoalColor ? 'white' : goalColor(parent, goal);
-    const gate = parent.gates?.find((g) => same(g.pos));
+    const gate = parent.gates?.find((g) => g.pos[1]===source[1] && gateContains(g,source));
     if (gate) cell.gate = { open: gateOpen(state, parent.id, gate), axis: gate.axis };
     const button = parent.buttons?.find((b) => same(b.pos));
     if (button) cell.button = platePressed(state, parent.id, button);

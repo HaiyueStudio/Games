@@ -1,0 +1,179 @@
+{
+  "rooms": [
+    {
+      "id": "pp-transfer21-lr",
+      "name": "Transfer 21",
+      "size": 5,
+      "walls": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [3, 0, 0],
+        [4, 0, 0],
+        [0, 0, 1],
+        [1, 0, 1],
+        [2, 0, 1],
+        [3, 0, 1],
+        [4, 0, 1],
+        [0, 0, 2],
+        [1, 0, 2],
+        [3, 0, 2],
+        [4, 0, 2],
+        [0, 0, 3],
+        [1, 0, 3],
+        [4, 0, 3],
+        [0, 0, 4],
+        [1, 0, 4],
+        [2, 0, 4],
+        [3, 0, 4],
+        [4, 0, 4]
+      ],
+      "barriers": [
+        [0, 0, 0],
+        [1, 0, 0],
+        [2, 0, 0],
+        [3, 0, 0],
+        [4, 0, 0],
+        [0, 0, 1],
+        [1, 0, 1],
+        [2, 0, 1],
+        [3, 0, 1],
+        [4, 0, 1],
+        [0, 0, 2],
+        [1, 0, 2],
+        [3, 0, 2],
+        [4, 0, 2],
+        [0, 0, 3],
+        [1, 0, 3],
+        [4, 0, 3],
+        [0, 0, 4],
+        [1, 0, 4],
+        [2, 0, 4],
+        [3, 0, 4],
+        [4, 0, 4]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 137,
+      "hint": "Patrick’s Parabox · Transfer 21。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-transfer21-lr-1",
+          "pos": [2, 0, 2],
+          "size": 1,
+          "inside": "pp-transfer21-lb",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-transfer21-lr-2",
+          "pos": [2, 0, 3],
+          "size": 1,
+          "inside": "pp-transfer21-la",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "blue"
+        },
+        {
+          "id": "pp-transfer21-lr-3",
+          "pos": [3, 0, 3],
+          "size": 1,
+          "inside": "pp-transfer21-lc",
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "blue"
+        }
+      ],
+      "entryRoom": "pp-transfer21-la",
+      "spawn": [2, 0, 2]
+    },
+    {
+      "id": "pp-transfer21-la",
+      "name": "Transfer 21",
+      "size": 9,
+      "walls": [
+        [3, 0, 0],
+        [6, 0, 1],
+        [7, 0, 1],
+        [6, 0, 2],
+        [6, 0, 3],
+        [6, 0, 4],
+        [6, 0, 5],
+        [6, 0, 6],
+        [6, 0, 7],
+        [7, 0, 7]
+      ],
+      "barriers": [
+        [3, 0, 0],
+        [6, 0, 1],
+        [7, 0, 1],
+        [6, 0, 2],
+        [6, 0, 3],
+        [6, 0, 4],
+        [6, 0, 5],
+        [6, 0, 6],
+        [6, 0, 7],
+        [7, 0, 7]
+      ],
+      "goals": [
+        [7, 0, 2]
+      ],
+      "home": [7, 0, 6],
+      "level": 137,
+      "hint": "Patrick’s Parabox · Transfer 21。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": [
+        {
+          "id": "pp-transfer21-la-1",
+          "pos": [2, 0, 0],
+          "size": 1,
+          "inside": null,
+          "fixed": false,
+          "required": false,
+          "flipped": false,
+          "color": "gold"
+        }
+      ],
+      "spawn": [4, 0, 4]
+    },
+    {
+      "id": "pp-transfer21-lb",
+      "name": "Transfer 21",
+      "size": 3,
+      "walls": [],
+      "barriers": [],
+      "goals": [],
+      "home": null,
+      "level": 137,
+      "hint": "Patrick’s Parabox · Transfer 21。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    },
+    {
+      "id": "pp-transfer21-lc",
+      "name": "Transfer 21",
+      "size": 3,
+      "walls": [
+        [1, 0, 1]
+      ],
+      "barriers": [
+        [1, 0, 1]
+      ],
+      "goals": [],
+      "home": null,
+      "level": 137,
+      "hint": "Patrick’s Parabox · Transfer 21。R 重玩；E 返回本章。目标不限箱子颜色。",
+      "planar": true,
+      "anyGoalColor": true,
+      "boxes": []
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { assignRoomThemes, fallbackRoomTheme, type RoomTheme } from './themes';
-import { clone, solid, validState, type Box, type Room, type State } from './model';
+import { clone, solid, validState, gateCells, type Box, type Room, type State } from './model';
 
 export interface WorldMapDefinition {
   schemaVersion: 1;
@@ -46,7 +46,7 @@ export function parseWorldMap(value: unknown): State {
   for (const room of Object.values(rooms)) {
     for (const button of room.buttons ?? [])
       for (const gate of room.gates ?? [])
-        if (Math.max(...button.pos.map((v, i) => Math.abs(v - gate.pos[i]!))) < 2)
+        if (gateCells(gate).some(cell => Math.max(...button.pos.map((v, i) => Math.abs(v - cell[i]!))) < 2))
           throw new Error(`${room.id} 的按钮与栅栏必须至少间隔一格。`);
     if (room.spawn && !room.entryRoom && solid(state, room.id, room.spawn)) throw new Error(`${room.id} 的出生点被挡住。`);
     for (const pos of [...room.goals, ...(room.home ? [room.home] : [])])

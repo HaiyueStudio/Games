@@ -1,6 +1,15 @@
 import { inputChoices, noteChoices, candidateMasks } from './preferences';
 import { candidates, validBoard, type SaveData } from './rules';
-export interface Move { board: number[]; notes: number[]; crossed?: number[]; deductionSteps?: number; }
+export type { UndoMove as Move } from './rules';
+import type { UndoMove as Move } from './rules';
+/** Keep notebook exclusions and verified proof progress in the same saved undo step. */
+export function saveWithHistory(state: SaveData, history: Move[]): SaveData {
+  return structuredClone({ ...state, undoHistory: history.slice(-200) });
+}
+export function restoreWithHistory(saved: SaveData): { state: SaveData; history: Move[] } {
+  const { undoHistory = [], ...state } = structuredClone(saved);
+  return { state, history: undoHistory };
+}
 export function editable(state: SaveData, cell: number): boolean { return Number.isInteger(cell) && cell >= 0 && cell < state.board.length && !state.puzzle.blocked[cell] && !state.puzzle.givens[cell]; }
 /** Immutable transition shared by pointer and keyboard input. */
 export function place(state: SaveData, cell: number, value: number, pencil = false, filterCandidates = true): SaveData | null {

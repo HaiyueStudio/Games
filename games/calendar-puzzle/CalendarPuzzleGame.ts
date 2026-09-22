@@ -162,7 +162,7 @@ export class CalendarPuzzleGame {
   private won = false;
   private layout = calendarLayout(1600, 720);
   private readonly textLayouts = new Map<TextVisual, () => Rect>();
-  private language: CalendarLanguage = 'zh';
+  private language: CalendarLanguage = 'en';
   private settingsOpen = false;
   private languageSelect?: GuiSelect<CalendarLanguage>;
   private purchaseView?: CalendarPurchaseView;
@@ -270,6 +270,7 @@ export class CalendarPuzzleGame {
           this.cancelHint(); this.cancelInteraction();
           if (!this.canPlayDate()) this.togglePurchase(true);
         }
+        if (entitled !== next) for (const localize of this.localized) localize();
         entitled = next;
         this.platform.rewards?.refresh();
         this.purchaseView?.refresh(); this.platform.requestRender?.();
@@ -306,7 +307,7 @@ export class CalendarPuzzleGame {
   }
   snapshot() {
     return { solver: this.solver.snapshot(), rewards: this.platform.rewards?.snapshot(), rewardOpen: this.rewardView?.visible ?? false, languageMenu: this.languageSelect ? { open: this.languageSelect.open, popup: this.languageSelect.popupRect, optionHeight: this.languageSelect.optionHeight, scrollY: this.languageSelect.scrollY, values: this.languageSelect.options.map(option => option.value) } : null, purchases: this.platform.purchases?.snapshot(), purchaseOpen: this.purchaseView?.visible ?? false, audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
-      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect, hovered: value.hovered, pressed: value.pressed, focused: value.focused }])),
+      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect, visible: value.visible, text: value instanceof GuiButton ? value.text : undefined, hovered: value.hovered, pressed: value.pressed, focused: value.focused }])),
       month: this.selectedMonth, day: this.selectedDay, weekday: this.selectedWeekday,
       dragging: !!this.drag, placed: this.pieces.filter(piece => piece.placed).length,
       occupied: this.occupancy.size, pieces: this.pieces.map(piece => ({ id: piece.def.id,
@@ -478,7 +479,11 @@ export class CalendarPuzzleGame {
       optionHeight: 56, maxVisibleOptions: 6, onChange: language => this.setLanguage(language),
     }), () => ({ x: panel().x + 38, y: panel().y + 140, width: 692, height: 64 }), true);
     this.localized.push(() => languageSelect.setValue(this.language));
-    if (this.platform.purchases) button('settingsPurchases', () => PURCHASE_COPY[this.language].title, () => ({ x: panel().x + 38, y: panel().y + 240, width: this.platform.rewards ? 334 : 692, height: 54 }), () => this.togglePurchase(true), true);
+    if (this.platform.purchases) button('settingsPurchases', () => this.platform.purchases!.snapshot().entitled ? PURCHASE_COPY[this.language].restore : PURCHASE_COPY[this.language].title,
+      () => ({ x: panel().x + 38, y: panel().y + 240, width: this.platform.rewards ? 334 : 692, height: 54 }), () => {
+        this.togglePurchase(true);
+        if (this.platform.purchases!.snapshot().entitled) void this.platform.purchases!.restore();
+      }, true);
     if (this.platform.rewards) button('rewardPrivacy', () => REWARD_COPY[this.language].privacy, () => ({x:panel().x+388,y:panel().y+240,width:342,height:54}), () => {void this.platform.rewards!.privacy();}, true);
     button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312, width: 300, height: 66 }), () => { this.toggleSettings(false, false); this.toggleHistory(true); }, true);
     button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312, width: 218, height: 66 }), () => this.toggleSettings(false), true);
@@ -706,7 +711,7 @@ export class CalendarPuzzleGame {
       this.saveState();
       return;
     }
-    this.language = saved.language ?? 'zh';
+    this.language = saved.language ?? 'en';
     this.completedDates = recordCalendarCompletion(saved.completedDates ?? [], '');
     this.starredDates = recordCalendarCompletion(saved.starredDates ?? [], '').filter(date => this.completedDates.includes(date));
     // Old saves did not track assistance, so they cannot establish a clean win.
