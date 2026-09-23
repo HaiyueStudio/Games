@@ -34,12 +34,15 @@ import { selectRule, type RuleKey } from './extra-rules';
 import { THEMES, THEME_IDS, type ThemeId } from './theme';
 import { autoCandidateFiltering, noteDisplayMasks, noteCrossedMasks } from './preferences';
 import { boardWidth } from './topology';
+import { completionCounts } from './statistics';
+import { exportPuzzleImage, paintExportIcon } from './export-image';
 import { GUI_FONT_CHARS } from './gui-font-chars';
 export interface GuiTextures {
   createCanvas2D(width: number, height: number): HTMLCanvasElement;
   textureFromCanvas(canvas: HTMLCanvasElement, key: string): GPUTexture;
   readAtlasPixels?: GuiFontOptions['readAtlasPixels'];
   icon(name: string): Promise<GPUTexture>;
+  saveImage(canvas: HTMLCanvasElement, filename: string): Promise<'photos' | 'download'>;
   dispose(): void;
 }
 function at(node: GuiElement, r: Rect) {
@@ -76,6 +79,13 @@ export class SudokuGui {
   readonly newPage = this.root.add(new GuiElement({ id: 'new-page', visible: false }));
   readonly settings = this.root.add(new GuiElement({ id: 'settings-page', visible: false }));
   readonly rulesPage = this.root.add(new GuiElement({ id: 'rules-page', visible: false }));
+  readonly statsPage = this.root.add(new GuiElement({ id: 'statistics-page', visible: false }));
+  readonly statsTitle = this.statsPage.add(new GuiLabel({ fontSize: 24 }));
+  readonly statsList = this.statsPage.add(new GuiScrollView({ inertia: true, inertiaStrength: 1, id: 'statistics-list', width: '100%', height: '100%' }));
+  private statsLabels: GuiLabel[] = [];
+  readonly statsBack: GuiButton;
+  readonly statsButton: GuiButton;
+  private exporting = false;
   readonly board = this.hud.add(new GuiImage({ id: 'board' }));
   readonly title = this.hud.add(new GuiLabel({ fontSize: 23 }));
   readonly mode = this.hud.add(new GuiLabel({ fontSize: 12 }));
@@ -87,6 +97,7 @@ export class SudokuGui {
   readonly keys: GuiButton[] = [];
   private digits: GuiImage[] = [];
   private keyLabels: GuiLabel[] = [];
+  private keyStrikes: GuiLabel[] = [];
   private iconNodes: GuiImage[] = [];
   readonly newButton: GuiButton;
   readonly rulesButton: GuiButton;
@@ -94,7 +105,7 @@ export class SudokuGui {
   readonly lesson = this.hud.add(new GuiElement({ id: 'lesson', visible: false }));
   readonly lessonTitle = this.lesson.add(new GuiLabel({ fontSize: 16 }));
   readonly lessonBody = this.lesson.add(
-    new GuiScrollView({ id: 'lesson-body', width: '100%', height: '100%' }),
+    new GuiScrollView({ inertia: true, inertiaStrength: 1, id: 'lesson-body', width: '100%', height: '100%' }),
   );
   private lessonLines: GuiLabel[] = [];
   private measureText?: (text: string, size: number) => number;
@@ -108,7 +119,7 @@ export class SudokuGui {
   readonly notice = this.newPage.add(new Paragraph());
   readonly start: GuiButton;
   readonly ruleList = this.newPage.add(
-    new GuiScrollView({ id: 'rule-list', width: '100%', height: '100%' }),
+    new GuiScrollView({ inertia: true, inertiaStrength: 1, id: 'rule-list', width: '100%', height: '100%' }),
   );
   readonly ruleRows = new Map<
     RuleKey,
@@ -172,6 +183,8 @@ export class SudokuGui {
     readonly wake: () => void,
     readonly viewport?: () => { width: number; height: number },
   ) {
+    this.help.body.inertia = true;
+    this.help.body.inertiaStrength = 1;
     this.system = new GuiSystem(engine, {
       loadOp: 'clear',
       font: {
@@ -212,11 +225,11 @@ export class SudokuGui {
       },
       () => controller.undo(),
       () => controller.input(0),
-      () => controller.hint(),
       () => controller.hint(true),
+      () => void this.exportImage(),
       () => this.open('settings'),
     ] as const;
-    ['notes', 'undo', 'erase', 'hint', 'explain', 'settings'].forEach((name, i) =>
+    ['notes', 'undo', 'erase', 'explain', 'export', 'settings'].forEach((name, i) =>
       this.tools.set(name, this.button(this.hud, '', name, actions[i]!)),
     );
     for (let i = 0; i < 9; i++) {
@@ -226,6 +239,10 @@ export class SudokuGui {
       this.keys.push(b);
       this.digits.push(b.add(new GuiImage({ disabled: true })));
       this.keyLabels.push(b.add(new GuiLabel({ fontSize: 30, textAlign: 'center' })));
+      // A separate GUI text layer draws the strike over either the label or LED image.
+      this.keyStrikes.push(b.add(new GuiLabel({
+        id: `key-strike-${i + 1}`, text: '—', fontSize: 30, textAlign: 'center', visible: false,
+      })));
     }
     this.newButton = this.button(this.hud, '', 'new', () => this.open('new'));
     this.rulesButton = this.button(this.hud, '', 'rules', () => this.open('rules'));
@@ -254,6 +271,7 @@ export class SudokuGui {
         label = row.add(new GuiLabel({ fontSize: 15 })),
         toggle = row.add(
           new GuiSwitch({
+            thumbTransitionMs: 200, colorTransitionMs: 200,
             id: `rule-${key}`,
             onChange: (value) => {
               const result = selectRule(this.draft, key, value);
@@ -273,6 +291,8 @@ export class SudokuGui {
       'rules-start',
       () => void controller.newGame({ ...this.draft }),
     );
+    this.statsButton = this.button(this.settings, '', 'statistics', () => this.open('statistics'));
+    this.statsBack = this.button(this.statsPage, '←', 'statistics-back', () => this.open('settings'));
     this.prefBack = this.button(this.settings, '←', 'preferences-done', () => this.open('game'));
     this.language = this.settings.add(
       new GuiSelect<Language>({
@@ -295,6 +315,7 @@ export class SudokuGui {
         detail = this.settings.add(new Paragraph()),
         toggle = this.settings.add(
           new GuiSwitch({
+            thumbTransitionMs: 200, colorTransitionMs: 200,
             id: key,
             onChange: (value) =>
               controller.setPreferences({ ...controller.preferences, [key]: value }),
@@ -371,13 +392,37 @@ export class SudokuGui {
   }
   async load() {
     for (const [name, b] of this.tools) {
-      const image = b.add(new GuiImage({ disabled: true, source: await this.textures.icon(name) }));
+      let source: GPUTexture;
+      if (name === 'export') {
+        const canvas = this.textures.createCanvas2D(96, 96);
+        paintExportIcon(canvas);
+        source = this.textures.textureFromCanvas(canvas, 'icon-export');
+      } else source = await this.textures.icon(name === 'explain' ? 'hint' : name);
+      const image = b.add(new GuiImage({ disabled: true, source }));
       this.iconNodes.push(image);
     }
     this.update();
   }
+  private async exportImage() {
+    const state = this.controller.session.state;
+    if (!state || this.exporting || this.controller.loading) return;
+    this.exporting = true;
+    this.controller.status = this.tr('exportBusy');
+    this.controller.changed();
+    try {
+      const image = exportPuzzleImage(state, this.controller.preferences, this.textures.createCanvas2D);
+      const destination = await this.textures.saveImage(image, `led-sudoku-${state.puzzle.seed}-${Date.now()}.png`);
+      this.controller.status = this.tr(destination === 'photos' ? 'exportSaved' : 'exportDownloaded');
+    } catch {
+      this.controller.status = this.tr('exportError');
+    } finally {
+      this.exporting = false;
+      if (!this.disposed) this.controller.changed();
+    }
+  }
   open(page: SudokuController['page']) {
     if (this.controller.loading) return;
+    this.system.stopAnimations();
     this.hideHelp();
     this.language.setOpen(false);
     this.theme.setOpen(false);
@@ -417,9 +462,10 @@ export class SudokuGui {
     );
   }
   get animating() {
-    return this.sweep.active;
+    return this.sweep.active || this.system.animating;
   }
   cancel() {
+    this.system.stopAnimations();
     this.hideHelp();
     this.sweep.cancel();
     this.language.setOpen(false);
@@ -451,7 +497,7 @@ export class SudokuGui {
       full = { x: 0, y: 0, width: this.width, height: this.height };
     this.root.root.rect = full;
     this.root.root.setStyle({ backgroundColor: colors.background, radius: 0 });
-    for (const page of [this.hud, this.newPage, this.settings, this.rulesPage]) at(page, full);
+    for (const page of [this.hud, this.newPage, this.settings, this.rulesPage, this.statsPage]) at(page, full);
     if (this.themeApplied !== prefs.theme) {
       this.themeApplied = prefs.theme;
       this.root.theme.colors = {
@@ -496,6 +542,7 @@ export class SudokuGui {
     this.newPage.setVisible(c.page === 'new');
     this.settings.setVisible(c.page === 'settings');
     this.rulesPage.setVisible(c.page === 'rules');
+    this.statsPage.setVisible(c.page === 'statistics');
     this.title.setText(this.tr('title'));
     at(this.title, { x: l.board.x, y: 12, width: Math.max(150, l.board.width - 150), height: 30 });
     at(this.clock, { x: l.board.x + l.board.width - 138, y: 10, width: 138, height: 38 });
@@ -527,7 +574,7 @@ export class SudokuGui {
         c.loading ||
           !state ||
           (name === 'undo' && !s.history.length) ||
-          (['hint', 'explain'].includes(name) && s.done),
+          (name === 'explain' && s.done) || (name === 'export' && this.exporting),
       );
       if (icon instanceof GuiImage) icon.setTint(b.disabled ? colors.border : colors.text);
       b.setStyle({
@@ -564,9 +611,13 @@ export class SudokuGui {
       b.setText('');
       const label = this.keyLabels[i]!;
       label.setVisible(!led);
-      label.setText(`${crosses[s.selected]! & (1 << i) && s.pencil ? '× ' : ''}${i + 1}`);
+      label.setText(String(i + 1));
       label.setStyle({ color: b.disabled ? colors.border : colors.text, opacity: 1 });
       at(label, r);
+      const strike = this.keyStrikes[i]!;
+      strike.setVisible(s.pencil && !!(crosses[s.selected]! & (1 << i)));
+      strike.setStyle({ color: colors.strike, opacity: 1 });
+      at(strike, r);
       this.digits[i]!.setVisible(led);
       at(this.digits[i]!, {
         x: r.x + r.width / 2 - 18,
@@ -661,6 +712,7 @@ export class SudokuGui {
     this.layoutNew(full);
     this.layoutSettings(full);
     this.layoutInfo(full);
+    if (c.page === 'statistics') this.layoutStatistics(full);
     this.confirmation.setTitle(this.tr('answerTitle'));
     this.confirmation.setMessage(this.tr('answerBody'));
     this.confirmation.setConfirmText(this.tr('answer'));
@@ -697,13 +749,13 @@ export class SudokuGui {
           x = parent.x;
         entry.row.rect = { x, y, width: w, height: 48 };
         at(entry.label, { x: x + 4, y: y + 12, width: w - 124, height: 23 });
-        at(entry.help, { x: x + w - 114, y: y + 5, width: 34, height: 34 });
+        at(entry.help, { x: x + w - 109, y: y + 10, width: 24, height: 24 });
         at(entry.toggle, { x: x + w - 63, y: y + 8, width: 50, height: 30 });
       };
       entry.row.setVisible(true);
       entry.label.setText(ruleCopy(this.controller.preferences.language, key)[0]);
       entry.help.setStyle({
-        radius: 17,
+        radius: 12,
         borderColor: colors.muted,
         color: colors.text,
         backgroundColor: 'transparent',
@@ -744,8 +796,10 @@ export class SudokuGui {
     }));
     this.theme.setValue(p.theme);
     this.theme.markDirty();
+    this.statsButton.setText(this.tr('statistics'));
+    at(this.statsButton, { x, y: r.height - 52, width: w, height: 40 });
     this.prefRows.forEach((row, i) => {
-      const y = 244 + i * Math.min(150, (r.height - 256) / 3),
+      const y = 244 + i * Math.min(150, (r.height - 312) / 3),
         title = (['manualCandidates', 'filter', 'boardCandidates'] as const)[i]!,
         detail = (['manualCandidatesDetail', 'filterDetail', 'boardCandidatesDetail'] as const)[i]!;
       row.label.show(this.tr(title), { x, y, width: w - 70, height: 45 }, 15, colors.text);
@@ -762,11 +816,29 @@ export class SudokuGui {
               ? 'requiresFilter'
               : detail,
         ),
-        { x, y: y + 48, width: w, height: Math.min(98, (r.height - 256) / 3 - 48) },
+        { x, y: y + 48, width: w, height: Math.min(98, (r.height - 312) / 3 - 48) },
         12,
         colors.muted,
       );
     });
+  }
+  private layoutStatistics(r: Rect) {
+    const colors = THEMES[this.controller.preferences.theme], w = Math.min(540, r.width - 32), x = (r.width - w) / 2;
+    this.statsTitle.setText(this.tr('statistics'));
+    at(this.statsTitle, { x, y: 18, width: w - 44, height: 32 });
+    at(this.statsBack, { x: x + w - 40, y: 12, width: 40, height: 40 });
+    const counts = completionCounts(this.controller.statistics);
+    const lines = [this.tr('statsTotal', { n: counts.total }), '', this.tr('statsDifficulty'),
+      ...(['easy', 'normal', 'hard'] as const).map(d => `${this.tr(d)}    ${counts.difficulty[d]}`),
+      '', this.tr('statsRules'), ...RULE_KEYS.map(key => `${ruleCopy(this.controller.preferences.language, key)[0]}    ${counts.rules[key]}`), '',
+      ...wrapGuiText(this.tr('statsNote'), w - 12, 15, this.measureText)];
+    while (this.statsLabels.length < lines.length) this.statsLabels.push(this.statsList.add(new GuiLabel({ fontSize: 15 })));
+    this.statsLabels.forEach((label, i) => {
+      label.setVisible(i < lines.length); label.setText(lines[i] ?? ''); label.setStyle({ color: colors.text });
+      label.layout = parent => { label.rect = { x: parent.x + 4, y: parent.y + i * 32, width: w - 12, height: 30 }; };
+    });
+    this.statsList.setContentHeight(lines.length * 32);
+    this.statsList.layout({ x, y: 70, width: w, height: r.height - 82 });
   }
   private layoutInfo(r: Rect) {
     const colors = THEMES[this.controller.preferences.theme],
@@ -834,8 +906,7 @@ export class SudokuGui {
     }
     this.board.setSource(this.textures.textureFromCanvas(this.boardSurface, 'board'));
     this.board.markDirty();
-    const colors = THEMES[c.preferences.theme],
-      cross = state.crossed?.[s.selected] ?? 0;
+    const colors = THEMES[c.preferences.theme];
     this.surfaces.forEach((canvas, i) => {
       const ctx = canvas.getContext('2d')!;
       ctx.clearRect(0, 0, 90, 100);
@@ -848,14 +919,6 @@ export class SudokuGui {
         this.keys[i]!.disabled ? colors.tube : colors.accent,
         colors.tube,
       );
-      if (s.pencil && cross & (1 << i)) {
-        ctx.strokeStyle = colors.strike;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(12, 86);
-        ctx.lineTo(72, 10);
-        ctx.stroke();
-      }
       this.digits[i]!.setSource(this.textures.textureFromCanvas(canvas, `key-${i}`));
       this.digits[i]!.markDirty();
     });

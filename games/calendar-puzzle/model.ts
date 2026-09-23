@@ -41,6 +41,8 @@ export interface CalendarPieceSaveState {
 
 export interface CalendarPuzzleSaveData {
   language?: CalendarLanguage;
+  /** Unknown/future appearances fall back without discarding puzzle progress. */
+  skin?: unknown;
   year?: number;
   completedDates?: string[];
   starredDates?: string[];

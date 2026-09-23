@@ -131,3 +131,66 @@ test('rule-help instruction has glyphs in all supported languages', async () => 
     for(const char of t(language,'holdHelp'))
       assert.ok(GUI_FONT_CHARS.includes(char), `${language}: missing glyph ${char}`);
 });
+
+test('completion ledger counts difficulty and every enabled rule exactly once across save/reload/undo', async () => {
+  const { statistics, recordCompletion, completionCounts } = await import('../led-sudoku/statistics.ts');
+  const state = structuredClone(fixture);
+  let stats = statistics(null);
+  assert.equal(recordCompletion(stats, state), stats, 'unfinished puzzle is not a completion');
+  state.board = [...state.solution]; state.assisted = false;
+  stats = recordCompletion(stats, state);
+  const counts = completionCounts(stats);
+  assert.equal(counts.total, 1);
+  assert.equal(counts.difficulty[state.puzzle.options.difficulty], 1);
+  for (const key of stats.completed[0].rules) assert.equal(counts.rules[key], 1);
+  stats = statistics(JSON.parse(JSON.stringify(stats)));
+  assert.equal(recordCompletion(stats, state), stats, 'same puzzle after reload or undo is deduplicated');
+  const revealed = structuredClone(state); revealed.assisted = true; revealed.puzzle.seed++;
+  assert.equal(recordCompletion(stats, revealed), stats, 'revealed answer is not a completion');
+  const next = structuredClone(state); next.puzzle.seed++; next.puzzle.options.difficulty = 'hard';
+  const updated = recordCompletion(stats, next);
+  assert.equal(completionCounts(updated).total, 2);
+  assert.equal(completionCounts(updated).difficulty.hard, counts.difficulty.hard + 1);
+  assert.equal(statistics({ completed: [null, {}, stats.completed[0], stats.completed[0]] }).completed.length, 1);
+});
+
+test('GUI controller persists statistics on final input and survives restart', () => {
+  let ledger = null;
+  const make = () => new SudokuController({ generate: async () => null, save: () => {}, preferences: () => {}, changed: () => {}, statistics: { read: () => ledger, write: value => { ledger = JSON.parse(JSON.stringify(value)); } } }, preferences({}));
+  const c = make(), state = structuredClone(fixture);
+  state.board = [...state.solution]; state.assisted = false;
+  const cell = state.puzzle.givens.findIndex((digit, i) => !digit && !state.puzzle.blocked[i]);
+  state.board[cell] = 0;
+  c.restore(state); c.session.select(cell); c.input(state.solution[cell]);
+  assert.equal(ledger.completed.length, 1);
+  c.undo(); c.input(state.solution[cell]);
+  assert.equal(ledger.completed.length, 1);
+  assert.equal(make().statistics.completed.length, 1);
+});
+
+test('export includes enabled rules in every language, grows to fit text and leaves the puzzle unchanged', async () => {
+  const { exportPuzzleImage } = await import('../led-sudoku/export-image.ts');
+  const { activeRuleDetails } = await import('../led-sudoku/i18n.ts');
+  const state = structuredClone(fixture);
+  state.puzzle.options.inequality = true;
+  state.puzzle.options.led = true;
+  const original = JSON.stringify(state);
+  for (const language of ['zh', 'en', 'ja']) {
+    const canvases = [];
+    const factory = (width, height) => {
+      const texts = [], draws = [];
+      const ctx = new Proxy({ measureText: text => ({ width: Array.from(text).length * 20 }), fillText: (text, x, y) => texts.push({ text, x, y }), drawImage: (...args) => draws.push(args) }, {
+        get: (target, key) => key in target ? target[key] : () => {},
+      });
+      const canvas = { width, height, texts, draws, getContext: () => ctx };
+      canvases.push(canvas); return canvas;
+    };
+    const image = exportPuzzleImage(state, preferences({ language, theme: 'light-blue' }), factory);
+    const text = image.texts.map(t => t.text).join('');
+    for (const rule of activeRuleDetails(state.puzzle, language)) assert(text.replace(/\s/g, '').includes(rule.replace(/\s/g, '')));
+    assert(image.texts.every(t => t.y + 42 < image.height));
+    assert.equal(image.draws[0][0], canvases[0]);
+    assert.equal(image.draws[0][0].width, 1260);
+    assert.equal(JSON.stringify(state), original);
+  }
+});

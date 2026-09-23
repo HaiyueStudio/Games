@@ -1,3 +1,4 @@
+import { statistics, recordCompletion, type SudokuStatistics } from './statistics';
 import { SudokuSession } from './gameplay-session';
 import { DEFAULT_OPTIONS, type Options, type Generated, type SaveData } from './rules';
 import { preferences, autoCandidateFiltering, type Preferences } from './preferences';
@@ -7,6 +8,7 @@ export interface SudokuPorts {
   save(state: SaveData): void;
   preferences(value: Preferences): void;
   changed(): void;
+  statistics?: { read(): unknown; write(value: SudokuStatistics): void };
 }
 /** One controller for Engine GUI on browser, Android and iOS. */
 export class SudokuController {
@@ -14,12 +16,14 @@ export class SudokuController {
   preferences: Preferences;
   loading = false;
   status = '';
-  page: 'game' | 'new' | 'settings' | 'rules' = 'game';
+  page: 'game' | 'new' | 'settings' | 'rules' | 'statistics' = 'game';
+  statistics: SudokuStatistics = statistics(null);
   lesson = -1;
   private revision = 0;
   readonly ports: SudokuPorts;
   constructor(ports: SudokuPorts, prefs: Preferences) {
     this.ports = ports;
+    try { this.statistics = statistics(ports.statistics?.read()); } catch {}
     this.preferences = preferences(prefs);
     this.session.filterCandidates = autoCandidateFiltering(this.preferences);
   }
@@ -35,7 +39,14 @@ export class SudokuController {
   }
   commit() {
     const s = this.session.snapshot();
-    if (s) this.ports.save(s);
+    if (s) {
+      this.ports.save(s);
+      const next = recordCompletion(this.statistics, s);
+      if (next !== this.statistics) {
+        try { this.ports.statistics?.write(next); this.statistics = next; }
+        catch { this.status = this.text('saveError'); }
+      }
+    }
     this.changed();
   }
   async newGame(options: Options = { ...DEFAULT_OPTIONS }, seed = Date.now() >>> 0) {

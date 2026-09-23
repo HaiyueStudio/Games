@@ -9,9 +9,9 @@ export interface CalendarRaster {
   canvas: (w: number, h: number) => HTMLCanvasElement;
   texture: ((canvas: HTMLCanvasElement, key: string) => unknown) | undefined;
 }
-export function calendarIconSource(name: CalendarIcon, raster: CalendarRaster): GuiImageSource {
+export function calendarIconSource(name: CalendarIcon, raster: CalendarRaster, accent = '#17847b'): GuiImageSource {
   const canvas = raster.canvas(128,128); canvas.width=128; canvas.height=128;
-  const c = canvas.getContext('2d')!; c.scale(2,2); c.strokeStyle='#17847b'; c.fillStyle='#17847b'; c.lineWidth=3.6; c.lineCap='round'; c.lineJoin='round';
+  const c = canvas.getContext('2d')!; c.scale(2,2); c.strokeStyle=accent; c.fillStyle=accent; c.lineWidth=3.6; c.lineCap='round'; c.lineJoin='round';
   const path=(points:number[][])=>{c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x!,y!):c.moveTo(x!,y!));c.stroke();};
   if(name==='settings') {
     // Draw inside a padded texture, independent of Android font glyph bearings.

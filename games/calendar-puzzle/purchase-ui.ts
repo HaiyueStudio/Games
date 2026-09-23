@@ -4,6 +4,7 @@ import type { CalendarRaster } from './hint-ui';
 import type { CalendarLanguage } from './locale';
 import type { CalendarPurchases } from './purchases';
 import type { calendarLayout } from './viewport';
+import { CalendarNetworkButtons, calendarNetworkAction } from './network-buttons';
 
 export const PURCHASE_COPY = {
   fr: {"title": "Version complète", "owned": "Version complète débloquée", "features": "Achat unique · Indices illimités, toutes dates, sans pub", "free": "Puzzle du jour gratuit. Historique conservé", "buy": "Acheter", "restore": "Restaurer les achats", "retry": "Réessayer", "today": "Aujourd’hui", "close": "Retour", "loading": "Connexion à la boutique…", "ready": "Prix de la boutique · Sans abonnement", "purchasing": "Confirmez l’achat dans la boutique…", "restoring": "Restauration des achats…", "pending": "Paiement en attente. Ne rachetez pas", "cancelled": "Achat annulé. Puzzle conservé", "offline": "Hors ligne. Reconnectez-vous et réessayez", "unavailable": "Produit indisponible. Réessayez plus tard", "error": "Vérification impossible. Réessayez", "revoked": "Achat révoqué. Fonctions payantes verrouillées", "restored": "Achat restauré", "empty": "Aucun achat à restaurer pour ce compte"},
@@ -30,11 +31,13 @@ export class CalendarPurchaseView {
   private readonly restore: GuiButton;
   private readonly retry: GuiButton;
   private readonly free: GuiElement;
+  private readonly network: CalendarNetworkButtons;
   constructor(private readonly options: {
     root: GuiRoot; layout: () => ReturnType<typeof calendarLayout>; language: () => CalendarLanguage;
     raster: CalendarRaster; purchases: CalendarPurchases; close: () => void; today: () => void;
     register: (id: string, element: GuiElement) => void;
   }) {
+    this.network = new CalendarNetworkButtons(options.root);
     this.priceSurface = new CalendarRasterSurface(options.raster.canvas, !!options.raster.texture);
     const box = () => ({ x: (options.layout().width - 820) / 2, y: (options.layout().height - 470) / 2 });
     const place = <T extends GuiElement>(id: string, element: T, x: number, y: number, width: number, height: number): T => {
@@ -45,24 +48,25 @@ export class CalendarPurchaseView {
     backdrop.layout = () => { backdrop.rect = { x: 0, y: 0, width: options.layout().width, height: options.layout().height }; };
     place('purchasePanel', new GuiElement({ style: { backgroundColor: '#f8fcf9', radius: 20 } }), 0, 0, 820, 470);
     const label = (id: string, value: () => string, y: number, size = 23) => {
-      const element = place(id, new GuiLabel({ text: value(), textAlign: 'center', style: { color: '#183c3b' } }), 30, y, 760, 48);
+      const element = place(id, new GuiLabel({ text: value(), textAlign: 'center' }), 30, y, 760, 48);
       element.layout = () => { element.rect = { x: box().x + 30, y: box().y + y, width: 760, height: 48 }; element.setFontSize(size * options.layout().scale); };
       this.labels.push(() => element.setText(value()));
       return element;
     };
-    const button = (id: string, value: () => string, x: number, y: number, width: number, action: () => void) => {
-      const element = place(id, new GuiButton({ text: value(), onClick: action }), x, y, width, 60);
+    const button = (id: string, value: () => string, x: number, y: number, width: number, action: () => void, network = false) => {
+      const element: GuiButton = place(id, new GuiButton({ text: value(), onClick: network ? calendarNetworkAction(() => element, action) : action }), x, y, width, 60);
+      if (network) this.network.register(element);
       this.labels.push(() => { element.text = value(); element.markDirty(); }); return element;
     };
     label('purchaseTitle', () => this.state.entitled ? this.copy.owned : this.copy.title, 25, 32);
     label('purchaseFeatures', () => this.copy.features, 85);
     this.free = label('purchaseFree', () => this.copy.free, 125, 20);
     label('purchaseStatus', () => this.state.entitled && this.state.phase === 'ready' ? '' : this.copy[this.state.phase], 180, 21);
-    this.buy = button('purchaseBuy', () => this.state.price ? '' : this.copy.buy, 40, 250, 360, () => { void options.purchases.purchase(); });
+    this.buy = button('purchaseBuy', () => this.state.price ? '' : this.copy.buy, 40, 250, 360, () => { void options.purchases.purchase(); }, true);
     this.priceImage = place('purchasePrice', new GuiImage({ disabled: true }), 50, 256, 340, 48);
-    this.restore = button('purchaseRestore', () => this.copy.restore, 420, 250, 360, () => { void options.purchases.restore(); });
+    this.restore = button('purchaseRestore', () => this.copy.restore, 420, 250, 360, () => { void options.purchases.restore(); }, true);
     this.restore.layout = () => { this.restore.rect = { x: box().x + (this.state.entitled ? 230 : 420), y: box().y + 250, width: 360, height: 60 }; };
-    this.retry = button('purchaseRetry', () => this.copy.retry, 40, 335, 230, () => { void options.purchases.refresh(); });
+    this.retry = button('purchaseRetry', () => this.copy.retry, 40, 335, 230, () => { void options.purchases.refresh(); }, true);
     button('purchaseToday', () => this.copy.today, 295, 335, 230, options.today);
     button('purchaseClose', () => this.copy.close, 550, 335, 230, options.close);
     this.setVisible(false);
@@ -71,28 +75,34 @@ export class CalendarPurchaseView {
   private get state() { return this.options.purchases.snapshot(); }
   setVisible(visible: boolean): void { this.visible = visible; for (const element of this.controls) element.setVisible(visible); this.refresh(); }
   dispose(): void { this.priceSurface.dispose(); }
+  get isAnimating(): boolean { return this.visible && this.network.isAnimating; }
+  update(time: number): void { this.network.update(time); }
   refresh(): void {
     for (const label of this.labels) label();
     const state = this.state;
     this.buy.setVisible(this.visible && !state.entitled);
     this.free.setVisible(this.visible && !state.entitled);
     this.buy.disabled = state.busy || state.entitled || !state.canPurchase || !state.price || state.phase === 'pending';
-    this.restore.disabled = state.busy;
-    this.retry.disabled = state.busy;
+    this.restore.disabled = state.busy || state.phase === 'loading';
+    this.retry.disabled = state.busy || state.phase === 'loading';
+    this.network.set(this.buy, !state.entitled && (state.phase === 'loading' || (state.busy && state.phase === 'purchasing')));
+    this.network.set(this.restore, state.phase === 'loading' || (state.busy && state.phase === 'restoring'));
+    this.network.set(this.retry, state.phase === 'loading');
     // Rasterize the exact store string using the platform font. A fixed glyph
     // atlas cannot anticipate every currency, script or non-breaking separator.
     const caption = state.price && !state.entitled ? `${this.copy.buy} · ${state.price}` : '';
-    const key = `${caption}:${this.buy.disabled}`;
+    const color = this.buy.disabled ? this.options.root.theme.colors.textMuted : this.options.root.theme.colors.text;
+    const key = `${caption}:${this.buy.disabled}:${color}`;
     if (caption && key !== this.priceCaption) {
       const canvas = this.priceSurface.acquire(680, 96), c = canvas.getContext('2d')!;
       c.font = '500 46px sans-serif';
       const width = c.measureText(caption).width;
       if (width > 660) c.font = `500 ${46 * 660 / width}px sans-serif`;
-      c.fillStyle = this.buy.disabled ? '#52716a' : '#183c3b'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(caption, 340, 48);
       this.priceImage.setSource((this.options.raster.texture?.(canvas, 'calendar-store-price') ?? canvas) as GuiImageSource);
     }
-    this.priceCaption = key; this.priceImage.setVisible(this.visible && !!caption);
+    this.priceCaption = key; this.priceImage.setVisible(this.visible && !!caption && !this.network.loading(this.buy));
     this.buy.markDirty(); this.restore.markDirty(); this.retry.markDirty();
   }
 }

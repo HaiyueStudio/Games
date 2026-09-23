@@ -54,7 +54,7 @@ export class CalendarCelebration {
     const source = options.texture?.(canvas, 'calendar-victory-thumb') ?? canvas;
     place('victoryThumb', new GuiImage({ source: source as HTMLCanvasElement | GPUTexture, disabled: true }), () => this.thumbRect);
     const label = (id: string, caption: () => string, y: number, size: number) => {
-      const control = place(id, new GuiLabel({ text: caption(), textAlign: 'center', style: { color: '#245c47' } }), () => ({ x: panel().x + 24, y: panel().y + y, width: 532, height: 48 }));
+      const control = place(id, new GuiLabel({ text: caption(), textAlign: 'center' }), () => ({ x: panel().x + 24, y: panel().y + y, width: 532, height: 48 }));
       control.layout = () => { control.rect = { x: panel().x + 24, y: panel().y + y, width: 532, height: 48 }; control.setFontSize(size * options.layout().scale); };
       this.captions.push(() => control.setText(caption()));
     };

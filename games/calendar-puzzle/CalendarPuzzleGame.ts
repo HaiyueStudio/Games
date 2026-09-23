@@ -1,6 +1,7 @@
 import { CalendarRewardView, REWARD_COPY, REWARD_GLYPHS } from './reward-ui';
 import type { CalendarRewards } from './rewards';
 import { CalendarPurchaseView, PURCHASE_COPY, PURCHASE_GLYPHS } from './purchase-ui';
+import { CalendarNetworkButtons, calendarNetworkAction } from './network-buttons';
 import { canPlayCalendarDate, type CalendarPurchases } from './purchases';
 import { CalendarAudio, type CalendarAudioBackend } from './audio/CalendarAudio';
 import { CalendarBrowserAudio } from './audio/BrowserAudio';
@@ -27,7 +28,7 @@ import { CalendarRasterSurface } from './raster-surface';
 import { type CalendarPlacement } from './solver';
 import { CalendarHintOverlay, calendarIconSource } from './hint-ui';
 import { calendarMotionCells, type CalendarPiecePose } from './motion';
-import { CALENDAR_STYLE } from './calendar-style';
+import { CALENDAR_SKINS, CALENDAR_SKIN_IDS, calendarSkinId, SKIN_COPY, type CalendarSkinId } from './calendar-style';
 import { CalendarHistoryView } from './calendar-ui';
 import { CalendarCelebration } from './celebration';
 import { calendarDateKey, calendarDaysInMonth, calendarWeekday, recordCalendarCompletion, recordCalendarResult } from './model';
@@ -164,9 +165,15 @@ export class CalendarPuzzleGame {
   private layout = calendarLayout(1600, 720);
   private readonly textLayouts = new Map<TextVisual, () => Rect>();
   private language: CalendarLanguage = 'en';
+  private skin: CalendarSkinId = 'white';
+  private appearanceDirty = false;
+  private languageDirty = false;
+  private get appearance() { return CALENDAR_SKINS[this.skin]; }
+  private readonly appearanceUpdates: Array<() => void> = [];
   private settingsOpen = false;
   private languageSelect?: GuiSelect<CalendarLanguage>;
   private purchaseView?: CalendarPurchaseView;
+  private networkButtons?: CalendarNetworkButtons;
   private rewardView?: CalendarRewardView;
   private hintBadge?: GuiLabel;
   private guiRoot!: CalendarGuiRoot;
@@ -185,10 +192,17 @@ export class CalendarPuzzleGame {
   private readonly motions = new Map<PieceState, { from: CalendarPiecePose; to: CalendarPiecePose; start: number; duration: number; lift: number }>();
   private get copy() { return CALENDAR_COPY[this.language]; }
   private readonly updateFrame = ({ detail: { time } }: { detail: { time: number } }): void => {
+    // GUI actions run while a render pass is being recorded. Replace board/icon
+    // textures at the next update boundary, before any pass references them.
+    if (this.appearanceDirty) { this.appearanceDirty = false; this.refreshAppearance(); }
+    if (this.languageDirty) { this.languageDirty = false; this.refreshLanguage(); }
     this.resizeView();
     this.updateSelectionPulse(time);
     this.celebration?.update();
     this.hintOverlay?.update(time);
+    this.purchaseView?.update(time);
+    this.rewardView?.update(time);
+    this.networkButtons?.update(time);
     this.updateMotions();
     this.audio.update();
   };
@@ -302,13 +316,14 @@ export class CalendarPuzzleGame {
   }
   async flushSave(): Promise<void> { await this.saves.flush(); }
   needsAnimationFrame(): boolean {
-    return !this.disposed && (this.motions.size > 0 || this.celebration?.isAnimating === true
+    return !this.disposed && (this.appearanceDirty || this.languageDirty || this.motions.size > 0 || this.celebration?.isAnimating === true
       || (!!this.selectedPiece && performance.now() < this.selectionPulseUntil)
-      || this.hintOverlay?.isAnimating === true || this.audio.hasPending);
+      || this.hintOverlay?.isAnimating === true || this.audio.hasPending
+      || this.purchaseView?.isAnimating === true || this.rewardView?.isAnimating === true || this.networkButtons?.isAnimating === true);
   }
   snapshot() {
-    return { solver: this.solver.snapshot(), rewards: this.platform.rewards?.snapshot(), rewardOpen: this.rewardView?.visible ?? false, languageMenu: this.languageSelect ? { open: this.languageSelect.open, popup: this.languageSelect.popupRect, optionHeight: this.languageSelect.optionHeight, scrollY: this.languageSelect.scrollY, values: this.languageSelect.options.map(option => option.value) } : null, purchases: this.platform.purchases?.snapshot(), purchaseOpen: this.purchaseView?.visible ?? false, audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
-      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect, visible: value.visible, text: value instanceof GuiButton ? value.text : undefined, hovered: value.hovered, pressed: value.pressed, focused: value.focused }])),
+    return { solver: this.solver.snapshot(), rewards: this.platform.rewards?.snapshot(), rewardOpen: this.rewardView?.visible ?? false, languageMenu: this.languageSelect ? { open: this.languageSelect.open, popup: this.languageSelect.popupRect, optionHeight: this.languageSelect.optionHeight, scrollY: this.languageSelect.scrollY, values: this.languageSelect.options.map(option => option.value) } : null, purchases: this.platform.purchases?.snapshot(), purchaseOpen: this.purchaseView?.visible ?? false, audio: this.audio.snapshot(), hintBusy: this.hintBusy, hint: this.hintOverlay.placement, hintCompatible: this.hintCompatible, animating: this.motions.size, language: this.language, skin: this.skin, settingsOpen: this.settingsOpen, historyOpen: this.historyOpen, history: this.historyView.snapshot(), completedDates: [...this.completedDates], starredDates: [...this.starredDates], hintUsed: this.hintUsed, celebrating: this.celebration.visible, year: this.selectedYear, board: this.layout.board, tray: this.layout.tray,
+      ui: Object.fromEntries([...this.ui].map(([key, value]) => [key, { ...value.rect, visible: value.visible, disabled: value.disabled, text: value instanceof GuiButton || value instanceof GuiLabel ? value.text : undefined, hovered: value.hovered, pressed: value.pressed, focused: value.focused }])),
       month: this.selectedMonth, day: this.selectedDay, weekday: this.selectedWeekday,
       dragging: !!this.drag, placed: this.pieces.filter(piece => piece.placed).length,
       occupied: this.occupancy.size, pieces: this.pieces.map(piece => ({ id: piece.def.id,
@@ -387,10 +402,10 @@ export class CalendarPuzzleGame {
 
   private buildStaticUI(): void {
     this.responsiveText('Background', '', () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }),
-      { backgroundColor: '#f4f8f5', borderWidth: 0, resolutionScale: 1 }, 0.01);
-    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width - 324, height: 56 }), this.labelStyle(40, '#183c3b', 800, 'left'), 0.2);
-    this.statusVisual = this.responsiveText('Subtitle', this.copy.help, () => ({ x: this.layout.edge, y: this.layout.height - 64, width: this.layout.tray.width, height: 34 }), this.labelStyle(19, '#52716a', 500, 'left'), 0.2);
-    this.responsiveText('BoardBack', '', () => ({ x: this.layout.board.x - 14, y: this.layout.board.y - 14, width: 536, height: 610 }), this.cardStyle(CALENDAR_STYLE.panel.background, CALENDAR_STYLE.panel.border, CALENDAR_STYLE.panel.radius / 2), 0.05);
+      { backgroundColor: this.appearance.colors.background, borderWidth: 0, resolutionScale: 1 }, 0.01);
+    this.titleVisual = this.responsiveText('Title', this.copy.title, () => ({ x: this.layout.edge, y: 24, width: this.layout.tray.width - 324, height: 56 }), this.labelStyle(40, this.appearance.colors.text, 800, 'left'), 0.2);
+    this.statusVisual = this.responsiveText('Subtitle', this.copy.help, () => ({ x: this.layout.edge, y: this.layout.height - 64, width: this.layout.tray.width, height: 34 }), this.labelStyle(19, this.appearance.colors.textMuted, 500, 'left'), 0.2);
+    this.responsiveText('BoardBack', '', () => ({ x: this.layout.board.x - 14, y: this.layout.board.y - 14, width: 536, height: 610 }), this.cardStyle(this.appearance.panel.background, this.appearance.panel.border, this.appearance.panel.radius / 2), 0.05);
   }
 
   private buildBoard(): void {
@@ -427,12 +442,9 @@ export class CalendarPuzzleGame {
 
   private setupGui(): void {
     const rootEntity = new Entity('CalendarPuzzleGui');
-    const root = this.guiRoot = new CalendarGuiRoot({ theme: { fontSize: 25, radius: 10, colors: {
-      text: '#183c3b', textMuted: '#52716a', primary: '#17847b', danger: '#d14d58', background: '#f4f8f5',
-      surface: '#ffffff', border: '#b7d6c8', hover: '#d9eee6', active: '#bde0d3', disabled: '#91a39d',
-    } } });
-    const policyRow = this.platform.openPrivacyPolicy ? 70 : 0;
-    const panel = () => ({ x: (this.layout.width - 780) / 2, y: (this.layout.height - 420 - policyRow) / 2, width: 780, height: 420 + policyRow });
+    const root = this.guiRoot = new CalendarGuiRoot({ theme: { fontSize: 25, radius: 10, colors: { ...this.appearance.colors } } });
+    const privacyVisible = () => { const state = this.platform.rewards?.snapshot(); return !!state && (state.initializing || state.privacyRequired); };
+    const panel = () => { const height = privacyVisible() ? 542 : 462; return { x: (this.layout.width - 780) / 2, y: (this.layout.height - height) / 2, width: 780, height }; };
     const place = <T extends GuiElement>(id: string, element: T, rect: () => Rect, setting = false): T => {
       element.layout = () => { element.rect = rect(); };
       root.add(element); this.ui.set(id, element);
@@ -442,10 +454,20 @@ export class CalendarPuzzleGame {
     };
     const button = (id: string, caption: () => string, rect: () => Rect, action: () => void, setting = false) => {
       const element = place(id, new GuiButton({ text: caption(), onClick: action }), rect, setting);
-      this.localized.push(() => { element.text = caption(); element.markDirty(); }); return element;
+      this.localized.push(() => { element.text = caption(); element.markDirty(); });
+      if (setting && (id === 'settingsPurchases' || id === 'privacyPolicy' || id.startsWith('skin_'))) {
+        const captionLabel = place(id + 'Caption', new GuiLabel({ text: caption(), textAlign: 'center' }), rect, true);
+        captionLabel.layout = () => {
+          captionLabel.rect = rect();
+          const text = caption(), units = [...text].reduce((sum, char) => sum + (/[\u2e80-\uffef]/u.test(char) ? 1 : .67), 0);
+          captionLabel.setFontSize(Math.min(25, (rect().width - 28) / Math.max(1, units)) * this.layout.scale);
+        };
+        this.localized.push(() => { element.setText(''); captionLabel.setText(caption()); });
+      }
+      return element;
     };
     const label = (id: string, caption: () => string, rect: () => Rect, size = 22) => {
-      const element = place(id, new GuiLabel({ text: caption(), style: { color: '#52716a' } }), rect, true);
+      const element = place(id, new GuiLabel({ text: caption() }), rect, true);
       element.layout = () => { element.rect = rect(); element.setFontSize(size * this.layout.scale); };
       this.localized.push(() => element.setText(caption()));
     };
@@ -471,26 +493,41 @@ export class CalendarPuzzleGame {
     }
     this.hintOverlay = new CalendarHintOverlay(root, () => this.layout, raster);
     button('calendar', () => `${this.copy.calendar} · ${this.selectedYear}/${this.selectedMonth}/${this.selectedDay}`, () => ({ x: this.layout.board.x, y: 12, width: this.layout.board.width - 76, height: 56 }), () => this.toggleHistory(!this.historyOpen));
-    this.historyView = new CalendarHistoryView({ root, layout: () => this.layout, language: () => this.language, register: (id, element) => this.ui.set(id, element), choose: (year, month, day) => this.chooseDate(year, month, day), close: () => this.toggleHistory(false) });
+    this.historyView = new CalendarHistoryView({ root, skin: () => this.appearance, layout: () => this.layout, language: () => this.language, register: (id, element) => this.ui.set(id, element), choose: (year, month, day) => this.chooseDate(year, month, day), close: () => this.toggleHistory(false) });
     place('backdrop', new GuiElement({ style: { backgroundColor: 'rgba(22,51,47,0.24)', radius: 0 }, onClick: () => this.toggleSettings(false) }), () => ({ x: 0, y: 0, width: this.layout.width, height: this.layout.height }), true);
     place('panel', new GuiElement({ style: { backgroundColor: '#f8fcf9', radius: 22 } }), panel, true);
     label('settingsTitle', () => this.copy.settings, () => ({ x: panel().x + 38, y: panel().y + 24, width: 600, height: 52 }), 34);
-    label('languageLabel', () => this.copy.language, () => ({ x: panel().x + 38, y: panel().y + 106, width: 600, height: 36 }));
+    button('settingsClose', () => '×', () => ({ x: panel().x + 684, y: panel().y + 22, width: 56, height: 56 }), () => this.toggleSettings(false), true);
+    label('languageLabel', () => this.copy.language, () => ({ x: panel().x + 38, y: panel().y + 100, width: 600, height: 36 }));
     const languageSelect = this.languageSelect = place('languageSelect', new GuiSelect<CalendarLanguage>({
       value: this.language, options: CALENDAR_LANGUAGES.map(option => ({ ...option })),
       optionHeight: 56, maxVisibleOptions: 6, onChange: language => this.setLanguage(language),
-    }), () => ({ x: panel().x + 38, y: panel().y + 140, width: 692, height: 64 }), true);
+    }), () => ({ x: panel().x + 38, y: panel().y + 138, width: 704, height: 58 }), true);
     this.localized.push(() => languageSelect.setValue(this.language));
+    label('skinLabel', () => SKIN_COPY[this.language].label, () => ({ x: panel().x + 38, y: panel().y + 220, width: 600, height: 32 }));
+    for (const [index, skin] of CALENDAR_SKIN_IDS.entries()) {
+      const rect = () => ({ x: panel().x + 38 + index * 240, y: panel().y + 264, width: 224, height: 76 });
+      const control = button(`skin_${skin}`, () => `${this.skin === skin ? '✓ ' : ''}${SKIN_COPY[this.language][skin]}`, rect, () => this.setSkin(skin), true);
+      this.appearanceUpdates.push(() => {
+        const palette = CALENDAR_SKINS[skin];
+        control.setStyle({ backgroundColor: palette.colors.surface, borderColor: this.skin === skin ? palette.colors.primary : palette.colors.border });
+        this.ui.get(`skin_${skin}Caption`)?.setStyle({ color: palette.colors.text });
+      });
+    }
+    const bothLinks = !!this.platform.purchases && !!this.platform.openPrivacyPolicy;
     if (this.platform.purchases) button('settingsPurchases', () => this.platform.purchases!.snapshot().entitled ? PURCHASE_COPY[this.language].restore : PURCHASE_COPY[this.language].title,
-      () => ({ x: panel().x + 38, y: panel().y + 240, width: this.platform.rewards ? 334 : 692, height: 54 }), () => {
+      () => ({ x: panel().x + 38, y: panel().y + 370, width: bothLinks ? 342 : 704, height: 54 }), () => {
         this.togglePurchase(true);
         if (this.platform.purchases!.snapshot().entitled) void this.platform.purchases!.restore();
       }, true);
-    if (this.platform.rewards) button('rewardPrivacy', () => REWARD_COPY[this.language].privacy, () => ({x:panel().x+388,y:panel().y+240,width:342,height:54}), () => {void this.platform.rewards!.privacy();}, true);
     if (this.platform.openPrivacyPolicy) button('privacyPolicy', () => REWARD_COPY[this.language].policy,
-      () => ({ x: panel().x + 38, y: panel().y + 306, width: 692, height: 54 }), () => this.platform.openPrivacyPolicy?.(), true);
-    button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312 + policyRow, width: 300, height: 66 }), () => { this.toggleSettings(false, false); this.toggleHistory(true); }, true);
-    button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312 + policyRow, width: 218, height: 66 }), () => this.toggleSettings(false), true);
+      () => ({ x: panel().x + (bothLinks ? 400 : 38), y: panel().y + 370, width: bothLinks ? 342 : 704, height: 54 }), () => this.platform.openPrivacyPolicy?.(), true);
+    if (this.platform.rewards) {
+      this.networkButtons = new CalendarNetworkButtons(root);
+      const privacy: GuiButton = button('rewardPrivacy', () => REWARD_COPY[this.language].privacy, () => ({ x: panel().x + 38, y: panel().y + 450, width: 704, height: 54 }),
+        calendarNetworkAction(() => privacy, () => {void this.platform.rewards!.privacy();}), true);
+      this.networkButtons.register(privacy);
+    }
     this.celebration = new CalendarCelebration({ root, layout: () => this.layout, language: () => this.language, canvas: (w, h) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas, register: (id, element) => this.ui.set(id, element), close: history => this.closeCelebration(history) });
     if (this.platform.purchases) this.purchaseView = new CalendarPurchaseView({
       root, raster, layout: () => this.layout, language: () => this.language, purchases: this.platform.purchases,
@@ -503,7 +540,8 @@ export class CalendarPuzzleGame {
       use:()=>{this.toggleRewards(false);void this.requestHint();}, buy:()=>{this.toggleRewards(false);this.togglePurchase(true);},
     });
     rootEntity.addComponent(root); this.world.addEntity(rootEntity);
-    this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { ...this.platform.guiFont, chars: [...new Set(CALENDAR_GLYPHS + PURCHASE_GLYPHS + REWARD_GLYPHS + JSON.stringify(CALENDAR_LANGUAGES))].join(''), fontSize: 40, atlasSize: 2048 } }));
+    this.scene.addSystem(new GuiSystem(this.engine, { loadOp: 'load', font: { ...this.platform.guiFont, chars: [...new Set(CALENDAR_GLYPHS + JSON.stringify(SKIN_COPY) + PURCHASE_GLYPHS + REWARD_GLYPHS + JSON.stringify(CALENDAR_LANGUAGES))].join(''), fontSize: 40, atlasSize: 2048 } }));
+    this.refreshAppearance();
     this.refreshLanguage();
   }
   private canPlayDate(year = this.selectedYear, month = this.selectedMonth, day = this.selectedDay): boolean {
@@ -519,7 +557,13 @@ export class CalendarPuzzleGame {
     if (!state) return;
     this.hintBadge?.setText(state.unlimited ? '∞' : String(state.free+state.credits));
     this.rewardView?.refresh();
-    this.ui.get('rewardPrivacy')?.setVisible(this.settingsOpen && state.privacyRequired);
+    const privacy = this.ui.get('rewardPrivacy') as GuiButton | undefined;
+    if (privacy) {
+      privacy.setVisible(this.settingsOpen && (state.initializing || state.privacyRequired));
+      privacy.disabled = state.initializing || state.busy;
+      privacy.setText(REWARD_COPY[this.language].privacy);
+      this.networkButtons?.set(privacy, state.initializing || (state.operation === 'privacy' && state.busy && !state.presenting));
+    }
     this.platform.requestRender?.();
   }
   private toggleRewards(open: boolean): void {
@@ -544,14 +588,48 @@ export class CalendarPuzzleGame {
     for (const control of this.settingControls) control.setVisible(open);
     this.refreshRewards();
   }
+  private setSkin(skin: CalendarSkinId): void {
+    if (this.skin === skin) return;
+    this.skin = skin;
+    this.audio.cue('settings');
+    this.appearanceDirty = true; this.languageDirty = true; this.saveState();
+    this.platform.requestRender?.();
+  }
+  private refreshAppearance(): void {
+    const palette = this.appearance;
+    Object.assign(this.guiRoot.theme.colors, palette.colors);
+    for (const [visual] of this.textLayouts) {
+      if (visual.key === 'Background') this.setTextStyle(visual, { ...visual.style, backgroundColor: palette.colors.background });
+      if (visual.key === 'BoardBack') this.setTextStyle(visual, this.cardStyle(palette.panel.background, palette.panel.border, palette.panel.radius / 2));
+    }
+    if (this.titleVisual) this.setTextStyle(this.titleVisual, { ...this.titleVisual.style, color: palette.colors.text });
+    if (this.statusVisual) this.setTextStyle(this.statusVisual, { ...this.statusVisual.style, color: palette.colors.textMuted });
+    this.updateBoardTargets();
+    for (const id of ['panel', 'purchasePanel', 'rewardPanel', 'victoryPanel']) this.ui.get(id)?.setStyle({ backgroundColor: palette.colors.surface, borderColor: palette.colors.border });
+    for (const id of ['backdrop', 'purchaseBackdrop', 'rewardBackdrop', 'victoryBackdrop']) this.ui.get(id)?.setStyle({ backgroundColor: palette.backdrop });
+    this.ui.get('calendarPanel')?.setStyle({ backgroundColor: palette.panel.border });
+    this.ui.get('calendarPanelFill')?.setStyle({ backgroundColor: palette.panel.background });
+    this.ui.get('completedLegend')?.setStyle({ backgroundColor: palette.completed });
+    for (let i = 0; i < 42; i++) this.ui.get(`calendarStar${i}`)?.setStyle({ color: palette.star });
+    this.ui.get('shuffleDivider')?.setStyle({ backgroundColor: palette.colors.border });
+    this.hintBadge?.setStyle({ color: palette.colors.primary, backgroundColor: palette.colors.surface });
+    const raster = { canvas: (w: number, h: number) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas };
+    for (const icon of ['settings', 'rotate', 'flip', 'hint', 'shuffle'] as const) {
+      (this.ui.get(icon + 'Icon') as GuiImage).setSource(calendarIconSource(icon, raster, palette.colors.primary));
+    }
+    for (const update of this.appearanceUpdates) update();
+    this.historyView.refresh(); this.purchaseView?.refresh(); this.rewardView?.refresh();
+    for (const control of this.ui.values()) control.markDirty();
+    this.guiRoot.root.markDirty();
+  }
   private setLanguage(language: CalendarLanguage): void {
     if (language !== this.language) this.audio.cue('settings');
-    this.language = language; this.refreshLanguage(); this.saveState();
+    this.language = language; this.languageDirty = true; this.saveState(); this.platform.requestRender?.();
   }
   private refreshLanguage(): void {
-    this.refreshRewards();
     this.purchaseView?.refresh();
     for (const localize of this.localized) localize();
+    this.refreshRewards();
     this.historyView.refresh();
     if (this.titleVisual) this.setText(this.titleVisual, this.copy.title);
     for (const cell of BOARD_CELLS) { const visual = this.boardMats.get(cellKey(cell.row, cell.col)); if (visual) this.setText(visual, this.cellLabel(cell)); }
@@ -716,6 +794,8 @@ export class CalendarPuzzleGame {
       return;
     }
     this.language = saved.language ?? 'en';
+    this.skin = calendarSkinId(saved.skin);
+    this.refreshAppearance();
     this.completedDates = recordCalendarCompletion(saved.completedDates ?? [], '');
     this.starredDates = recordCalendarCompletion(saved.starredDates ?? [], '').filter(date => this.completedDates.includes(date));
     // Old saves did not track assistance, so they cannot establish a clean win.
@@ -754,7 +834,7 @@ export class CalendarPuzzleGame {
     this.saves.save({
       year: this.selectedYear, completedDates: [...this.completedDates],
       starredDates: [...this.starredDates], hintUsed: this.hintUsed,
-      language: this.language, layoutVersion: 2, layoutWidth: this.layout.width, layoutHeight: this.layout.height,
+      language: this.language, skin: this.skin, layoutVersion: 2, layoutWidth: this.layout.width, layoutHeight: this.layout.height,
       month: this.selectedMonth,
       day: this.selectedDay,
       weekday: this.selectedWeekday,
@@ -1120,7 +1200,7 @@ export class CalendarPuzzleGame {
       ...style,
       width: Math.max(1, Math.floor(visual.rect.width)),
       height: Math.max(1, Math.floor(visual.rect.height)),
-      resolutionScale: 2,
+      resolutionScale: style.resolutionScale ?? 2,
     };
     visual.material.texture = this.drawTextTexture(visual.text, visual.style, visual.key);
   }
@@ -1243,10 +1323,10 @@ export class CalendarPuzzleGame {
 
   private cellStyle(target: boolean): CssMaterialStyle {
     return {
-      backgroundColor: target ? CALENDAR_STYLE.selected.background : CALENDAR_STYLE.cell.background,
-      borderColor: target ? CALENDAR_STYLE.selected.border : CALENDAR_STYLE.cell.border,
+      backgroundColor: target ? this.appearance.selected.background : this.appearance.cell.background,
+      borderColor: target ? this.appearance.selected.border : this.appearance.cell.border,
       borderWidth: target ? 4 : 2,
-      borderRadius: CALENDAR_STYLE.cell.radius,
+      borderRadius: this.appearance.cell.radius,
       padding: 0,
       textAlign: 'center',
       verticalAlign: 'middle',
@@ -1254,7 +1334,7 @@ export class CalendarPuzzleGame {
       lineHeight: 1,
       fontFamily: 'Arial, Helvetica, sans-serif',
       fontWeight: 900,
-      color: target ? CALENDAR_STYLE.selected.text : CALENDAR_STYLE.cell.text,
+      color: target ? this.appearance.selected.text : this.appearance.cell.text,
     };
   }
 

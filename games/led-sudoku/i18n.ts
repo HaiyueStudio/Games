@@ -4,6 +4,16 @@ export const LANGUAGES: readonly Language[] = ['zh', 'en', 'ja'];
 export const LANGUAGE_NAMES = ['中文', 'English', '日本語'];
 export function languageOf(value: string): Language { return value.startsWith('zh') ? 'zh' : value.startsWith('ja') ? 'ja' : 'en'; }
 const copy = {
+  statistics: ['通关记录', 'Completed puzzles', 'クリア記録'],
+  statsTotal: ['累计通关：{n}', 'Total completed: {n}', 'クリア合計：{n}'],
+  statsDifficulty: ['按难度', 'By difficulty', '難易度別'],
+  statsRules: ['按启用规则', 'By enabled rule', '使用ルール別'],
+  statsNote: ['同一题只计一次；查看答案不计入通关。组合规则分别计数。', 'Each puzzle counts once. Revealed solutions do not count. Each enabled rule earns a completion.', '同じ問題は一度だけ集計。解答表示は対象外。併用ルールはそれぞれ集計。'],
+  exportImage: ['导出图片', 'Export image', '画像を書き出す'],
+  exportBusy: ['正在保存图片…', 'Saving image…', '画像を保存中…'],
+  exportSaved: ['图片已存入相册', 'Image saved to Photos', '写真に保存しました'],
+  exportDownloaded: ['PNG 图片已下载', 'PNG image downloaded', 'PNG 画像をダウンロードしました'],
+  exportError: ['保存失败，请检查相册权限和存储空间后重试。', 'Could not save. Check photo permissions and available storage, then retry.', '保存できませんでした。写真へのアクセス権限と空き容量を確認してください。'],
   back: ['返回', 'Back', '戻る'],
   skin: ['皮肤', 'Theme', 'テーマ'], darkSkin: ['深色流光', 'Midnight', 'ミッドナイト'], lightBlueSkin: ['晴空浅蓝', 'Sky blue', 'スカイブルー'],
   title: ['流光数独', 'LED Sudoku', 'LED 数独'], settings: ['设置', 'Settings', '設定'], language: ['语言', 'Language', '言語'],

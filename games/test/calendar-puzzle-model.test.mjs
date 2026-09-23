@@ -58,3 +58,29 @@ test('all six language choices survive save validation without losing progress',
   }
   assert.equal(isCalendarPuzzleSaveData({ ...save, language: 'invalid' }), false);
 });
+
+test('older and unknown skin preferences preserve playable saves and fall back to white', async () => {
+  const { calendarSkinId, CALENDAR_SKINS } = await import('../calendar-puzzle/calendar-style.ts');
+  const save = { year: 2026, month: 9, day: 23, weekday: 3, completedDates: ['2026-09-22'], pieces: [] };
+  for (const skin of [undefined, 'future-skin', null]) {
+    assert.equal(isCalendarPuzzleSaveData({ ...save, skin }), true);
+    assert.equal(calendarSkinId(skin), 'white');
+  }
+  for (const skin of ['white', 'blue', 'purple']) {
+    const restored = JSON.parse(JSON.stringify({ ...save, skin }));
+    assert.equal(isCalendarPuzzleSaveData(restored), true);
+    assert.equal(calendarSkinId(restored.skin), skin);
+    assert.deepEqual(restored.completedDates, save.completedDates);
+  }
+  const luminance = hex => {
+    const rgb = hex.slice(1).match(/../g).map(value => parseInt(value, 16) / 255)
+      .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+    return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+  };
+  for (const [skin, palette] of Object.entries(CALENDAR_SKINS)) {
+    for (const [fg, bg] of [[palette.colors.text, palette.colors.surface], [palette.colors.textMuted, palette.colors.background], [palette.cell.text, palette.cell.background], [palette.selected.text, palette.selected.background]]) {
+      const a = luminance(fg), b = luminance(bg);
+      assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5, `${skin}: readable ${fg} on ${bg}`);
+    }
+  }
+});

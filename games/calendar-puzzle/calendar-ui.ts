@@ -1,5 +1,5 @@
 import { GuiButton, GuiElement, GuiLabel, type GuiRoot } from '@haiyue/engine/gui';
-import { CALENDAR_STYLE } from './calendar-style';
+import { CALENDAR_STYLE, type CalendarSkin } from './calendar-style';
 import { CALENDAR_COPY, type CalendarLanguage } from './locale';
 import { calendarDateKey, calendarMonthCells, shiftCalendarMonth } from './model';
 import { calendarLayout } from './viewport';
@@ -18,7 +18,7 @@ export class CalendarHistoryView {
   month = 1;
   visible = false;
   constructor(private readonly options: {
-    root: GuiRoot; layout: () => Layout; language: () => CalendarLanguage;
+    skin?: () => CalendarSkin; root: GuiRoot; layout: () => Layout; language: () => CalendarLanguage;
     register: (id: string, element: GuiElement) => void;
     choose: (year: number, month: number, day: number) => void; close: () => void;
   }) {
@@ -28,7 +28,7 @@ export class CalendarHistoryView {
       options.root.add(control); this.controls.push(control); options.register(id, control); return control;
     };
     const label = (id: string, text: () => string, rect: () => Rect, size: number) => {
-      const control = place(id, new GuiLabel({ text: text(), textAlign: 'center', style: { color: '#416259' } }), rect);
+      const control = place(id, new GuiLabel({ text: text(), textAlign: 'center', style: {} }), rect);
       control.layout = () => { control.rect = rect(); control.setFontSize(size * options.layout().scale); };
       this.labels.push(() => control.setText(text()));
       return control;
@@ -39,7 +39,7 @@ export class CalendarHistoryView {
     };
     // Plain GuiElement renders a fill, not borderColor. Draw both layers explicitly
     // so the inset cannot cover the straight edges of the underlying board frame.
-    const frame = CALENDAR_STYLE.panel;
+    const frame = this.skin.panel;
     const outer = place('calendarPanel', new GuiElement({ style: { backgroundColor: frame.border } }),
       () => { outer.style.radius = frame.radius * options.layout().scale; return { x: area().x - 14, y: area().y - 14, width: 536, height: 610 }; });
     const inner = place('calendarPanelFill', new GuiElement({ style: { backgroundColor: frame.background } }),
@@ -62,7 +62,7 @@ export class CalendarHistoryView {
       star.setStyle({ color: '#b77718' });
       this.stars.push(star);
     }
-    place('completedLegend', new GuiElement({ style: { backgroundColor: CALENDAR_STYLE.completed, radius: 5 } }), () => ({ x: area().x + 198, y: area().y + 479, width: 22, height: 22 }));
+    place('completedLegend', new GuiElement({ style: { backgroundColor: this.skin.completed, radius: 5 } }), () => ({ x: area().x + 198, y: area().y + 479, width: 22, height: 22 }));
     label('historyCount', () => `${this.copy.cleared} · ${this.completed.size}`, () => ({ x: area().x + 234, y: area().y + 472, width: 264, height: 36 }), 21).setTextAlign('left');
     button('calendarToday', () => this.copy.today, () => ({ x: area().x, y: area().y + 532, width: 152, height: 50 }), () => {
       const now = new Date(); options.choose(now.getFullYear(), now.getMonth() + 1, now.getDate());
@@ -70,6 +70,7 @@ export class CalendarHistoryView {
     button('calendarBack', () => this.copy.back, () => ({ x: area().x + 170, y: area().y + 532, width: 338, height: 50 }), options.close);
     this.setVisible(false);
   }
+  private get skin() { return this.options.skin?.() ?? CALENDAR_STYLE; }
   private get copy() { return CALENDAR_COPY[this.options.language()]; }
   open(year: number, month: number, day: number, completed: readonly string[], starred: readonly string[] = []): void {
     this.year = year; this.month = month; this.selected = calendarDateKey(year, month, day);
@@ -87,7 +88,7 @@ export class CalendarHistoryView {
       const key = calendarDateKey(this.year, this.month, day), completed = this.completed.has(key);
       button.text = String(day);
       const selected = key === this.selected;
-      button.setStyle({ backgroundColor: completed ? CALENDAR_STYLE.completed : selected ? CALENDAR_STYLE.selected.background : CALENDAR_STYLE.cell.background, borderColor: selected ? CALENDAR_STYLE.selected.border : CALENDAR_STYLE.cell.border, color: selected ? CALENDAR_STYLE.selected.text : CALENDAR_STYLE.cell.text, radius: CALENDAR_STYLE.cell.radius * this.options.layout().scale });
+      button.setStyle({ backgroundColor: completed ? this.skin.completed : selected ? this.skin.selected.background : this.skin.cell.background, borderColor: selected ? this.skin.selected.border : this.skin.cell.border, color: selected ? this.skin.selected.text : this.skin.cell.text, radius: this.skin.cell.radius * this.options.layout().scale });
       button.markDirty();
     });
   }

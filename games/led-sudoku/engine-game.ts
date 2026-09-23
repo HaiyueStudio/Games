@@ -33,6 +33,14 @@ class WebTextures implements GuiTextures {
     ]);
     return texture;
   };
+  async saveImage(canvas: HTMLCanvasElement, filename: string) {
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(Error('PNG encoding failed')), 'image/png'));
+    const url = URL.createObjectURL(blob), link = document.createElement('a');
+    link.href = url; link.download = filename;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return 'download' as const;
+  }
   async icon(name: string) {
     const image = new Image();
     image.src = `./icons/${name}.png`;
@@ -87,6 +95,10 @@ export class EngineSudokuGame {
     }
     const c = (this.controller = new SudokuController(
       {
+        statistics: {
+          read: () => JSON.parse(localStorage.getItem('led-sudoku-statistics') ?? 'null'),
+          write: value => localStorage.setItem('led-sudoku-statistics', JSON.stringify(value)),
+        },
         generate: (o, s) => this.generator.generate(o, s),
         save: (s) => {
           void this.saves.save(s);
