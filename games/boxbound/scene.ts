@@ -4,6 +4,7 @@ import { labelIsNear } from './label-visibility';
 import { browserLabels, type BoxboundLabels, type BoxboundLabel } from './labels';
 import { THEME_COLORS, roomMaterialKeys } from './themes';
 import { archedWalls, type SurfaceMesh } from './wall-mesh';
+import { roomFloor } from './floor-mesh';
 import { mapRoomTheme } from './world-map';
 import {
   HaiyueEngine,
@@ -106,8 +107,9 @@ const GOAL_FRAME = [[0, -0.36, 0.78, 0.065], [0, 0.36, 0.78, 0.065],
 const GOAL_MARKER_Y = 0.009;
 const GOAL_MARKER_HEIGHT = 0.004;
 const GOAL_MARKER_RADIUS = 0.002;
-const boxSurfaceColor = (box: Box): string => box.fixed && !box.portal
-  ? box.inside === box.room ? 'purple' : 'stone' : boxColor(box);
+const boxSurfaceColor = (box: Box, rooms: State['rooms']): string => box.inside
+  ? roomMaterialKeys(mapRoomTheme(rooms[box.inside]!)).wall
+  : box.fixed ? 'stone' : boxColor(box);
 interface Part {
   externalGroup?: string;
   actorKey?: string;
@@ -274,6 +276,10 @@ export class BoxboundScene {
       const part = this.partPool.find((p) => p.color === key);
       return [surface, part ? Array.from((part.mesh.material as PbrMaterial).baseColor.writeSRGB(new Float32Array(4))) : []];
     })) };
+  }
+  containerPalette(id: string): number[] {
+    const panel=this.actors.find(a=>a.id===id)?.parts.find(p=>p.alpha===.24);
+    return panel ? Array.from((panel.mesh.material as PbrMaterial).baseColor.writeSRGB(new Float32Array(4))) : [];
   }
   wallPalette(room: string, lod: boolean): number[][] {
     return [false, true].map((top) => {
@@ -490,6 +496,10 @@ export class BoxboundScene {
         priority: 20,
         loadOp: 'clear',
         renderProfile: engine.renderProfile,
+        // A box crossing replaces/scales most of this modest-sized scene at once.
+        // Keep per-mesh frustum culling, without rebuilding a spatial tree for
+        // each transition. The complete parent scene remains available to zoom.
+        spatialCullingThreshold: Number.MAX_SAFE_INTEGER,
         toneMapping: 'none',
       })),
     );
@@ -992,15 +1002,9 @@ export class BoxboundScene {
     const state = this.state!, n = r.size, palette = roomMaterialKeys(mapRoomTheme(r));
     this.part([0, -0.47, 0], [n + 0.3, 0.8, n + 0.3], palette.edge, 0.25);
     this.part([0, -0.12, 0], [n + 0.2, 0.24, n + 0.2], palette.floor, 0.15);
-    const tiles = r.floorTiles ?? Array.from({ length: n * n }, (_, i) =>
-      [Math.floor(i / n), 0, i % n] as Vec);
-    for (const [x, y, z] of tiles)
-      this.part(
-        this.at([x, y + 0.004, z]),
-        [1, 0, 1],
-        (x + z) % 2 ? palette.tile : palette.floor,
-        0, false, 'plane',
-      );
+    for (const patch of roomFloor(r))
+      this.part(this.at(patch.center), patch.size,
+        patch.alternate ? palette.tile : palette.floor, 0, false, patch.surface);
     // Walls retain their actual collision height. Connected voxels share solid runs.
     const {pieces, arches} = this.roomWalls(r);
     for (const [index, run] of pieces.entries()) {
@@ -1204,7 +1208,7 @@ export class BoxboundScene {
     const unit = b.size;
     const complete =
       !!b.inside && state.completed.includes(state.rooms[b.inside]!.level);
-    const color = boxSurfaceColor(b);
+    const color = boxSurfaceColor(b, state.rooms);
     const addPart = (o: Vec, size: Vec, c: string, rad = 0.09, alpha = 1, surface?: 'plane' | SurfaceMesh, shape: boolean | 'cone' = false, detail = 3) => {
       const part = this.part(
         [p[0] + o[0], p[1] + o[1], p[2] + o[2]],
@@ -1262,7 +1266,7 @@ export class BoxboundScene {
   private drawContainer(b: Box, addPart: (o: Vec, size: Vec, color: string, radius?: number, alpha?: number, surface?: 'plane' | SurfaceMesh, shape?: boolean | 'cone', detail?: number) => Part, countDoors = false): void {
     const state = this.state!, unit = b.size, center = (unit - 1) / 2;
     const complete = state.completed.includes(state.rooms[b.inside!]!.level);
-    const color = boxSurfaceColor(b);
+    const color = boxSurfaceColor(b, state.rooms);
     // Transparent cubic casing, actual first child room at its real scale.
     // Its children are terminal LOD boxes; cyclic maps cannot expand forever.
     const inner = state.rooms[b.inside!]!, step = unit / inner.size, palette = roomMaterialKeys(mapRoomTheme(inner));
@@ -1272,9 +1276,8 @@ export class BoxboundScene {
       addPart(map(v), size.map((x) => x * step) as Vec, c, radius * step, 1,
         surface && typeof surface !== 'string' ? {...surface,scale:step,flipX:!!b.flipped} : surface, shape, detail);
     mini([(inner.size - 1) / 2, -0.12, (inner.size - 1) / 2], [inner.size, 0.24, inner.size], palette.floor);
-    const tiles = inner.floorTiles ?? Array.from({length: inner.size * inner.size}, (_, i) => [Math.floor(i / inner.size), 0, i % inner.size] as Vec);
-    for (const [x, y, z] of tiles)
-      mini([x, y + 0.004, z], [1, 0, 1], (x + z) % 2 ? palette.tile : palette.floor, 0, 'plane');
+    for (const patch of roomFloor(inner))
+      mini(patch.center, patch.size, patch.alternate ? palette.tile : palette.floor, 0, patch.surface);
     for (const run of this.roomWalls(inner).pieces) {
       const v = run.min.map((x, i) => (x + run.max[i]!) / 2) as Vec;
       const size = run.min.map((x, i) => run.max[i]! - x) as Vec;
@@ -1303,7 +1306,7 @@ export class BoxboundScene {
       this.boxInstances.set(child.id, (this.boxInstances.get(child.id) ?? 0) + 1);
       const middle = (child.size - 1) / 2, g = child.pos;
       mini([g[0] + middle, g[1] + child.size * 0.46, g[2] + middle],
-        [child.size * 0.86, child.size * 0.86, child.size * 0.86], boxSurfaceColor(child), child.size * 0.08);
+        [child.size * 0.86, child.size * 0.86, child.size * 0.86], boxSurfaceColor(child, state.rooms), child.size * 0.08);
       if (child.inside) mini([g[0] + middle, g[1] + child.size * 0.91, g[2] + middle], [child.size * 0.6, child.size * 0.025, child.size * 0.6], roomMaterialKeys(mapRoomTheme(state.rooms[child.inside]!)).floor);
       else mini([g[0] + middle, g[1] + child.size * 0.9, g[2] + middle], [child.size * 0.25, child.size * 0.045, child.size * 0.83], 'cream');
       const old = this.drawingPrevious?.boxes.find((v) => v.id === child.id && v.room === child.room);

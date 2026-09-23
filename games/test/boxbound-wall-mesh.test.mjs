@@ -6,6 +6,36 @@ const {archedWalls}=await import('../boxbound/wall-mesh.ts');
 const room=(walls,extra={})=>({id:'mesh-test',size:7,walls,barriers:walls,doorWidths:[1,1,1,1],...extra});
 const worldVertices=(g,s)=>Array.from({length:s.positions.length/3},(_,i)=>s.positions.slice(i*3,i*3+3).map((v,j)=>v+g.center[j]));
 
+// Compare the actual triangle surface, not just shared grid vertices: a fixed
+// diagonal has identical vertices but leaves spikes on two opposite corners.
+const roofHeight=(groups,x,z)=>{
+ for(const g of groups){
+  const s=g.roof,p=worldVertices(g,s);
+  for(let i=0;i<s.indices.length;i+=3){
+   const [a,b,c]=s.indices.slice(i,i+3).map(j=>p[j]);
+   const det=(b[2]-c[2])*(a[0]-c[0])+(c[0]-b[0])*(a[2]-c[2]);
+   const u=((b[2]-c[2])*(x-c[0])+(c[0]-b[0])*(z-c[2]))/det;
+   const v=((c[2]-a[2])*(x-c[0])+(a[0]-c[0])*(z-c[2]))/det;
+   if(u>=-1e-8&&v>=-1e-8&&u+v<=1+1e-8)return u*a[1]+v*b[1]+(1-u-v)*c[1];
+  }
+ }
+ throw Error(`Missing roof at ${x},${z}`);
+};
+
+test('arched corner surfaces remain symmetric under rotation and mirroring',()=>{
+ for(const cells of [[[2,0,2]],[[2,0,2],[3,0,2],[2,0,3]],[[2,0,2],[1,0,2],[3,0,2],[2,0,3]]]){
+  const original=archedWalls(room(cells));
+  for(const transform of [(x,z)=>[4-z,x],(x,z)=>[4-x,z]]){
+   const transformed=archedWalls(room(cells.map(([x,y,z])=>{const [tx,tz]=transform(x,z);return [tx,y,tz];})));
+   for(const [x,,z] of cells)for(const dx of [-.44,-.31,0,.19,.44])for(const dz of [-.44,-.27,0,.31,.44]){
+    const [tx,tz]=transform(x+dx,z+dz);
+    assert.ok(Math.abs(roofHeight(original,x+dx,z+dz)-roofHeight(transformed,tx,tz))<1e-8,
+      `rotated/mirrored roof differs at ${x+dx},${z+dz}`);
+   }
+  }
+ }
+});
+
 test('arched barriers have a 32-triangle crown per cell and outward winding',()=>{
  for(const cells of [[[2,0,2]],[[2,0,2],[3,0,2]],[[2,0,2],[3,0,2],[2,0,3]],[[2,0,2],[1,0,2],[3,0,2],[2,0,3]]]){
   const groups=archedWalls(room(cells));

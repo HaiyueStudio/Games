@@ -1,4 +1,4 @@
-import {viewAction, playerMirrored} from './model';
+import {reversePlayerCrossing, viewAction, playerMirrored} from './model';
 import { HaiyueEngine } from '@haiyue/engine';
 import { MemorySaveBackend } from '@haiyue/engine/save';
 import { createGame, resetLevel, advanceGame } from './levels';
@@ -264,7 +264,7 @@ async function main() {
     state = entry.state;
     state.message = '退回上一步。慢慢来，世界不会着急。';
     scene.cancelMotion();
-    const crossing = entry.playerCrossing ? { ...entry.playerCrossing, entering: !entry.playerCrossing.entering } : undefined;
+    const crossing = entry.playerCrossing ? reversePlayerCrossing(entry.playerCrossing) : undefined;
     audio.schedule(soundCues(previous, state, undefined, undefined, false, crossing));
     render(
       previous,
@@ -748,6 +748,16 @@ async function main() {
     } else if (params.get('view') === 'world') {
       $('leave').click();
       await wait();
+    }
+    if (params.get('view') === 'wall-corners') {
+      state=createGame();
+      const walls:Vec[]=[[1,0,1],[3,0,1],[4,0,1],[3,0,2],[1,0,4],[2,0,4],[3,0,4],[2,0,5]];
+      state.rooms['wall-corners']={id:'wall-corners',name:'墙顶圆角检查',size:7,walls,barriers:walls,
+        goals:[],home:null,level:0,hint:'独立墙、L 型墙、T 型墙',doorWidths:[1,1,1,1]};
+      state.player={room:'wall-corners',pos:[5,0,5],facing:[0,0,-1],route:[]};
+      scene.cancelMotion();render();await wait();
+      assert(scene.diagnostics.archedWallCells===walls.length,'isolated, L and T roofs use the shared arched geometry');
+      engine.stop();
     }
     if (params.get('view')?.startsWith('exit-')) {
       state = createGame(); state.player.pos = [8, 0, 3]; history = [];
@@ -1318,6 +1328,9 @@ async function main() {
     if (['theme-nested','theme-inside','theme-gallery'].includes(params.get('view') ?? '')) {
       const seedTheme = (id: string) => {
         state = createGame();
+        if(id==='pp-enter1-lr'){
+          state.rooms[id]!.theme='rose';state.rooms['pp-enter1-la']!.theme='ocean';
+        }
         const room = state.rooms[id]!, gate = state.boxes.find((b) => b.levelEntry && b.inside === id)!;
         const chapter = state.boxes.find((b) => b.inside === gate.room)!;
         state.player = { room: id, pos: [...room.spawn!], facing: directions.w!, route: [
@@ -1367,6 +1380,26 @@ async function main() {
         state = params.get('view') === 'theme-inside' ? inside : nested; scene.cancelMotion(); render(); await wait();
       }
       engine.stop();
+    }
+    if (params.get('view') === 'theme-reference6') {
+      state=createGame();
+      const room=state.rooms['pp-reference6-la']!,gate=state.boxes.find(b=>b.levelEntry&&b.inside===room.id)!;
+      state.player={room:room.id,pos:[...room.spawn!],facing:[0,0,-1],route:[{box:gate.id,from:gate.room,entry:[...gate.pos]}]};
+      history=[];scene.cancelMotion();render();await wait();
+      const self=state.boxes.find(b=>b.room===room.id&&b.inside===room.id)!;
+      const other=state.boxes.find(b=>b.room===room.id&&b.inside&&b.inside!==room.id)!;
+      const root=scene.themePalette(room.id),child=scene.themePalette(other.inside!);
+      assert(root.theme!==child.theme,'Reference 6 different map uses a contrasting palette');
+      for(const b of [self,other]){
+        const shell=scene.containerPalette(b.id),inner=scene.themePalette(b.inside!);
+        assert(shell.length===4&&shell.slice(0,3).every((v,i)=>Math.abs(v-inner.colors.wall![i]!)<1e-6),
+          `${b.id} translucent casing matches the actual interior palette`);
+      }
+      const before=clone(state),lod=scene.wallPalette(other.inside!,true);
+      state.player={room:other.inside!,pos:[1,0,3],facing:[0,0,1],route:[...state.player.route,{box:other.id,from:room.id,entry:[...other.pos]}]};
+      render(before);await advance(300);
+      assert(JSON.stringify(scene.wallPalette(other.inside!,false))===JSON.stringify(lod),'Reference 6 LOD promotion preserves wall colors');
+      await wait();state=before;scene.cancelMotion();render();await wait();engine.stop();
     }
     if (params.get('view') === 'readability-motion') {
       state = createGame();
@@ -1486,6 +1519,40 @@ async function main() {
         tap('a'); await advance(300);
       }
       engine.stop();
+    }
+    if (params.get('view') === 'reference-adjacent') {
+      state=createGame();const room='pp-reference5-la';
+      state.boxes.find(b=>b.id===room+'-1')!.pos=[3,0,4];
+      state.boxes.find(b=>b.id===room+'-2')!.pos=[3,0,3];
+      state.boxes.find(b=>b.id===room+'-3')!.pos=[3,0,5];
+      const gateway=state.boxes.find(b=>b.levelEntry&&b.inside===room)!;
+      state.player={room,pos:[5,0,3],facing:[0,0,-1],route:[
+        {box:'pp-museum',from:'world',entry:[8,0,3]},
+        {box:'pp-chapter-reference',from:'pp-hub',entry:[6,0,3]},
+        {box:gateway.id,from:gateway.room,entry:[...gateway.pos]},
+      ]};
+      history=[];scene.cancelMotion();render();await wait();
+      for(const key of 'wwaw'){tap(key);await wait();}
+      const before=clone(state),ids=scene.diagnostics.actorEntities.find(a=>a.id==='player')!.entities.join();
+      const project=()=>{
+        const p=scene.diagnostics.playerInstances.find(v=>v.layer==='current')!.position;
+        const vp=mat4.multiply(scene.camera.projectionMatrix,mat4.inverse(scene.orbit.localMatrix));
+        const w=vp[3]!*p[0]+vp[7]!*p[1]+vp[11]!*p[2]+vp[15]!;
+        return [0,1].map(i=>(vp[i]!*p[0]+vp[i+4]!*p[1]+vp[i+8]!*p[2]+vp[i+12]!)/w);
+      };
+      const screenBefore=project();tap('w');await advance(0);
+      assert(state.player.room==='pp-reference5-lb'&&history.at(-1)!.playerCrossing?.steps?.length===2,
+        'Reference 5 records leaving the recursive red occurrence and entering its blue neighbor');
+      assert(state.boxes.every((b,i)=>{const old=before.boxes[i]!;return b.id===old.id&&b.room===old.room&&b.inside===old.inside&&b.pos.join()===old.pos.join()&&!!b.flipped===!!old.flipped;}),'crossing does not move the red box into blue');
+      assert(project().every((v,i)=>Math.abs(v-screenBefore[i]!)<.002),'adjacent crossing first frame preserves player screen position');
+      assert(scene.diagnostics.actorEntities.find(a=>a.id==='player')!.entities.join()===ids,'adjacent crossing animates the original player entity');
+      await advance(500);
+      assert(scene.diagnostics.playerScale>1/3&&scene.diagnostics.playerScale<1,'adjacent crossing interpolates original player scale');
+      await wait();
+      const screenAfter=project();tap('z');await advance(0);
+      assert(project().every((v,i)=>Math.abs(v-screenAfter[i]!)<.002),'undo composes the two reversed boundaries without teleporting');
+      await wait();assert(state.player.room===room&&state.player.pos.join()===before.player.pos.join(),'undo returns to the actual red exit');
+      tap('w');await wait();engine.stop();
     }
     if (params.get('view')?.startsWith('recursive-exit')) {
       state = createGame();

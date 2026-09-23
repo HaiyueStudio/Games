@@ -12,7 +12,7 @@ python3 -m http.server 8317 --bind 127.0.0.1
 
 打开 http://127.0.0.1:8317/games/led-sudoku/ 。需要支持 WebGPU 的浏览器。游戏 HUD、设置、新数独、规则帮助、分步解释和答案确认统一使用 `@haiyue/engine/gui` 的 `GuiRoot` / `GuiSystem`，按钮、开关、下拉菜单和弹层由引擎绘制并命中。网页 DOM 仅保留 Canvas 及初始化错误提示；Native 仅保留 Canvas、启动页和生命周期桥接，没有 WebView 或另一套原生游戏控件。棋盘与七段数字的共享 rasterizer 生成纹理，经 `GuiImage` 呈现。`@haiyue/engine/experimental` 的公开 `RenderIntegration` 依赖已在 manifest 标识。
 
-共享入口是 `engine-gui.ts`，纯交互控制器为 `gui-controller.ts`，游戏状态为 `gameplay-session.ts`。网页适配器为 `engine-game.ts`，手机适配器为 `Native/examples/led-sudoku/src/engine-page.ts`。横向桌面右侧放工具，手机竖屏上方放棋盘、下方为工具及九宫格数字键。新数独规则使用分页；长解释可逐步阅读、上下翻看正文。设置保留三种语言、两种皮肤和候选辅助选项。
+共享入口是 `engine-gui.ts`，纯交互控制器为 `gui-controller.ts`，游戏状态为 `gameplay-session.ts`。网页适配器为 `engine-game.ts`，手机适配器为 `Native/examples/led-sudoku/src/engine-page.ts`。横向桌面右侧放工具，手机竖屏上方放棋盘、下方为工具及九宫格数字键。新数独规则使用引擎 GuiScrollView 滚动，圆形描边问号点击打开 GuiHelpDialog；关闭按钮和外侧蒙层均可关闭帮助；长解释可逐步阅读、上下翻看正文。设置保留三种语言、两种皮肤和候选辅助选项。
 
 退出和载入会保存/恢复最近 200 步撤销历史，包括“应用到笔记”的候选排除、删除线与推理进度。旧版不带历史的存档仍可载入。纹理、世界、引擎、Worker、监听器和计时器随宿主销毁。
 

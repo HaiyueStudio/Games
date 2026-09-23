@@ -113,6 +113,7 @@ function contains(rect: Rect, point: Point): boolean {
 export interface CalendarPuzzlePlatform {
   purchases?: CalendarPurchases;
   rewards?: CalendarRewards;
+  openPrivacyPolicy?: () => void;
   /** Wake a host-owned demand loop after input or asynchronous state changes. */
   requestRender?: () => void;
   engine?: HaiyueEngine;
@@ -430,7 +431,8 @@ export class CalendarPuzzleGame {
       text: '#183c3b', textMuted: '#52716a', primary: '#17847b', danger: '#d14d58', background: '#f4f8f5',
       surface: '#ffffff', border: '#b7d6c8', hover: '#d9eee6', active: '#bde0d3', disabled: '#91a39d',
     } } });
-    const panel = () => ({ x: (this.layout.width - 780) / 2, y: (this.layout.height - 420) / 2, width: 780, height: 420 });
+    const policyRow = this.platform.openPrivacyPolicy ? 70 : 0;
+    const panel = () => ({ x: (this.layout.width - 780) / 2, y: (this.layout.height - 420 - policyRow) / 2, width: 780, height: 420 + policyRow });
     const place = <T extends GuiElement>(id: string, element: T, rect: () => Rect, setting = false): T => {
       element.layout = () => { element.rect = rect(); };
       root.add(element); this.ui.set(id, element);
@@ -485,8 +487,10 @@ export class CalendarPuzzleGame {
         if (this.platform.purchases!.snapshot().entitled) void this.platform.purchases!.restore();
       }, true);
     if (this.platform.rewards) button('rewardPrivacy', () => REWARD_COPY[this.language].privacy, () => ({x:panel().x+388,y:panel().y+240,width:342,height:54}), () => {void this.platform.rewards!.privacy();}, true);
-    button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312, width: 300, height: 66 }), () => { this.toggleSettings(false, false); this.toggleHistory(true); }, true);
-    button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312, width: 218, height: 66 }), () => this.toggleSettings(false), true);
+    if (this.platform.openPrivacyPolicy) button('privacyPolicy', () => REWARD_COPY[this.language].policy,
+      () => ({ x: panel().x + 38, y: panel().y + 306, width: 692, height: 54 }), () => this.platform.openPrivacyPolicy?.(), true);
+    button('settingsCalendar', () => this.copy.history, () => ({ x: panel().x + 38, y: panel().y + 312 + policyRow, width: 300, height: 66 }), () => { this.toggleSettings(false, false); this.toggleHistory(true); }, true);
+    button('done', () => this.copy.done, () => ({ x: panel().x + 512, y: panel().y + 312 + policyRow, width: 218, height: 66 }), () => this.toggleSettings(false), true);
     this.celebration = new CalendarCelebration({ root, layout: () => this.layout, language: () => this.language, canvas: (w, h) => this.platform.createCanvas2D?.(w, h) ?? document.createElement('canvas'), texture: this.platform.textureFromCanvas, register: (id, element) => this.ui.set(id, element), close: history => this.closeCelebration(history) });
     if (this.platform.purchases) this.purchaseView = new CalendarPurchaseView({
       root, raster, layout: () => this.layout, language: () => this.language, purchases: this.platform.purchases,

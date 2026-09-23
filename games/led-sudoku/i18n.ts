@@ -25,7 +25,7 @@ const copy = {
   boardCandidates: ['在盘面显示候选数', 'Show candidates on the board', '盤面に候補を表示'],
   boardCandidatesDetail: ['以九宫格小数字展示；笔记模式下点击划去，再点恢复。', 'Display candidates in a 3×3 grid. In Notes, tap to cross out; tap again to restore.', '候補を 3×3 で表示します。メモではタップで取消線を付け、再タップで戻します。'],
   requiresFilter: ['请先开启自动剔除候选数', 'Enable candidate filtering first', '先に候補の自動除外をオンにしてください'],
-  holdHelp: ['按住问号查看规则，松开关闭', 'Hold ? for details; release to close', '「?」を押している間、詳細を表示'],
+  holdHelp: ['点击问号查看详细规则', 'Tap ? for rule details', '「?」をタップしてルールの詳細を表示'],
   unique: ['每局验证唯一解 · 挑战需要进一步推理', 'Unique solution verified · Challenge needs deeper reasoning', '解は必ず一つ · 上級はより深い推理が必要'],
   switchedOff: ['已关闭 {names}，避免规则冲突。', 'Disabled {names} to avoid conflicting rules.', 'ルールの衝突を避けるため {names} をオフにしました。'],
   loading: ['正在载入…', 'Loading…', '読み込み中…'], generating: ['正在出题并验证唯一解…', 'Generating and verifying a unique solution…', '問題を生成し、唯一解を確認中…'],

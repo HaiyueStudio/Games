@@ -1948,13 +1948,25 @@ test('exit-level leaves a recursive puzzle safely without resetting its interior
 });
 
 test('authored room palettes separate every non-self nesting edge and remain deterministic',async()=>{
-  const {assignRoomThemes,ROOM_THEMES}=await import('../boxbound/themes.ts');
+  const {assignRoomThemes,ROOM_THEMES,roomThemeContrast,MIN_ROOM_THEME_CONTRAST}=await import('../boxbound/themes.ts');
   const s=createGame(),themes=assignRoomThemes(s.rooms,s.boxes);
   assert.equal(themes.size,Object.keys(s.rooms).length);
-  for(const box of s.boxes) if(box.inside&&box.room!==box.inside)
+  for(const box of s.boxes) if(box.inside&&box.room!==box.inside){
     assert.notEqual(themes.get(box.room),themes.get(box.inside),`indistinguishable ${box.room} -> ${box.inside}`);
+    assert.ok(roomThemeContrast(themes.get(box.room),themes.get(box.inside))>=MIN_ROOM_THEME_CONTRAST,
+      `similar hues ${box.room} -> ${box.inside}`);
+  }
   const reversed=assignRoomThemes(Object.fromEntries(Object.entries(s.rooms).reverse()),s.boxes.toReversed());
   for(const [id,theme] of themes){assert.ok(ROOM_THEMES.includes(theme));assert.equal(theme,reversed.get(id));}
+});
+test('Reference 6 self-reference shares its map palette while its other interior contrasts',async()=>{
+  const {mapRoomTheme}=await import('../boxbound/world-map.ts');
+  const {roomThemeContrast,MIN_ROOM_THEME_CONTRAST}=await import('../boxbound/themes.ts');
+  const s=createGame(),root=s.rooms['pp-reference6-la'];
+  const recursive=s.boxes.find(b=>b.room===root.id&&b.inside===root.id);
+  const other=s.boxes.find(b=>b.room===root.id&&b.inside&&b.inside!==root.id);
+  assert.equal(mapRoomTheme(s.rooms[recursive.inside]),mapRoomTheme(root));
+  assert.ok(roomThemeContrast(mapRoomTheme(root),mapRoomTheme(s.rooms[other.inside]))>=MIN_ROOM_THEME_CONTRAST);
 });
 test('room theme overrides validate, and recursive/cloned occurrences keep the authored room identity',async()=>{
   const {mapRoomTheme}=await import('../boxbound/world-map.ts');

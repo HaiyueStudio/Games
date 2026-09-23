@@ -18,6 +18,17 @@ const keys = Object.fromEntries(ROOM_THEMES.map((theme) => [theme, Object.fromEn
   return [surface, key];
 }))])) as Record<RoomTheme, Record<typeof surfaces[number], string>>;
 export const roomMaterialKeys = (theme: RoomTheme) => keys[theme];
+export const MIN_ROOM_THEME_CONTRAST = 80;
+/** Angular separation of the checkerboard base colors (0–180 degrees). */
+export function roomThemeContrast(a: RoomTheme, b: RoomTheme): number {
+  const hue = (theme: RoomTheme) => {
+    const [r,g,b] = THEME_COLORS[keys[theme].floor]!;
+    const high=Math.max(r,g,b), low=Math.min(r,g,b), d=high-low;
+    return (((high===r ? (g-b)/d : high===g ? 2+(b-r)/d : 4+(r-g)/d)*60)%360+360)%360;
+  };
+  const distance=Math.abs(hue(a)-hue(b));
+  return Math.min(distance,360-distance);
+}
 export function fallbackRoomTheme(id: string): RoomTheme {
   let hash = 0;
   for (const c of id) hash = (Math.imul(hash, 31) + c.charCodeAt(0)) >>> 0;
@@ -27,20 +38,49 @@ export function fallbackRoomTheme(id: string): RoomTheme {
  * interior; self/clone occurrences retain their shared room's identity. */
 export function assignRoomThemes(rooms: Record<string, Room>, boxes: Box[]): Map<string, RoomTheme> {
   const neighbors = new Map(Object.keys(rooms).map((id) => [id, new Set<string>()]));
+  const contents = new Map<string, Set<string>>();
   for (const b of boxes) if (b.inside && b.inside !== b.room) {
     neighbors.get(b.room)?.add(b.inside); neighbors.get(b.inside)?.add(b.room);
+    if (!contents.has(b.room)) contents.set(b.room,new Set());
+    contents.get(b.room)!.add(b.inside);
   }
   const result = new Map<string, RoomTheme>();
   for (const room of Object.values(rooms)) if (room.theme) result.set(room.id, room.theme);
   if (!result.has('world')) result.set('world', 'meadow');
   if (rooms['pp-hub'] && !result.has('pp-hub')) result.set('pp-hub', 'rose');
-  const order = Object.keys(rooms).sort((a, b) => neighbors.get(b)!.size - neighbors.get(a)!.size || a.localeCompare(b));
+  const pinned = new Set(result.keys());
+  const order = Object.keys(rooms).sort((a,b)=>neighbors.get(b)!.size-neighbors.get(a)!.size||a.localeCompare(b));
   for (const id of order) {
     if (result.has(id)) continue;
-    const used = new Set([...neighbors.get(id)!].map((n) => result.get(n)));
+    const adjacent = [...neighbors.get(id)!].flatMap(n => result.has(n) ? [result.get(n)!] : []);
     const start = ROOM_THEMES.indexOf(fallbackRoomTheme(id));
     const choices = ROOM_THEMES.map((_, i) => ROOM_THEMES[(i + start) % ROOM_THEMES.length]!);
-    result.set(id, choices.find((c) => !used.has(c)) ?? choices[0]!);
+    // First reject similar pastel hues, then distinguish maps displayed beside
+    // each other. Galleries keep varied colors instead of all picking the same
+    // complementary hue. Selection happens once, never on movement or zoom.
+    const contrast = (c: RoomTheme) => Math.min(180,...adjacent.map(n=>roomThemeContrast(c,n)));
+    const siblings = [...contents.values()].filter(group=>group.has(id))
+      .flatMap(group=>[...group].filter(n=>n!==id&&result.has(n)).map(n=>result.get(n)!));
+    const candidates=choices.filter(c=>contrast(c)>=90);
+    const pool=candidates.length ? candidates : choices;
+    const repeats=(c:RoomTheme)=>siblings.filter(n=>n===c).length;
+    const separation=(c:RoomTheme)=>Math.min(180,...siblings.map(n=>roomThemeContrast(c,n)));
+    pool.sort((a,b)=>candidates.length
+      ? repeats(a)-repeats(b)||separation(b)-separation(a)||contrast(b)-contrast(a)
+      : contrast(b)-contrast(a));
+    result.set(id, pool[0]!);
+  }
+  // Closing a cycle can constrain an earlier choice. Repair against *all*
+  // neighbors; each change removes a weak edge without introducing another.
+  for(let changed=true;changed;){
+    changed=false;
+    for(const id of order){
+      if(pinned.has(id))continue;
+      const contrast=(c:RoomTheme)=>Math.min(180,...[...neighbors.get(id)!].map(n=>roomThemeContrast(c,result.get(n)!)));
+      if(contrast(result.get(id)!)>=MIN_ROOM_THEME_CONTRAST)continue;
+      const choice=[...ROOM_THEMES].sort((a,b)=>contrast(b)-contrast(a))[0]!;
+      if(contrast(choice)>=MIN_ROOM_THEME_CONTRAST){result.set(id,choice);changed=true;}
+    }
   }
   return result;
 }

@@ -80,6 +80,16 @@ export function createWorldState(): State {
   return clone(authored);
 }
 
+/** Entry resets need only one puzzle's mutable contents, not a deep copy of
+ * hundreds of immutable room maps. Never expose the authored box objects. */
+export function createLevelContents(inside: string): { rooms: Set<string>; boxes: Box[] } {
+  if (!authored) throw new Error('请先加载 levels/index.json。');
+  const level = authored.rooms[inside]!.level;
+  const rooms = new Set(Object.values(authored.rooms)
+    .filter(r => level > 0 && r.level === level).map(r => r.id));
+  return { rooms, boxes: clone(authored.boxes.filter(b => rooms.has(b.room))) };
+}
+
 /** Resolve authoring files before compiling the finite room graph. Room inside references
  * may be cyclic; file includes must be finite and stay inside the levels directory. */
 export async function loadWorldMap(entry: URL, readJson: (url: URL) => Promise<unknown>): Promise<WorldMapDefinition> {

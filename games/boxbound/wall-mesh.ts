@@ -96,7 +96,13 @@ export function archedWalls(room: Room): ArchedWall[] {
       }
       for(let j=0;j<STEPS;j++)for(let i=0;i<STEPS;i++){
         const a=offset+j*(STEPS+1)+i,b=a+1,c=a+STEPS+1,d=c+1;
-        group.roof.indices.push(a,c,b,b,c,d);
+        // Follow the lower diagonal around the perimeter. A fixed diagonal
+        // connects the crown to two outer corners and creates pointed ridges.
+        // Equal sums are coplanar, so either split has the same surface.
+        const p=group.roof.positions;
+        if(p[a*3+1]!+p[d*3+1]!<p[b*3+1]!+p[c*3+1]!)
+          group.roof.indices.push(a,c,d,a,d,b);
+        else group.roof.indices.push(a,c,b,b,c,d);
       }
     }
     for(const edge of patch.edges){

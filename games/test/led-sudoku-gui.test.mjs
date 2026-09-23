@@ -121,3 +121,13 @@ test('saved undo accepts legacy saves and rejects malformed board history', () =
     assert(!isSaveData(bad));
   }
 });
+
+
+// The runtime uses a fixed bitmap atlas on both browser and Native.
+test('rule-help instruction has glyphs in all supported languages', async () => {
+  const {GUI_FONT_CHARS}=await import('../led-sudoku/gui-font-chars.ts');
+  const {t}=await import('../led-sudoku/i18n.ts');
+  for(const language of ['zh','en','ja'])
+    for(const char of t(language,'holdHelp'))
+      assert.ok(GUI_FONT_CHARS.includes(char), `${language}: missing glyph ${char}`);
+});

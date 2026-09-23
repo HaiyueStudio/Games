@@ -35,7 +35,7 @@ export interface Room {
   recursiveRoot?: boolean;
   size: number;
   walls: Vec[];
-  /** Wall voxels with studded, non-climbable tops; ordinary platforms stay climbable. */
+  /** Wall voxels with arched, non-climbable tops; ordinary platforms stay climbable. */
   barriers?: Vec[];
   /** Clear opening widths: east, west, south, north, measured in inner-room cells. */
   doorWidths?: [number, number, number, number];
@@ -82,9 +82,14 @@ export interface BoxTransfer {
   direction: Vec;
   entering: boolean;
 }
-/** A physical self-root edge omitted from the chapter navigation route.
- * Transient movement evidence, never part of a saved game state. */
-export interface PlayerCrossing { container: string; entering: boolean }
+/** Physical boundaries, including self-root and adjacent-box crossings that
+ * navigation routes cannot describe. Transient evidence, never saved state. */
+export interface PlayerCrossingStep { container: string; entering: boolean }
+export interface PlayerCrossing extends PlayerCrossingStep { steps?: PlayerCrossingStep[] }
+export function reversePlayerCrossing(crossing: PlayerCrossing): PlayerCrossing {
+  const steps = crossing.steps?.toReversed().map(step => ({...step, entering: !step.entering}));
+  return steps ? {...steps[0]!, steps} : {...crossing, entering: !crossing.entering};
+}
 export interface Frame {
   /** Display orientation outside this occurrence, retained across recursive exits. */
   mirrored?: boolean;
@@ -404,7 +409,7 @@ function crossingEntry(room: Room, d: Vec, fraction?: number): Vec {
   return p;
 }
 /** Follow adjacent room boundaries while retaining the exit-face fraction. */
-function exitDestination(s: State, first: Box, direction: Vec, size: number, aperture = size, source?: Vec): { owner: Box; pos: Vec; direction: Vec; fraction: number; flipped: boolean } | null {
+function exitDestination(s: State, first: Box, direction: Vec, size: number, aperture = size, source?: Vec): { owner: Box; pos: Vec; direction: Vec; fraction: number; flipped: boolean; owners: string[] } | null {
   let owner = first, d: Vec = [...direction], flipped = false;
   const inner = s.rooms[first.inside!]!;
   let fraction = source ? (source[d[0] ? 2 : 0] + .5) / inner.size : .5;
@@ -414,7 +419,7 @@ function exitDestination(s: State, first: Box, direction: Vec, size: number, ape
     if (owner.flipped) { d = reflectedDirection(d, true); flipped = !flipped; if (d[2]) fraction = 1 - fraction; }
     const pos = add(owner.pos, d.map((v) => v > 0 ? owner.size : v < 0 ? -size : 0) as Vec);
     const parent = s.rooms[owner.room]!;
-    if (within(parent, pos) && within(parent, add(pos, [size - 1, size - 1, size - 1]))) return { owner, pos, direction: d, fraction, flipped };
+    if (within(parent, pos) && within(parent, add(pos, [size - 1, size - 1, size - 1]))) return { owner, pos, direction: d, fraction, flipped, owners: [...visited] };
     if (doorwayWidth(parent, d) < aperture) return null;
     fraction = (owner.pos[d[0] ? 2 : 0] + fraction * owner.size) / parent.size;
     const next = ownerFor(s, parent.id);
@@ -733,7 +738,7 @@ export function reverseTransfers(transfers: BoxTransfer[]): BoxTransfer[] {
     entering: !t.entering,
   }));
 }
-function exit(s: State, transfers: BoxTransfer[], d?: Vec, prepare?: PrepareEntry): boolean {
+function exit(s: State, transfers: BoxTransfer[], d?: Vec, prepare?: PrepareEntry, crossings?: PlayerCrossingStep[]): boolean {
   if (d && s.rooms[s.player.room]!.void) return false;
   const f = s.player.route.at(-1);
   if (!f) return false;
@@ -791,7 +796,12 @@ function exit(s: State, transfers: BoxTransfer[], d?: Vec, prepare?: PrepareEntr
         s.player.facing = [...destination.direction];
         s.player.room = outerRoom; s.player.pos = [...b.pos];
         leaveRoute();
-        if (enter(s, occupant, destination.direction, transfers, prepare, 0, destination.fraction)) return true;
+        const entryStart = s.player.route.length;
+        if (enter(s, occupant, destination.direction, transfers, prepare, 0, destination.fraction)) {
+          crossings?.push(...destination.owners.map(container => ({container, entering:false})),
+            ...s.player.route.slice(entryStart).map(frame => ({container:frame.box, entering:true})));
+          return true;
+        }
         s.player = before;
         restoreBoxes(s, snapshot);
         transfers.length = count;
@@ -818,6 +828,7 @@ function exit(s: State, transfers: BoxTransfer[], d?: Vec, prepare?: PrepareEntr
             ? '∞− 无穷小：沿扩张循环的反方向向外返回。'
             : '↻ 等尺度循环：返回外层引用。';
     } else s.message = '回到外层空间';
+    crossings?.push(...destination.owners.map(container => ({container, entering:false})));
     return true;
   }
   const obstruction = outerExitBarriers(s).find(
@@ -885,6 +896,7 @@ export function transition(
   const s = copyState(state);
   const transfers: BoxTransfer[] = [];
   let playerCrossing: PlayerCrossing | undefined;
+  const crossings: PlayerCrossingStep[] = [];
   s.message = '';
   s.paradox = 'none';
   let ok = false;
@@ -899,7 +911,7 @@ export function transition(
         s.player.route = s.player.route.slice(0, index + 1);
       }
     }
-    ok = exit(s, transfers, undefined, prepareEntry);
+    ok = exit(s, transfers, undefined, prepareEntry, crossings);
   }
   else if (action.type === 'dive') {
     const below = boxAt(s, s.player.room, add(s.player.pos, [0, -1, 0]));
@@ -919,7 +931,7 @@ export function transition(
     } else if (!within(room, next)) {
       const physical = ownerFor(s, room.id);
       const implicitOwner = physical?.id !== s.player.route.at(-1)?.box ? physical : undefined;
-      ok = exit(s, transfers, d, prepareEntry);
+      ok = exit(s, transfers, d, prepareEntry, crossings);
       if (ok && implicitOwner) playerCrossing = { container: implicitOwner.id, entering: false };
     }
     else if (action.jump && !room.planar) {
@@ -1015,7 +1027,7 @@ export function transition(
     updateCompletion(s);
   }
   return { state: s, changed: ok, transfers: ok ? transfers : [], recoil,
-    ...(ok && playerCrossing ? { playerCrossing } : {}) };
+    ...(ok && crossings.length > 1 ? {playerCrossing:{...crossings[0]!, steps:crossings}} : ok && playerCrossing ? { playerCrossing } : {}) };
 }
 /** Strict save validation, including graph references and voxel coordinates. */
 export function validState(value: unknown): value is State {

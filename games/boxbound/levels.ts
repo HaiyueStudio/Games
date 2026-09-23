@@ -16,7 +16,7 @@ import {
   type Vec,
 } from './model';
 import { decorationBlocksTop } from './decorations';
-import { createWorldState } from './world-map';
+import { createWorldState, createLevelContents } from './world-map';
 
 /** World layout, nested rooms and initial boxes are authored in levels/index.json and its referenced files. */
 export function createGame(): State {
@@ -288,11 +288,10 @@ export function resetLevel(state: State): State {
  * parent/sibling state retain identity and position; imported crates are retained. */
 export function resetInterior(state: State, gateway: Pick<Box, 'inside'>): State {
   if (!gateway.inside) return state;
-  const initial = createGame(), next = copyState(state);
-  const level = initial.rooms[gateway.inside]!.level;
-  const ids = new Set(Object.values(initial.rooms).filter((r) => r.level === level && level > 0).map((r) => r.id));
-  const fresh = new Map(initial.boxes.filter((b) => ids.has(b.room)).map((b) => [b.id, b]));
-  next.boxes = next.boxes.map((b) => ids.has(b.room) && fresh.has(b.id) ? clone(fresh.get(b.id)!) : b);
+  const initial = createLevelContents(gateway.inside), next = copyState(state);
+  const ids = initial.rooms;
+  const fresh = new Map(initial.boxes.map((b) => [b.id, b]));
+  next.boxes = next.boxes.map((b) => ids.has(b.room) && fresh.has(b.id) ? fresh.get(b.id)! : b);
   for (const b of next.boxes.filter((v) => ids.has(v.room))) {
     const free = (p: Vec) => {
       for (let x = 0; x < b.size; x++) for (let y = 0; y < b.size; y++) for (let z = 0; z < b.size; z++) {

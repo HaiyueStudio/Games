@@ -8,6 +8,8 @@ import {
   GuiSelect,
   GuiImage,
   GuiModal,
+  GuiHelpDialog,
+  GuiScrollView,
   GuiSystem,
   type GuiFontOptions,
   type GuiPointerEvent,
@@ -91,21 +93,23 @@ export class SudokuGui {
   readonly answer: GuiButton;
   readonly lesson = this.hud.add(new GuiElement({ id: 'lesson', visible: false }));
   readonly lessonTitle = this.lesson.add(new GuiLabel({ fontSize: 16 }));
-  readonly lessonBody = this.lesson.add(new Paragraph());
+  readonly lessonBody = this.lesson.add(
+    new GuiScrollView({ id: 'lesson-body', width: '100%', height: '100%' }),
+  );
+  private lessonLines: GuiLabel[] = [];
+  private measureText?: (text: string, size: number) => number;
   readonly lessonPrev: GuiButton;
   readonly lessonNext: GuiButton;
   readonly lessonClose: GuiButton;
-  readonly textUp: GuiButton;
-  readonly textDown: GuiButton;
   readonly newTitle = this.newPage.add(new GuiLabel({ fontSize: 24 }));
   readonly newBack: GuiButton;
   readonly difficulty: GuiButton[] = [];
   readonly instruction = this.newPage.add(new GuiLabel({ fontSize: 12 }));
   readonly notice = this.newPage.add(new Paragraph());
   readonly start: GuiButton;
-  readonly pagePrev: GuiButton;
-  readonly pageNext: GuiButton;
-  readonly pageNumber = this.newPage.add(new GuiLabel({ fontSize: 13, textAlign: 'center' }));
+  readonly ruleList = this.newPage.add(
+    new GuiScrollView({ id: 'rule-list', width: '100%', height: '100%' }),
+  );
   readonly ruleRows = new Map<
     RuleKey,
     { row: GuiElement; label: GuiLabel; toggle: GuiSwitch; help: GuiButton }
@@ -122,16 +126,7 @@ export class SudokuGui {
     detail: Paragraph;
     toggle: GuiSwitch;
   }[] = [];
-  readonly help = new GuiModal({
-    id: 'rule-help',
-    width: '94%',
-    height: 390,
-    showConfirmButton: false,
-    showCancelButton: false,
-    showCloseButton: false,
-    disabled: true,
-  });
-  private helpText = new Paragraph();
+  readonly help = new GuiHelpDialog({ id: 'rule-help', width: '94%', height: 390 });
   private answerText = new Paragraph();
   private busyText = new Paragraph();
   readonly confirmation = new GuiModal({
@@ -158,10 +153,7 @@ export class SudokuGui {
   private infoNext: GuiButton;
   private infoOffset = 0;
   private draft: Options = { ...DEFAULT_OPTIONS };
-  private rulePage = 0;
-  private rulesPerPage = 7;
   private ruleNotice = '';
-  private lessonOffset = 0;
   private lastLesson = -1;
   private surfaces: HTMLCanvasElement[];
   private boardSurface: HTMLCanvasElement;
@@ -228,7 +220,9 @@ export class SudokuGui {
       this.tools.set(name, this.button(this.hud, '', name, actions[i]!)),
     );
     for (let i = 0; i < 9; i++) {
-      const b = this.button(this.hud, String(i + 1), `digit-${i + 1}`, () => controller.input(i + 1));
+      const b = this.button(this.hud, String(i + 1), `digit-${i + 1}`, () =>
+        controller.input(i + 1),
+      );
       this.keys.push(b);
       this.digits.push(b.add(new GuiImage({ disabled: true })));
       this.keyLabels.push(b.add(new GuiLabel({ fontSize: 30, textAlign: 'center' })));
@@ -239,17 +233,13 @@ export class SudokuGui {
       this.confirmation.show();
       this.wake();
     });
-    this.lessonClose = this.button(this.lesson, '×', 'lesson-close', () => controller.closeLesson());
-    this.lessonPrev = this.button(this.lesson, '', 'lesson-previous', () => controller.moveLesson(-1));
+    this.lessonClose = this.button(this.lesson, '×', 'lesson-close', () =>
+      controller.closeLesson(),
+    );
+    this.lessonPrev = this.button(this.lesson, '', 'lesson-previous', () =>
+      controller.moveLesson(-1),
+    );
     this.lessonNext = this.button(this.lesson, '', 'lesson-next', () => controller.moveLesson(1));
-    this.textUp = this.button(this.lesson, '↑', 'text-up', () => {
-      this.lessonOffset = Math.max(0, this.lessonOffset - 3);
-      this.update(false);
-    });
-    this.textDown = this.button(this.lesson, '↓', 'text-down', () => {
-      this.lessonOffset += 3;
-      this.update(false);
-    });
     this.newBack = this.button(this.newPage, '←', 'rules-cancel', () => this.open('game'));
     (['easy', 'normal', 'hard'] as const).forEach((d) =>
       this.difficulty.push(
@@ -260,7 +250,7 @@ export class SudokuGui {
       ),
     );
     for (const key of RULE_KEYS) {
-      const row = this.newPage.add(new GuiElement({ id: `row-${key}` })),
+      const row = this.ruleList.add(new GuiElement({ id: `row-${key}` })),
         label = row.add(new GuiLabel({ fontSize: 15 })),
         toggle = row.add(
           new GuiSwitch({
@@ -273,11 +263,8 @@ export class SudokuGui {
             },
           }),
         );
-      const help = this.button(row, '?', `help-${key}`, () => {});
-      help.on('pointerdown', () => {
-        this.showHelp(key);
-      });
-      for (const event of ['pointerup', 'pointerleave']) help.on(event, () => this.hideHelp());
+      const help = this.button(row, '?', `help-${key}`, () => this.showHelp(key));
+      help.variant = 'outline';
       this.ruleRows.set(key, { row, label, toggle, help });
     }
     this.start = this.button(
@@ -286,14 +273,6 @@ export class SudokuGui {
       'rules-start',
       () => void controller.newGame({ ...this.draft }),
     );
-    this.pagePrev = this.button(this.newPage, '↑', 'rules-previous', () => {
-      this.rulePage--;
-      this.update(false);
-    });
-    this.pageNext = this.button(this.newPage, '↓', 'rules-next', () => {
-      this.rulePage++;
-      this.update(false);
-    });
     this.prefBack = this.button(this.settings, '←', 'preferences-done', () => this.open('game'));
     this.language = this.settings.add(
       new GuiSelect<Language>({
@@ -317,7 +296,8 @@ export class SudokuGui {
         toggle = this.settings.add(
           new GuiSwitch({
             id: key,
-            onChange: (value) => controller.setPreferences({ ...controller.preferences, [key]: value }),
+            onChange: (value) =>
+              controller.setPreferences({ ...controller.preferences, [key]: value }),
           }),
         );
       this.prefRows.push({ key, label, detail, toggle });
@@ -334,7 +314,6 @@ export class SudokuGui {
       this.update(false);
     });
     this.root.add(this.help);
-    this.help.add(this.helpText);
     this.root.add(this.confirmation);
     this.confirmation.add(this.answerText);
     this.root.add(this.busy);
@@ -357,6 +336,7 @@ export class SudokuGui {
       node.children.forEach(configure);
     };
     configure(this.root.root);
+    this.measureText = measure;
     // Keep modal placement in the safe content area while the renderer fills the surface.
     for (const modal of [this.help, this.confirmation, this.busy]) {
       const layout = modal.layout.bind(modal);
@@ -405,7 +385,7 @@ export class SudokuGui {
     this.controller.page = page;
     if (page === 'new') {
       this.draft = { ...DEFAULT_OPTIONS, ...this.controller.session.state?.puzzle.options };
-      this.rulePage = 0;
+      this.ruleList.scrollTo(0);
       this.ruleNotice = '';
     }
     this.infoOffset = 0;
@@ -448,19 +428,9 @@ export class SudokuGui {
   private showHelp(key: RuleKey) {
     const [title, body] = ruleCopy(this.controller.preferences.language, key);
     this.help.setTitle(title);
+    this.help.setMessage(body);
     this.help.show();
     this.help.layout({ x: 0, y: 0, width: this.width, height: this.height });
-    this.helpText.show(
-      body,
-      {
-        x: this.help.dialogRect.x + 22,
-        y: this.help.dialogRect.y + 65,
-        width: this.help.dialogRect.width - 44,
-        height: this.help.dialogRect.height - 80,
-      },
-      15,
-      THEMES[this.controller.preferences.theme].text,
-    );
     this.wake();
   }
   private hideHelp() {
@@ -511,7 +481,11 @@ export class SudokuGui {
       visit(this.root.root);
       this.iconNodes.forEach((n) => n.setTint(colors.text));
       for (const modal of [this.help, this.confirmation, this.busy]) {
-        modal.setStyle({ backgroundColor: colors.panel, borderColor: colors.line, color: colors.text });
+        modal.setStyle({
+          backgroundColor: colors.panel,
+          borderColor: colors.line,
+          color: colors.text,
+        });
         modal.titleLabel.setStyle({ color: colors.text });
         modal.messageLabel.setStyle({ color: colors.text });
       }
@@ -534,7 +508,9 @@ export class SudokuGui {
         : '',
     );
     this.progress.setText(
-      state ? `${state.board.filter(Boolean).length}/${state.puzzle.blocked.filter((b) => !b).length}` : '',
+      state
+        ? `${state.board.filter(Boolean).length}/${state.puzzle.blocked.filter((b) => !b).length}`
+        : '',
     );
     [...this.tools].forEach(([name, b], i) => {
       const x = l.panel.x + (i * (l.panel.width - l.tools)) / 5;
@@ -592,7 +568,12 @@ export class SudokuGui {
       label.setStyle({ color: b.disabled ? colors.border : colors.text, opacity: 1 });
       at(label, r);
       this.digits[i]!.setVisible(led);
-      at(this.digits[i]!, { x: r.x + r.width / 2 - 18, y: r.y + 4, width: 36, height: r.height - 8 });
+      at(this.digits[i]!, {
+        x: r.x + r.width / 2 - 18,
+        y: r.y + 4,
+        width: 36,
+        height: r.height - 8,
+      });
     });
     const bottom = [this.newButton, this.rulesButton, this.answer];
     bottom.forEach((b, i) => {
@@ -625,27 +606,36 @@ export class SudokuGui {
       node.setVisible(!lesson);
     if (lesson) {
       if (this.lastLesson !== c.lesson) {
-        this.lessonOffset = 0;
+        this.lessonBody.scrollTo(0);
         this.lastLesson = c.lesson;
       }
       at(this.lesson, l.panel);
       at(this.lessonTitle, { x: l.panel.x, y: l.panel.y, width: l.panel.width - 42, height: 25 });
       this.lessonTitle.setText(`${c.lesson + 1}/${s.hint!.steps.length} ${lesson.title}`);
-      at(this.lessonClose, { x: l.panel.x + l.panel.width - 36, y: l.panel.y, width: 36, height: 32 });
+      at(this.lessonClose, {
+        x: l.panel.x + l.panel.width - 36,
+        y: l.panel.y,
+        width: 36,
+        height: 32,
+      });
       const body = {
         x: l.panel.x,
         y: l.panel.y + 36,
-        width: l.panel.width - 35,
+        width: l.panel.width,
         height: l.panel.height - 94,
       };
-      let text = this.lessonBody.show(lesson.text, body, 14, colors.text, this.lessonOffset);
-      this.lessonOffset = Math.min(this.lessonOffset, Math.max(0, text.total - text.count));
-      this.lessonBody.show(lesson.text, body, 14, colors.text, this.lessonOffset);
-      [this.textUp, this.textDown].forEach((b, i) =>
-        at(b, { x: l.panel.x + l.panel.width - 30, y: l.panel.y + 44 + i * 48, width: 30, height: 42 }),
-      );
-      this.textUp.setDisabled(!this.lessonOffset);
-      this.textDown.setDisabled(this.lessonOffset + text.count >= text.total);
+      const lines = wrapGuiText(lesson.text, body.width - 12, 14, this.measureText);
+      while (this.lessonLines.length < lines.length)
+        this.lessonLines.push(this.lessonBody.add(new GuiLabel({
+          fontSize: 14, y: this.lessonLines.length * 21, width: '100%', height: 21,
+        })));
+      this.lessonLines.forEach((label, i) => {
+        label.setVisible(i < lines.length);
+        label.setText(lines[i] ?? '');
+        label.setStyle({ color: colors.text });
+      });
+      this.lessonBody.setContentHeight(lines.length * 21);
+      this.lessonBody.layout(body);
       at(this.lessonPrev, {
         x: l.panel.x,
         y: l.panel.y + l.panel.height - 48,
@@ -699,31 +689,33 @@ export class SudokuGui {
     });
     this.instruction.setText(this.tr('holdHelp'));
     at(this.instruction, { x, y: 120, width: w, height: 24 });
-    this.rulesPerPage = Math.max(3, Math.floor((r.height - 310) / 48));
-    const pages = Math.ceil(RULE_KEYS.length / this.rulesPerPage);
-    this.rulePage = Math.min(pages - 1, Math.max(0, this.rulePage));
+    const listRect = { x, y: 153, width: w, height: Math.max(96, r.height - 260) };
     RULE_KEYS.forEach((key, i) => {
-      const entry = this.ruleRows.get(key)!,
-        n = i - this.rulePage * this.rulesPerPage;
-      entry.row.setVisible(n >= 0 && n < this.rulesPerPage);
-      const y = 153 + n * 48;
-      at(entry.row, { x, y, width: w, height: 46 });
+      const entry = this.ruleRows.get(key)!;
+      entry.row.layout = (parent) => {
+        const y = parent.y + i * 48,
+          x = parent.x;
+        entry.row.rect = { x, y, width: w, height: 48 };
+        at(entry.label, { x: x + 4, y: y + 12, width: w - 124, height: 23 });
+        at(entry.help, { x: x + w - 114, y: y + 5, width: 34, height: 34 });
+        at(entry.toggle, { x: x + w - 63, y: y + 8, width: 50, height: 30 });
+      };
+      entry.row.setVisible(true);
       entry.label.setText(ruleCopy(this.controller.preferences.language, key)[0]);
-      at(entry.label, { x: x + 4, y: y + 12, width: w - 114, height: 23 });
-      at(entry.help, { x: x + w - 106, y: y + 3, width: 38, height: 38 });
-      at(entry.toggle, { x: x + w - 57, y: y + 8, width: 50, height: 30 });
+      entry.help.setStyle({
+        radius: 17,
+        borderColor: colors.muted,
+        color: colors.text,
+        backgroundColor: 'transparent',
+        hoverBackgroundColor: 'transparent',
+      });
       entry.toggle.setChecked(!!this.draft[key]);
     });
-    const footer = r.height - 148;
-    at(this.pagePrev, { x, y: footer, width: 44, height: 36 });
-    at(this.pageNext, { x: x + w - 44, y: footer, width: 44, height: 36 });
-    this.pagePrev.setDisabled(!this.rulePage);
-    this.pageNext.setDisabled(this.rulePage === pages - 1);
-    this.pageNumber.setText(`${this.rulePage + 1} / ${pages}`);
-    at(this.pageNumber, { x: x + 50, y: footer + 8, width: w - 100, height: 22 });
+    this.ruleList.setContentHeight(RULE_KEYS.length * 48);
+    this.ruleList.layout(listRect);
     this.notice.show(
       this.ruleNotice || this.tr('unique'),
-      { x, y: r.height - 108, width: w, height: 55 },
+      { x, y: r.height - 97, width: w, height: 42 },
       10,
       colors.muted,
     );
@@ -759,7 +751,9 @@ export class SudokuGui {
       row.label.show(this.tr(title), { x, y, width: w - 70, height: 45 }, 15, colors.text);
       at(row.toggle, { x: x + w - 54, y: y + 7, width: 50, height: 30 });
       row.toggle.setChecked(p[row.key]);
-      row.toggle.setDisabled((i === 1 && p.manualCandidates) || (i === 2 && !autoCandidateFiltering(p)));
+      row.toggle.setDisabled(
+        (i === 1 && p.manualCandidates) || (i === 2 && !autoCandidateFiltering(p)),
+      );
       row.detail.show(
         this.tr(
           i > 0 && p.manualCandidates
@@ -784,7 +778,10 @@ export class SudokuGui {
     const text = [
       this.tr('basic'),
       ...(this.controller.session.state
-        ? activeRuleDetails(this.controller.session.state.puzzle, this.controller.preferences.language)
+        ? activeRuleDetails(
+            this.controller.session.state.puzzle,
+            this.controller.preferences.language,
+          )
         : []),
     ].join('\n\n');
     const rect = { x, y: 74, width: w, height: r.height - 144 };
@@ -811,7 +808,13 @@ export class SudokuGui {
       selected: s.selected,
       hint: s.hint?.cell ?? -1,
       crossed: noteCrossedMasks(state, filter),
-      candidateMasks: noteDisplayMasks(state, s.selected, s.pencil, filter, c.preferences.showCandidates),
+      candidateMasks: noteDisplayMasks(
+        state,
+        s.selected,
+        s.pencil,
+        filter,
+        c.preferences.showCandidates,
+      ),
       language: c.preferences.language,
       ...(c.lesson >= 0 && s.hint ? { lesson: s.hint.steps[c.lesson]! } : {}),
       completed: s.done,
@@ -822,7 +825,9 @@ export class SudokuGui {
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.strokeStyle = THEMES[c.preferences.theme].accent;
-      ctx.globalAlpha = this.sweep.active ? 0.3 + 0.35 * (1 + Math.sin(this.lastPaint / 110)) : 0.65;
+      ctx.globalAlpha = this.sweep.active
+        ? 0.3 + 0.35 * (1 + Math.sin(this.lastPaint / 110))
+        : 0.65;
       ctx.lineWidth = 5;
       ctx.strokeRect(3, 3, 1254, 1254);
       ctx.restore();
@@ -834,7 +839,15 @@ export class SudokuGui {
     this.surfaces.forEach((canvas, i) => {
       const ctx = canvas.getContext('2d')!;
       ctx.clearRect(0, 0, 90, 100);
-      drawDigit(ctx, SEGMENTS[i + 1]!, 12, 6, 80, this.keys[i]!.disabled ? colors.tube : colors.accent, colors.tube);
+      drawDigit(
+        ctx,
+        SEGMENTS[i + 1]!,
+        12,
+        6,
+        80,
+        this.keys[i]!.disabled ? colors.tube : colors.accent,
+        colors.tube,
+      );
       if (s.pencil && cross & (1 << i)) {
         ctx.strokeStyle = colors.strike;
         ctx.lineWidth = 3;
@@ -881,7 +894,7 @@ export class SudokuGui {
       lesson: this.controller.lesson,
       language: this.controller.preferences.language,
       theme: this.controller.preferences.theme,
-      rulePage: this.rulePage,
+      ruleScroll: this.ruleList.scrollY,
     };
   }
   dispose() {

@@ -16,7 +16,9 @@ export function containmentTransform(state: State, ownerId: string, outward = tr
 export function spaceTransform(from: State, to: State, crossing?: PlayerCrossing): SpaceTransform {
   // A physical crossing is authoritative even when navigation is repaired from
   // A -> A into A -> B -> A. Do not also apply those bookkeeping route edges.
-  if (crossing) return containmentTransform(crossing.entering ? to : from, crossing.container, !crossing.entering);
+  if (crossing) return (crossing.steps ?? [crossing]).reduce((transform, step) =>
+    composeSpace(transform, containmentTransform(step.entering ? to : from, step.container, !step.entering)),
+    {scale:1, offset:[0,0,0]} as SpaceTransform);
   let shared = 0;
   while (shared < Math.min(from.player.route.length, to.player.route.length) &&
     from.player.route[shared]!.box === to.player.route[shared]!.box) shared++;
