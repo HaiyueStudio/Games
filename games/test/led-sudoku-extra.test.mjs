@@ -8,6 +8,21 @@ const {boardCellAt,paintBoard}=await import('../led-sudoku/board-painter.ts');
 const {COLORS,drawDigit}=await import('../led-sudoku/led-display.ts');
 const blank=(options={})=>({version:1,seed:1,options:{...DEFAULT_OPTIONS,...options},givens:Array(81).fill(0),lights:Array(81).fill(0),blocked:Array(81).fill(false),cages:[],lines:[],dots:[]});
 const save=g=>({...g,board:g.puzzle.givens.slice(),notes:Array(81).fill(0),elapsed:0,assisted:false});
+test('thermometer outlines and interiors follow the same cell centers as their bulbs',()=>{
+ for(const theme of ['dark','light-blue']) for(const led of [false,true]) {
+  const p=blank({thermometer:true,led});p.thermometers=[[7,8,17,16],[54,63,64,73,74,65]];
+  const strokes=[],bulbs=[];let points=[];
+  const ctx=new Proxy({
+   beginPath(){points=[];},moveTo(x,y){points.push([x,y]);},lineTo(x,y){points.push([x,y]);},
+   stroke(){if(this.lineWidth===21||this.lineWidth===15)strokes.push(points.slice());},
+   arc(x,y,r){if(r===25)bulbs.push([x,y]);},
+  },{get:(o,k)=>k in o?o[k]:()=>{},set:(o,k,v)=>(o[k]=v,true)});
+  paintBoard(ctx,{theme,puzzle:p,board:p.givens,notes:Array(81).fill(0),selected:-1,hint:-1,solution:Array(81).fill(1)});
+  const expected=[[[525,35],[595,35],[595,105],[525,105]],[[35,455],[35,525],[105,525],[105,595],[175,595],[175,525]]];
+  assert.deepEqual(strokes,[expected[0],expected[0],expected[1],expected[1]]);
+  assert.deepEqual(bulbs,[[525,35],[35,455]]);
+ }
+});
 test('thermometers enforce strict order, empty-cell distances, and both endpoints',()=>{
  const p=blank({thermometer:true});p.thermometers=[[0,1,10,19]];
  assert.deepEqual(candidates(p,p.givens,0),[1,2,3,4,5,6]);assert.deepEqual(candidates(p,p.givens,19),[4,5,6,7,8,9]);

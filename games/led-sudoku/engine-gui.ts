@@ -158,11 +158,9 @@ export class SudokuGui {
     showCloseButton: false,
   });
   private infoTitle: GuiLabel;
-  private infoBody: Paragraph;
+  readonly infoBody: GuiScrollView;
+  private infoLines: GuiLabel[] = [];
   private infoBack: GuiButton;
-  private infoPrev: GuiButton;
-  private infoNext: GuiButton;
-  private infoOffset = 0;
   private draft: Options = { ...DEFAULT_OPTIONS };
   private ruleNotice = '';
   private lastLesson = -1;
@@ -324,16 +322,8 @@ export class SudokuGui {
       this.prefRows.push({ key, label, detail, toggle });
     }
     this.infoTitle = this.rulesPage.add(new GuiLabel({ fontSize: 23 }));
-    this.infoBody = this.rulesPage.add(new Paragraph());
+    this.infoBody = this.rulesPage.add(new GuiScrollView({ id: 'info-body', inertia: true, inertiaStrength: 1, width: '100%', height: '100%' }));
     this.infoBack = this.button(this.rulesPage, '←', 'info-back', () => this.open('game'));
-    this.infoPrev = this.button(this.rulesPage, '↑', 'info-up', () => {
-      this.infoOffset = Math.max(0, this.infoOffset - 5);
-      this.update(false);
-    });
-    this.infoNext = this.button(this.rulesPage, '↓', 'info-down', () => {
-      this.infoOffset += 5;
-      this.update(false);
-    });
     this.root.add(this.help);
     this.root.add(this.confirmation);
     this.confirmation.add(this.answerText);
@@ -433,7 +423,7 @@ export class SudokuGui {
       this.ruleList.scrollTo(0);
       this.ruleNotice = '';
     }
-    this.infoOffset = 0;
+    if (page === 'rules') this.infoBody.scrollTo(0);
     this.controller.changed();
   }
   private tr(key: TextKey, values?: Record<string, string | number>) {
@@ -784,12 +774,12 @@ export class SudokuGui {
     at(this.prefTitle, { x, y: 18, width: w - 44, height: 32 });
     at(this.prefBack, { x: x + w - 40, y: 12, width: 40, height: 40 });
     this.langLabel.setText(this.tr('language'));
-    at(this.langLabel, { x, y: 75, width: w, height: 22 });
-    at(this.language, { x, y: 99, width: w, height: 44 });
+    at(this.langLabel, { x, y: 129, width: w, height: 22 });
+    at(this.language, { x, y: 153, width: w, height: 44 });
     this.language.setValue(p.language);
     this.themeLabel.setText(this.tr('skin'));
-    at(this.themeLabel, { x, y: 157, width: w, height: 22 });
-    at(this.theme, { x, y: 181, width: w, height: 44 });
+    at(this.themeLabel, { x, y: 211, width: w, height: 22 });
+    at(this.theme, { x, y: 235, width: w, height: 44 });
     this.theme.options = THEME_IDS.map((value) => ({
       value,
       label: this.tr(value === 'dark' ? 'darkSkin' : 'lightBlueSkin'),
@@ -797,9 +787,10 @@ export class SudokuGui {
     this.theme.setValue(p.theme);
     this.theme.markDirty();
     this.statsButton.setText(this.tr('statistics'));
-    at(this.statsButton, { x, y: r.height - 52, width: w, height: 40 });
+    at(this.statsButton, { x, y: 64, width: w, height: 44 });
+    this.statsButton.setStyle({ backgroundColor: colors.active });
     this.prefRows.forEach((row, i) => {
-      const y = 244 + i * Math.min(150, (r.height - 312) / 3),
+      const y = 298 + i * Math.min(150, (r.height - 310) / 3),
         title = (['manualCandidates', 'filter', 'boardCandidates'] as const)[i]!,
         detail = (['manualCandidatesDetail', 'filterDetail', 'boardCandidatesDetail'] as const)[i]!;
       row.label.show(this.tr(title), { x, y, width: w - 70, height: 45 }, 15, colors.text);
@@ -816,7 +807,7 @@ export class SudokuGui {
               ? 'requiresFilter'
               : detail,
         ),
-        { x, y: y + 48, width: w, height: Math.min(98, (r.height - 312) / 3 - 48) },
+        { x, y: y + 48, width: w, height: Math.min(98, (r.height - 310) / 3 - 48) },
         12,
         colors.muted,
       );
@@ -856,15 +847,16 @@ export class SudokuGui {
           )
         : []),
     ].join('\n\n');
-    const rect = { x, y: 74, width: w, height: r.height - 144 };
-    let lines = this.infoBody.show(text, rect, 15, colors.text, this.infoOffset);
-    this.infoOffset = Math.min(this.infoOffset, Math.max(0, lines.total - lines.count));
-    this.infoBody.show(text, rect, 15, colors.text, this.infoOffset);
-    [this.infoPrev, this.infoNext].forEach((b, i) =>
-      at(b, { x: x + i * (w - 56), y: r.height - 56, width: 56, height: 44 }),
-    );
-    this.infoPrev.setDisabled(!this.infoOffset);
-    this.infoNext.setDisabled(this.infoOffset + lines.count >= lines.total);
+    const lines = wrapGuiText(text, w - 12, 15, this.measureText);
+    while (this.infoLines.length < lines.length) this.infoLines.push(this.infoBody.add(new GuiLabel({ fontSize: 15 })));
+    this.infoLines.forEach((label, i) => {
+      label.setVisible(i < lines.length);
+      label.setText(lines[i] ?? '');
+      label.setStyle({ color: colors.text });
+      label.layout = parent => { label.rect = { x: parent.x + 4, y: parent.y + i * 24, width: w - 12, height: 24 }; };
+    });
+    this.infoBody.setContentHeight(lines.length * 24);
+    this.infoBody.layout({ x, y: 74, width: w, height: r.height - 86 });
   }
   private paint() {
     const c = this.controller,

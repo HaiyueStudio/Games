@@ -6,6 +6,7 @@ import { completionCellOpacity } from './completion-sweep';
 import { t, type Language } from './i18n';
 import { SEGMENTS, type Puzzle } from './rules';
 import { drawDigit } from './led-display';
+import { cageOutlines } from './cage-outline';
 import type { HintStep } from './hint-explanation';
 
 export interface ViewState { theme?: ThemeId; puzzle: Puzzle; board: number[]; notes: number[]; crossed?: number[]; selected: number; hint: number; solution: number[]; candidateMasks?: number[]; language?: Language; lesson?: HintStep; completed?: boolean; completionProgress?: number | undefined; }
@@ -20,6 +21,11 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
     const theme=state.theme ?? 'dark', colors=THEMES[theme], ink=(color:string)=>boardInk(theme,color);
     const { puzzle: p, board, notes, selected, hint, solution } = state;
     const width=boardWidth(p);
+    const cageLabels=new Set(p.cages.map(cage=>Math.min(...cage.cells)));
+    const notePosition=(i:number,d:number) => ({
+      x:i%width*70+(p.options.killer?27:24)+((d-1)%3)*(p.options.killer?15:16),
+      y:Math.floor(i/width)*70+(cageLabels.has(i)?26:16)+Math.floor((d-1)/3)*(cageLabels.has(i)?15:18),
+    });
     const regions=p.options.extraRegion?p.extraRegions??[]:[], regionAt=Array<number>(boardLength(p)).fill(-1);regions.forEach((region,n)=>region.forEach(i=>regionAt[i]=n));
     c.setTransform(2, 0, 0, 2, 0, 0); c.fillStyle = ink('#061218'); c.fillRect(0, 0, 630, 630);
     const geometry=boardGeometry(p); c.save(); c.translate(geometry.inset,geometry.inset); c.scale(geometry.size/(width*70),geometry.size/(width*70));
@@ -67,8 +73,8 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
     });
     if(p.options.thermometer) for(const path of p.thermometers ?? []) {
       c.lineCap='butt'; c.lineJoin='round';
-      for(const [width,color] of [[21,ink('#41948c')],[15,ink('#16393d')]] as const) {
-        c.lineWidth=width; c.strokeStyle=color; c.beginPath();
+      for(const [strokeWidth,color] of [[21,ink('#41948c')],[15,ink('#16393d')]] as const) {
+        c.lineWidth=strokeWidth; c.strokeStyle=color; c.beginPath();
         path.forEach((i,n)=>n?c.lineTo(i%width*70+35,Math.floor(i/width)*70+35):c.moveTo(i%width*70+35,Math.floor(i/width)*70+35)); c.stroke();
       }
       const bulb=path[0]!; c.fillStyle=ink('#16393d'); c.strokeStyle=ink('#61b8a7'); c.lineWidth=2;
@@ -79,18 +85,7 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
       c.strokeStyle = ink('#af88ff70'); c.lineWidth = 11; c.beginPath();
       line.forEach((i, n) => n ? c.lineTo(i % width * 70 + 35, Math.floor(i / width) * 70 + 35) : c.moveTo(i % width * 70 + 35, Math.floor(i / width) * 70 + 35)); c.stroke();
     }
-    p.cages.forEach((cage, n) => {
-      c.strokeStyle = n % 2 ? ink('#e9a85b99') : ink('#6caebb99'); c.lineWidth = 1; c.setLineDash([3, 3]);
-      for (const i of cage.cells) {
-        const x = i % width * 70, y = Math.floor(i / width) * 70;
-        c.beginPath();
-        if (!cage.cells.includes(i - 9)) { c.moveTo(x + 5, y + 5); c.lineTo(x + 65, y + 5); }
-        if (!cage.cells.includes(i + 9)) { c.moveTo(x + 5, y + 65); c.lineTo(x + 65, y + 65); }
-        if (i % width === 0 || !cage.cells.includes(i - 1)) { c.moveTo(x + 5, y + 5); c.lineTo(x + 5, y + 65); }
-        if (i % width === 8 || !cage.cells.includes(i + 1)) { c.moveTo(x + 65, y + 5); c.lineTo(x + 65, y + 65); }
-        c.stroke();
-      }
-      c.setLineDash([]);
+    p.cages.forEach((cage) => {
       const first = Math.min(...cage.cells); c.font = 'bold 11px monospace'; c.fillStyle = ink('#ffc16a'); c.fillText(String(cage.sum), first % width * 70 + 8, Math.floor(first / width) * 70 + 15);
     });
     for (let i = 0; i < boardLength(p); i++) {
@@ -105,7 +100,7 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
       const hasNotes = !!mask;
       if (p.options.led !== false) {
         // A playable empty cell still has seven dark tubes. Only black cells omit them.
-        drawDigit(c, v ? SEGMENTS[v]! : p.lights[i]!, x + (hasNotes ? 4 : 19), y + (hasNotes ? 5 : 14), hasNotes ? 16 : 42, color, colors.tube);
+        drawDigit(c, v ? SEGMENTS[v]! : p.lights[i]!, x + (hasNotes ? p.options.killer ? 7 : 4 : 19), y + (hasNotes ? cageLabels.has(i) ? 23 : p.options.killer ? 8 : 5 : 14), hasNotes ? p.options.killer ? 14 : 16 : 42, color, colors.tube);
       } else if (v) {
         c.save(); c.fillStyle = color; c.font = `${p.givens[i] ? 600 : 500} 38px Arial, sans-serif`;
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(v), x + 35, y + 38); c.restore();
@@ -113,7 +108,7 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
       if (hasNotes) {
         c.save(); c.font = 'bold 13px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
         for (let d = 1; d <= 9; d++) if (mask & 1 << (d - 1)) {
-          const struck=!!(crossed & 1<<(d-1)),dx=x+24+((d-1)%3)*16,dy=y+16+Math.floor((d-1)/3)*18;
+          const struck=!!(crossed & 1<<(d-1)),{x:dx,y:dy}=notePosition(i,d);
           c.fillStyle = struck ? ink('#c08894') : ink('#83b6ba');c.fillText(String(d),dx,dy);
           if(struck){c.strokeStyle=ink('#dc9aa7');c.lineWidth=1.6;c.beginPath();c.moveTo(dx-6,dy+6);c.lineTo(dx+6,dy-6);c.stroke();}
         }
@@ -132,6 +127,15 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
         c.strokeStyle=boundary?ink('#4c7f88'):ink('#1c3943');c.lineWidth=boundary?2:1;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
       }
     }
+    // Stroke complete contours over the grid so crossing a cell border stays continuous.
+    c.save();c.lineJoin='round';c.lineCap='round';c.lineWidth=1;c.setLineDash([3,3]);
+    p.cages.forEach((cage,n)=>{
+      c.strokeStyle=n%2?ink('#e9a85b99'):ink('#6caebb99');
+      for(const contour of cageOutlines(cage.cells,width)) {
+        c.beginPath();contour.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.stroke();
+      }
+    });
+    c.restore();
     for (const [a, b] of p.dots) { c.fillStyle = ink('#e8fdff'); c.strokeStyle = ink('#091a22'); c.lineWidth = 2; c.beginPath(); c.arc((a % width + b % width + 1) * 35, (Math.floor(a / width) + Math.floor(b / width) + 1) * 35, 4, 0, Math.PI * 2); c.fill(); c.stroke(); }
     if (p.options.inequality) for (const [a, b] of p.inequalities ?? []) {
       const dx = b % width - a % width, dy = Math.floor(b / width) - Math.floor(a / width);
@@ -169,7 +173,7 @@ export function paintBoard(c: CanvasRenderingContext2D, state: ViewState): void 
         c.fillStyle=ink('#07171e');c.fillRect(x+5,y+53,40,12);c.fillStyle=color;c.font='bold 9px monospace';c.fillText(`R${Math.floor(i/width)+1}C${i%width+1}`,x+7,y+62);
       }
       for(const e of step.eliminations) for(const d of e.digits) {
-        const x=e.cell%width*70+24+((d-1)%3)*16,y=Math.floor(e.cell/width)*70+16+Math.floor((d-1)/3)*18;
+        const {x,y}=notePosition(e.cell,d);
         c.fillStyle=ink('#321d26');c.fillRect(x-8,y-8,16,16);c.fillStyle=ink('#ffb1bd');c.font='bold 13px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String(d),x,y);
         c.strokeStyle=ink('#ffb1bd');c.lineWidth=2;c.beginPath();c.moveTo(x-6,y+6);c.lineTo(x+6,y-6);c.stroke();
       }
