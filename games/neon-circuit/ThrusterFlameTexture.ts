@@ -101,7 +101,7 @@ export class ThrusterFlameTexture {
     });
   }
 
-  update(timeSeconds: number, speedRatio: number, boostStrength: number, intensity = 1): void {
+  update(timeSeconds: number, speedRatio: number, boostStrength: number, intensity = 1, commands?: () => GPUCommandEncoder): void {
     this.uniformValues[0] = intensity > 0 ? timeSeconds : 0;
     this.uniformValues[1] = speedRatio;
     this.uniformValues[2] = boostStrength;
@@ -109,7 +109,7 @@ export class ThrusterFlameTexture {
     if (this.uniformValues.every((value, index) => value === this.previousValues[index])) return;
     this.previousValues.set(this.uniformValues);
     this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformValues);
-    const encoder = this.device.createCommandEncoder({ label: 'NeonCircuit.thrusterFlame.encoder' });
+    const encoder = commands?.() ?? this.device.createCommandEncoder({ label: 'NeonCircuit.thrusterFlame.encoder' });
     const pass = encoder.beginRenderPass({
       label: 'NeonCircuit.thrusterFlame.renderPass',
       colorAttachments: [{
@@ -123,7 +123,7 @@ export class ThrusterFlameTexture {
     pass.setBindGroup(0, this.bindGroup);
     pass.draw(3);
     pass.end();
-    this.device.queue.submit([encoder.finish()]);
+    if (!commands) this.device.queue.submit([encoder.finish()]);
   }
 
   destroy(): void {

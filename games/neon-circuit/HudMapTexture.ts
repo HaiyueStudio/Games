@@ -93,7 +93,7 @@ export class HudMapTexture {
     const hex=parseInt(color.replace('#',''),16);
     this.values.set([(hex>>16&255)/255,(hex>>8&255)/255,(hex&255)/255,1],16);
   }
-  update(pose:RacePose,opponent?:RacePose):void {
+  update(pose:RacePose,opponent?:RacePose,commands?: () => GPUCommandEncoder):void {
     this.basis=hudMapBasis(pose);this.marker=hudMapPoint(this.projection,pose,this.basis);
     this.values.set(this.basis.right,0);this.values.set(this.basis.up,4);this.values.set(this.basis.depth,8);
     this.values.set([this.marker.x,this.marker.y,this.marker.depth,0],12);
@@ -102,11 +102,11 @@ export class HudMapTexture {
     if(this.values.every((value,index)=>value===this.previousValues[index]))return;
     this.previousValues.set(this.values);
     this.device.queue.writeBuffer(this.uniform,0,this.values);
-    const encoder=this.device.createCommandEncoder();
+    const encoder=commands?.() ?? this.device.createCommandEncoder();
     const pass=encoder.beginRenderPass({colorAttachments:[{view:this.view,loadOp:'clear',storeOp:'store',clearValue:[0,0,0,0]}],depthStencilAttachment:{view:this.depthView,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'discard'}});
     pass.setPipeline(this.backgroundPipeline);pass.setBindGroup(0,this.backgroundGroup);pass.draw(3);
     pass.setPipeline(this.linePipeline);pass.setBindGroup(0,this.group);pass.setVertexBuffer(0,this.vertices);pass.draw(6,this.count);
-    pass.setPipeline(this.overlayPipeline);pass.setBindGroup(0,this.overlayGroup);pass.draw(3);pass.end();this.device.queue.submit([encoder.finish()]);
+    pass.setPipeline(this.overlayPipeline);pass.setBindGroup(0,this.overlayGroup);pass.draw(3);pass.end();if (!commands) this.device.queue.submit([encoder.finish()]);
   }
   /** Diagnostic readback is called only by the browser fixture, never during gameplay. */
   async inspectMarkers():Promise<{playerPixels:number;opponentPixels:number}> {

@@ -32,7 +32,7 @@ export class HudSpriteTexture {
     ` });
     this.pipeline = device.createRenderPipeline({ layout: 'auto', vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format: 'rgba8unorm' }] }, primitive: { topology: 'triangle-list' } });
   }
-  render(source: GPUTexture, pose: { rotation?: number; tilt?: number; scale?: number; y?: number; opacity?: number; brightness?: number; pivot?: number; uv?: readonly number[] } = {}): void {
+  render(source: GPUTexture, pose: { rotation?: number; tilt?: number; scale?: number; y?: number; opacity?: number; brightness?: number; pivot?: number; uv?: readonly number[] } = {}, commands?: () => GPUCommandEncoder): void {
     if (this.source !== source) {
       this.source = source; this.last = '';
       this.group = this.device.createBindGroup({ layout: this.pipeline.getBindGroupLayout(0), entries: [
@@ -43,8 +43,8 @@ export class HudSpriteTexture {
     const values = [pose.rotation ?? 0, pose.tilt ?? 0, pose.scale ?? 1, pose.y ?? 0, ...(pose.uv ?? [0,0,1,1]), pose.brightness ?? 1, pose.opacity ?? 1, pose.pivot ?? 0, 0];
     const key = values.map(v => v.toFixed(4)).join(','); if (key === this.last) return; this.last = key;
     this.device.queue.writeBuffer(this.uniform, 0, new Float32Array(values));
-    const encoder = this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.view, loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,0] }] });
-    pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.group!); pass.draw(6); pass.end(); this.device.queue.submit([encoder.finish()]);
+    const encoder = commands?.() ?? this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.view, loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,0] }] });
+    pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.group!); pass.draw(6); pass.end(); if (!commands) this.device.queue.submit([encoder.finish()]);
   }
   destroy(): void { this.uniform.destroy(); this.texture.destroy(); }
 }

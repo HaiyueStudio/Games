@@ -38,15 +38,15 @@ export class HudDialTexture {
     this.group = device.createBindGroup({ layout: this.pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.uniform } }] });
     this.update(100);
   }
-  update(health: number): void {
+  update(health: number, commands?: () => GPUCommandEncoder): void {
     if (health === this.lastHealth) return;
     this.lastHealth = health;
     this.values[0] = Math.min(1, Math.max(0, health / 100));
     this.values.set(healthRingColor(health), 4);
     this.device.queue.writeBuffer(this.uniform, 0, this.values);
-    const encoder = this.device.createCommandEncoder();
+    const encoder = commands?.() ?? this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.view, loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,0] }] });
-    pass.setPipeline(this.pipeline); pass.setBindGroup(0, this.group); pass.draw(3); pass.end(); this.device.queue.submit([encoder.finish()]);
+    pass.setPipeline(this.pipeline); pass.setBindGroup(0, this.group); pass.draw(3); pass.end(); if (!commands) this.device.queue.submit([encoder.finish()]);
   }
   destroy(): void { this.uniform.destroy(); this.texture.destroy(); }
 }

@@ -14,11 +14,9 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 
 | Game | Type | Online preview |
 | --- | --- | --- |
-| 盒中漫游 · Boxbound | 3D recursive puzzle · 51 puzzles / 3 tribute chapters / 5 saves | [Local build](games/boxbound/README.md) |
 | 2048 | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=2048) |
 | 3D Billiards | 3D physics | [Play](https://haiyuestudio.github.io/Games/?game=billiards-3d) |
 | Billiards | 2D physics | [Play](https://haiyuestudio.github.io/Games/?game=billiards) |
-| Calendar Puzzle | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=calendar-puzzle) |
 | Triangle Calendar Puzzle | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=triangle-calendar-puzzle) |
 | Entanglement Path | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=entanglement-path) |
 | Icosahedron Minesweeper | 3D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=icosahedron-minesweeper) |
@@ -82,7 +80,7 @@ The preview command writes only generated files under `artifacts/pages`; the dir
 
 Most manifest games have one LocalStorage-backed `autosave` slot through `@haiyue/engine/save`. Games persist
 only serializable gameplay state; renderer resources, physics handles, DOM nodes, and listeners are rebuilt at
-startup. Boxbound uses five independent journey slots through the same Engine save facade. Shared queueing, validation failure handling, and the default one-slot policy live in
+startup. Shared queueing, validation failure handling, and the default one-slot policy live in
 `games/save/SingleSlotGameSave.ts`.
 
 ## Repository layout
@@ -99,3 +97,5 @@ from the Actions tab. The repository's Pages source must be set to **GitHub Acti
 
 When adding a game, add its entry to `games/manifest.json`, provide `games/<id>/index.html`, and add the target to
 the Rollup configuration. The Pages build fails if a manifest entry is missing its HTML page or JavaScript bundle.
+
+Moonlight Sudoku (LED Sudoku) is maintained in the private [MoonlightSudoku repository](https://github.com/HaiyueStudio/MoonlightSudoku).

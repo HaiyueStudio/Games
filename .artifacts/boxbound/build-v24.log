@@ -1,9 +1,0 @@
-
-> @haiyue/games-repository@0.1.0 build:target
-> node scripts/build-target.mjs game:boxbound
-
-
-> rollup game boxbound
-
-games/boxbound/main.ts → games/boxbound/bundle.js...
-created games/boxbound/bundle.js in 17.3s

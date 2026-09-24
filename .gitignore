@@ -21,3 +21,28 @@ desktop.ini
 
 /games/led-sudoku/generator.worker.js
 /games/led-sudoku/generator.worker.js.map
+
+# Private CalendarPuzzle application lives in a sibling repository.
+/games/calendar-puzzle/
+/games/test/calendar-puzzle-*.test.mjs
+/games/test/fixtures/calendar-network/
+/games/test/fixtures/calendar-skins/
+/scripts/generate-calendar-audio.mjs
+/scripts/verify-calendar-network.mjs
+/games/pad-simulator/scenes/CalendarPuzzlePadGame.ts
+/games/pad-simulator/assets/icons/calendar-puzzle.svg
+/site/screenshots/calendar-puzzle.webp
+
+# Private Darkside application lives in a sibling repository.
+/games/echo-path/
+/games/test/echo-path*.test.mjs
+/site/screenshots/echo-path.png
+
+# MoonlightSudoku application is maintained in its private repository.
+/games/led-sudoku/
+/games/test/led-sudoku*.test.mjs
+/site/screenshots/led-sudoku.png
+
+# BoxWorld is a private standalone application.
+/games/boxbound/
+/site/screenshots/boxbound.png

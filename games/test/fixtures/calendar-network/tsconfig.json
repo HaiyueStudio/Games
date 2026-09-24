@@ -1,1 +1,0 @@
-{ "extends": "../../../../tsconfig.rollup.json", "include": ["./main.ts", "../../../calendar-puzzle/**/*.ts", "../../../save/**/*.ts", "../../../arrayAccess.ts"], "exclude": [] }

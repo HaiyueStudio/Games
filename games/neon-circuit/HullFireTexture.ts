@@ -101,7 +101,7 @@ export class HullFireTexture {
     });
   }
 
-  update(timeSeconds: number, intensity: number): void {
+  update(timeSeconds: number, intensity: number, commands?: () => GPUCommandEncoder): void {
     // A healthy hull needs one transparent frame, not a noise shader every frame.
     intensity = Math.max(0, Math.min(1, intensity));
     if (intensity === 0) timeSeconds = 0;
@@ -113,7 +113,7 @@ export class HullFireTexture {
     this.uniformValues[2] = 0;
     this.uniformValues[3] = 1.37;
     this.device.queue.writeBuffer(this.uniformBuffer, 0, this.uniformValues);
-    const encoder = this.device.createCommandEncoder({ label: 'NeonCircuit.hullFire.encoder' });
+    const encoder = commands?.() ?? this.device.createCommandEncoder({ label: 'NeonCircuit.hullFire.encoder' });
     const pass = encoder.beginRenderPass({
       label: 'NeonCircuit.hullFire.renderPass',
       colorAttachments: [{
@@ -127,7 +127,7 @@ export class HullFireTexture {
     pass.setBindGroup(0, this.bindGroup);
     pass.draw(3);
     pass.end();
-    this.device.queue.submit([encoder.finish()]);
+    if (!commands) this.device.queue.submit([encoder.finish()]);
   }
 
   destroy(): void {

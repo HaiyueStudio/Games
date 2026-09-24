@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "include": [
-    "./*.ts",
-    "../save/SingleSlotGameSave.ts",
-    "../../node_modules/@haiyue/engine/src/**/*"
-  ],
-  "exclude": ["../../games/test", "**/*.test.ts"]
-}

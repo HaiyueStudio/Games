@@ -5,7 +5,6 @@ const gameDetails = {
   '2048': { genre: 'puzzle', description: 'Slide matching tiles and build the elusive 2048 tile.', mark: '20' },
   'billiards-3d': { genre: 'physics', description: 'A tactile three-dimensional billiards table driven by physics.', mark: '3D' },
   billiards: { genre: 'physics', description: 'Line up the shot and clear a crisp top-down billiards table.', mark: '8' },
-  'calendar-puzzle': { genre: 'puzzle', description: 'Fit every piece while leaving today\'s date visible.', mark: '31' },
   'triangle-calendar-puzzle': { genre: 'puzzle', description: 'Solve a triangular calendar with geometric pieces.', mark: '△' },
   'entanglement-path': { genre: 'puzzle', description: 'Rotate tiles to weave the longest path without crossing the edge.', mark: '∞' },
   'icosahedron-minesweeper': { genre: 'puzzle', description: 'Minesweeper wraps around the faces of an icosahedron.', mark: '◆' },
@@ -21,7 +20,6 @@ const gameDetails = {
   'sokoban-3d': { genre: 'puzzle', description: 'Push every crate into place in a dimensional warehouse.', mark: '⬡' },
   'spider-solitaire': { genre: 'cards', description: 'Build descending runs and complete all eight suits.', mark: '♠' },
   sudoku: { genre: 'puzzle', description: 'A clean number puzzle with notes, checks, and saved progress.', mark: '9' },
-  'led-sudoku': { genre: 'puzzle', description: 'Read partial LED segments, narrow the candidates, and combine diagonal, killer, missing-cell and consecutive rules.', mark: 'LED' },
   tetris: { genre: 'arcade', description: 'Stack falling pieces, clear lines, and keep the board alive.', mark: '▥' },
   'wfc-map': { genre: 'procedural', description: 'Watch wave function collapse assemble a fresh tiled world.', mark: '⌘' },
 };

@@ -87,6 +87,7 @@ function isRacerSaveData(value: unknown): value is RacerSaveData {
 }
 
 interface RacerSnapshot {
+  dynamicTextures: { encodes: number; submissions: number };
   readonly raceMode: RaceMode; readonly difficulty: AiDifficulty; readonly winner: RaceWinner; readonly opponent: RaceState | null; readonly opponentModel: string;
   readonly cameraMode: CameraMode;
   readonly fireballs: readonly import('./VolcanicHazards').FallingFireball[];
@@ -179,6 +180,7 @@ export class NeonCircuitGame {
   private selectedCircuit: string;
   private saves!: SingleSlotGameSave<RacerSaveData>;
   private engine!: HaiyueEngine;
+  private readonly textureWork = { encodes: 0, submissions: 0 };
   private world!: World;
   private camera!: SphericalTransform3D;
   private cameraComponent!: Camera3D;
@@ -327,6 +329,8 @@ export class NeonCircuitGame {
   suspend(): void { this.audio?.suspend(); this.cancelInteraction(); if (this.phase === 'racing' || this.phase === 'countdown') this.togglePause(); }
   flushSave(): Promise<void> { return this.saves.flush(); }
   get guiView(): NeonCircuitGui { return this.gui; }
+  /** Lightweight input gate; avoids constructing a diagnostic snapshot in the frame loop. */
+  get canDrive(): boolean { return this.phase === 'racing' || this.phase === 'countdown'; }
   /** Diagnostic comparison against the real rendered chase camera, including its handedness. */
   get mapRoadAlignment() {
     const here = racePose(this.track,this.state), ahead = sampleTrack(this.track,this.state.distance+450);
@@ -770,9 +774,21 @@ export class NeonCircuitGame {
     if (this.phase === 'racing' && this.state.elapsed >= this.announcementUntil) this.announcementText = '';
     if(this.phase==='countdown' && this.vehicleReady)this.audio.countdown(this.countdown<=.45?'GO':String(Math.max(1,Math.ceil(this.countdown-.4))) as '3'|'2'|'1');
     this.audio.update(seconds,this.phase === 'racing',this.held('w') || this.held('arrowup'),this.state.speed/BOOST_MAX_SPEED,this.held('s')||this.held('arrowdown'));
-    this.updateVisuals(timeMs, seconds);
-    this.gui.animate(seconds);
-    this.updateHud();
+    // All procedural textures are ready before world rendering consumes them.
+    // Each producer owns its uniforms and records at most once in this batch.
+    let textureEncoder: GPUCommandEncoder | undefined;
+    this.textureWork.encodes = this.textureWork.submissions = 0;
+    const commands = () => {
+      this.textureWork.encodes++;
+      return textureEncoder ??= this.engine.device.createCommandEncoder({ label: 'NeonCircuit.dynamicTextures' });
+    };
+    this.updateVisuals(timeMs, seconds, commands);
+    this.gui.animate(seconds, commands);
+    this.updateHud(commands);
+    if (textureEncoder) {
+      this.engine.device.queue.submit([textureEncoder.finish()]);
+      this.textureWork.submissions = 1;
+    }
     this.world.update(timeMs, deltaMs);
     this.gui.flushCarouselCaptureLosses();
     if (!this.native && ++this.validationFrames >= 24 && this.validationFrames < 1_000_000 && this.vehicleReady) {
@@ -806,7 +822,7 @@ export class NeonCircuitGame {
     }
   }
 
-  private updateVisuals(timeMs: number, seconds: number): void {
+  private updateVisuals(timeMs: number, seconds: number, commands?: () => GPUCommandEncoder): void {
     this.styleRacerMaterials();
     if(this.opponentTransform) {
       const p=racePose(this.track,this.opponentState),t=this.opponentTransform;
@@ -845,9 +861,9 @@ export class NeonCircuitGame {
     const thrust = this.phase === 'racing' && accelerating && !this.state.destroyed;
     const effectsRunning = this.phase === 'racing' || this.phase === 'destroyed';
     if (this.phase !== 'paused') this.effectClock += seconds;
-    this.thrusterFlame?.update(this.effectClock, speedRatio, boostStrength, this.state.destroyed ? 0 : thrust ? 1 : 0.48);
+    this.thrusterFlame?.update(this.effectClock, speedRatio, boostStrength, this.state.destroyed ? 0 : thrust ? 1 : 0.48, commands);
     const damage = damageEnvelope(this.state.health);
-    this.hullFire?.update(this.effectClock, damage.fire);
+    this.hullFire?.update(this.effectClock, damage.fire, commands);
     for (const part of this.fireParts) part.setScale(1, 3.5 + damage.fire * 6, 1);
     if(bodyFrame) {
       const origin=bodyPosition([0,0,0]), basis=frameMatrix(bodyFrame,origin);
@@ -855,8 +871,8 @@ export class NeonCircuitGame {
     }
     this.effects.update(seconds, bodyPosition([0, 3.8, -11]), pose.frame?.forward ?? [Math.sin(pose.heading), 0, Math.cos(pose.heading)],
       this.cameraMode==='first-person'?0:damage.smokeRate, damage.smokeOpacity, effectsRunning);
-    this.boostStrip.update(this.effectClock);
-    this.rainbowRoad?.update(this.effectClock);
+    this.boostStrip.update(this.effectClock, commands);
+    this.rainbowRoad?.update(this.effectClock, commands);
     this.cameraImpact *= Math.exp(-seconds * 5);
     const shake = this.phase === 'paused' || this.phase === 'home' ? 0 : this.cameraImpact;
 
@@ -901,7 +917,7 @@ export class NeonCircuitGame {
     this.volcano?.update(this.effectClock,this.camera.eyePosition,this.hazards?.balls ?? []);
   }
 
-  private updateHud(): void {
+  private updateHud(commands?: () => GPUCommandEncoder): void {
     if (this.phase === 'countdown') this.announcementText = !this.vehicleReady
       ? TEXT[this.language].loadingCar : this.countdown <= 0.45 ? 'GO' : String(Math.max(1, Math.ceil(this.countdown - 0.4)));
     this.gui.update({ raceMode:this.raceMode,position:raceProgress(this.state,this.track)>=raceProgress(this.opponentState,this.track)?1:2,winner:this.winner,
@@ -910,7 +926,7 @@ export class NeonCircuitGame {
       best: Number.isFinite(this.bestTime) ? formatTime(this.bestTime) : '--:--.---', health: this.state.health, damageSide:this.state.damageSide,
       countdown: this.countdown, announcement: this.announcementText,
       newRecord: this.newRecord, throttle: this.held('w') || this.held('arrowup'), brake: this.held('s') || this.held('arrowdown'),
-      impact: this.phase === 'racing' ? this.cameraImpact : 0 });
+      impact: this.phase === 'racing' ? this.cameraImpact : 0 }, commands);
   }
 
   private finishRace(): void {
@@ -1000,6 +1016,7 @@ export class NeonCircuitGame {
     return {
       raceMode:this.raceMode,difficulty:this.difficulty,winner:this.winner,opponent:this.opponent?{...this.opponentState}:null,opponentModel:this.opponentModel?.status??'skipped',
       cameraMode:this.cameraMode, fireballs:(this.hazards?.balls??[]).map(ball=>({...ball})),
+      dynamicTextures: { ...this.textureWork },
       phase: this.phase,
       lap: this.state.lap,
       speed: this.state.speed,

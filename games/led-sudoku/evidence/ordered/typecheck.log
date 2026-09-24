@@ -1,8 +1,0 @@
-
-> @haiyue/games-repository@0.1.0 typecheck
-> tsc -p tsconfig.json --noEmit
-
-games/boxbound/scene.ts(653,24): error TS2379: Argument of type '{ id: string; parts: Part[]; from: Vec; to: Vec; player: false; travel: BoxTravel | undefined; center: number; }' is not assignable to parameter of type 'Actor' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'travel' are incompatible.
-    Type 'BoxTravel | undefined' is not assignable to type 'BoxTravel'.
-      Type 'undefined' is not assignable to type 'BoxTravel'.

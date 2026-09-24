@@ -97,7 +97,7 @@ export class CircuitCarousel {
       { binding: 2, resource: this.ink.createView({ dimension: '2d-array' }) }, { binding: 3, resource: this.sampler },
     ] }); this.last = '';
   }
-  render(width: number, height: number, position: number): void {
+  render(width: number, height: number, position: number, commands?: () => GPUCommandEncoder): void {
     if (!this.panel || !this.group || width < 1 || height < 1) return;
     const key = `${width},${height},${position}`; if (key === this.last) return; this.last = key;
     const ratio = Math.min(2, 1800 / width), w = Math.max(1, Math.round(width * ratio)), h = Math.max(1, Math.round(height * ratio));
@@ -108,9 +108,9 @@ export class CircuitCarousel {
     const order = CIRCUITS.map((_, index) => index).sort((a,b) => Math.abs(carouselOffset(b,position,CIRCUITS.length)) - Math.abs(carouselOffset(a,position,CIRCUITS.length)));
     order.forEach((index,i) => values.set([carouselOffset(index,position,CIRCUITS.length),index,0,0],8+i*4));
     this.device.queue.writeBuffer(this.uniform,0,values);
-    const encoder = this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{
+    const encoder = commands?.() ?? this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{
       view: this.texture.createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,0] }] });
-    pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.group); pass.draw(3); pass.end(); this.device.queue.submit([encoder.finish()]);
+    pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.group); pass.draw(3); pass.end(); if (!commands) this.device.queue.submit([encoder.finish()]);
   }
   destroy(): void { this.texture.destroy(); this.ink.destroy(); this.uniform.destroy(); }
 }

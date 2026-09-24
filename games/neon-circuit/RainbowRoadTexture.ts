@@ -77,11 +77,11 @@ export class RainbowRoadTexture {
       entries: [{ binding: 0, resource: view }, { binding: 1, resource: sampler }] }));
     this.update(0);
   }
-  update(seconds: number): void {
+  update(seconds: number, commands?: () => GPUCommandEncoder): void {
     if (seconds === this.lastTime) return;
     this.time = this.lastTime = seconds; this.values[0] = seconds;
     this.device.queue.writeBuffer(this.uniform, 0, this.values);
-    const encoder = this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{
+    const encoder = commands?.() ?? this.device.createCommandEncoder(), pass = encoder.beginRenderPass({ colorAttachments: [{
       view: this.views[0]!, loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,1] }] });
     pass.setPipeline(this.pipeline); pass.setBindGroup(0, this.group); pass.draw(3); pass.end();
     // Filter the animated surface on-GPU. Distant tiles sample these levels rather than shimmer.
@@ -89,7 +89,7 @@ export class RainbowRoadTexture {
       const mip = encoder.beginRenderPass({ colorAttachments: [{ view: this.views[level]!, loadOp: 'clear', storeOp: 'store', clearValue: [0,0,0,1] }] });
       mip.setPipeline(this.mipPipeline); mip.setBindGroup(0, this.mipGroups[level - 1]!); mip.draw(3); mip.end();
     }
-    this.device.queue.submit([encoder.finish()]);
+    if (!commands) this.device.queue.submit([encoder.finish()]);
   }
   destroy(): void { this.texture.destroy(); this.uniform.destroy(); }
 }

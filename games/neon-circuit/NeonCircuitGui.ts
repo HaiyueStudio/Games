@@ -56,6 +56,9 @@ function label(parent: GuiElement, text: string, size = 14, color = WHITE, align
 
 /** Native engine GUI only: live labels/buttons, scene-independent layout, cached route images. */
 export class NeonCircuitGui {
+  // Engine caches each root independently. These labels change every race frame.
+  private readonly readouts = new GuiRoot({ id: 'race-readouts', disabled: true, visible: false });
+  private readonly cacheWork = { staticLayouts: 0, readoutLayouts: 0 };
   readonly root = new GuiRoot({ theme: { fontSize: 14, radius: 5, colors: {
     primary: CYAN, text: WHITE, textMuted: MUTED, background: '#050b1b', surface: '#0a1730',
     border: '#28516c', hover: '#123451', active: '#164b63', disabled: '#304354', danger: '#ff704c',
@@ -363,6 +366,17 @@ export class NeonCircuitGui {
     box(done,p => [p.width*.28,p.height*.81,p.width*.44,36]);
     for (const layer of [safeHome, this.hud]) box(layer, p => { const i = safeInsets(); return [i.left, i.top, p.width - i.left - i.right, p.height - i.top - i.bottom]; });
     const entity = new Entity('Neon Circuit GUI'); entity.addComponent(this.root); world.addEntity(entity);
+    this.readouts.theme = this.root.theme;
+    for (const item of [this.time, this.best, this.speed, this.healthValue, this.lap]) {
+      const anchor = item.parent!, layout = item.layout.bind(item);
+      this.readouts.add(item);
+      // Static root is laid out first, preserving the original HUD anchor geometry.
+      item.layout = () => layout(anchor.rect);
+    }
+    const readoutEntity = new Entity('Neon Circuit readouts'); readoutEntity.addComponent(this.readouts); world.addEntity(readoutEntity);
+    const staticLayout = this.root.root.layout.bind(this.root.root), readoutLayout = this.readouts.root.layout.bind(this.readouts.root);
+    this.root.root.layout = rect => { this.cacheWork.staticLayouts++; staticLayout(rect); this.readouts.root.markDirty(); };
+    this.readouts.root.layout = rect => { this.cacheWork.readoutLayouts++; readoutLayout(rect); };
     this.setLanguage(this.language);
   }
 
@@ -473,7 +487,7 @@ export class NeonCircuitGui {
     if (g && (this.captureLosses.get(g.pointer) ?? -Infinity) >= g.startedAt) this.cancelCarouselPointer(g.pointer);
     this.captureLosses.clear();
   }
-  animate(seconds: number): void {
+  animate(seconds: number, commands?: () => GPUCommandEncoder): void {
     for (const [key, pedal] of this.pedals) {
       if (!this.touch.visible) continue;
       const down = this.canDrive() && (key === 'w' ? this.current?.throttle : this.current?.brake);
@@ -482,7 +496,7 @@ export class NeonCircuitGui {
       pedal.amount += (target - pedal.amount) * (1 - Math.exp(-seconds * 22));
       if (Math.abs(target - pedal.amount) < 0.0001) pedal.amount = target;
       if (this.skinTextures) pedal.sprite.render(this.skinTextures.button, { uv: [0,0.1,1,0.8], tilt: pedal.amount * 0.66, scale: 1 - pedal.amount * 0.07,
-        y: pedal.amount * 0.035, pivot: 0.42, brightness: 1 - pedal.amount * 0.23 });
+        y: pedal.amount * 0.035, pivot: 0.42, brightness: 1 - pedal.amount * 0.23 }, commands);
       if (pedal.amount !== previous) pedal.label.markDirty();
     }
     if (this.stamp.visible && this.stampArt) {
@@ -490,11 +504,11 @@ export class NeonCircuitGui {
       if(oldAge<.5 && this.stampAge>=.5)this.actions.stamp();
       const t = Math.max(0, Math.min(1, (this.stampAge - 0.18) / 0.32)), after = Math.max(0, this.stampAge - 0.5);
       this.stampSprite.render(this.stampArt, { rotation: -0.18 - (1-t)*0.12, scale: 0.80 + (1-t)**3*0.6 + Math.sin(after*32)*Math.exp(-after*18)*0.06,
-        y: -(1-t)*0.2, opacity: Math.min(1,t*3), brightness: 1 + Math.exp(-after*22)*0.15*t });
+        y: -(1-t)*0.2, opacity: Math.min(1,t*3), brightness: 1 + Math.exp(-after*22)*0.15*t }, commands);
       this.modal.markDirty();
     }
     this.wheelOpacity += ((this.wheelState.active ? 1 : 0.36)-this.wheelOpacity)*(1-Math.exp(-seconds*18));
-    if (this.wheel.visible && this.wheelArt) this.wheelSprite.render(this.wheelArt, { rotation: this.wheelState.angle, scale: 0.94, opacity:this.wheelOpacity });
+    if (this.wheel.visible && this.wheelArt) this.wheelSprite.render(this.wheelArt, { rotation: this.wheelState.angle, scale: 0.94, opacity:this.wheelOpacity }, commands);
     for (const skin of this.skins) if (skin.image.parent instanceof GuiButton) {
       const button = skin.image.parent;
       skin.image.setTint(button.pressed ? '#80bed5' : button.focused || button.hovered ? '#ffffff' : '#d4e8f2');
@@ -507,7 +521,7 @@ export class NeonCircuitGui {
       if (Math.abs(this.carouselTarget - this.carouselPosition) < 0.001) this.carouselPosition = this.carouselTarget;
     }
     const p = this.carouselStage.rect;
-    this.carousel.render(p.width,p.height,this.carouselPosition);
+    this.carousel.render(p.width,p.height,this.carouselPosition, commands);
     this.carouselImage.setSource(this.carousel.texture);
     this.carouselStage.markDirty();
   }
@@ -555,7 +569,7 @@ export class NeonCircuitGui {
     this.start.setText(TEXT[this.language].timeTrial);
     if (notify) this.actions.select(id);
   }
-  update(state: RaceGuiState): void {
+  update(state: RaceGuiState, commands?: () => GPUCommandEncoder): void {
     const changedPhase = this.current?.phase !== state.phase;
     this.current = state;
     if (changedPhase) this.stampAge = 0;
@@ -569,8 +583,8 @@ export class NeonCircuitGui {
     const cracks=state.cameraMode==='first-person'?windshieldStage(state.health):0;
     this.glassImage.setVisible(cracks>0 && state.phase!=='home');
     if(cracks) {this.glass!.update(this.fractures);this.glassImage.setSource(this.glass!.texture);}
-    this.dial.update(state.health);
-    if(this.canDrive()) this.minimap.update(state.pose,state.opponentPose);
+    this.dial.update(state.health, commands);
+    if(this.canDrive()) this.minimap.update(state.pose,state.opponentPose,commands);
     this.healthValue.setText(state.raceMode==='duel'?`${TEXT[this.language].position} ${state.position} / 2`:`${TEXT[this.language].hull} ${Math.ceil(state.health)}%`);
     const tint = healthRingColor(state.health);
     this.healthValue.setStyle({ color: `rgb(${Math.round(tint[0] * 255)},${Math.round(tint[1] * 255)},${Math.round(tint[2] * 255)})` });
@@ -579,6 +593,7 @@ export class NeonCircuitGui {
     if (digit) { this.countdownImage.setSource(digit); this.countdownImage.markDirty(); }
     this.announcement.setText(state.announcement);
     const paused = state.phase === 'paused', ended = state.phase === 'finished' || state.phase === 'destroyed';
+    this.readouts.root.setVisible(state.phase !== 'home' && !paused && !ended);
     this.modal.setVisible(paused || ended);
     this.courseHeader.setVisible(!paused && !ended);
     this.speedPanel.setVisible(!paused && !ended);
@@ -644,7 +659,7 @@ export class NeonCircuitGui {
     return { ...rect };
   }
   async inspectMapMarkers() {return this.minimap.inspectMarkers();}
-  get snapshot() { return { carouselCardSize:carouselMetrics(this.carouselStage.rect.width,this.carouselStage.rect.height),carouselZoom:this.root.viewport.width>=760?1.5:'fit-width',arrowStyle:'translucent-glow',homeActions: {solo:{text:this.start.text,...this.start.rect},duel:{text:this.buttons.get('start-duel')!.text,...this.buttons.get('start-duel')!.rect},difficulty:{text:this.buttons.get('cycle-difficulty')!.text,...this.buttons.get('cycle-difficulty')!.rect}},raceMode:this.raceMode,difficulty:this.difficulty,resultTitle:this.modalTitle.text, language:this.language,title:TEXT[this.language].title,courseName:this.courseName.text,settingsVisible:this.settingsLayer.visible,settingsBackdrop:(this.settingsLayer as GuiModal).backdropColor,settingsBounds:{...this.settingsPanel.rect}, renderer: 'engine-gui', homeVisible: this.home.visible, selected: this.selected, routeCount: this.cards.length, carouselPosition: this.carouselPosition, carouselTarget: this.carouselTarget, carouselBounds: { ...this.carouselStage.rect },
+  get snapshot() { return { cacheWork: {...this.cacheWork}, readoutsVisible: this.readouts.root.visible, carouselCardSize:carouselMetrics(this.carouselStage.rect.width,this.carouselStage.rect.height),carouselZoom:this.root.viewport.width>=760?1.5:'fit-width',arrowStyle:'translucent-glow',homeActions: {solo:{text:this.start.text,...this.start.rect},duel:{text:this.buttons.get('start-duel')!.text,...this.buttons.get('start-duel')!.rect},difficulty:{text:this.buttons.get('cycle-difficulty')!.text,...this.buttons.get('cycle-difficulty')!.rect}},raceMode:this.raceMode,difficulty:this.difficulty,resultTitle:this.modalTitle.text, language:this.language,title:TEXT[this.language].title,courseName:this.courseName.text,settingsVisible:this.settingsLayer.visible,settingsBackdrop:(this.settingsLayer as GuiModal).backdropColor,settingsBounds:{...this.settingsPanel.rect}, renderer: 'engine-gui', homeVisible: this.home.visible, selected: this.selected, routeCount: this.cards.length, carouselPosition: this.carouselPosition, carouselTarget: this.carouselTarget, carouselBounds: { ...this.carouselStage.rect },
     recordStamp: { visible: this.stamp.visible, age: this.stampAge }, cameraMode:this.cameraMode, windshield:{...this.fractures.snapshot,stage:this.current?.cameraMode==='first-person'?windshieldStage(this.current.health):0,visible:this.glassImage.visible}, wheel: { bounds:{...this.wheel.rect}, ...this.wheelState, opacity:this.wheelOpacity, visible: this.wheel.visible }, pedalPress: Object.fromEntries([...this.pedals].map(([key,p]) => [key,p.amount])), modalBackdrop: this.modal.style.backgroundColor, announcementSkin: {text:this.announcement.text,visible:this.announcement.visible,background:this.announcement.style.backgroundColor},
     skinnedButtonsTransparent: [...this.buttons.values()].every(b => b.style.borderColor === '#00000000' && b.style.backgroundColor === '#00000000'),
     modalVisible: this.modal.visible, activeButtons: this.activeButtonIds(), courseBounds: { ...this.courseHeader.rect }, timingBounds: { ...this.stats.rect }, dialBounds: { ...this.speedPanel.rect },

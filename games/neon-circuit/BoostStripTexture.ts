@@ -41,15 +41,15 @@ export class BoostStripTexture {
     ] });
   }
 
-  update(seconds: number): void {
+  update(seconds: number, commands?: () => GPUCommandEncoder): void {
     this.values[0] = (seconds * 0.62) % 1;
     if (this.values[0] === this.lastPhase) return;
     this.lastPhase = this.values[0]!;
     this.device.queue.writeBuffer(this.uniform, 0, this.values);
-    const encoder = this.device.createCommandEncoder();
+    const encoder = commands?.() ?? this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });
     pass.setPipeline(this.pipeline); pass.setBindGroup(0, this.group); pass.draw(3); pass.end();
-    this.device.queue.submit([encoder.finish()]);
+    if (!commands) this.device.queue.submit([encoder.finish()]);
   }
 
   destroy(): void { this.uniform.destroy(); this.texture.destroy(); }
