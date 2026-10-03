@@ -1,0 +1,13 @@
+{
+  "generator": "built-in image_gen",
+  "assets": [
+    {
+      "file": "mushroom-bumper.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent 2D pinball bumper sprite. A single charming hand-drawn mushroom, viewed straight on as a flat notebook doodle, wide semicircular dusty terracotta red cap with five cream spots, short cream stalk, thick imperfect graphite double outlines and fine pencil crosshatching. Centered, fills 85% of square canvas. Warm ivory paper color within the silhouette, TRUE transparent background outside the silhouette. No ground, no surrounding objects, no text, no cast shadow, no frame. Authentic graphite and colored-pencil drawing, restrained vintage school exercise-book aesthetic, clearly readable at 60 pixels tall."
+    },
+    {
+      "file": "pinwheel.png",
+      "prompt": "Use case: stylized-concept. Asset type: rotating pinwheel sprite for a hand drawn notebook pinball game. Exactly one four-bladed folded paper pinwheel seen perfectly straight-on, centered rotation axis precisely in middle of square canvas. Four broad triangular folded sails alternate muted dusty sage green, ochre yellow, terracotta red, and faded blue. Little brass central pin. Imperfect graphite pencil double contours, crosshatched colored pencil texture, cream highlights. Occupy 88% of canvas with safe padding. TRUE transparent background. No stick, no stem, no scenery, no text, no shadow, no perspective, no frame. Whimsical vintage school notebook doodle, crisp and legible at 60 pixels."
+    }
+  ]
+}

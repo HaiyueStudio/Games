@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#eee9dc" />
+<title>纸上弹球 · Notebook Pinball | Haiyue</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<main class="workspace">
+  <aside class="notes">
+    <a class="back" href="../../">← 游戏集 / HAIYUE</a>
+    <div class="edition">AFTER CLASS CLUB <span>№ 01</span></div>
+    <h1>纸上<br><em>弹球。</em></h1>
+    <p class="subtitle">NOTEBOOK PINBALL</p>
+    <p class="intro">在练习本的空白里，<br>留一场不想下课的游戏。</p>
+    <div class="scorecard">
+      <span class="label">本局得分 / SCORE</span>
+      <strong id="score">000000</strong>
+      <div class="record"><span>最高纪录</span><span id="best">000000</span></div>
+    </div>
+    <div class="instructions">
+      <div><kbd>←</kbd><kbd>A</kbd><span>左挡板</span></div>
+      <div><kbd>→</kbd><kbd>D</kbd><span>右挡板</span></div>
+      <div><kbd>↓</kbd><kbd>S</kbd><span>按住蓄力，松开发球</span></div>
+      <div><kbd>↑</kbd><kbd>W</kbd><span>快速发球</span></div>
+    </div>
+    <p class="margin-note">✳ 点亮三枚书签，额外 +1500 分</p>
+    <div class="scene-guide"><span>🍄 弹力蘑菇 <b>+200</b></span><span>✣ 风车五连击 <b>+1000</b></span><span>☆ 双通道集齐 <b>+800</b></span></div>
+    <div class="tools"><button id="pause" aria-label="暂停游戏">Ⅱ 暂停</button><button id="restart">↻ 重开</button><button id="sound" aria-pressed="true">♪ 声音</button></div>
+    <p class="fineprint">P 暂停 · R 重开<br>MADE WITH HAIYUE ENGINE</p>
+  </aside>
+  <section class="page-area" aria-label="弹球游戏台">
+    <div class="paper" id="table">
+      <div class="page-head"><span>课间游乐场 / PINBALL</span><span>日期 <b>今天</b> &nbsp; 心情 <b>愉快</b></span></div>
+      <div id="art" aria-hidden="true"></div>
+      <canvas id="canvas" width="600" height="900" aria-label="弹球台，方向键或 WASD 控制"></canvas>
+      <div class="table-copy" aria-hidden="true">
+        <span class="scribble orbit">碰一下，摘颗星。</span>
+        <svg class="notebook-doodles" viewBox="0 0 600 900" fill="none" aria-hidden="true">
+          <g stroke="#666957" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M302 224 C348 212 364 239 383 210 S422 178 446 173" stroke-dasharray="4 6" opacity=".55"/>
+            <path d="M424 142 L472 158 L440 171 Z M424 142 L444 159 L472 158 M444 159 L440 171 L433 161 Z" fill="#eee6ce"/>
+            <path d="M422 140 L471 157 M426 145 L443 160" opacity=".35"/>
+            <g transform="translate(24 440) rotate(-5)"><path d="M-5-110 H5 V86 L0 109 L-5 86 Z" fill="#d1af65"/><path d="M-5-87 H5 M-5-80 H5 M0-78 V82 M-5 86 H5 M-2 102 H2"/><path d="M-5-110 H5 V-90 H-5 Z" fill="#bd7760"/></g>
+            <g transform="translate(574 450)"><path d="M-7-88 H7 V88 H-7 Z" fill="#eee4c5"/><path d="M-7-76 H2 M-7-61 H-2 M-7-46 H2 M-7-31 H-2 M-7-16 H2 M-7-1 H-2 M-7 14 H2 M-7 29 H-2 M-7 44 H2 M-7 59 H-2 M-7 74 H2"/></g>
+            <path d="M283 736 L287 745 L298 747 L290 754 L291 765 L283 759 L273 765 L275 754 L267 747 L278 745 Z" fill="#c6ab66" opacity=".7"/>
+            <path d="M102 595 l10 3 -8 7 1 11 -8-6 -10 5 3-10 -7-8 11 0 5-10 Z M454 598 l5 8 10 1 -7 7 1 10 -8-5 -9 5 3-10 -7-7 10-1 Z" stroke="#a1774a" opacity=".5"/>
+            <path d="M219 335 q-7-18 -13-3 q-7 11 13 22 q20-15 13-23 q-7-12 -13 4" stroke="#b17862" opacity=".6"/>
+          </g>
+          <g id="spring-coil" stroke="#796d54" stroke-width="2" fill="none"><path d="M520 790 H550 M535 790 L524 795 L546 800 L524 805 L546 810 L524 815 L546 820 L535 825 H550 M520 825 H550"/></g>
+        </svg>
+        <span class="scribble center">课间奇遇 · LITTLE WONDERS</span>
+        <span class="scribble left-label">A / ←</span><span class="scribble right-label">D / →</span>
+        <span class="scribble shooter">发<br>球<br>↑</span>
+        <span class="drain">下次接住我！</span>
+      </div>
+      <div id="floaters" aria-hidden="true"></div>
+      <div id="banner" role="status"><span id="banner-title">正在翻开练习本…</span><small id="banner-detail">加载 Haiyue 引擎和手绘素材</small></div>
+      <div class="page-foot"><span id="balls">● ● ● &nbsp; 三次机会</span><span id="combo">LET’S PLAY!</span></div>
+      <div class="power-track"><div id="power"></div></div>
+    </div>
+    <div class="touch-controls"><button data-control="left" aria-label="左挡板">← 左挡板</button><button data-control="charge" aria-label="按住蓄力，松开发球">↓ 蓄力发球</button><button data-control="right" aria-label="右挡板">右挡板 →</button></div>
+  </section>
+  <aside class="side-note" aria-hidden="true"><span>把烦恼弹开 ↗</span><div>✧<br>一点运气<br>一点反应<br>再来一局</div><small>GRAPHITE & GRAVITY<br>600 × 900 / VOL. 01</small></aside>
+</main>
+<pre id="result" hidden></pre>
+<script type="module" src="./bundle.js"></script>
+</body>
+</html>

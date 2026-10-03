@@ -1,0 +1,13 @@
+{
+  "generator": "built-in image_gen",
+  "assets": [
+    {
+      "file": "notebook-paper.png",
+      "prompt": "Use case: stylized-concept\nAsset type: portrait 2:3 background texture for a playable hand-drawn pinball game.\nPrimary request: warm ivory Chinese handwriting practice notebook paper with fine faded dusty-blue square grid, delicate dotted cross guidelines inside every square, natural paper fibers, very subtle graphite smudges. Flat top-down scan, edge-to-edge paper, no perspective or lighting gradients. Sparse tiny charming graphite pencil doodles only around the outermost edges: little stars, an orbital curve, small paper airplane, a pencil spring. Keep central 85% empty grid paper so real game objects can render above. Elegant authentic pencil sketch, restrained muted terracotta accents. No text, no letters, no numbers, no pinball table, no ball, no frame, no watermark. High resolution."
+    },
+    {
+      "file": "star-bumper.png",
+      "prompt": "Use case: stylized-concept\nAsset type: single circular bumper sprite for a hand drawn notebook pinball videogame.\nPrimary request: perfectly top-down circular pinball bumper, centered, occupies 85 percent of a square image, isolated on truly transparent background. Handmade graphite pencil sketch with imperfect double contour outlines and delicate crosshatching. Three concentric rims in charcoal pencil, cream paper interior, dusty terracotta red inner circle with a small cream five-point star at exact center. Flat 2D sprite, no perspective, no cast shadow outside circular silhouette, no text, no lettering, no watermark. Crisp dark contours legible at small sizes, tactile colored pencil texture, whimsical classroom doodle aesthetic."
+    }
+  ]
+}

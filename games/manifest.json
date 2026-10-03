@@ -671,6 +671,33 @@
       "performance": null,
       "ci": "smoke",
       "thumbnail": "screenshots/ak47-range.webp"
+    },
+    {
+      "id": "pinball",
+      "title": "纸上弹球 · Notebook Pinball",
+      "entry": "pinball/main.ts",
+      "thumbnail": "screenshots/pinball.png",
+      "capabilities": [
+        "2d",
+        "2d-physics",
+        "input",
+        "game-workflow",
+        "generated-assets",
+        "experimental-render-integration"
+      ],
+      "assets": [
+        "pinball/assets/notebook-paper.png",
+        "pinball/assets/star-bumper.png",
+        "pinball/style.css",
+        "pinball/assets/mushroom-bumper.png",
+        "pinball/assets/pinwheel.png"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
     }
   ]
 }

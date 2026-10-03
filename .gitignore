@@ -46,3 +46,5 @@ desktop.ini
 # BoxWorld is a private standalone application.
 /games/boxbound/
 /site/screenshots/boxbound.png
+
+.artifacts/pinball/
