@@ -27,6 +27,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | Pad Simulator | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=pad-simulator) |
 | Pac-Man | 2D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pacman) |
 | Piano | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=piano) |
+| 墨游 · 龙鲤 / Ink Pinball | 2D physics · 水墨山水 / WGSL 墨迹扩散 / WASD | [Local build](games/ink-pinball/README.md) |
 | 纸上弹球 / Notebook Pinball | 2D physics · 手绘素描 / 练习本格子 / WASD | [Local build](games/pinball/README.md) |
 | Pong | 3D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pong) |
 | AK47 Range / 前线训练场 | 横屏生存射击 · 掩体寻路 / 90° 迷雾 / 骨骼持枪 | [Local build](games/ak47-range/README.md) |

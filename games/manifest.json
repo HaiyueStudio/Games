@@ -698,6 +698,33 @@
       },
       "performance": null,
       "ci": "smoke"
+    },
+    {
+      "id": "ink-pinball",
+      "title": "墨游 · 龙鲤 / Ink Pinball",
+      "entry": "ink-pinball/main.ts",
+      "thumbnail": "screenshots/ink-pinball.png",
+      "capabilities": [
+        "2d",
+        "2d-physics",
+        "input",
+        "game-workflow",
+        "generated-assets",
+        "experimental-render-integration"
+      ],
+      "assets": [
+        "ink-pinball/assets/landscape.png",
+        "ink-pinball/assets/brush.png",
+        "ink-pinball/assets/lotus.png",
+        "ink-pinball/assets/provenance.json",
+        "ink-pinball/style.css"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
     }
   ]
 }

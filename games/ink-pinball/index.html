@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eae7dc"><title>墨游 · 龙鲤 | Ink Pinball · Haiyue</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<canvas id="ink-ui" aria-hidden="true"></canvas>
+<main class="workspace">
+  <aside class="notes">
+    <a class="back" href="../../">← HAIYUE · 游戏集</a>
+    <div class="edition">水墨游艺 <span>卷 二</span></div>
+    <div class="title-line"><h1>墨游</h1><span class="seal">龙<br>鲤</span></div>
+    <p class="subtitle">INK IN MOTION</p>
+    <p class="intro">一滴墨，游山河。<br>云起龙吟，水动鱼跃。</p>
+    <div class="scorecard ink-panel">
+      <span class="label">本 局 得 分</span><strong id="score">000000</strong>
+      <div class="record"><span>最高纪录</span><span id="best">000000</span></div>
+    </div>
+    <div class="instructions">
+      <div><kbd>A</kbd><kbd>←</kbd><span>左挡板</span></div>
+      <div><kbd>D</kbd><kbd>→</kbd><span>右挡板</span></div>
+      <div><kbd>S</kbd><kbd>↓</kbd><span>按住蓄墨 · 松开发球</span></div>
+      <div><kbd>W</kbd><kbd>↑</kbd><span>一键发球</span></div>
+    </div>
+    <p class="margin-note">集齐「山 · 水 · 龙」<br><span>画境相成，额外 +1500 分</span></p>
+    <div class="tools"><button class="ink-panel" id="pause" aria-label="暂停游戏">Ⅱ 暂停</button><button class="ink-panel" id="restart">↻ 重开</button><button class="ink-panel" id="sound" aria-pressed="true">♪ 声音</button></div>
+    <p class="fineprint">P 暂停 · R 重开<br>HAIYUE ENGINE / INK PINBALL</p>
+  </aside>
+  <section class="page-area" aria-label="水墨弹球画卷">
+    <div class="scroll-cap"></div>
+    <div class="paper" id="table">
+      <div id="art" aria-hidden="true"></div>
+      <canvas id="canvas" width="600" height="900" aria-label="水墨弹球，W或上箭头发球，A D或左右箭头控制挡板"></canvas>
+      <div class="table-copy" aria-hidden="true"><span class="vertical-title">云 龙 游 墨</span><span class="shooter">引<br>墨<br>↑</span><span class="left-label">A / ←</span><span class="right-label">D / →</span><span class="river-caption">鲤跃山河 · 墨落有声</span></div>
+      <div id="floaters" aria-hidden="true"></div>
+      <div id="banner" class="ink-panel" role="status"><span id="banner-title">正在展开画卷…</span><small id="banner-detail">载入山水与墨迹</small></div>
+      <div class="page-foot"><span id="balls">● ● ●</span><span id="combo">墨随心动</span></div>
+      <div class="power-track"><div id="power"></div></div>
+    </div>
+    <div class="scroll-cap bottom"></div>
+    <div class="touch-controls"><button class="ink-panel" data-control="left" aria-label="左挡板">← 左挡板</button><button class="ink-panel" data-control="charge" aria-label="按住蓄力，松开发球">蓄墨 · 发球</button><button class="ink-panel" data-control="right" aria-label="右挡板">右挡板 →</button></div>
+  </section>
+  <aside class="poem" aria-hidden="true"><p>墨分五色<br>水写千山</p><span class="small-seal">游<br>心</span><small>山水之间<br>自有回响</small></aside>
+</main>
+<pre id="result" hidden></pre><script type="module" src="./bundle.js"></script>
+</body>
+</html>
