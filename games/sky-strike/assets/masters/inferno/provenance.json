@@ -1,0 +1,21 @@
+[
+  {
+    "file": "../../boss-inferno.png",
+    "sha256": "c67018d12b0e977c39e1e31b9988719335e347d8e342d87d1119d1ec76a601c3",
+    "generator": "built-in image_gen",
+    "alpha": "original generated alpha preserved",
+    "revision": "Restored user-selected third square hull; background removed by image_gen. Original aspect 1:1."
+  },
+  {
+    "file": "../../elite-cinder.png",
+    "sha256": "b00642a91437debf81b417572f1c3baf6096c587abaa9c949c99ac565e0c973f",
+    "generator": "built-in image_gen",
+    "alpha": "original generated alpha preserved"
+  },
+  {
+    "file": "../../fx-inferno.png",
+    "sha256": "7bf11478dfd42b72315c1c9e8e4bf8c0c987304b97b09a525ad46f61eb4bab3f",
+    "generator": "built-in image_gen",
+    "alpha": "original generated alpha preserved"
+  }
+]

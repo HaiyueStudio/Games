@@ -66,15 +66,15 @@ import {
   wrapLevelIndex,
 } from '../sky-strike/levels/loader.ts';
 
-test('Sky Strike defines ten regular enemies, three elites, six bosses, and segmented devices', () => {
-  assert.equal(ENEMY_DEFINITIONS.length, 22);
-  assert.equal(NORMAL_ENEMIES.length, 10);
-  assert.equal(ELITE_ENEMIES.length, 3);
-  assert.equal(BOSS_ENEMIES.length, 6);
+test('Sky Strike defines eleven regular enemies, five elites, thirteen boss hulls, and segmented devices', () => {
+  assert.equal(ENEMY_DEFINITIONS.length, 32);
+  assert.equal(NORMAL_ENEMIES.length, 11);
+  assert.equal(ELITE_ENEMIES.length, 5);
+  assert.equal(BOSS_ENEMIES.length, 13);
   assert.equal(BOSS_ENEMY.tier, 'boss');
   assert.equal(BOSS_ENEMY.hitPoints, 1_300);
-  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage']);
-  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 22);
+  assert.deepEqual(BOSS_ENEMIES.map(enemy => enemy.bossAttack), ['inferno', 'laser', 'arc-storm', 'gravity-fan', 'carrier-deploy', 'emitter-grid', 'serpent-barrage', 'twin-bubbles', 'twin-bubbles', 'asteroid-grab', 'singularity', 'quantum-broadside', 'mirror-deploy']);
+  assert.equal(new Set(ENEMY_DEFINITIONS.map(enemy => enemy.id)).size, 32);
   assert.ok(ENEMY_DEFINITIONS.every(enemy => enemy.hitPoints > 0 && enemy.size > 0));
   const helios = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-prism');
   const emitter = ENEMY_DEFINITIONS.find(enemy => enemy.id === 'helios-emitter');
@@ -102,8 +102,8 @@ test('space train cars and mechanical serpent segments follow the requested comb
   assert.ok((train?.speed ?? 0) >= 300);
   assert.equal(SERPENT_SEGMENT_COUNT, 9);
   assert.equal(serpent?.bossAttack, 'serpent-barrage');
-  assert.equal(turret?.damageProxyBossAttack, 'serpent-barrage');
-  assert.deepEqual(resolveEnemyDamage(turret, 16), { targetDamage: 16, relayedBossDamage: 16 });
+  assert.equal(turret?.damageProxyBossAttack, undefined);
+  assert.deepEqual(resolveEnemyDamage(turret, 16), { targetDamage: 16, relayedBossDamage: 0 });
 
   const fullHealthInterval = serpentTurretFireIntervalMs(2_200, 2_200, 2_200);
   const halfHealthInterval = serpentTurretFireIntervalMs(2_200, 1_100, 2_200);
@@ -273,10 +273,10 @@ test('bomb area is forward-facing and includes nearby enemies and projectiles', 
 });
 
 test('level timelines expand grouped spawns and resolve deterministic positions', async () => {
-  const levelUrls = [1, 2, 3, 4, 5, 6].map(index => new URL(`../sky-strike/levels/level-0${index}.json`, import.meta.url));
+  const levelUrls = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(index => new URL(`../sky-strike/levels/level-${String(index).padStart(2,'0')}.json`, import.meta.url));
   const levels = await Promise.all(levelUrls.map(async url => JSON.parse(await readFile(url, 'utf8'))));
-  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier', 'helios-prism', 'iron-serpent']);
-  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307', '#031317', '#020d0a']);
+  assert.deepEqual(levels.map(level => level.bossId), ['dreadnought', 'ion-seraph', 'void-mantis', 'star-carrier', 'helios-prism', 'iron-serpent', 'twin-red', 'ore-reaper', 'black-hole', 'crystal-prism']);
+  assert.deepEqual(levels.map(level => level.background.top), ['#030617', '#140307', '#0d0418', '#281307', '#031317', '#020d0a', '#10051b', '#0d0c17', '#070311', '#080e22']);
   assert.ok(levels.every(level => typeof level.name === 'string' && level.name.length >= 4));
   for (const level of levels) {
     const timeline = compileLevelTimeline(level);
@@ -297,8 +297,8 @@ test('level timelines expand grouped spawns and resolve deterministic positions'
     mixLevelBackground(levels[0].background, levels[1].background, 1),
     levels[1].background,
   );
-  assert.equal(wrapLevelIndex(6, levels.length), 0);
-  assert.equal(wrapLevelIndex(-1, levels.length), 5);
+  assert.equal(wrapLevelIndex(levels.length, levels.length), 0);
+  assert.equal(wrapLevelIndex(-1, levels.length), levels.length-1);
   assert.equal(wrapLevelIndex(3, 0), 0);
 });
 
@@ -306,19 +306,19 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8'));
   const entry = manifest.entries.find(candidate => candidate.id === 'sky-strike');
   assert.ok(entry);
-  assert.equal(entry.assets.length, 27);
+  assert.ok(entry.assets.includes('sky-strike/assets/sprites.rgba'));
   for (const asset of entry.assets) {
     assert.ok(existsSync(new URL(`../${asset}`, import.meta.url)), `${asset} must exist`);
   }
 
-  const source = await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8');
+  const source = (await readFile(new URL('../sky-strike/SkyStrikeGame.ts', import.meta.url), 'utf8')) + (await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8'));
   const carouselSource = await readFile(new URL('../sky-strike/levelCarousel.ts', import.meta.url), 'utf8');
   const html = await readFile(new URL('../sky-strike/index.html', import.meta.url), 'utf8');
   assert.match(source, /new SingleSlotGameSave<SkyStrikeSaveData>/);
   assert.match(source, /'arrowup'.*'arrowdown'.*'arrowleft'.*'arrowright'.*'w'.*'a'.*'s'.*'d'.*'j'.*'k'.*'b'/s);
-  assert.match(source, /addEventListener\('pointerdown'/);
-  assert.match(source, /addEventListener\('pointermove'/);
-  assert.match(source, /addEventListener\('contextmenu'.*preventDefault/s);
+  assert.match(source, /listen\(this\.canvas, 'pointerdown'/);
+  assert.match(source, /listen\(this\.canvas, 'pointermove'/);
+  assert.match(source, /listen\(this\.canvas, 'contextmenu'.*preventDefault/s);
   assert.match(source, /event\.button === 2.*activateBomb\(\)/s);
   assert.match(source, /POWERUP_FORM_INTERVAL_MS/);
   assert.match(source, /BOSS_LASER_WARNING_MS/);
@@ -348,7 +348,7 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(source, /drawIronSerpentTurret\(/);
   assert.match(source, /new SkyStrikeLevelCarousel\(/);
   assert.match(source, /new RenderIntegration\(engine, \{ label: 'SkyStrike\.gui' \}\)/);
-  assert.match(source, /renderIntegration\.registerAll\(world, \(\) => \(\{ pass: 'shared' \}\)\)/);
+  assert.match(source, /renderIntegration\.registerAll\(world\)/);
   assert.match(source, /beginLevel\(this\.selectedLevelIndex\)/);
   assert.match(source, /key === 'arrowleft'.*key === 'a'/s);
   assert.match(source, /key === 'arrowright'.*key === 'd'/s);
@@ -356,10 +356,54 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
   assert.match(carouselSource, /GuiImage/);
   assert.match(carouselSource, /GuiButton/);
   assert.match(carouselSource, /GuiSystem/);
-  assert.match(carouselSource, /addEventListener\('pointerdown'/);
-  assert.match(carouselSource, /addEventListener\('pointerup'/);
+  assert.match(carouselSource, /listen\('pointerdown'/);
+  assert.match(carouselSource, /listen\('pointerup'/);
   assert.match(carouselSource, /SWIPE_THRESHOLD/);
   assert.doesNotMatch(source, /definition\.tier === 'boss'\) this\.enemyBullets\.length = 0/);
   assert.match(html, /height:\s*100dvh/);
-  assert.match(html, /width:\s*min\(100vw,\s*50dvh\)/);
+  assert.equal((html.match(/<canvas\b/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /<button|id="ui"|id="engine-canvas"/);
+  assert.doesNotMatch(source, /CanvasRenderingContext2D|getContext\('2d'/);
+});
+
+
+test('serpent missing slots close smoothly without overshoot or frame-rate dependence',async()=>{
+ const {advanceSerpentSegmentOrder,serpentSegmentPosition}=await import('../sky-strike/rules.ts');
+ assert.equal(advanceSerpentSegmentOrder(5,4,0),5);assert.equal(advanceSerpentSegmentOrder(5,4,110),4.5);
+ assert.equal(advanceSerpentSegmentOrder(5,4,500),4);assert.equal(advanceSerpentSegmentOrder(4,4,16),4);
+ let order=5;for(let i=0;i<22;i++)order=advanceSerpentSegmentOrder(order,4,10);assert.ok(Math.abs(order-4)<1e-10);
+ const a=serpentSegmentPosition(240,360,0,4,false),b=serpentSegmentPosition(240,360,0,4.5,false),c=serpentSegmentPosition(240,360,0,5,false);
+ assert.ok(b.y<a.y&&b.y>c.y,'fractional follow order does not jump between slots');
+});
+
+test('bare serpent head charges above the health gate while dead heads cannot charge', () => {
+  assert.equal(shouldSerpentCharge(1120, 2200, 0), true);
+  assert.equal(shouldSerpentCharge(1120, 2200, 1), false);
+  assert.equal(shouldSerpentCharge(769, 2200, 1), true);
+  assert.equal(shouldSerpentCharge(0, 2200, 0), false);
+});
+
+test('red hardpoints follow the swept wings at every upgrade and leave other weapons unchanged', async () => {
+  const {playerMuzzleOffset}=await import('../sky-strike/rules.ts');
+  for(let level=1;level<=3;level++){
+    const profile=weaponProfile('red',level),points=Array.from({length:profile.projectileCount},(_,i)=>playerMuzzleOffset(profile,i));
+    assert.deepEqual(points[0],{x:-30,y:16});assert.deepEqual(points.at(-1),{x:30,y:16});
+    assert.deepEqual(points[Math.floor(points.length/2)],{x:0,y:-24});
+    for(let i=0;i<points.length;i++){const mirror=points[points.length-1-i];assert.ok(Math.abs(points[i].x+mirror.x)<1e-8);assert.ok(Math.abs(points[i].y-mirror.y)<1e-8);}
+  }
+  for(const form of ['basic','blue'])for(let level=1;level<=3;level++){
+    const profile=weaponProfile(form,level);
+    for(let i=0;i<profile.projectileCount;i++)assert.equal(playerMuzzleOffset(profile,i).y,-24);
+  }
+});
+
+test('Dreadnought four wing hardpoints rotate with hull and remain separate from the laser muzzle',async()=>{
+ const {dreadnoughtWingMuzzle,dreadnoughtLaserMuzzle}=await import('../sky-strike/rules.ts');
+ const e={x:240,y:200,rotation:0,definition:{size:292,renderAspect:1.18}};
+ const tips=Array.from({length:4},(_,i)=>dreadnoughtWingMuzzle(e,i)),laser=dreadnoughtLaserMuzzle(e);
+ assert.equal(new Set(tips.map(p=>p.x)).size,4);
+ assert.ok(tips.every(p=>p.y<laser.y&&Math.abs(p.x-e.x)>70));
+ assert.equal(tips[0].x+tips[3].x,480);assert.equal(tips[1].x+tips[2].x,480);
+ for(let i=0;i<4;i++){const p=dreadnoughtWingMuzzle({...e,rotation:Math.PI/2},i);assert.ok(Math.abs(p.dx+tips[i].dy)<1e-8);assert.ok(Math.abs(p.dy-tips[i].dx)<1e-8);}
+ assert.deepEqual(dreadnoughtWingMuzzle(e,4),tips[0]);
 });

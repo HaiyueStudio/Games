@@ -1,0 +1,1 @@
+{ "extends": "../../../../tsconfig.rollup.json", "include": ["./main.ts", "../../../spider-solitaire/**/*.ts", "../../../save/**/*.ts", "../../../arrayAccess.ts"], "exclude": [] }

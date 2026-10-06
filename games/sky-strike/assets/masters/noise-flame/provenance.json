@@ -1,0 +1,15 @@
+[
+  {
+    "file": "../../boss-inferno.png",
+    "sha256": "c67018d12b0e977c39e1e31b9988719335e347d8e342d87d1119d1ec76a601c3",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved",
+    "revision": "Restored user-selected third square hull; background removed by image_gen. Original aspect 1:1."
+  },
+  {
+    "file": "../../fx-inferno-gun.png",
+    "sha256": "1fa6803f7b9d2cb96ddadbd07ba14d757ec6150c7232cbde47a6b1c4051ce0f3",
+    "generator": "built-in image_gen",
+    "alpha": "generated alpha preserved"
+  }
+]

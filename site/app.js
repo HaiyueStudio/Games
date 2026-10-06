@@ -1,12 +1,16 @@
 const catalogUrl = './games/manifest.json';
 
 const gameDetails = {
+<<<<<<< HEAD
   'valley-of-light': { genre: 'puzzle', description: '转动金桥、平移青桥，让断路在正交投影中相遇。跟随旅行者微，走出无知山谷。', mark: '光' },
   'tank-battle': { genre: 'arcade', description: '单人或双人合作守卫基地。突破砖墙、雪地、海水与丛林，击毁闪光坦克获取六种补给。', mark: '坦' },
+=======
+  'ink-pinball': { genre: 'physics', description: '宣纸山水、云龙游鲤。以墨为球，在会晕开的笔触间游玩水墨弹球。', mark: '墨' },
+  'rubiks-cube': { genre: 'puzzle', description: 'Turn 2×2, 3×3, 4×4 and shape-shifting mirror cubes, then replay your moves to restore them.', mark: '3×3' },
+>>>>>>> d1010ef3e970ca80baa082ac07f3aab92a2acec3
   '2048': { genre: 'puzzle', description: 'Slide matching tiles and build the elusive 2048 tile.', mark: '20' },
   'billiards-3d': { genre: 'physics', description: 'A tactile three-dimensional billiards table driven by physics.', mark: '3D' },
   billiards: { genre: 'physics', description: 'Line up the shot and clear a crisp top-down billiards table.', mark: '8' },
-  'calendar-puzzle': { genre: 'puzzle', description: 'Fit every piece while leaving today\'s date visible.', mark: '31' },
   'triangle-calendar-puzzle': { genre: 'puzzle', description: 'Solve a triangular calendar with geometric pieces.', mark: '△' },
   'entanglement-path': { genre: 'puzzle', description: 'Rotate tiles to weave the longest path without crossing the edge.', mark: '∞' },
   'icosahedron-minesweeper': { genre: 'puzzle', description: 'Minesweeper wraps around the faces of an icosahedron.', mark: '◆' },

@@ -1,0 +1,7 @@
+{
+  "generator": "built-in image_gen",
+  "prompt": "Extract the spaceship from this reference into a transparent PNG sticker. This is a background removal edit, NOT a redesign. The gray-and-white squares are unwanted background: remove every square outside the ship. Preserve the exact spaceship pixels, square framing, size, all black/bronze armor, empty lower side gun sockets, central orange lava cylinder, reactor fans and cyan accents. Output a clean isolated transparent cutout with alpha channel and fully transparent surrounding empty space. No background visualization. Do not add or replace any part of the ship.",
+  "reference": "exec-9ae2532e-f152-4d05-9274-83359b34ac7c.png (third displayed variant)",
+  "delivered": "../../boss-inferno.png",
+  "alpha": "generated RGBA retained unchanged"
+}

@@ -1,0 +1,2453 @@
+{
+  "schemaVersion": 1,
+  "docsSource": {
+    "sha256": "fbb64c14d0fde8fdd77c68b28865e90301303d836861d6be7695af5dbd7ee3cf"
+  },
+  "controllerCount": 89,
+  "documentedControllerCount": 89,
+  "documentedParameterCount": 723,
+  "acceptedParameterCount": 723,
+  "rejectedParameterCount": 0,
+  "entries": [
+    {
+      "sourceName": "afterimage",
+      "documentedParameters": [
+        "flamegap",
+        "framegap",
+        "ignorehitpause",
+        "length",
+        "paladd",
+        "palbright",
+        "palcolor",
+        "palcontrast",
+        "palinvertall",
+        "palmul",
+        "palpostbright",
+        "persistent",
+        "time",
+        "timegap",
+        "trans"
+      ],
+      "acceptedParameters": [
+        "flamegap",
+        "framegap",
+        "ignorehitpause",
+        "length",
+        "paladd",
+        "palbright",
+        "palcolor",
+        "palcontrast",
+        "palinvertall",
+        "palmul",
+        "palpostbright",
+        "persistent",
+        "time",
+        "timegap",
+        "trans"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "afterimagetime",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "allpalfx",
+      "documentedParameters": [
+        "add",
+        "color",
+        "ignorehitpause",
+        "invertall",
+        "mul",
+        "persistent",
+        "sinadd",
+        "time"
+      ],
+      "acceptedParameters": [
+        "add",
+        "color",
+        "ignorehitpause",
+        "invertall",
+        "mul",
+        "persistent",
+        "sinadd",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "angleadd",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "angledraw",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "scale",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "scale",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "anglemul",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "angleset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "appendtoclipboard",
+      "documentedParameters": [
+        "ignorehitpause",
+        "params",
+        "persistent",
+        "text"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "params",
+        "persistent",
+        "text"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "assertspecial",
+      "documentedParameters": [
+        "flag",
+        "flag2",
+        "flag3",
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "flag",
+        "flag2",
+        "flag3",
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "pausemovetime",
+        "supermovetime",
+        "time"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "attackdist",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "attackmulset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "bgpalfx",
+      "documentedParameters": [
+        "add",
+        "color",
+        "ignorehitpause",
+        "invertall",
+        "mul",
+        "persistent",
+        "sinadd",
+        "time"
+      ],
+      "acceptedParameters": [
+        "add",
+        "color",
+        "ignorehitpause",
+        "invertall",
+        "mul",
+        "persistent",
+        "sinadd",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "bindtoparent",
+      "documentedParameters": [
+        "facing",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "time"
+      ],
+      "acceptedParameters": [
+        "facing",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "bindtoroot",
+      "documentedParameters": [
+        "facing",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "time"
+      ],
+      "acceptedParameters": [
+        "facing",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "bindtotarget",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "postype",
+        "time"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "postype",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "changeanim",
+      "documentedParameters": [
+        "ctrl",
+        "elem",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ctrl",
+        "elem",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "changeanim2",
+      "documentedParameters": [
+        "ctrl",
+        "elem",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ctrl",
+        "elem",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "changestate",
+      "documentedParameters": [
+        "anim",
+        "ctrl",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "anim",
+        "ctrl",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "clearclipboard",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "ctrlset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "defencemulset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "destroyself",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "recursive",
+        "removeexplods"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "recursive",
+        "removeexplods"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "ctrl",
+        "value"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "displaytoclipboard",
+      "documentedParameters": [
+        "ignorehitpause",
+        "params",
+        "persistent",
+        "text"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "params",
+        "persistent",
+        "text"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "envcolor",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "under",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "under",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "envshake",
+      "documentedParameters": [
+        "ampe",
+        "ampl",
+        "freq",
+        "ignorehitpause",
+        "persistent",
+        "phase",
+        "time"
+      ],
+      "acceptedParameters": [
+        "ampe",
+        "ampl",
+        "freq",
+        "ignorehitpause",
+        "persistent",
+        "phase",
+        "time"
+      ],
+      "requiredCompiledParameters": [
+        "time"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "explod",
+      "documentedParameters": [
+        "accel",
+        "alpha",
+        "angle",
+        "anim",
+        "bindid",
+        "bindtime",
+        "facing",
+        "id",
+        "ignorehitpause",
+        "ontop",
+        "ownpal",
+        "pausemovetime",
+        "pausepausetime",
+        "persistent",
+        "pos",
+        "postype",
+        "random",
+        "remappal",
+        "removegethit",
+        "removeongethit",
+        "removepngethit",
+        "removetime",
+        "scale",
+        "shadow",
+        "space",
+        "sprpriority",
+        "supermove",
+        "supermovetime",
+        "superpausetime",
+        "trans",
+        "vel",
+        "velocity",
+        "velset",
+        "vfacing",
+        "xangle",
+        "yangle"
+      ],
+      "acceptedParameters": [
+        "accel",
+        "alpha",
+        "angle",
+        "anim",
+        "bindid",
+        "bindtime",
+        "facing",
+        "id",
+        "ignorehitpause",
+        "ontop",
+        "ownpal",
+        "pausemovetime",
+        "pausepausetime",
+        "persistent",
+        "pos",
+        "postype",
+        "random",
+        "remappal",
+        "removegethit",
+        "removeongethit",
+        "removepngethit",
+        "removetime",
+        "scale",
+        "shadow",
+        "space",
+        "sprpriority",
+        "supermove",
+        "supermovetime",
+        "superpausetime",
+        "trans",
+        "vel",
+        "velocity",
+        "velset",
+        "vfacing",
+        "xangle",
+        "yangle"
+      ],
+      "requiredCompiledParameters": [
+        "anim"
+      ],
+      "compatibilityIgnoredParameters": [
+        "helpertype",
+        "keyctrl"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "explodbindtime",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "time"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "fallenvshake",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "forcefeedback",
+      "documentedParameters": [
+        "ampl",
+        "freq",
+        "ignorehitpause",
+        "persistent",
+        "self",
+        "time",
+        "waveform"
+      ],
+      "acceptedParameters": [
+        "ampl",
+        "freq",
+        "ignorehitpause",
+        "persistent",
+        "self",
+        "time",
+        "waveform"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "gamemakeanim",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "random",
+        "under",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "random",
+        "under",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "gravity",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "helper",
+      "documentedParameters": [
+        "facing",
+        "helpertype",
+        "id",
+        "ignorehitpause",
+        "keyctrl",
+        "name",
+        "ownpal",
+        "pausemovetime",
+        "persistent",
+        "pos",
+        "posttype",
+        "postype",
+        "remappal",
+        "scale",
+        "size.air.back",
+        "size.air.front",
+        "size.ground.back",
+        "size.ground.front",
+        "size.head.pos",
+        "size.height",
+        "size.mid.pos",
+        "size.proj.doscale",
+        "size.shadowoffset",
+        "size.xscale",
+        "size.yscale",
+        "sprpriority",
+        "stateno",
+        "supermovetime"
+      ],
+      "acceptedParameters": [
+        "facing",
+        "helpertype",
+        "id",
+        "ignorehitpause",
+        "keyctrl",
+        "name",
+        "ownpal",
+        "pausemovetime",
+        "persistent",
+        "pos",
+        "posttype",
+        "postype",
+        "remappal",
+        "scale",
+        "size.air.back",
+        "size.air.front",
+        "size.ground.back",
+        "size.ground.front",
+        "size.head.pos",
+        "size.height",
+        "size.mid.pos",
+        "size.proj.doscale",
+        "size.shadowoffset",
+        "size.xscale",
+        "size.yscale",
+        "sprpriority",
+        "stateno",
+        "supermovetime"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "bindtime",
+        "pausermovetime",
+        "removetime",
+        "supermove"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitadd",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitby",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "value",
+        "value2"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "value",
+        "value2"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitdef",
+      "documentedParameters": [
+        "affectteam",
+        "air.animtype",
+        "air.cornerpush.veloff",
+        "air.fall",
+        "air.guard.velocity",
+        "air.hittime",
+        "air.juggle",
+        "air.recover",
+        "air.type",
+        "air.velocity",
+        "airguard.cornerpush.veloff",
+        "airguard.ctrltime",
+        "airguard.hittime",
+        "airguard.velocity",
+        "animtype",
+        "attr",
+        "chainid",
+        "damage",
+        "down.bounce",
+        "down.cornerpush.veloff",
+        "down.hittime",
+        "down.velocity",
+        "envshake.ampl",
+        "envshake.freq",
+        "envshake.phase",
+        "envshake.time",
+        "fall",
+        "fall.animtype",
+        "fall.damage",
+        "fall.envshake.ampl",
+        "fall.envshake.freq",
+        "fall.envshake.phase",
+        "fall.envshake.time",
+        "fall.kill",
+        "fall.recover",
+        "fall.recovertime",
+        "fall.xvelocity",
+        "fall.yvelocity",
+        "forcenofall",
+        "forcestand",
+        "getpower",
+        "givepower",
+        "ground.cornerpush.veloff",
+        "ground.hittime",
+        "ground.slidetime",
+        "ground.type",
+        "ground.velocity",
+        "guard.cornerpush.veloff",
+        "guard.ctrltime",
+        "guard.dist",
+        "guard.hittime",
+        "guard.kill",
+        "guard.pausetime",
+        "guard.slidetime",
+        "guard.sparkno",
+        "guard.velocity",
+        "guardflag",
+        "guardsound",
+        "hitflag",
+        "hitonce",
+        "hitsound",
+        "hittime",
+        "id",
+        "ignorehitpause",
+        "ir.hittime",
+        "kill",
+        "maxdist",
+        "mindist",
+        "nochainid",
+        "numhits",
+        "p1facing",
+        "p1getp2facing",
+        "p1sprpriority",
+        "p1stateno",
+        "p2facing",
+        "p2getp1state",
+        "p2sprpriority",
+        "p2stateno",
+        "palfx.add",
+        "palfx.invertall",
+        "palfx.mul",
+        "palfx.sinadd",
+        "palfx.time",
+        "pausetime",
+        "persistent",
+        "priority",
+        "slidetime",
+        "snap",
+        "sparkky",
+        "sparkno",
+        "sparkxy",
+        "sprpriority",
+        "yaccel"
+      ],
+      "acceptedParameters": [
+        "affectteam",
+        "air.animtype",
+        "air.cornerpush.veloff",
+        "air.fall",
+        "air.guard.velocity",
+        "air.hittime",
+        "air.juggle",
+        "air.recover",
+        "air.type",
+        "air.velocity",
+        "airguard.cornerpush.veloff",
+        "airguard.ctrltime",
+        "airguard.hittime",
+        "airguard.velocity",
+        "animtype",
+        "attr",
+        "chainid",
+        "damage",
+        "down.bounce",
+        "down.cornerpush.veloff",
+        "down.hittime",
+        "down.velocity",
+        "envshake.ampl",
+        "envshake.freq",
+        "envshake.phase",
+        "envshake.time",
+        "fall",
+        "fall.animtype",
+        "fall.damage",
+        "fall.envshake.ampl",
+        "fall.envshake.freq",
+        "fall.envshake.phase",
+        "fall.envshake.time",
+        "fall.kill",
+        "fall.recover",
+        "fall.recovertime",
+        "fall.xvelocity",
+        "fall.yvelocity",
+        "forcenofall",
+        "forcestand",
+        "getpower",
+        "givepower",
+        "ground.cornerpush.veloff",
+        "ground.hittime",
+        "ground.slidetime",
+        "ground.type",
+        "ground.velocity",
+        "guard.cornerpush.veloff",
+        "guard.ctrltime",
+        "guard.dist",
+        "guard.hittime",
+        "guard.kill",
+        "guard.pausetime",
+        "guard.slidetime",
+        "guard.sparkno",
+        "guard.velocity",
+        "guardflag",
+        "guardsound",
+        "hitflag",
+        "hitonce",
+        "hitsound",
+        "hittime",
+        "id",
+        "ignorehitpause",
+        "ir.hittime",
+        "kill",
+        "maxdist",
+        "mindist",
+        "nochainid",
+        "numhits",
+        "p1facing",
+        "p1getp2facing",
+        "p1sprpriority",
+        "p1stateno",
+        "p2facing",
+        "p2getp1state",
+        "p2sprpriority",
+        "p2stateno",
+        "palfx.add",
+        "palfx.invertall",
+        "palfx.mul",
+        "palfx.sinadd",
+        "palfx.time",
+        "pausetime",
+        "persistent",
+        "priority",
+        "slidetime",
+        "snap",
+        "sparkky",
+        "sparkno",
+        "sparkxy",
+        "sprpriority",
+        "yaccel"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "air.slidetime"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitfalldamage",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitfallset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value",
+        "xvel",
+        "yvel"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value",
+        "xvel",
+        "yvel"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitfallvel",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitoverride",
+      "documentedParameters": [
+        "attr",
+        "forceair",
+        "ignorehitpause",
+        "persistent",
+        "slot",
+        "stateno",
+        "time"
+      ],
+      "acceptedParameters": [
+        "attr",
+        "forceair",
+        "ignorehitpause",
+        "persistent",
+        "slot",
+        "stateno",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "hitvelset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "lifeadd",
+      "documentedParameters": [
+        "absolute",
+        "ignorehitpause",
+        "kill",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "absolute",
+        "ignorehitpause",
+        "kill",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "lifeset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "makedust",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "pos2",
+        "spacing"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "pos2",
+        "spacing"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "modifyexplod",
+      "documentedParameters": [
+        "accel",
+        "alpha",
+        "angle",
+        "anim",
+        "bindid",
+        "bindtime",
+        "facing",
+        "id",
+        "ignorehitpause",
+        "ontop",
+        "ownpal",
+        "pausemovetime",
+        "pausepausetime",
+        "persistent",
+        "pos",
+        "postype",
+        "random",
+        "remappal",
+        "removegethit",
+        "removeongethit",
+        "removepngethit",
+        "removetime",
+        "scale",
+        "shadow",
+        "space",
+        "sprpriority",
+        "supermove",
+        "supermovetime",
+        "superpausetime",
+        "trans",
+        "vel",
+        "velocity",
+        "velset",
+        "vfacing",
+        "xangle",
+        "yangle"
+      ],
+      "acceptedParameters": [
+        "accel",
+        "alpha",
+        "angle",
+        "anim",
+        "bindid",
+        "bindtime",
+        "facing",
+        "id",
+        "ignorehitpause",
+        "ontop",
+        "ownpal",
+        "pausemovetime",
+        "pausepausetime",
+        "persistent",
+        "pos",
+        "postype",
+        "random",
+        "remappal",
+        "removegethit",
+        "removeongethit",
+        "removepngethit",
+        "removetime",
+        "scale",
+        "shadow",
+        "space",
+        "sprpriority",
+        "supermove",
+        "supermovetime",
+        "superpausetime",
+        "trans",
+        "vel",
+        "velocity",
+        "velset",
+        "vfacing",
+        "xangle",
+        "yangle"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "movehitreset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "nothitby",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "value",
+        "value2"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "time",
+        "value",
+        "value2"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "pausemovetime",
+        "supermovetime"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "null",
+      "documentedParameters": [
+        "ignorehitpause",
+        "params",
+        "pausemovetime",
+        "persistent",
+        "supermovetime",
+        "text"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "params",
+        "pausemovetime",
+        "persistent",
+        "supermovetime",
+        "text"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "offset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "palfx",
+      "documentedParameters": [
+        "add",
+        "color",
+        "ignorehitpause",
+        "invertall",
+        "mul",
+        "persistent",
+        "sinadd",
+        "time"
+      ],
+      "acceptedParameters": [
+        "add",
+        "color",
+        "ignorehitpause",
+        "invertall",
+        "mul",
+        "persistent",
+        "sinadd",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "parentvaradd",
+      "documentedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "acceptedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "parentvarset",
+      "documentedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "acceptedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "pause",
+      "documentedParameters": [
+        "endcmdbuftime",
+        "ignorehitpause",
+        "movetime",
+        "pausebg",
+        "persistent",
+        "time"
+      ],
+      "acceptedParameters": [
+        "endcmdbuftime",
+        "ignorehitpause",
+        "movetime",
+        "pausebg",
+        "persistent",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "playerpush",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "playsnd",
+      "documentedParameters": [
+        "abspan",
+        "channel",
+        "freqmul",
+        "ignorehitpause",
+        "loop",
+        "lowpriority",
+        "pan",
+        "persistent",
+        "value",
+        "volume",
+        "volumescale"
+      ],
+      "acceptedParameters": [
+        "abspan",
+        "channel",
+        "freqmul",
+        "ignorehitpause",
+        "loop",
+        "lowpriority",
+        "pan",
+        "persistent",
+        "value",
+        "volume",
+        "volumescale"
+      ],
+      "requiredCompiledParameters": [
+        "group",
+        "item"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "posadd",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "posfreeze",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "posset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "poweradd",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "powerset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "projectile",
+      "documentedParameters": [
+        "accel",
+        "affectteam",
+        "afterimage.framegap",
+        "afterimage.length",
+        "afterimage.paladd",
+        "afterimage.palbright",
+        "afterimage.palcolor",
+        "afterimage.palcontrast",
+        "afterimage.palinvertall",
+        "afterimage.palmul",
+        "afterimage.palpostbright",
+        "afterimage.time",
+        "afterimage.timegap",
+        "afterimage.trans",
+        "air.animtype",
+        "air.cornerpush.veloff",
+        "air.fall",
+        "air.guard.velocity",
+        "air.hittime",
+        "air.juggle",
+        "air.recover",
+        "air.type",
+        "air.velocity",
+        "airguard.cornerpush.veloff",
+        "airguard.ctrltime",
+        "airguard.hittime",
+        "airguard.velocity",
+        "animtype",
+        "attr",
+        "chainid",
+        "damage",
+        "down.bounce",
+        "down.cornerpush.veloff",
+        "down.hittime",
+        "down.velocity",
+        "envshake.ampl",
+        "envshake.freq",
+        "envshake.phase",
+        "envshake.time",
+        "fall",
+        "fall.animtype",
+        "fall.damage",
+        "fall.envshake.ampl",
+        "fall.envshake.freq",
+        "fall.envshake.phase",
+        "fall.envshake.time",
+        "fall.kill",
+        "fall.recover",
+        "fall.recovertime",
+        "fall.xvelocity",
+        "fall.yvelocity",
+        "forcenofall",
+        "forcestand",
+        "getpower",
+        "givepower",
+        "ground.cornerpush.veloff",
+        "ground.hittime",
+        "ground.slidetime",
+        "ground.type",
+        "ground.velocity",
+        "guard.cornerpush.veloff",
+        "guard.ctrltime",
+        "guard.dist",
+        "guard.hittime",
+        "guard.kill",
+        "guard.pausetime",
+        "guard.slidetime",
+        "guard.sparkno",
+        "guard.velocity",
+        "guardflag",
+        "guardsound",
+        "hitflag",
+        "hitonce",
+        "hitsound",
+        "hittime",
+        "id",
+        "ignorehitpause",
+        "ir.hittime",
+        "kill",
+        "maxdist",
+        "mindist",
+        "nochainid",
+        "numhits",
+        "offset",
+        "ownpal",
+        "p1facing",
+        "p1getp2facing",
+        "p1sprpriority",
+        "p1stateno",
+        "p2facing",
+        "p2getp1state",
+        "p2sprpriority",
+        "p2stateno",
+        "palfx.add",
+        "palfx.invertall",
+        "palfx.mul",
+        "palfx.sinadd",
+        "palfx.time",
+        "pausemovetime",
+        "pausetime",
+        "persistent",
+        "postype",
+        "priority",
+        "projanim",
+        "projcancelanim",
+        "projedgebound",
+        "projheightbound",
+        "projhitanim",
+        "projhits",
+        "projid",
+        "projmisstime",
+        "projpriority",
+        "projremanim",
+        "projremove",
+        "projremovetime",
+        "projscale",
+        "projshadow",
+        "projsprpriority",
+        "projstagebound",
+        "remappal",
+        "remvelocity",
+        "slidetime",
+        "snap",
+        "sparkky",
+        "sparkno",
+        "sparkxy",
+        "sprpriority",
+        "supermovetime",
+        "velmul",
+        "velocity",
+        "yaccel"
+      ],
+      "acceptedParameters": [
+        "accel",
+        "affectteam",
+        "afterimage.framegap",
+        "afterimage.length",
+        "afterimage.paladd",
+        "afterimage.palbright",
+        "afterimage.palcolor",
+        "afterimage.palcontrast",
+        "afterimage.palinvertall",
+        "afterimage.palmul",
+        "afterimage.palpostbright",
+        "afterimage.time",
+        "afterimage.timegap",
+        "afterimage.trans",
+        "air.animtype",
+        "air.cornerpush.veloff",
+        "air.fall",
+        "air.guard.velocity",
+        "air.hittime",
+        "air.juggle",
+        "air.recover",
+        "air.type",
+        "air.velocity",
+        "airguard.cornerpush.veloff",
+        "airguard.ctrltime",
+        "airguard.hittime",
+        "airguard.velocity",
+        "animtype",
+        "attr",
+        "chainid",
+        "damage",
+        "down.bounce",
+        "down.cornerpush.veloff",
+        "down.hittime",
+        "down.velocity",
+        "envshake.ampl",
+        "envshake.freq",
+        "envshake.phase",
+        "envshake.time",
+        "fall",
+        "fall.animtype",
+        "fall.damage",
+        "fall.envshake.ampl",
+        "fall.envshake.freq",
+        "fall.envshake.phase",
+        "fall.envshake.time",
+        "fall.kill",
+        "fall.recover",
+        "fall.recovertime",
+        "fall.xvelocity",
+        "fall.yvelocity",
+        "forcenofall",
+        "forcestand",
+        "getpower",
+        "givepower",
+        "ground.cornerpush.veloff",
+        "ground.hittime",
+        "ground.slidetime",
+        "ground.type",
+        "ground.velocity",
+        "guard.cornerpush.veloff",
+        "guard.ctrltime",
+        "guard.dist",
+        "guard.hittime",
+        "guard.kill",
+        "guard.pausetime",
+        "guard.slidetime",
+        "guard.sparkno",
+        "guard.velocity",
+        "guardflag",
+        "guardsound",
+        "hitflag",
+        "hitonce",
+        "hitsound",
+        "hittime",
+        "id",
+        "ignorehitpause",
+        "ir.hittime",
+        "kill",
+        "maxdist",
+        "mindist",
+        "nochainid",
+        "numhits",
+        "offset",
+        "ownpal",
+        "p1facing",
+        "p1getp2facing",
+        "p1sprpriority",
+        "p1stateno",
+        "p2facing",
+        "p2getp1state",
+        "p2sprpriority",
+        "p2stateno",
+        "palfx.add",
+        "palfx.invertall",
+        "palfx.mul",
+        "palfx.sinadd",
+        "palfx.time",
+        "pausemovetime",
+        "pausetime",
+        "persistent",
+        "postype",
+        "priority",
+        "projanim",
+        "projcancelanim",
+        "projedgebound",
+        "projheightbound",
+        "projhitanim",
+        "projhits",
+        "projid",
+        "projmisstime",
+        "projpriority",
+        "projremanim",
+        "projremove",
+        "projremovetime",
+        "projscale",
+        "projshadow",
+        "projsprpriority",
+        "projstagebound",
+        "remappal",
+        "remvelocity",
+        "slidetime",
+        "snap",
+        "sparkky",
+        "sparkno",
+        "sparkxy",
+        "sprpriority",
+        "supermovetime",
+        "velmul",
+        "velocity",
+        "yaccel"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "air.slidetime"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "remappal",
+      "documentedParameters": [
+        "dest",
+        "ignorehitpause",
+        "persistent",
+        "source"
+      ],
+      "acceptedParameters": [
+        "dest",
+        "ignorehitpause",
+        "persistent",
+        "source"
+      ],
+      "requiredCompiledParameters": [
+        "dest.0",
+        "dest.1",
+        "source.0",
+        "source.1"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "removeexplod",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "pausemovetime",
+        "supermovetime"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "reversaldef",
+      "documentedParameters": [
+        "hitsound",
+        "ignorehitpause",
+        "numhits",
+        "p1sprpriority",
+        "p1stateno",
+        "p2sprpriority",
+        "p2stateno",
+        "pausetime",
+        "persistent",
+        "reversal.attr",
+        "sparkno",
+        "sparkxy"
+      ],
+      "acceptedParameters": [
+        "hitsound",
+        "ignorehitpause",
+        "numhits",
+        "p1sprpriority",
+        "p1stateno",
+        "p2sprpriority",
+        "p2stateno",
+        "pausetime",
+        "persistent",
+        "reversal.attr",
+        "sparkno",
+        "sparkxy"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "attr",
+        "p2facing"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "screenbound",
+      "documentedParameters": [
+        "ignorehitpause",
+        "movecamera",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "movecamera",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "selfstate",
+      "documentedParameters": [
+        "anim",
+        "ctrl",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "anim",
+        "ctrl",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "sndpan",
+      "documentedParameters": [
+        "abspan",
+        "channel",
+        "ignorehitpause",
+        "pan",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "abspan",
+        "channel",
+        "ignorehitpause",
+        "pan",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [
+        "channel"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "sprpriority",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "statetypeset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "movetype",
+        "persistent",
+        "physics",
+        "statetype",
+        "type"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "movetype",
+        "persistent",
+        "physics",
+        "statetype",
+        "type"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "stopsnd",
+      "documentedParameters": [
+        "channel",
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "channel",
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [
+        "channel"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "superpause",
+      "documentedParameters": [
+        "anim",
+        "darken",
+        "ignorehitpause",
+        "movetime",
+        "p2defmul",
+        "persistent",
+        "pos",
+        "poweradd",
+        "sound",
+        "time",
+        "unhittable"
+      ],
+      "acceptedParameters": [
+        "anim",
+        "darken",
+        "ignorehitpause",
+        "movetime",
+        "p2defmul",
+        "persistent",
+        "pos",
+        "poweradd",
+        "sound",
+        "time",
+        "unhittable"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "ownpal"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetbind",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "time"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "pos",
+        "time"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetdrop",
+      "documentedParameters": [
+        "excludeid",
+        "ignorehitpause",
+        "keepone",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "excludeid",
+        "ignorehitpause",
+        "keepone",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetfacing",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetlifeadd",
+      "documentedParameters": [
+        "absolute",
+        "id",
+        "ignorehitpause",
+        "kill",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "absolute",
+        "id",
+        "ignorehitpause",
+        "kill",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetpoweradd",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetstate",
+      "documentedParameters": [
+        "ctrl",
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ctrl",
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetveladd",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "targetvelset",
+      "documentedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "id",
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "trans",
+      "documentedParameters": [
+        "alpha",
+        "ignorehitpause",
+        "persistent",
+        "trans"
+      ],
+      "acceptedParameters": [
+        "alpha",
+        "ignorehitpause",
+        "persistent",
+        "trans"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "turn",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "varadd",
+      "documentedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "acceptedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "varrandom",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "range",
+        "v"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "range",
+        "v"
+      ],
+      "requiredCompiledParameters": [
+        "v"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "varrangeset",
+      "documentedParameters": [
+        "first",
+        "fvalue",
+        "ignorehitpause",
+        "last",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "first",
+        "fvalue",
+        "ignorehitpause",
+        "last",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "varset",
+      "documentedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "acceptedParameters": [
+        "fv",
+        "ignorehitpause",
+        "persistent",
+        "v",
+        "value"
+      ],
+      "requiredCompiledParameters": [
+        "value"
+      ],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "veladd",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "velmul",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "z"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "velset",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "x",
+        "y"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [
+        "z"
+      ],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "victoryquote",
+      "documentedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "acceptedParameters": [
+        "ignorehitpause",
+        "persistent",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    },
+    {
+      "sourceName": "width",
+      "documentedParameters": [
+        "edge",
+        "ignorehitpause",
+        "persistent",
+        "player",
+        "value"
+      ],
+      "acceptedParameters": [
+        "edge",
+        "ignorehitpause",
+        "persistent",
+        "player",
+        "value"
+      ],
+      "requiredCompiledParameters": [],
+      "compatibilityIgnoredParameters": [],
+      "documentedButRejected": []
+    }
+  ]
+}

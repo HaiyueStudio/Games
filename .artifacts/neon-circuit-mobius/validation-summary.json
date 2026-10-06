@@ -1,0 +1,52 @@
+{
+  "status": "feature-validated-native-endurance-incomplete",
+  "installed": true,
+  "circuits": 7,
+  "boostPads": {
+    "perCircuit": 15,
+    "lengthWorldUnits": 96,
+    "lengthMeters": 9.6,
+    "perLane": 5
+  },
+  "tests": {
+    "gameFocused": 64,
+    "native": 8,
+    "browserScenes": {
+      "mobius-overlook": 74,
+      "mobius-back": 74,
+      "animated-boost": 71,
+      "mobius-front": 74
+    },
+    "browserChecks": 293,
+    "allRepository": {
+      "tests": 622,
+      "passed": 592,
+      "failed": 2,
+      "cancelled": 8,
+      "skipped": 20,
+      "note": "Unrelated MUGEN/Petra and virtual-list tests failed; remaining long Petra subprocess stopped after ten minutes."
+    }
+  },
+  "native": {
+    "completedChecksBeforeTermination": 91,
+    "mobiusFrontAndBackPassed": true,
+    "fullVerification": "System terminated app with signal 9 after all seven courses, while switching to first-person ashfall. Cause not established in this run.",
+    "standalone": {
+      "track": "mobius-ring",
+      "mode": "first-person",
+      "frames": 4320,
+      "lap": 2,
+      "elapsedSeconds": 74.69166666667218,
+      "rasterSurfaces": 2,
+      "terminationObserved": false
+    }
+  },
+  "sourceSha256": {
+    "Games/games/neon-circuit/RaceRules.ts": "d7eae5f7327dda11ab8aedf988a2d5aaf3d8f6603159857899cd708d8225ab49",
+    "Games/games/neon-circuit/RainbowRoadTexture.ts": "8e9aa5e6578a9d967276eb6c5a7b775e410fae883ac0d84f70f9f93b822ca13d",
+    "Games/games/neon-circuit/main.ts": "06d550a5b008564f37fdf39c0073842384b08c2489316e97a653dcb6d147a216",
+    "Native/examples/neon-circuit/src/verification.ts": "4060a277cc533183e4e37763630b165ff64b4435947294575c977c539519dfb1"
+  },
+  "browserBundleSha256": "6127fdce67d39984a9cef53dbd6e9bc469bd365c324c612e708466ceabb939e6",
+  "nativeBundleSha256": "ae814564c9aed6b8bf9f5a47cafade38409f6204b9c1aad3060226d8ad9f0029"
+}

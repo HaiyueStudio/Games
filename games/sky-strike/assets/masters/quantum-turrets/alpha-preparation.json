@@ -1,0 +1,20 @@
+[
+  {
+    "source": "hull-generated.png",
+    "target": "boss-quantum-dreadnought.png",
+    "sourceSha256": "4b887478d7c1671d07275cfc51029a8a56ced6e292c5fd614610772a1e65ddc0",
+    "resultSha256": "60746bf1a7a866877e58dad0aed2bcc7bbd95c77d9c5fac7bc70bc2b8cdcac29",
+    "clearPixels": 897606,
+    "totalPixels": 1572516,
+    "retainedRgbUnchanged": true
+  },
+  {
+    "source": "turret-generated.png",
+    "target": "fx-quantum-turret.png",
+    "sourceSha256": "3e5556934d075e96e3891483eb561574a636dd907fb0463d95eb62aa16ed461c",
+    "resultSha256": "afd5b08a8afd14c990fbbb5c150c63c939079d62f645db87e4664fda6e136fb6",
+    "clearPixels": 1059424,
+    "totalPixels": 1572516,
+    "retainedRgbUnchanged": true
+  }
+]

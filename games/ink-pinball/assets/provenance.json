@@ -1,0 +1,20 @@
+{
+  "tool": "built-in image_gen",
+  "generatedAt": "2026-10-06",
+  "assets": [
+    {
+      "file": "landscape.png",
+      "prompt": "Use case: stylized-concept\nAsset type: finished Chinese ink wash landscape painting used as the background of an elegant pinball game.\nPrimary request: textured natural ivory xuan rice paper, majestic misty mountains, serene flowing river with clearly recognizable swimming koi fish, and a magnificent long Chinese dragon winding through the sky above the mountains, all traditional Chinese ink wash painting.\nComposition: tall portrait 2:3 image. Dragon with expressive head and long serpentine body fills upper quarter; layered mountains along the left and right edges of middle third. Lower third is water with two large graceful koi, one charcoal and one pale grey with small cinnabar accents. Keep central middle area light, misty and uncluttered for legible gameplay. Rich detailed dry brush, feathered wet ink edges, soft grey washes and visible paper fibers. Museum-quality monochrome shanshui painting, tiny restrained vermilion details only.\nNo lettering, no seals, no user interface, no pinball objects, no border, no photorealism, no vector art."
+    },
+    {
+      "file": "brush.png",
+      "prompt": "Use case: stylized-concept\nAsset type: transparent game UI background image, one horizontal black Chinese calligraphy brush stroke.\nPrimary request: a broad, dense horizontal stroke of authentic black sumi ink, with a solid rich near-black center wide enough for white interface text, feathered wet edges, pale diluted ink bleeding just outside its edge, fine dry brush hairs and a few tiny organic splashes at the two ends.\nComposition: isolated single horizontal roughly rectangular ink stroke, width to height about 4:1, centered with generous transparent margin. No words or symbols. Delicate irregular taper at the ends; central 65 percent almost opaque black. Hand brushed on absorbent paper, but paper itself completely absent: genuinely transparent background with alpha, including translucent watery fringes.\nPalette: black and translucent grey only. No shadow, no white background, no framed panel, no gradients unrelated to actual ink.",
+      "transparent": true
+    },
+    {
+      "file": "lotus.png",
+      "prompt": "Use case: stylized-concept\nAsset type: isolated transparent sprite for an ink wash pinball game.\nPrimary request: one beautiful circular Chinese ink wash lotus rosette viewed from directly overhead. Layered lotus petals painted with expressive black ink outlines, pale translucent grey interior washes and a tiny vermilion center. Wet ink gently bleeds at outermost edges. Calm traditional hand painted art, recognizably lotus, mostly monochrome. Shape is nearly round, filling 82 percent of a square image with margin, suitable as a round pinball bumper.\nTransparent background with actual alpha; no paper rectangle, no shadow, no words, no frame, no additional objects.",
+      "transparent": true
+    }
+  ]
+}

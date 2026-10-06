@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "result": "pass",
+  "protocol": {
+    "orderedValue": 1234,
+    "persistentTwoAtTime60": 30
+  },
+  "officialLoadEvidence": {
+    "terminalLines": [
+      "Character kfm.def loaded OK",
+      "Match assets initialized OK",
+      "Match loop init"
+    ]
+  },
+  "sources": []
+}

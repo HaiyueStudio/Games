@@ -49,7 +49,7 @@ test('local Petra package completes the asset-viewer pipeline with official dupl
     missingSpriteReferences: model.missingSpriteReferenceCount,
     diagnostics,
   }, {
-    packageSha256: 'ab6faba6b6c1e7d65802f25657051a308f88f4749a3ead056fc5f94f333463f0',
+    packageSha256: '53807e827a1d6b1da22e175b43af8f196c530711c641dacd3439eb4268c6dbb0',
     actions: 747,
     sprites: 1_532,
     rendererSprites: 1_471,

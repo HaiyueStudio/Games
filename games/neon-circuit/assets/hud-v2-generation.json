@@ -1,0 +1,17 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "User supplied circle with upper-right wing and rounded bottom-right corner; used only as silhouette reference.",
+  "processing": "Final RGBA images preserved unchanged. Two RGB checkerboard candidates were rejected; final panel regenerated with genuine alpha.",
+  "assets": [
+    {
+      "path": "gui-instruments-v2.png",
+      "prompt": "A finished transparent RGBA PNG video-game HUD sprite on a truly empty transparent canvas. Isolated futuristic speedometer with a two-row timing panel fused to its upper-right side. Wide 2:1 landscape. Silhouette: large circular dial on left, circle center (23.5% width,47% height), radius 44% of canvas height. A horizontal wing starts behind the circle and extends to 97% width; wing top is 9% height, wing bottom is 59% height. Flat top, vertical right edge, generous rounded lower-right corner, flat wing bottom. The big circle protrudes far below the wing. Dark navy glass, restrained cyan neon perimeter and thin machined titanium rim, tiny amber accent. Dial has subtle peripheral ticks with blank center. Wing contains exactly two blank quiet rows separated by one fine horizontal cyan line. No writing, no numbers. Orthographic front view, whole silhouette tightly framed. Outside the object is a real alpha cutout; export with transparent pixels surrounding the silhouette. No scene, no floor, no surface, no background pattern.",
+      "source": "exec-4edc0f41-677c-414f-a56b-0d61cfab7f05.png"
+    },
+    {
+      "path": "gui-compass-v2.png",
+      "prompt": "Use case: ui-mockup. One finished sci-fi racing HUD transparent PNG, landscape 4:3. Integrated compass housing with a small pause-button socket attached to its UPPER RIGHT (never bottom right). Main circular compass center exactly x=35.6% of canvas width, y=53% of canvas height, outer diameter 90% of height. The entire circular interior within radius 35% of image height is truly transparent for a live map. Thin dark brushed titanium rim with cyan glow tick marks, small amber cardinal triangles. No text, no numbers, no map or compass needle. Empty small circular navy-glass button socket center x=85% width, y=17% height, diameter 29% of height; connect this to the upper-right edge of the large compass using a slim continuous mechanical bridge. Flat front orthographic elevation, restrained matching cyan sci-fi trim, no perspective. Leave a tiny clear lower-center plaque on the main compass rim at x=35.6%, y=90%, about 33% of canvas width and 8% of canvas height, dark navy blank area for a live lap readout. No lettering or symbols on either socket/plaque. Real alpha transparency outside and in the large compass opening, no black rectangle or checkerboard baked in. Frame tightly in canvas with every outer edge visible.",
+      "source": "exec-e9afa287-e5bf-4602-a53d-a388e3b819a4.png"
+    }
+  ]
+}

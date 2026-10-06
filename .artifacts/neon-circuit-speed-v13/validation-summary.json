@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "revision": "neon-circuit-speed-v13",
+  "generatedAt": "2026-09-13T09:53:10.711Z",
+  "bundleSha256": "a22fa0e9cdcde2124af191ab5772adcdc99f7c2ce5f43c25ff5059f3ff38080a",
+  "trackScale": 1.8,
+  "cruiseKmh": 360,
+  "boostKmh": 522,
+  "typecheck": "passed",
+  "build": "passed",
+  "focusedTests": {
+    "pass": 34,
+    "fail": 0
+  },
+  "browser": {
+    "scenarios": [
+      {
+        "name": "animated-boost",
+        "status": "passed",
+        "checks": 46,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "high-speed",
+        "status": "passed",
+        "checks": 46,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "home-desktop",
+        "status": "passed",
+        "checks": 46,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "rainbow-high-speed",
+        "status": "passed",
+        "checks": 47,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "rainbow-mobile",
+        "status": "passed",
+        "checks": 50,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "rainbow-overlook",
+        "status": "passed",
+        "checks": 47,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "reactor-run-fire",
+        "status": "passed",
+        "checks": 46,
+        "errors": [],
+        "diagnosticFailures": 0
+      },
+      {
+        "name": "sky-harbor",
+        "status": "passed",
+        "checks": 46,
+        "errors": [],
+        "diagnosticFailures": 0
+      }
+    ],
+    "checks": 374
+  },
+  "fullTests": {
+    "tests": 590,
+    "pass": 561,
+    "fail": 2,
+    "cancelled": 7,
+    "skipped": 20,
+    "failures": [
+      "HYMUGEN binary contract",
+      "MUGEN viewer light DOM contract"
+    ],
+    "cancellations": "Petra local compatibility timeouts"
+  },
+  "visualReview": "Reviewed all eight screenshots; desktop/mobile high-speed car framing, enlarged route extents, carousel distance labels and boost overlay intact."
+}

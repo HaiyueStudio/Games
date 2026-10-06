@@ -1,0 +1,22 @@
+{
+  "tool": "built-in image_gen",
+  "processing": "Original RGBA files preserved; Engine GuiImage UV rectangles select the artwork without rewriting alpha.",
+  "assets": [
+    {
+      "path": "gui-title.png",
+      "prompt": "Generate a production-ready raster HUD asset for a futuristic antigravity racing game. One very wide, shallow screen-top-attached title plaque, straight horizontal top edge flush to image top, subtle bevelled dark navy metal, thin cyan luminous bottom edge, small angled lower corners, understated silver and violet details at the ends. Empty dark center for one small line of live text. This is a label backing not a button. Minimal slim silhouette, no protruding wings, no large glow. Transparent background outside the plaque, real alpha, no checkerboard, no text, no symbols. Wide landscape image 1536x256, plaque fills image width and height tightly. Orthographic flat UI asset, precise symmetry, matches cyan sci-fi racing HUD.",
+      "source": "exec-3af2bae3-38d5-4b1c-a0d7-c5afef7e5c46.png"
+    },
+    {
+      "path": "gui-timing.png",
+      "prompt": "Generate a production-ready raster HUD background asset for a futuristic racing game. One screen-top-attached instrument panel, straight top edge flush to image top, wide landscape 1536x384. Three equal columns, each column has a small shallow dark caption space in its upper third and a taller dark empty value space in its lower two thirds, designed for live two-line text. Delicate vertical cyan separators, subtle horizontal separator at one third height, dark navy glass, restrained metal angled bottom corners and very thin cyan luminous bottom edge, a few tiny violet technical accents. Entire panel compact, crisp orthographic UI skin. Empty spaces NO text NO numbers NO icons. Transparent background outside the shaped panel, real alpha, no checkerboard. Tightly fill canvas, no padding. Matches elegant cyan racing HUD.",
+      "source": "exec-698b75c0-9daf-49d0-9e0e-abacbb707d1a.png"
+    },
+    {
+      "path": "gui-pause.png",
+      "prompt": "Generate one production-ready square raster GUI button skin for a futuristic racing game. A single circular button centered and filling 94 percent of canvas, isolated against truly transparent background with alpha, no checkerboard. Dark navy blue glass center, slender machined titanium outer circular ring, two restrained segmented cyan luminous arcs and subtle violet accents. Crisp orthographic front view, minimalist sci-fi game HUD, readable when only 44 pixels wide. Center must be blank dark glass with no symbols, no text, no numbers; two pause bars will be drawn separately by the game engine. Symmetrical clean circle, restrained glow, no square backing, no drop shadow outside the compact circle. 1024x1024.",
+      "source": "exec-7a9a986c-2743-421e-a611-87cee757f2b1.png"
+    }
+  ],
+  "sourceDirectory": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee"
+}

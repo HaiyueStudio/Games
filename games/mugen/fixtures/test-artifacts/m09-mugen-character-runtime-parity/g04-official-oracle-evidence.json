@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "result": "pass",
+  "run": {
+    "observedColor": {
+      "r": 0,
+      "g": 255,
+      "b": 0
+    },
+    "sampleCount": 5,
+    "allSamplesMatched": true,
+    "originalConfigurationRestored": true
+  },
+  "sources": []
+}

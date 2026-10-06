@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-09-14T06:12:27.212996+00:00",
+  "status": "passed",
+  "installed": true,
+  "gameFocusedTests": 64,
+  "nativeTests": 8,
+  "browserScenes": {
+    "map3d-twist": 74,
+    "map3d-loop": 71,
+    "mobius-back": 74,
+    "map-bend-right": 71,
+    "map-bend-left": 71
+  },
+  "browserChecks": 361,
+  "typechecks": [
+    "Games",
+    "Native neon-circuit"
+  ],
+  "browserBundleSha256": "5051f234083d42f792568844eecda1a023740a46e26b704066ec52820c06435b",
+  "nativeBundleSha256": "95e4a2ac2eb30d159c08a64c5e121ed31ecfa379118af3c78085dd52c03155b6",
+  "native": {
+    "backend": "Canvas/wgpu/Metal",
+    "capturedFrame": 120,
+    "presentedFrames": 22680,
+    "track": "mobius-ring",
+    "mode": "first-person",
+    "lap": 2,
+    "errors": []
+  },
+  "sourceSha256": {
+    "Games/games/neon-circuit/HudMapMath.ts": "335795113e5e238ec7dbaea4cc77f5e0b18b05ae2c23f4e693db965edf950650",
+    "Games/games/neon-circuit/HudMapTexture.ts": "a9b9cca70e8f46ac4d7a92f332c9c72c1de813901b16a8f2e7190668df441e84",
+    "Games/games/neon-circuit/NeonCircuitGui.ts": "c1b8cc9f91a5bc59d8eb4dfb7d02364ee8afb28bfd1550b000da6bf7e0fa6c2d",
+    "Games/games/neon-circuit/main.ts": "9ad721224f46922a54e8ca22f8821afa24830586c56de30dccc04689ae5ff61b",
+    "Games/games/test/neon-circuit-map.test.mjs": "3539f6be446458f7070864884a8c8a72fb4fa5d496c117c10d955ffc84f5e3ed",
+    "Native/examples/neon-circuit/src/verification.ts": "8f4827973c59b3bf3c59e04d494a65d175ac9e17ebd9fb35d8fe3a74e873c866"
+  },
+  "notes": [
+    "Some browser attempts timed out during initialization; all five final scenarios passed with the original timeout unchanged.",
+    "This validation covers the 3D minimap. It does not re-certify the previously incomplete all-course native endurance test."
+  ]
+}

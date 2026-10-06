@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-09-14T09:36:57.116575+00:00",
+  "featureValidation": "passed",
+  "gameRuleTests": 75,
+  "nativeInputTests": 8,
+  "browserChecks": 124,
+  "browserScenes": [
+    {
+      "name": "duel-setup",
+      "checks": 20,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-race",
+      "checks": 20,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-result",
+      "checks": 20,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-mobius",
+      "checks": 20,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-volcano",
+      "checks": 21,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "first-person-damage",
+      "checks": 23,
+      "status": "passed",
+      "browserErrors": 0
+    }
+  ],
+  "typechecks": {
+    "Games": "passed",
+    "Native": "passed"
+  },
+  "builds": {
+    "web": "passed",
+    "ios": "passed",
+    "bundledResourcesVerified": 53
+  },
+  "bundleSha256": "7284ca469286d98902477a15f81ee7dd1804759de4027e722681242e215438fc",
+  "nativeEvidence": "../../../Native/examples/neon-circuit/evidence/20260914-ai-racing/validation.json",
+  "additionalRegression": {
+    "home-landscape": "incomplete: Chrome/WebGPU fixture timeout at the original 120-second limit; repeated standalone attempt also timed out"
+  },
+  "notes": [
+    "New race mode scenes all passed against this bundle.",
+    "Earlier interrupted Chrome runs were retried without changing assertions or thresholds.",
+    "The running iPhone game was preserved after installation and validation."
+  ]
+}

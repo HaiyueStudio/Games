@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "models": {
+    "ren42": {
+      "source": "ren42.glb",
+      "sourceBytes": 776192,
+      "sourceSha256": "25aa8c535c43b1cc0a5298bc249ee7ce94595457b3da5f215b65a4eb3a10df25",
+      "gltfSha256": "bde7449a0d6ddd6b04fc6d4d02c4310a2d3b09ef9cbad2dfa29aaf3f0e4849c2",
+      "binarySha256": "060acc3bdc24d248bb64f3aebdfd75436d681134bed74495a9b24ae54f8c004e",
+      "textures": [
+        {
+          "image": "image-0.jpg",
+          "rgba": "image-0.rgba",
+          "width": 256,
+          "height": 256,
+          "sha256": "8b5fbcc801b1506bdde8ca830f5b31bee2baf4d60837220882427885556ddbdc"
+        },
+        {
+          "image": "image-1.jpg",
+          "rgba": "image-1.rgba",
+          "width": 256,
+          "height": 256,
+          "sha256": "54a5fe175a2e85179d7cc2fa739b74c96849166724b8748227052ee64d805c14"
+        },
+        {
+          "image": "image-2.jpg",
+          "rgba": "image-2.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "a66002aa2ff9a1e13e99a884ff7d2b9b228e16cf69c85237123b60a4f7774e4a"
+        },
+        {
+          "image": "image-3.jpg",
+          "rgba": "image-3.rgba",
+          "width": 256,
+          "height": 128,
+          "sha256": "393f78f58adbf64f2ec1e9544ef9d76b8bc8f18f44942526d2ad4eaa63ac0ecd"
+        },
+        {
+          "image": "image-4.jpg",
+          "rgba": "image-4.rgba",
+          "width": 256,
+          "height": 128,
+          "sha256": "18164616887d95df6cf236213b5527ced930ec49ee0feaaacdddc5101b89cc63"
+        },
+        {
+          "image": "image-5.jpg",
+          "rgba": "image-5.rgba",
+          "width": 256,
+          "height": 256,
+          "sha256": "59d747aeb7f2ba0edf5abb321f59c7fc18c533e1718f173fc7f96989584405f3"
+        },
+        {
+          "image": "image-6.png",
+          "rgba": "image-6.rgba",
+          "width": 100,
+          "height": 100,
+          "sha256": "6554b928d08499ff41a6e68efbdc0afc42cee6f83d52c531076380449ad79acc"
+        },
+        {
+          "image": "image-7.jpg",
+          "rgba": "image-7.rgba",
+          "width": 256,
+          "height": 256,
+          "sha256": "30e619445d4a537e2a402c77003de8a0c6d164397aa50f3d9e7dcc6029569c69"
+        },
+        {
+          "image": "image-8.png",
+          "rgba": "image-8.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "728fad0328bad2d453068b4c5d47461b22fdb4419bf71f87a078473b97d3ce83"
+        },
+        {
+          "image": "image-9.jpg",
+          "rgba": "image-9.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "3c07dba6c143fb07abf0f152898f84b0998ff84fb66c6b5a341fb280140df652"
+        }
+      ]
+    },
+    "qiang_ak47": {
+      "source": "qiang_ak47.glb",
+      "sourceBytes": 3446356,
+      "sourceSha256": "7b487cb6cdf7746cbc02ffc22d7b54b8ea8ec60aca90732f7047c3708f8341b3",
+      "gltfSha256": "b23e43d26e97522360c49757316025d7b90694f67fe1f6f6baee40e4194a190c",
+      "binarySha256": "c0663d13f1b673686aaf4bd09177b4f4a1d9d6f29ac6d77adc8436a43e553d22",
+      "textures": [
+        {
+          "image": "image-0.jpg",
+          "rgba": "image-0.rgba",
+          "width": 960,
+          "height": 600,
+          "sha256": "c8bc5974b95dbbd53b37b9e56a2544940792790c5890611ced6f016b9599af11"
+        },
+        {
+          "image": "image-1.png",
+          "rgba": "image-1.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "0afce20a172c32ff582ffcba90163ccd770be8f09b9727c050eda9d1e2c6935f"
+        },
+        {
+          "image": "image-2.png",
+          "rgba": "image-2.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "1183330b7299ce5f3bdb9e2ba54212accfd345188247096dea047d376cdf3bbb"
+        },
+        {
+          "image": "image-3.png",
+          "rgba": "image-3.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "e944416263ba6b62e307c7bccff15bc88ffdf20392094e352a270394f1d36d18"
+        },
+        {
+          "image": "image-4.png",
+          "rgba": "image-4.rgba",
+          "width": 512,
+          "height": 512,
+          "sha256": "b0bd11182b857f86bd9dda3f2326438ead53c0f072bd03d91c8b80cc02e5becc"
+        }
+      ]
+    }
+  }
+}

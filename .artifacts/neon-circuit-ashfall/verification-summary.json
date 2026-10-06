@@ -1,0 +1,69 @@
+{
+  "browser": {
+    "checks": 266,
+    "scenes": [
+      {
+        "scene": "volcano",
+        "checks": 70,
+        "modelStatus": "loaded",
+        "screenshotSha256": "911b1cba31d891fb721bb82ac69bee8d98ae7c1a21311f1ea3c26cedf363f3e4"
+      },
+      {
+        "scene": "first-person",
+        "checks": 19,
+        "modelStatus": "skipped",
+        "screenshotSha256": "735730a63416b7aedfe750aaefa276ee6d92f6135f0609de7ca0e7354af0bdce"
+      },
+      {
+        "scene": "first-person-damage",
+        "checks": 19,
+        "modelStatus": "skipped",
+        "screenshotSha256": "8b0d399374e0707c903070be8d3a45232b82ecf925e3655c8f0dd80ef9dc4cf7"
+      },
+      {
+        "scene": "first-person-loop",
+        "checks": 15,
+        "modelStatus": "skipped",
+        "screenshotSha256": "7de68120621f1d7fa9d3019120378ce3a960f75765b9b3b2f3a75f6b796cf191"
+      },
+      {
+        "scene": "settings-en",
+        "checks": 70,
+        "modelStatus": "loaded",
+        "screenshotSha256": "01edeb49d457ce0ac93ca9d0e4ebbb8154d1a760839b69d0f4559d77c6270b65"
+      },
+      {
+        "scene": "hud-mobile",
+        "checks": 73,
+        "modelStatus": "loaded",
+        "screenshotSha256": "6bc978249c318975a918c8844943a18f808273a39732a0707349a477bd679b66"
+      }
+    ],
+    "bundleSha256": "60c59d51e634dab10dd24fc2c6422ba45b5ca3dce2407c7d97ac60164e091a35"
+  },
+  "focusedTests": {
+    "passed": 61,
+    "failed": 0
+  },
+  "nativeControlTests": {
+    "passed": 8,
+    "failed": 0
+  },
+  "fullRepositorySuite": {
+    "passed": 587,
+    "failed": 2,
+    "cancelled": [
+      "MUGEN acceptance",
+      "Petra local compatibility"
+    ],
+    "skipped": 20,
+    "timeLimitSeconds": 180,
+    "failuresOutsideNeon": [
+      "mugen canonical format",
+      "viewer product virtual-list contract"
+    ]
+  },
+  "nativeBundleSha256": "86d49cefce70437eed0b29edde5e42654245793604ad163657aef725457bd8de",
+  "bundledResourceCount": 53,
+  "nativeStatus": "awaiting-uninterrupted-native-verification"
+}

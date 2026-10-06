@@ -13,6 +13,7 @@ export type SpawnPosition = FixedSpawnPosition | RandomSpawnPosition;
 
 export interface LevelSpawnGroup {
   readonly atMs: number;
+  readonly quantumPair?: boolean;
   readonly enemyId: string;
   readonly position: SpawnPosition;
   readonly count?: number;
@@ -26,17 +27,22 @@ export interface LevelBackground {
   readonly nebula: string;
 }
 
+export interface AsteroidBelt { readonly startMs: number; readonly endMs: number; readonly intervalMs: number; readonly bossIntervalMs: number }
+
 export interface SkyStrikeLevel {
   readonly id: string;
+  readonly number?: number;
   readonly name: string;
   readonly seed: number;
   readonly bossId: string;
   readonly background: LevelBackground;
   readonly spawns: readonly LevelSpawnGroup[];
+  readonly asteroidBelt?: AsteroidBelt;
 }
 
 export interface CompiledLevelSpawn {
   readonly atMs: number;
+  readonly quantumPair?: boolean;
   readonly enemyId: string;
   readonly position: SpawnPosition;
 }
@@ -48,10 +54,17 @@ const LEVEL_PATHS = [
   'levels/level-04.json',
   'levels/level-05.json',
   'levels/level-06.json',
+  'levels/level-07.json',
+  'levels/level-08.json',
+  'levels/level-09.json',
+  'levels/level-10.json',
+  'levels/level-11.json',
+  'levels/level-12.json',
 ] as const;
 
-export async function loadSkyStrikeLevels(): Promise<readonly SkyStrikeLevel[]> {
+export async function loadSkyStrikeLevels(readJson?: (path: string) => Promise<unknown>): Promise<readonly SkyStrikeLevel[]> {
   return Promise.all(LEVEL_PATHS.map(async path => {
+    if (readJson) return parseLevel(await readJson(path), path);
     const response = await fetch(path);
     if (!response.ok) throw new Error(`[SKY_STRIKE_LEVEL_LOAD_FAILED] ${path}: HTTP ${response.status}.`);
     return parseLevel(await response.json(), path);
@@ -63,6 +76,7 @@ export function compileLevelTimeline(level: SkyStrikeLevel): CompiledLevelSpawn[
     .flatMap(group => Array.from({ length: group.count ?? 1 }, (_, index) => ({
       atMs: group.atMs + index * (group.intervalMs ?? 0),
       enemyId: group.enemyId,
+      ...(group.quantumPair ? {quantumPair:true} : {}),
       position: group.position,
     })))
     .sort((a, b) => a.atMs - b.atMs);
@@ -108,6 +122,7 @@ export function mixLevelBackground(
 function parseLevel(value: unknown, path: string): SkyStrikeLevel {
   if (!isRecord(value)
     || typeof value.id !== 'string'
+    || (value.number !== undefined && (!Number.isInteger(value.number) || (value.number as number) < 1))
     || typeof value.name !== 'string'
     || !isFiniteNumber(value.seed)
     || typeof value.bossId !== 'string'
@@ -115,17 +130,25 @@ function parseLevel(value: unknown, path: string): SkyStrikeLevel {
     || !Array.isArray(value.spawns)) {
     throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} has an invalid root object.`);
   }
+  const belt = value.asteroidBelt;
+  if (belt !== undefined && (!isRecord(belt) || !isFiniteNumber(belt.startMs) || belt.startMs < 0
+    || !isFiniteNumber(belt.endMs) || belt.endMs <= belt.startMs
+    || !isFiniteNumber(belt.intervalMs) || belt.intervalMs < 250 || belt.intervalMs > 5000
+    || !isFiniteNumber(belt.bossIntervalMs) || belt.bossIntervalMs < 250 || belt.bossIntervalMs > 5000))
+    throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} has an invalid asteroid belt.`);
   const spawns = value.spawns.map((spawn, index) => parseSpawn(spawn, `${path}#spawns[${index}]`));
   if (!spawns.some(spawn => spawn.enemyId === value.bossId)) {
     throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${path} must schedule boss "${value.bossId}".`);
   }
   return Object.freeze({
     id: value.id,
+    ...(value.number !== undefined ? {number:value.number as number} : {}),
     name: value.name,
     seed: Math.floor(value.seed),
     bossId: value.bossId,
     background: Object.freeze({ ...value.background }),
     spawns: Object.freeze(spawns),
+    ...(belt ? { asteroidBelt: Object.freeze({ ...belt }) as unknown as AsteroidBelt } : {}),
   });
 }
 
@@ -133,6 +156,7 @@ function parseSpawn(value: unknown, label: string): LevelSpawnGroup {
   if (!isRecord(value)
     || !isFiniteNumber(value.atMs)
     || value.atMs < 0
+    || (value.quantumPair !== undefined && typeof value.quantumPair !== 'boolean')
     || typeof value.enemyId !== 'string'
     || !isSpawnPosition(value.position)) {
     throw new Error(`[SKY_STRIKE_LEVEL_INVALID] ${label} is invalid.`);
@@ -150,6 +174,7 @@ function parseSpawn(value: unknown, label: string): LevelSpawnGroup {
   return Object.freeze({
     atMs: value.atMs,
     enemyId: value.enemyId,
+    ...(value.quantumPair ? {quantumPair:true} : {}),
     position: Object.freeze(value.position),
     count,
     intervalMs,

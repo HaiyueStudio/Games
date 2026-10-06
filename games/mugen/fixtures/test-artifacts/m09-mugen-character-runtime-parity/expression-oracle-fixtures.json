@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "id": "precedence-arith",
+      "expression": "3+2*5",
+      "expected": {
+        "kind": "int",
+        "value": 13
+      }
+    },
+    {
+      "id": "float-order",
+      "expression": "5.0*5/6",
+      "expected": {
+        "kind": "float",
+        "value": 4.166666507720947
+      }
+    },
+    {
+      "id": "float-truncation",
+      "expression": "5/6*5.0",
+      "expected": {
+        "kind": "float",
+        "value": 0
+      }
+    },
+    {
+      "id": "negated-bool",
+      "expression": "-!0",
+      "expected": {
+        "kind": "int",
+        "value": -1
+      }
+    },
+    {
+      "id": "power-assoc",
+      "expression": "2**3**2",
+      "expected": {
+        "kind": "int",
+        "value": 64
+      }
+    },
+    {
+      "id": "comparison-coerce",
+      "expression": "1.0 = (2 = (1 > 0) + !(0 > 1))",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "case-insensitive-symbol",
+      "expression": "S = s",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "int32-overflow",
+      "expression": "2147483647 + 1",
+      "expected": {
+        "kind": "int",
+        "value": -2147483648
+      }
+    },
+    {
+      "id": "int-div",
+      "expression": "7/2",
+      "expected": {
+        "kind": "int",
+        "value": 3
+      }
+    },
+    {
+      "id": "neg-int-div",
+      "expression": "-7/2",
+      "expected": {
+        "kind": "int",
+        "value": -3
+      }
+    },
+    {
+      "id": "float-div",
+      "expression": "7.0/2",
+      "expected": {
+        "kind": "float",
+        "value": 3.5
+      }
+    },
+    {
+      "id": "zero-power-zero",
+      "expression": "0**0",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "clamped-power",
+      "expression": "2**31",
+      "expected": {
+        "kind": "int",
+        "value": 2147483647
+      }
+    },
+    {
+      "id": "bitwise-not",
+      "expression": "~0 & 255",
+      "expected": {
+        "kind": "int",
+        "value": 255
+      }
+    },
+    {
+      "id": "invalid-float-mod",
+      "expression": "1.0 % 1",
+      "expected": {
+        "kind": "bottom"
+      }
+    },
+    {
+      "id": "div-zero",
+      "expression": "1/0",
+      "expected": {
+        "kind": "bottom"
+      }
+    },
+    {
+      "id": "invalid-root",
+      "expression": "(-1.0)**0.5",
+      "expected": {
+        "kind": "bottom"
+      }
+    },
+    {
+      "id": "closed-interval",
+      "expression": "1 = [0,1]",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "half-open-interval",
+      "expression": "1 = [0,1)",
+      "expected": {
+        "kind": "int",
+        "value": 0
+      }
+    },
+    {
+      "id": "open-interval-ne",
+      "expression": "1 != (1,2]",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "lazy-cond",
+      "expression": "Cond(0, 1/0, 2)",
+      "expected": {
+        "kind": "int",
+        "value": 2
+      }
+    },
+    {
+      "id": "eager-ifelse",
+      "expression": "IfElse(0, 1/0, 2)",
+      "expected": {
+        "kind": "int",
+        "value": 2
+      }
+    },
+    {
+      "id": "bitwise-or",
+      "expression": "1 | 2",
+      "expected": {
+        "kind": "int",
+        "value": 3
+      }
+    },
+    {
+      "id": "bitwise-xor",
+      "expression": "4 ^ 1",
+      "expected": {
+        "kind": "int",
+        "value": 5
+      }
+    },
+    {
+      "id": "bitwise-and",
+      "expression": "3 & 1",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "logical-or",
+      "expression": "1 || 0",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "logical-and",
+      "expression": "0 && 1",
+      "expected": {
+        "kind": "int",
+        "value": 0
+      }
+    },
+    {
+      "id": "logical-xor",
+      "expression": "1 ^^ 0",
+      "expected": {
+        "kind": "int",
+        "value": 1
+      }
+    },
+    {
+      "id": "ceil",
+      "expression": "Ceil(2.1)",
+      "expected": {
+        "kind": "int",
+        "value": 3
+      }
+    },
+    {
+      "id": "floor",
+      "expression": "Floor(2.9)",
+      "expected": {
+        "kind": "int",
+        "value": 2
+      }
+    },
+    {
+      "id": "abs",
+      "expression": "Abs(-4)",
+      "expected": {
+        "kind": "int",
+        "value": 4
+      }
+    },
+    {
+      "id": "constant-e",
+      "expression": "E",
+      "expected": {
+        "kind": "float",
+        "value": 2.7182817459106445
+      }
+    },
+    {
+      "id": "constant-pi",
+      "expression": "Pi",
+      "expected": {
+        "kind": "float",
+        "value": 3.1415927410125732
+      }
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { registerHooks } from 'node:module';
 import test from 'node:test';
+import { readMugenTestArtifact } from './mugen-test-artifacts.mjs';
 
 registerHooks({ resolve(specifier, context, nextResolve) { const relativeWithoutExtension = /^\.{1,2}\//u.test(specifier) && !/\.[a-z0-9]+$/iu.test(specifier); return nextResolve(relativeWithoutExtension ? `${specifier}.ts` : specifier, context); } });
 
@@ -527,7 +528,7 @@ test('G08 Lose, LoseKO, LoseTime and DrawGame remain observable during completed
 });
 
 test('G07-A official time=0 and AI command evidence is content-addressed', () => {
-  const evidence = JSON.parse(readFileSync(new URL('../../../milestones/milestones/m09-mugen-character-runtime-parity/g07a-official-oracle-evidence.json', import.meta.url), 'utf8'));
+  const evidence = readMugenTestArtifact('m09-mugen-character-runtime-parity/g07a-official-oracle-evidence.json');
   assert.equal(evidence.result, 'pass');
   for (const source of evidence.sources) {
     const relative = source.path.slice('Games/'.length); const bytes = readFileSync(new URL(`../../${relative}`, import.meta.url));

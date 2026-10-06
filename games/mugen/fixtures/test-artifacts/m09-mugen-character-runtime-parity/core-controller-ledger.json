@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "closedCount": 25,
+  "controllers": [
+    {
+      "name": "ChangeAnim"
+    },
+    {
+      "name": "ChangeAnim2"
+    },
+    {
+      "name": "ChangeState"
+    },
+    {
+      "name": "CtrlSet"
+    },
+    {
+      "name": "PosAdd"
+    },
+    {
+      "name": "PosFreeze"
+    },
+    {
+      "name": "PosSet"
+    },
+    {
+      "name": "SelfState"
+    },
+    {
+      "name": "SprPriority"
+    },
+    {
+      "name": "Turn"
+    },
+    {
+      "name": "VarSet"
+    },
+    {
+      "name": "VelAdd"
+    },
+    {
+      "name": "VelMul"
+    },
+    {
+      "name": "VelSet"
+    },
+    {
+      "name": "Width"
+    },
+    {
+      "name": "Gravity"
+    },
+    {
+      "name": "LifeAdd"
+    },
+    {
+      "name": "LifeSet"
+    },
+    {
+      "name": "MoveHitReset"
+    },
+    {
+      "name": "PowerAdd"
+    },
+    {
+      "name": "PowerSet"
+    },
+    {
+      "name": "StateTypeSet"
+    },
+    {
+      "name": "VarAdd"
+    },
+    {
+      "name": "VarRandom"
+    },
+    {
+      "name": "VarRangeSet"
+    }
+  ]
+}

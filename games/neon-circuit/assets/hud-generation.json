@@ -1,0 +1,14 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "path": "gui-dial.png",
+      "prompt": "Use case: stylized-concept. Asset type: square transparent game HUD speedometer instrument skin for a futuristic anti-gravity racer. One perfectly circular spacecraft telemetry dial, flat orthographic front view, centered, diameter 90% of canvas, genuine transparent alpha outside the circular silhouette. Intricate but restrained titanium concentric mechanical rings, fine cyan illuminated calibration ticks, recessed midnight navy glass face. The central 60 percent diameter is completely empty and dark for runtime speed numbers. Small subtle violet details around the perimeter. Premium sci-fi flight instrument rather than a button. No text, digits, letters, needle, logos or health bar; dynamic data will be overlaid in the engine. Crisp balanced geometry and soft edge lighting."
+    },
+    {
+      "path": "gui-title.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent horizontal race title label backdrop for a futuristic racing game HUD, 6:1 aspect ratio. A delicate flat holographic telemetry header with very wide thin cyan light wings fading into transparency on left and right. Large empty dark translucent navy center for a runtime course name. Minimal thin horizontal cyan rules above and below the center, tiny understated circuit notches on the long wings, soft blue light haze. Flat screen graphic, genuine alpha background. Informational label with an open airy silhouette, not a clickable button: no raised edges, no metal beveled frame, no enclosed capsule, no chunky corners. No text, digits, icons, logos or symbols. Symmetric, clean, premium sci-fi racing broadcast title.",
+      "supersededBy": "top-hud-generation.json"
+    }
+  ]
+}

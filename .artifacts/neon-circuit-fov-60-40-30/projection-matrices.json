@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "frames": 720,
+  "results": [
+    {
+      "speedKmh": 0,
+      "fovDegrees": 59.999862426476284,
+      "renderProjectionY": 1.7320556640625,
+      "frameId": 180
+    },
+    {
+      "speedKmh": 360,
+      "fovDegrees": 40.000550725198714,
+      "renderProjectionY": 2.747436285018921,
+      "frameId": 360
+    },
+    {
+      "speedKmh": 522,
+      "fovDegrees": 30.00027537965852,
+      "renderProjectionY": 3.7320148944854736,
+      "frameId": 540
+    },
+    {
+      "speedKmh": 0,
+      "fovDegrees": 59.99917391410248,
+      "renderProjectionY": 1.7320796251296997,
+      "frameId": 720
+    }
+  ]
+}

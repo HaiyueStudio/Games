@@ -14,7 +14,7 @@
   "storage": "generated-g05-binary-plus-committed-g08-text",
   "files": {
     "hero.def": { "source": "g08-game-v1", "bytes": 250, "sha256": "85ed7a27159866d62c198a0f86538f2afff1c8c2e017596e483d5112e39e0768" },
-    "hero.cmd": { "source": "g08-game-v1", "bytes": 759, "sha256": "626f685cdae2e422740b4b76c9439ee73cfd07fea82c37a4d302b45909659653" },
+    "hero.cmd": { "source": "g08-game-v1", "bytes": 814, "sha256": "2dd96222b9f4fe7e8b361257a2ef9b94f38136cde919ad6fd93f002fa8b2541d" },
     "hero.cns": { "source": "g08-game-v1", "bytes": 1788, "sha256": "bcddfcdf3f331074361b0aaddf1f0f03c857e9e15eb57b4718f6c741ca67cfe8" },
     "hero.air": { "source": "g08-game-v1", "bytes": 772, "sha256": "235f6f0f59ce29483f6ed679f7b1347d7ed0749a75fd8f5405f529743bebaefd" },
     "hero.sff": { "source": "g05-viewer-v1", "bytes": 1857, "sha256": "95f1aed3ff47aec6726fa18c1b74e6931f31e4318fde8a5044dc8a65d3b70f14" },
@@ -22,7 +22,7 @@
     "vertical.snd": { "source": "g06-generated-snd-v1", "bytes": 12772, "sha256": "e68afe4355efbc5840d358b5e34327717466a05764ab450401c3b95052068dee" }
   },
   "expected": {
-    "packageSha256": "2d2b216df1ce90f0cdc35bd8b51f34a385988a5ebf246dcba1611b008533ce39",
+    "packageSha256": "e0efcc6b4d7eea7b6773dbea4550cc57286b18a670d71a9146ba52634aa45fa6",
     "actions": 9,
     "commands": 5,
     "states": 10,

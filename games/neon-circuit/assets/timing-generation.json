@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "path": "gui-timing.png",
+  "source": "/Users/qingque/.codex/generated_images/01a09618-f5b8-7f32-96c2-de96bd695bee/exec-ead02015-433c-4849-ab3d-8c3fee6b1be0.png",
+  "prompt": "Use case: stylized-concept. Asset type: wide 5:1 transparent sci-fi racing HUD telemetry background. Flat front-facing screen graphic, a low profile dark midnight navy translucent glass strip divided into three subtle equal data bays by two faint cyan separators. Fine cyan illuminated horizontal rules, tiny restrained violet circuit details at ends, clipped angular outer silhouette with soft edge glow. Central regions of each of the three bays completely empty and calm for runtime lap, race time and best time text. Informational instrument panel, no raised button frame, no bevels, no bright filled background. True transparent alpha outside the silhouette. No text, numbers, icons, symbols, logos or watermark. Full strip comfortably inside canvas with transparent padding. Premium clean futuristic anti-gravity racing broadcast graphic.",
+  "supersededBy": "top-hud-generation.json"
+}

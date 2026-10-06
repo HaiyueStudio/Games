@@ -9,7 +9,6 @@ export interface ScreenPointerEvent {
 }
 
 import { EmbeddedScenePlayer } from './EmbeddedScenePlayer';
-import { CalendarPuzzlePadGame } from './CalendarPuzzlePadGame';
 import { GltfViewerScene } from './GltfViewerScene';
 import { PerpetualCalendarPadApp } from './PerpetualCalendarPadApp';
 import { SpineViewerScene } from './SpineViewerScene';
@@ -66,7 +65,6 @@ const ICONS: IconSpec[] = [
   { id: 'sokoban-3d', label: 'Sokoban', kind: 'game', colors: ['#f59e0b', '#7c2d12'], iconUrl: './assets/icons/sokoban.svg' },
   { id: 'spider-solitaire', label: 'Spider', kind: 'game', colors: ['#047857', '#0f172a'], iconUrl: './assets/icons/spider-solitaire.svg' },
   { id: 'sudoku', label: 'Sudoku', kind: 'game', colors: ['#f3efe7', '#31506f'], iconUrl: './assets/icons/sudoku.svg' },
-  { id: 'calendar-puzzle', label: 'Calendar', kind: 'game', colors: ['#eef6f1', '#c9904f'], iconUrl: './assets/icons/calendar-puzzle.svg' },
   { id: 'tetris', label: 'Tetris', kind: 'game', colors: ['#33c9ff', '#2454ff'], iconUrl: './assets/icons/tetris.svg', sceneUrl: './scenes/tetris-starter.scene.json' },
   { id: 'billiards', label: 'Billiards', kind: 'game', colors: ['#0f8a4b', '#022d1b'], iconUrl: './assets/icons/billiards.svg', sceneUrl: './scenes/billiards-3d-import.scene.json' },
   { id: 'ball-maze', label: 'Maze', kind: 'game', colors: ['#38bdf8', '#1e3a8a'], iconUrl: './assets/icons/ball-maze.svg', sceneUrl: './scenes/ball-maze-3d-import.scene.json' },
@@ -792,10 +790,6 @@ export class PadOSScene {
       }
       if (icon?.id === 'sudoku') {
         this.openBuiltinGame(new SudokuPadGame(), 'landscape');
-        return;
-      }
-      if (icon?.id === 'calendar-puzzle') {
-        this.openBuiltinGame(new CalendarPuzzlePadGame(), 'landscape');
         return;
       }
       if (icon?.sceneUrl) {

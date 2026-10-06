@@ -1,0 +1,53 @@
+{
+  "generatedAt": "2026-09-14T10:38:13.725671+00:00",
+  "featureStatus": "passed",
+  "focusedGameTests": 78,
+  "browserChecks": 67,
+  "scenes": [
+    {
+      "name": "duel-race",
+      "checks": 22,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-mobius",
+      "checks": 22,
+      "status": "passed",
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-volcano",
+      "checks": 23,
+      "status": "passed",
+      "browserErrors": 0
+    }
+  ],
+  "typechecks": {
+    "Games": "passed",
+    "Native": "passed"
+  },
+  "builds": {
+    "web": "passed",
+    "ios": "passed",
+    "bundledResourcesVerified": 53
+  },
+  "bundleSha256": "7f724b5fef4882143bc21d710ec0bd9c4fb928b46d16ec83789f3c9243f683bd",
+  "driverSha256": "32b47a4bbca911e5d266896eb856b9fc59955339f4bd2bc18d2a4ac33721a56f",
+  "fullRepositoryTests": {
+    "status": "failed outside neon-circuit",
+    "total": 637,
+    "passed": 609,
+    "failed": 2,
+    "cancelled": 6,
+    "skipped": 20,
+    "failures": [
+      "HYMUGEN binary codec byte-exact roundtrip",
+      "asset viewer virtual-list contract"
+    ],
+    "cancelledGroup": "Petra package import/native checks",
+    "seconds": 424.214662472
+  },
+  "simulation": "driving-comparison.json",
+  "nativeEvidence": "../../../Native/examples/neon-circuit/evidence/20260914-preview-driver/validation.json"
+}

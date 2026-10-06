@@ -1,0 +1,37 @@
+[
+  {
+    "image": "image-0.jpg",
+    "rgba": "image-0.rgba",
+    "width": 960,
+    "height": 600,
+    "sha256": "c8bc5974b95dbbd53b37b9e56a2544940792790c5890611ced6f016b9599af11"
+  },
+  {
+    "image": "image-1.png",
+    "rgba": "image-1.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "0afce20a172c32ff582ffcba90163ccd770be8f09b9727c050eda9d1e2c6935f"
+  },
+  {
+    "image": "image-2.png",
+    "rgba": "image-2.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "1183330b7299ce5f3bdb9e2ba54212accfd345188247096dea047d376cdf3bbb"
+  },
+  {
+    "image": "image-3.png",
+    "rgba": "image-3.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "e944416263ba6b62e307c7bccff15bc88ffdf20392094e352a270394f1d36d18"
+  },
+  {
+    "image": "image-4.png",
+    "rgba": "image-4.rgba",
+    "width": 512,
+    "height": 512,
+    "sha256": "b0bd11182b857f86bd9dda3f2326438ead53c0f072bd03d91c8b80cc02e5becc"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "path": "gui-wheel.png",
+      "source": "exec-ba893177-1be7-408a-9aaa-3655d2cec89a.png",
+      "prompt": "Use case: stylized-concept. Production transparent game HUD asset: a futuristic Formula-style racing steering yoke, NOT circular. Wide butterfly silhouette, open top, flat bottom, two thick ergonomic sculpted grips on left and right, compact rectangular carbon-fiber center with tiny dark display and several restrained cyan and amber illuminated controls. Front-on orthographic view, symmetrical premium titanium and graphite, no hands, no logos, no readable text, no surrounding ring or background disk. Genuine transparent alpha background including cutout openings. 1024x1024 square canvas, yoke centered, fills 84 percent canvas width and 48 percent height, generous transparent padding for rotation. Crisp polished sci-fi antigravity cockpit control, visually legible at mobile HUD size."
+    },
+    {
+      "path": "sunny-panorama.png",
+      "source": "exec-57edde94-0a2e-4d26-a0fb-c099d417982e.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless equirectangular 360 degree spherical sky panorama texture for a sunny futuristic racing game, 2:1 image 2048x1024. A brilliant clear daytime blue sky with graceful soft white cumulus clouds, bright sun with gentle glow upper left, distant atmospheric mountains along a low horizon and an expansive pale turquoise ocean far below. Viewpoint high in the air above the cloud layer. Full longitude 360 degrees, latitude 180 degrees, horizontal horizon exactly centered, continuous matching left and right edges, poles smooth and low detail. Premium realistic game environment, cheerful clean sunlight, atmospheric perspective and excellent sky readability behind a roller-coaster track. NO road, track, vehicles, structures, UI, text, logos, borders or watermark. The upper hemisphere is blue sky and wispy clouds; lower hemisphere distant sea and scattered white cloud banks, no black void."
+    }
+  ],
+  "processing": "Original PNG and alpha preserved; native build converts format, preserving panorama aspect."
+}

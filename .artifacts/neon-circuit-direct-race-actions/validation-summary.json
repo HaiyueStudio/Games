@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-09-14T10:14:37.088844+00:00",
+  "status": "passed",
+  "gameTests": 75,
+  "typechecks": {
+    "Games": "passed",
+    "Native": "passed"
+  },
+  "browserChecks": 90,
+  "browserScenes": [
+    {
+      "name": "home-actions-landscape",
+      "status": "passed",
+      "checks": 12,
+      "browserErrors": 0
+    },
+    {
+      "name": "home-actions-portrait",
+      "status": "passed",
+      "checks": 12,
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-map-separated",
+      "status": "passed",
+      "checks": 22,
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-setup",
+      "status": "passed",
+      "checks": 22,
+      "browserErrors": 0
+    },
+    {
+      "name": "duel-mobius",
+      "status": "passed",
+      "checks": 22,
+      "browserErrors": 0
+    }
+  ],
+  "bundleSha256": "ae2a72d77df6ffb96f6c99be096d772a6bc2a6e45eb16aa90b87ef4022811be4",
+  "sources": {
+    "main.ts": "83bece64400bec60ec6f6429cb5160bfb4079e6a1beaa6dbd3386f156d3369b0",
+    "NeonCircuitGui.ts": "791fa46a225f31b2cf2482b83fdd1a7c197098eea268c0313c2134de4689da06",
+    "NeonLocale.ts": "bd11e37cccd3aef008e6b83d49e2faec14fd08aa0bfc10b3b344e0c07f4a2b82",
+    "HudMapTexture.ts": "3e16f7508a8de47bc6cd1be4dbdebf657c19ff30d7e713194ddcc6f3d87ac48e",
+    "CarouselArrow.ts": "ab11e7c167f7eb252be022adb47c043d5483d811f70fce5431a49dbf043a77a8"
+  },
+  "layout": {
+    "landscapeCarouselScale": 1.5,
+    "portraitCarousel": "fit-width",
+    "navigation": "translucent glowing chevrons"
+  },
+  "nativeEvidence": "../../../Native/examples/neon-circuit/evidence/20260914-direct-race-actions/validation.json"
+}

@@ -19,7 +19,6 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | 2048 | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=2048) |
 | 3D Billiards | 3D physics | [Play](https://haiyuestudio.github.io/Games/?game=billiards-3d) |
 | Billiards | 2D physics | [Play](https://haiyuestudio.github.io/Games/?game=billiards) |
-| Calendar Puzzle | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=calendar-puzzle) |
 | Triangle Calendar Puzzle | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=triangle-calendar-puzzle) |
 | Entanglement Path | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=entanglement-path) |
 | Icosahedron Minesweeper | 3D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=icosahedron-minesweeper) |
@@ -30,7 +29,11 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | Pad Simulator | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=pad-simulator) |
 | Pac-Man | 2D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pacman) |
 | Piano | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=piano) |
+| 墨游 · 龙鲤 / Ink Pinball | 2D physics · 水墨山水 / WGSL 墨迹扩散 / WASD | [Local build](games/ink-pinball/README.md) |
+| 纸上弹球 / Notebook Pinball | 2D physics · 手绘素描 / 练习本格子 / WASD | [Local build](games/pinball/README.md) |
 | Pong | 3D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pong) |
+| AK47 Range / 前线训练场 | 横屏生存射击 · 掩体寻路 / 90° 迷雾 / 骨骼持枪 | [Local build](games/ak47-range/README.md) |
+| Rubiks Cube / 魔方实验室 | 3D puzzle · 2×2 / 3×3 / 4×4 / mirror | [Local build](games/rubiks-cube/README.md) |
 | Sky Strike | 2D bullet hell | [Play](https://haiyuestudio.github.io/Games/?game=sky-strike) |
 | Sokoban 3D | 3D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=sokoban-3d) |
 | Spider Solitaire | 2D card game | [Play](https://haiyuestudio.github.io/Games/?game=spider-solitaire) |
@@ -43,13 +46,17 @@ game list. Direct links use `?game=<id>` and open the selected game automaticall
 
 ## Local development
 
-Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine` and `Games` repositories in
-the same parent directory and install local package candidates:
+Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine`, `UI`, and `Games`
+repositories in the same parent directory and install local package candidates:
 
 ```bash
 cd ../Engine
 npm ci
 npm run pack:candidates
+
+cd ../UI
+npm ci
+npm run pack:candidate
 
 cd ../Games
 npm run deps:local
@@ -75,9 +82,9 @@ The preview command writes only generated files under `artifacts/pages`; the dir
 
 ## Save behavior
 
-Every manifest game has one LocalStorage-backed `autosave` slot through `@haiyue/engine/save`. Games persist
+Most manifest games have one LocalStorage-backed `autosave` slot through `@haiyue/engine/save`. Games persist
 only serializable gameplay state; renderer resources, physics handles, DOM nodes, and listeners are rebuilt at
-startup. Shared queueing, validation failure handling, and the one-slot policy live in
+startup. Shared queueing, validation failure handling, and the default one-slot policy live in
 `games/save/SingleSlotGameSave.ts`.
 
 ## Repository layout
@@ -94,3 +101,5 @@ from the Actions tab. The repository's Pages source must be set to **GitHub Acti
 
 When adding a game, add its entry to `games/manifest.json`, provide `games/<id>/index.html`, and add the target to
 the Rollup configuration. The Pages build fails if a manifest entry is missing its HTML page or JavaScript bundle.
+
+Moonlight Sudoku (LED Sudoku) is maintained in the private [MoonlightSudoku repository](https://github.com/HaiyueStudio/MoonlightSudoku).

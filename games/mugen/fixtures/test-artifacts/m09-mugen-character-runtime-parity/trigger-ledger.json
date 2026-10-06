@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 1,
+  "classifications": [
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "Alive",
+        "Anim",
+        "AnimElem",
+        "AnimElemTime",
+        "AnimTime"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "CanRecover"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "Command",
+        "Ctrl",
+        "Facing",
+        "FVar"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "GetHitVar"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "HitCount"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "HitDefAttr",
+        "HitFall",
+        "HitOver"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "HitPauseTime",
+        "HitShakeOver",
+        "HitVel",
+        "InGuardDist",
+        "Life",
+        "LifeMax",
+        "MoveContact",
+        "MoveGuarded",
+        "MoveHit"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "MoveReversed"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "MoveType"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "NumTarget",
+        "P2BodyDist"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "P2Dist",
+        "Pos",
+        "Power",
+        "PowerMax"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "PrevStateNo"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "Random",
+        "RoundNo",
+        "RoundState",
+        "StateNo",
+        "StateType",
+        "Time"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g04-combat-hit-throw-custom-state",
+      "items": [
+        "UniqHitCount"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g02-trigger-redirection-order",
+      "items": [
+        "Var",
+        "Vel"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g05-helper-projectile-explod-target",
+      "items": [
+        "ID",
+        "IsHelper",
+        "NumExplod",
+        "NumHelper",
+        "NumProj",
+        "NumProjID",
+        "ParentDist",
+        "PlayerIDExist",
+        "ProjCancelTime",
+        "ProjContact",
+        "ProjContactTime",
+        "ProjGuarded",
+        "ProjGuardedTime",
+        "ProjHit",
+        "ProjHitTime",
+        "RootDist",
+        "ScreenPos",
+        "SelfAnimExist"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g08-character-parity-acceptance",
+      "items": [
+        "P2Life",
+        "P2MoveType",
+        "P2StateNo",
+        "P2StateType",
+        "Win"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g07c-character-native-script-common-state",
+      "items": [
+        "PalNo"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g08-character-parity-acceptance",
+      "items": [
+        "AnimElemNo",
+        "AnimExist",
+        "TimeMod"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g01-expression-compiler-vm",
+      "items": [
+        "Abs",
+        "Acos",
+        "Asin",
+        "Atan",
+        "Ceil",
+        "Cond",
+        "Cos",
+        "E",
+        "Exp",
+        "Floor",
+        "IfElse",
+        "Ln",
+        "Log",
+        "Pi",
+        "Sin",
+        "Tan"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g07-command-common-state-ai-closure",
+      "items": [
+        "AILevel"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g07b-petra-trigger-expression-closure",
+      "items": [
+        "AuthorName",
+        "BackEdgeBodyDist",
+        "BackEdgeDist",
+        "FrontEdgeBodyDist",
+        "FrontEdgeDist",
+        "GameTime",
+        "MatchOver",
+        "Name",
+        "NumEnemy",
+        "P2Name",
+        "P4Name",
+        "RoundsExisted",
+        "SysVar",
+        "TeamMode",
+        "TeamSide"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g07c-character-native-script-common-state",
+      "items": [
+        "CameraPos",
+        "Const",
+        "Const240p",
+        "Const480p",
+        "Const720p"
+      ]
+    },
+    {
+      "implementation": "native",
+      "owner": "g08-character-parity-acceptance",
+      "items": [
+        "BackEdge",
+        "BottomEdge",
+        "CameraZoom",
+        "DrawGame",
+        "FrontEdge",
+        "GameHeight",
+        "GameWidth",
+        "IsHomeTeam",
+        "LeftEdge",
+        "Lose",
+        "MatchNo",
+        "NumPartner",
+        "P1Name",
+        "P3Name",
+        "RightEdge",
+        "ScreenHeight",
+        "ScreenWidth",
+        "StageVar",
+        "SysFVar",
+        "TicksPerSecond",
+        "TopEdge"
+      ]
+    }
+  ],
+  "closure": {
+    "native": 127,
+    "strictImportFailure": 0,
+    "unclassified": 0,
+    "m09FinalRequiredStrictImportFailure": 0
+  }
+}
