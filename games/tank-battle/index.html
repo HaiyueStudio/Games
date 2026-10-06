@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#151b17">
+  <title>铁甲前线 · IRON OUTPOST</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="masthead">
+      <a class="wordmark" href="../../" aria-label="Haiyue 游戏大厅"><span class="brand-symbol">H</span> HAIYUE<span class="brand-divider">/</span> ARCADE DIVISION</a>
+      <span class="edition"><i></i> 像素作战档案 <b>NO. 085</b></span>
+    </header>
+    <section class="heading">
+      <div><div class="eyebrow">TACTICAL ARCADE · 1—2 PLAYERS</div><h1>铁甲前线<span>IRON OUTPOST</span></h1></div>
+      <div class="heading-note">一座基地。最后一道防线。<br><span>与你的队友，把它守到最后。</span></div>
+    </section>
+    <section class="game-layout" aria-label="坦克大战">
+      <div class="battle-column">
+        <div class="battle-top"><span><i class="status-light"></i><b id="phase-label">等待指令</b></span><span id="stage-caption">01 / 边境哨所</span><span class="live-label">SECTOR <b id="sector">01</b></span></div>
+        <div class="battle-frame">
+          <div class="coordinate north">A &nbsp; B &nbsp; C &nbsp; D &nbsp; E &nbsp; F &nbsp; G &nbsp; H &nbsp; I &nbsp; J &nbsp; K &nbsp; L &nbsp; M</div>
+          <div class="canvas-wrap">
+            <canvas id="battlefield" width="416" height="416" tabindex="0" aria-label="坦克战场。玩家一 WASD 移动 J 开火；玩家二方向键移动 Enter 开火。"></canvas>
+            <div id="overlay" class="overlay">
+              <div class="menu-card">
+                <div class="menu-overline"><span></span> DEFEND THE OUTPOST <span></span></div>
+                <img class="menu-tank" src="./assets/p1-3-0.png" alt="金色主战坦克">
+                <h2 id="overlay-title">守住最后的防线</h2>
+                <p id="overlay-description">驾驶坦克突破敌阵，保护你的基地。<br>击毁闪光敌军，收集战场补给。</p>
+                <button id="resume" class="primary" hidden>继续作战 <span>↵</span></button>
+                <div class="mode-buttons"><button id="solo" class="primary">单人出击 <span>1P →</span></button><button id="duo" class="secondary">双人协作 <span>2P →</span></button></div>
+                <div class="menu-footnote">5 个战区 <span>·</span> 4 种敌军 <span>·</span> 6 种战场补给</div>
+              </div>
+            </div>
+            <div id="stage-clear" class="stage-clear" hidden>区域肃清 <span>准备前往下一战区</span></div>
+          </div>
+          <div class="battle-bottom"><span><i id="base-light"></i><b id="base-state">基地完好</b></span><span id="message" aria-live="polite">选择模式，准备出击。</span><span class="grid-size">26 × 26</span></div>
+        </div>
+        <div class="terrain-key" aria-label="地形说明">
+          <span><img src="./assets/brick.png" alt="">砖墙 <small>可破坏</small></span>
+          <span><img src="./assets/steel.png" alt="">铁墙 <small>满级击穿</small></span>
+          <span><img src="./assets/snow.png" alt="">雪地 <small>滑行</small></span>
+          <span><img src="./assets/water-0.png" alt="">海水 <small>阻挡</small></span>
+          <span><img src="./assets/forest.png" alt="">丛林 <small>隐蔽</small></span>
+        </div>
+        <div class="touch-controls" aria-label="触屏操作"><div class="dpad"><button data-key="KeyW" aria-label="向上">↑</button><button data-key="KeyA" aria-label="向左">←</button><button data-key="KeyS" aria-label="向下">↓</button><button data-key="KeyD" aria-label="向右">→</button></div><button class="touch-fire" data-key="KeyJ">开火</button></div>
+      </div>
+      <aside class="command-panel">
+        <div class="panel-label">作战指挥 <span>COMMAND</span></div>
+        <section class="mission"><div class="label-row">当前战区 <span id="stage-count">01 / 05</span></div><h3 id="stage-name">边境哨所</h3><div class="mission-line"><span id="stage-progress"></span></div></section>
+        <section class="enemy-panel"><div class="label-row">待清除敌军 <b id="enemy-count">16</b></div><div id="enemy-grid" class="enemy-grid" aria-label="剩余敌军"></div><div class="minor-label">消灭全部敌军，进入下一战区</div></section>
+        <section class="player-card p1"><div class="player-top"><span class="player-tag">1P</span><b>先锋</b><span id="p1-lives" class="lives">▰ ▰ ▰</span></div><div class="player-data"><img id="p1-image" src="./assets/p1-0-0.png" alt="玩家一坦克"><div><span class="minor-label">SCORE</span><strong id="p1-score">000000</strong></div><span id="p1-level" class="level">LV. 1</span></div><div class="key-line"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span><span><kbd>J</kbd> 开火</span></div></section>
+        <section class="player-card p2"><div class="player-top"><span class="player-tag">2P</span><b>僚机</b><span id="p2-lives" class="lives">待命</span></div><div class="player-data"><img id="p2-image" src="./assets/p2-0-0.png" alt="玩家二坦克"><div><span class="minor-label">SCORE</span><strong id="p2-score">000000</strong></div><span id="p2-level" class="level">LV. 1</span></div><div class="key-line"><span><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> 移动</span><span><kbd>↵</kbd> 开火</span></div></section>
+        <div class="record"><span>最高总分</span><b id="best">000000</b></div>
+        <div class="controls"><button id="pause" class="control-button" disabled>Ⅱ 暂停 <kbd>P</kbd></button><button id="sound" class="control-button" aria-pressed="false">♪ 声音 开</button><button id="menu" class="control-button menu-button" disabled>作战菜单 <span>↗</span></button></div>
+        <div id="save-status" class="save-status" aria-live="polite">进度自动保存</div>
+      </aside>
+    </section>
+    <section class="supply-section"><div class="supply-heading"><h2>战场补给</h2><span><i class="flash-dot"></i> 击毁闪光敌军后掉落 · 驾驶坦克拾取</span></div><div class="supplies">
+      <div><img src="./assets/item-star.png" alt="星星"><span><b>火力升级</b><small>射速 / 双弹 / 破甲</small></span></div>
+      <div><img src="./assets/item-shield.png" alt="护盾"><span><b>无敌护盾</b><small>10 秒免疫伤害</small></span></div>
+      <div><img src="./assets/item-bomb.png" alt="炸弹"><span><b>全屏爆破</b><small>清除场上敌军</small></span></div>
+      <div><img src="./assets/item-clock.png" alt="时钟"><span><b>时间冻结</b><small>敌军停滞 10 秒</small></span></div>
+      <div><img src="./assets/item-shovel.png" alt="铁锹"><span><b>基地加固</b><small>20 秒钢铁围墙</small></span></div>
+      <div><img src="./assets/item-life.png" alt="坦克"><span><b>额外生命</b><small>增加一辆坦克</small></span></div>
+    </div></section>
+    <footer><span>HAIYUE ORIGINALS <i>/</i> BUILT FOR THE ARCADE</span><span>同屏合作 · 友军免伤 · 注意保护基地 <a href="./assets/index.html" target="_blank" rel="noopener">素材图鉴 ↗</a></span></footer>
+    <p id="fatal" role="alert" hidden></p>
+  </main>
+  <script src="./bundle.js"></script>
+</body>
+</html>
