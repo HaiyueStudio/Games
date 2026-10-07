@@ -3,6 +3,8 @@ import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
 import { ValleyHud } from './hud';
 import { ValleyScene } from './scene';
 import { guardDeferredPointerCapture } from './canvasInput';
+import { chooseMap, startMapPlayer } from './map/player';
+import { parseMap } from './map/model';
 import { TEXT } from './story';
 import { canManipulate, clampOffset, distance, initialState, isPuzzleState, joins, midpoint, paths, project, route, snapAngle, snapOffset, type PathId, type PuzzleState, type Vec3 } from './rules';
 
@@ -15,6 +17,7 @@ class ValleyGame {
   private hud!: ValleyHud;
   private state = initialState();
   private drag: Drag | null = null;
+  private releaseCapture: (id:number)=>void = () => {};
   private waypoints: Vec3[] = [];
   private destination: PathId = 'home';
   private position: Vec3 = [-5.75,0,0];
@@ -31,12 +34,14 @@ class ValleyGame {
   private readonly saves = new SingleSlotGameSave<PuzzleState>({ gameId: 'valley-of-light', name: '谷外之光 自动存档', validateData: isPuzzleState,
     onStatus: status => { this.saveStatus = status; this.saved = status === 'error' ? '保存失败' : status === 'saving' ? '保存中' : '已保存'; this.refreshHud(); } });
   async init(): Promise<void> {
-    guardDeferredPointerCapture(this.canvas,this.abort.signal);
+    this.releaseCapture=guardDeferredPointerCapture(this.canvas,this.abort.signal);
     this.engine = new HaiyueEngine({ canvas: this.canvas, clearColor: { r: .914, g: .933, b: .906, a: 1 }, msaaSamples: 4, devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
     await this.engine.init();
     this.engine.device.addEventListener('uncapturederror', e => { this.errors.push(e.error.message); this.publish(); }, { signal: this.abort.signal });
     this.view = new ValleyScene(this.engine);
-    this.hud = new ValleyHud(this.view.scene, { walk: () => this.state.completed ? this.reset() : this.walk('gate'), reset: () => this.reset(), hint: () => this.hint() });
+    this.hud = new ValleyHud(this.view.scene, { walk: () => this.state.completed ? this.reset() : this.walk('gate'), reset: () => this.reset(), hint: () => this.hint(), loadMap: () => {
+      void chooseMap().then(async map=>{if(map){this.dispose();await startMapPlayer(map);}}).catch(error=>{if(this.disposed){const boot=document.getElementById('boot')!;boot.hidden=false;boot.textContent=String(error);}else this.hud.setMessage(String(error));});
+    } });
     if (!this.transient) this.state = await this.saves.load() ?? initialState();
     this.position = midpoint(paths(this.state).find(p => p.id === this.state.at)!);
     this.view.pose(this.position,-Math.PI/2); this.view.sync(this.state); this.resize(); this.refreshHud();
@@ -110,7 +115,7 @@ class ValleyGame {
       } else if (!d.moved && d.target) this.walk(d.target);
     },options);
     this.canvas.addEventListener('pointercancel', () => this.cancelDrag(),options);
-    this.canvas.addEventListener('lostpointercapture', () => this.cancelDrag(),options);
+    this.canvas.addEventListener('lostpointercapture', e => {if(!this.canvas.hasPointerCapture(e.pointerId))this.cancelDrag();},options);
     window.addEventListener('blur', () => this.cancelDrag(),options);
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.cancelDrag(); },options);
     window.addEventListener('keydown', e => {
@@ -136,7 +141,7 @@ class ValleyGame {
     if (!this.drag) return;
     const d = this.drag; this.drag = null;
     this.state.angle = d.angle; this.state.offset = d.offset;
-    if (this.canvas.hasPointerCapture(d.id)) this.canvas.releasePointerCapture(d.id);
+    this.releaseCapture(d.id);
     this.view.sync(this.state); this.tags(); this.refreshHud();
   }
   private pick(x: number, y: number): PathId | null {
@@ -194,7 +199,8 @@ class ValleyGame {
   dispose(): void { if (this.disposed) return; this.disposed=true; this.abort.abort(); this.engine?.destroy(); }
 }
 const game = new ValleyGame();
-void game.init().catch(error => {
+async function boot():Promise<void>{const mapUrl=new URLSearchParams(location.search).get('map');if(mapUrl){const response=await fetch(mapUrl);if(!response.ok)throw new Error(`地图加载失败：${response.status}`);await startMapPlayer(parseMap(await response.json()));}else await game.init();}
+void boot().catch(error => {
   console.error(error); game.dispose(); const boot=document.getElementById('boot')!; boot.hidden=false;
   boot.textContent=`山谷未能点亮：${String(error)}。请使用支持 WebGPU 的浏览器。`;
   const result=document.getElementById('result')!; result.dataset.status='failed'; result.textContent=JSON.stringify({ status:'failed', errors:[String(error)] }); document.body.dataset.renderStatus='failed';

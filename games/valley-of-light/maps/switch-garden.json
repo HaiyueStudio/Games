@@ -1,0 +1,350 @@
+{
+  "format": "haiyue-valley-map",
+  "version": 1,
+  "catalogVersion": 1,
+  "id": "switch-garden",
+  "name": "开关花园 · 把断桥交给光",
+  "groups": [
+    {
+      "id": "sliding",
+      "name": "双桥平移组",
+      "pivot": [
+        -0.5,
+        0,
+        3
+      ]
+    },
+    {
+      "id": "turning",
+      "name": "回廊旋转组",
+      "pivot": [
+        2.5,
+        0,
+        0
+      ]
+    }
+  ],
+  "opticalLinks": [],
+  "objects": [
+    {
+      "id": "start",
+      "type": 9,
+      "name": "出生平台",
+      "position": [
+        -3,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "switch-lift",
+      "type": 8,
+      "name": "开关一 · 平移双桥",
+      "position": [
+        -2,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": [
+          {
+            "groupId": "sliding",
+            "translation": [
+              0,
+              0,
+              -3
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "duration": 1.5,
+            "easing": "smooth"
+          }
+        ]
+      }
+    },
+    {
+      "id": "moving-a",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -1,
+        0,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "sliding",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "moving-b",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        0,
+        0,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "sliding",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "switch-turn",
+      "type": 8,
+      "name": "开关二 · 转动回廊",
+      "position": [
+        1,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": [
+          {
+            "groupId": "turning",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              -90,
+              0
+            ],
+            "duration": 1.4,
+            "easing": "smooth"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rotating-a",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        2.5,
+        0,
+        0.5
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "groupId": "turning",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "rotating-b",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        2.5,
+        0,
+        -0.5
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "groupId": "turning",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "exit",
+      "type": 10,
+      "name": "出口平台",
+      "position": [
+        4,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    }
+  ]
+}

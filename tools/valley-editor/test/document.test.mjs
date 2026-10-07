@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { ValleyAuthoring } from '../../../artifacts/valley-editor/document.mjs';
+
+test('Editor history groups a gesture, restores references, and tracks the saved state',async()=>{
+  const editor=new ValleyAuthoring();await editor.start();
+  try {
+    editor.select(['moving-a','moving-b']);
+    const group=editor.groupSelected();
+    assert.deepEqual(editor.map.groups.find(g=>g.id===group).pivot,[-.5,0,3]);
+    assert.equal(editor.map.objects.find(o=>o.id==='moving-a').groupId,group);
+    editor.platform.history.undo();
+    assert.equal(editor.map.objects.find(o=>o.id==='moving-a').groupId,'sliding');
+    assert.equal(editor.document.revision,editor.document.savedRevision);
+    editor.platform.history.redo();
+    editor.document.markSaved();
+    editor.removeSelected();
+    assert.equal(editor.map.objects.length,6);
+    assert.notEqual(editor.document.revision,editor.document.savedRevision);
+    editor.platform.history.undo();
+    assert.equal(editor.map.objects.length,8);
+    assert.equal(editor.document.revision,editor.document.savedRevision);
+  } finally {await editor.dispose();}
+});
+
+test('split is one Editor transaction and both half-cubes survive JSON export and undo/redo',async()=>{
+  const editor=new ValleyAuthoring();await editor.start();
+  try {
+    editor.select(['moving-a']);const before=editor.exportJSON();editor.splitSelected(3);
+    const [a,b]=editor.selected.map(id=>editor.map.objects.find(o=>o.id===id));
+    assert.equal(a.prismHalf,'a');assert.equal(b.prismHalf,'b');assert.deepEqual(b.position,a.position.map(v=>v+3));
+    assert.equal(editor.map.opticalLinks.at(-1).aEnd,4);const exported=editor.exportJSON();
+    editor.platform.history.undo();assert.equal(editor.exportJSON(),before);
+    editor.platform.history.redo();assert.equal(editor.exportJSON(),exported);
+    editor.importJSON(exported);assert.equal(editor.exportJSON(),exported);
+  } finally {await editor.dispose();}
+});
+
+test('invalid imports and edits are atomic; valid imports are undoable',async()=>{
+  const editor=new ValleyAuthoring();await editor.start();
+  try {
+    const before=editor.exportJSON();
+    const bad=JSON.parse(before);bad.objects[0].type=999;
+    assert.throws(()=>editor.importJSON(JSON.stringify(bad)),/未知物体/);
+    assert.equal(editor.exportJSON(),before);assert.equal(editor.platform.history.canUndo,false);
+    assert.throws(()=>editor.update('start',o=>o.position[0]=NaN),/变换/);
+    assert.equal(editor.exportJSON(),before);
+    const good=JSON.parse(before);good.name='往山谷之外';editor.importJSON(JSON.stringify(good));
+    assert.equal(editor.map.name,'往山谷之外');editor.platform.history.undo();assert.equal(editor.exportJSON(),before);
+    const panels=editor.shell.list('panel');assert.equal(panels.length,4);
+    assert.equal(editor.platform.documents.snapshot().activeId,'valley-map-document');
+  } finally {await editor.dispose();}
+});

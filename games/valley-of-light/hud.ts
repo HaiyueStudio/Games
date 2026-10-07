@@ -23,7 +23,7 @@ export class ValleyHud {
   private width = 1440;
   private currentMessage: string = TEXT.objective;
   journalOpen = false;
-  constructor(scene: Scene, actions: { walk: () => void; reset: () => void; hint: () => void }) {
+  constructor(scene: Scene, actions: { walk: () => void; reset: () => void; hint: () => void; loadMap: () => void }) {
     scene.add(new Entity('Engine GUI · valley journal and HUD').addComponent(this.root));
     this.place(new GuiLabel({ text: TEXT.english, fontSize: 11, style: { color: MUTED } }), (w) => [w < 700 ? 22 : 38, 20, 340, 24]);
     this.place(new GuiLabel({ text: TEXT.title, fontSize: 38, style: { color: INK } }), (w) => [w < 700 ? 22 : 36, 49, 250, 58]);
@@ -36,6 +36,7 @@ export class ValleyHud {
     const responsive = (w: number) => { for (const element of [quote, rule, instruction1, instruction2, instruction3]) element.setVisible(w > 1100); };
     this.resizeExtra = responsive;
     this.place(new GuiButton({ text: '旅途手记', variant: 'default', onClick: () => this.toggleJournal(), style: { radius: 20 } }), (w) => [w - 132, w < 700 ? 64 : 30, 106, 38]);
+    this.place(new GuiButton({ text: '载入地图', variant: 'default', onClick: actions.loadMap, style: { radius: 20 } }), (w) => [w < 700 ? 24 : w-250, w < 700 ? 162 : 30, 106, 38]);
     this.place(new GuiButton({ text: '重新开始', variant: 'default', onClick: actions.reset }), (w) => [w - 132, w < 700 ? 108 : 76, 106, 34]);
     this.place(new GuiElement({ style: { backgroundColor: '#f8f8ef', borderColor: '#d5dfd3', radius: 16 } }), (w, h) => [w < 700 ? 14 : 32, h - (w < 700 ? 146 : 120), w - (w < 700 ? 28 : 64), w < 700 ? 128 : 94]);
     this.links = this.place(new GuiLabel({ fontSize: 12, style: { color: TEAL } }), (w, h) => [w < 700 ? 28 : 52, h - (w < 700 ? 137 : 111), w - 100, 25]);

@@ -1,0 +1,234 @@
+{
+  "format": "haiyue-valley-map",
+  "version": 1,
+  "catalogVersion": 1,
+  "id": "split-cube",
+  "name": "分体方块 · 眼前一格，身处两地",
+  "groups": [],
+  "opticalLinks": [
+    {
+      "a": "half-a",
+      "aEnd": 4,
+      "b": "half-b",
+      "bEnd": 4
+    }
+  ],
+  "objects": [
+    {
+      "id": "start",
+      "type": 9,
+      "name": "出生平台",
+      "position": [
+        -2,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "approach",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -1,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "half-a",
+      "type": 5,
+      "name": "普通路径 · A 半块",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "beyond",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        4,
+        3,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "exit",
+      "type": 10,
+      "name": "出口平台",
+      "position": [
+        5,
+        3,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "a",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "half-b",
+      "type": 5,
+      "name": "普通路径 · B 半块",
+      "position": [
+        3,
+        3,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "prismHalf": "b",
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    }
+  ]
+}
