@@ -1,0 +1,699 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Haiyue — Beyond the Valley / original procedural traveler"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Traveler",
+      "children": [
+        1
+      ]
+    },
+    {
+      "name": "Breathing root",
+      "translation": [
+        0,
+        0.02,
+        0
+      ],
+      "children": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        12,
+        14
+      ]
+    },
+    {
+      "name": "Cloak",
+      "translation": [
+        0,
+        0.48,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.38,
+        0.48,
+        0.26
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Cloak hem",
+      "translation": [
+        0,
+        0.28,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.46,
+        0.16,
+        0.32
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Hood",
+      "translation": [
+        0,
+        0.84,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.4,
+        0.34,
+        0.34
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Face",
+      "translation": [
+        0,
+        0.82,
+        -0.176
+      ],
+      "children": [],
+      "scale": [
+        0.24,
+        0.2,
+        0.028
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "Scarf",
+      "translation": [
+        0,
+        0.65,
+        -0.015
+      ],
+      "children": [],
+      "scale": [
+        0.4,
+        0.09,
+        0.32
+      ],
+      "mesh": 2
+    },
+    {
+      "name": "Scarf tail",
+      "translation": [
+        0.1,
+        0.45,
+        0.18
+      ],
+      "children": [],
+      "scale": [
+        0.12,
+        0.36,
+        0.05
+      ],
+      "mesh": 2
+    },
+    {
+      "name": "Left leg",
+      "translation": [
+        -0.115,
+        0.28,
+        0
+      ],
+      "children": [
+        9
+      ]
+    },
+    {
+      "name": "Left leg mesh",
+      "translation": [
+        0,
+        -0.125,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.12,
+        0.25,
+        0.14
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "Right leg",
+      "translation": [
+        0.115,
+        0.28,
+        0
+      ],
+      "children": [
+        11
+      ]
+    },
+    {
+      "name": "Right leg mesh",
+      "translation": [
+        0,
+        -0.125,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.12,
+        0.25,
+        0.14
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "Left arm",
+      "translation": [
+        -0.25,
+        0.62,
+        0
+      ],
+      "children": [
+        13,
+        16,
+        17
+      ]
+    },
+    {
+      "name": "Left arm mesh",
+      "translation": [
+        0,
+        -0.15,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.12,
+        0.3,
+        0.14
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Right arm",
+      "translation": [
+        0.25,
+        0.62,
+        0
+      ],
+      "children": [
+        15
+      ]
+    },
+    {
+      "name": "Right arm mesh",
+      "translation": [
+        0,
+        -0.15,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.12,
+        0.3,
+        0.14
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Lantern",
+      "translation": [
+        0,
+        -0.35,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.14,
+        0.19,
+        0.14
+      ],
+      "mesh": 3
+    },
+    {
+      "name": "Lantern cap",
+      "translation": [
+        0,
+        -0.245,
+        0
+      ],
+      "children": [],
+      "scale": [
+        0.17,
+        0.03,
+        0.17
+      ],
+      "mesh": 1
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Warm porcelain cloak",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Midnight face and boots",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "Terracotta scarf",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "Lantern amber",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "material": 3
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "Warm porcelain cloak",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.94,
+          0.9,
+          0.79,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "Midnight face and boots",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.055,
+          0.15,
+          0.19,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "Terracotta scarf",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.75,
+          0.26,
+          0.16,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 1
+      }
+    },
+    {
+      "name": "Lantern amber",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1,
+          0.66,
+          0.19,
+          1
+        ],
+        "metallicFactor": 0.2,
+        "roughnessFactor": 0.4
+      },
+      "emissiveFactor": [
+        0.65,
+        0.27,
+        0.04
+      ]
+    }
+  ],
+  "animations": [
+    {
+      "name": "Idle",
+      "samplers": [
+        {
+          "input": 2,
+          "output": 3,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 2,
+          "output": 4,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 2,
+          "output": 5,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 2,
+          "output": 6,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 2,
+          "output": 7,
+          "interpolation": "LINEAR"
+        }
+      ],
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 8,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 1,
+          "target": {
+            "node": 10,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 2,
+          "target": {
+            "node": 12,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 3,
+          "target": {
+            "node": 14,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 4,
+          "target": {
+            "node": 1,
+            "path": "translation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Walk",
+      "samplers": [
+        {
+          "input": 8,
+          "output": 9,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 8,
+          "output": 10,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 8,
+          "output": 11,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 8,
+          "output": 12,
+          "interpolation": "LINEAR"
+        },
+        {
+          "input": 8,
+          "output": 13,
+          "interpolation": "LINEAR"
+        }
+      ],
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 8,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 1,
+          "target": {
+            "node": 10,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 2,
+          "target": {
+            "node": 12,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 3,
+          "target": {
+            "node": 14,
+            "path": "rotation"
+          }
+        },
+        {
+          "sampler": 4,
+          "target": {
+            "node": 1,
+            "path": "translation"
+          }
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 17,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        2.4
+      ]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 17,
+      "type": "SCALAR",
+      "min": [
+        0
+      ],
+      "max": [
+        0.8
+      ]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 17,
+      "type": "VEC3"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 432
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 432,
+      "byteLength": 432
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 864,
+      "byteLength": 68
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 932,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1204,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1476,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1748,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2020,
+      "byteLength": 204
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2224,
+      "byteLength": 68
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2292,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2564,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2836,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3108,
+      "byteLength": 272
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3380,
+      "byteLength": 204
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 3584,
+      "uri": "data:application/octet-stream;base64,AAAAvwAAAL8AAAA/AAAAPwAAAL8AAAA/AAAAPwAAAD8AAAA/AAAAvwAAAL8AAAA/AAAAPwAAAD8AAAA/AAAAvwAAAD8AAAA/AAAAPwAAAL8AAAC/AAAAvwAAAL8AAAC/AAAAvwAAAD8AAAC/AAAAPwAAAL8AAAC/AAAAvwAAAD8AAAC/AAAAPwAAAD8AAAC/AAAAPwAAAL8AAAA/AAAAPwAAAL8AAAC/AAAAPwAAAD8AAAC/AAAAPwAAAL8AAAA/AAAAPwAAAD8AAAC/AAAAPwAAAD8AAAA/AAAAvwAAAL8AAAC/AAAAvwAAAL8AAAA/AAAAvwAAAD8AAAA/AAAAvwAAAL8AAAC/AAAAvwAAAD8AAAA/AAAAvwAAAD8AAAC/AAAAvwAAAD8AAAA/AAAAPwAAAD8AAAA/AAAAPwAAAD8AAAC/AAAAvwAAAD8AAAA/AAAAPwAAAD8AAAC/AAAAvwAAAD8AAAC/AAAAvwAAAL8AAAC/AAAAPwAAAL8AAAC/AAAAPwAAAL8AAAA/AAAAvwAAAL8AAAC/AAAAPwAAAL8AAAA/AAAAvwAAAL8AAAA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AAAAAAAAAAAAAIC/AACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAACAvwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAgL8AAAAAAAAAAJqZGT6amZk+ZmbmPpqZGT8AAEA/ZmZmP2Zmhj+amZk/zcysPwAAwD8zM9M/ZmbmP5qZ+T9mZgZAAAAQQJqZGUAAAAAAAAAAAAAAAAAAAIA/wXHbOwAAAAAAAAAAiP5/P4q8SjwAAAAAAAAAAPz6fz8NcYQ8AAAAAAAAAABv938/SVqPPAAAAAAAAAAA9/V/Pw1xhDwAAAAAAAAAAG/3fz+KvEo8AAAAAAAAAAD8+n8/wXHbOwAAAAAAAAAAiP5/P54iHiIAAAAAAAAAAAAAgD/Bcdu7AAAAAAAAAACI/n8/irxKvAAAAAAAAAAA/Pp/Pw1xhLwAAAAAAAAAAG/3fz9JWo+8AAAAAAAAAAD39X8/DXGEvAAAAAAAAAAAb/d/P4q8SrwAAAAAAAAAAPz6fz/Bcdu7AAAAAAAAAACI/n8/niKeogAAAAAAAAAAAACAPwAAAIAAAAAAAAAAAAAAgD/Bcdu7AAAAAAAAAACI/n8/irxKvAAAAAAAAAAA/Pp/Pw1xhLwAAAAAAAAAAG/3fz9JWo+8AAAAAAAAAAD39X8/DXGEvAAAAAAAAAAAb/d/P4q8SrwAAAAAAAAAAPz6fz/Bcdu7AAAAAAAAAACI/n8/niIeogAAAAAAAAAAAACAP8Fx2zsAAAAAAAAAAIj+fz+KvEo8AAAAAAAAAAD8+n8/DXGEPAAAAAAAAAAAb/d/P0lajzwAAAAAAAAAAPf1fz8NcYQ8AAAAAAAAAABv938/irxKPAAAAAAAAAAA/Pp/P8Fx2zsAAAAAAAAAAIj+fz+eIp4iAAAAAAAAAAAAAIA/AAAAgAAAAAAAAAAAAACAP8Fx27sAAAAAAAAAAIj+fz+KvEq8AAAAAAAAAAD8+n8/DXGEvAAAAAAAAAAAb/d/P0laj7wAAAAAAAAAAPf1fz8NcYS8AAAAAAAAAABv938/irxKvAAAAAAAAAAA/Pp/P8Fx27sAAAAAAAAAAIj+fz+eIh6iAAAAAAAAAAAAAIA/wXHbOwAAAAAAAAAAiP5/P4q8SjwAAAAAAAAAAPz6fz8NcYQ8AAAAAAAAAABv938/SVqPPAAAAAAAAAAA9/V/Pw1xhDwAAAAAAAAAAG/3fz+KvEo8AAAAAAAAAAD8+n8/wXHbOwAAAAAAAAAAiP5/P54iniIAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAIA/wXHbOwAAAAAAAAAAiP5/P4q8SjwAAAAAAAAAAPz6fz8NcYQ8AAAAAAAAAABv938/SVqPPAAAAAAAAAAA9/V/Pw1xhDwAAAAAAAAAAG/3fz+KvEo8AAAAAAAAAAD8+n8/wXHbOwAAAAAAAAAAiP5/P54iHiIAAAAAAAAAAAAAgD/Bcdu7AAAAAAAAAACI/n8/irxKvAAAAAAAAAAA/Pp/Pw1xhLwAAAAAAAAAAG/3fz9JWo+8AAAAAAAAAAD39X8/DXGEvAAAAAAAAAAAb/d/P4q8SrwAAAAAAAAAAPz6fz/Bcdu7AAAAAAAAAACI/n8/niKeogAAAAAAAAAAAACAPwAAAAAK16M8AAAAAAAAAADE/9U8AAAAAAAAAADOQgA9AAAAAAAAAACldw49AAAAAAAAAAC8dBM9AAAAAAAAAACldw49AAAAAAAAAADOQgA9AAAAAAAAAADE/9U8AAAAAAAAAAAK16M8AAAAAAAAAAChXGM8AAAAAAAAAADyUA48AAAAAAAAAAAm+6o7AAAAAAAAAABvEoM7AAAAAAAAAAAm+6o7AAAAAAAAAADyUA48AAAAAAAAAAChXGM8AAAAAAAAAAAK16M8AAAAAAAAAADNzEw9zczMPZqZGT7NzEw+AACAPpqZmT4zM7M+zczMPmZm5j4AAAA/zcwMP5qZGT9mZiY/MzMzPwAAQD/NzEw/AAAAAAAAAAAAAAAAAACAP2tvyz0AAAAAAAAAAN+7fj+NMzs+AAAAAAAAAACPr3s/dJ1zPgAAAAAAAAAAWqZ4PxCggz4AAAAAAAAAAFVldz90nXM+AAAAAAAAAABapng/jTM7PgAAAAAAAAAAj697P2tvyz0AAAAAAAAAAN+7fj8A1xIkAAAAAAAAAAAAAIA/a2/LvQAAAAAAAAAA37t+P40zO74AAAAAAAAAAI+vez90nXO+AAAAAAAAAABapng/EKCDvgAAAAAAAAAAVWV3P3Sdc74AAAAAAAAAAFqmeD+NMzu+AAAAAAAAAACPr3s/a2/LvQAAAAAAAAAA37t+PwDXkqQAAAAAAAAAAAAAgD8AAACAAAAAAAAAAAAAAIA/a2/LvQAAAAAAAAAA37t+P40zO74AAAAAAAAAAI+vez90nXO+AAAAAAAAAABapng/EKCDvgAAAAAAAAAAVWV3P3Sdc74AAAAAAAAAAFqmeD+NMzu+AAAAAAAAAACPr3s/a2/LvQAAAAAAAAAA37t+PwDXEqQAAAAAAAAAAAAAgD9rb8s9AAAAAAAAAADfu34/jTM7PgAAAAAAAAAAj697P3Sdcz4AAAAAAAAAAFqmeD8QoIM+AAAAAAAAAABVZXc/dJ1zPgAAAAAAAAAAWqZ4P40zOz4AAAAAAAAAAI+vez9rb8s9AAAAAAAAAADfu34/ANeSJAAAAAAAAAAAAACAPwAAAIAAAAAAAAAAAAAAgD+Eo3q9AAAAAAAAAAAxhX8/9TXnvQAAAAAAAAAABF1+P1nRFr4AAAAAAAAAAEo1fT9QJCO+AAAAAAAAAADtunw/WdEWvgAAAAAAAAAASjV9P/U1570AAAAAAAAAAARdfj+Eo3q9AAAAAAAAAAAxhX8/2bm0owAAAAAAAAAAAACAP4Sjej0AAAAAAAAAADGFfz/1Nec9AAAAAAAAAAAEXX4/WdEWPgAAAAAAAAAASjV9P1AkIz4AAAAAAAAAAO26fD9Z0RY+AAAAAAAAAABKNX0/9TXnPQAAAAAAAAAABF1+P4Sjej0AAAAAAAAAADGFfz/ZuTQkAAAAAAAAAAAAAIA/AAAAAAAAAAAAAAAAAACAP4Sjej0AAAAAAAAAADGFfz/1Nec9AAAAAAAAAAAEXX4/WdEWPgAAAAAAAAAASjV9P1AkIz4AAAAAAAAAAO26fD9Z0RY+AAAAAAAAAABKNX0/9TXnPQAAAAAAAAAABF1+P4Sjej0AAAAAAAAAADGFfz/ZubQjAAAAAAAAAAAAAIA/hKN6vQAAAAAAAAAAMYV/P/U1570AAAAAAAAAAARdfj9Z0Ra+AAAAAAAAAABKNX0/UCQjvgAAAAAAAAAA7bp8P1nRFr4AAAAAAAAAAEo1fT/1Nee9AAAAAAAAAAAEXX4/hKN6vQAAAAAAAAAAMYV/P9m5NKQAAAAAAAAAAAAAgD8AAAAACtejPAAAAAAAAAAAW6DYPAAAAAAAAAAAMQgsPQAAAAAAAAAANcBrPQAAAAAAAAAAbxKDPQAAAAAAAAAANcBrPQAAAAAAAAAAMQgsPQAAAAAAAAAAW6DYPAAAAAAAAAAACtejPAAAAAAAAAAAW6DYPAAAAAAAAAAAMQgsPQAAAAAAAAAANcBrPQAAAAAAAAAAbxKDPQAAAAAAAAAANcBrPQAAAAAAAAAAMQgsPQAAAAAAAAAAW6DYPAAAAAAAAAAACtejPAAAAAA="
+    }
+  ]
+}

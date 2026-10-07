@@ -1,0 +1,248 @@
+{
+  "ground": {
+    "x": 0,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "brick": {
+    "x": 16,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "steel": {
+    "x": 32,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "snow": {
+    "x": 48,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "water-0": {
+    "x": 64,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "water-1": {
+    "x": 80,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "forest": {
+    "x": 96,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "base": {
+    "x": 112,
+    "y": 0,
+    "width": 16,
+    "height": 16
+  },
+  "base-destroyed": {
+    "x": 0,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-0-0": {
+    "x": 16,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-0-1": {
+    "x": 32,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-1-0": {
+    "x": 48,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-1-1": {
+    "x": 64,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-2-0": {
+    "x": 80,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-2-1": {
+    "x": 96,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-3-0": {
+    "x": 112,
+    "y": 16,
+    "width": 16,
+    "height": 16
+  },
+  "p1-3-1": {
+    "x": 0,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-0-0": {
+    "x": 16,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-0-1": {
+    "x": 32,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-1-0": {
+    "x": 48,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-1-1": {
+    "x": 64,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-2-0": {
+    "x": 80,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-2-1": {
+    "x": 96,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-3-0": {
+    "x": 112,
+    "y": 32,
+    "width": 16,
+    "height": 16
+  },
+  "p2-3-1": {
+    "x": 0,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "scout-0-0": {
+    "x": 16,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "scout-0-1": {
+    "x": 32,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "runner-0-0": {
+    "x": 48,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "runner-0-1": {
+    "x": 64,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "gunner-0-0": {
+    "x": 80,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "gunner-0-1": {
+    "x": 96,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "heavy-0-0": {
+    "x": 112,
+    "y": 48,
+    "width": 16,
+    "height": 16
+  },
+  "heavy-0-1": {
+    "x": 0,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "flash-0-0": {
+    "x": 16,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "flash-0-1": {
+    "x": 32,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "item-star": {
+    "x": 48,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "item-shield": {
+    "x": 64,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "item-bomb": {
+    "x": 80,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "item-clock": {
+    "x": 96,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "item-shovel": {
+    "x": 112,
+    "y": 64,
+    "width": 16,
+    "height": 16
+  },
+  "item-life": {
+    "x": 0,
+    "y": 80,
+    "width": 16,
+    "height": 16
+  }
+}
