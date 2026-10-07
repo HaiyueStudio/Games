@@ -1,0 +1,32 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "assets": [
+    {
+      "name": "lily-pad",
+      "file": "lily-pad.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent game sprite for Chinese ink wash pinball. A single broad lotus leaf lily pad seen from a shallow elevated three-quarter angle, flattened oval suitable for a toad to stand on, central shallow depression and radial ink veins, slight curled edge, muted jade and sage green, textured brush wash, precise elegant Chinese shui-mo painting matching antique xuan paper landscapes. Leaf fills 85% width, height only 45% of square canvas, centered. No toad, no flower, no stem below, no water, no background, no lettering. Real transparent background."
+    },
+    {
+      "name": "spirit-orb",
+      "file": "spirit-orb.png",
+      "prompt": "Use case: stylized-concept. Transparent game sprite. A single Chinese fantasy spirit pearl, a round pale celadon jade orb with swirling luminous ivory qi inside and a tiny warm cinnabar core. Fine dark ink contour and delicate dry brush wisps immediately around the sphere, hand painted Chinese ink-and-wash, not glossy 3D, no lotus petals, no flower, no stand. Orb centered, 80% of square frame, coherent circular silhouette usable as a pinball bumper. Transparent background, no text."
+    },
+    {
+      "name": "river-lotuses",
+      "file": "river-lotuses.png",
+      "prompt": "Use case: stylized-concept. Asset type: one transparent sprite atlas for a Chinese ink wash game, EXACTLY THREE equally sized cells arranged horizontally in one row on a 3:1 wide canvas. Each cell contains ONE small delicate lotus blossom in muted blush pink, ivory and dark ink outlines, minimal green calyx, low flattened water-level perspective. Left cell: flower seen from front left, petals tilted gently toward right. Middle cell: flower facing viewer at shallow elevated angle. Right cell: flower seen from front right tilted gently toward left. These are river surface flowers viewed from the bank, NOT a top-down mandala. Three complete isolated sprites, generous empty space between cells, equal visual size and vertical baseline; each blossom centered in its cell. No leaves, no water, no shadows, no stems, no text, no grid lines. Traditional Chinese shui-mo painting with fine brush detail. Actual transparent background."
+    },
+    {
+      "name": "crane-poses",
+      "file": "crane-poses.png",
+      "prompt": "Use case: stylized-concept. Asset type: one transparent animation sprite atlas. EXACTLY THREE equal square cells in a horizontal row, overall 3:1 canvas. The SAME elegant white red-crowned crane facing left, same scale and same body position and feet baseline in all three cells. Chinese ink-and-wash hand painted bird, ivory feather body, graphite black flight feathers, small cinnabar crown, graceful curved neck and thin dark legs. Cell 1: wings folded quietly. Cell 2: wings opening halfway, feather tips sweeping sideways. Cell 3: both wings fully raised in a graceful tall V pose. Each whole bird fits with margin in its cell including wings. Keep head, torso, feet aligned between all frames, only wing pose changes. No background, ground, water, text, border or guides. Real transparent background.",
+      "supersededBy": "flying-crane-provenance.json"
+    },
+    {
+      "name": "brush-digits",
+      "file": "brush-digits.png",
+      "prompt": "Use case: typography game asset. A real bitmap font atlas containing EXACTLY the ten Arabic digits 0 1 2 3 4 5 6 7 8 9 in Chinese calligraphy brush style. Layout MUST be precise 5 columns x 2 equal square cells on a wide 5:2 canvas. TOP ROW: 0 1 2 3 4. BOTTOM ROW: 5 6 7 8 9. Each digit centered in its equal cell with the same baseline and 15% margin, same cap height, bold expressive authentic flowing brush strokes with dry-brush texture and tapered ends. Color warm ivory parchment ink (#f5f2df) for use on a black ink UI panel. Digits must be unambiguous Arabic numerals, no Chinese numerals, no other text, no cell borders, no decorative marks, no cast shadows. Transparent background, legible bitmap typeface, disconnected digits, evenly spaced grid."
+    }
+  ]
+}
