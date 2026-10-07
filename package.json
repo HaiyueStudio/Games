@@ -13,6 +13,8 @@
     "build": "node scripts/build-games.mjs",
     "build:target": "node scripts/build-target.mjs",
     "preview:build": "node scripts/build-preview-site.mjs",
+    "editor:valley": "npm --prefix tools/valley-editor run serve",
+    "build:valley-editor": "npm --prefix tools/valley-editor run build",
     "dev": "rollup -c rollup.config.js --watch",
     "lint": "eslint games",
     "lint:fix": "eslint games --fix",

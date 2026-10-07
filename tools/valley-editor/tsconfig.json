@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "types": ["@webgpu/types"], "declaration": false },
+  "include": ["src/**/*.ts", "../../games/valley-of-light/map/**/*.ts", "../../games/valley-of-light/canvasInput.ts"]
+}

@@ -3,7 +3,7 @@
  * events on the next frame, when a touch pointer may no longer be active.
  * Keep browser capture calls valid on this canvas only. Remove with the host.
  */
-export function guardDeferredPointerCapture(canvas: HTMLCanvasElement, signal: AbortSignal): void {
+export function guardDeferredPointerCapture(canvas: HTMLCanvasElement, signal: AbortSignal): (id:number)=>void {
   const active = new Set<number>();
   const set = canvas.setPointerCapture.bind(canvas), release = canvas.releasePointerCapture.bind(canvas);
   const previousSet = Object.getOwnPropertyDescriptor(canvas,'setPointerCapture');
@@ -16,7 +16,9 @@ export function guardDeferredPointerCapture(canvas: HTMLCanvasElement, signal: A
     if (active.has(id)) set(id);
   }});
   Object.defineProperty(canvas,'releasePointerCapture',{configurable:true,value:(id:number)=>{
-    if (canvas.hasPointerCapture(id)) release(id);
+    // A queued GUI pointerup can arrive after the next native pointerdown with the
+    // same mouse ID. It must not release the new gesture's capture.
+    if (!active.has(id) && canvas.hasPointerCapture(id)) release(id);
   }});
   signal.addEventListener('abort',()=>{
     for (const id of active) if (canvas.hasPointerCapture(id)) release(id);
@@ -26,4 +28,6 @@ export function guardDeferredPointerCapture(canvas: HTMLCanvasElement, signal: A
     if (previousRelease) Object.defineProperty(canvas,'releasePointerCapture',previousRelease);
     else Reflect.deleteProperty(canvas,'releasePointerCapture');
   },{once:true});
+  // Hosts use this for an explicit cancellation (Escape / blur / resize).
+  return (id:number)=>{if(canvas.hasPointerCapture(id))release(id);};
 }

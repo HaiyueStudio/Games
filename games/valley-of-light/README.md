@@ -15,6 +15,14 @@ node games/valley-of-light/serve.mjs
 
 游戏已登记到 `games/manifest.json`，大厅使用 `?game=valley-of-light` 进入；正常预览构建会复制 glTF 和游戏资源。
 
+## 地图工坊与自制关卡
+
+`tools/valley-editor/` 是使用 Haiyue Editor Platform、Shell 和 SDK 公开能力制作的地图编辑器。它支持十种编号构件、物体组、踩踏开关动画、错觉端点、撤销重做及 JSON 导入导出，详见该目录的 `README.md`。
+
+在 Games 根目录运行 `npm run build:valley-editor`、`npm run editor:valley` 后，打开 <http://127.0.0.1:4178/tools/valley-editor/index.html>。第一次使用先执行 `npm --prefix tools/valley-editor install --offline --ignore-scripts`。
+
+游戏 HUD 新增「载入地图」，可选择工坊导出的 JSON。也可以打开游戏页面的 `?map=./maps/switch-garden.json` 试玩自带「开关花园」：踩下两个按钮，依次平移双桥和旋转回廊，最后到达出口。自制地图模式使用同一 glTF 角色及 Engine GUI，独立于序章存档；返回序章可继续原有关卡。地图协议在 `map/FORMAT.md`。
+
 ## 操作
 
 | 输入 | 效果 |
@@ -32,7 +40,7 @@ node games/valley-of-light/serve.mjs
 
 鼠标、触摸和笔使用同一套 Pointer Events。拖拽使用 pointer capture；取消触摸、丢失 capture、切换窗口和改变画布尺寸都会回滚未提交的拖拽。角色正在行走，或者站在对应机关上时，不能操纵该机关。
 
-当前安装的 Engine 0.1 GUI 延迟到渲染帧才处理指针事件，可能对已结束的触摸调用捕获 API。`canvasInput.ts` 为本画布的原生捕获方法加活动指针及所有权检查，并在销毁时还原，用于兼容这一版本。它不访问 GUI 私有字段，也不替代 GUI 的输入分发。
+当前安装的 Engine 0.1 GUI 延迟到渲染帧才处理指针事件，可能对已结束的触摸调用捕获 API，或让上一笔操作的释放事件打断下一笔拖动。`canvasInput.ts` 为本画布的原生捕获方法加活动指针检查，提供显式取消入口，并在销毁时还原，用于兼容这一版本。它不访问 GUI 私有字段，也不替代 GUI 的输入分发。
 
 解法：金桥转成横向（初始状态按 Q 一次），青桥移到轨道正中（按 D 四次），再点击光门。提示不会代替玩家解谜。
 
