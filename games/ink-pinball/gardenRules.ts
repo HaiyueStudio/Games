@@ -13,3 +13,15 @@ export function advanceGarden(state: GardenState, time: number): boolean {
   if (state.respawnAt < 0 || time < state.respawnAt) return false;
   state.collected = 0; state.respawnAt = -1; return true;
 }
+
+/** Sensor flowers disappear on contact, but still impart a real outward impulse. */
+export function lotusRebound(dx: number, dy: number, vx: number, vy: number) {
+  let length = Math.hypot(dx, dy);
+  if (length < .01) { dx = -vx; dy = -vy; length = Math.hypot(dx, dy); }
+  if (length < .01) { dx = 0; dy = 1; length = 1; }
+  const nx = dx / length, ny = dy / length, dot = vx * nx + vy * ny;
+  let x = vx - Math.min(0, dot) * 2 * nx, y = vy - Math.min(0, dot) * 2 * ny;
+  x += nx * 2; y += ny * 2;
+  const speed = Math.hypot(x, y), scale = Math.max(5.8, Math.min(14, speed)) / speed;
+  return { x: x * scale, y: y * scale };
+}

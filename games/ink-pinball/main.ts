@@ -10,9 +10,8 @@ void game.init(canvas).then(async () => {
   }
 }).catch(error => {
   console.error(error);
-  document.getElementById('banner')!.hidden = false;
-  document.getElementById('banner-title')!.textContent = '暂时无法展开画卷';
-  document.getElementById('banner-detail')!.textContent = `请使用支持 WebGPU 的浏览器，并检查素材是否加载成功。${String(error)}`;
+  const errorPanel=document.getElementById('error')!;errorPanel.hidden=false;
+  errorPanel.textContent=`暂时无法展开画卷。请使用支持 WebGPU 的浏览器。${String(error)}`;
   const result = document.getElementById('result')!;
   result.dataset.status = 'failed'; result.textContent = JSON.stringify({ status: 'failed', message: String(error) });
   game.dispose();

@@ -4,12 +4,12 @@ import { Mesh2DRenderSystem } from '@haiyue/engine/systems';
 import { Physics2DBody, Physics2DJoint, Physics2DSystem } from '@haiyue/engine/physics';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { BUMPERS, STEP, chargeBall, hit, launchBall, loseBall, newGame } from '../pinball/rules';
-import { PinballInput } from '../pinball/input';
+import { InkInput } from './InkInput';
+import { InkGui } from './InkGui';
 import { ToadSprings } from './ToadSprings';
 import { LivingScene } from './LivingScene';
 import { InkGarden } from './InkGarden';
-import { BrushScore } from './BrushScore';
-import { RIVER_LOTUSES } from './gardenRules';
+import { RIVER_LOTUSES, lotusRebound } from './gardenRules';
 import { InkEffects } from './InkEffects';
 import { entersRiver, WATER_LEVEL } from './waterModel';
 import { SingleSlotGameSave, isRecord, isNonNegativeInteger } from '../save/SingleSlotGameSave';
@@ -26,7 +26,11 @@ export class InkPinballGame {
   private engine!: HaiyueEngine;
   private world = new World('Ink Pinball');
   private physics = new Physics2DSystem({ gravity: [0, -650], pixelsPerMeter: 100, fixedTimeStep: STEP, maxSubSteps: 1, velocityIterations: 12, positionIterations: 8 });
-  private input!: PinballInput;
+  private input!: InkInput;
+  private gui!: InkGui;
+  private helpWasPaused = false;
+  private returningFromHelp = false;
+  private ambient = true;
   private ball!: Piece;
   private flippers: Flipper[] = [];
   private ink!: InkEffects;
@@ -39,6 +43,7 @@ export class InkPinballGame {
   private ready = false;
   private disposed = false;
   private best = 0;
+  private readonly verificationMode = new URLSearchParams(location.search).has('verify');
   private readonly saves = new SingleSlotGameSave<{ best: number }>({ gameId: 'ink-pinball', name: 'Ink Pinball record', validateData: (value): value is { best: number } => isRecord(value) && isNonNegativeInteger(value.best) });
   private launchLane = false;
   private ballWet = false;
@@ -49,46 +54,44 @@ export class InkPinballGame {
   private hitCooldowns = new Map<number, number>();
   private bumperNodes: HTMLImageElement[] = [];
   private garden!: InkGarden;
-  private readonly brushScore = new BrushScore();
-  private popups: Array<{ node: HTMLElement; until: number }> = [];
   private fixtureFreeze=false;
   private profiling=false;
   private readonly frameCosts:number[]=[];
   private readonly frameGaps:number[]=[];
   private profileLast=0;
-  private lastHud = '';
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     const images = ['landscape-plate.png', 'brush.png', 'spirit-orb.png', 'dragon.png', 'toad.png', 'koi.png', 'lily-pad.png', 'river-lotuses.png', 'crane-poses.png'].map(file => {
       const image = new Image(); image.src = `./assets/${file}`; return image.decode();
     });
     this.engine = new HaiyueEngine({ canvas, renderProfile: 'simple', alphaMode: 'premultiplied', clearColor: { r: 0, g: 0, b: 0, a: 0 }, msaaSamples: 4, devicePixelRatio: () => Math.min(devicePixelRatio, 1.5) });
-    await Promise.all([this.engine.init(), this.brushScore.init(), ...images]);
+    await Promise.all([this.engine.init(), ...images]);
     this.engine.resizeToDisplaySize(true);
     const camera = new Entity('Camera');
-    camera.addComponent(new Camera2D({ width: 600, height: 900, designWidth: 600, designHeight: 900, viewportMode: 'fit' }));
+    camera.addComponent(new Camera2D({ width: 600, height: 1200, designWidth: 600, designHeight: 1200, viewportMode: 'fit' }));
     this.world.addEntity(camera);
     this.world.addSystem(this.physics);
     this.world.addSystem(new Mesh2DRenderSystem(this.engine, camera, { priority: 10 }));
-    this.ink = new InkEffects(this.engine, document.getElementById('ink-ui') as HTMLCanvasElement);
+    this.ink = new InkEffects(this.engine);
     await this.ink.init();
     this.world.addSystem(this.ink);
+    this.input = new InkInput(() => !this.paused && !this.gui?.helping);
+    this.gui = new InkGui(this.engine, this.world, {
+      pause: () => this.setPaused(!this.paused), resume: () => this.setPaused(false), restart: () => this.restart(), help: () => this.toggleHelp(),
+      sound: () => { this.sound = !this.sound; this.updateHud(); },
+      ambient: () => { this.ambient = !this.ambient; this.ink.ambient = this.ambient; this.updateHud(); },
+      press: (control,id) => this.input.press(control,id), release: (id,cancel) => this.input.release(id,!cancel),
+    });
+    await this.gui.init();
     // Current Games package uses this public experimental bridge to submit 2D passes.
     const integration = new RenderIntegration(this.engine, { label: 'InkPinball.render' });
     this.world.addRuntimeIntegration(integration);
-    integration.registerAll(this.world, system => system === this.ink ? { pass: 'isolated', loadOp: 'load', depth: false, sort: 20 } : { pass: 'shared', sort: 10 });
+    integration.registerAll(this.world, system => system === this.gui.system ? { pass: 'isolated', loadOp: 'load', depth: true, sort: 30 } : system === this.ink ? { pass: 'isolated', loadOp: 'load', depth: false, sort: 20 } : { pass: 'shared', sort: 10 });
     this.buildTable();
     // Newly attached image elements decode asynchronously even after URL preloading.
     await Promise.all([...document.querySelectorAll<HTMLImageElement>('#art img, #creatures img')].map(image => image.decode()));
-    this.input = new PinballInput();
-    this.best = (await this.saves.load())?.best ?? 0;
+    this.best = this.verificationMode ? 0 : (await this.saves.load())?.best ?? 0;
     const options = { signal: this.abort.signal };
-    element('pause').addEventListener('click', () => this.setPaused(!this.paused), options);
-    element('restart').addEventListener('click', () => this.restart(), options);
-    element('sound').addEventListener('click', () => {
-      this.sound = !this.sound; element('sound').setAttribute('aria-pressed', String(this.sound));
-      element('sound').textContent = this.sound ? '♪ 声音' : '♪ 静音';
-    }, options);
     window.addEventListener('blur', () => this.setPaused(true), options);
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.setPaused(true); }, options);
     window.addEventListener('pointerdown', () => this.unlockAudio(), options);
@@ -185,10 +188,12 @@ export class InkPinballGame {
     if(this.profiling)this.profileLast=frameStart;
     if(this.fixtureFreeze)delta=0;
     if (this.input.take('restart')) this.restart();
-    if (this.input.take('pause')) this.setPaused(!this.paused);
+    if (this.input.take('pause')) { if(this.gui.helping) this.toggleHelp(); else this.setPaused(!this.paused); }
+    this.gui.animate(delta);
+    if(this.returningFromHelp && !this.gui.helping) { this.returningFromHelp=false; this.setPaused(this.helpWasPaused); }
     const launch = this.input.take('launch'), released = this.input.releasedCharge;
     this.input.releasedCharge = false;
-    if (!this.paused) {
+    if (!this.paused && !this.gui.helping) {
       if (launch && this.state.phase === 'over') this.restart();
       if (launch || released) this.launch(launch);
       this.accumulator += Math.min(delta, 0.05);
@@ -198,10 +203,11 @@ export class InkPinballGame {
     this.ink.sync(this.time, this.ball.transform.x, this.ball.transform.y, !this.scene.holding);
     this.pocketSprings.sync(this.time);
     this.scene.sync(this.time);
-    this.bumperNodes.forEach((node, i) => { node.style.transform = `translate(-50%,-50%) rotate(${this.time * (i % 2 ? -14 : 12) + i * 30}deg)`; });
+    if(this.ambient) this.bumperNodes.forEach((node, i) => { node.style.transform = `translate(-50%,-50%) rotate(${this.time * (i % 2 ? -14 : 12) + i * 30}deg)`; });
     this.garden.sync(this.time, this.state.targets);
     this.updateHud();
     this.world.update(this.time * 1000, 0);
+    this.input.flushReleases();
     if(this.profiling)this.frameCosts.push(performance.now()-frameStart);
   }
 
@@ -242,6 +248,9 @@ export class InkPinballGame {
           const points = this.garden.collect(index, this.time);
           if (points) {
             const p = RIVER_LOTUSES[index]!; this.state.score += points;
+            this.physics.getLinearVelocity(this.ball.body,this.velocity);
+            const rebound=lotusRebound(this.ball.transform.x-p.x,this.ball.transform.y-p.y,this.velocity.x,this.velocity.y);
+            this.physics.setLinearVelocity(this.ball.body,rebound.x,rebound.y);
             this.feedback(p.x, p.y, points); this.ink.ripple(p.x, p.y); this.ink.impact(p.x, p.y, .5); this.tone(points > 250 ? 960 : 680, .12);
           }
         }
@@ -283,7 +292,6 @@ export class InkPinballGame {
       }
     }
     this.ink.sample(this.time, this.ball.transform.x, this.ball.transform.y, this.state.phase === 'playing' && !this.scene.holding);
-    this.popups = this.popups.filter(item => { if (item.until > this.time) return true; item.node.remove(); return false; });
   }
 
   private parkBall(): void {
@@ -307,7 +315,7 @@ export class InkPinballGame {
     this.garden.reset();
     this.state = newGame(); this.paused = false; this.accumulator = 0; this.time = 0;
     this.input.clear(); this.hitCooldowns.clear(); this.launchLane = false; this.ballWet = false;
-    for (const item of this.popups) item.node.remove(); this.popups = [];
+    this.gui.reset(); this.returningFromHelp=false;
     for (const flipper of this.flippers) {
       this.physics.teleportBody(flipper.body, flipper.pivotX + Math.cos(flipper.rest) * 51.5, flipper.pivotY + Math.sin(flipper.rest) * 51.5, flipper.rest);
       this.physics.setLinearVelocity(flipper.body, 0, 0); this.physics.setAngularVelocity(flipper.body, 0);
@@ -320,13 +328,13 @@ export class InkPinballGame {
     this.paused = value; this.input.clear(); this.state.charge = 0; this.accumulator = 0;
     this.updateHud();
   }
-  private feedback(x: number, y: number, points: number): void {
-    if (this.popups.length >= 12) this.popups.shift()!.node.remove();
-    const node = document.createElement('span'); node.className = 'pop'; node.textContent = `+${points}`;
-    node.style.left = `${(x + 300) / 6}%`; node.style.top = `${(450 - y - 38) / 9}%`;
-    element('floaters').append(node); this.popups.push({ node, until: this.time + 0.7 });
-
+  private toggleHelp(): void {
+    if(this.gui.busy) return;
+    if(this.gui.scroll.page==='game') { this.helpWasPaused=this.paused; this.setPaused(true); }
+    else this.returningFromHelp=true;
+    this.input.clear(); this.gui.turnHelp(); this.updateHud();
   }
+  private feedback(x: number, y: number, points: number): void { this.gui.feedback(x,y,points); }
   private unlockAudio(): void {
     if (!this.sound) return;
     this.audio ??= new AudioContext();
@@ -344,24 +352,14 @@ export class InkPinballGame {
   private updateHud(): void {
     if (this.state.score > this.best) {
       this.best = this.state.score;
-      this.saves.save({ best: this.best });
+      if(!this.verificationMode) this.saves.save({ best: this.best });
     }
     const combo = this.time - this.state.lastHit <= 2.2 ? this.state.combo : 0;
-    element('power').style.height = `${this.state.charge * 100}%`;
-    const key = `${this.state.phase}/${this.state.score}/${this.state.balls}/${combo}/${this.paused}/${this.state.targets}`;
-    if (key === this.lastHud) return; this.lastHud = key; this.ink.markUiDirty();
-    this.brushScore.set(element('score'), this.state.score);
-    this.brushScore.set(element('best'), this.best);
-    element('balls').textContent = '● '.repeat(this.state.balls) + '○ '.repeat(3 - this.state.balls) + ` 第 ${Math.min(3, 4 - this.state.balls)} 球`;
-    element('combo').textContent = combo > 1 ? `×${combo} 连击!` : '墨随心动';
-    element('pause').textContent = this.paused ? '▷ 继续' : 'Ⅱ 暂停';
-    element('pause').setAttribute('aria-label', this.paused ? '继续游戏' : '暂停游戏');
-    const banner = element('banner'); banner.dataset.phase = this.paused ? 'paused' : this.state.phase; banner.hidden = !this.paused && this.state.phase === 'playing';
-    element('banner-title').textContent = this.paused ? '暂歇 · 静观山水' : this.state.phase === 'over' ? '一卷已成，再续山河。' : '一滴墨，游山河。';
-    element('banner-detail').textContent = this.paused ? '按 P / Esc 或点击继续' : this.state.phase === 'over' ? `本局 ${this.state.score} 分 · 按 W / ↑ 再来一局` : '按 W / ↑ 发球 · 或按住 S / ↓ 蓄力后松开';
+    this.gui.sync({ ...this.state, best:this.best, combo, paused:this.paused, sound:this.sound, ambient:this.ambient });
   }
+
   snapshot() {
-    return { ...this.state, paused: this.paused, time: this.time, ready: this.ready, ball: { x: this.ball.transform.x, y: this.ball.transform.y }, flippers: this.flippers.map(f => f.rest + Math.atan2(Math.sin(f.transform.rotation - f.rest), Math.cos(f.transform.rotation - f.rest))), ink: this.ink.snapshot(), scene: this.scene.snapshot(), garden: this.garden.snapshot(), springs: this.pocketSprings.snapshot(), resources: this.physics.resourceSnapshot(), entities: this.world.entities.size };
+    return { ...this.state, paused: this.paused, time: this.time, ready: this.ready, ball: { x: this.ball.transform.x, y: this.ball.transform.y }, flippers: this.flippers.map(f => f.rest + Math.atan2(Math.sin(f.transform.rotation - f.rest), Math.cos(f.transform.rotation - f.rest))), gui: this.gui.snapshot(), ink: this.ink.snapshot(), scene: this.scene.snapshot(), garden: this.garden.snapshot(), springs: this.pocketSprings.snapshot(), resources: this.physics.resourceSnapshot(), entities: this.world.entities.size };
   }
   /** Deterministic browser fixture advances the same physics and rules as play. */
   verifyStep(count: number): void { for (let i = 0; i < count; i++) this.frame(STEP); }
@@ -374,7 +372,7 @@ export class InkPinballGame {
     this.physics.teleportBody(this.ball.body, x, y, 0); this.physics.setLinearVelocity(this.ball.body, vx, vy);
   }
   async verifyPresent():Promise<void>{
-    this.fixtureFreeze=true;this.ink.markUiDirty();this.engine.run();
+    this.fixtureFreeze=true;this.engine.run();
     await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
     this.engine.stop();this.fixtureFreeze=false;await this.engine.device.queue.onSubmittedWorkDone();
   }
@@ -385,18 +383,19 @@ export class InkPinballGame {
     const quantile=(values:number[],fraction:number)=>{const a=[...values].sort((a,b)=>a-b);return Number((a[Math.floor((a.length-1)*fraction)]??0).toFixed(3));};
     return {frames:this.frameCosts.length,cpuFrameMs:{median:quantile(this.frameCosts,.5),p95:quantile(this.frameCosts,.95)},animationFrameIntervalMs:{median:quantile(this.frameGaps,.5),p95:quantile(this.frameGaps,.95)},queueDrainMs:Number(queueDrainMs.toFixed(3)),gpuTimestampMs:null,gpuTimestampUnavailable:'timestamp-query not requested; queue drain is reported separately, not as GPU duration',fluid:this.ink.snapshot().fluid};
   }
+  verifyGuiInk() { return this.gui.effects.inspect(); }
   verifyFluid() { return this.ink.verifyFluid(); }
   verifyWaterfall() { return this.ink.verifyDiffusion(5); }
   verifyOrbAura() { return this.ink.verifyDiffusion(9); }
   async verifyWater(){return{surface:await this.ink.verifyDiffusion(7),splash:await this.ink.verifyDiffusion(8)};}
   async verifyQueueDrain(): Promise<number> { const start=performance.now(); await this.engine.device.queue.onSubmittedWorkDone(); return performance.now()-start; }
-  verifyDiffusion(): Promise<{ changed: number; transparent: number; opaque: number }> { return this.ink.verifyDiffusion(); }
+  verifyDiffusion(): Promise<{ changed: number; transparent: number; opaque: number }> { return this.gui.effects.verifySkins(); }
   stopLoop(): void { this.engine.stop(); }
   dispose(): void {
     if (this.disposed) return; this.disposed = true; this.ready = false;
     this.abort.abort(); this.input?.dispose();
     this.bumperNodes.forEach(node => node.getAnimations().forEach(animation => animation.cancel()));
-    this.popups.forEach(item => item.node.remove());
+    this.gui?.dispose();
     this.engine?.stop(); this.world.destroy(); this.engine?.destroy();
     if (this.audio) void this.audio.close();
   }

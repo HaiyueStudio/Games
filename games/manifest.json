@@ -752,6 +752,7 @@
         "2d",
         "2d-physics",
         "input",
+        "gui",
         "game-workflow",
         "generated-assets",
         "experimental-render-integration"
@@ -774,7 +775,11 @@
         "ink-pinball/assets/brush-digits.fnt.json",
         "ink-pinball/assets/garden-provenance.json",
         "ink-pinball/assets/flying-crane-provenance.json",
-        "ink-pinball/assets/title-moyou.png"
+        "ink-pinball/assets/title-moyou.png",
+        "ink-pinball/assets/title-moyou-transparent.png",
+        "ink-pinball/assets/score-panel.png",
+        "ink-pinball/assets/ink-drop-button.png",
+        "ink-pinball/assets/gui-provenance.json"
       ],
       "screenshot": {
         "required": false,

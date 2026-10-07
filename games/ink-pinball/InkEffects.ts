@@ -23,7 +23,7 @@ fn fbm(p:vec2f)->f32 { return noise(p)*.55+noise(p*2.03+7.4)*.28+noise(p*4.07+13
  let corners=array<vec2f,6>(vec2f(0,0),vec2f(1,0),vec2f(0,1),vec2f(0,1),vec2f(1,0),vec2f(1,1));
  let uv=corners[v]; let item=items[instance]; let local=(uv-.5)*item.rect.zw;
  let c=cos(item.fx.x);let s=sin(item.fx.x);
- let p=item.rect.xy+vec2f(local.x*c-local.y*s,local.x*s+local.y*c);
+ let p=item.rect.xy+vec2f(0,view.padding)+vec2f(local.x*c-local.y*s,local.x*s+local.y*c);
  var out:Vertex;out.pos=vec4f(p/view.size*vec2f(2,-2)+vec2f(-1,1),0,1);out.uv=uv;out.index=instance;return out;
 }
 @fragment fn fs(v:Vertex)->@location(0) vec4f {
@@ -127,7 +127,7 @@ fn fbm(p:vec2f)->f32 { return noise(p)*.55+noise(p*2.03+7.4)*.28+noise(p*4.07+13
   let a=mask*smoothstep(.24,.72,cloud)*.23;
   return vec4f(vec3f(.92,.925,.86)*a,a);
  }
- if(kind>2.5){let a=textureSampleLevel(brush,linearSampler,uv,0).a*.9;return vec4f(vec3f(.035,.043,.036)*a,a);}
+ if(kind>2.5){let a=textureSampleLevel(brush,linearSampler,uv,0).a*.48;return vec4f(vec3f(.28,.32,.26)*a,a);}
  let grain=noise(uv*vec2f(31,17)+item.rect.xy*.09);
  var alpha=0.0;
  if(kind>1.5){
@@ -159,34 +159,24 @@ fn fbm(p:vec2f)->f32 { return noise(p)*.55+noise(p*2.03+7.4)*.28+noise(p*4.07+13
  return vec4f(ink*alpha,alpha);
 }`;
 
-/** One shared-device GPU layer: ink wake/ball plus brush-texture UI on a transparent surface. */
+/** Shared-device scene pass: fluid wake, ink ball, pale rails and living landscape effects. */
 export class InkEffects extends System {
   private fluid!: FluidInk;
   private readonly water = new WaterEvents();
   private ballVisible = true;
-  private layoutDirty = true;
-  private layoutReads = 0;
-  private uiUploads = 0;
-  private lastUiTime = -100;
-  private readonly abort = new AbortController();
-  private resizeObserver?: ResizeObserver;
+  ambient = true;
+  private atmosphereTime = 0;
   private readonly mainParams = new Float32Array(4);
-  private readonly uiParams = new Float32Array(4);
   private time = 0; private ball = { x: 235, y: -321 }; private passes = 0;
   private texture!: GPUTexture;
   private mainPipeline!: GPURenderPipeline; private uiPipeline!: GPURenderPipeline;
-  private mainUniform!: GPUBuffer; private uiUniform!: GPUBuffer;
-  private mainItems!: GPUBuffer; private uiItems!: GPUBuffer;
-  private mainGroup!: GPUBindGroup; private uiGroup!: GPUBindGroup;
-  private context!: GPUCanvasContext;
-  private panels: HTMLElement[] = [];
+  private mainUniform!: GPUBuffer;
+  private mainItems!: GPUBuffer;
+  private mainGroup!: GPUBindGroup;
   private readonly data = new Float32Array(64 * 8);
   private readonly rails: number[][] = [];
   private readonly hiddenRails = new Set<number>();
-  private readonly uiData = new Float32Array(32 * 8);
-  private uiCount = 0;
-  private width = 0; private height = 0;
-  constructor(private readonly engine: HaiyueEngine, private readonly canvas: HTMLCanvasElement) {
+  constructor(private readonly engine: HaiyueEngine) {
     super(() => false); this.priority = 20; this.name = 'Ink diffusion shader';
   }
   async init(): Promise<void> {
@@ -204,21 +194,10 @@ export class InkEffects extends System {
     const pipeline = (samples: number) => device.createRenderPipeline({ label: 'Ink diffusion', layout: 'auto', vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format: this.engine.format, blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } }] }, primitive: { topology: 'triangle-list' }, multisample: { count: samples } });
     this.mainPipeline = pipeline(this.engine.msaaSamples); this.uiPipeline = pipeline(1);
     this.mainUniform = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.uiUniform = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.mainItems = device.createBuffer({ size: this.data.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-    this.uiItems = device.createBuffer({ size: this.uiData.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
     const sampler = device.createSampler({ minFilter: 'linear', magFilter: 'linear', addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge' });
     const group = (pipeline: GPURenderPipeline, uniform: GPUBuffer, items: GPUBuffer) => device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: uniform } }, { binding: 1, resource: { buffer: items } }, { binding: 2, resource: this.texture.createView() }, { binding: 3, resource: sampler }] });
-    this.mainGroup = group(this.mainPipeline, this.mainUniform, this.mainItems); this.uiGroup = group(this.uiPipeline, this.uiUniform, this.uiItems);
-    this.context = this.canvas.getContext('webgpu')!;
-    this.context.configure({ device, format: this.engine.format, alphaMode: 'premultiplied' });
-    this.panels = [...document.querySelectorAll<HTMLElement>('.ink-panel')];
-    const dirty = () => { this.layoutDirty = true; };
-    window.addEventListener('resize', dirty, { signal: this.abort.signal });
-    window.addEventListener('scroll', dirty, { signal: this.abort.signal, capture: true });
-    this.resizeObserver = new ResizeObserver(dirty);
-    this.panels.forEach(panel => this.resizeObserver!.observe(panel));
-    document.body.classList.add('shader-ready');
+    this.mainGroup = group(this.mainPipeline, this.mainUniform, this.mainItems);
   }
   addRail(x: number, y: number, length: number, width: number, angle: number): number {
     if (this.rails.length >= 32) throw new Error('Ink rail capacity exceeded');
@@ -230,9 +209,8 @@ export class InkEffects extends System {
   impact(x:number,y:number,strength=1):void {this.fluid.sources.impact(x,y,strength);}
   ripple(x:number,y:number):void {this.water.ripple(x,y,this.time);}
   splash(x:number,y:number,strength:number,source:WaterSource,time=this.time):void {this.water.splash(x,y,time,strength,source);}
-  markUiDirty():void {this.layoutDirty=true;}
-  sync(time: number, x: number, y: number, visible=true): void { this.time = time; this.ball = { x, y }; this.ballVisible=visible; }
-  reset(): void { this.fluid.reset(); this.water.reset(); this.lastUiTime=-100; }
+  sync(time: number, x: number, y: number, visible=true): void { if(this.ambient)this.atmosphereTime=time; this.time = time; this.ball = { x, y }; this.ballVisible=visible; }
+  reset(): void { this.fluid.reset(); this.water.reset(); this.atmosphereTime=0; }
   record(_world: World, context: RenderCommandContext): this {
     const device = this.engine.device;
     this.fluid.simulate(context.encoder,this.time);
@@ -246,35 +224,17 @@ export class InkEffects extends System {
     this.rails.forEach((rail, i) => { if (!this.hiddenRails.has(i)) this.data.set(rail, count++ * 8); });
     if(this.ballVisible)this.data.set([this.ball.x + 300, 450 - this.ball.y, 38, 38, 0, 0, 1, 0], count++ * 8);
     for(const s of this.water.splashes){const age=(this.time-s.since)/SPLASH_LIFETIME;this.data.set([s.x+300,450-s.y-39*s.strength,180*s.strength,150*s.strength,0,age,8,s.since],count++*8);}
-    this.mainParams.set([600,900,this.time,0]);
+    this.mainParams.set([600,1200,this.atmosphereTime,150]);
     device.queue.writeBuffer(this.mainUniform, 0, this.mainParams);
     device.queue.writeBuffer(this.mainItems, 0, this.data,0,count*8);
     const { passEncoder, ownsPass } = beginRenderCommandPass(context);
     passEncoder.setPipeline(this.mainPipeline); passEncoder.setBindGroup(0, this.mainGroup); passEncoder.draw(6, atmosphereCount);
+    const w=this.engine.canvas!.width,h=this.engine.canvas!.height;
+    passEncoder.setViewport(0,h*.125,w,h*.75,0,1);
     this.fluid.draw(passEncoder);
+    passEncoder.setViewport(0,0,w,h,0,1);
     passEncoder.setPipeline(this.mainPipeline); passEncoder.setBindGroup(0, this.mainGroup); passEncoder.draw(6,count-atmosphereCount,0,atmosphereCount);
     if (ownsPass) passEncoder.end();
-    // UI is an independent transparent surface, refreshed at 30 Hz or when layout changes.
-    const width = Math.max(1, Math.round(innerWidth * Math.min(devicePixelRatio, 1.25)));
-    const height = Math.max(1, Math.round(innerHeight * Math.min(devicePixelRatio, 1.25)));
-    if (width !== this.width || height !== this.height) { this.width = width; this.height = height; this.canvas.width = width; this.canvas.height = height; this.layoutDirty=true; }
-    const dirty=this.layoutDirty;
-    if(dirty){
-      this.uiCount = 0;
-      for (const panel of this.panels) {
-        if (panel.hidden || !panel.getClientRects().length || this.uiCount >= 32) continue;
-        const rect = panel.getBoundingClientRect();this.layoutReads++;
-        if (rect.bottom < 0 || rect.top > innerHeight) continue;
-        this.uiData.set([rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width * 1.17, rect.height * 2.5, 0, 0, 2, 0], this.uiCount++ * 8);
-      }
-      device.queue.writeBuffer(this.uiItems, 0, this.uiData,0,this.uiCount*8);this.uiUploads++;this.layoutDirty=false;
-    }
-    if(dirty||this.time-this.lastUiTime>=1/30||this.time<this.lastUiTime){
-      this.lastUiTime=this.time;this.uiParams.set([innerWidth,innerHeight,this.time,0]);
-      device.queue.writeBuffer(this.uiUniform, 0, this.uiParams);
-      const ui = context.encoder.beginRenderPass({ label: 'Ink brush UI', colorAttachments: [{ view: this.context.getCurrentTexture().createView(), clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: 'clear', storeOp: 'store' }] });
-      ui.setPipeline(this.uiPipeline); ui.setBindGroup(0, this.uiGroup); ui.draw(6, this.uiCount); ui.end();
-    }
     this.passes++;return this;
   }
   verifyFluid(){return this.fluid.readDensity();}
@@ -307,9 +267,9 @@ export class InkEffects extends System {
       return { changed, transparent, opaque };
     } finally { target.destroy(); uniform.destroy(); items.destroy(); readback.destroy(); }
   }
-  snapshot() { return { shader: 'stable-fluid-advection-vorticity-pressure', passes: this.passes, fluid: this.fluid.snapshot(), uiPanels: this.uiCount, layoutReads: this.layoutReads, uiUploads:this.uiUploads, uiDpr: Math.min(devicePixelRatio,1.25), atmosphere:{orbAuras:3,openGates:this.hiddenRails.size,waterfalls:2,fogBanks:2,riverSurfaces:1,ripples:this.water.ripples.length,splashes:this.water.splashes.length,waterEntries:{...this.water.counts}} }; }
+  snapshot() { return { shader: 'stable-fluid-advection-vorticity-pressure', passes: this.passes, fluid: this.fluid.snapshot(), sceneViewport: [600,1200], railOpacity: .48, atmosphere:{orbAuras:3,openGates:this.hiddenRails.size,waterfalls:2,fogBanks:2,riverSurfaces:1,ripples:this.water.ripples.length,splashes:this.water.splashes.length,waterEntries:{...this.water.counts}} }; }
   override destroy(): this {
-    this.context?.unconfigure(); this.texture?.destroy(); this.mainUniform?.destroy(); this.uiUniform?.destroy(); this.mainItems?.destroy(); this.uiItems?.destroy(); this.fluid?.destroy();this.abort.abort();this.resizeObserver?.disconnect();
-    document.body.classList.remove('shader-ready'); return super.destroy();
+    this.texture?.destroy(); this.mainUniform?.destroy(); this.mainItems?.destroy(); this.fluid?.destroy();
+    return super.destroy();
   }
 }
