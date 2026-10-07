@@ -1,0 +1,19 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "assets": [
+    {
+      "file": "score-panel.png",
+      "prompt": "Use case: stylized-concept. Transparent game UI asset for Chinese ink wash pinball. One horizontally elongated ink wash cartouche, aspect ratio EXACTLY 3:1, painted in charcoal black and warm dark slate gray. Broad dense ink centre, readable flat quiet central area for ivory brush numerals, restrained organically feathered wet edges, two subtle dry brush tails, soft capillary ink bleeding into invisible water. Traditional xieyi ink on xuan paper style. Full silhouette fits with 8 percent transparent margins. Designed to display at 270 by 90 pixels without stretching. NO lettering, digits, symbols, border, paper rectangle, background or separate splatters. Actual transparent background."
+    },
+    {
+      "file": "ink-drop-button.png",
+      "prompt": "Use case: stylized-concept. Transparent game UI asset. A single round black Chinese ink drop seen from above diffusing gently into water, circular dense graphite centre and irregular feathered soft gray ink fringe, sparse delicate radial ink tendrils, beautiful traditional Chinese ink wash xieyi brush texture. Nearly circular silhouette; centred and fills 82 percent of square canvas with generous transparency all around. Flat and elegant with no gloss, no 3D, no icon, no text, no ring outline, no background. This is a dark pause button background over pale xuan paper. Actual transparent background."
+    }
+  ],
+  "title": {
+    "file": "title-moyou-transparent.png",
+    "reference": "title-moyou.png",
+    "prompt": "Use case: background-extraction. Edit this supplied Chinese calligraphy title image. Remove ONLY the white background to actual transparency, preserving exactly the same black 墨游 lettering, brush shapes, relative proportions and composition. Do not redraw, restyle, add, or remove any ink stroke. Crop excess blank margins to a neat wide title sprite with modest transparent padding. Black ink only, no shadow, no other text."
+  }
+}

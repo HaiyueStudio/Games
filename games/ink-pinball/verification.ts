@@ -31,7 +31,7 @@ export async function verifyInkPinball(game: InkPinballGame): Promise<void> {
   game.verifyBall(-100, 229, 0, -4); advance(12);
   check(game.snapshot().score >= 100 && game.snapshot().ball.y > 220, 'bumper contact scores and kicks ball away');
   check(game.snapshot().ink.fluid.emitted > 0, 'moving ink ball leaves a bounded wake');
-  check(game.snapshot().ink.passes > 0 && game.snapshot().ink.uiPanels >= 7, 'GPU diffusion renders brush UI and ink ball');
+  check(game.snapshot().ink.passes > 0 && game.snapshot().gui.renderer === 'engine-gui' && game.snapshot().gui.bitmapGlyphs===12, 'native engine GUI renders the ink HUD and bitmap font');
   const beforePause = game.snapshot(); key('KeyP', true); advance(1); key('KeyP', false); advance(100);
   check(game.snapshot().paused && game.snapshot().time === beforePause.time, 'pause freezes simulation');
   key('KeyP', true); advance(1); key('KeyP', false);
@@ -131,8 +131,8 @@ export async function verifyInkPinball(game: InkPinballGame): Promise<void> {
   advance(110);check(game.snapshot().scene.landings===1 && !game.snapshot().scene.koi[0]!.airborne,'koi returns to water and emits landing splash');
   check(game.snapshot().ink.atmosphere.waterEntries.fish===1 && game.snapshot().ink.atmosphere.splashes===1,'koi landing creates its own visible water spray');
   advance(300);check(game.snapshot().ink.atmosphere.splashes===0 && game.snapshot().ink.atmosphere.ripples===0,'transient water effects expire completely');
-  game.restart();advance(2);const cache=game.snapshot().ink;advance(60);
-  check(game.snapshot().ink.layoutReads===cache.layoutReads && game.snapshot().ink.uiUploads===cache.uiUploads,'unchanged UI reuses cached rectangles and storage data');
+  game.restart();advance(2);const cache=game.snapshot().gui;advance(60);
+  check(game.snapshot().gui.effectPasses===cache.effectPasses && document.querySelectorAll('button,#ink-ui').length===0,'idle GUI stops click-effect passes and has no DOM UI canvas or buttons');
   check(game.snapshot().ink.fluid.bytes<3*1024*1024 && game.snapshot().ink.fluid.pending<=24,'fluid memory and input work stay bounded');
   check(document.querySelectorAll('#creatures img').length===10,'dragon body/jaw, two koi, three toads and three lily pads are independent layers');
   check([...document.querySelectorAll<HTMLImageElement>('#creatures img')].every(image=>image.complete&&image.naturalWidth>0),'all independent creature layers decoded before play');
@@ -163,10 +163,33 @@ export async function verifyInkPinball(game: InkPinballGame): Promise<void> {
   check(game.snapshot().targets === 0 && game.snapshot().score >= 1950 && game.snapshot().garden.celebrationUntil > game.snapshot().time, 'three cranes celebrate and award their existing 1500 bonus');
   game.verifyBall(235,-345,0,-1);advance(125);
   check(game.snapshot().garden.cranes.every(p=>p==='gliding'), 'cranes return to gliding for the next set');
-  const scoreNode=document.getElementById('score')!;
-  const scoreCanvas=scoreNode.querySelector('canvas')!;
-  const pixels=scoreCanvas.getContext('2d')!.getImageData(0,0,scoreCanvas.width,scoreCanvas.height).data;
-  check(scoreNode.dataset.value === String(game.snapshot().score).padStart(6,'0') && pixels.some((v,i)=>i%4===3&&v>100), 'score uses painted bitmap glyph pixels and exposes the exact accessible value');
+  check(game.snapshot().gui.score===String(game.snapshot().score).padStart(6,'0') && game.snapshot().gui.bitmapGlyphs===12, 'engine GUI uses BMFont atlas regions for current and best score');
+  // Native GUI pointer queue, including interaction while the simulation is paused.
+  const canvas=document.getElementById('canvas') as HTMLCanvasElement;
+  const click=(id:string)=>{const r=game.snapshot().gui.buttons[id]!;const c=canvas.getBoundingClientRect();const common={clientX:c.left+r.x+r.width/2,clientY:c.top+r.y+r.height/2,pointerId:1,pointerType:'mouse',button:0,bubbles:true};canvas.dispatchEvent(new PointerEvent('pointerdown',{...common,buttons:1}));canvas.dispatchEvent(new PointerEvent('pointerup',{...common,buttons:0}));advance(1);advance(1);};
+  game.restart();advance(2);
+  const bounds=canvas.getBoundingClientRect();
+  check(Math.abs(bounds.height/bounds.width-2)<.01,'desktop and phone use a 1:2 native GUI surface');
+  check(document.documentElement.scrollHeight<=innerHeight+1,'portrait stage fits viewport height');
+  click('pause');const stopped=game.snapshot().time;advance(24);
+  check(game.snapshot().paused&&game.snapshot().gui.pauseVisible&&game.snapshot().time===stopped,'ink-drop GUI button opens pause panel and freezes play');
+  const pressInk=await game.verifyGuiInk();
+  check(pressInk.occupied>80&&pressInk.alpha>1000,'GUI press renders real diffusing ink pixels even while paused');
+  game.verifyResumeManual();advance(24);const growingInk=await game.verifyGuiInk();
+  check(growingInk.occupied!==pressInk.occupied && growingInk.alpha!==pressInk.alpha,'press shader changes real noise contours and diluted alpha over time');
+  game.verifyResumeManual();advance(180);
+  const fadedInk=await game.verifyGuiInk();check(fadedInk.occupied===0,'button ink expires and clears its bounded GPU texture');game.verifyResumeManual();
+  click('resume');check(!game.snapshot().paused&&!game.snapshot().gui.pauseVisible,'GUI continue resumes');
+  click('help');advance(18);check(game.snapshot().gui.scroll.phase==='closing'&&game.snapshot().gui.scroll.open<.6,'help rolls the game scroll closed before replacing it');
+  advance(95);check(game.snapshot().gui.scroll.page==='help'&&game.snapshot().gui.scroll.phase==='idle'&&game.snapshot().paused,'help opens only after rolling transition, with play frozen');
+  const sound=game.snapshot().gui.settings.sound;click('sound');check(game.snapshot().gui.settings.sound!==sound,'native settings toggles sound');click('sound');
+  click('ambient');check(game.snapshot().gui.settings.ambient===false,'native settings toggles ambient animation');click('ambient');
+  click('help-back');advance(105);check(game.snapshot().gui.scroll.page==='game'&&!game.snapshot().paused,'return rolls back to the game and restores its running state');
+  click('pause');click('help');advance(105);click('help-back');advance(105);
+  check(game.snapshot().paused&&game.snapshot().gui.pauseVisible,'help opened from pause restores the pause panel');
+  click('restart');check(!game.snapshot().paused&&game.snapshot().score===0&&game.snapshot().balls===3,'GUI replay resets the round without duplicate scene resources');
+  const flower=RIVER_LOTUSES[0]!;game.verifyBall(flower.x,flower.y+22,0,-3);advance(2);const bounceStart=game.snapshot().ball.y;advance(10);
+  check(game.snapshot().score===250&&game.snapshot().ball.y>bounceStart,'collected lower lotus gives the real ball an upward rebound');
   game.restart(); advance(80);
   check(game.snapshot().ink.fluid.emitted === 0, 'restart clears ink wake');
   check(game.snapshot().ink.atmosphere.waterEntries.ball===0 && game.snapshot().ink.atmosphere.waterEntries.fish===0,'restart clears water events and counters');
@@ -203,6 +226,9 @@ export async function verifyInkPinball(game: InkPinballGame): Promise<void> {
   if(pose==='toad-away'){game.restart();game.verifyBall(-214,-143,0,0);advance(160);game.verifyBall(-214,-140,0,-1);advance(55);}
   if(pose==='toad-return'){game.restart();game.verifyBall(-214,-143,0,0);advance(160);game.verifyBall(235,-345,0,-1);advance(2);const t=game.snapshot().springs[0]!.cycle.returnAt;game.verifyPhysicsSteps(Math.round((t-game.snapshot().time+.4)*120));}
   if(pose==='garden'){game.restart();const p=INK_TARGETS[0]!;game.verifyBall(p.x,p.y+20,0,-2);advance(20);collect(0);game.verifyBall(0,-60,2,1);advance(1);}
+  if(pose==='pause'){game.restart();advance(1);click('pause');advance(18);}
+  if(pose==='help'){game.restart();advance(1);click('help');advance(110);}
+  if(pose==='roll'){game.restart();advance(1);click('help');advance(22);}
   await game.verifyPresent();
   const result = document.getElementById('result')!;
   result.textContent = JSON.stringify({ status: 'passed', checks, performance, state: game.snapshot() }); result.dataset.status = 'passed';
