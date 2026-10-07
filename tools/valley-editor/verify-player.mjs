@@ -13,6 +13,15 @@ const result=await runChromeWebGpuFixture({root,fixture:'games/valley-of-light/i
   await click('switch-lift');await wait(s=>s.busy,'first switch');await wait(s=>!s.busy&&!s.walking,'first animation');
   await click('switch-turn');await wait(s=>s.busy,'second switch');await wait(s=>!s.busy&&!s.walking,'second animation');
   await click('exit');s=await wait(s=>s.completed,'exit');assert.deepEqual(s.fired,['switch-lift','switch-turn']);assert.deepEqual(s.errors,[]);
+  const angle=s.camera.theta;
+  async function mouse(type,x,y,held=false){await cdp.call('Input.dispatchMouseEvent',{type,x,y,button:type==='mouseMoved'?'none':'left',buttons:held?1:0,clickCount:1});}
+  async function point(x,y){await mouse('mouseMoved',x,y);await mouse('mousePressed',x,y,true);await mouse('mouseReleased',x,y);await new Promise(r=>setTimeout(r,150));}
+  await point(72,85);s=await wait(s=>s.camera.orbit,'GUI orbit mode');
+  await mouse('mouseMoved',620,400);await mouse('mousePressed',620,400,true);
+  for(let i=1;i<=6;i++){await mouse('mouseMoved',620+i*20,400,true);await new Promise(r=>setTimeout(r,35));}
+  await mouse('mouseReleased',740,400);s=await snapshot();assert.ok(Math.abs(s.camera.theta-angle)>.3);
+  await point(184,85);s=await snapshot();assert.ok(Math.abs(s.camera.theta-angle)<1e-7);
+
 }});
 writeFileSync(resolve(output,'exported-map-player.png'),Buffer.from(result.visualCapture.pngBase64,'base64'));delete result.visualCapture.pngBase64;
-writeFileSync(resolve(output,'player.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({status:result.status,checks:['loads the actual JSON exported by the editor','Engine GUI and animated glTF loaded','two switches connect the route to the exit'],output},null,2));
+writeFileSync(resolve(output,'player.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({status:result.status,checks:['loads the actual JSON exported by the editor','Engine GUI and animated glTF loaded','two switches connect the route to the exit','Engine GUI orbit and reset controls update the camera'],output},null,2));

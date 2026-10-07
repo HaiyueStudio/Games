@@ -15,10 +15,10 @@ test('Editor history groups a gesture, restores references, and tracks the saved
     editor.platform.history.redo();
     editor.document.markSaved();
     editor.removeSelected();
-    assert.equal(editor.map.objects.length,6);
+    assert.equal(editor.map.objects.length,7);
     assert.notEqual(editor.document.revision,editor.document.savedRevision);
     editor.platform.history.undo();
-    assert.equal(editor.map.objects.length,8);
+    assert.equal(editor.map.objects.length,9);
     assert.equal(editor.document.revision,editor.document.savedRevision);
   } finally {await editor.dispose();}
 });
@@ -49,5 +49,20 @@ test('invalid imports and edits are atomic; valid imports are undoable',async()=
     assert.equal(editor.map.name,'往山谷之外');editor.platform.history.undo();assert.equal(editor.exportJSON(),before);
     const panels=editor.shell.list('panel');assert.equal(panels.length,4);
     assert.equal(editor.platform.documents.snapshot().activeId,'valley-map-document');
+  } finally {await editor.dispose();}
+});
+
+test('half-cell anchors snap to absolute grid positions and alignment is undoable',async()=>{
+  const editor=new ValleyAuthoring();await editor.start();
+  try {
+    editor.update('moving-a',o=>o.position=[-.5,.5,2.5]);editor.update('moving-b',o=>o.position=[.5,.5,2.5]);
+    editor.select(['moving-a','moving-b']);const before=editor.document.serialize();
+    const moved=editor.movePreview(before,'moving-a',[1.1,0,.1],1);
+    assert.deepEqual(moved.objects.find(o=>o.id==='moving-a').position,[1,.5,3]);
+    assert.deepEqual(moved.objects.find(o=>o.id==='moving-b').position,[2,.5,3]);
+    assert.deepEqual(editor.document.serialize(),before,'preview must not mutate the document');
+    editor.alignSelected(1);assert.deepEqual(editor.map.objects.find(o=>o.id==='moving-a').position,[0,1,3]);
+    editor.platform.history.undo();assert.deepEqual(editor.document.serialize(),before);
+    editor.select(['start']);editor.duplicate();const copy=editor.map.objects.find(o=>o.id===editor.selected[0]);assert.deepEqual(copy.position,[-2,0,1]);
   } finally {await editor.dispose();}
 });

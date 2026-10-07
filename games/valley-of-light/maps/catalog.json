@@ -19,8 +19,8 @@
       "type": 3,
       "name": "旋转机关",
       "icon": "↻",
-      "color": "#d4aa64",
-      "description": "拖拽旋转，可控制物体组"
+      "color": "#f4b4ac",
+      "description": "四臂手轮，拖拽旋转物体组"
     },
     {
       "type": 4,

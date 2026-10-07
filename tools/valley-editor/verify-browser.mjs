@@ -28,7 +28,7 @@ const result=await runChromeWebGpuFixture({root,fixture:'tools/valley-editor/ind
   s=await snapshot();assert.notDeepEqual(s.map.objects.find(o=>o.id===added).position,position);await click('#undo');s=await snapshot();assert.deepEqual(s.map.objects.find(o=>o.id===added).position,position);checks.push('viewport drag commits one undoable transform');
   await click('#delete');s=await snapshot();assert.ok(!s.map.objects.some(o=>o.id===added));
   await click('[data-object="switch-lift"]');await fill('#action-0-duration','0.8');s=await snapshot();assert.equal(s.map.objects.find(o=>o.id==='switch-lift').trigger.actions[0].duration,.8);checks.push('pressure switch group and animation configuration editable');
-  await click('#json');const text=await evaluate('document.querySelector("#json-text").value');assert.equal(JSON.parse(text).objects.length,8);writeFileSync(resolve(output,'exported-map.json'),text);await click('#apply-json');checks.push('exported JSON round-trips through validated import');
+  await click('#json');const text=await evaluate('document.querySelector("#json-text").value');assert.equal(JSON.parse(text).objects.length,9);writeFileSync(resolve(output,'exported-map.json'),text);await click('#apply-json');checks.push('exported JSON round-trips through validated import');
   await click('#play');await wait(s=>s.playing&&s.model==='loaded','play mode and glTF');
   await clickObject('exit');s=await snapshot();assert.equal(s.runtime.walking,false);
   await clickObject('switch-lift');await wait(s=>s.runtime.busy,'first pressure plate');await wait(s=>!s.runtime.busy&&!s.runtime.walking,'first group translation');

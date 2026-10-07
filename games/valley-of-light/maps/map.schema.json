@@ -42,10 +42,20 @@
         "arc": { "type": "number", "minimum": 5, "maximum": 330 },
         "twist": { "type": "number", "minimum": -360, "maximum": 360 },
         "prismHalf": { "enum": ["a", "b"], "default": "a", "description": "Complementary triangular half of the unit cube, split vertically on x/length = z/width." },
+        "colors": { "$ref": "#/$defs/colors" },
         "motion": { "$ref": "#/$defs/motion" },
         "trigger": { "$ref": "#/$defs/trigger" }
       }
     },
+    "colors": {
+      "type": "object", "additionalProperties": false,
+      "required": ["surface", "hub", "spokes", "tips", "base"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/color" }, "hub": { "$ref": "#/$defs/color" },
+        "spokes": { "$ref": "#/$defs/color" }, "tips": { "$ref": "#/$defs/color" }, "base": { "$ref": "#/$defs/color" }
+      }
+    },
+    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
     "motion": {
       "type": "object", "required": ["axis", "min", "max", "step", "targetGroup"],
       "properties": {

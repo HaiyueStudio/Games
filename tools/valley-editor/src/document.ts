@@ -1,7 +1,7 @@
 import { EditorPlatform } from '@haiyue/editor-platform';
 import { BrowserEditorShell } from '@haiyue/editor-shell';
 import { defineEditorPlugin, defineEditorProduct, type EditorDocumentAdapter, type EditorDisposable } from '@haiyue/editor-plugin-sdk';
-import { cloneMap, createObject, parseMap, serializeMap, splitCube, switchGarden, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { cloneMap, createObject, parseMap, serializeMap, snapPosition, splitCube, switchGarden, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 export class ValleyDocument implements EditorDocumentAdapter<ValleyMap> {
   map:ValleyMap;revision=0;savedRevision=0;private listeners=new Set<()=>void>();private savedText:string;
@@ -41,7 +41,15 @@ export class ValleyAuthoring {
   add(type:TypeId,position:Vec3):string{let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const o=createObject(type,`object-${n}`,position);this.change(`放置 ${o.name}`,map=>map.objects.push(o));this.select([o.id]);return o.id;}
   removeSelected():void{const ids=new Set(this.selected);if(!ids.size)return;this.change('删除物体',map=>{map.objects=map.objects.filter(o=>!ids.has(o.id));map.opticalLinks=map.opticalLinks.filter(l=>!ids.has(l.a)&&!ids.has(l.b));});this.select([]);}
   duplicate():void{const originals=this.map.objects.filter(o=>this.selected.includes(o.id)),ids:string[]=[];
-    this.change('复制物体',map=>{for(const source of originals){let n=1;while(map.objects.some(o=>o.id===`object-${n}`))n++;const copy=structuredClone(source);copy.id=`object-${n}`;copy.position[0]+=.5;copy.position[2]+=.5;copy.name+=' 副本';map.objects.push(copy);ids.push(copy.id);}});this.select(ids);
+    this.change('复制物体',map=>{for(const source of originals){let n=1;while(map.objects.some(o=>o.id===`object-${n}`))n++;const copy=structuredClone(source);copy.id=`object-${n}`;copy.position[0]+=1;copy.position[2]+=1;copy.name+=' 副本';map.objects.push(copy);ids.push(copy.id);}});this.select(ids);
+  }
+  alignSelected(step:number):void {if(!Number.isFinite(step)||step<=0)throw new Error('网格间距必须大于零。');this.change('对齐网格',map=>{for(const o of map.objects)if(this.selected.includes(o.id))o.position=snapPosition(o.position,step);});}
+  movePreview(before:ValleyMap,anchorId:string,delta:Vec3,step:number):ValleyMap {
+    const next=cloneMap(before),anchor=before.objects.find(o=>o.id===anchorId);if(!anchor)return next;
+    const target=snapPosition(anchor.position.map((v,i)=>v+delta[i]!) as Vec3,step);
+    // Dragging stays on the authored height; selection offsets remain intact.
+    for(const o of next.objects)if(this.selected.includes(o.id))for(const i of [0,2])o.position[i]!+=target[i]!-anchor.position[i]!;
+    return next;
   }
   update(id:string,mutation:(o:MapObject)=>void):void{this.change('修改物体属性',map=>{const o=map.objects.find(o=>o.id===id);if(o)mutation(o);});}
   splitSelected(depth:number):void {

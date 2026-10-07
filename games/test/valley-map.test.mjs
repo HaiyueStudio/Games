@@ -32,7 +32,7 @@ test('pressure plates animate whole groups, rebuild routes and open the exit',()
   assert.equal(r.walkTo('switch-turn'),true);tickUntil(r,()=>r.busy);tickUntil(r,()=>!r.busy);
   assert.deepEqual(r.poses.groups.turning.rotation,[0,-90,0]);
   assert.ok(connections(m,r.poses).length>=6);assert.equal(r.walkTo('exit'),true);tickUntil(r,()=>r.completed);
-  assert.equal(r.at.objectId,'exit');assert.deepEqual(r.position,[4,0,0]);assert.equal(r.fired.size,2);
+  assert.equal(r.at.objectId,'exit');assert.deepEqual(r.position,[5,0,0]);assert.equal(r.fired.size,2);
   assert.deepEqual(m,switchGarden(),'play must not mutate the authored JSON');
 });
 
@@ -80,4 +80,22 @@ test('drag constraints and occupied-group locks are enforced by the shared runti
   assert.equal(r.dragTo('drag',132,true),true);assert.equal(r.poses.mechanisms.drag,90);
   assert.equal(r.dragTo('drag',500,true),true);assert.equal(r.poses.mechanisms.drag,180);
   r.at={objectId:'moving-a',index:1};assert.equal(r.canDrag('drag'),false);
+});
+
+test('orbiting breaks optical seams but leaves physical routes connected',()=>{
+  const map=splitGarden(),side=p=>[p[0],p[1]];
+  assert.equal(connections(map,emptyPoses(),side).filter(c=>c.illusion).length,0);
+  const r=new MapRuntime(map,side);assert.equal(r.walkTo('exit'),false);assert.equal(r.walkTo('approach'),true);
+  tickUntil(r,()=>!r.walking);assert.deepEqual(r.position,[-1,0,0]);
+  assert.equal(new MapRuntime(map,project).walkTo('exit'),true);
+  map.objects.find(o=>o.id==='half-b').position=[...map.objects.find(o=>o.id==='half-a').position];
+  assert.ok(connections(map,emptyPoses(),side).some(c=>c.a==='half-a'&&c.b==='half-b'&&!c.illusion),'a real shared cut stays connected independently of camera orientation');
+});
+
+test('new examples use integer anchors; palettes round-trip and legacy maps receive defaults',()=>{
+  for(const map of [catalogGarden(),switchGarden(),splitGarden()])for(const o of map.objects)assert.ok(o.position.every(Number.isInteger),o.id);
+  const map=catalogGarden(),wheel=map.objects.find(o=>o.type===3);wheel.colors.hub='#123ABC';
+  assert.equal(parseMap(JSON.parse(serializeMap(map))).objects.find(o=>o.type===3).colors.hub,'#123ABC');
+  wheel.colors.hub='red';assert.throws(()=>parseMap(map),/配色/);delete wheel.colors;
+  assert.equal(parseMap(map).objects.find(o=>o.type===3).colors.hub,'#ed7657');
 });
