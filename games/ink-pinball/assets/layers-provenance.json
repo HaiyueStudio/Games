@@ -1,0 +1,26 @@
+{
+  "tool": "built-in image_gen",
+  "generatedAt": "2026-10-07",
+  "source": "landscape.png",
+  "assets": [
+    {
+      "file": "landscape-plate.png",
+      "prompt": "Edit this ink wash game background into a CLEAN BACKGROUND PLATE for independent animated character layers. Remove the entire dragon from the upper sky, reconstructing pale mist and clouds on xuan paper. Remove BOTH koi fish in the lower river, reconstructing uninterrupted water, ripples and rice paper texture. Preserve the same landscape composition, mountains along both sides, rocks and pines, flowing river, traditional Chinese monochrome ink painting, natural ivory paper, portrait 2:3 aspect. Add one clearly defined narrow pale waterfall on the middle LEFT mountainside, running vertically from about 38% image height to 59% image height, at about 21% image width. Keep centre valley misty and light, since pinball happens there. No animals anywhere, no text, no interface. This is the background plate only; all animals will be separate sprites."
+    },
+    {
+      "file": "dragon.png",
+      "prompt": "Use the attached painting ONLY as the style and dragon identity reference. Generate a separate transparent game sprite: one magnificent traditional Chinese ink-wash dragon, full serpentine body winding horizontally across a wide 3:1 composition, HEAD at the LOWER LEFT, head turned diagonally DOWN AND RIGHT, open mouth pointing toward lower-right. Expressive black ink mane and whiskers, pale grey scaled body, all hand painted sumi ink and subtle xuan-like brush texture within the painted shapes. His head must be clearly recognizable at the left with a dark open mouth suitable for catching a small ball; body arches upward then coils across to right. Entire character isolated with transparent alpha background, transparent spaces between all coils and whiskers. NO mountains, no paper rectangle, no cloud background, no text. Generous margin to prevent cropping.",
+      "transparent": true
+    },
+    {
+      "file": "toad.png",
+      "prompt": "Use case: stylized-concept. Asset: transparent ink wash pinball character sprite. A single charming squat Chinese toad, seen front three-quarter view, crouched ready to spring UPWARD, both powerful rear legs bent, round sturdy back and bumpy skin, little alert black eyes, four feet visible. Traditional Chinese black and grey ink-wash painting, diluted warm grey washes, expressive dry brush contours, a tiny restrained vermilion marking on its forehead. Not cartoon vector, not photo, not golden statue, no coin. Symmetrical compact silhouette suitable for a jumping game bumper. Whole toad isolated and centered on fully transparent alpha background, generous margin, no water, no ground, no scenery, no shadow, no writing.",
+      "transparent": true
+    },
+    {
+      "file": "koi.png",
+      "prompt": "Use attached image as style reference only. Create an independent transparent animation sprite of ONE beautiful koi fish in traditional Chinese ink-wash painting. Full body viewed from the SIDE, head pointing RIGHT, elegant long tail curling gently to LEFT, arched supple body as it leaps from a river. Silver ivory scales, charcoal black ink outlines and a few restrained cinnabar red patches like the reference koi. All fins fully visible, delicate ink-brush texture. Entire fish centered with margins, approximately 2:1 wide composition. Fully transparent alpha background, NO water, no waves, no splashes, no mountains, no paper rectangle, no text, no other fish. This isolated sprite will rotate in the air for a somersault animation.",
+      "transparent": true
+    }
+  ]
+}

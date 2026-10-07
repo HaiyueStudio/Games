@@ -713,11 +713,24 @@
         "experimental-render-integration"
       ],
       "assets": [
-        "ink-pinball/assets/landscape.png",
+        "ink-pinball/assets/landscape-plate.png",
         "ink-pinball/assets/brush.png",
-        "ink-pinball/assets/lotus.png",
         "ink-pinball/assets/provenance.json",
-        "ink-pinball/style.css"
+        "ink-pinball/style.css",
+        "ink-pinball/assets/dragon.png",
+        "ink-pinball/assets/toad.png",
+        "ink-pinball/assets/koi.png",
+        "ink-pinball/assets/layers-provenance.json",
+        "ink-pinball/THIRD_PARTY_NOTICES.md",
+        "ink-pinball/assets/lily-pad.png",
+        "ink-pinball/assets/spirit-orb.png",
+        "ink-pinball/assets/river-lotuses.png",
+        "ink-pinball/assets/crane-poses.png",
+        "ink-pinball/assets/brush-digits.png",
+        "ink-pinball/assets/brush-digits.fnt.json",
+        "ink-pinball/assets/garden-provenance.json",
+        "ink-pinball/assets/flying-crane-provenance.json",
+        "ink-pinball/assets/title-moyou.png"
       ],
       "screenshot": {
         "required": false,

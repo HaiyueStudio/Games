@@ -1,0 +1,124 @@
+{
+  "face": "Ink Garden Brush",
+  "size": 396.5,
+  "lineHeight": 396.5,
+  "base": 337.025,
+  "scaleW": 1983,
+  "scaleH": 793,
+  "pages": [
+    "brush-digits.png"
+  ],
+  "chars": [
+    {
+      "id": 48,
+      "x": 14,
+      "y": 14,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 49,
+      "x": 411,
+      "y": 14,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 50,
+      "x": 807,
+      "y": 14,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 51,
+      "x": 1204,
+      "y": 14,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 52,
+      "x": 1600,
+      "y": 14,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 53,
+      "x": 14,
+      "y": 411,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 54,
+      "x": 411,
+      "y": 411,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 55,
+      "x": 807,
+      "y": 411,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 56,
+      "x": 1204,
+      "y": 411,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    },
+    {
+      "id": 57,
+      "x": 1600,
+      "y": 411,
+      "width": 368,
+      "height": 368,
+      "xoffset": 0,
+      "yoffset": 0,
+      "xadvance": 396,
+      "page": 0
+    }
+  ],
+  "kernings": []
+}

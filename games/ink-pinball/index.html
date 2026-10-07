@@ -11,7 +11,7 @@
   <aside class="notes">
     <a class="back" href="../../">← HAIYUE · 游戏集</a>
     <div class="edition">水墨游艺 <span>卷 二</span></div>
-    <div class="title-line"><h1>墨游</h1><span class="seal">龙<br>鲤</span></div>
+    <div class="title-line"><h1 class="title-art"><img src="./assets/title-moyou.png" alt="墨游" width="199" height="158"></h1><span class="seal">龙<br>鲤</span></div>
     <p class="subtitle">INK IN MOTION</p>
     <p class="intro">一滴墨，游山河。<br>云起龙吟，水动鱼跃。</p>
     <div class="scorecard ink-panel">
@@ -24,7 +24,7 @@
       <div><kbd>S</kbd><kbd>↓</kbd><span>按住蓄墨 · 松开发球</span></div>
       <div><kbd>W</kbd><kbd>↑</kbd><span>一键发球</span></div>
     </div>
-    <p class="margin-note">集齐「山 · 水 · 龙」<br><span>画境相成，额外 +1500 分</span></p>
+    <p class="margin-note">仙鹤齐展翅 · 额外 +1500 分<br><span>采莲每朵 +250 · 三莲齐采再 +2000</span><br><span>龙口吞吐 +500 · 金蟾救球后潜水 30 秒</span></p>
     <div class="tools"><button class="ink-panel" id="pause" aria-label="暂停游戏">Ⅱ 暂停</button><button class="ink-panel" id="restart">↻ 重开</button><button class="ink-panel" id="sound" aria-pressed="true">♪ 声音</button></div>
     <p class="fineprint">P 暂停 · R 重开<br>HAIYUE ENGINE / INK PINBALL</p>
   </aside>
@@ -32,8 +32,9 @@
     <div class="scroll-cap"></div>
     <div class="paper" id="table">
       <div id="art" aria-hidden="true"></div>
+      <div id="creatures" aria-hidden="true"></div>
       <canvas id="canvas" width="600" height="900" aria-label="水墨弹球，W或上箭头发球，A D或左右箭头控制挡板"></canvas>
-      <div class="table-copy" aria-hidden="true"><span class="vertical-title">云 龙 游 墨</span><span class="shooter">引<br>墨<br>↑</span><span class="left-label">A / ←</span><span class="right-label">D / →</span><span class="river-caption">鲤跃山河 · 墨落有声</span></div>
+      <div class="table-copy" aria-hidden="true"><span class="vertical-title">云 龙 游 墨</span><span class="shooter">引<br>墨<br>↑</span><span class="left-label">A / ←</span><span class="right-label">D / →</span><span class="river-caption">三莲逐水 · 触墨生香</span></div>
       <div id="floaters" aria-hidden="true"></div>
       <div id="banner" class="ink-panel" role="status"><span id="banner-title">正在展开画卷…</span><small id="banner-detail">载入山水与墨迹</small></div>
       <div class="page-foot"><span id="balls">● ● ●</span><span id="combo">墨随心动</span></div>
