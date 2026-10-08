@@ -29,14 +29,16 @@ export type CornerId=0|1|2|3;
 export interface PillarAttachment { pathId:string; corner:CornerId }
 export interface WaterSettings { amplitude:number; speed:number; wavelength:number }
 export const defaultWater=():WaterSettings=>({amplitude:.08,speed:.65,wavelength:4});
-export interface MapObject {
+/** Optional affine offset preserves world geometry when reparenting scaled/rotated nodes. */
+export interface ParentOffset { basis?:number[]; order?:number }
+export interface MapObject extends ParentOffset {
   id: string; type: TypeId; name: string; position: Vec3; rotation: Vec3; groupId: string|null;
   length: number; width: number; thickness: number; rise: number; steps: number; radius: number; arc: number; twist: number;
   prismHalf:'a'|'b'; arcTwist:number;
   colors:ObjectColors; water:WaterSettings; attachment:PillarAttachment|null;
   motion: Motion; trigger: {mode:'once'|'toggle';actions:Action[]};
 }
-export interface MapGroup { id:string; name:string; pivot:Vec3 }
+export interface MapGroup extends ParentOffset { id:string; name:string; pivot:Vec3; parentId?:string|null; position?:Vec3; rotation?:Vec3; scale?:Vec3 }
 export interface OpticalLink { a:string; aEnd:PortId; b:string; bEnd:PortId }
 export interface ValleyMap {
   format:'haiyue-valley-map'; version:1; catalogVersion:1; id:string; name:string;
@@ -58,13 +60,19 @@ export function parseMap(input:unknown):ValleyMap {
   if (!record(input)||input.format!=='haiyue-valley-map'||input.version!==1||input.catalogVersion!==1) throw new Error('不支持的地图格式或物体目录版本。');
   if(!identifier(input.id)||!label(input.name)||!Array.isArray(input.objects)||input.objects.length>500||!Array.isArray(input.groups)||input.groups.length>100||!Array.isArray(input.opticalLinks)||input.opticalLinks.length>1000) throw new Error('地图名称、ID 或对象数量无效。');
   const ids=new Set<string>(), groups=new Set<string>();
+  const validBasis=(b:unknown)=>b===undefined||(Array.isArray(b)&&b.length===16&&b.every(v=>finite(v,-1e6,1e6))&&[3,7,11].every(i=>b[i]===0)&&b[15]===1&&invertibleMatrix(b));
+  const validateOffset=(n:Record<string,unknown>)=>{if(n.order!==undefined&&!finite(n.order,0,10000))throw new Error('节点顺序无效。');if(!validBasis(n.basis))throw new Error('节点变换矩阵无效或不可逆。');};
   for(const g of input.groups) {
     if(!record(g)||!identifier(g.id)||groups.has(g.id)||!label(g.name)||!vector(g.pivot)) throw new Error('物体组 ID 重复或旋转轴心无效。');
+    validateOffset(g);
+    if((g.position!==undefined&&!vector(g.position))||(g.rotation!==undefined&&!vector(g.rotation))||(g.scale!==undefined&&(!vector(g.scale)||g.scale.some(v=>v<.01||v>100))))throw new Error('父节点变换无效，缩放必须介于 0.01 和 100。');
     groups.add(g.id);
   }
+  const parentOf=(id:string):string|null=>(input.groups as MapGroup[]).find(g=>g.id===id)?.parentId??null;
+  for(const g of input.groups){if(g.parentId!=null&&!groups.has(g.parentId))throw new Error('父节点不存在。');const path=new Set<string>();let id:string|null=g.id;while(id){if(path.has(id))throw new Error('父节点层级不能循环。');path.add(id);id=parentOf(id);}}
   for(const o of input.objects) {
-    if(!record(o)||!identifier(o.id)||ids.has(o.id)||!label(o.name)||!CATALOG.some(x=>x.type===o.type)) throw new Error('物体 ID 重复或包含未知物体编号。');
-    ids.add(o.id);
+    if(!record(o)||!identifier(o.id)||(ids.has(o.id)||groups.has(o.id))||!label(o.name)||!CATALOG.some(x=>x.type===o.type)) throw new Error('物体 ID 重复或包含未知物体编号。');
+    ids.add(o.id);validateOffset(o);
     if(!vector(o.position)||!vector(o.rotation)||(o.groupId!==null&&!groups.has(o.groupId as string))) throw new Error(`物体 ${o.id} 的变换或组引用无效。`);
     if(o.arcTwist!==undefined&&!finite(o.arcTwist,-360,360))throw new Error(`${o.id}: 圆弧翻面角度无效。`);
     if(o.prismHalf!==undefined&&!['a','b'].includes(o.prismHalf as string)) throw new Error(`${o.id}: 三棱柱必须选择 A 或 B 半块。`);
@@ -84,8 +92,9 @@ export function parseMap(input:unknown):ValleyMap {
       targets.add(a.groupId as string);
     }
   }
-  const dependencies=new Map<string,string[]>();for(const g of input.groups)dependencies.set(g.id,[]);
-  for(const o of input.objects)if(o.type===3&&o.motion.targetGroup&&o.groupId&&o.motion.targetGroup!==o.groupId)dependencies.get(o.motion.targetGroup)!.push(o.groupId);
+  const dependencies=new Map<string,string[]>();for(const g of input.groups)dependencies.set(g.id,g.parentId?[g.parentId]:[]);
+  const inside=(child:string,parent:string):boolean=>child===parent||!!parentOf(child)&&inside(parentOf(child)!,parent);
+  for(const o of input.objects)if(o.type===3&&o.motion.targetGroup&&o.groupId&&!inside(o.groupId,o.motion.targetGroup))dependencies.get(o.motion.targetGroup)!.push(o.groupId);
   const visited=new Set<string>();const visit=(id:string,path:Set<string>)=>{if(visited.has(id))return;if(path.has(id))throw new Error('机关组依赖不能循环。');const next=new Set(path);next.add(id);for(const dep of dependencies.get(id)??[])visit(dep,next);visited.add(id);};for(const id of dependencies.keys())visit(id,new Set());
   const occupied=new Set<string>();
   for(const o of input.objects)if(o.attachment){const a=o.attachment,parent=input.objects.find(p=>p.id===a.pathId),key=`${a.pathId}:${a.corner}`;if(!parent||parent.type!==1||occupied.has(key))throw new Error(`${o.id}: 柱子必须引用普通路径的空闲角点。`);occupied.add(key);}
@@ -98,9 +107,9 @@ export function parseMap(input:unknown):ValleyMap {
   }
   // Rebuild known fields to keep editor/runtime metadata out of the portable protocol.
   return {format:'haiyue-valley-map',version:1,catalogVersion:1,id:input.id,name:input.name,
-    groups:input.groups.map(g=>({id:g.id,name:g.name,pivot:[...g.pivot] as Vec3})),
+    groups:input.groups.map(g=>({id:g.id,name:g.name,pivot:[...g.pivot] as Vec3,...(g.parentId!==undefined?{parentId:g.parentId}:{}),...(g.position?{position:[...g.position]}:{}),...(g.rotation?{rotation:[...g.rotation]}:{}),...(g.scale?{scale:[...g.scale]}:{}),...(g.basis?{basis:[...g.basis]}:{}),...(g.order!==undefined?{order:g.order}:{})})),
     opticalLinks:input.opticalLinks.map(l=>({a:l.a,aEnd:l.aEnd,b:l.b,bEnd:l.bEnd})),
-    objects:input.objects.map(o=>({id:o.id,type:o.type,name:o.name,position:[...o.position] as Vec3,rotation:[...o.rotation] as Vec3,groupId:o.groupId,
+    objects:input.objects.map(o=>({id:o.id,type:o.type,name:o.name,position:[...o.position] as Vec3,rotation:[...o.rotation] as Vec3,groupId:o.groupId,...(o.basis?{basis:[...o.basis]}:{}),...(o.order!==undefined?{order:o.order}:{}),
       length:o.length,width:o.width,thickness:o.thickness,rise:o.rise,steps:o.steps,radius:o.radius,arc:o.arc,twist:o.twist,arcTwist:o.arcTwist??0,prismHalf:o.prismHalf??'a',colors:o.colors?{...o.colors}:defaultColors(o.type),water:o.water?{...o.water}:defaultWater(),attachment:o.attachment?{pathId:o.attachment.pathId,corner:o.attachment.corner}:null,
       motion:{axis:o.motion.axis,min:o.motion.min,max:o.motion.max,step:o.motion.step,targetGroup:o.motion.targetGroup},
       trigger:{mode:o.trigger.mode,actions:o.trigger.actions.map((a:Action)=>({groupId:a.groupId,translation:[...a.translation] as Vec3,rotation:[...a.rotation] as Vec3,duration:a.duration,easing:a.easing}))}}))} as ValleyMap;
@@ -111,7 +120,7 @@ export function playIssues(map:ValleyMap):string[] {
   if(!map.objects.some(o=>o.type===10)) issues.push('试玩需要至少一个出口平台（10）。');
   for(const o of map.objects.filter(o=>o.type===8)) {
     if(!o.trigger.actions.length) issues.push(`开关「${o.name}」尚未配置动作。`);
-    for(const a of o.trigger.actions) if(!map.objects.some(x=>x.groupId===a.groupId)) issues.push(`开关目标组 ${a.groupId} 没有成员。`);
+    for(const a of o.trigger.actions) if(!map.objects.some(x=>belongsToGroup(map,x.groupId,a.groupId))) issues.push(`开关目标组 ${a.groupId} 没有成员。`);
   }
   return issues;
 }
@@ -214,7 +223,8 @@ export function splitCube(map:ValleyMap,id:string,newId:string,depth=3):void {
   if(!identifier(newId)||map.objects.some(o=>o.id===newId)||!finite(depth,-30,30)||Math.abs(depth)<.5)throw new Error('半块 ID 或深度间隔无效，间隔至少为 0.5 格。');
   // Keep placed columns in the same world positions if their host is split.
   for(const pillar of map.objects.filter(o=>o.attachment?.pathId===id))detachPillar(map,pillar);
-  const other=structuredClone(cube);other.id=newId;other.name+=' · B 半块';other.type=5;other.prismHalf='b';other.groupId=null;other.position=add(cube.position,[depth,depth,depth]);
+  const other=structuredClone(cube);other.id=newId;other.name+=' · B 半块';other.type=5;other.prismHalf='b';other.groupId=null;const parent=groupMatrix(map,cube.groupId);other.basis=multiplyMatrix(parent,cube.basis??identityMatrix());other.basis[12]!+=depth;other.basis[13]!+=depth;other.basis[14]!+=depth;
+  if(other.basis.every((v,i)=>Math.abs(v-identityMatrix()[i]!)<1e-8||[12,13,14].includes(i))){other.position=matrixPoint(other.basis,other.position);delete other.basis;}
   cube.type=5;cube.prismHalf='a';cube.name+=' · A 半块';
   const onB=(port:number)=>[1,2,11,12].includes(port)||[3,4].includes(Math.floor(port/10));
   for(const link of map.opticalLinks){if(link.a===id&&onB(link.aEnd))link.a=newId;if(link.b===id&&onB(link.bEnd))link.b=newId;}
@@ -232,23 +242,35 @@ export function wheelRotation(p:Vec3,axis:Vec3,degrees:number):Vec3 {
   const a=unit(axis),angle=degrees*RAD,c=Math.cos(angle),s=Math.sin(angle),dot=p[0]*a[0]+p[1]*a[1]+p[2]*a[2];
   return add(add(mul(p,c),mul(cross(a,p),s)),mul(a,dot*(1-c)));
 }
-/** Switch actions use the group pivot; handwheels rotate around their own block center. */
-export function groupPoint(map:ValleyMap,id:string,point:Vec3,poses:MapPoses,visiting=new Set<string>()):Vec3 {
-  if(visiting.has(id))throw new Error('机关组依赖不能循环。');
-  const next=new Set(visiting);next.add(id);const group=map.groups.find(g=>g.id===id)!,base=poses.groups[id]??zeroPose();
-  const basePoint=(p:Vec3)=>add(add(rotate(sub(p,group.pivot),base.rotation),group.pivot),base.translation);
+/** Column-major affine helpers, kept in double precision for route matching. */
+export const identityMatrix=():number[]=>[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+export const matrixPoint=(m:readonly number[],p:Vec3):Vec3=>[0,1,2].map(i=>m[i]!*p[0]+m[i+4]!*p[1]+m[i+8]!*p[2]+m[i+12]!) as Vec3;
+export function pointMatrix(fn:(p:Vec3)=>Vec3):number[]{const p=fn([0,0,0]),axes=([[1,0,0],[0,1,0],[0,0,1]] as Vec3[]).map(v=>sub(fn(v),p));return [...axes[0]!,0,...axes[1]!,0,...axes[2]!,0,...p,1];}
+const matrixAxes=(m:readonly number[]):Vec3[]=>[0,4,8].map(i=>m.slice(i,i+3) as Vec3);
+const dot=(a:Vec3,b:Vec3)=>a.reduce((s,v,i)=>s+v*b[i]!,0);
+export function affineDet(m:readonly number[]):number{const [x,y,z]=matrixAxes(m);return dot(x!,cross(y!,z!));}
+export function invertibleMatrix(m:readonly number[]):boolean{const det=affineDet(m),magnitude=matrixAxes(m).reduce((n,v)=>n*length(v),1);return Number.isFinite(det)&&Math.abs(det)>Number.EPSILON*magnitude*8;}
+export function inverseMatrix(m:readonly number[]):number[]{const [x,y,z]=matrixAxes(m),det=affineDet(m);if(!invertibleMatrix(m))throw new Error('节点变换不可逆。');const rows=[cross(y!,z!),cross(z!,x!),cross(x!,y!)].map(v=>mul(v,1/det));return pointMatrix(p=>rows.map(r=>dot(r,sub(p,m.slice(12,15) as Vec3))) as Vec3);}
+export const multiplyMatrix=(a:readonly number[],b:readonly number[]):number[]=>pointMatrix(p=>matrixPoint(a,matrixPoint(b,p)));
+export function normalMatrix(m:readonly number[],v:Vec3):Vec3{const inv=inverseMatrix(m);return unit([0,4,8].map(i=>v[0]*inv[i]!+v[1]*inv[i+1]!+v[2]*inv[i+2]!) as Vec3);}
+export function belongsToGroup(map:ValleyMap,id:string|null|undefined,parent:string):boolean{const seen=new Set<string>();while(id&&!seen.has(id)){if(id===parent)return true;seen.add(id);id=map.groups.find(g=>g.id===id)?.parentId;}return false;}
+/** Authored parent transforms wrap switch-local animation; wheel axes are evaluated in world space. */
+export function groupPoint(map:ValleyMap,id:string,point:Vec3,poses:MapPoses,skipControls=new Set<string>()):Vec3 {
+  const group=map.groups.find(g=>g.id===id)!,base=poses.groups[id]??zeroPose();
+  const basePoint=(p:Vec3)=>{let v=add(add(rotate(sub(p,group.pivot),base.rotation),group.pivot),base.translation);v=add(rotate(v.map((x,i)=>x*(group.scale?.[i]??1)) as Vec3,group.rotation??[0,0,0]),group.position??[0,0,0]);if(group.basis)v=matrixPoint(group.basis,v);return group.parentId?groupPoint(map,group.parentId,v,poses,skipControls):v;};
+  if(skipControls.has(id))return basePoint(point);
+  const next=new Set(skipControls);next.add(id);
   const operations:Array<{axis:Vec3;angle:number;pivot:Vec3;translation:Vec3}>=[];
   const apply=(p:Vec3)=>operations.reduce((v,a)=>add(add(wheelRotation(sub(v,a.pivot),a.axis,a.angle),a.pivot),a.translation),p);
   for(const o of map.objects){if((o.type!==3&&o.type!==4)||o.motion.targetGroup!==id)continue;const amount=poses.mechanisms[o.id]??0;if(!amount)continue;
     const translation:Vec3=[0,0,0];let pivot:Vec3=[0,0,0],axis:Vec3=[0,1,0],angle=0;
-    if(o.type===3){angle=amount;axis=rotate(axisVector(o.motion.axis),o.rotation);pivot=objectSample(o,surfaceSample([0,-o.thickness/2,0]),poses).point;
-      if(o.groupId===id){axis=sub(apply(basePoint(axis)),apply(basePoint([0,0,0])));pivot=apply(basePoint(pivot));}
-      else if(o.groupId){axis=sub(groupPoint(map,o.groupId,axis,poses,next),groupPoint(map,o.groupId,[0,0,0],poses,next));pivot=groupPoint(map,o.groupId,pivot,poses,next);}
+    if(o.type===3){angle=amount;const center:Vec3=[0,-o.thickness/2,0],sample=(p:Vec3)=>{const v=objectSample(o,surfaceSample(p),poses).point;return o.groupId?groupPoint(map,o.groupId,v,poses,next):v;};pivot=sample(center);let tip=sample(add(center,axisVector(o.motion.axis)));if(belongsToGroup(map,o.groupId,id)){pivot=apply(pivot);tip=apply(tip);}axis=sub(tip,pivot);
     }else translation[axisIndex(o.motion.axis)]=amount;
     operations.push({axis,angle,pivot,translation});
   }
   return apply(basePoint(point));
 }
+export const groupMatrix=(map:ValleyMap,id:string|null,poses=emptyPoses()):number[]=>id?pointMatrix(p=>groupPoint(map,id,p,poses)):identityMatrix();
 export function groupVector(map:ValleyMap,id:string,v:Vec3,poses:MapPoses):Vec3 {return sub(groupPoint(map,id,v,poses),groupPoint(map,id,[0,0,0],poses));}
 export function objectPose(o:MapObject,poses:MapPoses):{position:Vec3;rotation:Vec3} {
   const position:[number,number,number]=[...o.position], rotation:[number,number,number]=[...o.rotation];
@@ -268,36 +290,40 @@ export function objectSample(o:MapObject,s:Sample,poses:MapPoses):Sample {
     const pivot:Vec3=o.type===5?[0,-o.thickness/2,0]:[0,0,0];
     point=add(pivot,rotate(sub(s.point,pivot),o.rotation));up=rotate(s.up,o.rotation);
   }
-  return {point:add(point,objectPose(o,poses).position),up,roll:s.roll};
+  point=add(point,objectPose(o,poses).position);if(o.basis){point=matrixPoint(o.basis,point);up=normalMatrix(o.basis,up);}
+  return {point,up,roll:s.roll};
 }
 export function worldSample(map:ValleyMap,o:MapObject,s:Sample,poses:MapPoses):Sample {
-  if(o.attachment){const parent=map.objects.find(p=>p.id===o.attachment!.pathId)!;return worldSample(map,parent,{point:add(pathCorner(parent,o.attachment.corner),add(o.position,rotate(s.point,o.rotation))),up:rotate(s.up,o.rotation),roll:s.roll},poses);}
+  if(o.attachment){const parent=map.objects.find(p=>p.id===o.attachment!.pathId)!;let point=add(o.position,rotate(s.point,o.rotation)),up=rotate(s.up,o.rotation);if(o.basis){point=matrixPoint(o.basis,point);up=normalMatrix(o.basis,up);}return worldSample(map,parent,{point:add(pathCorner(parent,o.attachment.corner),point),up,roll:s.roll},poses);}
   let {point,up}=objectSample(o,s,poses);
-  if(o.groupId){point=groupPoint(map,o.groupId,point,poses);up=groupVector(map,o.groupId,up,poses);}
+  if(o.groupId){point=groupPoint(map,o.groupId,point,poses);up=normalMatrix(groupMatrix(map,o.groupId,poses),up);}
   return {point,up,roll:s.roll};
 }
 /** Preserve an attached column's authored pose when copying it alone or splitting its host. */
 export function detachPillar(map:ValleyMap,pillar:MapObject):void {
   if(!pillar.attachment)return;
-  const parent=map.objects.find(o=>o.id===pillar.attachment!.pathId)!,poses=emptyPoses(),p=worldSample(map,pillar,surfaceSample([0,0,0]),poses).point;
-  const [x,y,z]=([[1,0,0],[0,1,0],[0,0,1]] as Vec3[]).map(v=>sub(worldSample(map,pillar,surfaceSample(v),poses).point,p));
-  const rx=Math.asin(Math.max(-1,Math.min(1,-z![1]))),regular=Math.abs(Math.cos(rx))>1e-6;
-  pillar.rotation=[rx,regular?Math.atan2(z![0],z![2]):Math.atan2(-x![2],x![0]),regular?Math.atan2(x![1],y![1]):0].map(v=>v*180/Math.PI) as Vec3;
-  pillar.position=p;pillar.groupId=parent.groupId;pillar.attachment=null;
+  const parent=map.objects.find(o=>o.id===pillar.attachment!.pathId)!;
+  const matrix=multiplyMatrix(inverseMatrix(groupMatrix(map,parent.groupId)),pointMatrix(p=>worldSample(map,pillar,surfaceSample(p),emptyPoses()).point));
+  const p=matrix.slice(12,15) as Vec3;pillar.position=p;pillar.rotation=[0,0,0];pillar.basis=multiplyMatrix(matrix,pointMatrix(v=>sub(v,p)));pillar.groupId=parent.groupId;pillar.attachment=null;
+  if(pillar.basis.every((v,i)=>Math.abs(v-identityMatrix()[i]!)<1e-8))delete pillar.basis;
 }
-export function wheelFrame(map:ValleyMap,o:MapObject,poses:MapPoses):{center:Vec3;axis:Vec3;right:Vec3;up:Vec3} {
+export function wheelFrame(map:ValleyMap,o:MapObject,poses:MapPoses):{center:Vec3;axis:Vec3;right:Vec3;up:Vec3;shaft:Vec3} {
   const localAxis=axisVector(o.motion.axis),reference:Vec3=o.motion.axis==='y'?[0,0,1]:[0,1,0],localRight=unit(cross(reference,localAxis)),localUp=cross(localAxis,localRight);
   const pivot:Vec3=[0,-o.thickness/2,0],body=worldSample(map,o,surfaceSample(pivot),poses).point;
-  const transformVector=(v:Vec3)=>unit(sub(worldSample(map,o,surfaceSample(add(pivot,v)),poses).point,body));
-  const axis=transformVector(localAxis);let right=transformVector(localRight),up=transformVector(localUp);
+  const transformVector=(v:Vec3)=>sub(worldSample(map,o,surfaceSample(add(pivot,!o.motion.targetGroup?wheelRotation(v,localAxis,-(poses.mechanisms[o.id]??0)):v)),poses).point,body);
+  const shaft=transformVector(localAxis),axis=unit(shaft);let right=transformVector(localRight),up=transformVector(localUp);
   // The renderer adds the wheel spin once. Remove it here if the driven block/group already includes it.
-  if(!o.motion.targetGroup||o.groupId===o.motion.targetGroup){const angle=-(poses.mechanisms[o.id]??0);right=wheelRotation(right,axis,angle);up=wheelRotation(up,axis,angle);}
+  if(o.motion.targetGroup&&belongsToGroup(map,o.groupId,o.motion.targetGroup)){const angle=-(poses.mechanisms[o.id]??0);right=wheelRotation(right,axis,angle);up=wheelRotation(up,axis,angle);}
   const extent=[o.length,o.thickness,o.width][axisIndex(o.motion.axis)]!/2;
-  return {center:add(body,mul(axis,extent+.65)),axis,right,up};
+  return {center:add(body,mul(shaft,extent+.65)),axis,right,up,shaft};
 }
 export function waterWeights(time:number,water:WaterSettings):number[]{const t=time*water.speed;return [Math.cos(t),-Math.sin(t),Math.cos(.7*t),Math.sin(.7*t)];}
 export function waterHeight(x:number,z:number,time:number,water:WaterSettings):number {const k=2*Math.PI/water.wavelength,t=time*water.speed;return water.amplitude*(.65*Math.sin(k*(x+.45*z)-t)+.35*Math.sin(k*(.6*x-.8*z)+.7*t));}
-export const worldSamples=(map:ValleyMap,o:MapObject,poses:MapPoses):Sample[]=>localSamples(o).map(s=>worldSample(map,o,s,poses));
+export function worldSamples(map:ValleyMap,o:MapObject,poses:MapPoses):Sample[]{
+  if(o.attachment)return localSamples(o).map(s=>worldSample(map,o,s,poses));
+  const matrix=o.groupId?groupMatrix(map,o.groupId,poses):null;
+  return localSamples(o).map(s=>{const result=objectSample(o,s,poses);return matrix?{...result,point:matrixPoint(matrix,result.point),up:normalMatrix(matrix,result.up)}:result;});
+}
 function cutCorners(map:ValleyMap,o:MapObject,poses:MapPoses):Vec3[] {
   return [-o.thickness,0].flatMap(y=>[-1,1].map(sign=>worldSample(map,o,surfaceSample([sign*o.length/2,y,sign*o.width/2]),poses).point));
 }
@@ -408,7 +434,7 @@ export class MapRuntime {
   }
   canDrag(id:string):boolean {
     const o=this.map.objects.find(x=>x.id===id),at=this.map.objects.find(x=>x.id===this.at.objectId);
-    return !!o&&(o.type===3||o.type===4)&&!this.walking&&!this.busy&&!this.completed&&(o.motion.targetGroup?at?.groupId!==o.motion.targetGroup:o.id!==this.at.objectId);
+    return !!o&&(o.type===3||o.type===4)&&!this.walking&&!this.busy&&!this.completed&&(o.motion.targetGroup?!belongsToGroup(this.map,at?.groupId,o.motion.targetGroup):o.id!==this.at.objectId);
   }
   dragTo(id:string,value:number,snap=false):boolean {
     const o=this.map.objects.find(x=>x.id===id);if(!o||!this.canDrag(id)||!Number.isFinite(value))return false;

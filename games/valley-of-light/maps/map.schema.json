@@ -17,11 +17,14 @@
     "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]{1,64}$", "not": { "enum": ["__proto__", "constructor", "prototype"] } },
     "name": { "type": "string", "minLength": 1, "maxLength": 100 },
     "vector": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number", "minimum": -1000, "maximum": 1000 } },
+    "basis": { "type": "array", "minItems": 16, "maxItems": 16, "items": { "type": "number", "minimum": -1000000, "maximum": 1000000 }, "description": "Optional invertible column-major affine parent offset, applied before authored TRS." },
+    "scale": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number", "minimum": 0.01, "maximum": 100 }, "default": [1,1,1] },
+    "order": { "type": "number", "minimum": 0, "maximum": 10000 },
     "size": { "type": "number", "minimum": 0.1, "maximum": 50 },
     "groupRef": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
     "group": {
       "type": "object", "required": ["id", "name", "pivot"],
-      "properties": { "id": { "$ref": "#/$defs/id" }, "name": { "$ref": "#/$defs/name" }, "pivot": { "$ref": "#/$defs/vector" } }
+      "properties": { "id": { "$ref": "#/$defs/id" }, "name": { "$ref": "#/$defs/name" }, "pivot": { "$ref": "#/$defs/vector" }, "parentId": { "$ref": "#/$defs/groupRef" }, "position": { "$ref": "#/$defs/vector" }, "rotation": { "$ref": "#/$defs/vector" }, "scale": { "$ref": "#/$defs/scale" }, "basis": { "$ref": "#/$defs/basis" }, "order": { "$ref": "#/$defs/order" } }
     },
     "object": {
       "type": "object",
@@ -33,6 +36,8 @@
         "position": { "$ref": "#/$defs/vector" },
         "rotation": { "$ref": "#/$defs/vector" },
         "groupId": { "$ref": "#/$defs/groupRef" },
+        "basis": { "$ref": "#/$defs/basis" },
+        "order": { "$ref": "#/$defs/order" },
         "length": { "$ref": "#/$defs/size" },
         "width": { "$ref": "#/$defs/size" },
         "thickness": { "$ref": "#/$defs/size" },

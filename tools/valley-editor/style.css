@@ -5,3 +5,7 @@
 #corner-guides{position:absolute;inset:0;pointer-events:none}.corner-guide{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;line-height:19px;text-align:center;color:#35675b;background:#fff8d9;border:1px solid #a49155;border-radius:50%;font-size:16px}body.playing #corner-guides{display:none}
 
 #placement-guide{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;color:#28715e;overflow:visible}#placement-guide polygon{fill:#7daf9745;stroke:currentColor;stroke-width:2;stroke-dasharray:5 3}#placement-guide text{fill:currentColor;stroke:#fffdf0;stroke-width:3;paint-order:stroke;font-size:12px}#placement-guide.blocked{color:#ad5141}#placement-guide.blocked polygon{fill:#cc765540}
+
+/* Public Haiyue UI components share the editor palette through theme tokens. */
+hy-tree,hy-context-menu{--hy-text-color:#324c4a;--hy-tree-text-color:#324c4a;--hy-panel-bg-color:#f8f9f2;--hy-hover-bg-color:#e9eee1;--hy-selected-bg-color:#dae7d3;--hy-selected-text-color:#294c40;--hy-secondary-text-color:#718871;--hy-tree-icon-color:#718871;--hy-tree-icon-active-color:#326d64;--hy-tree-active-ring-color:#93af91;--hy-tree-active-text-color:#324c4a;--hy-border-color:#ccd8c9;--hy-menu-bg-color:#fcfcf4;--hy-surface-elevated-color:#fcfcf4;--hy-drop-target-bg-color:#e3ecd9;--hy-drop-indicator-color:#326d64}
+#object-list{min-height:112px;max-height:360px;border:1px solid #d8e0d1;border-radius:6px}.hierarchy-hint{margin:2px 0 8px}body.playing hy-tree{pointer-events:none}

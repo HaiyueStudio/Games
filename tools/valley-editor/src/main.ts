@@ -1,3 +1,5 @@
+import { HierarchyUI } from './hierarchyUI';
+import { belongsToGroup } from '../../../games/valley-of-light/map/model';
 import { HaiyueEngine } from '@haiyue/engine';
 import { guardDeferredPointerCapture } from '../../../games/valley-of-light/canvasInput';
 import { MapView } from '../../../games/valley-of-light/map/view';
@@ -12,7 +14,7 @@ const button=(text:string,action:()=>void):HTMLButtonElement=>{const b=document.
 const node=(tag:string,text='',className=''):HTMLElement=>{const n=document.createElement(tag);n.textContent=text;n.className=className;return n;};
 class ValleyEditor {
   readonly author=new ValleyAuthoring(new URLSearchParams(location.search).get('demo')==='split'?splitGarden():new URLSearchParams(location.search).get('demo')==='sea'?seasideGarden():new URLSearchParams(location.search).get('demo')==='seam'?rotatedSeamGarden():new URLSearchParams(location.search).get('demo')==='surfaces'?surfaceGarden():new URLSearchParams(location.search).get('demo')==='arc'?surfaceGarden(true):switchGarden());private abort=new AbortController();private engine!:HaiyueEngine;private view!:MapView;
-  private splitDepth=3;private placementPointer:[number,number]|null=null;
+  private hierarchy!:HierarchyUI;private splitDepth=3;private placementPointer:[number,number]|null=null;
   private orbitMode=false;private cameraKey='';private grid!:EditorGrid;private gridVisible=true;
   private runtime:MapRuntime|null=null;private tool:TypeId|null=null;private revision=-1;
   private drag:{id:number;start:[number,number];last:[number,number];kind:'pan'|'edit'|'play'|'click'|'place';placeType?:TypeId;placeHeight?:number|undefined;hit:string|null;targetIndex?:number|undefined;before:ValleyMap;preview:ValleyMap;value:number;moved:boolean;wheel:WheelDrag|null}|null=null;
@@ -26,7 +28,7 @@ class ValleyEditor {
     this.view=new MapView(this.engine,new URL('../../games/valley-of-light/assets/traveler.gltf',location.href).href);
     this.resize();this.view.setMap(this.author.map,true);this.grid=new EditorGrid(this.view);
     this.engine.device.addEventListener('uncapturederror',e=>{this.issues.push(e.error.message);this.status(e.error.message);},{signal:this.abort.signal});
-    this.buildCatalog();this.bind();this.refresh();
+    this.hierarchy=new HierarchyUI(this.author,()=>!this.runtime&&!this.drag,s=>this.status(s),this.abort.signal);this.buildCatalog();this.bind();this.refresh();
     this.author.document.subscribe(()=>this.refresh());this.author.platform.selection.subscribe(()=>this.refreshSelection());this.author.platform.history.subscribe(()=>this.history());
     this.engine.on('update',({detail:{delta}})=>{this.resize();const dt=Math.min(delta/1000,.05);this.runtime?.tick(dt);this.view.tick(dt,this.runtime);this.grid.update(Number($<HTMLInputElement>('layer').value)||0,Number($<HTMLSelectElement>('snap').value),this.gridVisible&&!this.runtime);this.view.setOrbitEnabled(this.canvas,this.orbitMode&&!this.runtime?.walking&&!this.runtime?.busy);if(this.runtime)$('runtime-message').textContent=this.runtime.message;const key=[this.view.orbitTransform.theta,this.view.orbitTransform.phi].join(':');if(key!==this.cameraKey){this.cameraKey=key;this.connectionCount();}this.guides();});
     this.engine.switchScene(this.view.scene);this.engine.run();$('loading').hidden=true;
@@ -47,16 +49,15 @@ class ValleyEditor {
   private refresh():void{
     if(!this.view)return;if(this.revision!==this.author.document.revision){this.revision=this.author.document.revision;this.view.setMap(this.author.map);}
     $<HTMLInputElement>('map-name').value=this.author.map.name;$('dirty').textContent=this.author.document.revision===this.author.document.savedRevision?'已导出':'● 未导出';
-    $('object-count').textContent=String(this.author.map.objects.length);$('object-list').replaceChildren();
-    for(const o of this.author.map.objects){const b=button('',()=>this.author.select([o.id]));b.onclick=e=>this.select(o.id,e.shiftKey);b.className='object-row';b.dataset.object=o.id;b.append(node('span',`${String(o.type).padStart(2,'0')}  ${o.name}`),node('small',o.groupId?'组':''));$('object-list').append(b);}
+    $('object-count').textContent=`${this.author.map.objects.length} 构件 / ${this.author.map.groups.length} 节点`;this.hierarchy.refresh();
     this.connectionCount();
     this.groups();this.links();this.refreshSelection();this.history();
   }
   private history():void{$<HTMLButtonElement>('undo').disabled=!!this.runtime||!this.author.platform.history.canUndo;$<HTMLButtonElement>('redo').disabled=!!this.runtime||!this.author.platform.history.canRedo;}
   private select(id:string,append=false):void{if(this.runtime)return;const current=this.author.selected;this.author.select(append?(current.includes(id)?current.filter(x=>x!==id):[...current,id]):[id]);}
   private refreshSelection():void{
-    const ids=this.author.selected;document.querySelectorAll<HTMLElement>('.object-row').forEach(b=>b.classList.toggle('selected',ids.includes(b.dataset.object!)));
-    if(!this.runtime)this.view.sync(this.author.map,emptyPoses(),ids);this.properties();this.guides();
+    const ids=this.author.selected;this.hierarchy.selection();
+    if(!this.runtime)this.view.sync(this.author.map,emptyPoses(),this.author.selectedObjects);this.properties();this.guides();
     for(const [i,id] of ['port-a','port-b'].entries()) {
       const select=$<HTMLSelectElement>(id),o=this.author.map.objects.find(o=>o.id===ids[i]),previous=select.value;select.replaceChildren();
       if(o)for(const p of pathPorts(o)){const option=document.createElement('option');option.value=String(p.port);option.textContent=`${i?'B':'A'} ${PORT_NAMES[p.port]}`;select.append(option);}
@@ -75,14 +76,15 @@ class ValleyEditor {
     const row=node('div','','triple');for(let i=0;i<3;i++){const l=node('label',['X','Y','Z'][i]!);l.append(this.input(value[i]!,v=>{const next:[number,number,number]=[...value];next[i]=Number(v);change(next);},'number',`${id}-${i}`));row.append(l);}this.field(host,label,row);
   }
   private properties():void{
-    const host=$('properties');host.replaceChildren();const selected=this.author.map.objects.filter(o=>this.author.selected.includes(o.id));$('selection-count').textContent=selected.length?`${selected.length} 个物体`:'未选择';
-    if(selected.length!==1){host.append(node('p',selected.length?'多选后可拖动、复制、删除或创建物体组。':'选择地图中的物体，或从左侧目录放置构件。','muted'));return;}
+    const host=$('properties');host.replaceChildren();const selected=this.author.map.objects.filter(o=>this.author.selected.includes(o.id)),group=this.author.selected.length===1?this.author.map.groups.find(g=>g.id===this.author.selected[0]):undefined;$('selection-count').textContent=this.author.selected.length?`${this.author.selected.length} 个节点`:'未选择';
+    if(group){host.append(node('div',`父节点 / ${group.id}`,'badge'));this.field(host,'节点名称',this.input(group.name,v=>this.author.updateGroup(group.id,g=>g.name=v),'text','group-name'));this.field(host,'父节点',this.selectInput([['','地图根层'],...this.author.map.groups.filter(g=>!belongsToGroup(this.author.map,g.id,group.id)).map(g=>[g.id,g.name] as [string,string])],group.parentId??'',v=>this.author.reparent([group.id],v||null),'group-parent'));for(const [key,label,fallback] of [['position','位置',[0,0,0]],['rotation','旋转（度）',[0,0,0]],['scale','缩放',[1,1,1]]] as const)this.vector(host,label,(group[key]??[...fallback]) as Vec3,v=>this.author.updateGroup(group.id,g=>g[key]=v),`group-${key}`);this.vector(host,'开关旋转轴心（节点内坐标）',group.pivot,v=>this.author.updateGroup(group.id,g=>g.pivot=v),'group-pivot');host.append(node('p','拖入此节点可收纳构件或其他父节点。位置、旋转和缩放会作用于所有子节点。','muted'));return;}
+    if(this.author.selected.length!==1||selected.length!==1){host.append(node('p',selected.length?'多选后可拖动、复制、删除或创建物体组。':'选择地图中的物体，或从左侧目录放置构件。','muted'));return;}
     const o=selected[0]!,update=(mutation:(obj:MapObject)=>void)=>{if(!this.runtime)this.author.update(o.id,mutation);};
     host.append(node('div',`TYPE ${String(o.type).padStart(2,'0')}  /  ${o.id}`,'badge'));
     this.field(host,'物体名称',this.input(o.name,v=>update(x=>x.name=v),'text','object-name'));
     if(o.attachment)host.append(node('p',`依附 ${o.attachment.pathId} 的角 ${o.attachment.corner+1}，随路径移动；位置为角点偏移。`,'muted'));
     this.vector(host,'位置（格坐标 / 路径锚点）',o.position,v=>update(x=>x.position=v),'position');this.vector(host,o.type===3?'机关朝向（度，绕路径块中心）':o.type===5?'旋转（度，绕所在方块中心）':'旋转（度，Y-X-Z 顺序）',o.rotation,v=>update(x=>x.rotation=v),'rotation');
-    if(!o.attachment)this.field(host,'所属物体组',this.selectInput([['','未分组'],...this.author.map.groups.map(g=>[g.id,g.name] as [string,string])],o.groupId??'',v=>update(x=>x.groupId=v||null),'object-group'));
+    if(!o.attachment)this.field(host,'所属物体组',this.selectInput([['','未分组'],...this.author.map.groups.map(g=>[g.id,g.name] as [string,string])],o.groupId??'',v=>this.author.reparent([o.id],v||null),'object-group'));
     const grid=node('div','','grid2');host.append(grid);for(const [key,label] of (o.type===12?[['width','柱直径'],['rise','柱高']]:o.type===11?[['length','海面长度'],['width','海面宽度']]:[['length','长度'],['width','宽度'],['thickness','厚度']]) as Array<['length'|'width'|'thickness'|'rise',string]>)this.field(grid,label,this.input(o[key],v=>update(x=>x[key]=Number(v)),'number',`param-${key}`));
     host.append(node('div',o.type===3?'手轮配色':'构件配色','subheading'));
     if(o.type===3){const presets=node('div','','palette-presets');WHEEL_PALETTES.forEach((p,i)=>{const b=button(p.name,()=>update(x=>x.colors={...p.colors}));b.id=`palette-${i}`;presets.append(b);});host.append(presets);}
@@ -117,13 +119,7 @@ class ValleyEditor {
       const add=button('＋ 添加目标组动作',()=>{const g=this.author.map.groups.find(g=>!o.trigger.actions.some(a=>a.groupId===g.id));if(!g){this.status('先创建一个未被此开关控制的物体组。');return;}update(x=>x.trigger.actions.push({groupId:g.id,translation:[0,1,0],rotation:[0,0,0],duration:1.5,easing:'smooth'}));});add.id='add-action';add.className='wide';host.append(add);
     }
   }
-  private groups():void{
-    const host=$('group-list');host.replaceChildren();for(const g of this.author.map.groups){const card=node('div','','group-card'),row=node('div','','row');row.append(node('strong',g.id),node('span',`${this.author.map.objects.filter(o=>o.groupId===g.id).length} 个物体`));card.append(row);
-      this.field(card,'组名称',this.input(g.name,v=>this.author.change('修改组名称',m=>m.groups.find(x=>x.id===g.id)!.name=v)));
-      this.vector(card,'开关旋转轴心（世界坐标）',g.pivot,v=>this.author.change('修改组轴心',m=>m.groups.find(x=>x.id===g.id)!.pivot=v),`group-${g.id}-pivot`);
-      card.append(button('选择此组',()=>this.author.select(this.author.map.objects.filter(o=>o.groupId===g.id).map(o=>o.id))));host.append(card);
-    }
-  }
+  private groups():void{const host=$('group-list');host.replaceChildren();for(const g of this.author.map.groups){const b=button(`${g.name} · ${this.author.map.objects.filter(o=>belongsToGroup(this.author.map,o.groupId,g.id)).length} 构件`,()=>{this.author.select([g.id]);$('inspector').scrollIntoView({block:'start'});});b.className='wide';host.append(b);}}
   private links():void{$('link-list').replaceChildren();this.author.map.opticalLinks.forEach((l,i)=>{const card=node('div',`${l.a}:${l.aEnd} ↔ ${l.b}:${l.bEnd}`,'link-card');card.append(button('×',()=>this.author.change('删除错觉接缝',m=>m.opticalLinks.splice(i,1))));$('link-list').append(card);});}
   private placement(p:[number,number],type=this.tool!,heldHeight=this.drag?.placeHeight):Placement {
     return this.author.placement.resolve(type,p,{ground:height=>this.view.ground(...p,height),screen:point=>this.view.screen(point),hit:type<=10?this.view.pickTarget(...p,emptyPoses(),false):null,height:Number($<HTMLInputElement>('layer').value)||0,step:Number($<HTMLSelectElement>('snap').value),heldHeight});
@@ -139,7 +135,7 @@ class ValleyEditor {
   }
   private guides():void{
     this.placementGuide();
-    const guides=$('corner-guides');guides.replaceChildren();if(this.tool===12&&!this.runtime)for(const c of this.view.cornerPoints(this.author.selected)){const e=node('span','＋','corner-guide');e.style.left=`${c.screen[0]}px`;e.style.top=`${c.screen[1]}px`;guides.append(e);}
+    const guides=$('corner-guides');guides.replaceChildren();if(this.tool===12&&!this.runtime)for(const c of this.view.cornerPoints(this.author.selectedObjects)){const e=node('span','＋','corner-guide');e.style.left=`${c.screen[0]}px`;e.style.top=`${c.screen[1]}px`;guides.append(e);}
   }
   private play():void{
     this.cancel();if(this.runtime){this.runtime=null;this.view.setMap(this.author.map);$('play').textContent='▶ 试玩地图';$('runtime-message').hidden=true;document.body.classList.remove('playing');this.refreshSelection();}
@@ -153,7 +149,7 @@ class ValleyEditor {
     const on=(id:string,fn:()=>void)=>$(id).addEventListener('click',()=>this.safe(fn),{signal});
     on('grid-tool',()=>{this.gridVisible=!this.gridVisible;$('grid-tool').classList.toggle('active',this.gridVisible);$('grid-tool').setAttribute('aria-pressed',String(this.gridVisible));});
     on('select-tool',()=>{this.orbitMode=false;this.tool=null;this.updateTool();});on('orbit-tool',()=>{this.cancel();this.tool=null;this.orbitMode=!this.orbitMode;this.updateTool();this.status('旋转视角：左键拖动。角色行走与机关动画期间暂停视角旋转。');});on('reset-view',()=>{if(this.runtime?.walking||this.runtime?.busy){this.status('请等角色和机关停下后再复位视角。');return;}this.cancel();this.view.resetAngle();});on('align-grid',()=>{if(!this.runtime)this.author.alignSelected(Number($<HTMLSelectElement>('snap').value));});on('fit',()=>this.view.fit());on('undo',()=>{if(!this.runtime)this.author.platform.history.undo();});on('redo',()=>{if(!this.runtime)this.author.platform.history.redo();});
-    on('play',()=>this.play());on('duplicate',()=>this.author.duplicate());on('delete',()=>this.author.removeSelected());on('group',()=>this.author.groupSelected());on('new-group',()=>this.author.groupSelected());
+    on('play',()=>this.play());on('duplicate',()=>this.author.duplicate());on('delete',()=>this.author.removeSelected());on('group',()=>this.author.groupSelected());on('new-group',()=>this.author.createEmpty());
     on('demo-switch',()=>{this.author.replace('打开开关花园',switchGarden());this.view.fit();});on('demo-catalog',()=>{this.author.replace('打开物体目录',catalogGarden());this.view.fit();});on('new',()=>{this.author.replace('新建地图',emptyMap());this.view.fit();});
     on('demo-sea',()=>{this.author.replace('打开潮汐回廊',seasideGarden());this.view.fit();});
     on('demo-seam',()=>{this.author.replace('打开折角回廊',rotatedSeamGarden());this.view.fit();});on('demo-surfaces',()=>{this.author.replace('打开翻面之径',surfaceGarden());this.view.fit();});on('demo-arc',()=>{this.author.replace('打开弧光之径',surfaceGarden(true));this.view.fit();});
@@ -164,7 +160,7 @@ class ValleyEditor {
     $<HTMLInputElement>('map-name').addEventListener('change',e=>this.safe(()=>this.author.change('修改地图名称',m=>m.name=(e.target as HTMLInputElement).value)),{signal});
     on('link',()=>{const [a,b]=this.author.selected;if(!a||!b||this.author.selected.length!==2){this.status('先按住 Shift 选择两个物体。');return;}this.author.change('添加错觉接缝',m=>m.opticalLinks.push({a,b,aEnd:Number($<HTMLSelectElement>('port-a').value) as PortId,bEnd:Number($<HTMLSelectElement>('port-b').value) as PortId}));});
     const when=()=>!this.runtime&&!this.drag&&!$<HTMLDialogElement>('json-dialog').open&&!(document.activeElement instanceof HTMLInputElement||document.activeElement instanceof HTMLTextAreaElement||document.activeElement instanceof HTMLSelectElement);
-    for(const [id,chord,fn] of [['undo','Mod+Z',()=>this.author.platform.history.undo()],['redo','Mod+Shift+Z',()=>this.author.platform.history.redo()],['delete','Delete',()=>this.author.removeSelected()],['copy','Mod+D',()=>this.author.duplicate()]] as const)this.author.shell.shortcuts.register({id:`valley.${id}`,ownerId:'valley.authoring',chord,when,handler:()=>{fn();}});
+    for(const [id,chord,fn] of [['undo','Mod+Z',()=>this.author.platform.history.undo()],['redo','Mod+Shift+Z',()=>this.author.platform.history.redo()],] as const)this.author.shell.shortcuts.register({id:`valley.${id}`,ownerId:'valley.authoring',chord,when,handler:()=>{fn();}});
     this.author.shell.shortcuts.attach(window);
     window.addEventListener('keydown',e=>{if(e.key==='Escape'){this.cancel();this.orbitMode=false;this.tool=null;this.updateTool();}},{signal});
     const local=(e:PointerEvent):[number,number]=>{const r=this.canvas.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];};
@@ -172,9 +168,9 @@ class ValleyEditor {
     this.canvas.addEventListener('pointerdown',e=>{
       if(this.drag||e.button>2)return;const p=local(e);this.placementPointer=p;this.canvas.focus();e.preventDefault();
       if(this.orbitMode&&e.button===0)return;
-      if(!this.runtime&&this.tool&&e.button===0){if(this.tool===12){const corner=this.view.pickCorner(...p,this.author.selected);if(corner)this.safe(()=>this.author.addPillar(corner.pathId,corner.corner));else{const hit=this.view.pick(...p),o=this.author.map.objects.find(o=>o.id===hit);if(o?.type===1)this.author.select([o.id]);this.status('先选择目标普通路径，再点击它的四个角点标记。');}return;}const placement=this.placement(p);this.drag={id:e.pointerId,start:p,last:p,kind:'place',placeType:this.tool,placeHeight:placement.sourceId?placement.height:undefined,hit:null,before:cloneMap(this.author.map),preview:cloneMap(this.author.map),value:0,moved:false,wheel:null};return;}
+      if(!this.runtime&&this.tool&&e.button===0){if(this.tool===12){const corner=this.view.pickCorner(...p,this.author.selectedObjects);if(corner)this.safe(()=>this.author.addPillar(corner.pathId,corner.corner));else{const hit=this.view.pick(...p),o=this.author.map.objects.find(o=>o.id===hit);if(o?.type===1)this.author.select([o.id]);this.status('先选择目标普通路径，再点击它的四个角点标记。');}return;}const placement=this.placement(p);this.drag={id:e.pointerId,start:p,last:p,kind:'place',placeType:this.tool,placeHeight:placement.sourceId?placement.height:undefined,hit:null,before:cloneMap(this.author.map),preview:cloneMap(this.author.map),value:0,moved:false,wheel:null};return;}
       const wheelHit=this.runtime?this.view.pickWheel(...p,this.runtime.poses):null,picked=wheelHit?null:this.view.pickTarget(...p,this.runtime?.poses,!this.runtime),hit=wheelHit??picked?.id??null,kind=e.button===2||e.button===1?'pan':this.runtime?'play':hit?'edit':'click';
-      if(kind==='edit'&&hit){if(e.shiftKey)this.select(hit,true);else if(!this.author.selected.includes(hit))this.select(hit);}
+      if(kind==='edit'&&hit){if(e.shiftKey)this.select(hit,true);else if(!this.author.selectedObjects.includes(hit))this.select(hit);}
       if(kind==='click'&&!e.shiftKey)this.author.select([]);
       this.drag={id:e.pointerId,start:p,last:p,kind,hit,targetIndex:picked?.index,before:cloneMap(this.author.map),preview:cloneMap(this.author.map),value:hit?this.runtime?.poses.mechanisms[hit]??0:0,moved:false,wheel:wheelHit&&this.runtime?.canDrag(wheelHit)?this.view.beginWheel(wheelHit,p,this.runtime.poses):null};this.canvas.setPointerCapture(e.pointerId);
     },{signal});
@@ -182,7 +178,7 @@ class ValleyEditor {
       const p=local(e);this.placementPointer=p;const placement=!this.runtime&&this.tool&&this.tool!==12?this.placement(p):null;if(this.drag?.kind==='place'&&placement?.sourceId)this.drag.placeHeight=placement.height;const world=placement?.position??this.snap(this.view.ground(...p,Number($<HTMLInputElement>('layer').value)||0));$('coords').textContent=`X ${world[0].toFixed(1)} · Y ${world[1].toFixed(1)} · Z ${world[2].toFixed(1)}`;
       const d=this.drag;if(!d||d.id!==e.pointerId)return;const dx=p[0]-d.start[0],dy=p[1]-d.start[1];if(Math.hypot(dx,dy)>5)d.moved=true;
       if(d.kind==='pan')this.view.pan(p[0]-d.last[0],p[1]-d.last[1]);
-      else if(d.kind==='edit'&&d.moved&&d.hit){const a=this.view.ground(...d.start,0),b=this.view.ground(...p,0);d.preview=this.author.movePreview(d.before,d.hit,[b[0]-a[0],0,b[2]-a[2]],Number($<HTMLSelectElement>('snap').value));this.view.sync(d.preview,emptyPoses(),this.author.selected);}
+      else if(d.kind==='edit'&&d.moved&&d.hit){const a=this.view.ground(...d.start,0),b=this.view.ground(...p,0);d.preview=this.author.movePreview(d.before,d.hit,[b[0]-a[0],0,b[2]-a[2]],Number($<HTMLSelectElement>('snap').value));this.view.sync(d.preview,emptyPoses(),this.author.selectedObjects);}
       else if(d.kind==='play'&&d.hit&&d.moved&&this.runtime){const o=this.runtime.map.objects.find(o=>o.id===d.hit)!;if(d.wheel)this.runtime.dragTo(o.id,moveWheelDrag(d.wheel,p,this.view.screen(this.view.wheelCenter(o,this.runtime.poses))));else if(o.type===4)this.runtime.dragTo(o.id,d.value+this.view.axisDelta(dx,dy,o.motion.axis));}
       d.last=p;
     },{signal});
@@ -201,7 +197,7 @@ class ValleyEditor {
     this.canvas.addEventListener('wheel',e=>{e.preventDefault();if(this.drag)return;const r=this.canvas.getBoundingClientRect();this.view.zoom(Math.exp(-e.deltaY*.001),e.clientX-r.left,e.clientY-r.top);},{passive:false,signal});
   }
   private snap(p:Vec3):Vec3{return snapPosition(p,Number($<HTMLSelectElement>('snap').value));}
-  private cancel():void{this.placementPointer=null;this.view?.setOrbitEnabled(this.canvas,false);const d=this.drag;if(!d)return;this.drag=null;this.releaseCapture(d.id);if(d.kind==='play'&&d.hit&&this.runtime)this.runtime.dragTo(d.hit,d.value);else this.view.sync(this.author.map,emptyPoses(),this.author.selected);}
+  private cancel():void{this.placementPointer=null;this.view?.setOrbitEnabled(this.canvas,false);const d=this.drag;if(!d)return;this.drag=null;this.releaseCapture(d.id);if(d.kind==='play'&&d.hit&&this.runtime)this.runtime.dragTo(d.hit,d.value);else this.view.sync(this.author.map,emptyPoses(),this.author.selectedObjects);}
   private snapshot():unknown{return {placement:this.tool&&this.placementPointer?this.placement(this.placementPointer):null,traveler:this.view.travelerSnapshot(),surfaces:this.view.surfaceTargets(this.runtime?.poses??emptyPoses()),grid:this.grid.snapshot(),water:this.view.waterSnapshot(),corners:this.view.cornerPoints(),wheelFrames:Object.fromEntries(this.author.map.objects.filter(o=>o.type===3).map(o=>[o.id,this.view.wheelProjection(o,this.runtime?.poses??emptyPoses())])),camera:{theta:this.view.orbitTransform.theta,phi:this.view.orbitTransform.phi,orbit:this.orbitMode},connections:connections(this.author.map,emptyPoses(),this.view.project),wheels:Object.fromEntries(this.author.map.objects.filter(o=>o.type===3).map(o=>[o.id,this.view.screen(this.view.wheelCenter(o,this.runtime?.poses??emptyPoses()))])),map:this.author.document.serialize(),json:this.author.exportJSON(),selected:this.author.selected,history:this.author.platform.history.snapshot(),platform:this.author.platform.snapshot(),shell:this.author.shell.snapshot(),playing:!!this.runtime,runtime:this.runtime?{at:this.runtime.at,position:this.runtime.position,up:this.runtime.up,busy:this.runtime.busy,walking:this.runtime.walking,completed:this.runtime.completed,fired:[...this.runtime.fired],poses:this.runtime.poses}:null,model:this.view.model.status,errors:this.issues,targets:Object.fromEntries(this.author.map.objects.map(o=>{const s=worldSamples(this.runtime?.map??this.author.map,o,this.runtime?.poses??emptyPoses());return [o.id,this.view.screen(s[centerIndex(o)]!.point)];})),canvas:{x:this.canvas.getBoundingClientRect().x,y:this.canvas.getBoundingClientRect().y,width:this.view.width,height:this.view.height}};}
 }
 type oKeys='rise'|'steps'|'twist'|'radius'|'arc'|'arcTwist';

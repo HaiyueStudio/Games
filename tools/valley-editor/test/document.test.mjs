@@ -7,7 +7,7 @@ test('Editor history groups a gesture, restores references, and tracks the saved
   try {
     editor.select(['moving-a','moving-b']);
     const group=editor.groupSelected();
-    assert.deepEqual(editor.map.groups.find(g=>g.id===group).pivot,[-.5,0,3]);
+    assert.deepEqual(editor.map.groups.find(g=>g.id===group).position,[-.5,0,3]);
     assert.equal(editor.map.objects.find(o=>o.id==='moving-a').groupId,group);
     editor.platform.history.undo();
     assert.equal(editor.map.objects.find(o=>o.id==='moving-a').groupId,'sliding');

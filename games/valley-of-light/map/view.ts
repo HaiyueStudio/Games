@@ -123,7 +123,7 @@ export class MapView {
       const sample=(point:Vec3)=>o.attachment?worldSample(map,o,{point,up:[0,1,0],roll:0},poses).point:objectSample(o,{point,up:[0,1,0],roll:0},poses).point;
       const p=sample([0,0,0]),x=sub(sample([1,0,0]),p),y=sub(sample([0,1,0]),p),z=sub(sample([0,0,1]),p);
       r.transform.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));r.material.baseColor=color(o.colors.surface);r.material.emissiveFactor=selected.includes(o.id)?[.12,.09,.015]:[0,0,0];
-      if(r.mount){const f=wheelFrame(map,o,poses);r.mount.setMatrix(new Float32Array([...f.right,0,...f.up,0,...f.axis,0,...f.center,1]));r.wheel!.setRotation(0,0,(poses.mechanisms[o.id]??0)*RAD);}
+      if(r.mount){const f=wheelFrame(map,o,poses);r.mount.setMatrix(new Float32Array([...f.right,0,...f.up,0,...f.shaft,0,...f.center,1]));r.wheel!.setRotation(0,0,(poses.mechanisms[o.id]??0)*RAD);}
     }
   }
 

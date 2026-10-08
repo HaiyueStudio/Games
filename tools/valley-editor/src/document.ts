@@ -1,8 +1,9 @@
+import { copyNodes, findNode, isGroup, nodeOrigin, parentId, reparentNode, removeNodes, roots, subtree, translateNode, uniqueId } from './hierarchy';
 import { PathPlacement } from './placement';
 import { EditorPlatform } from '@haiyue/editor-platform';
 import { BrowserEditorShell } from '@haiyue/editor-shell';
 import { defineEditorPlugin, defineEditorProduct, type EditorDocumentAdapter, type EditorDisposable } from '@haiyue/editor-plugin-sdk';
-import { cloneMap, createObject, parseMap, serializeMap, detachPillar, snapPosition, splitCube, switchGarden, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { cloneMap, createObject, groupMatrix, inverseMatrix, matrixPoint, parseMap, serializeMap, snapPosition, splitCube, switchGarden, type MapGroup, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 export class ValleyDocument implements EditorDocumentAdapter<ValleyMap> {
   map:ValleyMap;revision=0;savedRevision=0;private listeners=new Set<()=>void>();private savedText:string;
@@ -20,7 +21,8 @@ export class ValleyAuthoring {
   readonly shell=new BrowserEditorShell(this.platform.contributions);
   readonly document:ValleyDocument;
   readonly placement=new PathPlacement(()=>this.map);
-  constructor(map=switchGarden()) {this.document=new ValleyDocument(map);this.platform.documents.attach(this.document);this.platform.selection.registerResolver('valley-object','valley.authoring',r=>this.map.objects.find(o=>o.id===r.id));}
+  private clipboard:{map:ValleyMap;ids:string[];cut:boolean}|null=null;
+  constructor(map=switchGarden()) {this.document=new ValleyDocument(map);this.platform.documents.attach(this.document);this.platform.selection.registerResolver('valley-object','valley.authoring',r=>findNode(this.map,r.id));}
   async start():Promise<void>{
     const plugin=defineEditorPlugin({id:'valley.authoring',version:'1.0.0',apiVersion:'1',provides:['valley.map'],activate:context=>{
       for(const [id,title] of [['palette','标准物体'],['hierarchy','地图层级'],['inspector','物体属性'],['groups','物体组与动作']] as const)
@@ -33,56 +35,65 @@ export class ValleyAuthoring {
   }
   get map():ValleyMap{return this.document.map;}
   get selected():string[]{return this.platform.selection.snapshot().items.map(x=>x.id);}
-  select(ids:string[]):void{this.platform.selection.set(ids.filter(id=>this.map.objects.some(o=>o.id===id)).map(id=>({kind:'valley-object',id,documentId:this.document.identity.id})));}
-  change(label:string,mutation:(map:ValleyMap)=>void):void{const next=cloneMap(this.map);mutation(next);this.replace(label,next);}
-  replace(label:string,next:ValleyMap):void{
+  get selectedObjects():string[]{const all=subtree(this.map,this.selected);return this.map.objects.filter(o=>all.has(o.id)).map(o=>o.id);}
+  get canPaste():boolean{return !!this.clipboard;}
+  get cutIds():string[]{return this.clipboard?.cut?this.clipboard.ids:[];}
+  get insertionParent():string|null{const n=this.selected.length===1?findNode(this.map,this.selected[0]!):undefined;return n?(isGroup(n)?n.id:n.attachment?this.map.objects.find(o=>o.id===n.attachment!.pathId)?.groupId??null:n.groupId):null;}
+  select(ids:string[]):void{this.platform.selection.set(ids.filter(id=>findNode(this.map,id)).map(id=>({kind:'valley-object',id,documentId:this.document.identity.id})));}
+  change(label:string,mutation:(map:ValleyMap)=>void,selection?:string[]):void{const next=cloneMap(this.map);mutation(next);this.replace(label,next,selection);}
+  replace(label:string,next:ValleyMap,selection=this.selected):void{
     const before=this.document.serialize(),after=parseMap(next);if(serializeMap(before)===serializeMap(after))return;
-    const apply=(map:ValleyMap)=>{this.document.apply(map);this.select(this.selected);};
-    this.platform.history.execute({label,estimatedBytes:(serializeMap(before).length+serializeMap(after).length)*2,execute:()=>apply(after),undo:()=>apply(before)});
+    if(this.clipboard?.cut&&before.id!==after.id)this.clipboard=null;
+    const beforeSelection=this.selected;const apply=(map:ValleyMap,ids:string[])=>{this.document.apply(map);this.select(ids);};
+    this.platform.history.execute({label,estimatedBytes:(serializeMap(before).length+serializeMap(after).length)*2,execute:()=>apply(after,selection),undo:()=>apply(before,beforeSelection)});
   }
   placementObstacle(type:TypeId,position:Vec3):MapObject|undefined {
     // A normal path must not duplicate an existing solid platform at the same anchor.
-    return type===1?this.map.objects.find(o=>[1,3,4,8,9,10].includes(o.type)&&o.position.every((v,i)=>Math.abs(v-position[i]!)<1e-6)):undefined;
+    return type===1?this.map.objects.find(o=>[1,3,4,8,9,10].includes(o.type)&&nodeOrigin(this.map,o).every((v,i)=>Math.abs(v-position[i]!)<1e-6)):undefined;
   }
-  add(type:TypeId,position:Vec3,rotation:Vec3=[0,0,0]):string{const occupied=this.placementObstacle(type,position);if(occupied)throw new Error(`此处已有${occupied.name}，请放在相邻空格。`);let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const o=createObject(type,`object-${n}`,position);o.rotation=[...rotation];this.change(`放置 ${o.name}`,map=>map.objects.push(o));this.select([o.id]);return o.id;}
-  removeSelected():void{const ids=new Set(this.selected);if(!ids.size)return;for(const o of this.map.objects)if(o.attachment&&ids.has(o.attachment.pathId))ids.add(o.id);this.change('删除物体',map=>{map.objects=map.objects.filter(o=>!ids.has(o.id));map.opticalLinks=map.opticalLinks.filter(l=>!ids.has(l.a)&&!ids.has(l.b));});this.select([]);}
+  add(type:TypeId,position:Vec3,rotation:Vec3=[0,0,0]):string{const occupied=this.placementObstacle(type,position);if(occupied)throw new Error(`此处已有${occupied.name}，请放在相邻空格。`);const o=createObject(type,uniqueId(this.map),position);o.rotation=[...rotation];const parent=this.insertionParent;this.change(`放置 ${o.name}`,map=>{map.objects.push(o);reparentNode(map,o.id,parent);},[o.id]);return o.id;}
+  removeSelected():void{if(!this.selected.length)return;this.change('删除节点',map=>removeNodes(map,this.selected),[]);}
   addPillar(pathId:string,corner:CornerId):string {
     const existing=this.map.objects.find(o=>o.attachment?.pathId===pathId&&o.attachment.corner===corner);if(existing){this.select([existing.id]);return existing.id;}
     if(this.map.objects.find(o=>o.id===pathId)?.type!==1)throw new Error('请点击普通路径的四个角之一。');
-    let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const o=createObject(12,`object-${n}`);o.attachment={pathId,corner};
-    this.change('放置角点立柱',map=>map.objects.push(o));this.select([o.id]);return o.id;
+    const o=createObject(12,uniqueId(this.map));o.attachment={pathId,corner};
+    this.change('放置角点立柱',map=>map.objects.push(o),[o.id]);return o.id;
   }
-  duplicate():void {
-    const selected=new Set(this.selected),originals=this.map.objects.filter(o=>selected.has(o.id)||(o.attachment&&selected.has(o.attachment.pathId))),ids:string[]=[];
-    this.change('复制物体',map=>{const copies=new Map<string,string>();let n=1;for(const source of originals){while(map.objects.some(o=>o.id===`object-${n}`)||[...copies.values()].includes(`object-${n}`))n++;copies.set(source.id,`object-${n++}`);}
-      for(const source of originals){const copy=structuredClone(source);copy.id=copies.get(source.id)!;copy.name+=' 副本';
-        if(copy.attachment&&copies.has(copy.attachment.pathId))copy.attachment.pathId=copies.get(copy.attachment.pathId)!;
-        else{if(copy.attachment){detachPillar(this.map,copy);}copy.position[0]+=1;copy.position[2]+=1;}
-        map.objects.push(copy);ids.push(copy.id);
-      }
-    });this.select(ids);
+  copy(cut=false):void{if(!this.selected.length)return;this.clipboard={map:cloneMap(this.map),ids:roots(this.map,this.selected),cut};}
+  paste(target=this.insertionParent):void{
+    const clip=this.clipboard;if(!clip)return;
+    if(clip.cut){if(clip.ids.some(id=>!findNode(this.map,id)))throw new Error('剪切来源已移除，请重新剪切。');this.reparent(clip.ids,target);this.select(clip.ids);this.clipboard=null;}
+    else{const next=cloneMap(this.map),ids=copyNodes(clip.map,next,clip.ids,target);this.replace('粘贴节点',next,ids);}
   }
-  alignSelected(step:number):void {if(!Number.isFinite(step)||step<=0)throw new Error('网格间距必须大于零。');this.change('对齐网格',map=>{for(const o of map.objects)if(this.selected.includes(o.id)&&!o.attachment)o.position=snapPosition(o.position,step);});}
+  duplicate():void{const next=cloneMap(this.map),ids=copyNodes(this.map,next,this.selected,this.insertionParentForSiblings(),[1,0,1]);this.replace('复制副本',next,ids);}
+  private insertionParentForSiblings():string|null{const ids=roots(this.map,this.selected),parents=ids.map(id=>{const n=findNode(this.map,id)!;return !isGroup(n)&&n.attachment?this.map.objects.find(o=>o.id===n.attachment!.pathId)?.groupId??null:parentId(n);});return parents.every(p=>p===parents[0])?parents[0]??null:null;}
+  reparent(ids:string[],target:string|null):void{const top=roots(this.map,ids);this.change('移动层级',map=>{for(const id of top)reparentNode(map,id,target);},top);}
+  reorder(ids:string[],parent:string|null,target:string|null,position:'before'|'after'|'inside'):void{
+    const top=roots(this.map,ids);if(target&&top.includes(target))return;
+    this.change('调整地图层级',map=>{for(const id of top)reparentNode(map,id,parent);const siblings=[...map.groups,...map.objects].filter(n=>parentId(n)===parent&&!top.includes(n.id)).sort((a,b)=>(a.order??1e6)-(b.order??1e6));let index=position==='inside'?siblings.length:siblings.findIndex(n=>n.id===target)+(position==='after'?1:0);if(index<0)index=siblings.length;siblings.splice(index,0,...top.map(id=>findNode(map,id)!));siblings.forEach((n,i)=>n.order=i);},top);
+  }
+  alignSelected(step:number):void{if(!Number.isFinite(step)||step<=0)throw new Error('网格间距必须大于零。');this.change('对齐网格',map=>{for(const id of roots(map,this.selected)){const p=nodeOrigin(map,findNode(map,id)!),target=snapPosition(p,step);translateNode(map,id,target.map((v,i)=>v-p[i]!) as Vec3);}});}
   movePreview(before:ValleyMap,anchorId:string,delta:Vec3,step:number):ValleyMap {
-    const next=cloneMap(before),anchor=before.objects.find(o=>o.id===anchorId);if(!anchor||anchor.attachment)return next;
-    const target=snapPosition(anchor.position.map((v,i)=>v+delta[i]!) as Vec3,step);
-    // Dragging stays on the authored height; selection offsets remain intact.
-    for(const o of next.objects)if(this.selected.includes(o.id)&&!o.attachment)for(const i of [0,2])o.position[i]!+=target[i]!-anchor.position[i]!;
-    return next;
+    const next=cloneMap(before),anchor=findNode(before,anchorId);if(!anchor||(!isGroup(anchor)&&anchor.attachment))return next;
+    const p=nodeOrigin(before,anchor),target=snapPosition(p.map((v,i)=>v+delta[i]!) as Vec3,step),shift:Vec3=[target[0]-p[0],0,target[2]-p[2]];
+    for(const id of roots(next,this.selected))translateNode(next,id,shift);return next;
   }
   update(id:string,mutation:(o:MapObject)=>void):void{this.change('修改物体属性',map=>{const o=map.objects.find(o=>o.id===id);if(o)mutation(o);});}
   splitSelected(depth:number):void {
     if(this.selected.length!==1)throw new Error('请先选择一个普通方块。');
-    const id=this.selected[0]!;let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const other=`object-${n}`;
-    this.change('拆分为两个三棱柱',map=>splitCube(map,id,other,depth));this.select([id,other]);
+    const id=this.selected[0]!,other=uniqueId(this.map);
+    this.change('拆分为两个三棱柱',map=>splitCube(map,id,other,depth),[id,other]);
   }
+  updateGroup(id:string,mutation:(g:MapGroup)=>void):void{this.change('修改父节点',map=>{const g=map.groups.find(g=>g.id===id);if(g)mutation(g);});}
+  createEmpty(parent=this.insertionParent):string{const id=uniqueId(this.map,'group');this.change('创建空节点',map=>map.groups.push({id,name:'空节点',parentId:parent,pivot:[0,0,0],position:[0,0,0],rotation:[0,0,0],scale:[1,1,1]}),[id]);return id;}
   groupSelected():string{
-    if(this.selected.some(id=>this.map.objects.find(o=>o.id===id)?.attachment))throw new Error('立柱会随路径所属组运动，请选择它依附的普通路径成组。');
-    let n=1;while(this.map.groups.some(g=>g.id===`group-${n}`))n++;const id=`group-${n}`,selected=this.map.objects.filter(o=>this.selected.includes(o.id));
-    const pivot:Vec3=[0,0,0];for(const o of selected)o.position.forEach((x,i)=>pivot[i]!+=x/selected.length);
-    this.change('创建物体组',map=>{map.groups.push({id,name:`物体组 ${n}`,pivot});for(const o of map.objects)if(this.selected.includes(o.id))o.groupId=id;});return id;
+    const ids=roots(this.map,this.selected);if(!ids.length)return this.createEmpty(null);
+    if(ids.some(id=>this.map.objects.find(o=>o.id===id)?.attachment))throw new Error('立柱随路径归组，请选择它依附的路径。');
+    const parent=this.insertionParentForSiblings(),id=uniqueId(this.map,'group'),center:Vec3=[0,0,0];for(const selected of ids)nodeOrigin(this.map,findNode(this.map,selected)!).forEach((v,i)=>center[i]!+=v/ids.length);
+    const position=matrixPoint(inverseMatrix(groupMatrix(this.map,parent)),center);
+    this.change('创建父节点并编组',map=>{map.groups.push({id,name:'物体组 '+id.slice(6),parentId:parent,pivot:[0,0,0],position,rotation:[0,0,0],scale:[1,1,1]});for(const selected of ids)reparentNode(map,selected,id);},[id]);return id;
   }
-  importJSON(text:string):void{this.replace('导入 JSON',parseMap(JSON.parse(text)));this.select([]);}
+  importJSON(text:string):void{this.replace('导入 JSON',parseMap(JSON.parse(text)),[]);this.clipboard=null;}
   exportJSON():string{return serializeMap(this.map);}
   async dispose():Promise<void>{this.shell.dispose();await this.platform.dispose();}
 }
