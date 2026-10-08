@@ -2,8 +2,8 @@
   "format": "haiyue-valley-map",
   "version": 1,
   "catalogVersion": 1,
-  "id": "six-surfaces",
-  "name": "翻面之径 · 从地面走向墙面",
+  "id": "ladder-garden",
+  "name": "攀光庭院 · 沿梯而上",
   "groups": [],
   "opticalLinks": [],
   "objects": [
@@ -12,9 +12,9 @@
       "type": 9,
       "name": "出生平台",
       "position": [
-        -2,
+        -1,
         0,
-        0
+        1
       ],
       "rotation": [
         0,
@@ -58,63 +58,13 @@
       }
     },
     {
-      "id": "connector",
-      "type": 6,
-      "name": "扭转路径",
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "groupId": null,
-      "length": 3,
-      "width": 1,
-      "thickness": 0.22,
-      "rise": 1,
-      "steps": 6,
-      "radius": 2,
-      "arc": 90,
-      "twist": 90,
-      "arcTwist": 0,
-      "prismHalf": "a",
-      "colors": {
-        "surface": "#b4a5be",
-        "hub": "#ed7657",
-        "spokes": "#aaa7e8",
-        "tips": "#ff8865",
-        "base": "#7c83cd"
-      },
-      "water": {
-        "amplitude": 0.08,
-        "speed": 0.65,
-        "wavelength": 4
-      },
-      "attachment": null,
-      "motion": {
-        "axis": "y",
-        "min": -180,
-        "max": 180,
-        "step": 90,
-        "targetGroup": null
-      },
-      "trigger": {
-        "mode": "once",
-        "actions": []
-      }
-    },
-    {
-      "id": "wall-a",
+      "id": "landing",
       "type": 1,
       "name": "普通路径",
       "position": [
-        2,
-        0.39,
-        -0.39
+        0,
+        0,
+        1
       ],
       "rotation": [
         0,
@@ -158,13 +108,113 @@
       }
     },
     {
-      "id": "wall-b",
+      "id": "upper",
       "type": 1,
       "name": "普通路径",
       "position": [
-        3,
-        0.39,
-        -0.39
+        0,
+        2,
+        -0.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 3,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "ladder",
+      "type": 17,
+      "name": "梯子路径",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 0.65,
+      "thickness": 1,
+      "rise": 2,
+      "steps": 8,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#516c65",
+        "hub": "#a4b294",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "upper-road",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -1,
+        2,
+        -0.5
       ],
       "rotation": [
         0,
@@ -212,12 +262,12 @@
       "type": 10,
       "name": "出口平台",
       "position": [
-        4,
-        -0.10999999999999999,
-        0.11
+        -2,
+        2,
+        -0.5
       ],
       "rotation": [
-        90,
+        0,
         0,
         0
       ],
@@ -234,6 +284,56 @@
       "prismHalf": "a",
       "colors": {
         "surface": "#c8b46d",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "sea",
+      "type": 11,
+      "name": "海面",
+      "position": [
+        0,
+        -1.3,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 12,
+      "width": 10,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#439dac",
         "hub": "#ed7657",
         "spokes": "#aaa7e8",
         "tips": "#ff8865",

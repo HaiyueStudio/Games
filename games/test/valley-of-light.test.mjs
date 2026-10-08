@@ -47,15 +47,15 @@ test('drag constraints, snapped save validation and bridge occupancy', () => {
   assert.equal(canManipulate(initialState(),'turn',true),false);
   assert.equal(canManipulate(initialState(),'turn',false),true);
 });
-test('traveler ships self-contained glTF with valid Idle and Walk channels', () => {
+test('traveler ships self-contained glTF with valid Idle, Walk and Climb channels', () => {
   const model=JSON.parse(readFileSync(new URL('../valley-of-light/assets/traveler.gltf',import.meta.url),'utf8'));
   assert.equal(model.asset.version,'2.0');
   const buffer=Buffer.from(model.buffers[0].uri.split(',')[1],'base64');
   assert.equal(buffer.byteLength,model.buffers[0].byteLength);
-  assert.deepEqual(model.animations.map(a=>a.name),['Idle','Walk']);
+  assert.deepEqual(model.animations.map(a=>a.name),['Idle','Walk','Climb']);
   for (const view of model.bufferViews) assert.ok(view.byteOffset+view.byteLength<=buffer.byteLength);
   for (const animation of model.animations) {
-    assert.equal(animation.channels.length,5);
+    assert.equal(animation.channels.length,10);
     for (const channel of animation.channels) {
       assert.ok(model.nodes[channel.target.node]);
       const sampler=animation.samplers[channel.sampler];

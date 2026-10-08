@@ -6,84 +6,136 @@
       "name": "普通路径",
       "icon": "▰",
       "color": "#d9d0b8",
-      "description": "标准 1 × 1 × 1 方块"
+      "description": "标准 1 × 1 × 1 方块",
+      "category": "path"
     },
     {
       "type": 2,
       "name": "楼梯",
       "icon": "▟",
       "color": "#cdbca2",
-      "description": "逐级升高的可行走楼梯"
+      "description": "逐级升高的可行走楼梯",
+      "category": "path"
     },
     {
       "type": 3,
       "name": "旋转机关",
       "icon": "↻",
       "color": "#f4b4ac",
-      "description": "四臂手轮，拖拽旋转物体组"
+      "description": "四臂手轮，拖拽旋转物体组",
+      "category": "path"
     },
     {
       "type": 4,
       "name": "平移机关",
       "icon": "↔",
       "color": "#78a9a0",
-      "description": "沿指定轴拖拽平移"
+      "description": "沿指定轴拖拽平移",
+      "category": "path"
     },
     {
       "type": 5,
       "name": "三棱柱半块",
       "icon": "◭",
       "color": "#d9d0b8",
-      "description": "方块沿对角面切开的 A / B 半块"
+      "description": "方块沿对角面切开的 A / B 半块",
+      "category": "path"
     },
     {
       "type": 6,
       "name": "扭转路径",
       "icon": "∿",
       "color": "#b4a5be",
-      "description": "截面连续扭转的缎带道路"
+      "description": "截面连续扭转的缎带道路",
+      "category": "path"
     },
     {
       "type": 7,
       "name": "圆弧路径",
       "icon": "◔",
       "color": "#87a7b5",
-      "description": "指定半径与角度的弧形道路"
+      "description": "指定半径与角度的弧形道路",
+      "category": "path"
     },
     {
       "type": 8,
       "name": "踩踏开关",
       "icon": "⊙",
       "color": "#cf8f73",
-      "description": "踏上按钮，触发物体组动画"
+      "description": "踏上按钮，触发物体组动画",
+      "category": "path"
     },
     {
       "type": 9,
       "name": "出生平台",
       "icon": "♙",
       "color": "#88ac89",
-      "description": "旅行者开始的位置"
+      "description": "旅行者开始的位置",
+      "category": "path"
     },
     {
       "type": 10,
       "name": "出口平台",
       "icon": "▥",
       "color": "#c8b46d",
-      "description": "到达这里完成关卡"
+      "description": "到达这里完成关卡",
+      "category": "path"
     },
     {
       "type": 11,
       "name": "海面",
       "icon": "≈",
       "color": "#78babd",
-      "description": "轻微波浪起伏，不可行走"
+      "description": "低多边形切面，轻微波浪起伏",
+      "category": "decoration"
     },
     {
       "type": 12,
       "name": "纤细立柱",
       "icon": "Ⅰ",
       "color": "#e0d6bb",
-      "description": "逐个附着在路径或出生平台四角"
+      "description": "逐个附着在路径或出生平台四角",
+      "category": "decoration"
+    },
+    {
+      "type": 13,
+      "name": "金顶旗亭",
+      "icon": "♜",
+      "color": "#f0dfac",
+      "description": "层叠金顶、细柱与飘带旗帜",
+      "category": "decoration"
+    },
+    {
+      "type": 14,
+      "name": "几何灌木",
+      "icon": "⬟",
+      "color": "#91aa58",
+      "description": "棱面灌木，可独立调整叶色",
+      "category": "decoration"
+    },
+    {
+      "type": 15,
+      "name": "城垛尖塔",
+      "icon": "♖",
+      "color": "#c8c3df",
+      "description": "方形塔身、城垛与四棱尖顶",
+      "category": "decoration"
+    },
+    {
+      "type": 16,
+      "name": "小花簇",
+      "icon": "✿",
+      "color": "#fff8df",
+      "description": "低矮花簇，花瓣与花心可调色",
+      "category": "decoration"
+    },
+    {
+      "type": 17,
+      "name": "梯子路径",
+      "icon": "☷",
+      "color": "#516c65",
+      "description": "贴墙连接高低道路，可上下攀爬",
+      "category": "path"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { editingControl } from './ui';
 import { defineTreeComponents, type HYTree, type HYTreeNodeData, type HYTreeDataChangeDetail, type HYTreeSelectionChangeDetail, type HYTreeNodeContextMenuDetail } from '@haiyue/ui/tree';
 import { defineContextMenuComponents, type HYContextMenu, type HYContextMenuSelectDetail } from '@haiyue/ui/context-menu';
 import { findNode, isGroup, parentId } from './hierarchy';
@@ -13,7 +14,7 @@ export class HierarchyUI {
     document.getElementById('hierarchy')!.addEventListener('contextmenu',e=>{e.preventDefault();if(!this.allowed()||e.composedPath().some(n=>n instanceof HTMLElement&&n.dataset.id))return;this.author.select([]);this.open(e.clientX,e.clientY);},{signal});
     this.menu.addEventListener('item-select',e=>{if(this.allowed())this.run(()=>this.action((e as CustomEvent<HYContextMenuSelectDetail>).detail.value));},{signal});
     // Capture editing shortcuts before HYTree's internal clipboard: the map document owns IDs, references and history.
-    window.addEventListener('keydown',e=>{if(!this.allowed()||document.querySelector('dialog[open]')||e.composedPath().some(n=>n instanceof HTMLElement&&(n.matches('input,textarea,select')||n.isContentEditable)))return;
+    window.addEventListener('keydown',e=>{if(!this.allowed()||document.querySelector('hy-dialog[open]')||e.composedPath().some(editingControl))return;
       const mod=e.ctrlKey||e.metaKey,key=e.key.toLowerCase(),action=mod?({c:'copy',x:'cut',v:'paste',d:'duplicate'} as Record<string,string>)[key]:key==='delete'||key==='backspace'?'delete':null;
       if(!action||e.altKey)return;e.preventDefault();e.stopImmediatePropagation();this.run(()=>this.action(action));
     },{capture:true,signal});

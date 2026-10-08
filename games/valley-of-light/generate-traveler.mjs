@@ -56,22 +56,26 @@ for (const [label, x, y, z, material, dims, offset] of [
 node('Lantern', joints[2], [0,-.35,0], [.14,.19,.14], 3);
 node('Lantern cap', joints[2], [0,-.245,0], [.17,.03,.17], 1);
 const animations = [];
-for (const walking of [false, true]) {
-  const duration = walking ? .8 : 2.4, times = Array.from({length: 17}, (_, i) => duration * i / 16);
+for (const name of ['Idle','Walk','Climb']) {
+  const walking=name==='Walk',climbing=name==='Climb';
+  const duration = climbing ? 1.2 : walking ? .8 : 2.4, times = Array.from({length: 17}, (_, i) => duration * i / 16);
   const input = accessor(times, 'SCALAR', true), samplers = [], channels = [];
   function track(target, path, values, type) {
     const sampler = samplers.push({ input, output: accessor(values, type), interpolation: 'LINEAR' }) - 1;
     channels.push({ sampler, target: { node: target, path } });
   }
   joints.forEach((joint, i) => track(joint, 'rotation', times.flatMap((_, k) => {
-    const angle = Math.sin(k / 16 * Math.PI * 2) * (walking ? (i < 2 ? .52 : .32) : .035) * (i % 2 ? -1 : 1) * (i < 2 ? 1 : -1);
+    const phase=Math.sin(k/16*Math.PI*2)*(i%2?-1:1);
+    const angle = climbing?(i<2?.55+phase*.4:2.15-phase*.45):Math.sin(k / 16 * Math.PI * 2) * (walking ? (i < 2 ? .52 : .32) : .035) * (i % 2 ? -1 : 1) * (i < 2 ? 1 : -1);
     return [Math.sin(angle / 2), 0, 0, Math.cos(angle / 2)];
   }), 'VEC4'));
+  joints.forEach((joint,i)=>track(joint,'translation',times.flatMap((_,k)=>{const p=nodes[joint].translation,phase=Math.sin(k/16*Math.PI*2)*(i%2?-1:1);return [p[0],p[1]+(climbing&&i<2?.035*(1+phase):0),p[2]];}),'VEC3'));
+  track(body,'rotation',times.flatMap(()=>[Math.sin((climbing?-.07:0)/2),0,0,Math.cos((climbing?-.07:0)/2)]),'VEC4');
   track(body, 'translation', times.flatMap((_, k) => [0,.02 + (walking ? .022 * (1 - Math.cos(k / 16 * Math.PI * 4)) : .016 * Math.sin(k / 16 * Math.PI * 2)),0]), 'VEC3');
-  animations.push({ name: walking ? 'Walk' : 'Idle', samplers, channels });
+  animations.push({ name, samplers, channels });
 }
 const gltf = { asset: { version: '2.0', generator: 'Haiyue — Beyond the Valley / original procedural traveler' }, scene: 0, scenes: [{ nodes: [0] }], nodes, meshes, materials, animations, accessors, bufferViews: views, buffers: [{ byteLength, uri: `data:application/octet-stream;base64,${Buffer.concat(chunks).toString('base64')}` }] };
 const directory = fileURLToPath(new URL('./assets/', import.meta.url));
 mkdirSync(directory, { recursive: true });
 writeFileSync(`${directory}/traveler.gltf`, JSON.stringify(gltf, null, 2) + '\n');
-console.log(`Traveler: ${nodes.length} nodes, Idle + Walk, ${byteLength} buffer bytes.`);
+console.log(`Traveler: ${nodes.length} nodes, Idle + Walk + Climb, ${byteLength} buffer bytes.`);

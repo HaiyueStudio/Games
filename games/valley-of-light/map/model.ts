@@ -1,5 +1,5 @@
 export type Vec3 = [number,number,number];
-export type TypeId = 1|2|3|4|5|6|7|8|9|10|11|12;
+export type TypeId = 1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17;
 export type Axis = 'x'|'y'|'z';
 export type PortId = number;
 export const CATALOG = [
@@ -13,8 +13,13 @@ export const CATALOG = [
   {type:8,name:'踩踏开关',icon:'⊙',color:'#cf8f73',description:'踏上按钮，触发物体组动画'},
   {type:9,name:'出生平台',icon:'♙',color:'#88ac89',description:'旅行者开始的位置'},
   {type:10,name:'出口平台',icon:'▥',color:'#c8b46d',description:'到达这里完成关卡'},
-  {type:11,name:'海面',icon:'≈',color:'#78babd',description:'轻微波浪起伏，不可行走'},
+  {type:11,name:'海面',icon:'≈',color:'#78babd',description:'低多边形切面，轻微波浪起伏'},
   {type:12,name:'纤细立柱',icon:'Ⅰ',color:'#e0d6bb',description:'逐个附着在路径或出生平台四角'},
+  {type:13,name:'金顶旗亭',icon:'♜',color:'#f0dfac',description:'层叠金顶、细柱与飘带旗帜'},
+  {type:14,name:'几何灌木',icon:'⬟',color:'#91aa58',description:'棱面灌木，可独立调整叶色'},
+  {type:15,name:'城垛尖塔',icon:'♖',color:'#c8c3df',description:'方形塔身、城垛与四棱尖顶'},
+  {type:16,name:'小花簇',icon:'✿',color:'#fff8df',description:'低矮花簇，花瓣与花心可调色'},
+  {type:17,name:'梯子路径',icon:'☷',color:'#516c65',description:'贴墙连接高低道路，可上下攀爬'},
 ] as const;
 export interface Motion { axis: Axis; min: number; max: number; step: number; targetGroup: string|null }
 export interface Action { groupId: string; translation: Vec3; rotation: Vec3; duration: number; easing: 'linear'|'smooth' }
@@ -24,10 +29,25 @@ export const WHEEL_PALETTES:ReadonlyArray<{name:string;colors:ObjectColors}>=[
   {name:'青玉 · 象牙',colors:{surface:'#c8d8c1',hub:'#418f8c',spokes:'#f0dfb9',tips:'#ecbc75',base:'#587c83'}},
   {name:'莓果 · 雾蓝',colors:{surface:'#b7c8df',hub:'#b85d80',spokes:'#bdd5e5',tips:'#e7a3b6',base:'#71658e'}},
 ];
-export function defaultColors(type:TypeId):ObjectColors {return {...WHEEL_PALETTES[0]!.colors,surface:type===3?WHEEL_PALETTES[0]!.colors.surface:CATALOG.find(c=>c.type===type)!.color};}
+const DECORATION_COLORS:Partial<Record<TypeId,Partial<ObjectColors>>>={
+  13:{hub:'#eea22b',spokes:'#52bdad',tips:'#ffc651',base:'#9b855e'},
+  14:{hub:'#b0bd68',base:'#6f8846'},
+  15:{hub:'#cc97ad',spokes:'#fff1d8',base:'#9d96b8'},
+  16:{hub:'#edc75c',spokes:'#7c9c53',base:'#91b16a'},
+  17:{hub:'#a4b294'},
+};
+export const decorationColorFields:Partial<Record<TypeId,Array<[keyof ObjectColors,string]>>>={
+  13:[['surface','亭柱'],['hub','金顶'],['spokes','旗帜'],['tips','顶饰'],['base','檐边与柱脚']],
+  14:[['surface','灌木主色'],['hub','亮面叶色'],['base','暗面叶色']],
+  15:[['surface','塔身'],['hub','尖顶'],['spokes','城垛'],['base','腰线与底座']],
+  16:[['surface','花瓣'],['hub','花心'],['spokes','花茎'],['base','叶片']],
+  17:[['surface','梯框'],['hub','横档']],
+};
+export const isDecoration=(type:TypeId):boolean=>type>=11&&type<=16;
+export function defaultColors(type:TypeId):ObjectColors {return {...WHEEL_PALETTES[0]!.colors,surface:type===3?WHEEL_PALETTES[0]!.colors.surface:CATALOG.find(c=>c.type===type)!.color,...DECORATION_COLORS[type]};}
 export type CornerId=0|1|2|3;
 export interface PillarAttachment { pathId:string; corner:CornerId }
-export interface WaterSettings { amplitude:number; speed:number; wavelength:number }
+export interface WaterSettings { amplitude:number; speed:number; wavelength:number; facetSize?:number; contrast?:number; lightColor?:string; darkColor?:string }
 export const defaultWater=():WaterSettings=>({amplitude:.08,speed:.65,wavelength:4});
 /** Optional affine offset preserves world geometry when reparenting scaled/rotated nodes. */
 export interface ParentOffset { basis?:number[]; order?:number }
@@ -50,7 +70,7 @@ export interface ValleyMap {
 export const cloneMap = (map: ValleyMap): ValleyMap => structuredClone(map);
 export function createObject(type:TypeId,id:string,position:Vec3=[0,0,0]): MapObject {
   return {id,type,name:CATALOG.find(x=>x.type===type)!.name,position:[...position],rotation:[0,0,0],groupId:null,
-    length:type===11?16:type===12?.12:1,width:type===11?16:type===12?.12:1,thickness:1,rise:type===12?1.8:1,steps:6,radius:2,arc:90,twist:90,arcTwist:0,prismHalf:'a',colors:defaultColors(type),water:defaultWater(),attachment:null,
+    length:type===11?16:type===12?.12:1,width:type===11?16:type===12?.12:type===17?.65:1,thickness:1,rise:type===17?2:type===12?1.8:type===13?2.8:type===15?3:type===16?.25:1,steps:type===17?8:6,radius:2,arc:90,twist:90,arcTwist:0,prismHalf:'a',colors:defaultColors(type),water:defaultWater(),attachment:null,
     motion:{axis:type===4?'x':type===3?'z':'y',min:type===4?-3:-180,max:type===4?3:180,step:type===4?.5:90,targetGroup:null},trigger:{mode:'once',actions:[]}};
 }
 export function emptyMap():ValleyMap { return {format:'haiyue-valley-map',version:1,catalogVersion:1,id:'untitled',name:'未命名山谷',objects:[],groups:[],opticalLinks:[]}; }
@@ -84,7 +104,11 @@ export function parseMap(input:unknown):ValleyMap {
     for(const key of ['length','width','thickness','radius']) if(!finite(o[key],.1,50)) throw new Error(`${o.id}: ${key} 必须介于 0.1 和 50。`);
     if(!finite(o.rise,-30,30)||!finite(o.steps,1,64)||!Number.isInteger(o.steps)||!finite(o.arc,5,330)||!finite(o.twist,-360,360)) throw new Error(`${o.id}: 路径参数无效。`);
     if(o.water!==undefined&&(!record(o.water)||!finite(o.water.amplitude,0,.4)||!finite(o.water.speed,0,3)||!finite(o.water.wavelength,1,20)))throw new Error(`${o.id}: 海面起伏参数无效。`);
-    if(o.type===12&&!finite(o.rise,.1,20))throw new Error(`${o.id}: 柱高必须介于 0.1 和 20。`);
+    if(record(o.water)){
+      if((o.water.facetSize!==undefined&&!finite(o.water.facetSize,.2,4))||(o.water.contrast!==undefined&&!finite(o.water.contrast,0,1)))throw new Error(`${o.id}: 海面切面大小必须介于 0.2 和 4，色差强度介于 0 和 1。`);
+      for(const key of ['lightColor','darkColor'])if(o.water[key]!==undefined&&(typeof o.water[key]!=='string'||!/^#[0-9a-f]{6}$/i.test(o.water[key] as string)))throw new Error(`${o.id}: 海面亮暗色必须为 #RRGGBB。`);
+    }
+    if((o.type===12||Number(o.type)>=13)&&!finite(o.rise,.1,20))throw new Error(`${o.id}: 构件高度必须介于 0.1 和 20。`);
     if(o.attachment!==undefined&&o.attachment!==null){const a=o.attachment;if(o.type!==12||!record(a)||!identifier(a.pathId)||![0,1,2,3].includes(a.corner as number)||o.groupId!==null)throw new Error(`${o.id}: 柱子的角点引用无效。`);}
     const m=o.motion;
     if(!record(m)||!['x','y','z'].includes(m.axis as string)||!finite(m.min,-360,360)||!finite(m.max,-360,360)||m.min>m.max||!finite(m.step,.1,360)||(m.targetGroup!==null&&!groups.has(m.targetGroup as string))) throw new Error(`${o.id}: 拖拽机关设置无效。`);
@@ -168,13 +192,13 @@ export function rotate(p:Vec3,r:Vec3):Vec3 {
 }
 export interface Sample { point:Vec3; up:Vec3; roll:number }
 const surfaceSample=(point:Vec3):Sample=>({point,up:[0,1,0],roll:0});
-const isFlat=(o:MapObject):boolean=>![2,6,7].includes(o.type);
+const isFlat=(o:MapObject):boolean=>![2,6,7,17].includes(o.type);
 /** Complementary right triangles of the same rectangular top face, x/L = z/W. */
 export function prismOutline(o:MapObject):Vec3[] {
   const x=o.length/2,z=o.width/2;
   return o.prismHalf==='b'?[[-x,0,-z],[x,0,-z],[x,0,z]]:[[-x,0,-z],[x,0,z],[-x,0,z]];
 }
-export const isWalkable=(o:MapObject):boolean=>o.type<=10;
+export const isWalkable=(o:MapObject):boolean=>o.type<=10||o.type===17;
 export const canAttachPillar=(type:TypeId):boolean=>type===1||type===9;
 export function pathCorner(o:MapObject,corner:CornerId):Vec3 {const signs=[[-1,-1],[1,-1],[1,1],[-1,1]][corner]!;return [signs[0]!*o.length/2,0,signs[1]!*o.width/2];}
 /** New corner pillars sit 0.1 cells inside each edge; explicit saved offsets remain unchanged. */
@@ -210,6 +234,7 @@ export function walkSurfaces(o:MapObject):WalkSurface[] {return isWalkable(o)&&i
 export function localSamples(o:MapObject):Sample[] {
   if(!isWalkable(o))return [surfaceSample([0,0,0])];
   if(isFlat(o))return solidTopology(o).samples;
+  if(o.type===17)return [surfaceSample([0,0,.5]),...Array.from({length:o.steps+1},(_,i)=>surfaceSample([0,i/o.steps*o.rise,.24])),surfaceSample([0,o.rise,0])];
   if(o.type===2) {
     const result:Sample[]=[{point:[-o.length/2,0,0],up:[0,1,0],roll:0}];
     for(let i=0;i<o.steps;i++) {
@@ -221,9 +246,11 @@ export function localSamples(o:MapObject):Sample[] {
   const count=o.type===6||o.type===7?32:2;
   return Array.from({length:count+1},(_,i)=>{
     const t=i/count, angle=(t-.5)*o.arc*RAD, roll=t*(o.type===6?o.twist:o.arcTwist)*RAD;
-    return {point:o.type===7?[o.radius*Math.sin(angle),0,o.radius*(1-Math.cos(angle))]:[(t-.5)*o.length,0,0],up:o.type===7?[-Math.sin(angle)*Math.sin(roll),Math.cos(roll),Math.cos(angle)*Math.sin(roll)]:[0,Math.cos(roll),Math.sin(roll)],roll};
+    return {point:o.type===7?[o.radius*Math.sin(angle),0,o.radius*(1-Math.cos(angle))]:[(t-.5)*o.length,(Math.cos(roll)-1)*o.thickness/2,Math.sin(roll)*o.thickness/2],up:o.type===7?[-Math.sin(angle)*Math.sin(roll),Math.cos(roll),Math.cos(angle)*Math.sin(roll)]:[0,Math.cos(roll),Math.sin(roll)],roll};
   });
 }
+/** Twists rotate the whole cross-section about the straight solid centerline. */
+export function extrusionSamples(o:MapObject):Sample[] {return localSamples(o).map(s=>o.type===6?{...s,point:sub(s.point,mul(s.up,o.thickness/2))}:s);}
 export const centerIndex=(o:MapObject):number=>!isWalkable(o)?0:isFlat(o)?1:Math.floor(localSamples(o).length/2);
 export function pathEdges(o:MapObject):Array<[number,number]> {
   if(!isWalkable(o))return [];
@@ -239,7 +266,7 @@ export const PORT_NAMES:Record<PortId,string>={0:'顶面 X− / 起点',1:'顶�
 for(let face=1;face<=6;face++)for(let edge=0;edge<=4;edge++)PORT_NAMES[face*10+edge]=`${FACE_NAMES[face]} · ${face===1?['X−','X+','Z−','Z+','对角边'][edge]:`边 ${edge+1}`}`;
 /** Resolve a mesh hit to the independently walkable face underneath it. */
 export function surfaceIndexAt(map:ValleyMap,o:MapObject,poses:MapPoses,point:Vec3):number {
-  const surfaces=walkSurfaces(o);if(!surfaces.length||[8,9,10].includes(o.type))return centerIndex(o);
+  const surfaces=walkSurfaces(o);if(o.type===17){const samples=worldSamples(map,o,poses);return samples.reduce((best,s,i)=>length(sub(s.point,point))<length(sub(samples[best]!.point,point))?i:best,1);}if(!surfaces.length||[8,9,10].includes(o.type))return centerIndex(o);
   const samples=worldSamples(map,o,poses);let score=Infinity,index=centerIndex(o);
   for(const f of surfaces){const s=samples[f.center]!,d=sub(point,s.point),distance=Math.abs(d.reduce((n,v,i)=>n+v*s.up[i]!,0))+.001*length(d);if(distance<score){score=distance;index=f.center;}}
   return index;
@@ -465,6 +492,15 @@ export class MapRuntime {
     const start=map.objects.find(o=>o.type===9)!, s=worldSamples(map,start,this.poses); this.at={objectId:start.id,index:centerIndex(start)}; this.position=[...s[this.at.index]!.point];this.up=[...s[this.at.index]!.up];this.direction=unit(sub(s[1]!.point,s[0]!.point));
   }
   get walking():boolean {return this.route.length>0;}
+  /** A stopped traveler holds the rung; reversing does not turn their back to the ladder. */
+  get ladderFrame():{forward:Vec3;up:Vec3;descending:boolean}|null {
+    const o=this.map.objects.find(o=>o.id===(this.segment?.a.objectId??this.at.objectId));if(o?.type!==17)return null;
+    const a=this.segment?.a??{...worldSamples(this.map,o,this.poses)[this.at.index]!,...this.at},b=this.segment?.b??this.route[0]??a,last=localSamples(o).length-1;
+    if(a.objectId!==b.objectId||a.index<1||b.index<1||a.index>=last||b.index>=last)return null;
+    const origin=worldSample(this.map,o,surfaceSample([0,0,0]),this.poses).point;
+    const vector=(p:Vec3)=>unit(sub(worldSample(this.map,o,surfaceSample(p),this.poses).point,origin)),up=vector([0,1,0]);
+    return {forward:vector([0,0,-1]),up,descending:this.direction.reduce((sum,v,i)=>sum+v*up[i]!,0)<0};
+  }
   get busy():boolean {return this.animations.length>0;}
   walkTo(id:string,targetIndex?:number):boolean {
     if(this.busy||this.completed) return false;
@@ -519,12 +555,13 @@ export class MapRuntime {
     while(this.route.length&&budget>0) {
       const next=this.route[0]!,d=sub(next.point,this.position),distance=length(d);
       const optical=this.isOpticalStep(this.position,this.at.objectId,next);
-      if(distance<=budget||optical) {
+      const cost=this.ladderFrame?2:1,travel=budget/cost;
+      if(distance<=travel||optical) {
         if(!optical&&distance>.00001)this.direction=unit(d);
-        this.position=[...next.point];this.up=[...next.up];this.at={objectId:next.objectId,index:next.index};this.route.shift();this.segment=null;budget-=optical?0:distance;this.enter();
+        this.position=[...next.point];this.up=[...next.up];this.at={objectId:next.objectId,index:next.index};this.route.shift();this.segment=null;budget-=optical?0:distance*cost;this.enter();
       } else {
         if(!this.segment){const o=this.map.objects.find(o=>o.id===this.at.objectId)!,sample=worldSamples(this.map,o,this.poses)[this.at.index]!;this.segment={a:{...sample,...this.at},b:next};}
-        this.position=mix(this.position,next.point,budget/distance);this.up=unit(mix(this.up,next.up,budget/distance));this.direction=unit(d);budget=0;}
+        this.position=mix(this.position,next.point,travel/distance);this.up=unit(mix(this.up,next.up,travel/distance));this.direction=unit(d);budget=0;}
     }
   }
 }
@@ -547,12 +584,12 @@ export function switchGarden():ValleyMap {
   return map;
 }
 export function catalogGarden():ValleyMap {
-  const map=emptyMap();map.id='catalog-garden';map.name='物体目录 · 十二种标准构件';
+  const map=emptyMap();map.id='catalog-garden';map.name='物体目录 · 路径与装饰物';
   map.objects=CATALOG.filter(c=>c.type<=10).map((c,i)=>createObject(c.type,`sample-${c.type}`,[(i%5)*4-8,0,Math.floor(i/5)*5-2]));
   map.objects.find(o=>o.type===6)!.twist=180;
   map.objects.find(o=>o.type===6)!.length=3;map.objects.find(o=>o.type===6)!.thickness=.3;
   map.objects.find(o=>o.type===8)!.trigger.actions=[{groupId:'showcase',translation:[0,2,0],rotation:[0,90,0],duration:2,easing:'smooth'}];
-  map.groups=[{id:'showcase',name:'演示组',pivot:[-8,0,-2]}];map.objects[0]!.groupId='showcase';const sea=createObject(11,'sample-11',[0,-3,1]);sea.length=24;sea.width=16;map.objects.push(sea,createObject(12,'sample-12',[8,0,6]));return map;
+  map.groups=[{id:'showcase',name:'演示组',pivot:[-8,0,-2]}];map.objects[0]!.groupId='showcase';const sea=createObject(11,'sample-11',[0,-3,1]);sea.length=24;sea.width=16;map.objects.push(sea,createObject(12,'sample-12',[8,0,6]),...CATALOG.filter(c=>c.type>=13&&c.type<=16).map((c,i)=>createObject(c.type,`sample-${c.type}`,[i*4-6,0,9])),createObject(17,'sample-17',[10,0,9]));return map;
 }
 
 /** Both halves share a projected cube, while their world positions are three cells apart. */
@@ -590,4 +627,24 @@ export function surfaceGarden(arc=false):ValleyMap {
   const a=createObject(1,'wall-a',add(last.point,[.5,.5,-.5])),b=createObject(1,'wall-b',add(last.point,[1.5,.5,-.5]));
   const exit=createObject(10,'exit',add(last.point,[2.5,0,0]));exit.rotation=[90,0,0];
   map.objects=[start,path,a,b,exit];return map;
+}
+
+/** A small playable promenade with decorative architecture and planting. */
+export function decorationGarden():ValleyMap {
+  const map=emptyMap();map.id='decoration-garden';map.name='花园塔影 · 建筑与花木';
+  map.objects=Array.from({length:7},(_,i)=>createObject(i===0?9:i===6?10:1,`road-${i}`,[i-3,0,1]));
+  const ground=createObject(1,'garden-base',[0,0,-1.3]);ground.length=8;ground.width=3.4;ground.thickness=.35;ground.colors.surface='#b3c68b';map.objects.push(ground);
+  map.objects.push(createObject(13,'pavilion',[-2.7,0,-1.8]),createObject(15,'tower',[2.6,0,-1.8]));
+  for(const [i,x,z,h] of [[0,-1.3,-1.8,1.1],[1,0,-2.1,.8],[2,1.1,-1.6,1.2],[3,-.5,-.4,.7]]){const o=createObject(14,`bush-${i}`,[x!,0,z!]);o.rise=h!;o.length=.7;o.width=.65;o.rotation[1]=i!*31;map.objects.push(o);}
+  for(const [i,x,z] of [[0,-1.5,-.6],[1,.6,-.5],[2,1.8,-2.3],[3,-.6,-2.5]])map.objects.push(createObject(16,`flowers-${i}`,[x!,0,z!]));
+  const sea=createObject(11,'sea',[0,-1,0]);sea.length=16;sea.width=12;map.objects.push(sea);return map;
+}
+
+/** Two-storey courtyard: the lower and upper walk ports meet the ladder ends. */
+export function ladderGarden():ValleyMap {
+  const map=emptyMap();map.id='ladder-garden';map.name='攀光庭院 · 沿梯而上';
+  const start=createObject(9,'start',[-1,0,1]),bottom=createObject(1,'landing',[0,0,1]),wall=createObject(1,'upper',[0,2,-.5]);wall.thickness=3;
+  const ladder=createObject(17,'ladder'),road=createObject(1,'upper-road',[-1,2,-.5]),exit=createObject(10,'exit',[-2,2,-.5]);
+  const sea=createObject(11,'sea',[0,-1.3,0]);sea.colors.surface='#439dac';sea.length=12;sea.width=10;
+  map.objects=[start,bottom,wall,ladder,road,exit,sea];return map;
 }

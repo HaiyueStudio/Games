@@ -18,7 +18,7 @@ for(const editor of [true,false]){
   async function target(id){const s=await snapshot(),p=s.targets[id],c=await evaluate("(()=>{const r=document.querySelector('#canvas').getBoundingClientRect();return {x:r.x,y:r.y}})()");await point(c.x+p[0],c.y+p[1]);}
   let s=await wait(s=>!!s?.map,'ready');
   if(editor){
-   await selectStart();assert.equal(await evaluate("!!document.querySelector('#split-cube')"),false,'spawn must not expose cube splitting');await click('[data-type="12"]');s=await snapshot();const p=s.corners.find(c=>c.pathId==='start'&&c.corner===0).screen;await point(s.canvas.x+p[0],s.canvas.y+p[1]);
+   await selectStart();assert.equal(await evaluate("!!document.querySelector('#split-cube')"),false,'spawn must not expose cube splitting');await evaluate("document.querySelector('#catalog-tabs').value='decorations'");await new Promise(r=>setTimeout(r,100));await click('[data-type="12"]');s=await snapshot();const p=s.corners.find(c=>c.pathId==='start'&&c.corner===0).screen;await point(s.canvas.x+p[0],s.canvas.y+p[1]);
    for(const c of [1,2,3]){await selectStart();await click(`#add-pillar-${c}`);}
    s=await snapshot();const pillars=s.map.objects.filter(o=>o.attachment?.pathId==='start');assert.equal(pillars.length,4);for(const pillar of pillars)assert.deepEqual(pillar.position,[[.1,0,.1],[-.1,0,.1],[-.1,0,-.1],[.1,0,-.1]][pillar.attachment.corner]);
    await click('#undo');assert.equal((await snapshot()).map.objects.filter(o=>o.attachment?.pathId==='start').length,3);await click('#redo');
