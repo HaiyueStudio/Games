@@ -2,17 +2,10 @@
   "format": "haiyue-valley-map",
   "version": 1,
   "catalogVersion": 1,
-  "id": "split-cube",
-  "name": "分体方块 · 眼前一格，身处两地",
+  "id": "six-surfaces",
+  "name": "翻面之径 · 从地面走向墙面",
   "groups": [],
-  "opticalLinks": [
-    {
-      "a": "half-a",
-      "aEnd": 4,
-      "b": "half-b",
-      "bEnd": 4
-    }
-  ],
+  "opticalLinks": [],
   "objects": [
     {
       "id": "start",
@@ -37,6 +30,7 @@
       "radius": 2,
       "arc": 90,
       "twist": 90,
+      "arcTwist": 0,
       "prismHalf": "a",
       "colors": {
         "surface": "#88ac89",
@@ -64,13 +58,63 @@
       }
     },
     {
-      "id": "approach",
+      "id": "connector",
+      "type": 6,
+      "name": "扭转路径",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 3,
+      "width": 1,
+      "thickness": 0.22,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#b4a5be",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "wall-a",
       "type": 1,
       "name": "普通路径",
       "position": [
-        -1,
-        0,
-        0
+        2,
+        0.5,
+        -0.5
       ],
       "rotation": [
         0,
@@ -86,6 +130,7 @@
       "radius": 2,
       "arc": 90,
       "twist": 90,
+      "arcTwist": 0,
       "prismHalf": "a",
       "colors": {
         "surface": "#d9d0b8",
@@ -113,62 +158,13 @@
       }
     },
     {
-      "id": "half-a",
-      "type": 5,
-      "name": "普通路径 · A 半块",
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "groupId": null,
-      "length": 1,
-      "width": 1,
-      "thickness": 1,
-      "rise": 1,
-      "steps": 6,
-      "radius": 2,
-      "arc": 90,
-      "twist": 90,
-      "prismHalf": "a",
-      "colors": {
-        "surface": "#d9d0b8",
-        "hub": "#ed7657",
-        "spokes": "#aaa7e8",
-        "tips": "#ff8865",
-        "base": "#7c83cd"
-      },
-      "water": {
-        "amplitude": 0.08,
-        "speed": 0.65,
-        "wavelength": 4
-      },
-      "attachment": null,
-      "motion": {
-        "axis": "y",
-        "min": -180,
-        "max": 180,
-        "step": 90,
-        "targetGroup": null
-      },
-      "trigger": {
-        "mode": "once",
-        "actions": []
-      }
-    },
-    {
-      "id": "beyond",
+      "id": "wall-b",
       "type": 1,
       "name": "普通路径",
       "position": [
-        4,
         3,
-        3
+        0.5,
+        -0.5
       ],
       "rotation": [
         0,
@@ -184,6 +180,7 @@
       "radius": 2,
       "arc": 90,
       "twist": 90,
+      "arcTwist": 0,
       "prismHalf": "a",
       "colors": {
         "surface": "#d9d0b8",
@@ -215,12 +212,12 @@
       "type": 10,
       "name": "出口平台",
       "position": [
-        5,
-        3,
-        3
+        4,
+        0,
+        0
       ],
       "rotation": [
-        0,
+        90,
         0,
         0
       ],
@@ -233,58 +230,10 @@
       "radius": 2,
       "arc": 90,
       "twist": 90,
+      "arcTwist": 0,
       "prismHalf": "a",
       "colors": {
         "surface": "#c8b46d",
-        "hub": "#ed7657",
-        "spokes": "#aaa7e8",
-        "tips": "#ff8865",
-        "base": "#7c83cd"
-      },
-      "water": {
-        "amplitude": 0.08,
-        "speed": 0.65,
-        "wavelength": 4
-      },
-      "attachment": null,
-      "motion": {
-        "axis": "y",
-        "min": -180,
-        "max": 180,
-        "step": 90,
-        "targetGroup": null
-      },
-      "trigger": {
-        "mode": "once",
-        "actions": []
-      }
-    },
-    {
-      "id": "half-b",
-      "type": 5,
-      "name": "普通路径 · B 半块",
-      "position": [
-        3,
-        3,
-        3
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "groupId": null,
-      "length": 1,
-      "width": 1,
-      "thickness": 1,
-      "rise": 1,
-      "steps": 6,
-      "radius": 2,
-      "arc": 90,
-      "twist": 90,
-      "prismHalf": "b",
-      "colors": {
-        "surface": "#d9d0b8",
         "hub": "#ed7657",
         "spokes": "#aaa7e8",
         "tips": "#ff8865",

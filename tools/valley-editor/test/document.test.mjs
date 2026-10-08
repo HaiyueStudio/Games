@@ -66,3 +66,27 @@ test('half-cell anchors snap to absolute grid positions and alignment is undoabl
     editor.select(['start']);editor.duplicate();const copy=editor.map.objects.find(o=>o.id===editor.selected[0]);assert.deepEqual(copy.position,[-2,0,1]);
   } finally {await editor.dispose();}
 });
+
+
+test('corner pillars place individually, follow the host, duplicate and delete atomically',async()=>{
+  const editor=new ValleyAuthoring();await editor.start();
+  try {
+    const a=editor.addPillar('moving-a',0),b=editor.addPillar('moving-a',1);assert.notEqual(a,b);assert.equal(editor.addPillar('moving-a',0),a);
+    const exported=editor.exportJSON();editor.select(['moving-a']);editor.duplicate();
+    const copy=editor.map.objects.find(o=>editor.selected.includes(o.id)&&o.type===1);assert.equal(editor.map.objects.filter(o=>o.attachment?.pathId===copy.id).length,2);
+    editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);editor.select(['moving-a']);editor.removeSelected();assert.ok(!editor.map.objects.some(o=>[a,b,'moving-a'].includes(o.id)));editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);
+    editor.select(['moving-a']);editor.splitSelected(3);assert.equal(editor.map.objects.find(o=>o.id===a).attachment,null);assert.deepEqual(editor.map.objects.find(o=>o.id===a).position,[-1.5,0,2.5]);editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);
+    const bad=JSON.parse(exported);bad.objects.find(o=>o.id===b).attachment.corner=0;assert.throws(()=>editor.importJSON(JSON.stringify(bad)),/空闲角点/);assert.equal(editor.exportJSON(),exported);
+  } finally {await editor.dispose();}
+});
+
+test('placing a normal path never duplicates a platform anchor or adds an undo entry on failure',async()=>{
+  const editor=new ValleyAuthoring();await editor.start();
+  try {
+    editor.add(3,[10,0,10]);const before=editor.exportJSON(),history=editor.platform.history.snapshot();
+    assert.throws(()=>editor.add(1,[10,0,10]),/相邻空格/);assert.equal(editor.exportJSON(),before);assert.deepEqual(editor.platform.history.snapshot(),history);
+    const next=editor.add(1,[11,0,10]);assert.deepEqual(editor.map.objects.find(o=>o.id===next).position,[11,0,10]);
+    assert.throws(()=>editor.add(1,[11,0,10]),/相邻空格/);editor.platform.history.undo();assert.equal(editor.exportJSON(),before);
+    editor.add(1,[10,1,10]);editor.add(1,[13,3,13]);
+  } finally {await editor.dispose();}
+});

@@ -1,7 +1,8 @@
+import { PathPlacement } from './placement';
 import { EditorPlatform } from '@haiyue/editor-platform';
 import { BrowserEditorShell } from '@haiyue/editor-shell';
 import { defineEditorPlugin, defineEditorProduct, type EditorDocumentAdapter, type EditorDisposable } from '@haiyue/editor-plugin-sdk';
-import { cloneMap, createObject, parseMap, serializeMap, snapPosition, splitCube, switchGarden, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { cloneMap, createObject, parseMap, serializeMap, detachPillar, snapPosition, splitCube, switchGarden, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 export class ValleyDocument implements EditorDocumentAdapter<ValleyMap> {
   map:ValleyMap;revision=0;savedRevision=0;private listeners=new Set<()=>void>();private savedText:string;
@@ -18,6 +19,7 @@ export class ValleyAuthoring {
   readonly platform=new EditorPlatform({history:{maxEntries:80,byteBudget:16*1024*1024}});
   readonly shell=new BrowserEditorShell(this.platform.contributions);
   readonly document:ValleyDocument;
+  readonly placement=new PathPlacement(()=>this.map);
   constructor(map=switchGarden()) {this.document=new ValleyDocument(map);this.platform.documents.attach(this.document);this.platform.selection.registerResolver('valley-object','valley.authoring',r=>this.map.objects.find(o=>o.id===r.id));}
   async start():Promise<void>{
     const plugin=defineEditorPlugin({id:'valley.authoring',version:'1.0.0',apiVersion:'1',provides:['valley.map'],activate:context=>{
@@ -38,17 +40,34 @@ export class ValleyAuthoring {
     const apply=(map:ValleyMap)=>{this.document.apply(map);this.select(this.selected);};
     this.platform.history.execute({label,estimatedBytes:(serializeMap(before).length+serializeMap(after).length)*2,execute:()=>apply(after),undo:()=>apply(before)});
   }
-  add(type:TypeId,position:Vec3):string{let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const o=createObject(type,`object-${n}`,position);this.change(`放置 ${o.name}`,map=>map.objects.push(o));this.select([o.id]);return o.id;}
-  removeSelected():void{const ids=new Set(this.selected);if(!ids.size)return;this.change('删除物体',map=>{map.objects=map.objects.filter(o=>!ids.has(o.id));map.opticalLinks=map.opticalLinks.filter(l=>!ids.has(l.a)&&!ids.has(l.b));});this.select([]);}
-  duplicate():void{const originals=this.map.objects.filter(o=>this.selected.includes(o.id)),ids:string[]=[];
-    this.change('复制物体',map=>{for(const source of originals){let n=1;while(map.objects.some(o=>o.id===`object-${n}`))n++;const copy=structuredClone(source);copy.id=`object-${n}`;copy.position[0]+=1;copy.position[2]+=1;copy.name+=' 副本';map.objects.push(copy);ids.push(copy.id);}});this.select(ids);
+  placementObstacle(type:TypeId,position:Vec3):MapObject|undefined {
+    // A normal path must not duplicate an existing solid platform at the same anchor.
+    return type===1?this.map.objects.find(o=>[1,3,4,8,9,10].includes(o.type)&&o.position.every((v,i)=>Math.abs(v-position[i]!)<1e-6)):undefined;
   }
-  alignSelected(step:number):void {if(!Number.isFinite(step)||step<=0)throw new Error('网格间距必须大于零。');this.change('对齐网格',map=>{for(const o of map.objects)if(this.selected.includes(o.id))o.position=snapPosition(o.position,step);});}
+  add(type:TypeId,position:Vec3,rotation:Vec3=[0,0,0]):string{const occupied=this.placementObstacle(type,position);if(occupied)throw new Error(`此处已有${occupied.name}，请放在相邻空格。`);let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const o=createObject(type,`object-${n}`,position);o.rotation=[...rotation];this.change(`放置 ${o.name}`,map=>map.objects.push(o));this.select([o.id]);return o.id;}
+  removeSelected():void{const ids=new Set(this.selected);if(!ids.size)return;for(const o of this.map.objects)if(o.attachment&&ids.has(o.attachment.pathId))ids.add(o.id);this.change('删除物体',map=>{map.objects=map.objects.filter(o=>!ids.has(o.id));map.opticalLinks=map.opticalLinks.filter(l=>!ids.has(l.a)&&!ids.has(l.b));});this.select([]);}
+  addPillar(pathId:string,corner:CornerId):string {
+    const existing=this.map.objects.find(o=>o.attachment?.pathId===pathId&&o.attachment.corner===corner);if(existing){this.select([existing.id]);return existing.id;}
+    if(this.map.objects.find(o=>o.id===pathId)?.type!==1)throw new Error('请点击普通路径的四个角之一。');
+    let n=1;while(this.map.objects.some(o=>o.id===`object-${n}`))n++;const o=createObject(12,`object-${n}`);o.attachment={pathId,corner};
+    this.change('放置角点立柱',map=>map.objects.push(o));this.select([o.id]);return o.id;
+  }
+  duplicate():void {
+    const selected=new Set(this.selected),originals=this.map.objects.filter(o=>selected.has(o.id)||(o.attachment&&selected.has(o.attachment.pathId))),ids:string[]=[];
+    this.change('复制物体',map=>{const copies=new Map<string,string>();let n=1;for(const source of originals){while(map.objects.some(o=>o.id===`object-${n}`)||[...copies.values()].includes(`object-${n}`))n++;copies.set(source.id,`object-${n++}`);}
+      for(const source of originals){const copy=structuredClone(source);copy.id=copies.get(source.id)!;copy.name+=' 副本';
+        if(copy.attachment&&copies.has(copy.attachment.pathId))copy.attachment.pathId=copies.get(copy.attachment.pathId)!;
+        else{if(copy.attachment){detachPillar(this.map,copy);}copy.position[0]+=1;copy.position[2]+=1;}
+        map.objects.push(copy);ids.push(copy.id);
+      }
+    });this.select(ids);
+  }
+  alignSelected(step:number):void {if(!Number.isFinite(step)||step<=0)throw new Error('网格间距必须大于零。');this.change('对齐网格',map=>{for(const o of map.objects)if(this.selected.includes(o.id)&&!o.attachment)o.position=snapPosition(o.position,step);});}
   movePreview(before:ValleyMap,anchorId:string,delta:Vec3,step:number):ValleyMap {
-    const next=cloneMap(before),anchor=before.objects.find(o=>o.id===anchorId);if(!anchor)return next;
+    const next=cloneMap(before),anchor=before.objects.find(o=>o.id===anchorId);if(!anchor||anchor.attachment)return next;
     const target=snapPosition(anchor.position.map((v,i)=>v+delta[i]!) as Vec3,step);
     // Dragging stays on the authored height; selection offsets remain intact.
-    for(const o of next.objects)if(this.selected.includes(o.id))for(const i of [0,2])o.position[i]!+=target[i]!-anchor.position[i]!;
+    for(const o of next.objects)if(this.selected.includes(o.id)&&!o.attachment)for(const i of [0,2])o.position[i]!+=target[i]!-anchor.position[i]!;
     return next;
   }
   update(id:string,mutation:(o:MapObject)=>void):void{this.change('修改物体属性',map=>{const o=map.objects.find(o=>o.id===id);if(o)mutation(o);});}
@@ -58,6 +77,7 @@ export class ValleyAuthoring {
     this.change('拆分为两个三棱柱',map=>splitCube(map,id,other,depth));this.select([id,other]);
   }
   groupSelected():string{
+    if(this.selected.some(id=>this.map.objects.find(o=>o.id===id)?.attachment))throw new Error('立柱会随路径所属组运动，请选择它依附的普通路径成组。');
     let n=1;while(this.map.groups.some(g=>g.id===`group-${n}`))n++;const id=`group-${n}`,selected=this.map.objects.filter(o=>this.selected.includes(o.id));
     const pivot:Vec3=[0,0,0];for(const o of selected)o.position.forEach((x,i)=>pivot[i]!+=x/selected.length);
     this.change('创建物体组',map=>{map.groups.push({id,name:`物体组 ${n}`,pivot});for(const o of map.objects)if(this.selected.includes(o.id))o.groupId=id;});return id;

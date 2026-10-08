@@ -14,7 +14,19 @@ const result=await runChromeWebGpuFixture({root,fixture:'tools/valley-editor/ind
   async function capture(name){const r=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,name),Buffer.from(r.result.data,'base64'));}
   async function target(id){const s=await snapshot(),p=s.targets[id];await point(s.canvas.x+p[0],s.canvas.y+p[1]);}
   let s=await wait(s=>s?.map,'ready');assert.equal(s.map.id,'split-cube');assert.equal(s.map.objects.filter(o=>o.type===5).length,2);await click('[data-object="half-b"]');await capture('split-aligned.png');
-  await fill('#position-0','6');await capture('split-separated.png');
+  const alongX=s.targets.approach.map((v,i)=>v-s.targets.start[i]);
+  for(const [id,deltas] of [['half-a',[[-1/3,5/3],[1/3,1/3],[-1/3,1]]],['half-b',[[-2/3,4/3],[-1/3,-1/3],[-2/3,0]]]]){
+    await click(`[data-object="${id}"]`);const before=await snapshot(),position=before.map.objects.find(o=>o.id===id).position;
+    for(let axis=0;axis<3;axis++){
+      await fill(`#rotation-${axis}`,'90');s=await snapshot();assert.deepEqual(s.map.objects.find(o=>o.id===id).position,position);
+      const expected=before.targets[id].map((v,i)=>v+deltas[axis][i]*alongX[i]);
+      assert.ok(Math.hypot(...s.targets[id].map((v,i)=>v-expected[i]))<.01,`${id} axis ${axis} must rotate within the original cube`);
+      if(id==='half-a')await capture(`split-rotation-${['x','y','z'][axis]}.png`);
+      await click('#undo');s=await snapshot();assert.deepEqual(s.targets[id],before.targets[id]);
+    }
+  }
+  checks.push('A/B prism X/Y/Z rotations stay centered on their containing cube; undo restores the original location');
+  await click('[data-object="half-b"]');await fill('#position-0','6');await capture('split-separated.png');
   await click('#play');await wait(s=>s.model==='loaded','traveler');await target('exit');s=await snapshot();assert.equal(s.runtime.walking,false);checks.push('moving one half away breaks the diagonal connection');
   await click('#play');await click('#undo');await click('#play');await target('exit');s=await wait(s=>s.runtime.completed,'cross diagonal seam');assert.deepEqual(s.runtime.position,[5,3,3]);await capture('split-complete.png');checks.push('aligned A/B halves let the traveler cross between different world depths');
   await click('#play');await click('#new');await click('[data-type="1"]');s=await snapshot();await point(s.canvas.x+s.canvas.width/2,s.canvas.y+s.canvas.height/2);s=await snapshot();assert.deepEqual([s.map.objects[0].length,s.map.objects[0].width,s.map.objects[0].thickness],[1,1,1]);

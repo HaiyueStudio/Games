@@ -57,6 +57,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -100,6 +106,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -159,6 +171,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -202,6 +220,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -245,6 +269,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -304,6 +334,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -347,6 +383,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -390,6 +432,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,
@@ -433,6 +481,12 @@
         "tips": "#ff8865",
         "base": "#7c83cd"
       },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
       "motion": {
         "axis": "y",
         "min": -180,

@@ -38,10 +38,11 @@ const result=await runChromeWebGpuFixture({root,fixture:'tools/valley-editor/ind
   await clickObject('exit');await wait(s=>s.runtime.completed,'exit');await capture('play-complete.png');checks.push('newly connected route reaches exit');
   await click('#play');s=await snapshot();assert.equal(s.map.objects.find(o=>o.id==='moving-a').position[2],3);assert.equal(s.map.objects.find(o=>o.id==='rotating-a').rotation[1],90);checks.push('stop preview restores authoring transforms');
   }
-  await click('#demo-catalog');await evaluate('document.querySelector("#catalog").parentElement.scrollTop=0');await capture('catalog.png');s=await snapshot();assert.deepEqual(s.map.objects.map(o=>o.type),[1,2,3,4,5,6,7,8,9,10]);assert.deepEqual(s.errors,[]);
+  await click('#demo-catalog');await evaluate('document.querySelector("#catalog").parentElement.scrollTop=0');await capture('catalog.png');s=await snapshot();assert.deepEqual(s.map.objects.map(o=>o.type),[1,2,3,4,5,6,7,8,9,10,11,12]);assert.deepEqual(s.errors,[]);
   await click('#play');await wait(s=>s.playing,'catalog preview');
   for(const [id,dx,dy,expected] of [['sample-3',120,0,90],['sample-4',50,-29,1]]) {
-    s=await snapshot();const p=s.targets[id],x=s.canvas.x+p[0],y=s.canvas.y+p[1];
+    s=await snapshot();if(id==='sample-3'){const f=s.wheelFrames[id],cx=s.canvas.x+f.center[0],cy=s.canvas.y+f.center[1],radius=Math.hypot(...f.right)*.76,angle=Math.atan2(f.right[1],f.right[0]);await mouse('mouseMoved',cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius);await mouse('mousePressed',cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius,true);for(let i=1;i<=12;i++){const a=angle+f.direction*Math.PI/2*i/12;await mouse('mouseMoved',cx+Math.cos(a)*radius,cy+Math.sin(a)*radius,true);await new Promise(r=>setTimeout(r,25));}const a=angle+f.direction*Math.PI/2;await mouse('mouseReleased',cx+Math.cos(a)*radius,cy+Math.sin(a)*radius);s=await snapshot();assert.equal(s.runtime.poses.mechanisms[id],expected);continue;}
+    const p=s.targets[id],x=s.canvas.x+p[0],y=s.canvas.y+p[1];
     await mouse('mouseMoved',x,y);await mouse('mousePressed',x,y,true);for(let i=1;i<=8;i++){await mouse('mouseMoved',x+dx*i/8,y+dy*i/8,true);await new Promise(r=>setTimeout(r,25));}await mouse('mouseReleased',x+dx,y+dy);
     s=await snapshot();if(id==='sample-3')assert.equal(s.runtime.poses.mechanisms[id],expected);else assert.ok(s.runtime.poses.mechanisms[id]>0);
   }

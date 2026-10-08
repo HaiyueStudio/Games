@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {runChromeWebGpuFixture} from '../../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
+const root=fileURLToPath(new URL('../../',import.meta.url)),output=resolve(root,'artifacts/valley-editor');mkdirSync(output,{recursive:true});const checks=[];
+const result=await runChromeWebGpuFixture({root,fixture:'tools/valley-editor/index.html',query:{verify:1,demo:'sea'},timeoutMs:60000,visualCapture:{viewportWidth:1536,viewportHeight:960},interact:async cdp=>{
+  async function evaluate(expression){const r=await cdp.call('Runtime.evaluate',{expression,returnByValue:true});if(r.result?.exceptionDetails)throw new Error(JSON.stringify(r.result.exceptionDetails));return r.result?.result?.value;}
+  const snapshot=()=>evaluate('window.__valleyEditor?.snapshot()');
+  const pause=()=>new Promise(r=>setTimeout(r,120));
+  async function wait(test,label){const start=Date.now();while(Date.now()-start<15000){const s=await snapshot();if(test(s))return s;await pause();}throw new Error(`${label}: ${JSON.stringify(await snapshot())}`);}
+  async function mouse(type,x,y,held=false,button='left'){await cdp.call('Input.dispatchMouseEvent',{type,x,y,button:type==='mouseMoved'&&!held?'none':button,buttons:held?(button==='right'?2:1):0,clickCount:1});}
+  async function point(x,y){await mouse('mouseMoved',x,y);await mouse('mousePressed',x,y,true);await mouse('mouseReleased',x,y);await pause();}
+  async function click(selector){const p=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]})()`);await point(...p);}
+  async function fill(selector,text){await click(selector);await evaluate(`document.querySelector(${JSON.stringify(selector)}).select()`);await cdp.call('Input.insertText',{text});await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await pause();}
+  async function drag(x,y,dx,dy,button='left'){await mouse('mouseMoved',x,y);await mouse('mousePressed',x,y,true,button);for(let i=1;i<=8;i++){await mouse('mouseMoved',x+dx*i/8,y+dy*i/8,true,button);await new Promise(r=>setTimeout(r,25));}await mouse('mouseReleased',x+dx,y+dy,false,button);await pause();}
+  async function target(id,wheel=false){const s=await snapshot(),p=(wheel?s.wheels:s.targets)[id];await point(s.canvas.x+p[0],s.canvas.y+p[1]);}
+  async function capture(name){const r=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,name),Buffer.from(r.result.data,'base64'));}
+  let s=await wait(s=>s?.map,'ready');assert.equal(s.map.id,'seaside-garden');assert.equal(s.map.objects.filter(o=>o.type===12).length,4);assert.ok(s.water.surfaces[0].gpu);
+  const before=await cdp.call('Page.captureScreenshot',{format:'png'}),weights=s.water.surfaces[0].weights;await new Promise(r=>setTimeout(r,1200));s=await snapshot();const after=await cdp.call('Page.captureScreenshot',{format:'png'});assert.notDeepEqual(weights,s.water.surfaces[0].weights);assert.notEqual(before.result.data,after.result.data);await capture('seaside-editor.png');checks.push('sea animates GPU morph weights and changes rendered pixels in edit mode');
+  await click('[data-object="colonnade"]');await fill('#position-1','1');s=await snapshot();assert.ok(s.map.objects.filter(o=>o.type===12).every(o=>o.attachment.pathId==='colonnade'));await click('#undo');
+  await click('[data-object="pillar-0"]');await click('#delete');s=await snapshot();assert.equal(s.map.objects.filter(o=>o.type===12).length,3);await click('[data-object="colonnade"]');await click('[data-type="12"]');s=await snapshot();const corner=s.corners.find(c=>c.pathId==='colonnade'&&c.corner===0);await point(s.canvas.x+corner.screen[0],s.canvas.y+corner.screen[1]);s=await snapshot();assert.equal(s.map.objects.filter(o=>o.type===12).length,4);assert.deepEqual(s.map.objects.at(-1).attachment,{pathId:'colonnade',corner:0});await click('#undo');assert.equal((await snapshot()).map.objects.filter(o=>o.type===12).length,3);await click('#redo');
+  await click('#select-tool');await click('[data-object="road-1"]');await click('#add-pillar-2');s=await snapshot();assert.deepEqual(s.map.objects.at(-1).attachment,{pathId:'road-1',corner:2});await click('#undo');checks.push('columns place one corner at a time through canvas and inspector; undo and redo preserve attachments');
+  await click('#json');const json=await evaluate('document.querySelector("#json-text").value');writeFileSync(resolve(output,'seaside-export.json'),json);assert.equal(JSON.parse(json).objects.find(o=>o.type===11).water.amplitude,.08);await click('#apply-json');
+  await click('[data-object="wheel"]');await evaluate("(()=>{const e=document.querySelector('#motion-axis');e.value='y';e.dispatchEvent(new Event('change',{bubbles:true}));})()");s=await snapshot();assert.deepEqual(s.wheelFrames.wheel.axis,[0,1,0]);await click('#undo');s=await snapshot();assert.deepEqual(s.wheelFrames.wheel.axis,[0,0,1]);checks.push('changing the motion axis reorients the visible spindle; water and pillars round-trip in JSON');
+  await fill('#group-bridge-pivot-0','-15');
+  await click('#play');await wait(s=>s.model==='loaded','traveler');await target('exit');assert.equal((await snapshot()).runtime.walking,false);
+  s=await snapshot();const f=s.wheelFrames.wheel,cx=s.canvas.x+f.center[0],cy=s.canvas.y+f.center[1],radius=Math.hypot(...f.right)*.76,angle=Math.atan2(f.right[1],f.right[0]);
+  await drag(cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius,Math.cos(angle)*35,Math.sin(angle)*35);s=await snapshot();assert.equal(s.runtime.poses.mechanisms.wheel??0,0);
+  await mouse('mouseMoved',cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius);await mouse('mousePressed',cx+Math.cos(angle)*radius,cy+Math.sin(angle)*radius,true);
+  for(let i=1;i<=80;i++){const a=angle-f.direction*Math.PI/2*i/16;await mouse('mouseMoved',cx+Math.cos(a)*radius,cy+Math.sin(a)*radius,true);await new Promise(r=>setTimeout(r,25));}
+  const end=angle-f.direction*Math.PI*2.5;await mouse('mouseReleased',cx+Math.cos(end)*radius,cy+Math.sin(end)*radius);await pause();s=await snapshot();assert.equal(s.runtime.poses.mechanisms.wheel,-450);await capture('seaside-bridge-open.png');await target('exit');await wait(s=>s.runtime.completed,'exit');s=await snapshot();assert.deepEqual(s.errors,[]);checks.push('radial drag does not rotate; continuous 450-degree drag crosses a full revolution, snaps and opens the exit');
+  await evaluate(`document.querySelector('#result').textContent=JSON.stringify({status:'passed',checks:${JSON.stringify(checks)}})`);
+}});
+if(result.visualCapture?.pngBase64)delete result.visualCapture.pngBase64;writeFileSync(resolve(output,'seaside-browser.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({status:result.status,checks,output},null,2));
