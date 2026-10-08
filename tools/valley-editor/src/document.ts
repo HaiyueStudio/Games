@@ -3,7 +3,7 @@ import { PathPlacement } from './placement';
 import { EditorPlatform } from '@haiyue/editor-platform';
 import { BrowserEditorShell } from '@haiyue/editor-shell';
 import { defineEditorPlugin, defineEditorProduct, type EditorDocumentAdapter, type EditorDisposable } from '@haiyue/editor-plugin-sdk';
-import { cloneMap, createObject, groupMatrix, inverseMatrix, matrixPoint, parseMap, serializeMap, snapPosition, splitCube, switchGarden, type MapGroup, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { canAttachPillar, cloneMap, createObject, defaultPillarOffset, groupMatrix, inverseMatrix, matrixPoint, parseMap, serializeMap, serializeCompactMap, snapPosition, splitCube, switchGarden, type MapGroup, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 export class ValleyDocument implements EditorDocumentAdapter<ValleyMap> {
   map:ValleyMap;revision=0;savedRevision=0;private listeners=new Set<()=>void>();private savedText:string;
@@ -55,8 +55,8 @@ export class ValleyAuthoring {
   removeSelected():void{if(!this.selected.length)return;this.change('删除节点',map=>removeNodes(map,this.selected),[]);}
   addPillar(pathId:string,corner:CornerId):string {
     const existing=this.map.objects.find(o=>o.attachment?.pathId===pathId&&o.attachment.corner===corner);if(existing){this.select([existing.id]);return existing.id;}
-    if(this.map.objects.find(o=>o.id===pathId)?.type!==1)throw new Error('请点击普通路径的四个角之一。');
-    const o=createObject(12,uniqueId(this.map));o.attachment={pathId,corner};
+    const host=this.map.objects.find(o=>o.id===pathId);if(!host||!canAttachPillar(host.type))throw new Error('请点击普通路径或出生平台的四个角之一。');
+    const o=createObject(12,uniqueId(this.map),defaultPillarOffset(host,corner));o.attachment={pathId,corner};
     this.change('放置角点立柱',map=>map.objects.push(o),[o.id]);return o.id;
   }
   copy(cut=false):void{if(!this.selected.length)return;this.clipboard={map:cloneMap(this.map),ids:roots(this.map,this.selected),cut};}
@@ -94,6 +94,6 @@ export class ValleyAuthoring {
     this.change('创建父节点并编组',map=>{map.groups.push({id,name:'物体组 '+id.slice(6),parentId:parent,pivot:[0,0,0],position,rotation:[0,0,0],scale:[1,1,1]});for(const selected of ids)reparentNode(map,selected,id);},[id]);return id;
   }
   importJSON(text:string):void{this.replace('导入 JSON',parseMap(JSON.parse(text)),[]);this.clipboard=null;}
-  exportJSON():string{return serializeMap(this.map);}
+  exportJSON(compact=false):string{return compact?serializeCompactMap(this.map):serializeMap(this.map);}
   async dispose():Promise<void>{this.shell.dispose();await this.platform.dispose();}
 }

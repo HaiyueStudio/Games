@@ -83,7 +83,7 @@
       "name": "纤细立柱",
       "icon": "Ⅰ",
       "color": "#e0d6bb",
-      "description": "逐个附着在普通路径四角"
+      "description": "逐个附着在路径或出生平台四角"
     }
   ]
 }

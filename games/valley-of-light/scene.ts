@@ -1,3 +1,4 @@
+import { TRAVELER_SIZE_MULTIPLIER } from './traveler';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, EnvironmentLight, Mesh3D, PbrMaterial, SphericalTransform3D, createBox3D, type HaiyueEngine, type Scene } from '@haiyue/engine';
 import { createCylinder3D, createTorus3D, type Geometry3D } from '@haiyue/engine/geometry';
 import { applyGltfAnimationClip, createGltfPlugin, GltfModelComponent } from '@haiyue/extensions/gltf';
@@ -11,7 +12,7 @@ export class ValleyScene {
   readonly scene: Scene;
   readonly camera = new Camera3D({ type: 'orthographic', left: -10, right: 10, top: 8, bottom: -8, near: .1, far: 180 });
   readonly model = new GltfModelComponent({ src: './assets/traveler.gltf', autoLoad: true, clearPrevious: true });
-  readonly actor = new CartesianTransform3D({ position: [-5.75, 0, 0], scale: [.86,.86,.86] });
+  readonly actor = new CartesianTransform3D({ position: [-5.75, 0, 0], scale: [.86*TRAVELER_SIZE_MULTIPLIER,.86*TRAVELER_SIZE_MULTIPLIER,.86*TRAVELER_SIZE_MULTIPLIER] });
   private readonly turn = new CartesianTransform3D({ position: [-2.5,0,0] });
   private readonly slide = new CartesianTransform3D({ position: [4.5,3,1.5] });
   private readonly box = createBox3D();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createObject,emptyMap,emptyPoses,localSamples,pathPorts,pathEdges,walkSurfaces,worldSamples,connections,findRoute,MapRuntime,rotatedSeamGarden,surfaceGarden,parseMap,serializeMap,surfaceIndexAt,add,mul,sub} from '../valley-of-light/map/model.ts';
+import {createObject,emptyMap,emptyPoses,localSamples,pathPorts,pathEdges,walkSurfaces,worldSamples,connections,findRoute,MapRuntime,splitGarden,project,centerIndex,rotatedSeamGarden,surfaceGarden,parseMap,serializeMap,surfaceIndexAt,add,mul,sub} from '../valley-of-light/map/model.ts';
 const near=(a,b)=>assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<1e-7,`${a} != ${b}`);
 const finish=r=>{for(let i=0;i<4000&&r.walking;i++)r.tick(.02);assert.ok(r.completed);};
 test('the user map connects its two rotated A halves automatically without changing authored JSON',()=>{
@@ -36,4 +36,23 @@ test('hit points resolve the correct face and all prism faces have independent i
  const map=emptyMap(),o=createObject(5,'prism');o.rotation=[90,0,-90];map.objects=[o];const samples=worldSamples(map,o,emptyPoses()),faces=walkSurfaces(o);assert.equal(faces.length,5);
  for(const f of faces){assert.equal(surfaceIndexAt(map,o,emptyPoses(),samples[f.center].point),f.center);for(const [a,b] of pathEdges(o).filter(([a])=>a===f.center))assert.ok(f.indices.includes(b));}
  assert.ok(pathPorts(o).some(p=>p.port>4));
+});
+
+
+test('a complete projected split-cube road is walked in a straight line in both directions',()=>{
+ for(const physical of [false,true]){
+  const map=splitGarden();if(physical)for(const o of map.objects.filter(o=>['half-b','beyond','exit'].includes(o.id)))o.position=o.position.map(v=>v-3);
+  const r=new MapRuntime(map),start=project(r.position),destination=project(worldSamples(map,map.objects.find(o=>o.id==='beyond'),emptyPoses())[1].point),axis=sub([...destination,0],[...start,0]);
+  const check=()=>{const p=project(r.position),cross=(p[0]-start[0])*axis[1]-(p[1]-start[1])*axis[0];assert.ok(Math.abs(cross)<1e-7,`centroid detour at ${r.position}`);};
+  assert.ok(r.walkTo('beyond'));for(let i=0;i<2000&&r.walking;i++){r.tick(.02);check();}assert.equal(r.at.objectId,'beyond');
+  assert.ok(r.walkTo('start'));for(let i=0;i<2000&&r.walking;i++){r.tick(.02);check();}assert.equal(r.at.objectId,'start');
+  const half=map.objects.find(o=>o.id==='half-a');assert.ok(r.walkTo(half.id,centerIndex(half)));for(let i=0;i<2000&&r.walking;i++)r.tick(.02);near(r.position,worldSamples(map,half,emptyPoses())[centerIndex(half)].point);
+ }
+});
+
+test('repeated retargeting inside a split triangular face preserves its straight occupied segment',()=>{
+ const r=new MapRuntime(splitGarden()),check=()=>near([r.position[1],r.position[2]],r.position[1]>1?[3,3]:[0,0]);
+ r.walkTo('beyond');for(let i=0;i<1000&&r.position[0]<-.35;i++)r.tick(.01);check();
+ for(let i=0;i<5;i++){const before=[...r.position];assert.ok(r.walkTo('start'));near(r.position,before);r.tick(.01);check();assert.ok(r.walkTo('beyond'));r.tick(.01);check();}
+ for(let i=0;i<2000&&r.walking;i++){r.tick(.02);check();}assert.equal(r.at.objectId,'beyond');
 });

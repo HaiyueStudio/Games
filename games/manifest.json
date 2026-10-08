@@ -7,8 +7,8 @@
       "thumbnail": "screenshots/valley-of-light.png",
       "title": "谷外之光 · Beyond the Valley",
       "entry": "valley-of-light/main.ts",
-      "capabilities": ["3d", "orthographic", "optical-illusion", "input", "gui", "gltf", "animation", "game-workflow"],
-      "assets": ["valley-of-light/assets/traveler.gltf", "valley-of-light/maps/switch-garden.json", "valley-of-light/maps/catalog-garden.json", "valley-of-light/maps/catalog.json", "valley-of-light/maps/split-cube.json", "valley-of-light/maps/seaside-garden.json", "valley-of-light/maps/rotated-seam.json", "valley-of-light/maps/six-surfaces.json", "valley-of-light/maps/arc-surfaces.json", "valley-of-light/maps/map.schema.json"],
+      "capabilities": ["3d", "orthographic", "optical-illusion", "worker", "input", "gui", "gltf", "animation", "game-workflow"],
+      "assets": ["valley-of-light/assets/traveler.gltf", "valley-of-light/maps/switch-garden.json", "valley-of-light/maps/catalog-garden.json", "valley-of-light/maps/catalog.json", "valley-of-light/maps/split-cube.json", "valley-of-light/maps/seaside-garden.json", "valley-of-light/maps/rotated-seam.json", "valley-of-light/maps/six-surfaces.json", "valley-of-light/maps/arc-surfaces.json", "valley-of-light/maps/map.schema.json", "valley-of-light/maps/compact-map.schema.json"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"

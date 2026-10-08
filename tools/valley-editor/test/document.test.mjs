@@ -75,7 +75,7 @@ test('corner pillars place individually, follow the host, duplicate and delete a
     const exported=editor.exportJSON();editor.select(['moving-a']);editor.duplicate();
     const copy=editor.map.objects.find(o=>editor.selected.includes(o.id)&&o.type===1);assert.equal(editor.map.objects.filter(o=>o.attachment?.pathId===copy.id).length,2);
     editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);editor.select(['moving-a']);editor.removeSelected();assert.ok(!editor.map.objects.some(o=>[a,b,'moving-a'].includes(o.id)));editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);
-    editor.select(['moving-a']);editor.splitSelected(3);assert.equal(editor.map.objects.find(o=>o.id===a).attachment,null);assert.deepEqual(editor.map.objects.find(o=>o.id===a).position,[-1.5,0,2.5]);editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);
+    editor.select(['moving-a']);editor.splitSelected(3);assert.equal(editor.map.objects.find(o=>o.id===a).attachment,null);assert.deepEqual(editor.map.objects.find(o=>o.id===a).position,[-1.4,0,2.6]);editor.platform.history.undo();assert.equal(editor.exportJSON(),exported);
     const bad=JSON.parse(exported);bad.objects.find(o=>o.id===b).attachment.corner=0;assert.throws(()=>editor.importJSON(JSON.stringify(bad)),/空闲角点/);assert.equal(editor.exportJSON(),exported);
   } finally {await editor.dispose();}
 });
@@ -89,4 +89,31 @@ test('placing a normal path never duplicates a platform anchor or adds an undo e
     assert.throws(()=>editor.add(1,[11,0,10]),/相邻空格/);editor.platform.history.undo();assert.equal(editor.exportJSON(),before);
     editor.add(1,[10,1,10]);editor.add(1,[13,3,13]);
   } finally {await editor.dispose();}
+});
+
+
+test('compact export imports losslessly and remains editable and undoable',async()=>{
+  const author=new ValleyAuthoring();await author.start();
+  try{
+    const original=author.exportJSON(),compact=author.exportJSON(true),payload=JSON.parse(compact);
+    assert.equal(payload.version,2);assert.equal(payload.render.version,1);assert.ok(compact.length<original.length/2);
+    author.select(['moving-a']);author.removeSelected();const changed=author.exportJSON();
+    author.importJSON(compact);assert.equal(author.exportJSON(),original);
+    author.platform.history.undo();assert.equal(author.exportJSON(),changed);
+    author.platform.history.redo();assert.equal(author.exportJSON(),original);
+    author.select(['moving-a']);author.removeSelected();assert.ok(!author.map.objects.some(o=>o.id==='moving-a'));
+  }finally{await author.dispose();}
+});
+
+
+test('spawn platforms support four inset pillars, lossless import, duplication and deletion',async()=>{
+ const editor=new ValleyAuthoring();await editor.start();
+ try{
+  const ids=[0,1,2,3].map(c=>editor.addPillar('start',c));
+  for(const [i,position] of [[.1,0,.1],[-.1,0,.1],[-.1,0,-.1],[.1,0,-.1]].entries())assert.deepEqual(editor.map.objects.find(o=>o.id===ids[i]).position,position);
+  assert.equal(editor.addPillar('start',0),ids[0]);assert.throws(()=>editor.addPillar('switch-lift',0),/普通路径或出生平台/);
+  const full=editor.exportJSON();editor.importJSON(editor.exportJSON(true));assert.equal(editor.exportJSON(),full);
+  editor.select(['start']);editor.duplicate();const copy=editor.map.objects.find(o=>o.type===9&&o.id!=='start');assert.equal(editor.map.objects.filter(o=>o.attachment?.pathId===copy.id).length,4);
+  editor.platform.history.undo();assert.equal(editor.exportJSON(),full);editor.select(['start']);editor.removeSelected();assert.ok(!editor.map.objects.some(o=>ids.includes(o.id)));editor.platform.history.undo();assert.equal(editor.exportJSON(),full);
+ }finally{await editor.dispose();}
 });

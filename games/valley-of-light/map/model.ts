@@ -14,7 +14,7 @@ export const CATALOG = [
   {type:9,name:'出生平台',icon:'♙',color:'#88ac89',description:'旅行者开始的位置'},
   {type:10,name:'出口平台',icon:'▥',color:'#c8b46d',description:'到达这里完成关卡'},
   {type:11,name:'海面',icon:'≈',color:'#78babd',description:'轻微波浪起伏，不可行走'},
-  {type:12,name:'纤细立柱',icon:'Ⅰ',color:'#e0d6bb',description:'逐个附着在普通路径四角'},
+  {type:12,name:'纤细立柱',icon:'Ⅰ',color:'#e0d6bb',description:'逐个附着在路径或出生平台四角'},
 ] as const;
 export interface Motion { axis: Axis; min: number; max: number; step: number; targetGroup: string|null }
 export interface Action { groupId: string; translation: Vec3; rotation: Vec3; duration: number; easing: 'linear'|'smooth' }
@@ -40,9 +40,12 @@ export interface MapObject extends ParentOffset {
 }
 export interface MapGroup extends ParentOffset { id:string; name:string; pivot:Vec3; parentId?:string|null; position?:Vec3; rotation?:Vec3; scale?:Vec3 }
 export interface OpticalLink { a:string; aEnd:PortId; b:string; bEnd:PortId }
+export interface StaticPathPlan {version:1;batches:number[][]}
 export interface ValleyMap {
   format:'haiyue-valley-map'; version:1; catalogVersion:1; id:string; name:string;
   objects:MapObject[]; groups:MapGroup[]; opticalLinks:OpticalLink[];
+  /** Validated load-time hint; authoring serialization deliberately drops it. */
+  renderPlan?:StaticPathPlan;
 }
 export const cloneMap = (map: ValleyMap): ValleyMap => structuredClone(map);
 export function createObject(type:TypeId,id:string,position:Vec3=[0,0,0]): MapObject {
@@ -57,6 +60,7 @@ const vector=(v:unknown):v is Vec3=>Array.isArray(v)&&v.length===3&&v.every(x=>f
 const identifier=(v:unknown):v is string=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,64}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v);
 const label=(v:unknown):v is string=>typeof v==='string'&&v.length>0&&v.length<=100;
 export function parseMap(input:unknown):ValleyMap {
+  if(record(input)&&input.format==='haiyue-valley-map'&&input.version===2)return parseCompactMap(input);
   if (!record(input)||input.format!=='haiyue-valley-map'||input.version!==1||input.catalogVersion!==1) throw new Error('不支持的地图格式或物体目录版本。');
   if(!identifier(input.id)||!label(input.name)||!Array.isArray(input.objects)||input.objects.length>500||!Array.isArray(input.groups)||input.groups.length>100||!Array.isArray(input.opticalLinks)||input.opticalLinks.length>1000) throw new Error('地图名称、ID 或对象数量无效。');
   const ids=new Set<string>(), groups=new Set<string>();
@@ -97,7 +101,7 @@ export function parseMap(input:unknown):ValleyMap {
   for(const o of input.objects)if(o.type===3&&o.motion.targetGroup&&o.groupId&&!inside(o.groupId,o.motion.targetGroup))dependencies.get(o.motion.targetGroup)!.push(o.groupId);
   const visited=new Set<string>();const visit=(id:string,path:Set<string>)=>{if(visited.has(id))return;if(path.has(id))throw new Error('机关组依赖不能循环。');const next=new Set(path);next.add(id);for(const dep of dependencies.get(id)??[])visit(dep,next);visited.add(id);};for(const id of dependencies.keys())visit(id,new Set());
   const occupied=new Set<string>();
-  for(const o of input.objects)if(o.attachment){const a=o.attachment,parent=input.objects.find(p=>p.id===a.pathId),key=`${a.pathId}:${a.corner}`;if(!parent||parent.type!==1||occupied.has(key))throw new Error(`${o.id}: 柱子必须引用普通路径的空闲角点。`);occupied.add(key);}
+  for(const o of input.objects)if(o.attachment){const a=o.attachment,parent=input.objects.find(p=>p.id===a.pathId),key=`${a.pathId}:${a.corner}`;if(!parent||!canAttachPillar(parent.type)||occupied.has(key))throw new Error(`${o.id}: 柱子必须引用普通路径或出生平台的空闲角点。`);occupied.add(key);}
   for(const l of input.opticalLinks) {
     if(!record(l)||!ids.has(l.a as string)||!ids.has(l.b as string)||l.a===l.b||!Number.isInteger(l.aEnd)||!Number.isInteger(l.bEnd)) throw new Error('错觉接缝引用了不存在的物体或端点。');
     for(const [id,port] of [[l.a,l.aEnd],[l.b,l.bEnd]]) {
@@ -126,6 +130,26 @@ export function playIssues(map:ValleyMap):string[] {
 }
 export function serializeMap(map:ValleyMap):string { return JSON.stringify(parseMap(map),null,2)+'\n'; }
 
+/** A controller animates all descendants, including pillars attached to their paths. */
+export function analyzeStaticPaths(map:ValleyMap):StaticPathPlan {
+  const moving=new Set<string>();for(const o of map.objects){if((o.type===3||o.type===4)&&o.motion.targetGroup)moving.add(o.motion.targetGroup);if(o.type===8)for(const a of o.trigger.actions)moving.add(a.groupId);}
+  const dynamic=(o:MapObject):boolean=>{const host=o.attachment?map.objects.find(p=>p.id===o.attachment!.pathId)!:o;return [...moving].some(id=>belongsToGroup(map,host.groupId,id));};
+  const materials=new Map<string,number[]>();map.objects.forEach((o,i)=>{if(![1,2,5,6,7,12].includes(o.type)||dynamic(o))return;const key=o.colors.surface.toLowerCase(),batch=materials.get(key)??[];batch.push(i);materials.set(key,batch);});return {version:1,batches:[...materials.values()]};
+}
+/** Compact v2 stores only deviations from the stable catalog-v1 defaults. No coordinate rounding. */
+export function serializeCompactMap(map:ValleyMap):string {
+  const source=parseMap(map),sparse=(value:Record<string,unknown>,base:Record<string,unknown>):Record<string,unknown>=>Object.fromEntries(Object.entries(value).flatMap(([key,v])=>{if(JSON.stringify(v)===JSON.stringify(base[key]))return [];return [[key,record(v)&&record(base[key])?sparse(v,base[key]):v]];}));
+  return JSON.stringify({format:source.format,version:2,catalogVersion:1,id:source.id,name:source.name,objects:source.objects.map(o=>({id:o.id,type:o.type,...sparse(o as unknown as Record<string,unknown>,createObject(o.type,o.id) as unknown as Record<string,unknown>)})),...(source.groups.length?{groups:source.groups}:{}),...(source.opticalLinks.length?{opticalLinks:source.opticalLinks}:{}),render:analyzeStaticPaths(source)})+'\n';
+}
+function parseCompactMap(input:Record<string,unknown>):ValleyMap {
+  if(input.catalogVersion!==1||!Array.isArray(input.objects)||input.objects.length>500)throw new Error('精简地图目录版本或对象数量无效。');
+  const objects=input.objects.map(value=>{if(!record(value)||!identifier(value.id)||!CATALOG.some(c=>c.type===value.type))throw new Error('精简地图包含无效物体。');const base=createObject(value.type as TypeId,value.id);const o={...base,...value};for(const key of ['colors','motion','trigger','water'] as const){if(value[key]!==undefined&&!record(value[key]))throw new Error('精简地图参数无效。');o[key]={...base[key],...(value[key] as Record<string,unknown>|undefined)} as never;}return o;});
+  const map=parseMap({...input,version:1,objects,groups:input.groups===undefined?[]:input.groups,opticalLinks:input.opticalLinks===undefined?[]:input.opticalLinks}),plan=analyzeStaticPaths(map);
+  // Render hints never authorize freezing an animated object or changing its material.
+  if(input.render!==undefined&&(!record(input.render)||input.render.version!==1||Object.keys(input.render).length!==2||JSON.stringify(input.render.batches)!==JSON.stringify(plan.batches)))throw new Error('精简地图的静态分析与构件不一致，请重新导出或移除 render 后导入。');
+  map.renderPlan=plan;return map;
+}
+
 export const add=(a:Vec3,b:Vec3):Vec3=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 export const sub=(a:Vec3,b:Vec3):Vec3=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 export const mul=(a:Vec3,n:number):Vec3=>[a[0]*n,a[1]*n,a[2]*n];
@@ -151,7 +175,12 @@ export function prismOutline(o:MapObject):Vec3[] {
   return o.prismHalf==='b'?[[-x,0,-z],[x,0,-z],[x,0,z]]:[[-x,0,-z],[x,0,z],[-x,0,z]];
 }
 export const isWalkable=(o:MapObject):boolean=>o.type<=10;
+export const canAttachPillar=(type:TypeId):boolean=>type===1||type===9;
 export function pathCorner(o:MapObject,corner:CornerId):Vec3 {const signs=[[-1,-1],[1,-1],[1,1],[-1,1]][corner]!;return [signs[0]!*o.length/2,0,signs[1]!*o.width/2];}
+/** New corner pillars sit 0.1 cells inside each edge; explicit saved offsets remain unchanged. */
+export function defaultPillarOffset(o:MapObject,corner:CornerId):Vec3 {
+  const p=pathCorner(o,corner);return [-Math.sign(p[0])*Math.min(.1,o.length/2),0,-Math.sign(p[2])*Math.min(.1,o.width/2)];
+}
 export interface SurfacePort {port:PortId;index:number;face:number;cut:boolean}
 export interface WalkSurface {face:number;center:number;indices:number[];corners:Vec3[];up:Vec3}
 const FACE_NAMES=['顶面','底面','X− 面','X+ 面','Z− 面','Z+ 面','斜切面'];
@@ -409,7 +438,16 @@ export function findRoute(map:ValleyMap,poses:MapPoses,from:{objectId:string;ind
   if(end===undefined)return null;
   const path:Waypoint[]=[];let current:string|null=end;
   while(current!==null&&current!==start) {path.unshift(nodes.get(current)!);current=parents.get(current)!;}
-  return path;
+  // A triangular face is convex: pass directly between its entry and exit ports.
+  // Its centroid is a stopping point, not a mandatory bend in a split-cube road.
+  // Keep original port waypoints so optical transfers and mid-edge retargeting stay exact.
+  return path.filter((point,i)=>{
+    const before=i?path[i-1]!:nodes.get(start)!,after=path[i+1];
+    if(!after||before.objectId!==point.objectId||after.objectId!==point.objectId)return true;
+    const object=map.objects.find(o=>o.id===point.objectId)!;if(object.type!==5)return true;
+    const face=walkSurfaces(object).find(f=>f.corners.length===3&&f.center===point.index);
+    return !face||!face.indices.includes(before.index)||!face.indices.includes(after.index);
+  });
 }
 interface Animation {groupId:string;from:GroupPose;to:GroupPose;elapsed:number;duration:number;easing:'linear'|'smooth'}
 export class MapRuntime {
@@ -417,6 +455,8 @@ export class MapRuntime {
   readonly projection:Projection;
   readonly poses=emptyPoses(); readonly fired=new Set<string>(); readonly switches:Record<string,boolean>={};
   private animations:Animation[]=[]; private route:Waypoint[]=[];
+  // Keep both ends of the occupied edge, even after reversing before reaching a waypoint.
+  private segment:{a:Waypoint;b:Waypoint}|null=null;
   at:{objectId:string;index:number}; position:Vec3;up:Vec3=[0,1,0]; direction:Vec3=[1,0,0]; completed=false;
   message='点击道路行走；绕动手轮，拖动平移机关。';
   constructor(map:ValleyMap,projection:Projection=project) {
@@ -427,10 +467,26 @@ export class MapRuntime {
   get walking():boolean {return this.route.length>0;}
   get busy():boolean {return this.animations.length>0;}
   walkTo(id:string,targetIndex?:number):boolean {
-    if(this.walking||this.busy||this.completed) return false;
-    const route=findRoute(this.map,this.poses,this.at,id,targetIndex,this.projection);
+    if(this.busy||this.completed) return false;
+    let route:Waypoint[]|null=null;
+    if(this.segment){
+      // Rejoin the graph through either end of the current edge. Never jump back
+      // to the last visited node or cut directly across a corner/curved surface.
+      const {a,b}=this.segment,first=this.route[0],forward=first?.objectId===a.objectId&&first.index===a.index?a:b;
+      let best=Infinity;
+      for(const endpoint of [forward,forward===a?b:a]){
+        const tail=findRoute(this.map,this.poses,{objectId:endpoint.objectId,index:endpoint.index},id,targetIndex,this.projection);if(!tail)continue;
+        let cost=length(sub(endpoint.point,this.position)),previous=endpoint;
+        for(const next of tail){cost+=this.isOpticalStep(previous.point,previous.objectId,next)?0:length(sub(next.point,previous.point));previous=next;}
+        if(cost<best-1e-8){best=cost;route=[endpoint,...tail];}
+      }
+    }else route=findRoute(this.map,this.poses,this.at,id,targetIndex,this.projection);
     if(!route) {this.message='道路尚未连通。寻找开关，或调整机关。';return false;}
-    this.route=route; this.message='旅行者正在前往新的道路。';return true;
+    this.route=route;this.message='旅行者正在前往新的道路。';return true;
+  }
+  private isOpticalStep(point:Vec3,objectId:string,next:Waypoint):boolean {
+    const a=this.projection(next.point),b=this.projection(point);
+    return next.objectId!==objectId&&length(sub(next.point,point))>.065&&Math.hypot(a[0]-b[0],a[1]-b[1])<.055;
   }
   canDrag(id:string):boolean {
     const o=this.map.objects.find(x=>x.id===id),at=this.map.objects.find(x=>x.id===this.at.objectId);
@@ -461,12 +517,14 @@ export class MapRuntime {
     }
     let budget=dt*2.6;
     while(this.route.length&&budget>0) {
-      const next=this.route[0]!,d=sub(next.point,this.position),distance=length(d),a=this.projection(next.point),b=this.projection(this.position);
-      const optical=Math.hypot(a[0]-b[0],a[1]-b[1])<.055&&next.objectId!==this.at.objectId&&distance>.065;
+      const next=this.route[0]!,d=sub(next.point,this.position),distance=length(d);
+      const optical=this.isOpticalStep(this.position,this.at.objectId,next);
       if(distance<=budget||optical) {
         if(!optical&&distance>.00001)this.direction=unit(d);
-        this.position=[...next.point];this.up=[...next.up];this.at={objectId:next.objectId,index:next.index};this.route.shift();budget-=optical?0:distance;this.enter();
-      } else {this.position=mix(this.position,next.point,budget/distance);this.up=unit(mix(this.up,next.up,budget/distance));this.direction=unit(d);budget=0;}
+        this.position=[...next.point];this.up=[...next.up];this.at={objectId:next.objectId,index:next.index};this.route.shift();this.segment=null;budget-=optical?0:distance;this.enter();
+      } else {
+        if(!this.segment){const o=this.map.objects.find(o=>o.id===this.at.objectId)!,sample=worldSamples(this.map,o,this.poses)[this.at.index]!;this.segment={a:{...sample,...this.at},b:next};}
+        this.position=mix(this.position,next.point,budget/distance);this.up=unit(mix(this.up,next.up,budget/distance));this.direction=unit(d);budget=0;}
     }
   }
 }

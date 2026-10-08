@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Haiyue Valley Compact Map v2",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "catalogVersion",
+    "id",
+    "name",
+    "objects"
+  ],
+  "properties": {
+    "format": {
+      "const": "haiyue-valley-map"
+    },
+    "version": {
+      "const": 2
+    },
+    "catalogVersion": {
+      "const": 1
+    },
+    "id": {
+      "$ref": "map.schema.json#/$defs/id"
+    },
+    "name": {
+      "$ref": "map.schema.json#/$defs/name"
+    },
+    "objects": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "$ref": "#/$defs/object"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "map.schema.json#/$defs/group"
+      }
+    },
+    "opticalLinks": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "$ref": "map.schema.json#/$defs/link"
+      }
+    },
+    "render": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "batches"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "batches": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 500,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 499
+            }
+          },
+          "description": "Same-surface-color static object indices into objects, in encounter order. Full render state may split a batch when compiling."
+        }
+      }
+    }
+  },
+  "description": "Sparse catalog-v1 overrides. Missing object fields use createObject(type,id) defaults; missing groups/opticalLinks are empty. Runtime validation checks references and the static plan.",
+  "$defs": {
+    "object": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "map.schema.json#/$defs/id"
+        },
+        "type": {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        "name": {
+          "$ref": "map.schema.json#/$defs/name"
+        },
+        "position": {
+          "$ref": "map.schema.json#/$defs/vector"
+        },
+        "rotation": {
+          "$ref": "map.schema.json#/$defs/vector"
+        },
+        "groupId": {
+          "$ref": "map.schema.json#/$defs/groupRef"
+        },
+        "basis": {
+          "$ref": "map.schema.json#/$defs/basis"
+        },
+        "order": {
+          "$ref": "map.schema.json#/$defs/order"
+        },
+        "length": {
+          "$ref": "map.schema.json#/$defs/size"
+        },
+        "width": {
+          "$ref": "map.schema.json#/$defs/size"
+        },
+        "thickness": {
+          "$ref": "map.schema.json#/$defs/size"
+        },
+        "radius": {
+          "$ref": "map.schema.json#/$defs/size"
+        },
+        "rise": {
+          "type": "number",
+          "minimum": -30,
+          "maximum": 30
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "arc": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 330
+        },
+        "twist": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "arcTwist": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "default": 0,
+          "description": "Type 7 bank angle along the arc; zero preserves a flat arc."
+        },
+        "prismHalf": {
+          "enum": [
+            "a",
+            "b"
+          ],
+          "default": "a",
+          "description": "Complementary triangular half of the unit cube, split vertically on x/length = z/width."
+        },
+        "colors": {
+          "$ref": "#/$defs/colors"
+        },
+        "motion": {
+          "$ref": "#/$defs/motion"
+        },
+        "trigger": {
+          "$ref": "#/$defs/trigger"
+        },
+        "water": {
+          "$ref": "#/$defs/water"
+        },
+        "attachment": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "map.schema.json#/$defs/attachment"
+            }
+          ]
+        }
+      }
+    },
+    "colors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "surface": {
+          "$ref": "map.schema.json#/$defs/color"
+        },
+        "hub": {
+          "$ref": "map.schema.json#/$defs/color"
+        },
+        "spokes": {
+          "$ref": "map.schema.json#/$defs/color"
+        },
+        "tips": {
+          "$ref": "map.schema.json#/$defs/color"
+        },
+        "base": {
+          "$ref": "map.schema.json#/$defs/color"
+        }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "axis": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        "min": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "Translation lower limit for type 4; ignored by continuously rotating type 3 wheels."
+        },
+        "max": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "Translation upper limit for type 4; ignored by continuously rotating type 3 wheels."
+        },
+        "step": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 360
+        },
+        "targetGroup": {
+          "$ref": "map.schema.json#/$defs/groupRef"
+        }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "mode": {
+          "enum": [
+            "once",
+            "toggle"
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "map.schema.json#/$defs/action"
+          }
+        }
+      }
+    },
+    "water": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "amplitude": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.4
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "wavelength": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
+    }
+  }
+}

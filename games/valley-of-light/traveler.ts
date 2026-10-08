@@ -1,0 +1,1 @@
+export const TRAVELER_SIZE_MULTIPLIER = 1.2;
