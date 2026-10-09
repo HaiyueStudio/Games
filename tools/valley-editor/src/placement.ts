@@ -1,7 +1,8 @@
-import { add, createObject, emptyPoses, extrusionSamples, isWalkable, length, localSamples, mul, objectSample, pathPorts, rotate, snapPosition, sub, unit, walkSurfaces, worldSample, worldSamples, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { add, createObject, emptyPoses, extrusionSamples, isBuiltDecoration, isWalkable, length, localSamples, mul, objectSample, pathPorts, rotate, snapPosition, sub, unit, walkSurfaces, worldSample, worldSamples, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 type Point=[number,number];
-interface Anchor {id:string;point:Vec3;out:Vec3}
+interface Anchor {id:string;point:Vec3;out:Vec3;up:Vec3}
+interface CurveEnd {anchor:Anchor;center:Vec3;normal:Vec3;tolerance:number}
 interface Face {point:Vec3;normal:Vec3;corners:Vec3[];top:boolean;x:Vec3;y:Vec3}
 export interface Placement {position:Vec3;rotation:Vec3;sourceId:string|null;mode:'edge'|'surface'|'layer';height:number;blocked:boolean}
 interface PlacementFrame {ground:(height:number)=>Vec3;screen:(point:Vec3)=>Point;hit:{id:string;point:Vec3;normal:Vec3}|null;height:number;step:number;heldHeight?:number|undefined}
@@ -13,6 +14,9 @@ const tangent=(v:Vec3,n:Vec3):Vec3=>unit(sub(v,mul(n,dot(v,n))));
 /** Match the actual face orientation, including rotated parent groups. */
 function faceRotation(face:Face):Vec3 {
   const n=face.normal,y=face.top?mul(n,dot(n,face.y)<0?-1:1):tangent(face.y,n),x=face.top?tangent(face.x,y):n,z=unit(cross(x,y));
+  return basisRotation(x,y,z);
+}
+function basisRotation(x:Vec3,y:Vec3,z:Vec3):Vec3 {
   const pitch=Math.asin(Math.max(-1,Math.min(1,-z[1]))),locked=Math.abs(Math.cos(pitch))<1e-7;
   return clean([pitch,locked?Math.atan2(-x[2],x[0]):Math.atan2(z[0],z[2]),locked?0:Math.atan2(x[1],y[1])].map(v=>v*180/Math.PI) as Vec3);
 }
@@ -25,17 +29,22 @@ function bodyPoints(o:MapObject):Vec3[] {
   return samples.flatMap((s,i)=>{const forward=unit(sub(spine[Math.min(spine.length-1,i+1)]!.point,spine[Math.max(0,i-1)]!.point)),right=unit(cross(forward,s.up));return [-1,1].flatMap(sign=>[0,-o.thickness].map(y=>add(s.point,add(mul(right,sign*o.width/2),mul(s.up,y)))));});
 }
 function atEdge(type:TypeId,edge:Anchor):Placement {
-  const prototype=createObject(type,'preview'),samples=localSamples(prototype),entry=samples[pathPorts(prototype)[0]!.index]!,forward=type===7?sub(samples[1]!.point,entry.point):[1,0,0] as Vec3;
-  const yaw=(Math.atan2(forward[2],forward[0])-Math.atan2(edge.out[2],edge.out[0]))*180/Math.PI,rotation=clean([0,((yaw+540)%360)-180,0]);
-  return {position:clean(sub(edge.point,rotate(entry.point,rotation))),rotation,sourceId:edge.id,mode:'edge',height:edge.point[1],blocked:false};
+  const prototype=createObject(type,'preview'),samples=localSamples(prototype),entry=samples[pathPorts(prototype)[0]!.index]!;
+  const angle=-prototype.arc*Math.PI/360,forward:Vec3=type===7?[Math.cos(angle),0,Math.sin(angle)]:[1,0,0],side=cross(forward,entry.up);
+  const out=unit(edge.out),up=tangent(edge.up,out),right=unit(cross(out,up));
+  const orient=(v:Vec3)=>add(add(mul(out,dot(v,forward)),mul(up,dot(v,entry.up))),mul(right,dot(v,side)));
+  const rotation=basisRotation(orient([1,0,0]),orient([0,1,0]),orient([0,0,1]));prototype.rotation=rotation;
+  const offset=objectSample(prototype,entry,emptyPoses()).point;
+  const position=clean(sub(edge.point,offset));
+  return {position,rotation,sourceId:edge.id,mode:'edge',height:position[1],blocked:false};
 }
 
 /** Place against the picked physical face; use nearby road edges only in empty space. */
 export class PathPlacement {
-  private cachedMap:ValleyMap|null=null;private edges:Anchor[]=[];private faces=new Map<string,Face[]>();
+  private cachedMap:ValleyMap|null=null;private edges:Anchor[]=[];private ends:CurveEnd[]=[];private faces=new Map<string,Face[]>();
   constructor(private readonly getMap:()=>ValleyMap){}
   private refresh():void {
-    const map=this.getMap();if(map===this.cachedMap)return;this.cachedMap=map;this.edges=[];this.faces.clear();
+    const map=this.getMap();if(map===this.cachedMap)return;this.cachedMap=map;this.edges=[];this.ends=[];this.faces.clear();
     const poses=emptyPoses();
     for(const o of map.objects.filter(isWalkable)){
       const samples=worldSamples(map,o,poses),faces=walkSurfaces(o),world=(point:Vec3)=>worldSample(map,o,{point,up:[0,1,0],roll:0},poses).point,origin=world([0,0,0]),x=unit(sub(world([1,0,0]),origin)),y=unit(sub(world([0,1,0]),origin));
@@ -48,14 +57,26 @@ export class PathPlacement {
           for(let i=0;i<corners.length;i++){
             const a=corners[i]!,b=corners[(i+1)%corners.length]!;if(length(sub(mul(add(a,b),.5),point))>1e-6)continue;
             const edge=sub(b,a);let out=unit([edge[2],0,-edge[0]]);if(dot(out,sub(point,center))<0)out=mul(out,-1);
-            this.edges.push({id:o.id,point,out});break;
+            this.edges.push({id:o.id,point,out,up:samples[face.center]!.up});break;
           }
         }
       }
       if(!faces.length)for(const port of pathPorts(o)){
-        const s=samples[port.index]!;if(s.up[1]<.999)continue;
-        const inner=samples[port.index===0?Math.min(2,samples.length-1):Math.max(0,port.index-2)]!,delta=sub(s.point,inner.point),out=unit([delta[0],0,delta[2]]);
-        if(length(out)>.9)this.edges.push({id:o.id,point:s.point,out});
+        const s=samples[port.index]!,first=port.index===0;
+        if(o.type===6||o.type===7){
+          // A rolled walking surface is a helix, not the direction of the cap.
+          // Use the actual extrusion tangent and the authored end surface frame.
+          const local=localSamples(o)[port.index]!,angle=(first?-.5:.5)*o.arc*Math.PI/180;
+          const forward:Vec3=o.type===6?[1,0,0]:[Math.cos(angle),0,Math.sin(angle)],outLocal=mul(forward,first?-1:1);
+          const centerLocal=sub(local.point,mul(local.up,o.thickness/2)),center=world(centerLocal),out=unit(sub(world(add(centerLocal,outLocal)),center));
+          const normal=worldSample(map,o,{point:centerLocal,up:outLocal,roll:0},poses).up;
+          const anchor={id:o.id,point:s.point,out,up:s.up};
+          this.ends.push({anchor,center,normal,tolerance:Math.max(1e-5,Math.abs(dot(sub(world(add(centerLocal,mul(outLocal,.02))),center),normal)))});
+          if(s.up[1]>.999)this.edges.push(anchor);
+        }else if(s.up[1]>.999){
+          const inner=samples[first?Math.min(2,samples.length-1):Math.max(0,port.index-2)]!,delta=sub(s.point,inner.point),out=unit([delta[0],0,delta[2]]);
+          if(length(out)>.9)this.edges.push({id:o.id,point:s.point,out,up:s.up});
+        }
       }
     }
   }
@@ -79,6 +100,10 @@ export class PathPlacement {
     this.refresh();let best:Anchor|undefined,score=Infinity;
     const hit=type<=10||type>=13?frame.hit:null;
     if(hit){
+      if(type<=10){
+        const end=this.ends.filter(e=>e.anchor.id===hit.id&&Math.abs(dot(hit.normal,e.normal))>.98&&Math.abs(dot(sub(hit.point,e.center),e.normal))<e.tolerance).sort((a,b)=>length(sub(hit.point,a.center))-length(sub(hit.point,b.center)))[0];
+        if(end)return atEdge(type,end.anchor);
+      }
       const faces=this.faces.get(hit.id)??[];
       // Distance identifies the physical face even for two-sided prism caps whose winding differs.
       const face=faces.reduce<Face|undefined>((best,f)=>{
@@ -96,7 +121,7 @@ export class PathPlacement {
           const position=clean(add(sub(top,mul(up,createObject(17,'preview').rise)),mul(out,.02)));
           return {position,rotation,sourceId:hit.id,mode:'surface',height:position[1],blocked:false};
         }
-        if(type>=13&&type<=16){
+        if(isBuiltDecoration(type)){
           const rotation=faceRotation({...face,top:true,x:Math.abs(dot(face.x,face.normal))>.99?face.y:face.x,y:face.normal}),axes:Vec3[]=[rotate([1,0,0],rotation),rotate([0,0,1],rotation)];let position=[...face.point] as Vec3;
           for(const axis of axes){const values=face.corners.map(p=>dot(sub(p,face.point),axis)),amount=Math.round(dot(sub(hit.point,face.point),axis)/frame.step)*frame.step;position=add(position,mul(axis,Math.max(Math.min(...values),Math.min(Math.max(...values),amount))));}
           return {position:clean(position),rotation,sourceId:hit.id,mode:'surface',height:position[1],blocked:false};

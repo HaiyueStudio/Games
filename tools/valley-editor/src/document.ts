@@ -3,7 +3,7 @@ import { PathPlacement } from './placement';
 import { EditorPlatform } from '@haiyue/editor-platform';
 import { BrowserEditorShell } from '@haiyue/editor-shell';
 import { defineEditorPlugin, defineEditorProduct, type EditorDocumentAdapter, type EditorDisposable } from '@haiyue/editor-plugin-sdk';
-import { canAttachPillar, cloneMap, createObject, defaultPillarOffset, groupMatrix, inverseMatrix, matrixPoint, parseMap, serializeMap, serializeCompactMap, snapPosition, splitCube, switchGarden, type MapGroup, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { canAttachPillar, setPathMarker, type PathMarkerKind, cloneMap, createObject, defaultPillarOffset, groupMatrix, inverseMatrix, matrixPoint, parseMap, serializeMap, serializeCompactMap, snapPosition, splitCube, switchGarden, type MapGroup, type MapObject, type CornerId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 export class ValleyDocument implements EditorDocumentAdapter<ValleyMap> {
   map:ValleyMap;revision=0;savedRevision=0;private listeners=new Set<()=>void>();private savedText:string;
@@ -52,6 +52,7 @@ export class ValleyAuthoring {
     return type===1?this.map.objects.find(o=>[1,3,4,8,9,10].includes(o.type)&&nodeOrigin(this.map,o).every((v,i)=>Math.abs(v-position[i]!)<1e-6)):undefined;
   }
   add(type:TypeId,position:Vec3,rotation:Vec3=[0,0,0]):string{const occupied=this.placementObstacle(type,position);if(occupied)throw new Error(`此处已有${occupied.name}，请放在相邻空格。`);const o=createObject(type,uniqueId(this.map),position);o.rotation=[...rotation];const parent=this.insertionParent;this.change(`放置 ${o.name}`,map=>{map.objects.push(o);reparentNode(map,o.id,parent);},[o.id]);return o.id;}
+  setMarker(pathId:string,kind:PathMarkerKind|null,face=0):void{this.change(kind===null?'移除路径记号':kind==='spawn'?'设置出生记号':'设置出口记号',map=>setPathMarker(map,pathId,kind,face),[pathId]);}
   removeSelected():void{if(!this.selected.length)return;this.change('删除节点',map=>removeNodes(map,this.selected),[]);}
   addPillar(pathId:string,corner:CornerId):string {
     const existing=this.map.objects.find(o=>o.attachment?.pathId===pathId&&o.attachment.corner===corner);if(existing){this.select([existing.id]);return existing.id;}

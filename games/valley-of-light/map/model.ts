@@ -1,5 +1,5 @@
 export type Vec3 = [number,number,number];
-export type TypeId = 1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17;
+export type TypeId = 1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19;
 export type Axis = 'x'|'y'|'z';
 export type PortId = number;
 export const CATALOG = [
@@ -11,8 +11,8 @@ export const CATALOG = [
   {type:6,name:'扭转路径',icon:'∿',color:'#b4a5be',description:'截面连续扭转的缎带道路'},
   {type:7,name:'圆弧路径',icon:'◔',color:'#87a7b5',description:'指定半径与角度的弧形道路'},
   {type:8,name:'踩踏开关',icon:'⊙',color:'#cf8f73',description:'踏上按钮，触发物体组动画'},
-  {type:9,name:'出生平台',icon:'♙',color:'#88ac89',description:'旅行者开始的位置'},
-  {type:10,name:'出口平台',icon:'▥',color:'#c8b46d',description:'到达这里完成关卡'},
+  {type:9,name:'出生记号',icon:'♙',color:'#88ac89',description:'点击已有路径表面设置出生位置'},
+  {type:10,name:'出口记号',icon:'◎',color:'#c8b46d',description:'点击已有路径表面设置通关位置'},
   {type:11,name:'海面',icon:'≈',color:'#78babd',description:'低多边形切面，轻微波浪起伏'},
   {type:12,name:'纤细立柱',icon:'Ⅰ',color:'#e0d6bb',description:'逐个附着在路径或出生平台四角'},
   {type:13,name:'金顶旗亭',icon:'♜',color:'#f0dfac',description:'层叠金顶、细柱与飘带旗帜'},
@@ -20,6 +20,8 @@ export const CATALOG = [
   {type:15,name:'城垛尖塔',icon:'♖',color:'#c8c3df',description:'方形塔身、城垛与四棱尖顶'},
   {type:16,name:'小花簇',icon:'✿',color:'#fff8df',description:'低矮花簇，花瓣与花心可调色'},
   {type:17,name:'梯子路径',icon:'☷',color:'#516c65',description:'贴墙连接高低道路，可上下攀爬'},
+  {type:18,name:'拱门',icon:'∩',color:'#ded1b4',description:'有真实门洞的低多边形圆拱门'},
+  {type:19,name:'方门',icon:'Π',color:'#d4c5ae',description:'方柱与门楣，可独立配色的装饰门'},
 ] as const;
 export interface Motion { axis: Axis; min: number; max: number; step: number; targetGroup: string|null }
 export interface Action { groupId: string; translation: Vec3; rotation: Vec3; duration: number; easing: 'linear'|'smooth' }
@@ -35,6 +37,8 @@ const DECORATION_COLORS:Partial<Record<TypeId,Partial<ObjectColors>>>={
   15:{hub:'#cc97ad',spokes:'#fff1d8',base:'#9d96b8'},
   16:{hub:'#edc75c',spokes:'#7c9c53',base:'#91b16a'},
   17:{hub:'#a4b294'},
+  18:{hub:'#caaa78',base:'#a3947e'},
+  19:{hub:'#c5a969',base:'#9c907e'},
 };
 export const decorationColorFields:Partial<Record<TypeId,Array<[keyof ObjectColors,string]>>>={
   13:[['surface','亭柱'],['hub','金顶'],['spokes','旗帜'],['tips','顶饰'],['base','檐边与柱脚']],
@@ -42,8 +46,14 @@ export const decorationColorFields:Partial<Record<TypeId,Array<[keyof ObjectColo
   15:[['surface','塔身'],['hub','尖顶'],['spokes','城垛'],['base','腰线与底座']],
   16:[['surface','花瓣'],['hub','花心'],['spokes','花茎'],['base','叶片']],
   17:[['surface','梯框'],['hub','横档']],
+  18:[['surface','门柱与拱圈'],['hub','拱顶石'],['base','柱脚']],
+  19:[['surface','门柱'],['hub','门楣'],['base','柱脚与柱头']],
 };
-export const isDecoration=(type:TypeId):boolean=>type>=11&&type<=16;
+export const isDecoration=(type:TypeId):boolean=>type>=11&&type!==17;
+export const isBuiltDecoration=(type:TypeId):boolean=>type>=13&&type!==17;
+export const MAX_TWIST=36000;
+export type PathMarkerKind='spawn'|'exit';
+export interface PathMarker {kind:PathMarkerKind;face:number}
 export function defaultColors(type:TypeId):ObjectColors {return {...WHEEL_PALETTES[0]!.colors,surface:type===3?WHEEL_PALETTES[0]!.colors.surface:CATALOG.find(c=>c.type===type)!.color,...DECORATION_COLORS[type]};}
 export type CornerId=0|1|2|3;
 export interface PillarAttachment { pathId:string; corner:CornerId }
@@ -55,6 +65,8 @@ export interface MapObject extends ParentOffset {
   id: string; type: TypeId; name: string; position: Vec3; rotation: Vec3; groupId: string|null;
   length: number; width: number; thickness: number; rise: number; steps: number; radius: number; arc: number; twist: number;
   prismHalf:'a'|'b'; arcTwist:number;
+  /** Surface annotation, independent of road geometry. IDs 9/10 remain legacy aliases. */
+  marker?:PathMarker;
   colors:ObjectColors; water:WaterSettings; attachment:PillarAttachment|null;
   motion: Motion; trigger: {mode:'once'|'toggle';actions:Action[]};
 }
@@ -69,8 +81,8 @@ export interface ValleyMap {
 }
 export const cloneMap = (map: ValleyMap): ValleyMap => structuredClone(map);
 export function createObject(type:TypeId,id:string,position:Vec3=[0,0,0]): MapObject {
-  return {id,type,name:CATALOG.find(x=>x.type===type)!.name,position:[...position],rotation:[0,0,0],groupId:null,
-    length:type===11?16:type===12?.12:1,width:type===11?16:type===12?.12:type===17?.65:1,thickness:1,rise:type===17?2:type===12?1.8:type===13?2.8:type===15?3:type===16?.25:1,steps:type===17?8:6,radius:2,arc:90,twist:90,arcTwist:0,prismHalf:'a',colors:defaultColors(type),water:defaultWater(),attachment:null,
+  return {id,type,name:type===9?'出生平台':type===10?'出口平台':CATALOG.find(x=>x.type===type)!.name,position:[...position],rotation:[0,0,0],groupId:null,
+    length:type===11?16:type===12?.12:1,width:type===11?16:type===12?.12:type===17?.65:type>=18?.25:1,thickness:1,rise:type===17?2:type===12?1.8:type===13?2.8:type===15?3:type===16?.25:type>=18?1.7:1,steps:type===17?8:6,radius:2,arc:90,twist:90,arcTwist:0,prismHalf:'a',colors:defaultColors(type),water:defaultWater(),attachment:null,
     motion:{axis:type===4?'x':type===3?'z':'y',min:type===4?-3:-180,max:type===4?3:180,step:type===4?.5:90,targetGroup:null},trigger:{mode:'once',actions:[]}};
 }
 export function emptyMap():ValleyMap { return {format:'haiyue-valley-map',version:1,catalogVersion:1,id:'untitled',name:'未命名山谷',objects:[],groups:[],opticalLinks:[]}; }
@@ -102,7 +114,8 @@ export function parseMap(input:unknown):ValleyMap {
     if(o.prismHalf!==undefined&&!['a','b'].includes(o.prismHalf as string)) throw new Error(`${o.id}: 三棱柱必须选择 A 或 B 半块。`);
     if(o.colors!==undefined&&(!record(o.colors)||Object.values(defaultColors(o.type as TypeId)).length!==Object.keys(o.colors).length||!Object.keys(defaultColors(o.type as TypeId)).every(k=>typeof (o.colors as Record<string,unknown>)[k]==='string'&&/^#[0-9a-f]{6}$/i.test((o.colors as Record<string,string>)[k]!))))throw new Error(`${o.id}: 配色必须包含五个 #RRGGBB 颜色。`);
     for(const key of ['length','width','thickness','radius']) if(!finite(o[key],.1,50)) throw new Error(`${o.id}: ${key} 必须介于 0.1 和 50。`);
-    if(!finite(o.rise,-30,30)||!finite(o.steps,1,64)||!Number.isInteger(o.steps)||!finite(o.arc,5,330)||!finite(o.twist,-360,360)) throw new Error(`${o.id}: 路径参数无效。`);
+    if(!finite(o.rise,-30,30)||!finite(o.steps,1,64)||!Number.isInteger(o.steps)||!finite(o.arc,5,330)||!finite(o.twist,-MAX_TWIST,MAX_TWIST)) throw new Error(`${o.id}: 路径参数无效。`);
+    const marker=o.marker;if(marker!==undefined&&(!record(marker)||!['spawn','exit'].includes(marker.kind as string)||!canMarkPath(o as unknown as MapObject)||!walkSurfaces(o as unknown as MapObject).some(f=>f.face===marker.face)))throw new Error(`${o.id}: 路径记号或所在表面无效。`);
     if(o.water!==undefined&&(!record(o.water)||!finite(o.water.amplitude,0,.4)||!finite(o.water.speed,0,3)||!finite(o.water.wavelength,1,20)))throw new Error(`${o.id}: 海面起伏参数无效。`);
     if(record(o.water)){
       if((o.water.facetSize!==undefined&&!finite(o.water.facetSize,.2,4))||(o.water.contrast!==undefined&&!finite(o.water.contrast,0,1)))throw new Error(`${o.id}: 海面切面大小必须介于 0.2 和 4，色差强度介于 0 和 1。`);
@@ -138,14 +151,15 @@ export function parseMap(input:unknown):ValleyMap {
     groups:input.groups.map(g=>({id:g.id,name:g.name,pivot:[...g.pivot] as Vec3,...(g.parentId!==undefined?{parentId:g.parentId}:{}),...(g.position?{position:[...g.position]}:{}),...(g.rotation?{rotation:[...g.rotation]}:{}),...(g.scale?{scale:[...g.scale]}:{}),...(g.basis?{basis:[...g.basis]}:{}),...(g.order!==undefined?{order:g.order}:{})})),
     opticalLinks:input.opticalLinks.map(l=>({a:l.a,aEnd:l.aEnd,b:l.b,bEnd:l.bEnd})),
     objects:input.objects.map(o=>({id:o.id,type:o.type,name:o.name,position:[...o.position] as Vec3,rotation:[...o.rotation] as Vec3,groupId:o.groupId,...(o.basis?{basis:[...o.basis]}:{}),...(o.order!==undefined?{order:o.order}:{}),
+      ...(o.marker?{marker:{kind:o.marker.kind,face:o.marker.face}}:{}),
       length:o.length,width:o.width,thickness:o.thickness,rise:o.rise,steps:o.steps,radius:o.radius,arc:o.arc,twist:o.twist,arcTwist:o.arcTwist??0,prismHalf:o.prismHalf??'a',colors:o.colors?{...o.colors}:defaultColors(o.type),water:o.water?{...o.water}:defaultWater(),attachment:o.attachment?{pathId:o.attachment.pathId,corner:o.attachment.corner}:null,
       motion:{axis:o.motion.axis,min:o.motion.min,max:o.motion.max,step:o.motion.step,targetGroup:o.motion.targetGroup},
       trigger:{mode:o.trigger.mode,actions:o.trigger.actions.map((a:Action)=>({groupId:a.groupId,translation:[...a.translation] as Vec3,rotation:[...a.rotation] as Vec3,duration:a.duration,easing:a.easing}))}}))} as ValleyMap;
 }
 export function playIssues(map:ValleyMap):string[] {
   const issues:string[]=[];
-  if(map.objects.filter(o=>o.type===9).length!==1) issues.push('试玩需要恰好一个出生平台（9）。');
-  if(!map.objects.some(o=>o.type===10)) issues.push('试玩需要至少一个出口平台（10）。');
+  if(map.objects.filter(o=>pathMarker(o)?.kind==='spawn').length!==1) issues.push('试玩需要恰好一个出生记号。');
+  if(!map.objects.some(o=>pathMarker(o)?.kind==='exit')) issues.push('试玩需要至少一个出口记号。');
   for(const o of map.objects.filter(o=>o.type===8)) {
     if(!o.trigger.actions.length) issues.push(`开关「${o.name}」尚未配置动作。`);
     for(const a of o.trigger.actions) if(!map.objects.some(x=>belongsToGroup(map,x.groupId,a.groupId))) issues.push(`开关目标组 ${a.groupId} 没有成员。`);
@@ -207,7 +221,7 @@ export function defaultPillarOffset(o:MapObject,corner:CornerId):Vec3 {
 }
 export interface SurfacePort {port:PortId;index:number;face:number;cut:boolean}
 export interface WalkSurface {face:number;center:number;indices:number[];corners:Vec3[];up:Vec3}
-const FACE_NAMES=['顶面','底面','X− 面','X+ 面','Z− 面','Z+ 面','斜切面'];
+export const FACE_NAMES=['顶面','底面','X− 面','X+ 面','Z− 面','Z+ 面','斜切面'];
 /** Each solid face is a separate route: changing gravity requires a connecting path. */
 function solidTopology(o:MapObject):{samples:Sample[];ports:SurfacePort[];surfaces:WalkSurface[]} {
   const x=o.length/2,z=o.width/2,h=o.thickness,triangle=o.type===5;
@@ -231,6 +245,37 @@ function solidTopology(o:MapObject):{samples:Sample[];ports:SurfacePort[];surfac
   return {samples,ports,surfaces};
 }
 export function walkSurfaces(o:MapObject):WalkSurface[] {return isWalkable(o)&&isFlat(o)?solidTopology(o).surfaces:[];}
+/** Legacy platforms keep their original body/transform but behave as marked roads. */
+export function pathMarker(o:MapObject):PathMarker|null {return o.marker??(o.type===9?{kind:'spawn',face:0}:o.type===10?{kind:'exit',face:0}:null);}
+export const canMarkPath=(o:MapObject):boolean=>isWalkable(o)&&isFlat(o);
+export function markerIndex(o:MapObject):number {const marker=pathMarker(o);return walkSurfaces(o).find(f=>f.face===(marker?.face??0))?.center??centerIndex(o);}
+export function clearPathMarker(o:MapObject):void {
+  if(o.type===9||o.type===10){o.type=1;if(['出生平台','出口平台','出生记号','出口记号'].includes(o.name))o.name='普通路径';}
+  delete o.marker;
+}
+/** Moving the spawn is one edit; all geometry, colors, IDs and attached columns stay intact. */
+export function setPathMarker(map:ValleyMap,id:string,kind:PathMarkerKind|null,face=0):void {
+  const o=map.objects.find(o=>o.id===id);
+  if(!o||!canMarkPath(o)||!walkSurfaces(o).some(f=>f.face===face))throw new Error('请把记号放在已有普通路径的表面上。');
+  if(kind==='spawn')for(const other of map.objects)if(other!==o&&pathMarker(other)?.kind==='spawn')clearPathMarker(other);
+  clearPathMarker(o);if(kind)o.marker={kind,face};
+}
+/** Unit cells run from the negative-X end; a final partial cell keeps its own center. */
+function twistCellParameters(o:MapObject):number[] {
+  return Array.from({length:Math.ceil(o.length)},(_,i)=>(i+Math.min(i+1,o.length))/(2*o.length));
+}
+function curveParameters(o:MapObject):number[] {
+  const count=o.type===6?2*Math.ceil(Math.max(32,Math.abs(o.twist)/7.5)/2):32;
+  const parameters=Array.from({length:count+1},(_,i)=>i/count);
+  if(o.type===6)parameters.push(...twistCellParameters(o));
+  return parameters.sort((a,b)=>a-b).filter((t,i,all)=>i===0||t-all[i-1]!>1e-9);
+}
+/** Navigation and extrusion share the exact cell centers as well as the smooth curve samples. */
+export function twistStopIndices(o:MapObject):number[] {
+  if(o.type!==6)return [];
+  const parameters=curveParameters(o);
+  return twistCellParameters(o).map(t=>parameters.findIndex(p=>Math.abs(p-t)<1e-9));
+}
 export function localSamples(o:MapObject):Sample[] {
   if(!isWalkable(o))return [surfaceSample([0,0,0])];
   if(isFlat(o))return solidTopology(o).samples;
@@ -243,15 +288,14 @@ export function localSamples(o:MapObject):Sample[] {
     }
     return result;
   }
-  const count=o.type===6||o.type===7?32:2;
-  return Array.from({length:count+1},(_,i)=>{
-    const t=i/count, angle=(t-.5)*o.arc*RAD, roll=t*(o.type===6?o.twist:o.arcTwist)*RAD;
+  return curveParameters(o).map(t=>{
+    const angle=(t-.5)*o.arc*RAD, roll=t*(o.type===6?o.twist:o.arcTwist)*RAD;
     return {point:o.type===7?[o.radius*Math.sin(angle),0,o.radius*(1-Math.cos(angle))]:[(t-.5)*o.length,(Math.cos(roll)-1)*o.thickness/2,Math.sin(roll)*o.thickness/2],up:o.type===7?[-Math.sin(angle)*Math.sin(roll),Math.cos(roll),Math.cos(angle)*Math.sin(roll)]:[0,Math.cos(roll),Math.sin(roll)],roll};
   });
 }
 /** Twists rotate the whole cross-section about the straight solid centerline. */
 export function extrusionSamples(o:MapObject):Sample[] {return localSamples(o).map(s=>o.type===6?{...s,point:sub(s.point,mul(s.up,o.thickness/2))}:s);}
-export const centerIndex=(o:MapObject):number=>!isWalkable(o)?0:isFlat(o)?1:Math.floor(localSamples(o).length/2);
+export const centerIndex=(o:MapObject):number=>!isWalkable(o)?0:isFlat(o)?1:o.type===6?curveParameters(o).findIndex(t=>Math.abs(t-.5)<1e-9):Math.floor(localSamples(o).length/2);
 export function pathEdges(o:MapObject):Array<[number,number]> {
   if(!isWalkable(o))return [];
   if(isFlat(o))return walkSurfaces(o).flatMap(f=>f.indices.map(i=>[f.center,i] as [number,number]));
@@ -266,7 +310,14 @@ export const PORT_NAMES:Record<PortId,string>={0:'顶面 X− / 起点',1:'顶�
 for(let face=1;face<=6;face++)for(let edge=0;edge<=4;edge++)PORT_NAMES[face*10+edge]=`${FACE_NAMES[face]} · ${face===1?['X−','X+','Z−','Z+','对角边'][edge]:`边 ${edge+1}`}`;
 /** Resolve a mesh hit to the independently walkable face underneath it. */
 export function surfaceIndexAt(map:ValleyMap,o:MapObject,poses:MapPoses,point:Vec3):number {
-  const surfaces=walkSurfaces(o);if(o.type===17){const samples=worldSamples(map,o,poses);return samples.reduce((best,s,i)=>length(sub(s.point,point))<length(sub(samples[best]!.point,point))?i:best,1);}if(!surfaces.length||[8,9,10].includes(o.type))return centerIndex(o);
+  if(o.type===6){
+    // Undo the complete authored/animated affine frame, so width, banking and scaled
+    // parent groups cannot push a click into a neighboring longitudinal cell.
+    const frame=pointMatrix(p=>worldSample(map,o,surfaceSample(p),poses).point);
+    const x=matrixPoint(inverseMatrix(frame),point)[0]+o.length/2,stops=twistStopIndices(o);
+    return stops[Math.max(0,Math.min(stops.length-1,Math.floor(x+1e-7)))]!;
+  }
+  const surfaces=walkSurfaces(o);if(o.type===17){const samples=worldSamples(map,o,poses);return samples.reduce((best,s,i)=>length(sub(s.point,point))<length(sub(samples[best]!.point,point))?i:best,1);}if(!surfaces.length||o.type===8)return centerIndex(o);
   const samples=worldSamples(map,o,poses);let score=Infinity,index=centerIndex(o);
   for(const f of surfaces){const s=samples[f.center]!,d=sub(point,s.point),distance=Math.abs(d.reduce((n,v,i)=>n+v*s.up[i]!,0))+.001*length(d);if(distance<score){score=distance;index=f.center;}}
   return index;
@@ -284,6 +335,8 @@ export function splitCube(map:ValleyMap,id:string,newId:string,depth=3):void {
   cube.type=5;cube.prismHalf='a';cube.name+=' · A 半块';
   const onB=(port:number)=>[1,2,11,12].includes(port)||[3,4].includes(Math.floor(port/10));
   for(const link of map.opticalLinks){if(link.a===id&&onB(link.aEnd))link.a=newId;if(link.b===id&&onB(link.bEnd))link.b=newId;}
+  // A marker belongs to exactly one resulting half, on the same physical face.
+  delete other.marker;if(cube.marker&&!walkSurfaces(cube).some(f=>f.face===cube.marker!.face)){other.marker=cube.marker;delete cube.marker;}
   map.objects.push(other);map.opticalLinks.push({a:id,aEnd:4,b:newId,bEnd:4});
 }
 export interface GroupPose {translation:Vec3;rotation:Vec3}
@@ -449,7 +502,7 @@ export function findRoute(map:ValleyMap,poses:MapPoses,from:{objectId:string;ind
   const samples=new Map(map.objects.map(o=>[o.id,worldSamples(map,o,poses)]));
   const target=samples.get(targetId); if(!target) return null;
   const targetObject=map.objects.find(o=>o.id===targetId)!;
-  const targetIndices=targetIndex!==undefined?[targetIndex]:[8,9,10].includes(targetObject.type)?[centerIndex(targetObject)]:walkSurfaces(targetObject).map(f=>f.center);
+  const targetIndices=targetIndex!==undefined?[targetIndex]:pathMarker(targetObject)?[markerIndex(targetObject)]:targetObject.type===8?[centerIndex(targetObject)]:walkSurfaces(targetObject).map(f=>f.center);
   if(!targetIndices.length)targetIndices.push(centerIndex(targetObject));
   const key=(id:string,i:number)=>`${id}:${i}`, start=key(from.objectId,from.index), ends=new Set(targetIndices.map(i=>key(targetId,i)));
   const nodes=new Map<string,Waypoint>(),edges=new Map<string,string[]>();
@@ -489,7 +542,7 @@ export class MapRuntime {
   constructor(map:ValleyMap,projection:Projection=project) {
     this.map=map;this.projection=projection;
     const issues=playIssues(map); if(issues.length) throw new Error(issues.join('\n'));
-    const start=map.objects.find(o=>o.type===9)!, s=worldSamples(map,start,this.poses); this.at={objectId:start.id,index:centerIndex(start)}; this.position=[...s[this.at.index]!.point];this.up=[...s[this.at.index]!.up];this.direction=unit(sub(s[1]!.point,s[0]!.point));
+    const start=map.objects.find(o=>pathMarker(o)?.kind==='spawn')!, s=worldSamples(map,start,this.poses); this.at={objectId:start.id,index:markerIndex(start)}; this.position=[...s[this.at.index]!.point];this.up=[...s[this.at.index]!.up];this.direction=unit(sub(s[this.at.index]!.point,s[walkSurfaces(start).find(f=>f.center===this.at.index)!.indices[0]!]!.point));
   }
   get walking():boolean {return this.route.length>0;}
   /** A stopped traveler holds the rung; reversing does not turn their back to the ladder. */
@@ -535,9 +588,8 @@ export class MapRuntime {
   }
   private enter():void {
     const o=this.map.objects.find(x=>x.id===this.at.objectId)!;
-    if(this.at.index!==centerIndex(o))return;
-    if(o.type===10) {this.completed=true;this.route=[];this.message='山谷的另一侧，又多了一盏灯。';return;}
-    if(o.type!==8||(o.trigger.mode==='once'&&this.fired.has(o.id)))return;
+    if(pathMarker(o)?.kind==='exit'&&this.at.index===markerIndex(o)) {this.completed=true;this.route=[];this.message='山谷的另一侧，又多了一盏灯。';return;}
+    if(this.at.index!==centerIndex(o)||o.type!==8||(o.trigger.mode==='once'&&this.fired.has(o.id)))return;
     this.fired.add(o.id); const on=!this.switches[o.id]; this.switches[o.id]=on;
     this.animations=o.trigger.actions.map(a=>({groupId:a.groupId,from:structuredClone(this.poses.groups[a.groupId]??zeroPose()),to:on?{translation:[...a.translation],rotation:[...a.rotation]}:zeroPose(),elapsed:0,duration:a.duration,easing:a.easing}));
     this.route=[];this.message='开关已触发。物体组正在移动，稍后再选择道路。';
@@ -647,4 +699,14 @@ export function ladderGarden():ValleyMap {
   const ladder=createObject(17,'ladder'),road=createObject(1,'upper-road',[-1,2,-.5]),exit=createObject(10,'exit',[-2,2,-.5]);
   const sea=createObject(11,'sea',[0,-1.3,0]);sea.colors.surface='#439dac';sea.length=12;sea.width=10;
   map.objects=[start,bottom,wall,ladder,road,exit,sea];return map;
+}
+
+
+/** Two full turns, independent gate decorations and markers on ordinary roads. */
+export function gateGarden():ValleyMap {
+  const map=emptyMap();map.id='gate-garden';map.name='回旋门廊 · 两圈之后';
+  const twist=createObject(6,'twist');twist.length=5;twist.twist=720;twist.thickness=.5;
+  const start=createObject(1,'start',[-3,0,0]),exit=createObject(1,'exit',[3,0,0]);
+  const arch=createObject(18,'arch',[-3.3,0,0]),square=createObject(19,'square',[3.3,0,0]);arch.rotation=[0,90,0];square.rotation=[0,90,0];
+  map.objects=[start,twist,exit,arch,square];setPathMarker(map,'start','spawn');setPathMarker(map,'exit','exit');return map;
 }

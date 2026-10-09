@@ -113,7 +113,7 @@ test('spawn platforms support four inset pillars, lossless import, duplication a
   for(const [i,position] of [[.1,0,.1],[-.1,0,.1],[-.1,0,-.1],[.1,0,-.1]].entries())assert.deepEqual(editor.map.objects.find(o=>o.id===ids[i]).position,position);
   assert.equal(editor.addPillar('start',0),ids[0]);assert.throws(()=>editor.addPillar('switch-lift',0),/普通路径或出生平台/);
   const full=editor.exportJSON();editor.importJSON(editor.exportJSON(true));assert.equal(editor.exportJSON(),full);
-  editor.select(['start']);editor.duplicate();const copy=editor.map.objects.find(o=>o.type===9&&o.id!=='start');assert.equal(editor.map.objects.filter(o=>o.attachment?.pathId===copy.id).length,4);
+  editor.select(['start']);editor.duplicate();const copy=editor.map.objects.find(o=>o.id===editor.selected[0]);assert.equal(copy.type,1);assert.equal(copy.marker,undefined,'duplicating a spawn road keeps only the original spawn');assert.equal(editor.map.objects.filter(o=>o.attachment?.pathId===copy.id).length,4);
   editor.platform.history.undo();assert.equal(editor.exportJSON(),full);editor.select(['start']);editor.removeSelected();assert.ok(!editor.map.objects.some(o=>ids.includes(o.id)));editor.platform.history.undo();assert.equal(editor.exportJSON(),full);
  }finally{await editor.dispose();}
 });

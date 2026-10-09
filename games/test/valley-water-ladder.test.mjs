@@ -35,7 +35,7 @@ test('rotated grouped ladders inherit ports and facing; changing height disconne
  const map=ladderGarden();map.groups=[{id:'courtyard',name:'庭院',pivot:[0,0,0],rotation:[0,90,0],position:[3,1,-2]}];for(const o of map.objects)o.groupId='courtyard';const r=new MapRuntime(map);assert.ok(r.walkTo('exit'));let climbed=false;for(let i=0;i<5000&&r.walking;i++){r.tick(.01);if(r.ladderFrame){climbed=true;near(r.ladderFrame.forward,[-1,0,0]);}}assert.ok(climbed&&r.completed);map.objects.find(o=>o.type===17).rise=3;assert.equal(new MapRuntime(map).walkTo('exit'),false);
 });
 test('twist cross-section centers stay on a straight axis while the walking surface follows the outer face',()=>{
- for(const twist of [-180,-90,0,90,180,270,360]){const o=createObject(6,'twist');o.length=4;o.twist=twist;const samples=localSamples(o),spine=extrusionSamples(o);for(let i=0;i<spine.length;i++){near(spine[i].point,[(i/(spine.length-1)-.5)*4,-.5,0]);near(samples[i].point.map((v,k)=>v-spine[i].point[k]),samples[i].up.map(v=>v*.5));}near(samples[0].point,[-2,0,0]);}
+ for(const twist of [-180,-90,0,90,180,270,360]){const o=createObject(6,'twist');o.length=4;o.twist=twist;const samples=localSamples(o),spine=extrusionSamples(o);for(let i=0;i<spine.length;i++){near(spine[i].point,[samples[i].point[0],-.5,0]);near(samples[i].point.map((v,k)=>v-spine[i].point[k]),samples[i].up.map(v=>v*.5));}near(samples[0].point,[-2,0,0]);}
  const map=surfaceGarden(),r=new MapRuntime(map);assert.ok(r.walkTo('exit'));finish(r);assert.ok(r.completed);
 });
 

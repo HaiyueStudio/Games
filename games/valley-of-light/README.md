@@ -17,7 +17,7 @@ node games/valley-of-light/serve.mjs
 
 ## 地图工坊与自制关卡
 
-`tools/valley-editor/` 是使用 Haiyue Editor Platform、Shell 和 SDK 公开能力制作的地图编辑器。它支持十七种编号构件、物体组、踩踏开关动画、错觉端点、撤销重做及 JSON 导入导出，详见该目录的 `README.md`。
+`tools/valley-editor/` 是使用 Haiyue Editor Platform、Shell 和 SDK 公开能力制作的地图编辑器。它支持编号构件、出生/出口记号及可配色门装饰、物体组、踩踏开关动画、错觉端点、撤销重做及 JSON 导入导出，详见该目录的 `README.md`。
 
 在 Games 根目录运行 `npm run build:valley-editor`、`npm run editor:valley` 后，打开 <http://127.0.0.1:4178/tools/valley-editor/index.html>。第一次使用先执行 `npm --prefix tools/valley-editor install --offline --ignore-scripts`。
 

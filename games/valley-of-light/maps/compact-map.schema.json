@@ -108,7 +108,9 @@
             14,
             15,
             16,
-            17
+            17,
+            18,
+            19
           ]
         },
         "name": {
@@ -157,9 +159,7 @@
           "maximum": 330
         },
         "twist": {
-          "type": "number",
-          "minimum": -360,
-          "maximum": 360
+          "$ref": "map.schema.json#/$defs/object/properties/twist"
         },
         "arcTwist": {
           "type": "number",
@@ -197,6 +197,9 @@
               "$ref": "map.schema.json#/$defs/attachment"
             }
           ]
+        },
+        "marker": {
+          "$ref": "map.schema.json#/$defs/marker"
         }
       }
     },

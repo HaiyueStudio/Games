@@ -4,7 +4,7 @@ import { CATALOG, MapRuntime, catalogGarden, centerIndex, connections, createObj
 
 const tickUntil=(runtime,predicate)=>{for(let i=0;i<3000;i++){runtime.tick(.02);if(predicate())return;}assert.fail('runtime did not reach expected state');};
 test('stable numbered catalog, JSON round trip, unknown IDs and dangling references',()=>{
-  assert.deepEqual(CATALOG.map(x=>x.type),[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
+  assert.deepEqual(CATALOG.map(x=>x.type),[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]);
   const m=catalogGarden();assert.deepEqual(parseMap(JSON.parse(serializeMap(m))),m);
   for(const mutate of [m=>m.objects[0].type=99,m=>m.version=99,m=>m.objects[1].id=m.objects[0].id,m=>m.objects[0].position[0]=Infinity,m=>m.objects[0].groupId='missing',m=>m.objects[7].trigger.actions[0].duration=0,m=>m.opticalLinks.push({a:'missing',b:'sample-1',aEnd:1,bEnd:0})]){const invalid=structuredClone(m);mutate(invalid);assert.throws(()=>parseMap(invalid));}
   assert.equal(playIssues(emptyMap()).length,2);

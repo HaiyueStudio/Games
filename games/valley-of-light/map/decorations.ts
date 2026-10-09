@@ -40,6 +40,24 @@ export function decorationMeshes(o:MapObject):DecorationMesh[] {
       for(let i=0;i<5;i++){const a=i*Math.PI*2/5+angle!,dx=Math.cos(a),dz=Math.sin(a),center:Vec3=[x!,h!*.9,z!],tip:Vec3=[x!+dx*.19,h!*.87,z!+dz*.19];quad('surface',center,[x!+dx*.1-dz*.055,h!,z!+dz*.1+dx*.055],tip,[x!+dx*.1+dz*.055,h!,z!+dz*.1-dx*.055]);}
       loft('hub',[{x:x!,z:z!,y:h!*.91,w:.085},{x:x!,z:z!,y:h!*.985,w:.06}],6);
     }
+  }else if(o.type===18||o.type===19){
+    for(const x of [-.4,.4]){
+      box('base',x,0,0,.24,.065,1.12);
+      box('surface',x,.065,0,.2,o.type===18?.555:.765,1);
+      if(o.type===19)box('base',x,.8,0,.25,.07,1.12);
+    }
+    if(o.type===19)box('hub',0,.87,0,1,.13,1.12);
+    else {
+      // Real open arch: front/back rings, outer wall and soffit; no plane fills the opening.
+      const edge=(angle:number,inner:boolean,z:number):Vec3=>[Math.cos(angle)*(inner?.3:.5),.62+Math.sin(angle)*(inner?.25:.38),z];
+      for(let i=0;i<12;i++){
+        const a=i*Math.PI/12,b=(i+1)*Math.PI/12,key=i===5||i===6?'hub':'surface';
+        const ob=edge(a,false,-.5),ob1=edge(b,false,-.5),ib=edge(a,true,-.5),ib1=edge(b,true,-.5),of=edge(a,false,.5),of1=edge(b,false,.5),inf=edge(a,true,.5),inf1=edge(b,true,.5);
+        quad(key,of,of1,inf1,inf);quad(key,ib,ib1,ob1,ob);
+        quad(key,ob,ob1,of1,of);quad(key,ib1,ib,inf,inf1);
+        if(i===0)quad(key,ib,ob,of,inf);if(i===11)quad(key,ob1,ib1,inf1,of1);
+      }
+    }
   }
   return [...batches].map(([color,data])=>({color,positions:new Float32Array(data.positions),normals:new Float32Array(data.normals)}));
 }

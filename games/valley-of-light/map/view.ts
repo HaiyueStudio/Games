@@ -1,12 +1,14 @@
+import { createPathMarker } from './markers';
+import { PathClick } from './pathClick';
 import { decorationMeshes, decorationBounds } from './decorations';
 import { TRAVELER_SIZE_MULTIPLIER } from '../traveler';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, EnvironmentLight, HaiyueEngine, Mesh3D, OrbitControl, PbrMaterial, SphericalTransform3D, createBox3D, createPlane3D, type Scene } from '@haiyue/engine';
 import { createCylinder3D, createPathExtrusion3D, Geometry3D } from '@haiyue/engine/geometry';
 import { applyGltfAnimationClip, createGltfPlugin, GltfModelComponent } from '@haiyue/extensions/gltf';
-import { mat4 } from 'wgpu-matrix';
+import { mat4, vec3 } from 'wgpu-matrix';
 import { Ray, type RayHit } from '@haiyue/engine/math';
 import { RAD, add, length, connections, groupPoint, emptyPoses, localSamples, extrusionSamples, objectSample, isWalkable, pathCorner, rotate, sub, mul, wheelFrame, waterWeights, surfaceIndexAt, walkSurfaces, prismOutline, unit, worldSample, worldSamples, type MapObject, type MapPoses, type MapRuntime, type CornerId, type ValleyMap, type Vec3 } from './model';
-import { analyzeStaticPaths, canAttachPillar, defaultPillarOffset } from './model';
+import { analyzeStaticPaths, canAttachPillar, defaultPillarOffset, pathMarker, markerIndex, isBuiltDecoration, twistStopIndices } from './model';
 import { startStaticCompilation, type StaticPrimitive, type StaticCompilation } from './staticCompiler';
 import { seaGeometry, seaTexture } from './scenery';
 import { ladderMeshes } from './ladder';
@@ -16,6 +18,7 @@ import { advanceWheelState, createWheelState, wheelShape, WHEEL_FOLD_DURATION, t
 const color=(s:string):[number,number,number,number]=>[parseInt(s.slice(1,3),16)/255,parseInt(s.slice(3,5),16)/255,parseInt(s.slice(5,7),16)/255,1];
 function matrix(p:Vec3,r:Vec3):Float32Array {return mat4.multiply(mat4.translation(p),mat4.multiply(mat4.rotationY(r[1]*RAD),mat4.multiply(mat4.rotationX(r[0]*RAD),mat4.rotationZ(r[2]*RAD)))) as Float32Array;}
 export class MapView {
+  readonly pathClick:PathClick;
   readonly scene:Scene; readonly camera=new Camera3D({type:'orthographic',near:.1,far:500,left:-10,right:10,top:8,bottom:-8});
   readonly model:GltfModelComponent; readonly actorTransform=new CartesianTransform3D();
   readonly orbitTransform=new SphericalTransform3D({radius:150,theta:Math.PI/4,phi:Math.acos(1/Math.sqrt(3)),target:[0,0,0]});
@@ -42,6 +45,7 @@ export class MapView {
     const camera=new Entity('Map orthographic camera').addComponent(this.camera).addComponent(this.orbitTransform);
     this.scene=engine.createScene({name:'Valley map',camera,view:{clearColor:{r:.9,g:.927,b:.902,a:1}},render3D:true,render2D:false,gui:guiChars?{loadOp:'load',font:{chars:guiChars,fontFamily:'Microsoft YaHei, sans-serif',fontSize:32,atlasSize:2048}}:false});
     this.scene.installPlugin(createGltfPlugin());
+    this.pathClick=new PathClick(this.scene);
     // Real cast shadows disclose the hidden depth offset at optical seams. Keep face lighting only.
     this.scene.add(new Entity('Map sunlight').addComponent(new DirectionalLight({direction:[-.5,-1,-.3],intensity:2.4,color:[1,.96,.85],castShadow:false})));
     this.scene.add(new Entity('Map skylight').addComponent(new EnvironmentLight({intensity:.85,diffuseColor:[.75,.85,.8]})));
@@ -87,6 +91,7 @@ export class MapView {
     this.registerPickMeshes(assembly,o.id);return {wheel:transform,mount};
   }
   setMap(map:ValleyMap,fit=false,optimize=false):void {
+    this.pathClick.clear();
     this.cancelCompilation?.();this.cancelCompilation=null;this.generation++;this.syncMap=null;this.optimization={state:'off',objects:0,stats:null};
     this.scene.remove(this.root);this.root.destroy();this.root=new Entity('Map objects');this.scene.add(this.root);this.objects.clear();this.groupTransforms.clear();this.waters.clear();this.wheelVisuals.clear();this.pickMeshes=[];this.placementMeshes=new WeakSet<Mesh3D>();this.map=map;this.portalMap=null;
     const groups=new Map<string,Entity>();
@@ -99,7 +104,7 @@ export class MapView {
       else if(o.type===12){
         for(const [name,y,height,radius] of [['Slender pillar',o.rise/2,o.rise,o.width/2],['Pillar foot',.035,.07,o.width*.8],['Pillar capital',o.rise-.025,.05,o.width*.75]] as const)e.addChild(new Entity(name).addComponent(new CartesianTransform3D({position:[0,y,0]})).addComponent(new Mesh3D(createCylinder3D({radiusTop:radius,radiusBottom:radius,height,radialSegments:12}),m)));
       }
-      else if(o.type>=13&&o.type<=16){for(const part of decorationMeshes(o))e.addChild(new Entity(`Decoration ${part.color}`).addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(new Geometry3D({...part,cullMode:'none'}),part.color==='surface'?m:this.material(o.colors[part.color]))));}
+      else if(isBuiltDecoration(o.type)){for(const part of decorationMeshes(o))e.addChild(new Entity(`Decoration ${part.color}`).addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(new Geometry3D({...part,cullMode:'none'}),part.color==='surface'?m:this.material(o.colors[part.color]))));}
       else if(o.type===17){
         for(const part of ladderMeshes(o))e.addChild(new Entity(`Ladder ${part.color}`).addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(new Geometry3D(part),part.color==='surface'?m:this.material(o.colors.hub))));
       }
@@ -130,9 +135,8 @@ export class MapView {
       if(o.type===3)({wheel,mount}=this.handwheel(this.root,o));
       if(o.type===4)for(const x of [-.22,0,.22])this.part(e,'Slide grip',[x,.04,0],[.065,.08,o.width*.7],'#f1f0d9');
       if(o.type===8){button=this.part(e,'Pressure plate',[0,.075,0],[1,1,1],'#dd805d',this.disk);this.part(e,'Switch center',[0,.14,0],[.13,.02,.13],'#fff0c0');}
-      if(o.type===9){this.part(e,'Start marker',[0,.02,0],[.28,.04,.28],'#ebf1bb');this.part(e,'Start pennant',[-o.length*.3,.36,-o.width*.3],[.04,.72,.04],'#769486');}
-      if(o.type===10){for(const z of [-o.width*.38,o.width*.38])this.part(e,'Exit column',[o.length*.3,.65,z],[.16,1.3,.16],'#eaddb9');this.part(e,'Exit lintel',[o.length*.3,1.38,0],[.25,.22,o.width],'#dac17f');e.addChild(new Entity('Exit light').addComponent(new CartesianTransform3D({position:[o.length*.3,.62,0],scale:[.035,1.2,o.width*.6]})).addComponent(new Mesh3D(this.box,new BasicMaterial({color:[1,.92,.63,1]}))));}
       this.objects.set(o.id,{entity:e,transform:t,material:m,button,wheel,mount});this.registerPickMeshes(e,o.id);
+      const marker=createPathMarker(o);if(marker)e.addChild(marker);
     }
     this.sync(map,emptyPoses());if(fit)this.fit();if(optimize)this.compileStatic(map);
   }
@@ -154,19 +158,20 @@ export class MapView {
       this.optimization={state:'ready',objects:ids.size,stats:result.stats};this.cancelCompilation=null;
     },error=>{if(generation!==this.generation)return;this.optimization={state:'error',objects:ids.size,stats:null,error};this.cancelCompilation=null;});
   }
-  sync(map:ValleyMap,poses:MapPoses,selected:readonly string[]=[]):void {
-    const key=JSON.stringify([poses,selected]);if(this.syncMap===map&&this.syncKey===key)return;
+  sync(map:ValleyMap,poses:MapPoses):void {
+    const key=JSON.stringify(poses);if(this.syncMap===map&&this.syncKey===key)return;
     this.syncMap=map;this.syncKey=key;this.syncCount++;this.map=map;
     for(const g of map.groups){const p=groupPoint(map,g.id,[0,0,0],poses),x=sub(groupPoint(map,g.id,[1,0,0],poses),p),y=sub(groupPoint(map,g.id,[0,1,0],poses),p),z=sub(groupPoint(map,g.id,[0,0,1],poses),p);this.groupTransforms.get(g.id)?.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));}
     for(const o of map.objects){const r=this.objects.get(o.id);if(!r)continue;
       const sample=(point:Vec3)=>o.attachment?worldSample(map,o,{point,up:[0,1,0],roll:0},poses).point:objectSample(o,{point,up:[0,1,0],roll:0},poses).point;
       const p=sample([0,0,0]),x=sub(sample([1,0,0]),p),y=sub(sample([0,1,0]),p),z=sub(sample([0,0,1]),p);
-      r.transform.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));r.material.baseColor=o.type===11?[1,1,1,1]:color(o.colors.surface);r.material.emissiveFactor=selected.includes(o.id)?[.12,.09,.015]:[0,0,0];
+      r.transform.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));r.material.baseColor=o.type===11?[1,1,1,1]:color(o.colors.surface);
       if(r.mount){const f=wheelFrame(map,o,poses);r.mount.setMatrix(new Float32Array([...f.right,0,...f.up,0,...f.shaft,0,...f.center,1]));r.wheel!.setRotation(0,0,(poses.mechanisms[o.id]??0)*RAD);}
     }
   }
 
   tick(dt:number,runtime:MapRuntime|null):void {
+    this.pathClick.update(dt,runtime);
     this.waterTime+=dt;for(const [id,geometry] of this.waters){const o=this.map?.objects.find(o=>o.id===id);if(o)geometry.setMorphWeights(waterWeights(this.waterTime,o.water));}
     // Availability is independent of the cached map transforms and the wheel's rotation angle.
     for(const [id,visual] of this.wheelVisuals){
@@ -226,14 +231,14 @@ export class MapView {
     if(enabled&&!this.orbit)this.orbit=new OrbitControl(canvas,this.orbitTransform,{enablePan:false,enableZoom:false,minPhi:10*RAD,maxPhi:80*RAD,...(inputRegion?{inputRegion}:{})});
     else if(!enabled&&this.orbit){this.orbit.dispose();this.orbit=null;}
   }
-  dispose():void {this.orbit?.dispose();this.orbit=null;this.cancelCompilation?.();this.cancelCompilation=null;this.generation++;}
+  dispose():void {this.pathClick.dispose();this.orbit?.dispose();this.orbit=null;this.cancelCompilation?.();this.cancelCompilation=null;this.generation++;}
   resetAngle():void {this.orbitTransform.set(150,Math.PI/4,Math.acos(1/Math.sqrt(3)));this.fit();}
   /** Read the engine camera basis so picking and optical seams match rendering. */
   project=(p:Vec3):[number,number]=>{const m=this.orbitTransform.localMatrix;return [p[0]*m[0]!+p[1]*m[1]!+p[2]*m[2]!,p[0]*m[4]!+p[1]*m[5]!+p[2]*m[6]!];};
   fit():void {
     if(!this.map?.objects.length){this.orbitTransform.setTarget(0,0,0);this.centerX=this.width/2;this.centerY=this.height/2;this.scale=40;this.cameraBounds();return;}
     const objects=this.map.objects.some(isWalkable)?this.map.objects.filter(o=>o.type!==11):this.map.objects;
-    const world=objects.flatMap(o=>o.type>=13&&o.type<=16?decorationBounds(o).map(point=>worldSample(this.map!,o,{point,up:[0,1,0],roll:0},emptyPoses()).point):o.type===11?([0,1,2,3] as CornerId[]).map(c=>worldSample(this.map!,o,{point:pathCorner(o,c),up:[0,1,0],roll:0},emptyPoses()).point):o.type===12?[worldSample(this.map!,o,{point:[0,0,0],up:[0,1,0],roll:0},emptyPoses()).point,worldSample(this.map!,o,{point:[0,o.rise,0],up:[0,1,0],roll:0},emptyPoses()).point]:worldSamples(this.map!,o,emptyPoses()).map(s=>s.point));
+    const world=objects.flatMap(o=>isBuiltDecoration(o.type)?decorationBounds(o).map(point=>worldSample(this.map!,o,{point,up:[0,1,0],roll:0},emptyPoses()).point):o.type===11?([0,1,2,3] as CornerId[]).map(c=>worldSample(this.map!,o,{point:pathCorner(o,c),up:[0,1,0],roll:0},emptyPoses()).point):o.type===12?[worldSample(this.map!,o,{point:[0,0,0],up:[0,1,0],roll:0},emptyPoses()).point,worldSample(this.map!,o,{point:[0,o.rise,0],up:[0,1,0],roll:0},emptyPoses()).point]:worldSamples(this.map!,o,emptyPoses()).map(s=>s.point));
     const focus=[0,1,2].map(i=>(Math.min(...world.map(p=>p[i]!))+Math.max(...world.map(p=>p[i]!)))/2) as Vec3;this.orbitTransform.setTarget(...focus);
     const points=world.map(p=>this.project([p[0]-focus[0],p[1]-focus[1],p[2]-focus[2]]));
     const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),minX=Math.min(...xs)-1.2,maxX=Math.max(...xs)+1.2,minY=Math.min(...ys)-1.2,maxY=Math.max(...ys)+2;
@@ -278,7 +283,30 @@ export class MapView {
     const mesh=entity.getComponent(Mesh3D);if(mesh)this.pickMeshes.push({id,entity,mesh});
     for(const child of entity.children)this.registerPickMeshes(child,id);
   }
+  /** Read actual model bounds for editor overlays, including separately mounted wheel parts. */
+  objectBounds(ids:ReadonlySet<string>):Array<{id:string;min:Vec3;max:Vec3}> {
+    const boxes=new Map<string,{id:string;min:Vec3;max:Vec3}>(),matrices=new Map<Entity,Float32Array>();
+    const world=(entity:Entity):Float32Array=>{
+      let result=matrices.get(entity);if(result)return result;
+      const local=entity.getComponent(CartesianTransform3D)?.localMatrix??mat4.identity();
+      result=(entity.parent?mat4.multiply(world(entity.parent),local):local) as Float32Array;matrices.set(entity,result);return result;
+    };
+    for(const {id,entity,mesh} of this.pickMeshes){
+      if(!ids.has(id))continue;
+      const bounds=mesh.geometry.getBoundingBox(),min=Array.from(bounds.min),max=Array.from(bounds.max),o=this.map?.objects.find(o=>o.id===id);
+      if(o?.type===11){min[1]=-o.water.amplitude;max[1]=o.water.amplitude;}
+      const box=boxes.get(id)??{id,min:[Infinity,Infinity,Infinity] as Vec3,max:[-Infinity,-Infinity,-Infinity] as Vec3},matrix=world(entity);
+      for(let corner=0;corner<8;corner++){
+        const p=vec3.transformMat4([corner&1?max[0]!:min[0]!,corner&2?max[1]!:min[1]!,corner&4?max[2]!:min[2]!],matrix);
+        for(let axis=0;axis<3;axis++){box.min[axis]=Math.min(box.min[axis]!,p[axis]!);box.max[axis]=Math.max(box.max[axis]!,p[axis]!);}
+      }
+      boxes.set(id,box);
+    }
+    return [...boxes.values()];
+  }
   /** Select the frontmost rendered surface, including prism sides and rotated caps. */
+  markerTargets(poses=emptyPoses()):unknown {return Object.fromEntries((this.map?.objects??[]).filter(o=>pathMarker(o)).map(o=>{const index=markerIndex(o),sample=worldSamples(this.map!,o,poses)[index]!;return [o.id,{...pathMarker(o)!,index,...sample,screen:this.screen(sample.point)}];}));}
+  twistTargets(poses=emptyPoses()):unknown {return Object.fromEntries((this.map?.objects??[]).filter(o=>o.type===6).map(o=>{const samples=worldSamples(this.map!,o,poses);return [o.id,twistStopIndices(o).map(index=>({index,point:samples[index]!.point,up:samples[index]!.up,screen:this.screen(samples[index]!.point)}))];}));}
   surfaceTargets(poses=emptyPoses()):unknown {return Object.fromEntries((this.map?.objects??[]).map(o=>{const samples=worldSamples(this.map!,o,poses);return [o.id,walkSurfaces(o).map(f=>({face:f.face,index:f.center,point:samples[f.center]!.point,up:samples[f.center]!.up,screen:this.screen(samples[f.center]!.point)}))];}));}
   pick(x:number,y:number,poses=emptyPoses(),decorations=true):string|null {return this.pickTarget(x,y,poses,decorations)?.id??null;}
   pickTarget(x:number,y:number,poses=emptyPoses(),decorations=true,surfacesOnly=false):{id:string;index:number;point:Vec3;normal:Vec3}|null {

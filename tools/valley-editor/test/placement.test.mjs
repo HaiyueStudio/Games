@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ValleyAuthoring } from '../../../artifacts/valley-editor/document.mjs';
-import { worldSample,emptyPoses,createObject,walkSurfaces,pathPorts,worldSamples } from '../../../games/valley-of-light/map/model.ts';
+import { worldSample,emptyPoses,createObject,walkSurfaces,pathPorts,worldSamples,MapRuntime,connections } from '../../../games/valley-of-light/map/model.ts';
 const make=()=>new ValleyAuthoring({format:'haiyue-valley-map',version:1,catalogVersion:1,id:'placement',name:'悬空路径',objects:[],groups:[],opticalLinks:[]});
 const screen=p=>[(p[0]-p[2])/Math.SQRT2,(2*p[1]-p[0]-p[2])/Math.sqrt(6)];
 function resolve(editor,point,{hit=null,normal=[0,1,0],height=0,heldHeight,type=1,step=1}={}){
@@ -125,5 +125,45 @@ test('ladders attach to four wall directions and top edges, preserving endpoints
    near(upper,top.map((v,k)=>v+out[k]*.02));near(lower,upper.map((v,k)=>v-up[k]*2+out[k]*.5));
    e.platform.history.undo();e.select([id]);
   }
+ }finally{await e.dispose();}
+});
+
+
+test('the reported five-cell twist snaps off-center cap clicks to both true walking ports',async()=>{
+ const e=make();await e.start();try{
+  const id=e.add(6,[-3,0,0]);e.update(id,o=>o.length=5);
+  for(const [point,normal,type,position] of [
+   [[-5.507500172,-.703017592,-.176496446],[-1,0,0],9,[-6,0,0]],
+   [[-.492500007,-.5256989,-.000143589],[1,0,0],10,[0,-.5,.5]],
+  ]){const p=resolve(e,point,{hit:id,normal,type});near(p.position,position);e.add(type,p.position,p.rotation);}
+  const r=new MapRuntime(e.map);assert.equal(r.walkTo(id),true,'spawn reaches the twist without an optical link');for(let i=0;i<3000&&r.walking;i++)r.tick(.01);assert.equal(r.at.objectId,id);
+  assert.equal(r.walkTo(e.map.objects.find(o=>o.type===10).id),true);for(let i=0;i<3000&&r.walking;i++)r.tick(.01);assert.equal(r.completed,true);
+  assert.ok(connections(e.map,emptyPoses()).every(c=>!c.illusion));
+ }finally{await e.dispose();}
+});
+
+test('any point on a twist cap produces the same join, inheriting roll and rotated parent frames',async()=>{
+ for(const twist of [-180,-90,0,90,180,270,360])for(const grouped of [false,true]){
+  const e=make();await e.start();try{
+   const id=e.add(6,[0,3.25,0]);e.update(id,o=>{o.length=5;o.twist=twist;o.rotation=[15,35,10];});
+   if(grouped){e.select([id]);const g=e.groupSelected();e.updateGroup(g,o=>{o.rotation=[20,15,30];o.position=[4,1,-2];});}
+   const o=e.map.objects.find(o=>o.id===id),samples=worldSamples(e.map,o,emptyPoses());
+   for(const sign of [-1,1]){
+    let reference;
+    for(const [y,z] of [[0,0],[-.28,.2],[.23,-.31]]){
+     const hit=sample(e,id,[sign*2.5075,-.5+y,z],[sign,0,0]),p=resolve(e,hit.point,{hit:id,normal:hit.up,type:1});
+     if(reference){near(p.position,reference.position);near(p.rotation,reference.rotation);}else reference=p;
+     const added=e.add(1,p.position,p.rotation),placed=e.map.objects.find(o=>o.id===added),entry=worldSamples(e.map,placed,emptyPoses())[pathPorts(placed)[0].index],end=samples[sign<0?0:samples.length-1];near(entry.point,end.point);near(entry.up,end.up);
+     assert.ok(connections(e.map,emptyPoses()).some(c=>c.a===added||c.b===added));e.platform.history.undo();e.select([id]);
+    }
+   }
+  }finally{await e.dispose();}
+ }
+});
+
+test('empty-space continuation at a twist entrance follows the straight body axis, not its helical surface',async()=>{
+ const e=make();await e.start();try{
+  const id=e.add(6,[-3,0,0]);e.update(id,o=>{o.length=5;o.twist=360;});
+  const a=resolve(e,[-6,0,0]),b=resolve(e,[0,0,0]);near(a.position,[-6,0,0]);near(b.position,[0,0,0]);near(a.rotation,[0,180,0]);near(b.rotation,[0,0,0]);
  }finally{await e.dispose();}
 });

@@ -31,7 +31,7 @@
       "required": ["id", "type", "name", "position", "rotation", "groupId", "length", "width", "thickness", "rise", "steps", "radius", "arc", "twist", "motion", "trigger"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "type": { "type": "integer", "enum": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17] },
+        "type": { "type": "integer", "enum": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19] },
         "name": { "$ref": "#/$defs/name" },
         "position": { "$ref": "#/$defs/vector" },
         "rotation": { "$ref": "#/$defs/vector" },
@@ -45,15 +45,21 @@
         "rise": { "type": "number", "minimum": -30, "maximum": 30 },
         "steps": { "type": "integer", "minimum": 1, "maximum": 64 },
         "arc": { "type": "number", "minimum": 5, "maximum": 330 },
-        "twist": { "type": "number", "minimum": -360, "maximum": 360 },
+        "twist": { "type": "number", "minimum": -36000, "maximum": 36000, "description": "Signed multi-turn angle, sampled adaptively." },
         "arcTwist": { "type": "number", "minimum": -360, "maximum": 360, "default": 0, "description": "Type 7 bank angle along the arc; zero preserves a flat arc." },
         "prismHalf": { "enum": ["a", "b"], "default": "a", "description": "Complementary triangular half of the unit cube, split vertically on x/length = z/width." },
+        "marker": { "$ref": "#/$defs/marker" },
         "colors": { "$ref": "#/$defs/colors" },
         "motion": { "$ref": "#/$defs/motion" },
         "trigger": { "$ref": "#/$defs/trigger" },
         "water": { "$ref": "#/$defs/water" },
         "attachment": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/attachment" }] }
       }
+    },
+    "marker": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "face"],
+      "properties": { "kind": { "enum": ["spawn", "exit"] }, "face": { "type": "integer", "minimum": 0, "maximum": 6 } },
+      "description": "Annotation on an existing walkable solid face. Legacy types 9/10 imply spawn/exit on face 0."
     },
     "colors": {
       "type": "object", "additionalProperties": false,

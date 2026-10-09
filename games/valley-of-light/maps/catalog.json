@@ -67,18 +67,18 @@
     },
     {
       "type": 9,
-      "name": "出生平台",
+      "name": "出生记号",
       "icon": "♙",
       "color": "#88ac89",
-      "description": "旅行者开始的位置",
+      "description": "点击已有路径表面设置出生位置",
       "category": "path"
     },
     {
       "type": 10,
-      "name": "出口平台",
-      "icon": "▥",
+      "name": "出口记号",
+      "icon": "◎",
       "color": "#c8b46d",
-      "description": "到达这里完成关卡",
+      "description": "点击已有路径表面设置通关位置",
       "category": "path"
     },
     {
@@ -136,6 +136,22 @@
       "color": "#516c65",
       "description": "贴墙连接高低道路，可上下攀爬",
       "category": "path"
+    },
+    {
+      "type": 18,
+      "name": "拱门",
+      "icon": "∩",
+      "color": "#ded1b4",
+      "description": "有真实门洞的低多边形圆拱门",
+      "category": "decoration"
+    },
+    {
+      "type": 19,
+      "name": "方门",
+      "icon": "Π",
+      "color": "#d4c5ae",
+      "description": "方柱与门楣，可独立配色的装饰门",
+      "category": "decoration"
     }
   ]
 }
