@@ -152,6 +152,30 @@
       "color": "#d4c5ae",
       "description": "方柱与门楣，可独立配色的装饰门",
       "category": "decoration"
+    },
+    {
+      "type": 20,
+      "name": "传送门",
+      "icon": "⟐",
+      "color": "#83bdb9",
+      "description": "附着路径表面，进入后从目标门出现",
+      "category": "path"
+    },
+    {
+      "type": 21,
+      "name": "水流",
+      "icon": "≋",
+      "color": "#459daf",
+      "description": "沿局部 X 方向流动的低多边形水道",
+      "category": "decoration"
+    },
+    {
+      "type": 22,
+      "name": "瀑布",
+      "icon": "⇣",
+      "color": "#66bcc5",
+      "description": "从顶部向下落的水幕与落水浪花",
+      "category": "decoration"
     }
   ]
 }

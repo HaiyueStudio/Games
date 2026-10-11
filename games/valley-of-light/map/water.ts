@@ -53,3 +53,36 @@ export function seaMeshData(o:MapObject):Geometry3DOptions {
   });
   return {positions,normals,textureCoordinates:[{set:0,data:uv}],morphTargets:targets,morphWeights:[1,0,1,0],morphUseGpu:true,boundsMode:'manual',localBounds:{center:[0,0,0],radius:Math.hypot(o.length/2,o.width/2,o.water.amplitude)},cullMode:'none'};
 }
+
+/** Waterfalls reuse the flat facets and GPU waves, folded down from their top anchor. */
+export function flowStyle(o:MapObject):MapObject {
+  return {...o,width:o.type===22?o.rise:o.width,water:{...o.water,amplitude:Math.min(.04,o.water.amplitude),facetSize:o.water.facetSize??.55,lightColor:o.colors.hub,darkColor:o.colors.base}};
+}
+export function flowMeshData(o:MapObject):Geometry3DOptions {
+  const data=seaMeshData(flowStyle(o));
+  if(o.type===21){for(let i=1;i<data.positions.length;i+=3)data.positions[i]!+=.015;return data;}
+  const turn=(p:Float32Array,base=false)=>{for(let i=0;i<p.length;i+=3){const y=p[i+1]!,z=p[i+2]!;p[i+1]=-z-(base?o.rise/2:0);p[i+2]=y;}};
+  turn(data.positions,true);turn(data.normals!);
+  for(const target of data.morphTargets!){turn(target.positions!);turn(target.normals!);}
+  data.localBounds={center:[0,-o.rise/2,0],radius:Math.hypot(o.length/2,o.rise/2,.4)};return data;
+}
+export const FLOW_STREAKS=24;
+/** All flow streaks and splash diamonds share one reusable vertex buffer and one draw. */
+export function flowStreakPositions(o:MapObject,time:number,positions:Float32Array=new Float32Array((FLOW_STREAKS+(o.type===22?12:0))*18)):Float32Array {
+  const t=time*o.water.speed,span=o.type===22?o.rise:o.length;let cursor=0;
+  const diamond=(center:Vec3,a:Vec3,b:Vec3)=>{const p=[center.map((v,i)=>v-a[i]!),center.map((v,i)=>v+b[i]!),center.map((v,i)=>v+a[i]!),center.map((v,i)=>v-b[i]!)];for(const i of [0,1,2,0,2,3]){positions.set(p[i]!,cursor);cursor+=3;}};
+  for(let i=0;i<FLOW_STREAKS;i++){
+    const phase=((t*(o.type===22?1.7:.8)/span+i*.61803398875)%1+1)%1;
+    const fade=Math.min(1,phase*12,(1-phase)*12),size=Math.min(.24,span*.12)*fade,across=((i*7%23)/23-.5)*.86;
+    if(o.type===22)diamond([across*o.length,-phase*o.rise,.055],[0,size,0],[Math.min(.035,o.length*.025)*fade,0,0]);
+    else diamond([(phase-.5)*o.length,.07,across*o.width],[size,0,0],[0,0,Math.min(.03,o.width*.03)*fade]);
+  }
+  if(o.type===22)for(let i=0;i<12;i++){
+    const pulse=.65+.35*Math.sin(t*3+i*2.4),x=(i/11-.5)*o.length,z=.09+((i*3)%7)*.045;
+    diamond([x,-o.rise+.015,z],[Math.min(.13,o.length*.07)*pulse,0,0],[0,0,.13*pulse]);
+  }
+  return positions;
+}
+export function flowBounds(o:MapObject):Vec3[] {
+  return [-o.length/2,o.length/2].flatMap(x=>(o.type===22?[-o.rise,0]:[-.05,.08]).flatMap(y=>(o.type===22?[-.1,.5]:[-o.width/2,o.width/2]).map(z=>[x,y,z] as Vec3)));
+}

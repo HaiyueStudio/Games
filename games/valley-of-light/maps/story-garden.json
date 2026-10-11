@@ -1,0 +1,649 @@
+{
+  "format": "haiyue-valley-map",
+  "version": 1,
+  "catalogVersion": 1,
+  "id": "story-garden",
+  "name": "未画完的地图 · 剧情与调试",
+  "story": {
+    "dialogues": [
+      {
+        "id": "homecoming",
+        "name": "归来者",
+        "speaker": "微",
+        "lines": [
+          "我从奇异的几何世界回来，带着一张还没画完的地图。",
+          "守碑人说：祖训里没有这些道路。于是，他们把我关进高塔。",
+          "可那位看守总在夜里问我：谷外的河，真的有名字吗？"
+        ],
+        "choices": [
+          {
+            "id": "invite",
+            "text": "请他一起看一看。",
+            "signal": "invite-keeper",
+            "condition": {
+              "kind": "all",
+              "conditions": []
+            }
+          },
+          {
+            "id": "listen",
+            "text": "先听听他害怕什么。",
+            "signal": "listen-keeper",
+            "condition": {
+              "kind": "all",
+              "conditions": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "fear",
+        "name": "旧地图",
+        "speaker": "守碑人",
+        "lines": [
+          "我守的也许不是石碑，是害怕自己一直走错了路。",
+          "微把灯放在窗边：我们可以一起试一次。"
+        ],
+        "choices": []
+      },
+      {
+        "id": "witness",
+        "name": "一盏灯之后",
+        "speaker": "守碑人",
+        "lines": [
+          "光照到了旧地图之外。原来，没有记载的路，也可以走。",
+          "锁是我上的。这一次，让我来开。"
+        ],
+        "choices": [
+          {
+            "id": "leave",
+            "text": "把新的地图留给大家。",
+            "signal": "open-gate",
+            "condition": {
+              "kind": "objective",
+              "objectiveId": "show-light",
+              "status": "done"
+            }
+          }
+        ],
+        "resetGroup": "prison"
+      },
+      {
+        "id": "outro",
+        "name": "留白",
+        "speaker": "微",
+        "lines": [
+          "我没有烧掉旧地图，只在边缘留了一片空白。",
+          "有人愿意留在谷里，也有人开始问河的名字。山口的灯，不止一盏了。"
+        ],
+        "choices": []
+      }
+    ],
+    "objectives": [
+      {
+        "id": "show-light",
+        "name": "让守碑人亲眼看见",
+        "description": "走到庭院中央，点亮石灯。",
+        "initial": "active",
+        "resetGroup": "prison"
+      },
+      {
+        "id": "open-valley",
+        "name": "把山口留给风",
+        "description": "邀请守碑人一起走出高塔。",
+        "initial": "hidden"
+      }
+    ]
+  },
+  "logic": {
+    "variables": [
+      {
+        "id": "keeper-trust",
+        "name": "守碑人的信任",
+        "initial": 0
+      }
+    ],
+    "rules": [
+      {
+        "id": "opening",
+        "name": "opening",
+        "enabled": true,
+        "once": true,
+        "event": {
+          "type": "start",
+          "source": null
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": []
+        },
+        "actions": [
+          {
+            "kind": "dialogue",
+            "dialogueId": "homecoming"
+          }
+        ]
+      },
+      {
+        "id": "listening",
+        "name": "listening",
+        "enabled": true,
+        "once": true,
+        "event": {
+          "type": "signal",
+          "source": "listen-keeper"
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": []
+        },
+        "actions": [
+          {
+            "kind": "variable",
+            "id": "keeper-trust",
+            "operation": "set",
+            "value": 1
+          },
+          {
+            "kind": "dialogue",
+            "dialogueId": "fear"
+          }
+        ]
+      },
+      {
+        "id": "inviting",
+        "name": "inviting",
+        "enabled": true,
+        "once": true,
+        "event": {
+          "type": "signal",
+          "source": "invite-keeper"
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": []
+        },
+        "actions": [
+          {
+            "kind": "variable",
+            "id": "keeper-trust",
+            "operation": "set",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "id": "light",
+        "name": "light",
+        "enabled": true,
+        "once": true,
+        "resetGroup": "prison",
+        "event": {
+          "type": "switch",
+          "source": "lamp"
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": []
+        },
+        "actions": [
+          {
+            "kind": "objective",
+            "objectiveId": "show-light",
+            "status": "done"
+          },
+          {
+            "kind": "dialogue",
+            "dialogueId": "witness"
+          }
+        ]
+      },
+      {
+        "id": "opening-gate",
+        "name": "opening-gate",
+        "enabled": true,
+        "once": true,
+        "event": {
+          "type": "signal",
+          "source": "open-gate"
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": [
+            {
+              "kind": "objective",
+              "objectiveId": "show-light",
+              "status": "done"
+            },
+            {
+              "kind": "variable",
+              "id": "keeper-trust",
+              "op": "gte",
+              "value": 1
+            }
+          ]
+        },
+        "actions": [
+          {
+            "kind": "objective",
+            "objectiveId": "open-valley",
+            "status": "active"
+          },
+          {
+            "kind": "state",
+            "targetId": "exit",
+            "property": "enabled",
+            "value": true
+          }
+        ]
+      },
+      {
+        "id": "ending",
+        "name": "ending",
+        "enabled": true,
+        "once": true,
+        "event": {
+          "type": "enter",
+          "source": "road",
+          "face": 0
+        },
+        "condition": {
+          "kind": "state",
+          "objectId": "exit",
+          "property": "enabled",
+          "value": true
+        },
+        "actions": [
+          {
+            "kind": "dialogue",
+            "dialogueId": "outro"
+          },
+          {
+            "kind": "objective",
+            "objectiveId": "open-valley",
+            "status": "done"
+          }
+        ]
+      }
+    ]
+  },
+  "groups": [
+    {
+      "id": "prison",
+      "name": "高塔庭院",
+      "pivot": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "opticalLinks": [],
+  "objects": [
+    {
+      "id": "start",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -2,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "marker": {
+        "kind": "spawn",
+        "face": 0
+      },
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "beacon",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -1,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "checkpoint": {
+        "name": "重读地图",
+        "face": 0
+      },
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "lamp",
+      "type": 8,
+      "name": "踩踏开关",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "prison",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#cf8f73",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "road",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        1,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "exit",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        2,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "marker": {
+        "kind": "exit",
+        "face": 0
+      },
+      "state": {
+        "enabled": false
+      },
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "gate",
+      "type": 18,
+      "name": "拱门",
+      "position": [
+        2,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 0.25,
+      "thickness": 1,
+      "rise": 1.7,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#ded1b4",
+        "hub": "#caaa78",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#a3947e"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "sea",
+      "type": 11,
+      "name": "海面",
+      "position": [
+        0,
+        -1.4,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 12,
+      "width": 9,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#559daa",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    }
+  ]
+}

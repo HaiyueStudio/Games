@@ -40,6 +40,11 @@
         "$ref": "map.schema.json#/$defs/group"
       }
     },
+    "story": {"$ref":"map.schema.json#/$defs/story"},
+    "stages": {"$ref": "map.schema.json#/$defs/stages"},
+    "logic": {
+      "$ref": "map.schema.json#/$defs/logic"
+    },
     "opticalLinks": {
       "type": "array",
       "maxItems": 1000,
@@ -110,7 +115,10 @@
             16,
             17,
             18,
-            19
+            19,
+            20,
+            21,
+            22
           ]
         },
         "name": {
@@ -198,8 +206,15 @@
             }
           ]
         },
+        "checkpoint": {"$ref": "map.schema.json#/$defs/checkpoint"},
         "marker": {
           "$ref": "map.schema.json#/$defs/marker"
+        },
+        "portal": {
+          "$ref": "#/$defs/portal"
+        },
+        "state": {
+          "$ref": "map.schema.json#/$defs/objectState"
         }
       }
     },
@@ -313,6 +328,29 @@
         "darkColor": {
           "type": "string",
           "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
+    },
+    "portal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pathId": {
+          "$ref": "map.schema.json#/$defs/groupRef"
+        },
+        "face": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "targetId": {
+          "$ref": "map.schema.json#/$defs/groupRef"
+        },
+        "shape": {
+          "enum": [
+            "arch",
+            "square"
+          ]
         }
       }
     }

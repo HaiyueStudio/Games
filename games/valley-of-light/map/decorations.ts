@@ -2,6 +2,14 @@ import type { MapObject, ObjectColors, Vec3 } from './model';
 export interface DecorationMesh { color:keyof ObjectColors; positions:Float32Array; normals:Float32Array }
 /** Deterministic, flat-shaded scenery. Each color produces one mesh per object. */
 export function decorationMeshes(o:MapObject):DecorationMesh[] {
+  if(o.type===20){
+    const result=decorationMeshes({...o,type:o.portal?.shape==='square'?19:18});
+    // A softly lit inner membrane makes active doors visible and clickable through their opening.
+    const positions:number[]=[],normals:number[]=[];
+    const edge:Vec3[]=o.portal?.shape==='square'?[[-.3,0,0],[.3,0,0],[.3,.81,0],[-.3,.81,0]]:[[-.3,0,0],[.3,0,0],...Array.from({length:13},(_,i)=>[Math.cos(i*Math.PI/12)*.3,.62+Math.sin(i*Math.PI/12)*.25,0] as Vec3)];
+    for(let i=1;i<edge.length-1;i++)for(const p of [edge[0]!,edge[i]!,edge[i+1]!]){positions.push(p[0]*o.length,p[1]*o.rise,0);normals.push(0,0,1);}
+    result.push({color:'spokes',positions:new Float32Array(positions),normals:new Float32Array(normals)});return result;
+  }
   type Color=keyof ObjectColors;
   const batches=new Map<Color,{positions:number[];normals:number[]}>();
   const scaled=(p:Vec3):Vec3=>[p[0]*o.length,p[1]*o.rise,p[2]*o.width];

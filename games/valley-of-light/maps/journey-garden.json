@@ -1,0 +1,680 @@
+{
+  "format": "haiyue-valley-map",
+  "version": 1,
+  "catalogVersion": 1,
+  "id": "journey-garden",
+  "name": "云阶渡庭 · 平台与分阶段场景",
+  "stages": {
+    "initial": "ascent",
+    "items": [
+      {
+        "id": "ascent",
+        "name": "乘云而上",
+        "groups": [],
+        "entry": null,
+        "camera": {
+          "target": [
+            0,
+            0.7,
+            0
+          ],
+          "yaw": 45,
+          "pitch": 54.73561,
+          "span": 10,
+          "duration": 1,
+          "lock": true
+        }
+      },
+      {
+        "id": "garden",
+        "name": "打开庭院",
+        "groups": [
+          "courtyard"
+        ],
+        "entry": null,
+        "camera": {
+          "target": [
+            2,
+            1.7,
+            0
+          ],
+          "yaw": 65,
+          "pitch": 54.73561,
+          "span": 10,
+          "duration": 1.2,
+          "lock": true
+        }
+      }
+    ]
+  },
+  "logic": {
+    "variables": [],
+    "rules": [
+      {
+        "id": "ride",
+        "name": "ride",
+        "enabled": true,
+        "once": false,
+        "event": {
+          "type": "enter",
+          "source": "deck",
+          "face": 0
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": []
+        },
+        "actions": [
+          {
+            "kind": "wait",
+            "duration": 0.35
+          },
+          {
+            "kind": "platform",
+            "groupId": "lift",
+            "command": "go",
+            "stationId": "station-2"
+          }
+        ]
+      },
+      {
+        "id": "reveal-garden",
+        "name": "reveal-garden",
+        "enabled": true,
+        "once": false,
+        "event": {
+          "type": "switch",
+          "source": "reveal"
+        },
+        "condition": {
+          "kind": "all",
+          "conditions": []
+        },
+        "actions": [
+          {
+            "kind": "stage",
+            "stageId": "garden"
+          },
+          {
+            "kind": "message",
+            "text": "庭院已展开，新的灯光在前方等你。"
+          }
+        ]
+      }
+    ]
+  },
+  "groups": [
+    {
+      "id": "lift",
+      "name": "云梯平台",
+      "platform": {
+        "initialStation": "station-1",
+        "mode": "manual",
+        "autoStart": false,
+        "stations": [
+          {
+            "id": "station-1",
+            "name": "下层站",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "duration": 2,
+            "wait": 0.3
+          },
+          {
+            "id": "station-2",
+            "name": "上层站",
+            "translation": [
+              0,
+              2,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "duration": 2,
+            "wait": 1
+          }
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "courtyard",
+      "name": "第二庭院",
+      "pivot": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "opticalLinks": [],
+  "objects": [
+    {
+      "id": "start",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -2,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "marker": {
+        "kind": "spawn",
+        "face": 0
+      },
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "lower",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        -1,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "deck",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "lift",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#80abb0",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "upper",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        1,
+        2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "checkpoint": {
+        "name": "云端灯塔",
+        "face": 0
+      },
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "reveal",
+      "type": 8,
+      "name": "踩踏开关",
+      "position": [
+        2,
+        2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#cf8f73",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "garden-entry",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        3,
+        2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "courtyard",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "exit",
+      "type": 1,
+      "name": "普通路径",
+      "position": [
+        4,
+        2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "courtyard",
+      "marker": {
+        "kind": "exit",
+        "face": 0
+      },
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#d9d0b8",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "flowers",
+      "type": 16,
+      "name": "小花簇",
+      "position": [
+        3,
+        2,
+        -0.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "courtyard",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 0.25,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#fff8df",
+        "hub": "#edc75c",
+        "spokes": "#7c9c53",
+        "tips": "#ff8865",
+        "base": "#91b16a"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "tower",
+      "type": 15,
+      "name": "城垛尖塔",
+      "position": [
+        3,
+        2,
+        -1.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": "courtyard",
+      "length": 1,
+      "width": 1,
+      "thickness": 1,
+      "rise": 2,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#c8c3df",
+        "hub": "#cc97ad",
+        "spokes": "#fff1d8",
+        "tips": "#ff8865",
+        "base": "#9d96b8"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    },
+    {
+      "id": "sea",
+      "type": 11,
+      "name": "海面",
+      "position": [
+        0,
+        -1.4,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "groupId": null,
+      "length": 16,
+      "width": 10,
+      "thickness": 1,
+      "rise": 1,
+      "steps": 6,
+      "radius": 2,
+      "arc": 90,
+      "twist": 90,
+      "arcTwist": 0,
+      "prismHalf": "a",
+      "colors": {
+        "surface": "#78babd",
+        "hub": "#ed7657",
+        "spokes": "#aaa7e8",
+        "tips": "#ff8865",
+        "base": "#7c83cd"
+      },
+      "water": {
+        "amplitude": 0.08,
+        "speed": 0.65,
+        "wavelength": 4
+      },
+      "attachment": null,
+      "motion": {
+        "axis": "y",
+        "min": -180,
+        "max": 180,
+        "step": 90,
+        "targetGroup": null
+      },
+      "trigger": {
+        "mode": "once",
+        "actions": []
+      }
+    }
+  ]
+}

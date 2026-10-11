@@ -1,4 +1,5 @@
-import { createPathMarker } from './markers';
+import { defaultStageCamera, type StageCamera } from './model';
+import { createCheckpointMarker, createPathMarker } from './markers';
 import { PathClick } from './pathClick';
 import { decorationMeshes, decorationBounds } from './decorations';
 import { TRAVELER_SIZE_MULTIPLIER } from '../traveler';
@@ -7,10 +8,11 @@ import { createCylinder3D, createPathExtrusion3D, Geometry3D } from '@haiyue/eng
 import { applyGltfAnimationClip, createGltfPlugin, GltfModelComponent } from '@haiyue/extensions/gltf';
 import { mat4, vec3 } from 'wgpu-matrix';
 import { Ray, type RayHit } from '@haiyue/engine/math';
-import { RAD, add, length, connections, groupPoint, emptyPoses, localSamples, extrusionSamples, objectSample, isWalkable, pathCorner, rotate, sub, mul, wheelFrame, waterWeights, surfaceIndexAt, walkSurfaces, prismOutline, unit, worldSample, worldSamples, type MapObject, type MapPoses, type MapRuntime, type CornerId, type ValleyMap, type Vec3 } from './model';
+import { objectState, activePath, activePortal, RAD, add, length, connections, groupPoint, emptyPoses, localSamples, extrusionSamples, objectSample, isWalkable, pathCorner, rotate, sub, mul, wheelFrame, waterWeights, surfaceIndexAt, walkSurfaces, prismOutline, unit, worldSample, worldSamples, type MapObject, type MapPoses, type MapRuntime, type CornerId, type ValleyMap, type Vec3 } from './model';
 import { analyzeStaticPaths, canAttachPillar, defaultPillarOffset, pathMarker, markerIndex, isBuiltDecoration, twistStopIndices } from './model';
 import { startStaticCompilation, type StaticPrimitive, type StaticCompilation } from './staticCompiler';
 import { seaGeometry, seaTexture } from './scenery';
+import { flowMeshData, flowStyle, flowStreakPositions, flowBounds } from './water';
 import { ladderMeshes } from './ladder';
 import { beginWheelDrag, type Point2, type WheelDrag } from './wheelDrag';
 import { advanceWheelState, createWheelState, wheelShape, WHEEL_FOLD_DURATION, type WheelState } from './wheelState';
@@ -35,15 +37,18 @@ export class MapView {
   private box=createBox3D(); private disk=createCylinder3D({radiusTop:.32,radiusBottom:.32,height:.1,radialSegments:32});
   private materials=new Map<string,PbrMaterial>(); private animationTime=0; private animation='Idle';
   private waters=new Map<string,Geometry3D>(); private waterTime=0;
+  private flows=new Map<string,{surface:Geometry3D;streaks:Geometry3D}>();
+  private wheelAssemblies=new Map<string,Entity>();private portalMaterials=new Map<string,BasicMaterial>();
   private wheelVisuals=new Map<string,{state:WheelState;arms:Array<{axis:'x'|'y';sign:number;spoke:CartesianTransform3D;grip:CartesianTransform3D}>}>();
   private cancelCompilation:(()=>void)|null=null;private generation=0;
   private syncMap:ValleyMap|null=null;private syncKey='';private syncCount=0;
   private optimization:{state:'off'|'pending'|'ready'|'error';objects:number;stats:StaticCompilation['stats']|null;error?:string}={state:'off',objects:0,stats:null};
   performanceSnapshot():unknown{return {...this.optimization,syncCount:this.syncCount};}
+  private stageRuntime:MapRuntime|null=null;private stageKey='';private cameraFrom:StageCamera|null=null;private stageWidth=0;private stageHeight=0;
   scale=45;centerX=0;centerY=0;width=1;height=1;
   constructor(readonly engine:HaiyueEngine,modelUrl:string,guiChars='') {
     const camera=new Entity('Map orthographic camera').addComponent(this.camera).addComponent(this.orbitTransform);
-    this.scene=engine.createScene({name:'Valley map',camera,view:{clearColor:{r:.9,g:.927,b:.902,a:1}},render3D:true,render2D:false,gui:guiChars?{loadOp:'load',font:{chars:guiChars,fontFamily:'Microsoft YaHei, sans-serif',fontSize:32,atlasSize:2048}}:false});
+    this.scene=engine.createScene({name:'Valley map',camera,view:{clearColor:{r:.9,g:.927,b:.902,a:1}},render3D:true,render2D:false,gui:guiChars?{loadOp:'load',font:{chars:guiChars,fontFamily:'Microsoft YaHei, sans-serif',fontSize:32,atlasSize:guiChars.length>1800?4096:2048}}:false});
     this.scene.installPlugin(createGltfPlugin());
     this.pathClick=new PathClick(this.scene);
     // Real cast shadows disclose the hidden depth offset at optical seams. Keep face lighting only.
@@ -64,7 +69,7 @@ export class MapView {
   }
   wheelCenter(o:MapObject,poses=emptyPoses()):Vec3 {return wheelFrame(this.map!,o,poses).center;}
   private handwheel(parent:Entity,o:MapObject):{wheel:CartesianTransform3D;mount:CartesianTransform3D} {
-    const {base,hub,spokes,tips}=o.colors,mount=new CartesianTransform3D(),assembly=new Entity('Coaxial wheel mount').addComponent(mount);parent.addChild(assembly);
+    const {base,hub,spokes,tips}=o.colors,mount=new CartesianTransform3D(),assembly=new Entity('Coaxial wheel mount').addComponent(mount);parent.addChild(assembly);this.wheelAssemblies.set(o.id,assembly);
     const socket=this.part(assembly,'Octagonal wall socket',[0,0,-.57],[1,1,1],base,createCylinder3D({radiusTop:.25,radiusBottom:.25,height:.16,radialSegments:8}));socket.setRotation(Math.PI/2,0,0);
     this.part(assembly,'Square spindle',[0,0,-.33],[.17,.17,.48],spokes);
     const transform=new CartesianTransform3D(),wheel=new Entity('Four-arm handwheel').addComponent(transform);assembly.addChild(wheel);
@@ -93,18 +98,28 @@ export class MapView {
   setMap(map:ValleyMap,fit=false,optimize=false):void {
     this.pathClick.clear();
     this.cancelCompilation?.();this.cancelCompilation=null;this.generation++;this.syncMap=null;this.optimization={state:'off',objects:0,stats:null};
-    this.scene.remove(this.root);this.root.destroy();this.root=new Entity('Map objects');this.scene.add(this.root);this.objects.clear();this.groupTransforms.clear();this.waters.clear();this.wheelVisuals.clear();this.pickMeshes=[];this.placementMeshes=new WeakSet<Mesh3D>();this.map=map;this.portalMap=null;
+    this.scene.remove(this.root);this.root.destroy();this.root=new Entity('Map objects');this.scene.add(this.root);this.objects.clear();this.groupTransforms.clear();this.waters.clear();this.flows.clear();this.wheelVisuals.clear();this.wheelAssemblies.clear();this.portalMaterials.clear();this.pickMeshes=[];this.placementMeshes=new WeakSet<Mesh3D>();this.map=map;this.portalMap=null;
     const groups=new Map<string,Entity>();
     for(const g of map.groups){const t=new CartesianTransform3D(),e=new Entity(g.name).addComponent(t);this.root.addChild(e);groups.set(g.id,e);this.groupTransforms.set(g.id,t);}
     for(const o of map.objects) {
       const t=new CartesianTransform3D(),e=new Entity(`${o.type} · ${o.name}`).addComponent(t),hex=o.colors.surface;
-      (o.groupId&&!o.attachment?groups.get(o.groupId)!:this.root).addChild(e);
+      (o.groupId&&!o.attachment&&!o.portal?.pathId?groups.get(o.groupId)!:this.root).addChild(e);
       const m=new PbrMaterial({baseColor:color(hex),roughness:o.type===11?.68:.92,metallic:0});let button:CartesianTransform3D|null=null,wheel:CartesianTransform3D|null=null,mount:CartesianTransform3D|null=null;
       if(o.type===11){m.baseColor=[1,1,1,1];m.baseColorTexture=seaTexture(o);m.samplers={baseColor:{magFilter:'nearest',minFilter:'nearest',mipmapFilter:'nearest',addressModeU:'clamp-to-edge',addressModeV:'clamp-to-edge'}};const geometry=seaGeometry(o);e.addComponent(new Mesh3D(geometry,m));this.waters.set(o.id,geometry);}
+      else if(o.type===21||o.type===22){
+        m.baseColor=[1,1,1,1];m.baseColorTexture=seaTexture(flowStyle(o));m.samplers={baseColor:{magFilter:'nearest',minFilter:'nearest',addressModeU:'clamp-to-edge',addressModeV:'clamp-to-edge'}};
+        const surface=new Geometry3D(flowMeshData(o)),streaks=new Geometry3D({positions:flowStreakPositions(o,0),cullMode:'none',boundsMode:'manual',localBounds:{center:o.type===22?[0,-o.rise/2,0]:[0,0,0],radius:Math.hypot(o.length/2,o.type===22?o.rise/2:o.width/2,.6)}});
+        e.addComponent(new Mesh3D(surface,m));e.addChild(new Entity('Batched flow streaks and foam').addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(streaks,new BasicMaterial({color:color(o.colors.hub),blending:'normal',depthWrite:false,cullMode:'none'}))));
+        this.flows.set(o.id,{surface,streaks});
+      }
       else if(o.type===12){
         for(const [name,y,height,radius] of [['Slender pillar',o.rise/2,o.rise,o.width/2],['Pillar foot',.035,.07,o.width*.8],['Pillar capital',o.rise-.025,.05,o.width*.75]] as const)e.addChild(new Entity(name).addComponent(new CartesianTransform3D({position:[0,y,0]})).addComponent(new Mesh3D(createCylinder3D({radiusTop:radius,radiusBottom:radius,height,radialSegments:12}),m)));
       }
-      else if(isBuiltDecoration(o.type)){for(const part of decorationMeshes(o))e.addChild(new Entity(`Decoration ${part.color}`).addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(new Geometry3D({...part,cullMode:'none'}),part.color==='surface'?m:this.material(o.colors[part.color]))));}
+      else if(isBuiltDecoration(o.type)){for(const part of decorationMeshes(o)){
+        let material:PbrMaterial|BasicMaterial=part.color==='surface'?m:this.material(o.colors[part.color]);
+        if(o.type===20&&part.color==='spokes'){material=new BasicMaterial({color:[...color(o.colors.spokes).slice(0,3),.68] as [number,number,number,number],blending:'normal',depthWrite:false,cullMode:'none'});this.portalMaterials.set(o.id,material);}
+        e.addChild(new Entity(`Decoration ${part.color}`).addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(new Geometry3D({...part,cullMode:'none'}),material)));
+      }}
       else if(o.type===17){
         for(const part of ladderMeshes(o))e.addChild(new Entity(`Ladder ${part.color}`).addComponent(new CartesianTransform3D()).addComponent(new Mesh3D(new Geometry3D(part),part.color==='surface'?m:this.material(o.colors.hub))));
       }
@@ -136,7 +151,7 @@ export class MapView {
       if(o.type===4)for(const x of [-.22,0,.22])this.part(e,'Slide grip',[x,.04,0],[.065,.08,o.width*.7],'#f1f0d9');
       if(o.type===8){button=this.part(e,'Pressure plate',[0,.075,0],[1,1,1],'#dd805d',this.disk);this.part(e,'Switch center',[0,.14,0],[.13,.02,.13],'#fff0c0');}
       this.objects.set(o.id,{entity:e,transform:t,material:m,button,wheel,mount});this.registerPickMeshes(e,o.id);
-      const marker=createPathMarker(o);if(marker)e.addChild(marker);
+      const marker=createPathMarker(o);if(marker)e.addChild(marker);const checkpoint=createCheckpointMarker(o);if(checkpoint)e.addChild(checkpoint);
     }
     this.sync(map,emptyPoses());if(fit)this.fit();if(optimize)this.compileStatic(map);
   }
@@ -163,16 +178,21 @@ export class MapView {
     this.syncMap=map;this.syncKey=key;this.syncCount++;this.map=map;
     for(const g of map.groups){const p=groupPoint(map,g.id,[0,0,0],poses),x=sub(groupPoint(map,g.id,[1,0,0],poses),p),y=sub(groupPoint(map,g.id,[0,1,0],poses),p),z=sub(groupPoint(map,g.id,[0,0,1],poses),p);this.groupTransforms.get(g.id)?.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));}
     for(const o of map.objects){const r=this.objects.get(o.id);if(!r)continue;
-      const sample=(point:Vec3)=>o.attachment?worldSample(map,o,{point,up:[0,1,0],roll:0},poses).point:objectSample(o,{point,up:[0,1,0],roll:0},poses).point;
+      const state=poses.states?objectState(map,o,poses):{visible:true,enabled:true,walkable:true};r.entity.disabled=!state.visible;
+      const assembly=this.wheelAssemblies.get(o.id);if(assembly)assembly.disabled=!state.visible;
+      const membrane=this.portalMaterials.get(o.id);if(membrane)membrane.color=[...color(o.colors.spokes).slice(0,3),state.enabled?.68:.08] as [number,number,number,number];
+      const sample=(point:Vec3)=>o.attachment||o.portal?.pathId?worldSample(map,o,{point,up:[0,1,0],roll:0},poses).point:objectSample(o,{point,up:[0,1,0],roll:0},poses).point;
       const p=sample([0,0,0]),x=sub(sample([1,0,0]),p),y=sub(sample([0,1,0]),p),z=sub(sample([0,0,1]),p);
-      r.transform.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));r.material.baseColor=o.type===11?[1,1,1,1]:color(o.colors.surface);
+      r.transform.setMatrix(new Float32Array([...x,0,...y,0,...z,0,...p,1]));r.material.baseColor=[11,21,22].includes(o.type)?[1,1,1,1]:color(o.colors.surface);
       if(r.mount){const f=wheelFrame(map,o,poses);r.mount.setMatrix(new Float32Array([...f.right,0,...f.up,0,...f.shaft,0,...f.center,1]));r.wheel!.setRotation(0,0,(poses.mechanisms[o.id]??0)*RAD);}
     }
   }
 
   tick(dt:number,runtime:MapRuntime|null):void {
-    this.pathClick.update(dt,runtime);
-    this.waterTime+=dt;for(const [id,geometry] of this.waters){const o=this.map?.objects.find(o=>o.id===id);if(o)geometry.setMorphWeights(waterWeights(this.waterTime,o.water));}
+    this.updateStageCamera(runtime);this.pathClick.update(dt,runtime);
+    this.waterTime+=dt;
+    for(const [id,flow] of this.flows){const o=this.map?.objects.find(o=>o.id===id);if(!o)continue;flow.surface.setMorphWeights(waterWeights(this.waterTime,o.water));if(o.water.speed>0){flowStreakPositions(o,this.waterTime,flow.streaks.positions);flow.streaks.markDirty();}}
+    for(const [id,geometry] of this.waters){const o=this.map?.objects.find(o=>o.id===id);if(o)geometry.setMorphWeights(waterWeights(this.waterTime,o.water));}
     // Availability is independent of the cached map transforms and the wheel's rotation angle.
     for(const [id,visual] of this.wheelVisuals){
       if(!advanceWheelState(visual.state,runtime?!runtime.canDrag(id):false,dt))continue;
@@ -191,7 +211,7 @@ export class MapView {
     let x=unit([y[1]*z[2]-y[2]*z[1],y[2]*z[0]-y[0]*z[2],y[0]*z[1]-y[1]*z[0]]);
     if(Math.hypot(...x)<.5)x=unit(Math.abs(y[0])<.9?[0,y[2],-y[1]]:[-y[2],0,y[0]]);
     const back=unit([x[1]*y[2]-x[2]*y[1],x[2]*y[0]-x[0]*y[2],x[0]*y[1]-x[1]*y[0]]);
-    const s=.7*TRAVELER_SIZE_MULTIPLIER,p=this.visibleTravelerPosition(runtime);this.actorTransform.setMatrix(new Float32Array([x[0]*s,x[1]*s,x[2]*s,0,y[0]*s,y[1]*s,y[2]*s,0,back[0]*s,back[1]*s,back[2]*s,0,p[0],p[1],p[2],1]));
+    const s=.7*TRAVELER_SIZE_MULTIPLIER*Math.max(.001,runtime.portalState?.scale??1),p=this.visibleTravelerPosition(runtime);this.actorTransform.setMatrix(new Float32Array([x[0]*s,x[1]*s,x[2]*s,0,y[0]*s,y[1]*s,y[2]*s,0,back[0]*s,back[1]*s,back[2]*s,0,p[0],p[1],p[2],1]));
     const name=climbing?'Climb':runtime.walking?'Walk':'Idle';if(name!==this.animation){this.animation=name;this.animationTime=0;}if(runtime.walking||!climbing)this.animationTime+=dt;
     const clip=this.model.runtimeAnimationClips.find(c=>c.name===name);if(clip)applyGltfAnimationClip(clip,climbing?.descending?(1.2-this.animationTime%1.2)%1.2:this.animationTime);
   }
@@ -232,13 +252,30 @@ export class MapView {
     else if(!enabled&&this.orbit){this.orbit.dispose();this.orbit=null;}
   }
   dispose():void {this.pathClick.dispose();this.orbit?.dispose();this.orbit=null;this.cancelCompilation?.();this.cancelCompilation=null;this.generation++;}
+  cameraSettings():StageCamera{
+    const m=this.orbitTransform.localMatrix,u=(this.width/2-this.centerX)/this.scale,v=(this.centerY-this.height/2)/this.scale;
+    // Pan is stored in asymmetric orthographic bounds. Bake that offset into
+    // the target so capturing and previewing a stage preserves its framing.
+    const target=Array.from(this.orbitTransform.target,(n,i)=>n+u*m[i]!+v*m[4+i]!) as Vec3;
+    return {...defaultStageCamera(),target,yaw:this.orbitTransform.theta/RAD,pitch:this.orbitTransform.phi/RAD,span:this.height/this.scale};
+  }
+  previewCamera(c:StageCamera):void{this.orbitTransform.set(150,c.yaw*RAD,c.pitch*RAD);this.orbitTransform.setTarget(...c.target);this.scale=this.height/c.span;this.centerX=this.width/2;this.centerY=this.height/2;this.cameraBounds();}
+  private updateStageCamera(runtime:MapRuntime|null):void{
+    if(!runtime){this.stageRuntime=null;this.stageKey='';return;}
+    const key=`${runtime.stageRevision}:${runtime.recoveryVersion}`,changed=runtime!==this.stageRuntime||key!==this.stageKey,c=runtime.currentStage?.camera;
+    if(changed){this.cameraFrom=runtime!==this.stageRuntime||runtime.stageCameraProgress>=1?null:this.cameraSettings();this.stageRuntime=runtime;this.stageKey=key;}
+    const resized=this.width!==this.stageWidth||this.height!==this.stageHeight;this.stageWidth=this.width;this.stageHeight=this.height;
+    if(!c||!changed&&!runtime.sceneTransition&&!resized&&!this.cameraFrom)return;
+    const from=this.cameraFrom??c,t0=runtime.stageCameraProgress,t=t0*t0*(3-2*t0),angle=((c.yaw-from.yaw+540)%360+360)%360-180;
+    this.previewCamera({...c,target:from.target.map((v,i)=>v+(c.target[i]!-v)*t) as Vec3,yaw:from.yaw+angle*t,pitch:from.pitch+(c.pitch-from.pitch)*t,span:from.span+(c.span-from.span)*t});if(t0>=1)this.cameraFrom=null;
+  }
   resetAngle():void {this.orbitTransform.set(150,Math.PI/4,Math.acos(1/Math.sqrt(3)));this.fit();}
   /** Read the engine camera basis so picking and optical seams match rendering. */
   project=(p:Vec3):[number,number]=>{const m=this.orbitTransform.localMatrix;return [p[0]*m[0]!+p[1]*m[1]!+p[2]*m[2]!,p[0]*m[4]!+p[1]*m[5]!+p[2]*m[6]!];};
   fit():void {
     if(!this.map?.objects.length){this.orbitTransform.setTarget(0,0,0);this.centerX=this.width/2;this.centerY=this.height/2;this.scale=40;this.cameraBounds();return;}
     const objects=this.map.objects.some(isWalkable)?this.map.objects.filter(o=>o.type!==11):this.map.objects;
-    const world=objects.flatMap(o=>isBuiltDecoration(o.type)?decorationBounds(o).map(point=>worldSample(this.map!,o,{point,up:[0,1,0],roll:0},emptyPoses()).point):o.type===11?([0,1,2,3] as CornerId[]).map(c=>worldSample(this.map!,o,{point:pathCorner(o,c),up:[0,1,0],roll:0},emptyPoses()).point):o.type===12?[worldSample(this.map!,o,{point:[0,0,0],up:[0,1,0],roll:0},emptyPoses()).point,worldSample(this.map!,o,{point:[0,o.rise,0],up:[0,1,0],roll:0},emptyPoses()).point]:worldSamples(this.map!,o,emptyPoses()).map(s=>s.point));
+    const world=objects.flatMap(o=>o.type===21||o.type===22?flowBounds(o).map(point=>worldSample(this.map!,o,{point,up:[0,1,0],roll:0},emptyPoses()).point):isBuiltDecoration(o.type)?decorationBounds(o).map(point=>worldSample(this.map!,o,{point,up:[0,1,0],roll:0},emptyPoses()).point):o.type===11?([0,1,2,3] as CornerId[]).map(c=>worldSample(this.map!,o,{point:pathCorner(o,c),up:[0,1,0],roll:0},emptyPoses()).point):o.type===12?[worldSample(this.map!,o,{point:[0,0,0],up:[0,1,0],roll:0},emptyPoses()).point,worldSample(this.map!,o,{point:[0,o.rise,0],up:[0,1,0],roll:0},emptyPoses()).point]:worldSamples(this.map!,o,emptyPoses()).map(s=>s.point));
     const focus=[0,1,2].map(i=>(Math.min(...world.map(p=>p[i]!))+Math.max(...world.map(p=>p[i]!)))/2) as Vec3;this.orbitTransform.setTarget(...focus);
     const points=world.map(p=>this.project([p[0]-focus[0],p[1]-focus[1],p[2]-focus[2]]));
     const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),minX=Math.min(...xs)-1.2,maxX=Math.max(...xs)+1.2,minY=Math.min(...ys)-1.2,maxY=Math.max(...ys)+2;
@@ -267,12 +304,14 @@ export class MapView {
   canTurnWheel(id:string):boolean{return this.wheelVisuals.get(id)?.state.disabled===false;}
   wheelSnapshot():unknown{return Object.fromEntries([...this.wheelVisuals].map(([id,v])=>[id,{disabled:v.state.disabled,open:v.state.open,animating:v.state.elapsed<WHEEL_FOLD_DURATION,gripPositions:v.arms.map(a=>Array.from(a.grip.localMatrix.slice(12,15)))}]));}
   pickWheel(x:number,y:number,poses=emptyPoses()):string|null {
-    let result:string|null=null,best=Infinity;for(const o of this.map?.objects??[]){if(o.type!==3)continue;const f=this.wheelProjection(o,poses);if(!f.direction)continue;const dx=x-f.center[0],dy=y-f.center[1],det=f.right[0]*f.up[1]-f.right[1]*f.up[0],u=(dx*f.up[1]-dy*f.up[0])/det,v=(dy*f.right[0]-dx*f.right[1])/det,pad=7/this.scale;
+    let result:string|null=null,best=Infinity;for(const o of this.map?.objects??[]){if(o.type!==3||(poses.states&&!objectState(this.map!,o,poses).visible))continue;const f=this.wheelProjection(o,poses);if(!f.direction)continue;const dx=x-f.center[0],dy=y-f.center[1],det=f.right[0]*f.up[1]-f.right[1]*f.up[0],u=(dx*f.up[1]-dy*f.up[0])/det,v=(dy*f.right[0]-dx*f.right[1])/det,pad=7/this.scale;
       const shape=wheelShape(this.wheelVisuals.get(o.id)?.state.open??1),reach=shape.gripCenter+shape.gripSize/2+pad,halfWidth=shape.gripSize/2+pad;
       if((Math.abs(u)<.36+pad&&Math.abs(v)<.36+pad)||(Math.abs(u)<halfWidth&&Math.abs(v)<reach)||(Math.abs(v)<halfWidth&&Math.abs(u)<reach)){const d=Math.hypot(dx,dy);if(d<best){result=o.id;best=d;}}
     }return result;
   }
   beginWheel(id:string,point:Point2,poses=emptyPoses()):WheelDrag|null {const o=this.map?.objects.find(o=>o.id===id);if(!o||o.type!==3||!this.canTurnWheel(id)||this.pickWheel(...point,poses)!==id)return null;const f=this.wheelProjection(o,poses);return beginWheelDrag(point,f.center,poses.mechanisms[id]??0,f.direction);}
+  flowSnapshot():unknown{return [...this.flows].map(([id,f])=>({id,surfaceVertices:f.surface.vertexCount,streakVertices:f.streaks.vertexCount,weights:Array.from(f.surface.morphWeights),firstStreak:Array.from(f.streaks.positions.slice(0,18))}));}
+  portalTargets(poses=emptyPoses()):unknown{return (this.map?.objects??[]).filter(o=>o.type===20).map(o=>({id:o.id,targetId:o.portal?.targetId,screen:this.screen(worldSample(this.map!,o,{point:[0,o.rise*.4,0],up:[0,1,0],roll:0},poses).point)}));}
   waterSnapshot():unknown{return {time:this.waterTime,surfaces:[...this.waters].map(([id,g])=>({id,weights:Array.from(g.morphWeights),gpu:g.morphUseGpu,vertices:g.vertexCount,triangles:(g.indices?.length??g.positions.length/3)/3}))};}
   /** Placement attaches to road geometry, never a flag, gate, button or wheel handle. */
   private markPlacementMeshes(entity:Entity):void {
@@ -316,7 +355,7 @@ export class MapView {
     const m=this.orbitTransform.localMatrix,u=(x-this.centerX)/this.scale,v=(this.centerY-y)/this.scale;
     this.pickRay.origin.set([m[12]!+m[0]!*u+m[4]!*v,m[13]!+m[1]!*u+m[5]!*v,m[14]!+m[2]!*u+m[6]!*v]);
     this.pickRay.direction.set([-m[8]!,-m[9]!,-m[10]!]);
-    const allowed=new Set(this.map.objects.filter(o=>decorations||isWalkable(o)).map(o=>o.id));
+    const allowed=new Set(this.map.objects.filter(o=>decorations||activePath(this.map!,o,poses)||(!surfacesOnly&&activePortal(this.map!,o,poses))).map(o=>o.id));
     let nearest=Infinity,result:string|null=null,point:Vec3=[0,0,0],normal:Vec3=[0,1,0];
     for(const {id,entity,mesh} of this.pickMeshes){
       if(!allowed.has(id)||(surfacesOnly&&!this.placementMeshes.has(mesh)))continue;

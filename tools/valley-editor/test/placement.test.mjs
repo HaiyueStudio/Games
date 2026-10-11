@@ -101,7 +101,7 @@ test('the directly hovered foreground object wins over another projected depth l
 test('decorations sit on floating and rotated road faces instead of stacking another cube',async()=>{
  const e=make();await e.start();try{
   const id=e.add(1,[2,4.25,3]);
-  for(const type of [13,14,15,16]){
+  for(const type of [13,14,15,16,21,22]){
    const p=resolve(e,[2.2,4.25,3.1],{hit:id,type});near(p.position,[2,4.25,3]);assert.equal(p.mode,'surface');
    const added=e.add(type,p.position,p.rotation);near(sample(e,added,[0,0,0]).point,[2,4.25,3]);e.platform.history.undo();
    assert.equal(resolve(e,[20,0,20],{height:7.25,type}).position[1],7.25);

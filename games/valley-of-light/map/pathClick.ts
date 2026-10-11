@@ -6,7 +6,7 @@ export class PathClick {
   private readonly transform=new CartesianTransform3D();
   private readonly material:BasicMaterial;
   private readonly entity:Entity;
-  private target:{runtime:MapRuntime;id:string;index:number;age:number}|null=null;
+  private target:{runtime:MapRuntime;id:string;index:number;age:number;version:number}|null=null;
   private position:Vec3=[0,0,0];
   private opacity=0;
   constructor(private readonly scene:Scene){
@@ -21,13 +21,13 @@ export class PathClick {
   }
   show(runtime:MapRuntime,id:string,index?:number):void{
     const o=runtime.map.objects.find(o=>o.id===id);if(!o)return;
-    this.target={runtime,id,index:index??centerIndex(o),age:0};this.update(0,runtime);
+    this.target={runtime,id,index:index??centerIndex(o),age:0,version:runtime.recoveryVersion};this.update(0,runtime);
   }
   clear():void{this.target=null;this.entity.disabled=true;this.opacity=0;}
   update(dt:number,runtime:MapRuntime|null):void{
     const target=this.target;if(!target)return;
     target.age+=dt;
-    if(runtime!==target.runtime||target.age>=1){this.clear();return;}
+    if(runtime!==target.runtime||runtime.recoveryVersion!==target.version||target.age>=1){this.clear();return;}
     const o=runtime!.map.objects.find(o=>o.id===target.id),sample=o&&worldSamples(runtime!.map,o,runtime!.poses)[target.index];
     if(!sample){this.clear();return;}
     const y=sample.up,x=unit(Math.abs(y[0])<.9?[0,y[2],-y[1]]:[-y[2],0,y[0]]);

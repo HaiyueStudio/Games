@@ -1,4 +1,4 @@
-import { add, createObject, emptyPoses, extrusionSamples, isBuiltDecoration, isWalkable, length, localSamples, mul, objectSample, pathPorts, rotate, snapPosition, sub, unit, walkSurfaces, worldSample, worldSamples, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
+import { add, createObject, emptyPoses, extrusionSamples, isBuiltDecoration, isFlowDecoration, isWalkable, length, localSamples, mul, objectSample, pathPorts, rotate, snapPosition, sub, unit, walkSurfaces, worldSample, worldSamples, type MapObject, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';
 
 type Point=[number,number];
 interface Anchor {id:string;point:Vec3;out:Vec3;up:Vec3}
@@ -121,7 +121,7 @@ export class PathPlacement {
           const position=clean(add(sub(top,mul(up,createObject(17,'preview').rise)),mul(out,.02)));
           return {position,rotation,sourceId:hit.id,mode:'surface',height:position[1],blocked:false};
         }
-        if(isBuiltDecoration(type)){
+        if((isBuiltDecoration(type)||isFlowDecoration(type))){
           const rotation=faceRotation({...face,top:true,x:Math.abs(dot(face.x,face.normal))>.99?face.y:face.x,y:face.normal}),axes:Vec3[]=[rotate([1,0,0],rotation),rotate([0,0,1],rotation)];let position=[...face.point] as Vec3;
           for(const axis of axes){const values=face.corners.map(p=>dot(sub(p,face.point),axis)),amount=Math.round(dot(sub(hit.point,face.point),axis)/frame.step)*frame.step;position=add(position,mul(axis,Math.max(Math.min(...values),Math.min(Math.max(...values),amount))));}
           return {position:clean(position),rotation,sourceId:hit.id,mode:'surface',height:position[1],blocked:false};
