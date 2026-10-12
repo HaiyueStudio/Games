@@ -134,6 +134,7 @@ export interface ValleyMap {
   format:'haiyue-valley-map'; version:1; catalogVersion:1; id:string; name:string;
   objects:MapObject[]; groups:MapGroup[]; opticalLinks:OpticalLink[];
   logic?:MapLogic;stages?:SceneStages;story?:MapStory;
+  appearance?:{background:string;ambientIntensity?:number};
   /** Validated load-time hint; authoring serialization deliberately drops it. */
   renderPlan?:StaticPathPlan;
 }
@@ -154,6 +155,7 @@ export function parseMap(input:unknown):ValleyMap {
   if(record(input)&&input.format==='haiyue-valley-map'&&input.version===2)return parseCompactMap(input);
   if (!record(input)||input.format!=='haiyue-valley-map'||input.version!==1||input.catalogVersion!==1) throw new Error('不支持的地图格式或物体目录版本。');
   if(!identifier(input.id)||!label(input.name)||!Array.isArray(input.objects)||input.objects.length>500||!Array.isArray(input.groups)||input.groups.length>100||!Array.isArray(input.opticalLinks)||input.opticalLinks.length>1000) throw new Error('地图名称、ID 或对象数量无效。');
+  if(input.appearance!==undefined&&(!record(input.appearance)||Object.keys(input.appearance).some(k=>!['background','ambientIntensity'].includes(k))||typeof input.appearance.background!=='string'||!/^#[0-9a-f]{6}$/i.test(input.appearance.background)||input.appearance.ambientIntensity!==undefined&&!finite(input.appearance.ambientIntensity,0,4)))throw new Error('地图背景颜色或环境亮度无效。');
   const ids=new Set<string>(), groups=new Set<string>();
   const validBasis=(b:unknown)=>b===undefined||(Array.isArray(b)&&b.length===16&&b.every(v=>finite(v,-1e6,1e6))&&[3,7,11].every(i=>b[i]===0)&&b[15]===1&&invertibleMatrix(b));
   const validateOffset=(n:Record<string,unknown>)=>{if(n.order!==undefined&&!finite(n.order,0,10000))throw new Error('节点顺序无效。');if(!validBasis(n.basis))throw new Error('节点变换矩阵无效或不可逆。');};
@@ -219,6 +221,7 @@ export function parseMap(input:unknown):ValleyMap {
   const logic=parseLogic(input.logic??{variables:[],rules:[]},input.objects as MapObject[],input.groups as MapGroup[],stages,story);
   // Rebuild known fields to keep editor/runtime metadata out of the portable protocol.
   return {format:'haiyue-valley-map',version:1,catalogVersion:1,id:input.id,name:input.name,
+    ...(input.appearance?{appearance:{...(input.appearance as {background:string;ambientIntensity?:number})}}:{}),
     ...(stages?{stages}:{}),
     ...(story?{story}:{}),...(input.logic!==undefined?{logic}:{}),
     groups:input.groups.map(g=>({id:g.id,name:g.name,...(g.platform?{platform:parsePlatform(g.platform)}:{}),pivot:[...g.pivot] as Vec3,...(g.parentId!==undefined?{parentId:g.parentId}:{}),...(g.position?{position:[...g.position]}:{}),...(g.rotation?{rotation:[...g.rotation]}:{}),...(g.scale?{scale:[...g.scale]}:{}),...(g.basis?{basis:[...g.basis]}:{}),...(g.order!==undefined?{order:g.order}:{})})),
@@ -339,7 +342,7 @@ export function analyzeStaticPaths(map:ValleyMap):StaticPathPlan {
 /** Compact v2 stores only deviations from the stable catalog-v1 defaults. No coordinate rounding. */
 export function serializeCompactMap(map:ValleyMap):string {
   const source=parseMap(map),sparse=(value:Record<string,unknown>,base:Record<string,unknown>):Record<string,unknown>=>Object.fromEntries(Object.entries(value).flatMap(([key,v])=>{if(JSON.stringify(v)===JSON.stringify(base[key]))return [];return [[key,record(v)&&record(base[key])?sparse(v,base[key]):v]];}));
-  return JSON.stringify({format:source.format,version:2,catalogVersion:1,id:source.id,name:source.name,objects:source.objects.map(o=>({id:o.id,type:o.type,...sparse(o as unknown as Record<string,unknown>,createObject(o.type,o.id) as unknown as Record<string,unknown>)})),...(source.logic?{logic:source.logic}:{}),...(source.story?{story:source.story}:{}),...(source.stages?{stages:source.stages}:{}),...(source.groups.length?{groups:source.groups}:{}),...(source.opticalLinks.length?{opticalLinks:source.opticalLinks}:{}),render:analyzeStaticPaths(source)})+'\n';
+  return JSON.stringify({format:source.format,version:2,catalogVersion:1,id:source.id,name:source.name,objects:source.objects.map(o=>({id:o.id,type:o.type,...sparse(o as unknown as Record<string,unknown>,createObject(o.type,o.id) as unknown as Record<string,unknown>)})),...(source.appearance?{appearance:source.appearance}:{}),...(source.logic?{logic:source.logic}:{}),...(source.story?{story:source.story}:{}),...(source.stages?{stages:source.stages}:{}),...(source.groups.length?{groups:source.groups}:{}),...(source.opticalLinks.length?{opticalLinks:source.opticalLinks}:{}),render:analyzeStaticPaths(source)})+'\n';
 }
 function parseCompactMap(input:Record<string,unknown>):ValleyMap {
   if(input.catalogVersion!==1||!Array.isArray(input.objects)||input.objects.length>500)throw new Error('精简地图目录版本或对象数量无效。');

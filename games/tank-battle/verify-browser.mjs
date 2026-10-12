@@ -21,7 +21,7 @@ const server = createServer((req, res) => {
 });
 await new Promise(resolveReady => server.listen(0, '127.0.0.1', resolveReady));
 const base = `http://127.0.0.1:${server.address().port}`;
-const child = spawn(chrome, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-crash-reporter', '--mute-audio', '--remote-debugging-port=0', '--window-size=1440,1100', '--force-device-scale-factor=1', `--user-data-dir=${profile}`, `--crash-dumps-dir=${output}`, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+const child = spawn(chrome, ['--headless=new', '--enable-unsafe-webgpu', '--disable-gpu-process-for-dx12-info-collection', '--use-angle=d3d11', '--no-sandbox', '--disable-gpu-sandbox', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-crash-reporter', '--mute-audio', '--remote-debugging-port=0', '--window-size=1440,1100', '--force-device-scale-factor=1', `--user-data-dir=${profile}`, `--crash-dumps-dir=${output}`, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
 child.stdout.resume(); let stderr = ''; child.stderr.on('data', chunk => { stderr += chunk; });
 const delay = ms => new Promise(accept => setTimeout(accept, ms));
 async function until(check, label, timeout = 15000) {
@@ -42,11 +42,11 @@ try {
       const p = pending.get(message.id); if (!p) return; pending.delete(message.id); clearTimeout(p.timer);
       if (message.error) p.reject(new Error(JSON.stringify(message.error))); else p.accept(message.result);
     }
-    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text);
-    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') errors.push(message.params.args.map(a => a.value ?? a.description).join(' '));
+    if (message.method === 'Runtime.exceptionThrown') { const error = message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text; errors.push(error); console.error(error); }
+    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') { const error = message.params.args.map(a => a.value ?? a.description).join(' '); errors.push(error); console.error(error); }
   });
   cdp = (method, params = {}) => new Promise((accept, reject) => {
-    const id = nextId++; const timer = setTimeout(() => { pending.delete(id); reject(new Error(`CDP timeout: ${method}`)); }, 15000);
+    const id = nextId++; const timer = setTimeout(() => { pending.delete(id); reject(new Error(`CDP timeout: ${method}`)); }, 60000);
     pending.set(id, { accept, reject, timer }); socket.send(JSON.stringify({ id, method, params }));
   });
   const evaluate = async expression => {
@@ -54,21 +54,37 @@ try {
     if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
     return result.result?.value;
   };
-  const click = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const click = async selector => {
+    const b = await evaluate(`window.__tankBattle.hud().buttons[${JSON.stringify(selector.slice(1))}]`);
+    assert.ok(b?.visible && !b.disabled, `GUI button ${selector} is available`);
+    const point = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
+    await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...point });
+    await delay(65);
+    await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...point });
+    await delay(150);
+  };
   const snapshot = () => evaluate('window.__tankBattle.snapshot()');
   const key = (type, keyValue, code, keyCode) => cdp('Input.dispatchKeyEvent', { type, key: keyValue, code, windowsVirtualKeyCode: keyCode });
   const capture = async (name, extra = {}) => {
+    assert.deepEqual(await evaluate('window.__tankBattle.hud().missingGlyphs'), [], 'all HUD text has font atlas glyphs');
+    const viewport = await evaluate('window.__tankBattle.hud().viewport');
+    assert.ok(Math.abs(viewport.width - viewport.cssWidth) < 1 && Math.abs(viewport.height - viewport.cssHeight) < 1, 'GUI viewport must match its displayed canvas');
     const result = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, ...extra });
     writeFileSync(resolve(output, name), Buffer.from(result.data, 'base64'));
   };
   await cdp('Runtime.enable'); await cdp('Page.enable');
+  console.log('Browser connected; loading Engine GUI.');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   const navigate = async path => {
     await cdp('Page.navigate', { url: `${base}${path}` });
-    await until(() => evaluate('document.body?.dataset.renderStatus === "passed"'), 'game ready');
+    await until(() => evaluate('document.body?.dataset.renderStatus === "failed" ? Promise.reject(new Error(document.querySelector("#fatal").textContent)) : document.body?.dataset.renderStatus === "passed"'), 'game ready', 90000);
+    await delay(500);
   };
   await navigate('/games/tank-battle/index.html?verify=1');
-  await until(() => evaluate('[...document.images].every(i => i.complete && i.naturalWidth > 0)'), 'all game assets decoded');
+  console.log('Engine GUI ready; checking pointer and keyboard input.');
+  assert.equal(await evaluate('window.__tankBattle.hud().renderer'), 'engine-gui');
+  assert.equal(await evaluate('document.querySelectorAll("button,aside,img").length'), 0, 'HUD must not use DOM widgets');
   await capture('title.png');
   await click('#solo'); let state = await snapshot(); assert.equal(state.mode, 1); assert.equal(state.phase, 'playing');
   await key('keyDown', 'w', 'KeyW', 87); await key('keyDown', 'j', 'KeyJ', 74); await delay(400);
@@ -84,36 +100,63 @@ try {
   state = await snapshot(); assert.equal(state.mode, 2);
   for (const p of [1, 2]) { assert.ok(state.tanks.find(t => t.player === p).y < 385); assert.ok(state.bullets.some(b => b.player === p)); }
   await delay(4000); await capture('gameplay.png');
-  const rectangle = await evaluate('(() => { const r=document.querySelector(".battle-frame").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1};})()');
+  const rectangle = await evaluate('(() => { const r=document.querySelector("#battlefield").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1};})()');
   await capture('thumbnail.png', { clip: rectangle });
   if (process.argv.includes('--update-thumbnail')) writeFileSync(resolve(root, 'site/screenshots/tank-battle.png'), readFileSync(resolve(output, 'thumbnail.png')));
-  await click('#sound'); assert.equal(await evaluate('document.querySelector("#sound").getAttribute("aria-pressed")'), 'true');
+  await click('#sound'); assert.equal(await evaluate('window.__tankBattle.hud().muted'), true);
   await click('#pause'); const saved = await snapshot();
-  await until(() => evaluate('document.querySelector("#save-status").textContent === "进度已保存"'), 'autosave');
+  await until(() => evaluate('window.__tankBattle.hud().saveStatus === "进度已保存"'), 'autosave');
   await navigate('/games/tank-battle/index.html?verify=1');
   const restored = await snapshot(); assert.equal(restored.mode, 2); assert.equal(restored.tick, saved.tick);
   assert.deepEqual(restored.tanks, saved.tanks); assert.deepEqual(restored.players, saved.players);
-  assert.equal(await evaluate('document.querySelector("#sound").getAttribute("aria-pressed")'), 'true');
+  assert.equal(await evaluate('window.__tankBattle.hud().muted'), true);
   await click('#resume'); await delay(100); assert.ok((await snapshot()).tick > restored.tick);
   await evaluate('window.dispatchEvent(new Event("blur"))'); assert.equal((await snapshot()).phase, 'paused');
-  await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 768, deviceScaleFactor: 2, mobile: false });
+  await delay(300);
   assert.ok(await evaluate('(() => {const r=document.querySelector("#battlefield").getBoundingClientRect();return Math.abs(r.width-r.height)<1;})()'), 'compact desktop battlefield must remain square');
   await capture('compact-desktop.png');
+  await click('#resume'); assert.equal((await snapshot()).phase, 'playing');
+  await click('#pause'); assert.equal((await snapshot()).phase, 'paused');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  await capture('mobile.png');
-  assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'mobile page must not overflow horizontally');
-  assert.equal(await evaluate('getComputedStyle(document.querySelector(".touch-controls")).display'), 'flex');
+  await delay(300);
+  await navigate('/games/tank-battle/index.html?verify=1');
+  assert.equal(await evaluate('window.__tankBattle.hud().buttons.duo'), undefined, 'mobile offers only 1P');
+  await capture('mobile-title.png');
   await click('#solo');
-  // Native pointer capture is verified with CDP touch input.
-  await evaluate('document.querySelector(".touch-controls").scrollIntoView({block:"nearest"})');
-  const touch = await evaluate('(() => {const r=document.querySelector("[data-key=KeyW]").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()');
-  await cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...touch, id: 1 }] }); await delay(250);
-  await cdp('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  assert.ok((await snapshot()).tanks.find(t => t.player === 1).y < 395);
+  assert.equal((await snapshot()).mode, 1);
+  const pad = await evaluate('window.__tankBattle.hud().stick');
+  const fire = await evaluate('window.__tankBattle.hud().fire');
+  await cdp('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:pad.x,y:pad.y,id:1},{x:fire.x,y:fire.y,id:2}]});
+  await cdp('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:pad.x,y:pad.y-pad.radius*.65,id:1},{x:fire.x,y:fire.y,id:2}]});
+  await delay(350);
+  assert.equal(await evaluate('window.__tankBattle.hud().controls.direction'),0);
+  assert.ok((await snapshot()).bullets.some(b=>b.player===1),'second finger fires while joystick moves');
+  assert.ok((await snapshot()).tanks.find(t=>t.player===1).y<395);
+  await capture('mobile.png');
+  await cdp('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  await delay(100);
+  assert.deepEqual(await evaluate('window.__tankBattle.hud().controls'),{direction:null,fire:false});
+  await click('#pause');const mobileSaved=await snapshot();await delay(500);
+  await navigate('/games/tank-battle/index.html?verify=1');
+  assert.equal((await snapshot()).tick,mobileSaved.tick,'mobile 1P save restores independently');
+  assert.equal((await snapshot()).mode,1);
+  await click('#resume');assert.equal((await snapshot()).phase,'playing');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:844,height:390,deviceScaleFactor:1,mobile:true});
+  await delay(400);await capture('mobile-landscape.png');
+  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth && document.documentElement.scrollHeight<=innerHeight'),true,'mobile controls fit viewport');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:320,height:568,deviceScaleFactor:2,mobile:true});
+  await delay(300);await capture('mobile-small.png');
+  assert.ok(await evaluate('(() => { const h=window.__tankBattle.hud();return [h.stick,h.fire].every(p=>p.x-p.radius>=0 && p.x+p.radius<=innerWidth && p.y+p.radius<=innerHeight); })()'),'small phone controls remain within the screen');
+  await evaluate('window.dispatchEvent(new Event("blur"))');
+  assert.equal((await snapshot()).phase,'paused','mobile pauses when backgrounded');
   assert.deepEqual(errors, [], 'browser errors');
-  writeFileSync(resolve(output, 'browser.json'), `${JSON.stringify({ result: 'pass', checks: ['assets', 'single-player movement/fire', 'simultaneous co-op controls', 'pause/resume', 'mute', 'exact autosave restore', 'blur pause', 'responsive square battlefield', 'touch movement'], browserErrors: errors, screenshots: ['title.png', 'gameplay.png', 'compact-desktop.png', 'mobile.png'] }, null, 2)}\n`);
+  writeFileSync(resolve(output, 'browser.json'), `${JSON.stringify({ result: 'pass', checks: ['assets', 'single-player movement/fire', 'simultaneous co-op controls', 'pause/resume', 'mute', 'exact autosave restore', 'blur pause', 'responsive square battlefield', '1P-only mobile menu', 'joystick and simultaneous fire', 'touch cancellation', 'independent mobile autosave', '320px and landscape layout', 'mobile background pause'], browserErrors: errors, screenshots: ['title.png', 'gameplay.png', 'compact-desktop.png', 'mobile.png', 'mobile-title.png', 'mobile-landscape.png', 'mobile-small.png'] }, null, 2)}\n`);
   console.log('Tank Battle browser checks passed. Screenshots: artifacts/tank-battle/');
   socket.close();
+} catch (error) {
+  console.error(stderr.slice(-5000));
+  throw error;
 } finally {
   child.kill(); await delay(500); server.closeAllConnections(); await new Promise(accept => server.close(accept));
   // Only delete the unique temporary profile created by this verifier inside its output directory.

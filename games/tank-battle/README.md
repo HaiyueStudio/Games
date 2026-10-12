@@ -33,9 +33,15 @@ The manifest also adds the game to the generated Pages lobby.
 ## Architecture and assets
 
 `rules.ts` is a deterministic 60 Hz simulation with no DOM, audio or rendering dependency.
-`render.ts` is a Canvas 2D sprite adapter with nearest-neighbor scaling. `main.ts` owns frame
-timing, removable input listeners, sound, UI and the public Engine save integration.
-Canvas 2D keeps this strictly pixel-based game playable without requiring a WebGPU adapter.
+`render.ts` is a Canvas 2D sprite adapter with nearest-neighbor scaling. `TankBattleHud.ts`
+renders the complete interface with public Engine `GuiRoot`, `GuiLabel`, `GuiButton` and
+`GuiImage` components, through `GuiSystem` and `RenderIntegration`. Menus, player status,
+terrain/supply legends and touch controls are engine GUI elements, not DOM widgets.
+`main.ts` runs the fixed simulation from the Engine update event and owns removable input,
+audio and autosave. The GUI now requires a WebGPU-capable browser. Both the GUI world and
+engine are destroyed on teardown; resize changes the existing elements rather than recreating them.
+`pointerCapture.ts` guards stale native capture calls from the installed GUI's deferred touch
+dispatch, preserving concurrent live touches and restoring the canvas methods on teardown.
 
 `sprites.ts` contains original 16×16 artwork. Regenerate the transparent PNG atlas, independent
 terrain/tank/item PNGs, metadata and browsable asset gallery with Node 22.6+:
@@ -51,7 +57,7 @@ fonts, CDN requests or image-generation service is required.
 ## Verification
 
 ```sh
-node --experimental-strip-types --test games/test/tank-battle.test.mjs
+node --experimental-strip-types --test games/test/tank-battle.test.mjs games/test/tank-battle-gui.test.mjs
 npm run typecheck
 npm test
 npm run build
@@ -61,3 +67,17 @@ The browser smoke script `verify-browser.mjs` checks the actual single-player an
 controls, pause/resume, mute, reload/continue, asset requests and responsive layout. It writes
 reviewable screenshots under `artifacts/tank-battle/`. It uses the installed Chrome browser
 through its DevTools protocol with no additional dependencies. Set `CHROME_PATH` when needed.
+The checks click actual Engine GUI rectangles (no DOM button proxies), validate atlas glyph
+coverage and CSS/GUI viewport agreement, and exercise high-DPI resizing and two-finger controls.
+
+## 手机 / Native
+
+手机打开时使用独立 1P 界面，左侧虚拟摇杆、右侧长按开火，可双指操作。
+摇杆有中心死区、四方向判定、移动范围限制和松手回中。横竖屏适配，无需滚动。
+`MobileTankGame.ts` 的战场与 HUD 全部由 Engine GUI 绘制；桌面保留单人/双人模式。
+手机单独保存 1P 进度，不会把桌面双人存档加载到手机。切后台会暂停并清除输入。
+按钮贴图是已随项目保存的生成素材，来源见 `assets/controls-art.md`；不需要在线生成。
+
+Native 独立副本在 `Native/games/tank-battle`，原生工程在 `Native/examples/tank-battle`，
+遵循该仓现有 NativeScript / 原生 WebGPU 方案。原生版不依赖本 Games 仓运行。
+新增手机输入测试：`node --experimental-strip-types --test games/test/tank-battle-mobile.test.mjs`。

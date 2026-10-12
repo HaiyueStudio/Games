@@ -4,6 +4,7 @@
   "type": "object",
   "required": ["format", "version", "catalogVersion", "id", "name", "objects", "groups", "opticalLinks"],
   "properties": {
+    "appearance": {"type":"object","additionalProperties":false,"required":["background"],"properties":{"background":{"type":"string","pattern":"^#[0-9a-fA-F]{6}$"},"ambientIntensity":{"type":"number","minimum":0,"maximum":4}}},
     "format": { "const": "haiyue-valley-map" },
     "version": { "const": 1 },
     "catalogVersion": { "const": 1 },

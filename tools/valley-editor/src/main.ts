@@ -1,4 +1,7 @@
 import {StoryUI} from './storyUI';
+import {createValleyEditorApi,type ValleyEditorApi} from './api';
+import {ApiUI} from './apiUI';
+import {chapterTwoRecipe} from '../recipes/chapter-two';
 import {DebugUI} from './debugUI';
 import {StoryHud} from '../../../games/valley-of-light/map/storyHud';
 import { JourneyUI } from './journeyUI';
@@ -22,6 +25,7 @@ import type { Placement } from './placement';
 const $=<T extends HTMLElement=HTMLElement>(id:string):T=>document.getElementById(id) as T;
 const node=(tag:string,text='',className=''):HTMLElement=>{const n=document.createElement(tag);n.textContent=text;n.className=className;return n;};
 class ValleyEditor {
+  private api!:ValleyEditorApi;
   readonly author=new ValleyAuthoring(new URLSearchParams(location.search).get('demo')==='story'?storyGarden():new URLSearchParams(location.search).get('demo')==='journey'?journeyGarden():new URLSearchParams(location.search).get('demo')==='checkpoints'?checkpointGarden():new URLSearchParams(location.search).get('demo')==='rules'?logicGarden():new URLSearchParams(location.search).get('demo')==='portals'?portalGarden():new URLSearchParams(location.search).get('demo')==='gates'?gateGarden():new URLSearchParams(location.search).get('demo')==='ladder'?ladderGarden():new URLSearchParams(location.search).get('demo')==='decorations'?decorationGarden():new URLSearchParams(location.search).get('demo')==='split'?splitGarden():new URLSearchParams(location.search).get('demo')==='sea'?seasideGarden():new URLSearchParams(location.search).get('demo')==='seam'?rotatedSeamGarden():new URLSearchParams(location.search).get('demo')==='surfaces'?surfaceGarden():new URLSearchParams(location.search).get('demo')==='arc'?surfaceGarden(true):switchGarden());private abort=new AbortController();private engine!:HaiyueEngine;private view!:MapView;
   private storyUI!:StoryUI;private debugUI!:DebugUI;private storyHud:StoryHud|null=null;
   private journeyUI!:JourneyUI;private logicUI!:LogicUI;private hierarchy!:HierarchyUI;private layout!:EditorLayout;private splitDepth=3;private placementPointer:[number,number]|null=null;
@@ -41,6 +45,10 @@ class ValleyEditor {
     this.engine.device.addEventListener('uncapturederror',e=>{this.issues.push(e.error.message);this.status(e.error.message);},{signal:this.abort.signal});
     this.journeyUI=new JourneyUI(this.author,()=>this.runtime,()=>this.view.cameraSettings(),c=>this.view.previewCamera(c));this.logicUI=new LogicUI(this.author,()=>this.runtime,s=>this.status(s));this.storyUI=new StoryUI(this.author,()=>this.runtime,this.logicUI);this.debugUI=new DebugUI(()=>this.runtime,this.view);this.hierarchy=new HierarchyUI(this.author,()=>!this.runtime&&!this.drag,s=>this.status(s),this.abort.signal);this.buildCatalog();this.bind();this.refresh();
     this.author.document.subscribe(()=>this.refresh());this.author.platform.selection.subscribe(()=>this.refreshSelection());this.author.platform.history.subscribe(()=>this.history());
+    this.api=createValleyEditorApi(this.author,{editable:()=>!this.runtime&&!this.drag,fit:()=>this.view.fit(),play:enabled=>{if(this.drag)throw new Error('请先结束拖拽。');if(enabled){const issues=playIssues(this.author.map);if(issues.length)throw new Error(issues.join(' '));}if(enabled!==!!this.runtime)this.play();},runtime:()=>this.runtime?{at:this.runtime.at,position:this.runtime.position,walking:this.runtime.walking,completed:this.runtime.completed,logic:this.runtime.logicSnapshot()}:null});
+    new ApiUI(this.api);
+    if(new URLSearchParams(location.search).get('demo')==='chapter-two'){this.api.apply(chapterTwoRecipe());this.api.fit();}
+    Object.defineProperty(window,'valleyEditor',{value:this.api,configurable:true});window.dispatchEvent(new CustomEvent('valley-editor-ready'));
     this.engine.on('update',({detail:{delta}})=>{this.resize();const dt=Math.min(delta/1000,.05);if(!this.storyHud?.blocking||this.runtime?.dialogueActive)this.runtime?.tick(dt);this.storyHud?.tick();this.debugUI.tick(dt,!!this.storyHud?.blocking);this.logicUI.tick(dt);$('orbit-tool').toggleAttribute('disabled',!!this.runtime?.cameraLocked);$('fit').toggleAttribute('disabled',!!this.runtime?.cameraLocked);$('reset-view').toggleAttribute('disabled',!!this.runtime?.cameraLocked);if(this.drag&&this.runtime&&this.drag.version!==this.runtime.recoveryVersion)this.cancel();if(this.drag?.wheel&&this.drag.hit&&this.runtime&&!this.runtime.canDrag(this.drag.hit))this.cancel();this.view.tick(this.runtime?.debugPaused?0:dt,this.runtime);this.selection.update(this.drag?.kind==='edit'?this.drag.preview:this.author.map,this.author.selected,!this.runtime);this.grid.update(Number($<HYInput>('layer').value)||0,Number($<HYSelect>('snap').value),this.gridVisible&&!this.runtime);this.view.setOrbitEnabled(this.canvas,this.orbitMode&&!this.runtime?.walking&&!this.runtime?.busy&&!this.runtime?.cameraLocked&&!this.storyHud?.blocking);if(this.runtime)$('runtime-message').textContent=this.runtime.message;const key=[this.view.orbitTransform.theta,this.view.orbitTransform.phi].join(':');if(key!==this.cameraKey){this.cameraKey=key;this.connectionCount();}this.guides();});
     this.engine.switchScene(this.view.scene);this.engine.run();$('loading').hidden=true;
     window.addEventListener('pagehide',()=>{this.abort.abort();this.storyHud?.dispose();this.grid.dispose();this.selection.dispose();this.view.dispose();this.engine.destroy();void this.author.dispose();},{once:true});
@@ -207,6 +215,7 @@ class ValleyEditor {
     on('return-checkpoint',()=>{this.cancel();this.runtime?.restoreCheckpoint();});on('reset-region-button',()=>{this.cancel();this.runtime?.resetGroup($<HYSelect>('reset-region').value,true);});on('play',()=>this.play());on('duplicate',()=>this.author.duplicate());on('delete',()=>this.author.removeSelected());on('group',()=>this.author.groupSelected());on('new-group',()=>this.author.createEmpty());
     on('demo-switch',()=>{this.author.replace('打开开关花园',switchGarden());this.view.fit();});on('demo-catalog',()=>{this.author.replace('打开物体目录',catalogGarden());this.view.fit();});on('new',()=>{this.author.replace('新建地图',emptyMap());this.view.fit();});
     on('story',()=>this.storyUI.open());on('debug',()=>this.debugUI.open());on('demo-story',()=>{this.author.replace('打开未画完的地图',storyGarden());this.view.fit();});
+    on('demo-chapter-two',()=>{this.api.apply(chapterTwoRecipe());this.api.fit();});
     on('demo-checkpoints',()=>{this.author.replace('打开归途灯塔',checkpointGarden());this.view.fit();});on('demo-journey',()=>{this.author.replace('打开云阶渡庭',journeyGarden());this.view.fit();});on('journey',()=>this.journeyUI.open());on('logic',()=>this.logicUI.open());on('demo-rules',()=>{this.author.replace('打开双灯之约',logicGarden());this.view.fit();});
     on('demo-portals',()=>{this.author.replace('打开潮声之门',portalGarden());this.view.fit();});
     on('demo-gates',()=>{this.author.replace('打开回旋门廊',gateGarden());this.view.fit();});

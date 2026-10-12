@@ -151,3 +151,7 @@ body.playing #corner-guides { display:none; }
 .debug-indent{padding-left:16px;border-left:1px solid #d8dfd1}.debug-pass{color:#356b53}.debug-fail{color:#ac6539}.debug-task{font-size:11px;white-space:pre-wrap;max-height:180px;overflow:auto}
 #debug-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}#debug-overlay[hidden]{display:none}
 .toolbar>div{flex-wrap:wrap}.toolbar{flex-wrap:wrap}
+
+#api-dialog { --hy-dialog-width: 860px; }
+#api-text { box-sizing:border-box; width:100%; height:52vh; resize:vertical; margin-top:12px; padding:12px; border:1px solid #c7d6c3; border-radius:6px; background:#fffef8; color:#35564e; font:12px/1.6 Consolas,monospace; }
+#api-report { white-space:pre-wrap; }

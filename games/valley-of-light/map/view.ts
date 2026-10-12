@@ -36,6 +36,7 @@ export class MapView {
   private travelerPresentation={position:[0,0,0] as Vec3,logicalScreen:[0,0] as [number,number],depthOffset:0,occluders:[] as string[]};
   private box=createBox3D(); private disk=createCylinder3D({radiusTop:.32,radiusBottom:.32,height:.1,radialSegments:32});
   private materials=new Map<string,PbrMaterial>(); private animationTime=0; private animation='Idle';
+  private readonly skylight=new EnvironmentLight({intensity:.85,diffuseColor:[.75,.85,.8]});
   private waters=new Map<string,Geometry3D>(); private waterTime=0;
   private flows=new Map<string,{surface:Geometry3D;streaks:Geometry3D}>();
   private wheelAssemblies=new Map<string,Entity>();private portalMaterials=new Map<string,BasicMaterial>();
@@ -53,7 +54,7 @@ export class MapView {
     this.pathClick=new PathClick(this.scene);
     // Real cast shadows disclose the hidden depth offset at optical seams. Keep face lighting only.
     this.scene.add(new Entity('Map sunlight').addComponent(new DirectionalLight({direction:[-.5,-1,-.3],intensity:2.4,color:[1,.96,.85],castShadow:false})));
-    this.scene.add(new Entity('Map skylight').addComponent(new EnvironmentLight({intensity:.85,diffuseColor:[.75,.85,.8]})));
+    this.scene.add(new Entity('Map skylight').addComponent(this.skylight));
     this.scene.add(this.root);
     this.model=new GltfModelComponent({src:modelUrl,autoLoad:true,clearPrevious:true});
     this.actor=new Entity('Traveler').addComponent(this.actorTransform).addComponent(this.model); this.actor.disabled=true;this.scene.add(this.actor);
@@ -96,6 +97,8 @@ export class MapView {
     this.registerPickMeshes(assembly,o.id);return {wheel:transform,mount};
   }
   setMap(map:ValleyMap,fit=false,optimize=false):void {
+    const bg=map.appearance?color(map.appearance.background):[.9,.927,.902,1];this.scene.renderView.clearColor={r:bg[0]!,g:bg[1]!,b:bg[2]!,a:1};
+    this.skylight.intensity=map.appearance?.ambientIntensity??.85;
     this.pathClick.clear();
     this.cancelCompilation?.();this.cancelCompilation=null;this.generation++;this.syncMap=null;this.optimization={state:'off',objects:0,stats:null};
     this.scene.remove(this.root);this.root.destroy();this.root=new Entity('Map objects');this.scene.add(this.root);this.objects.clear();this.groupTransforms.clear();this.waters.clear();this.flows.clear();this.wheelVisuals.clear();this.wheelAssemblies.clear();this.portalMaterials.clear();this.pickMeshes=[];this.placementMeshes=new WeakSet<Mesh3D>();this.map=map;this.portalMap=null;
