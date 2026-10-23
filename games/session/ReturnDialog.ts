@@ -1,6 +1,8 @@
 import { Entity, World, type HaiyueEngine } from '@haiyue/engine';
 import { RenderIntegration, RenderTargetManager } from '@haiyue/engine/experimental';
 import { GuiRoot, GuiModal, GuiSystem, type GuiButton } from '@haiyue/engine/gui';
+import { ConnectionNotifications, CONNECTION_NOTICE_CHARS } from '../gamepad/ui/ConnectionNotifications';
+import { gamepadConnections } from '../gamepad/connectionMonitor';
 const CHARS = '是否返回首页？当前游戏已暂停。继续游戏确认取消方向键选择返回ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 /·';
 /** A transient GUI world on the game's existing engine/canvas, rendered while gameplay is stopped. */
 export class ReturnDialog {
@@ -8,6 +10,7 @@ export class ReturnDialog {
     private readonly root = new GuiRoot({ theme: { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 17 } });
     private readonly gui: GuiSystem;
     private readonly modal: GuiModal;
+    private readonly notifications: ConnectionNotifications;
     private disposed = false;
     private selected: 'cancel' | 'confirm' = 'cancel';
     private pointer: {
@@ -33,7 +36,8 @@ export class ReturnDialog {
                 width: Math.min(area.right, innerWidth) * scaleX - Math.max(area.left, 0) * scaleX,
                 height: Math.min(area.bottom, innerHeight) * scaleY - Math.max(area.top, 0) * scaleY });
         };
-        this.gui = new GuiSystem(engine, { loadOp: 'clear', font: { chars: CHARS, fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 1024 } });
+        this.notifications = new ConnectionNotifications(this.root, gamepadConnections);
+        this.gui = new GuiSystem(engine, { loadOp: 'clear', font: { chars: CHARS + CONNECTION_NOTICE_CHARS, fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 1024 } });
         this.world.addSystem(this.gui);
         const integration = new RenderIntegration(engine, { label: 'GameSession.confirm' });
         this.world.addRuntimeIntegration(integration);
@@ -83,11 +87,12 @@ export class ReturnDialog {
         // its public render-target owner so the GUI receives the current swapchain view.
         if (this.engine.renderTarget instanceof RenderTargetManager)
             this.engine.renderTarget.beginFrame();
+        this.notifications.update(performance.now());
         this.world.update(time, 0);
     }
     snapshot() {
         return { selected: this.selected, renderer: 'engine-gui', canvasCount: document.querySelectorAll('canvas').length,
-            viewport: { ...this.root.viewport }, visible: this.modal.visible,
+            viewport: { ...this.root.viewport }, visible: this.modal.visible, notifications: this.notifications.snapshot(),
             buttons: { cancel: { ...this.modal.cancelButton.rect }, confirm: { ...this.modal.confirmButton.rect } } };
     }
     dispose(): void {

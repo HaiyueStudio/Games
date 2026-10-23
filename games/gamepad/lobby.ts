@@ -1,4 +1,7 @@
 import { GamepadSampler, NeutralGate } from './sampler';
+import { defineNotificationComponents, HYNotification } from '@haiyue/ui/notification';
+import { GamepadConnections } from './connections';
+import { monitorGamepadConnections } from './connectionMonitor';
 
 interface LobbyOptions {
   cards(): HTMLButtonElement[];
@@ -12,9 +15,19 @@ interface LobbyOptions {
 
 /** Uses the same Engine sampler as the games; the iframe owns gameplay input. */
 export function installLobbyGamepad(options: LobbyOptions): () => void {
+  defineNotificationComponents();
+  const notifications = document.createElement('hy-notification') as HYNotification;
+  notifications.style.zIndex = '2147483647';
+  document.body.append(notifications);
+  const connectionState = new GamepadConnections();
+  const connections = monitorGamepadConnections(connectionState, notice => {
+    if (options.playing()) return; // The visible game's own GUI presents its notifications.
+    notifications.open({ key: `gamepad-${notice.index}`, message: notice.message,
+      type: notice.connected ? 'success' : 'warning', duration: 5, placement: 'topRight', showProgress: true });
+  });
   const sampler = new GamepadSampler(() => navigator.getGamepads(), new EventTarget());
   const gate = new NeutralGate();
-  let frame = 0, selected = '', direction = '', repeatAt = 0, wasPlaying = false, connected = false;
+  let frame = 0, selected = '', direction = '', repeatAt = 0, wasPlaying = false, connected = false, inputReady = false;
   const focus = (cards: HTMLButtonElement[], index: number): void => {
     const card = cards[Math.max(0, Math.min(cards.length - 1, index))];
     if (!card) return;
@@ -26,13 +39,15 @@ export function installLobbyGamepad(options: LobbyOptions): () => void {
   const loop = (time: number): void => {
     frame = requestAnimationFrame(loop);
     const playing = options.playing();
-    if (playing || document.hidden) { gate.reset(); wasPlaying = playing; return; }
+    connections.poll();
+    if (connected !== connectionState.connected) { connected = connectionState.connected; options.connection?.(connected); }
+    if (playing || document.hidden) { if (playing && !wasPlaying) notifications.destroy(); gate.reset(); wasPlaying = playing; inputReady = false; return; }
     if (wasPlaying) { gate.reset(); wasPlaying = false; }
     const devices = navigator.getGamepads?.() ?? [];
     const pad = gate.filter(sampler.sample().filter(p => devices[p.index]?.connected))[0];
     options.hint.hidden = !pad;
-    const justConnected = !connected && Boolean(pad);
-    if (connected !== Boolean(pad)) { connected = Boolean(pad); options.connection?.(connected); }
+    const justConnected = !inputReady && Boolean(pad);
+    inputReady = Boolean(pad);
     if (!pad) { direction = ''; return; }
     const help = '手柄：左摇杆/方向键选择 · A 进入 · X 收藏 · Y 切换视图 · LB/RB 切换分类 · 游戏内 R3+LB/RB 切游戏 · Back 返回';
     if (options.hint.textContent !== help) options.hint.textContent = help;
@@ -69,7 +84,7 @@ export function installLobbyGamepad(options: LobbyOptions): () => void {
     if (pad.pressed.has('b0')) { cards[index]!.click(); gate.reset(); }
   };
   frame = requestAnimationFrame(loop);
-  const dispose = (): void => { cancelAnimationFrame(frame); sampler.dispose(); window.removeEventListener('pagehide', dispose); };
+  const dispose = (): void => { cancelAnimationFrame(frame); sampler.dispose(); connections.dispose(); notifications.destroy(); notifications.remove(); window.removeEventListener('pagehide', dispose); };
   window.addEventListener('pagehide', dispose, { once: true });
   return dispose;
 }

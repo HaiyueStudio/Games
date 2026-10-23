@@ -801,6 +801,17 @@
       },
       "performance": null,
       "ci": "smoke"
+    },
+    {
+      "id": "jigsaw-puzzle",
+      "thumbnail": "screenshots/jigsaw-puzzle.png",
+      "title": "拾光拼图 · Jigsaw Studio",
+      "entry": "jigsaw-puzzle/main.ts",
+      "capabilities": ["2d", "gui", "input", "game-workflow", "gamepad"],
+      "assets": ["jigsaw-puzzle/assets/alpine-lake.svg"],
+      "screenshot": { "required": false, "baseline": null },
+      "performance": null,
+      "ci": "smoke"
     }
   ]
 }

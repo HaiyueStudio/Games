@@ -26,8 +26,11 @@ async function run(name, fixture, query, exercise) {
   const checks = [];
   const gameId = /^games\/([^/]+)\/index\.html$/.exec(fixture)?.[1];
   const entry = gameId ? `games/${gameId}/${['mugen','gravity-maze'].includes(gameId)?'dist/':''}bundle.js` : null;
-  const sourceInputs = gameId ? readdirSync(resolve(root, 'games', gameId), { recursive: true }).filter(file => /\.(ts|html|css)$/.test(file)).map(file => `games/${gameId}/${file}`) : [];
-  sourceInputs.push('games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
+  const sourceInputs = gameId ? readdirSync(resolve(root, 'games', gameId), { recursive: true }).filter(file => /\.(ts|html|css|svg)$/.test(file)).map(file => `games/${gameId}/${file}`) : [];
+  sourceInputs.push('games/shared/input/pointerCapture.ts', 'games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
+  sourceInputs.push('games/gamepad/connections.ts', 'games/gamepad/connectionMonitor.ts', 'games/gamepad/ui/ConnectionNotifications.ts');
+  if (gameId === 'jigsaw-puzzle') sourceInputs.push('games/test/fixtures/jigsaw/portrait.svg', 'games/test/fixtures/jigsaw/broken.svg');
+  if (fixture === 'site/index.html') sourceInputs.push('site/gamepad.js');
   const inputs = Object.fromEntries([fixture,entry,...sourceInputs].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
   const result = await runChromeWebGpuFixture({root, fixture, query, timeoutMs:90000, disableDx12InfoCollection:true,
     mounts:[{prefix:'/site/games',directory:resolve(root,'games')}],
@@ -87,7 +90,7 @@ await run('input','games/test/fixtures/gamepad/index.html',{},async({evaluate,un
 });
 
 await run('lobby','site/index.html',{},async({evaluate,until,pads,press,check})=>{
-  await until('document.querySelectorAll(".card-visual").length===28','manifest catalog');await pads();
+  await until('document.querySelectorAll(".card-visual").length===29','manifest catalog');await pads();
   const first=await evaluate('document.querySelector(".gamepad-selected").dataset.gameId');
   await press(15);check(await evaluate('document.querySelector(".gamepad-selected").dataset.gameId')!==first,'D-pad selects another game');
   await press(5);check(await evaluate('document.querySelector(".filters .active").dataset.filter')==='puzzle','RB changes category');
@@ -111,7 +114,7 @@ await run('lobby','site/index.html',{},async({evaluate,until,pads,press,check})=
 
 await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check,cdp})=>{
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
-  await until('document.querySelectorAll(".card-visual").length===28','OS catalog');await pads();
+  await until('document.querySelectorAll(".card-visual").length===29','OS catalog');await pads();
   await press(15);
   check(await evaluate('document.querySelector("#spotlight-title").textContent')==='铁甲前线','controller selection updates the featured game');
   await press(2);
@@ -130,7 +133,7 @@ await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check
   check(await evaluate('document.activeElement.id==="game-search" && document.querySelectorAll(".card-visual").length===1'),'idle gamepad does not steal search input focus');
   await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
-  check(await evaluate('document.querySelectorAll(".card-visual").length')===28,'Escape clears search and restores card focus');
+  check(await evaluate('document.querySelectorAll(".card-visual").length')===29,'Escape clears search and restores card focus');
   await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
   check(await evaluate('document.querySelector("#spotlight-title").textContent')==='铁甲前线','keyboard arrows update the selected game');
   await evaluate('[...document.querySelectorAll(".card-visual")].find(button=>button.dataset.gameId==="2048").focus()');
@@ -142,7 +145,7 @@ await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check
   await evaluate('document.querySelector("[data-view=recent]").click()');
   check(await evaluate('document.querySelectorAll(".card-visual").length===1 && document.querySelector(".card-visual").dataset.gameId==="2048"'),'recent list contains only actually launched games');
   await cdp.call('Page.reload');
-  await until('document.querySelectorAll(".card-visual").length===28','reloaded catalog');
+  await until('document.querySelectorAll(".card-visual").length===29','reloaded catalog');
   check(await evaluate('document.querySelector("#favorite-count").textContent')==='1','favorites persist after reload');
   await evaluate('document.querySelector("[data-view=recent]").click()');
   check(await evaluate('document.querySelector(".card-visual").dataset.gameId')==='2048','launch history persists after reload');
@@ -151,7 +154,7 @@ await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check
 });
 
 await run('lobby-mobile','site/index.html',{},async({evaluate,until,check,cdp})=>{
-  await until('document.querySelectorAll(".card-visual").length===28','mobile catalog');
+  await until('document.querySelectorAll(".card-visual").length===29','mobile catalog');
   for(const [width,height] of [[390,844],[844,390],[320,568]]){
     await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await delay(200);
     check(await evaluate('document.documentElement.scrollWidth<=innerWidth && document.documentElement.scrollHeight<=innerHeight'),`${width}x${height} shell fits viewport`);
@@ -458,4 +461,168 @@ await run('pinball-touch', 'games/pinball/index.html', {gamepadVerify:1}, async(
   const before=await evaluate('__pinball.snapshot().time');await delay(250);check(await evaluate('__pinball.snapshot().time')===before,'paused physics time remains fixed');
   const restart=await point('重开');await mouse('mousePressed',restart);await mouse('mouseReleased',restart);
   check(await evaluate('__pinball.snapshot().phase==="ready"&&!__pinball.snapshot().paused'),'Engine restart resets the game');
+});
+
+for (const game of ['sudoku', 'tank-battle', 'mugen']) await run('notifications-'+game, `games/${game}/index.html`, {gamepadVerify:1}, async({evaluate,until,pads,press,check,cdp}) => {
+  await until('__gameReturn.snapshot().ready && __gameReturn.snapshot().gameFrames>3', 'notification renderer ready');
+  const canvasCount=await evaluate('document.querySelectorAll("canvas").length');
+  await pads([{buttons:[0]}]);
+  await until('window.__controllerNotifications?.some(n=>n.text==="手柄 1 已连接")', 'held input still reports connection');
+  check(true,'connection does not wait for neutral controls');
+  await evaluate('(()=>{const e=new Event("gamepadconnected");Object.defineProperty(e,"gamepad",{value:__pads[0]});dispatchEvent(e)})()');
+  check(await evaluate('__controllerNotifications.length')===1,'native event and polling do not duplicate notifications');
+  await pads();
+  await delay(5200);
+  check(await evaluate('__controllerNotifications.length')===0,'connected notification closes after five seconds');
+  await pads([{},{}]);
+  await until('__controllerNotifications.some(n=>n.text==="手柄 2 已连接")', 'second controller identified');
+  await pads([]);
+  check(await evaluate('__controllerNotifications.length===2 && __controllerNotifications.every(n=>n.text.includes("已断开"))'),'both disconnected controllers are reported');
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:false});await delay(300);
+  check(await evaluate('(()=>{const c=[...document.querySelectorAll("canvas")].sort((a,b)=>b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight)[0];return __controllerNotifications.every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=c.clientWidth+1&&n.rect.y+n.rect.height<=c.clientHeight+1)})()'),'notifications fit the portrait game canvas');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`notifications-${game}-portrait.png`),Buffer.from(shot.result.data,'base64'));
+  await pads();
+  check(await evaluate('__controllerNotifications.some(n=>n.text==="手柄 1 已连接")'),'rapid reconnection updates the same slot');
+  await press(8);await until('__gameReturn.snapshot().active','return dialog pauses game');
+  await pads([]);
+  await until('__gameReturn.snapshot().notifications.some(n=>n.text==="手柄 1 已断开")','disconnect notification inside pause dialog');
+  const frames=await evaluate('__gameReturn.snapshot().gameFrames');
+  await delay(5200);
+  check(await evaluate('__gameReturn.snapshot().notifications.length')===0,'notification expires while gameplay remains paused');
+  check(await evaluate('__gameReturn.snapshot().gameFrames')===frames,'notification does not resume simulation');
+  check(await evaluate('document.querySelectorAll("canvas").length')===canvasCount,'notification reuses existing canvases');
+  check(await evaluate('!document.querySelector("hy-notification,[data-gamepad-notification]")'),'game notifications are Engine GUI, not DOM');
+  await pads();await press(1);check(await evaluate('!__gameReturn.snapshot().active'),'resume still works after reconnection');
+});
+
+await run('notifications-lobby','site/index.html',{},async({evaluate,until,pads,check,cdp})=>{
+  await until('!!document.querySelector("hy-notification")','Haiyue notification component ready');
+  await pads([{buttons:[0]}]);
+  check(await evaluate('document.querySelector("hy-notification").size')===1,'homepage reports connection even while a button is held');
+  check(await evaluate('document.querySelector("#input-status").textContent.includes("已连接")'),'homepage status follows physical connection');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'notifications-lobby-connected.png'),Buffer.from(shot.result.data,'base64'));
+  await delay(5200);
+  check(await evaluate('document.querySelector("hy-notification").size')===0,'homepage connection notification expires after five seconds');
+  await pads([]);
+  check(await evaluate('document.querySelector("hy-notification").shadowRoot.textContent.includes("手柄 1 已断开")'),'homepage reports disconnect');
+  await pads([{buttons:[0]}]);
+  check(await evaluate('document.querySelector("hy-notification").size')===1,'rapid reconnect replaces the previous notification');
+  await pads([]);await delay(5200);
+  check(await evaluate('document.querySelector("hy-notification").size')===0,'homepage disconnect notification also expires');
+});
+
+await run('notifications-startup','games/tank-battle/index.html',{gamepadVerify:1},async({evaluate,until,check,cdp})=>{
+  await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:`
+    __pads=[{index:0,id:'Already connected',connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:17},()=>({value:0,pressed:false,touched:false}))}];
+    const requestAdapter=navigator.gpu.requestAdapter.bind(navigator.gpu);
+    navigator.gpu.requestAdapter=async options=>{await new Promise(resolve=>setTimeout(resolve,5500));return requestAdapter(options)};
+  `});
+  await cdp.call('Page.reload');
+  await until('window.__controllerNotifications?.some(n=>n.text==="手柄 1 已连接")','already-connected notification after slow GPU startup');
+  check(true,'loading longer than five seconds does not consume the startup notification');
+  await delay(5200);
+  check(await evaluate('__controllerNotifications.length')===0,'startup notification also expires');
+});
+
+await run('jigsaw-smoke','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,check,cdp})=>{
+  await until('window.__jigsaw?.ready && !__jigsaw.busy','jigsaw ready');
+  check(await evaluate('document.querySelectorAll("canvas").length===1 && __gameHud.nodes.filter(n=>n.type==="GuiButton").length===9'),'shared engine canvas and GUI');
+  check(await evaluate('__jigsaw.groups.length===20'),'default 4x5 puzzle');
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await delay(500);
+});
+
+await run('jigsaw-play','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,pads,press,check,cdp})=>{
+  await until('window.__jigsaw?.ready && !__jigsaw.busy','jigsaw ready');
+  const state = () => evaluate('__jigsaw');
+  const mouse = (type,p,buttons=0) => cdp.call('Input.dispatchMouseEvent',{type,x:p.x,y:p.y,button:type==='mouseMoved'?'none':'left',buttons,clickCount:1});
+  const click = async p => { await mouse('mousePressed',p,1); await mouse('mouseReleased',p); await delay(140); };
+  const node = async (type,text) => (await evaluate('__gameHud.nodes')).find(n=>n.type===type && (text===undefined || n.text===text));
+  const center = rect => ({x:rect.x+rect.width/2,y:rect.y+rect.height/2});
+  const button = async text => click(center((await node('GuiButton',text)).rect));
+  const select = async(index,value) => {
+    const n=(await evaluate('__gameHud.nodes')).filter(n=>n.type==='GuiSelect')[index];
+    await click(center(n.rect));
+    await click({x:n.rect.x+30,y:n.rect.y+n.rect.height+4+(value-1)*30-Math.max(0,n.value-4)*30+15});
+  };
+  const drag = async (from,to,release=true) => { await mouse('mousePressed',from,1); await mouse('mouseMoved',to,1); if(release)await mouse('mouseReleased',to); await delay(150); };
+  const key = async code => { await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',code,key:code.slice(3).toLowerCase()}); await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',code,key:code.slice(3).toLowerCase()}); await delay(120); };
+  const merge = async (movingId,targetId) => {
+    const s=await state(),a=s.groups.find(g=>g.pieces.includes(movingId)),b=s.groups.find(g=>g.pieces.includes(targetId));
+    const p=s.pieces[movingId].screen;
+    await drag(p,{x:p.x+(b.x-a.x)*s.view.scale,y:p.y+(b.y-a.y)*s.view.scale});
+  };
+  await select(0,2);await select(1,2);await button('开始新拼图');
+  await until('__jigsaw.rows===2 && __jigsaw.cols===2 && !__jigsaw.busy','GUI starts 2x2');
+  check((await state()).groups.length===4,'row/column GUI generates requested pieces');
+  await button('−');await button('−');
+  await merge(0,1);
+  let s=await state();check(s.groups.some(g=>g.pieces.includes(0)&&g.pieces.includes(1)),'neighbor pieces snap into one group');
+  const before=s.pieces.slice(0,2).map(p=>p.screen),p=before[0];
+  await drag(p,{x:p.x+40,y:p.y+20});s=await state();
+  const dx=s.pieces[0].screen.x-before[0].x,dy=s.pieces[0].screen.y-before[0].y;
+  check(Math.hypot(dx,dy)>5 && before.every((p,i)=>Math.abs(s.pieces[i].screen.x-p.x-dx)<1 && Math.abs(s.pieces[i].screen.y-p.y-dy)<1),'joined pieces drag as a rigid group');
+  const angle=s.groups.find(g=>g.pieces.includes(0)).angle;await key('KeyR');
+  check((await state()).groups.find(g=>g.pieces.includes(0)).angle===angle,'rotation-disabled mode ignores rotate input');
+  await merge(0,2);await merge(0,3);check((await state()).complete,'all pieces can be assembled');
+  await click(center((await node('GuiCheckbox')).rect));await button('开始新拼图');
+  await until('__jigsaw.allowRotation && !__jigsaw.busy && __jigsaw.groups.length===4','rotation puzzle');
+  await button('−');await button('−');
+  // Use only normal pointer/key input to orient pieces before joining them.
+  for(let id=0;id<4;id++) {
+    s=await state();await click(s.pieces[id].screen);
+    let turns=(4-s.groups.find(g=>g.pieces.includes(id)).angle)%4;
+    while(turns-->0)await key('KeyR');
+  }
+  await merge(0,1);s=await state();
+  check(s.groups.find(g=>g.pieces.includes(0)).pieces.length>=2,'rotated pieces join after matching orientation');
+  const pair=s.pieces.slice(0,2).map(p=>p.screen),pivot={x:(pair[0].x+pair[1].x)/2,y:(pair[0].y+pair[1].y)/2};
+  await pads();await press(2);s=await state();
+  check(s.groups.find(g=>g.pieces.includes(0)).angle===1,'controller X rotates a joined group');
+  check(pair.every((p,i)=>Math.abs(s.pieces[i].screen.x-(pivot.x-(p.y-pivot.y)))<1 && Math.abs(s.pieces[i].screen.y-(pivot.y+(p.x-pivot.x)))<1),'whole-group rotation preserves its pivot and relative positions');
+  await press(3);check(await evaluate('__gameHud.nodes.some(n=>n.type==="GuiImage"&&n.visible)'),'controller Y opens original image');await press(3);
+  await pads([]);
+  s=await state();const start=s.pieces[0].screen;
+  await drag(start,{x:start.x+30,y:start.y+10},false);
+  await pads();await press(8);await until('document.body.dataset.gameReturnOpen==="true"','Back pauses jigsaw');
+  check(!(await state()).dragging,'return dialog cancels active piece drag');
+  await press(1);await until('document.body.dataset.gameReturnOpen!=="true"','resume jigsaw');await mouse('mouseReleased',start);await pads([]);
+  const doc=await cdp.call('DOM.getDocument'),input=await cdp.call('DOM.querySelector',{nodeId:doc.result.root.nodeId,selector:'#image-upload'});
+  let chooser = null;cdp.on('Page.fileChooserOpened',event=>{chooser=event;});
+  await cdp.call('Page.setInterceptFileChooserDialog',{enabled:true});await button('上传图片');
+  check(chooser?.mode==='selectSingle','Engine GUI upload button opens the native image picker');
+  await cdp.call('DOM.setFileInputFiles',{nodeId:input.result.nodeId,files:[resolve(root,'games/test/fixtures/jigsaw/portrait.svg')]});
+  await cdp.call('Page.setInterceptFileChooserDialog',{enabled:false});
+  await until('__jigsaw.groups.length===4 && !__jigsaw.busy','uploaded image');
+  check((await state()).image.width===500 && (await state()).image.height===900,'native upload replaces the landscape image with a portrait');
+  const uploaded=await state();
+  await cdp.call('DOM.setFileInputFiles',{nodeId:input.result.nodeId,files:[resolve(root,'games/test/fixtures/jigsaw/broken.svg')]});
+  await until('!__jigsaw.busy && __gameHud.nodes.some(n=>n.text.includes("图片无法读取"))','invalid image message');
+  check(JSON.stringify((await state()).groups)===JSON.stringify(uploaded.groups) && (await state()).image.height===900,'invalid upload preserves the current puzzle');
+  await click((await state()).pieces[0].screen);await delay(5100);
+  for(const [width,height] of [[390,844],[844,390],[320,640]]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await delay(250);
+    const hud=await evaluate('__gameHud');s=await state();
+    check(hud.nodes.filter(n=>n.visible && ['GuiButton','GuiSelect','GuiCheckbox'].includes(n.type)).every(n=>n.rect.x>=0 && n.rect.y>=0 && n.rect.x+n.rect.width<=width+.1 && n.rect.y+n.rect.height<=height+.1),'GUI stays inside '+width+'x'+height);
+    check(s.pieces.every(p=>p.screen.x>=s.view.x && p.screen.x<=s.view.x+s.view.width && p.screen.y>=s.view.y && p.screen.y<=s.view.y+s.view.height),'pieces fit '+width+'x'+height);
+    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`jigsaw-${width}x${height}.png`),Buffer.from(shot.result.data,'base64'));
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});await delay(200);
+  // Native touch uses the same hit testing and grouped drag path as mouse/controller input.
+  s=await state();const touchStart=s.pieces[0].screen;
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:touchStart.x,y:touchStart.y,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:touchStart.x+45,y:touchStart.y+30,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(150);
+  check(Math.hypot((await state()).pieces[0].screen.x-touchStart.x,(await state()).pieces[0].screen.y-touchStart.y)>10,'touch drag moves a curved piece');
+  for(const index of [0,1]) {
+    const n=(await evaluate('__gameHud.nodes')).filter(n=>n.type==='GuiSelect')[index];await click(center(n.rect));
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',x:n.rect.x+30,y:n.rect.y+n.rect.height+30,deltaX:0,deltaY:1000});await delay(100);
+    await click({x:n.rect.x+30,y:n.rect.y+n.rect.height+4+105});
+  }
+  check(await evaluate('__gameHud.nodes.filter(n=>n.type==="GuiSelect").every(n=>n.value===12)'),'GUI dropdown scrolling selects 12 rows and columns');
+  await button('开始新拼图');await until('__jigsaw.rows===12 && __jigsaw.cols===12 && !__jigsaw.busy','maximum piece count');
+  check((await state()).groups.length===144,'12x12 creates all 144 pieces');
+  check(await evaluate('document.querySelectorAll("canvas").length===1 && !document.querySelector("button,select")'),'all visible controls stay in Engine GUI after restart/upload');
+  await cdp.call('Page.reload');await until('window.__jigsaw?.ready && !__jigsaw.busy','restored settings');
+  check(await evaluate('__jigsaw.rows===12 && __jigsaw.cols===12 && __jigsaw.allowRotation'),'Engine save restores row/column and rotation preferences');
 });

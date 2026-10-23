@@ -1,6 +1,7 @@
 import { fitGuiLayout } from '../../shared/ui/GameHud';
 import { MUGEN_BINDABLE_ACTIONS, mugenKeyLabel, type MugenKeyBindings, type MugenBindingPlayer, type MugenBindableAction } from './MugenKeyBindings';
 import { GameEngine } from '../../session/GameEngine';
+import { controllerFeedbackVisible } from '../../gamepad/ui/ControllerOverlay';
 import { Entity, HaiyueEngine, World } from '@haiyue/engine';
 import { KeyboardComponent } from '@haiyue/engine/components';
 import { RenderIntegration } from '@haiyue/engine/experimental';
@@ -102,8 +103,11 @@ export class MugenFlowUi {
     const world = new World('MUGEN Flow UI'); const entity = new Entity('MUGEN Flow Root'); const root = new GuiRoot({ theme: { fontFamily: 'Inter, "Microsoft YaHei", sans-serif', fontSize: 18, radius: 8, colors: { text: '#fff8df', textMuted: '#aaa3c3', primary: '#e6a64f', danger: '#d94c68', background: 'rgba(0,0,0,0)', surface: 'rgba(10,9,22,.82)', border: '#665587', hover: '#493966', active: '#b87638', disabled: '#514c60' } } }); entity.addComponent(root); world.addEntity(entity);
     const inputEntity = new Entity('MUGEN Character Select Input'); const keyboard = new KeyboardComponent(); inputEntity.addComponent(keyboard); world.addEntity(inputEntity);
     const gui = new GuiSystem(engine, { loadOp: 'clear', font: { chars: FLOW_FONT_CHARACTERS, fontFamily: '"Microsoft YaHei", sans-serif', atlasSize: 2048 } }); world.addSystem(gui); const integration = new RenderIntegration(engine, { label: 'MugenFlowUi.render' }); world.addRuntimeIntegration(integration); integration.registerAll(world, () => ({ pass: 'shared' }));
+    let feedbackFrames = 0;
     engine.on('update', ({ detail: { time, delta } }) => {
-      if (!this.#uiDirty && time - this.#lastUiUpdate < 1000 / 30) return;
+      if (controllerFeedbackVisible()) feedbackFrames = 2;
+      if (!feedbackFrames && !this.#uiDirty && time - this.#lastUiUpdate < 1000 / 30) return;
+      feedbackFrames = Math.max(0, feedbackFrames - 1);
       engine.resizeToDisplaySize(); world.update(time, delta); this.#pollCharacterSelection(); this.#lastUiUpdate = time; this.#uiDirty = false;
     }); this.#engine = engine; this.#world = world; this.#root = root; this.#keyboard = keyboard; engine.run();
   }

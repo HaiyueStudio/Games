@@ -1,4 +1,4 @@
-import { ControllerOverlay, controllerOverlay } from '../gamepad/ui/ControllerOverlay';
+import { ControllerOverlay, controllerFeedbackVisible } from '../gamepad/ui/ControllerOverlay';
 import { HaiyueEngine, type HaiyueEngineOptions } from '@haiyue/engine';
 import { gameSession, gameTime } from './SessionPause';
 const engines = new Set<GameEngine>();
@@ -6,6 +6,7 @@ const engines = new Set<GameEngine>();
 export class GameEngine extends HaiyueEngine {
     private wantsRunning = false;
     private controllerGui: ControllerOverlay | null = null;
+    private controllerFeedbackWasVisible = false;
     updates = 0;
     private readonly unregister: () => void;
     constructor(options: HaiyueEngineOptions) {
@@ -14,7 +15,10 @@ export class GameEngine extends HaiyueEngine {
         this.unregister = gameSession.register({ pause: () => { super.stop(); }, resume: () => { if (this.wantsRunning && this.state === 'ready')
                 super.run(); } });
         this.on('after-update', e => {
-            if (!controllerOverlay.visible || gameSession.paused || sessionEngine() !== this) return;
+            if (gameSession.paused || sessionEngine() !== this) return;
+            const visible = controllerFeedbackVisible();
+            if (!visible && !this.controllerFeedbackWasVisible) return;
+            this.controllerFeedbackWasVisible = visible;
             this.controllerGui ??= new ControllerOverlay(this);
             this.controllerGui.draw(e.detail.time, e.detail.delta);
         }, { priority: -Number.MAX_SAFE_INTEGER });

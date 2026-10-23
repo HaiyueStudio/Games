@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { guardQueuedPointerCapture } from '../tank-battle/input/pointerCapture.ts';
+import { guardQueuedPointerCapture } from '../shared/input/pointerCapture.ts';
 
 class CaptureCanvas extends EventTarget {
   held = new Set();

@@ -1,5 +1,7 @@
 import { controllerOverlay } from './ui/ControllerOverlay';
+import { gamepadConnections, monitorGamepadConnections } from './connectionMonitor';
 import { GameReturnController } from '../session/GameReturnController';
+import { sessionEngine } from '../session/GameEngine';
 import { GamepadSampler, NeutralGate, type PadFrame } from './sampler';
 import { GAMEPAD_PROFILES, keyboardKey } from './profiles';
 let current:PadFrame|undefined;
@@ -11,6 +13,7 @@ const VIRTUAL_POINTER=9000;
 export function installGamepad(id:string):()=>void {
   const profile=GAMEPAD_PROFILES[id];if(!profile)throw new Error(`Missing gamepad profile: ${id}`);
   const lifetime=new AbortController(),sampler=new GamepadSampler(),gate=new NeutralGate();
+  const connections = monitorGamepadConnections(gamepadConnections, undefined, () => !!sessionEngine());
   const heldKeys=new Map<string,{since:number;repeat:number}>(),physicalKeys=new Set<string>();
   let frame=0,last=0,disposed=false,blocked=false,chord=false,back=false,lookActive=false;
   let x=innerWidth/2,y=innerHeight/2,target:Element|null=null,button=-1,downX=0,downY=0;
@@ -62,6 +65,7 @@ export function installGamepad(id:string):()=>void {
   const loop=(time:number)=>{
     if(disposed)return;frame=requestAnimationFrame(loop);const dt=Math.min(.05,(time-last)/1000||0);last=time;
     const pads=sampler.sample();
+    connections.poll();
     if(document.hidden||blocked){gate.reset();release();controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
     const devices=Array.from(navigator.getGamepads?.()??[]);const active=gate.filter(pads.filter(p=>devices[p.index]?.connected));
     if(!active.length){release();if(returnMenu.active)returnMenu.update(time,[]);controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
@@ -122,7 +126,7 @@ export function installGamepad(id:string):()=>void {
     for(const [code,state] of heldKeys){if(!next.has(code)){emitKey(code,false);heldKeys.delete(code);}else if(time-state.since>400&&time-state.repeat>100&&profile.directions?.includes(code)){emitKey(code,true,true);state.repeat=time;}}
     for(const code of next)if(!heldKeys.has(code)){heldKeys.set(code,{since:time,repeat:time});emitKey(code,true);}
   };
-  const dispose=()=>{if(disposed)return;release();disposed=true;cancelAnimationFrame(frame);lifetime.abort();returnMenu.dispose();sampler.dispose();for(const restore of captures.values())restore();controllerOverlay.visible = false; controllerOverlay.cursor = false;pointerMode=false;};
+  const dispose=()=>{if(disposed)return;release();disposed=true;cancelAnimationFrame(frame);lifetime.abort();connections.dispose();returnMenu.dispose();sampler.dispose();for(const restore of captures.values())restore();controllerOverlay.visible = false; controllerOverlay.cursor = false;pointerMode=false;};
   listen(window,'pagehide',e=>{release();if(!(e as PageTransitionEvent).persisted)dispose();});
   frame=requestAnimationFrame(loop);return dispose;
 }

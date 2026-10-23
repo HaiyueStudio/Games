@@ -2,7 +2,7 @@ import { element } from '../ui/dom';
 import { TankSimulation } from './TankSimulation';
 import { ArcadeAudio } from '../audio/audio';
 import { TankBattleHud } from '../ui/TankBattleHud';
-import { guardQueuedPointerCapture } from '../input/pointerCapture';
+import { guardQueuedPointerCapture } from '../../shared/input/pointerCapture';
 import { desktopTankInput } from '../input/desktopControls';
 import { SingleSlotGameSave, isRecord, isNonNegativeInteger } from '../../save/SingleSlotGameSave';
 import { createGame, createTank, isGameState, type GameState, type Input } from '../rules/rules';

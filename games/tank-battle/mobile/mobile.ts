@@ -1,7 +1,7 @@
 import { GameEngine } from '../../session/GameEngine';
 import { gamepadFrame } from '../../gamepad/runtime';
 import { MobileTankGame } from './MobileTankGame';
-import { guardQueuedPointerCapture } from '../input/pointerCapture';
+import { guardQueuedPointerCapture } from '../../shared/input/pointerCapture';
 import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
 import { isGameState, type GameState } from '../rules/rules';
 import { ArcadeAudio } from '../audio/audio';

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>拾光拼图 · Jigsaw Studio</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#e3e3d6;font-family:Microsoft YaHei,sans-serif}
+    #puzzle-board{display:block;width:100%;height:100%;touch-action:none;outline:none}
+    #load-status{position:absolute;inset:40% 8% auto;padding:20px;background:white;color:#8c3428}
+  </style>
+</head>
+<body>
+  <canvas id="puzzle-board" tabindex="0" role="application" aria-label="拾光拼图。拖动拼块或组合；Q、R 旋转；V 查看原图；F 适应屏幕。"></canvas>
+  <input id="image-upload" type="file" accept="image/*" hidden />
+  <p id="load-status" hidden role="alert"></p>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>
