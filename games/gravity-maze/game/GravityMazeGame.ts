@@ -1,3 +1,4 @@
+import type{MazeHud}from'../ui/MazeHud';
 import {
   Entity,
   Mesh3D,
@@ -41,13 +42,7 @@ export class GravityMazeGame {
   private _won = false;
   private _restartCount = 0;
 
-  private readonly _levelElement = requiredElement('level', HTMLElement);
-  private readonly _seedElement = requiredElement('seed', HTMLElement);
-  private readonly _holesElement = requiredElement('holes', HTMLElement);
-  private readonly _statusElement = requiredElement('status', HTMLElement);
-  private readonly _victory = requiredElement('victory', HTMLElement);
-  private readonly _restartButton = requiredElement('restart', HTMLButtonElement);
-  private readonly _nextButton = requiredElement('next-level', HTMLButtonElement);
+
 
   constructor(
     private readonly _scene: Scene,
@@ -56,10 +51,10 @@ export class GravityMazeGame {
     private readonly _ballTransform: Transform3D,
     private readonly _ballBody: Physics3DBody,
     private readonly _baseSeed: number,
+    private readonly hud: MazeHud,
     private readonly _onLevelChanged: (level: number) => void = () => undefined,
   ) {
-    this._restartButton.addEventListener('click', this._onRestart);
-    this._nextButton.addEventListener('click', this._onNextLevel);
+    hud.restart=this._onRestart;hud.advance=this._onNextLevel;
     window.addEventListener('keydown', this._onKeyDown);
   }
 
@@ -76,11 +71,11 @@ export class GravityMazeGame {
     this._tilt.reset();
     this._buildMaze();
     this._tilt.setPieces(this._boardPieces);
-    this._victory.classList.remove('visible');
-    this._statusElement.textContent = '拖拽迷宫，让小球滚向绿色终点';
-    this._levelElement.textContent = String(level);
-    this._seedElement.textContent = String(this._seed);
-    this._holesElement.textContent = String(this._layout.holes.length);
+    this.hud.showVictory(false);
+    this.hud.status.setText('拖拽迷宫，让小球滚向绿色终点');
+    this.hud.level.setText(String(level));
+    this.hud.seed.setText(String(this._seed));
+    this.hud.holes.setText(String(this._layout.holes.length));
     document.body.dataset.gameState = 'playing';
     document.body.dataset.level = String(level);
     document.body.dataset.mazeSeed = String(this._seed);
@@ -96,8 +91,8 @@ export class GravityMazeGame {
       this._won = true;
       this._physics.setLinearVelocity(this._ballBody, 0, 0, 0);
       this._physics.setAngularVelocity(this._ballBody, 0, 0, 0);
-      this._statusElement.textContent = `第 ${this._level} 关完成！`;
-      this._victory.classList.add('visible');
+      this.hud.status.setText(`第 ${this._level} 关完成！`);
+      this.hud.showVictory(true);
       document.body.dataset.gameState = 'won';
       return;
     }
@@ -114,10 +109,10 @@ export class GravityMazeGame {
   restart(reason: 'level-start' | 'manual' | 'fell'): void {
     if (reason === 'fell') {
       this._restartCount += 1;
-      this._statusElement.textContent = '小球掉出去了，已回到起点';
+      this.hud.status.setText('小球掉出去了，已回到起点');
     } else if (reason === 'manual') {
       this._restartCount += 1;
-      this._statusElement.textContent = '已回到本关起点';
+      this.hud.status.setText('已回到本关起点');
     }
     const start = this._cellPosition(this._layout.start, BALL_RADIUS + 0.055);
     const world = this._tilt.boardToWorld(start);
@@ -131,8 +126,7 @@ export class GravityMazeGame {
   }
 
   dispose(): void {
-    this._restartButton.removeEventListener('click', this._onRestart);
-    this._nextButton.removeEventListener('click', this._onNextLevel);
+    this.hud.restart=()=>{};this.hud.advance=()=>{};
     window.removeEventListener('keydown', this._onKeyDown);
   }
 
@@ -341,10 +335,4 @@ export class MazeOutcomeSystem extends System {
 
 function matrixPosition(matrix: Float32Array): [number, number, number] {
   return [matrix[12] ?? 0, matrix[13] ?? 0, matrix[14] ?? 0];
-}
-
-function requiredElement<T extends Element>(id: string, type: { new(): T }): T {
-  const element = document.getElementById(id);
-  if (!(element instanceof type)) throw new Error(`Missing required #${id} element.`);
-  return element;
 }

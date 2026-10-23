@@ -129,11 +129,13 @@ test('Sokoban 3D level GUI persists completion and uses green completed buttons'
   const source = read('games', 'sokoban-3d', 'app/bootstrap.ts');
   const page = read('games', 'sokoban-3d', 'index.html');
 
-  assert.match(source, /GuiButton, GuiElement, GuiRoot, GuiSystem/);
+  assert.match(source, /GuiButton, GuiElement/);
+  assert.match(source, /new SokobanHud/);
+  assert.match(read('games','shared','ui/GameHud.ts'), /new GuiSystem/);
   assert.match(source, /completedLevels: \[\.\.\.this\.completedLevels\]\.sort/);
   assert.match(source, /this\.completedLevels\.add\(this\.levelIndex\)/);
   assert.match(source, /const LEVEL_SET_VERSION = 2/);
   assert.match(source, /levelSetVersion: LEVEL_SET_VERSION/);
   assert.match(source, /completed \? '#15803d'/, 'completed level buttons should use a green background');
-  assert.match(page, /bundle\.js\?v=sokoban-3d-difficulty-v3/);
+  assert.match(page, /src="\.\/bundle\.js"/);
 });

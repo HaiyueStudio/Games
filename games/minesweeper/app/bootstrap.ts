@@ -1,3 +1,5 @@
+import {MinesHud} from '../ui/MinesHud';
+import {ProjectedLabel} from '../../shared/ui/ProjectedLabel';
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
@@ -19,12 +21,6 @@ import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
 import { createSphere3D } from '@haiyue/engine';
 import { createCone3D } from '@haiyue/engine/geometry';
-import { Camera2D } from '@haiyue/engine';
-import { Transform2D } from '@haiyue/engine';
-import { Mesh2D } from '@haiyue/engine';
-import { Mesh2DRenderSystem } from '@haiyue/engine/systems';
-import { Material2D } from '@haiyue/engine';
-import { createRect2D } from '@haiyue/engine/geometry';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../../shared/collections/arrayAccess';
 import { CameraViewProjectionCache } from '../../shared/rendering/CameraViewProjectionCache';
@@ -82,8 +78,6 @@ function isMinesweeperSaveData(value: unknown): value is MinesweeperSaveData {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CANVAS_W = 900;
-const CANVAS_H = 600;
 const CELL_SIZE = 1.1;   // spacing between cell centres
 const ORBIT_ROTATE_SPEED = 0.006;
 const ORBIT_ZOOM_SPEED = 0.0015;
@@ -239,21 +233,11 @@ class Minesweeper {
 
   private render3D!: Render3DSystem;
 
-  // HUD 2D
-  private cam2DEntity!: Entity;
-  private hudBgEntity!: Entity;
-  private render2D!: Mesh2DRenderSystem;
-
-  // DOM
-  private elMinesCount!: HTMLElement;
-  private elTimer!:      HTMLElement;
-  private elCellLabels!: HTMLElement;
-  private elStatus!:     HTMLElement;
-  private elStatusText!: HTMLElement;
-  private elStatusSub!:  HTMLElement;
+  // Engine GUI
+  private hud!: MinesHud;
 
   // Label elements pool
-  private labelEls: Map<string, HTMLElement> = new Map();
+  private labelEls: Map<string, ProjectedLabel> = new Map();
 
   // Game state
   private phase: GamePhase = 'idle';
@@ -290,11 +274,11 @@ class Minesweeper {
     this.world = new World('Minesweeper');
 
     this._setupCamera();
-    this._setupHUD();
+    this.hud = new MinesHud(this.engine, this.world, () => this._newGame());
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Minesweeper.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
-    this._setupDOM();
+
     await this._loadOrCreateState();
     this._setupInput(canvas);
 
@@ -310,7 +294,7 @@ class Minesweeper {
   private _setupCamera() {
     const gridW = (this.cols - 1) * CELL_SIZE;
     const gridH = (this.rows - 1) * CELL_SIZE;
-    const radius = Math.max(gridW, gridH) * 0.95 + 4;
+    const radius = Math.max(gridW, gridH) * 1.3 + 4;
 
     this.spherical = new SphericalTransform3D({
       radius,
@@ -352,43 +336,6 @@ class Minesweeper {
     this.world.addEntity(dirE);
   }
 
-  // ── 2D HUD ────────────────────────────────────────────────────────────────
-
-  private _setupHUD() {
-    this.cam2DEntity = new Entity('Camera2D');
-    this.cam2DEntity.addComponent(new Camera2D());
-    this.world.addEntity(this.cam2DEntity);
-
-    // Dark strip behind the HUD text
-    const hudBg = new Entity('HudBg');
-    hudBg.addComponent(new Mesh2D(
-      createRect2D({ width: CANVAS_W, height: 46 }),
-      new Material2D({ color: new ColorSRGB(0, 0, 0, 0.55), blending: 'normal' }),
-    ));
-    hudBg.addComponent(new Transform2D({ x: 0, y: CANVAS_H / 2 - 23 }));
-    this.world.addEntity(hudBg);
-    this.hudBgEntity = hudBg;
-
-    this.render2D = new Mesh2DRenderSystem(this.engine, this.cam2DEntity, {
-      priority: 2,
-      loadOp: 'load',
-    });
-    this.world.addSystem(this.render2D);
-  }
-
-  // ── DOM refs ─────────────────────────────────────────────────────────────
-
-  private _setupDOM() {
-    this.elMinesCount = document.getElementById('mines-count')!;
-    this.elTimer      = document.getElementById('timer-count')!;
-    this.elCellLabels = document.getElementById('cell-labels')!;
-    this.elStatus     = document.getElementById('status-overlay')!;
-    this.elStatusText = document.getElementById('status-text')!;
-    this.elStatusSub  = document.getElementById('status-sub')!;
-
-    document.getElementById('btn-new')!.addEventListener('click', () => this._newGame());
-  }
-
   // ── New game ──────────────────────────────────────────────────────────────
 
   private _newGame(save = true) {
@@ -401,7 +348,7 @@ class Minesweeper {
       }
     }
     // Clear labels
-    this.labelEls.forEach(el => el.remove());
+    this.labelEls.forEach(el => this.hud.root.remove(el));
     this.labelEls.clear();
 
     this.cells        = [];
@@ -412,7 +359,7 @@ class Minesweeper {
     this.revealedCount= 0;
     this.hoveredCell  = null;
 
-    this.elStatus.classList.remove('visible');
+    this.hud.title.setVisible(false);this.hud.detail.setVisible(false);
     this._updateHUD();
     this._buildGrid();
     if (save) this._saveState();
@@ -456,10 +403,9 @@ class Minesweeper {
 
   private _restoreStatusOverlay(): void {
     if (this.phase !== 'won' && this.phase !== 'lost') return;
-    this.elStatusText.textContent = this.phase === 'won' ? '✓  CLEARED' : '💥  BOOM';
-    this.elStatusText.className = this.phase;
-    this.elStatusSub.textContent = `Time: ${this.elapsedSec}s  ·  R to restart`;
-    this.elStatus.classList.add('visible');
+    this.hud.title.setText(this.phase === 'won' ? '✓  CLEARED' : '💥  BOOM');
+    this.hud.detail.setText(`Time: ${this.elapsedSec}s  ·  R to restart`);
+    this.hud.title.setVisible(true);this.hud.detail.setVisible(true);
   }
 
   private _saveState(): void {
@@ -719,28 +665,26 @@ class Minesweeper {
       }
     }
 
-    this.elStatusText.textContent = '💥  BOOM';
-    this.elStatusText.className = 'lost';
-    this.elStatusSub.textContent = `Time: ${this.elapsedSec}s  ·  R to restart`;
-    this.elStatus.classList.add('visible');
+    this.hud.title.setText('💥  BOOM');
+    this.hud.detail.setText(`Time: ${this.elapsedSec}s  ·  R to restart`);
+    this.hud.title.setVisible(true);this.hud.detail.setVisible(true);
   }
 
   private _checkWin() {
     const safeCells = this.rows * this.cols - this.totalMines;
     if (this.revealedCount >= safeCells) {
       this.phase = 'won';
-      this.elStatusText.textContent = '✓  CLEARED';
-      this.elStatusText.className = 'won';
-      this.elStatusSub.textContent = `Time: ${this.elapsedSec}s  ·  R to restart`;
-      this.elStatus.classList.add('visible');
+      this.hud.title.setText('✓  CLEARED');
+        this.hud.detail.setText(`Time: ${this.elapsedSec}s  ·  R to restart`);
+      this.hud.title.setVisible(true);this.hud.detail.setVisible(true);
     }
   }
 
   // ── HUD ───────────────────────────────────────────────────────────────────
 
   private _updateHUD() {
-    this.elMinesCount.textContent = String(this.totalMines - this.flagCount);
-    this.elTimer.textContent      = String(this.elapsedSec);
+    this.hud.mines.setText(String(this.totalMines - this.flagCount));
+    this.hud.timer.setText(String(this.elapsedSec));
   }
 
   // ── Cell number labels (DOM projection) ──────────────────────────────────
@@ -752,22 +696,18 @@ class Minesweeper {
         if (cell.state === 'revealed' && !cell.isMine && cell.adjCount > 0) {
           let el = this.labelEls.get(key);
           if (!el) {
-            el = document.createElement('div');
-            el.className = 'cell-num';
-            el.textContent = String(cell.adjCount);
-            el.style.color = NUM_COLORS[cell.adjCount] ?? '#fff';
-            this.elCellLabels.appendChild(el);
+            el = this.hud.root.add(new ProjectedLabel(String(cell.adjCount),24));
+            el.setStyle({color:NUM_COLORS[cell.adjCount]??'#fff',backgroundColor:'transparent'});
             this.labelEls.set(key, el);
           }
           // Project world pos to screen
           const [wx, wy, wz] = this._cellWorldPos(cell);
-          const sc = project3DToScreen(wx, wy + 0.30, wz, this.viewProj, CANVAS_W, CANVAS_H);
+          const sc = project3DToScreen(wx, wy + 0.30, wz, this.viewProj, this.engine.displayWidth, this.engine.displayHeight);
           if (sc.behind) {
-            el.style.display = 'none';
+            el.setVisible(false);
           } else {
-            el.style.display  = 'block';
-            el.style.left     = `${sc.x}px`;
-            el.style.top      = `${sc.y}px`;
+            el.setVisible(true);
+            el.move(sc.x,sc.y);
           }
         }
       }
@@ -879,11 +819,11 @@ class Minesweeper {
 
   private _pickCell(clientX: number, clientY: number, canvas: HTMLCanvasElement): Cell | null {
     const rect = canvas.getBoundingClientRect();
-    const px = (clientX - rect.left) * (CANVAS_W / rect.width);
-    const py = (clientY - rect.top)  * (CANVAS_H / rect.height);
+    const px = (clientX - rect.left) * (this.engine.displayWidth / rect.width);
+    const py = (clientY - rect.top)  * (this.engine.displayHeight / rect.height);
 
     const invVP = mat4.inverse(this.viewProj) as Float32Array;
-    const { origin, dir } = screenToRay(px, py, CANVAS_W, CANVAS_H, invVP);
+    const { origin, dir } = screenToRay(px, py, this.engine.displayWidth, this.engine.displayHeight, invVP);
 
     let best: Cell | null = null;
     let bestT = Infinity;
@@ -908,12 +848,12 @@ class Minesweeper {
   private _tick(time: number, delta: number) {
     if (this.phase === 'playing') {
       this.elapsedSec = Math.floor((time - this.startTime) / 1000);
-      this.elTimer.textContent = String(this.elapsedSec);
+      this.hud.timer.setText(String(this.elapsedSec));
       if (this.elapsedSec !== this.savedElapsedSec) this._saveState();
     }
 
     // Build viewProj from camera for picking & label projection
-    this.cameraProjection.update(this.spherical, this.cam3D, CANVAS_W, CANVAS_H);
+    this.cameraProjection.update(this.spherical, this.cam3D, this.engine.displayWidth, this.engine.displayHeight);
 
     this._updateLabels();
 

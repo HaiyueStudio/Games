@@ -44,9 +44,14 @@ test('M10 combat clamps knockback to the moving camera screen bounds', async () 
 
 test('new index is the game entry and charactorPreview preserves the original viewer', () => {
   const manifest = JSON.parse(read('../manifest.json')); const entry = manifest.entries.find(value => value.id === 'mugen'); assert.equal(entry.entry, 'mugen/main.ts'); assert.equal(entry.title, 'Haiyue MUGEN Fight'); assert(entry.capabilities.includes('game-workflow')); assert(entry.capabilities.includes('input'));
-  const game = read('../mugen/index.html'); for (const id of ['fight-canvas', 'p1-character', 'p2-character', 'stage-select', 'p1-life', 'p2-life', 'round-time', 'phase-banner', 'start-match', 'open-key-settings', 'key-settings']) assert.match(game, new RegExp(`id="${id}"`)); assert.match(game, /charactorPreview\.html/u); assert.match(game, /dist\/bundle\.js/u); assert.match(game, /value="kfm"/u); assert.match(game, /value="kfm720"/u);
+  const game = read('../mugen/index.html');
+  for (const id of ['fight-canvas', 'flow-canvas', 'fightfx-directory']) assert.match(game, new RegExp(`id="${id}"`));
+  assert.doesNotMatch(game, /<(button|select|dialog)\b/u); assert.match(game, /dist\/bundle\.js/u);
+  const flow = read('../mugen/game/MugenFlowUi.ts');
+  for (const token of ['p1Life', 'p2Life', 'confirmCharacters', 'cycleStage', 'startFight', 'openKeySettings', 'saveKeys']) assert.ok(flow.includes(token), `Engine GUI exposes ${token}`);
+  assert.match(flow, /charactorPreview\.html/u);
   const preview = read('../mugen/charactorPreview.html'); for (const id of ['directory-input', 'entry-select', 'action-search', 'timeline', 'viewer-canvas']) assert.match(preview, new RegExp(`id="${id}"`)); assert.match(preview, /dist\/charactorPreview\.js/u);
-  const source = read('../mugen/main.ts'); assert.match(source, /MugenFixedStepInputDriver/u); assert.match(source, /MugenCombatRuntime/u); assert.match(source, /renderActors/u); assert.match(source, /createMugenBrowserPlayerBindings/u); assert.match(source, /saveMugenKeyBindings/u); assert.match(source, /startButton\.disabled = false; this\.#startButton\.textContent = '重新开始'/u); assert.doesNotMatch(source, /(?:\/src\/|\.\.\/\.\.\/Engine)/u);
+  const source = read('../mugen/main.ts'); assert.match(source, /MugenFixedStepInputDriver/u); assert.match(source, /MugenCombatRuntime/u); assert.match(source, /renderActors/u); assert.match(source, /createMugenBrowserPlayerBindings/u); assert.match(source, /saveMugenKeyBindings/u); assert.match(flow, /button\(root, '重开'.*this\.#callbacks\.startFight/u); assert.doesNotMatch(source, /(?:\/src\/|\.\.\/\.\.\/Engine)/u);
   const rollup = read('../../rollup.config.js'); assert.match(rollup, /charactorPreview: 'games\/mugen\/charactorPreview\.ts'/u);
 });
 

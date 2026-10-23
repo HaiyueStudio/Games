@@ -1,3 +1,4 @@
+import { GameHud } from '../../shared/ui/GameHud';
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
@@ -225,6 +226,7 @@ class PadSimulator {
     });
 
     this.world = new World('PadSimulator');
+    new GameHud(this.engine, this.world, '').label('Pad Simulator', 20, 20, 240, 45, 28);
     this.setupCamera(canvas);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'PadSimulator.render' });
     this.world.addRuntimeIntegration(renderIntegration);

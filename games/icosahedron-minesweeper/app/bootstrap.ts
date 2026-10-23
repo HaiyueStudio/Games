@@ -1,3 +1,7 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
+import { MinesHud } from '../ui/MinesHud';
+import { ProjectedLabel } from '../../shared/ui/ProjectedLabel';
+import type { GuiRoot } from '@haiyue/engine/gui';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('icosahedron-minesweeper');
@@ -38,7 +42,7 @@ interface Cell {
   state: CellState;
   mine: boolean;
   count: number;
-  label: HTMLDivElement;
+  label: ProjectedLabel;
 }
 
 interface PointerStart {
@@ -114,14 +118,9 @@ function createCellMaterialPalette(): CellMaterialPalette {
 type CellLabelKind = 'none' | 'number' | 'flag' | 'mine' | 'wrong-flag';
 
 function setCellLabel(cell: Cell, text: string, kind: CellLabelKind): void {
-  const { label } = cell;
-  label.textContent = text;
-  label.className = kind === 'none' ? 'label' : `label ${kind}`;
-  // Old number colors were inline styles. Always clear them so a recycled
-  // label cannot override the deterministic state/number CSS selectors.
-  label.style.removeProperty('color');
-  if (kind === 'number') label.dataset.number = text;
-  else delete label.dataset.number;
+  cell.label.setText(text);
+  const colors=['#f8fafc','#72a7ff','#54d987','#ff766c','#ad8cff','#ffb45e','#54dfd4'];
+  cell.label.setStyle({color:kind==='number'?colors[Number(text)]??'#f8fafc':kind==='flag'?'#ff6b6b':'#ffffff',backgroundColor:kind==='mine'||kind==='wrong-flag'?'#ba3344':'rgba(3,7,18,0.76)'});
 }
 
 function normalize(x: number, y: number, z: number): [number, number, number] {
@@ -173,7 +172,7 @@ function polygonGeometry(
   });
 }
 
-function buildCells(labelRoot: HTMLElement): Cell[] {
+function buildCells(labelRoot: GuiRoot): Cell[] {
   const source = createIcosahedron3D({ radius: RADIUS, detail: DETAIL });
   const positions = source.positions;
   const indices = source.indices!;
@@ -233,9 +232,7 @@ function buildCells(labelRoot: HTMLElement): Cell[] {
       normal[1] * (RADIUS + 0.045),
       normal[2] * (RADIUS + 0.045),
     ];
-    const label = document.createElement('div');
-    label.className = 'label';
-    labelRoot.append(label);
+    const label = labelRoot.add(new ProjectedLabel());
 
     cells.push({
       id: cells.length,
@@ -302,12 +299,7 @@ class IcosahedronMinesweeper {
   private hovered: Cell | null = null;
   private pointerStart: PointerStart | null = null;
 
-  private elMines = document.getElementById('mines')!;
-  private elFlags = document.getElementById('flags')!;
-  private elOpen = document.getElementById('open')!;
-  private elTotal = document.getElementById('total')!;
-  private elMessage = document.getElementById('message')!;
-  private labelRoot = document.getElementById('labels')!;
+  private hud!: MinesHud;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new GameEngine({
@@ -318,6 +310,7 @@ class IcosahedronMinesweeper {
     await this.engine.init();
 
     this.world = new World('IcosahedronMinesweeper');
+    this.hud = new MinesHud(this.engine, this.world, () => this._newGame());
     this.cameraTransform = new SphericalTransform3D({
       radius: 6.2,
       theta: Math.PI * 0.22,
@@ -328,13 +321,15 @@ class IcosahedronMinesweeper {
     this.camera.addComponent(new Camera3D({ type: 'perspective', fov: Math.PI / 4, near: 0.1, far: 100 }));
     this.camera.addComponent(this.cameraTransform);
     this.world.addEntity(this.camera);
+    fitPerspectiveCamera(this.engine, this.world, this.camera.getComponent(Camera3D)!);
 
-    new OrbitControl(canvas, this.cameraTransform, {
+    const orbit = new OrbitControl(canvas, this.cameraTransform, {
       minRadius: 3.2,
       maxRadius: 12,
       rotateSpeed: 0.75,
       enablePan: false,
     });
+    this.hud.guardOrbit(orbit, canvas);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'IcosahedronMinesweeper.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     this.world.addSystem(new Render3DSystem(this.engine, this.camera, { loadOp: 'clear' }));
@@ -365,7 +360,7 @@ class IcosahedronMinesweeper {
     }));
     this.world.addEntity(environment);
 
-    this.cells = buildCells(this.labelRoot);
+    this.cells = buildCells(this.hud.root);
     for (const cell of this.cells) {
       const entity = new Entity(`Cell_${cell.id}`);
       entity.addComponent(new CartesianTransform3D());
@@ -422,7 +417,7 @@ class IcosahedronMinesweeper {
       if (this.hovered?.state === 'hidden') this._setCellSurface(this.hovered, 'hidden');
       this.hovered = null;
     });
-    document.getElementById('restart')!.addEventListener('click', () => this._newGame());
+
     document.addEventListener('keydown', event => {
       if (event.key === 'r' || event.key === 'R') this._newGame();
     });
@@ -438,7 +433,7 @@ class IcosahedronMinesweeper {
       cell.mine = false;
       cell.count = 0;
       setCellLabel(cell, '', 'none');
-      cell.label.style.display = 'none';
+      cell.label.setVisible(false);
       this._setCellSurface(cell, 'hidden');
     }
 
@@ -453,9 +448,9 @@ class IcosahedronMinesweeper {
     for (const cell of this.cells) {
       cell.count = cell.neighbors.reduce((sum, id) => sum + (requiredItemAt(this.cells, id, 'icosahedron cells').mine ? 1 : 0), 0);
     }
-    this.elMines.textContent = String(MINE_COUNT);
-    this.elTotal.textContent = String(this.cells.length - MINE_COUNT);
-    this.elMessage.textContent = 'Left click opens a cell. Right click toggles a flag or opens neighbors from a revealed number. Drag to orbit, wheel to zoom.';
+    this.hud.elMines.setText(String(MINE_COUNT));
+    this.hud.elTotal.setText(String(this.cells.length - MINE_COUNT));
+    this.hud.elMessage.setText('Left click opens a cell. Right click toggles a flag or opens neighbors from a revealed number. Drag to orbit, wheel to zoom.');
     this._updateHud();
     if (save) this._saveState();
   }
@@ -488,13 +483,13 @@ class IcosahedronMinesweeper {
         this._setCellSurface(cell, 'revealed');
       }
     });
-    this.elMines.textContent = String(MINE_COUNT);
-    this.elTotal.textContent = String(this.cells.length - MINE_COUNT);
-    this.elMessage.textContent = this.phase === 'won'
+    this.hud.elMines.setText(String(MINE_COUNT));
+    this.hud.elTotal.setText(String(this.cells.length - MINE_COUNT));
+    this.hud.elMessage.setText(this.phase === 'won'
       ? 'Cleared. Press Restart or R to play again.'
       : this.phase === 'lost'
         ? 'Game over. Press Restart or R to start again.'
-        : 'Saved game restored.';
+        : 'Saved game restored.');
     this._updateHud();
   }
 
@@ -593,7 +588,7 @@ class IcosahedronMinesweeper {
         this._setCellSurface(cell, 'wrong-flag');
       }
     }
-    this.elMessage.textContent = 'Game over. Press Restart or R to start again.';
+    this.hud.elMessage.setText('Game over. Press Restart or R to start again.');
     this._updateHud();
     this._saveState();
   }
@@ -608,17 +603,18 @@ class IcosahedronMinesweeper {
       }
     }
     this.flags = MINE_COUNT;
-    this.elMessage.textContent = 'Cleared. Press Restart or R to play again.';
+    this.hud.elMessage.setText('Cleared. Press Restart or R to play again.');
     this._updateHud();
     this._saveState();
   }
 
   private _updateHud(): void {
-    this.elFlags.textContent = String(this.flags);
-    this.elOpen.textContent = String(this.opened);
+    this.hud.elFlags.setText(String(this.flags));
+    this.hud.elOpen.setText(String(this.opened));
   }
 
   private _pickCell(clientX: number, clientY: number, canvas: HTMLCanvasElement): Cell | null {
+    if (this.hud.hit(clientX, clientY, canvas)) return null;
     const rect = canvas.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
@@ -651,19 +647,18 @@ class IcosahedronMinesweeper {
     const eye = this.cameraTransform.eyePosition;
     const eyeDir = normalize(requiredNumberAt(eye, 0, 'camera eye position'), requiredNumberAt(eye, 1, 'camera eye position'), requiredNumberAt(eye, 2, 'camera eye position'));
     for (const cell of this.cells) {
-      const hasLabel = cell.label.textContent !== '';
+      const hasLabel = cell.label.text !== '';
       if (!hasLabel || dot(cell.normal, eyeDir) <= 0.08) {
-        cell.label.style.display = 'none';
+        cell.label.setVisible(false);
         continue;
       }
       const projected = projectToScreen(cell.center, this.viewProj, this.engine.displayWidth, this.engine.displayHeight);
       if (!projected.visible) {
-        cell.label.style.display = 'none';
+        cell.label.setVisible(false);
         continue;
       }
-      cell.label.style.display = 'flex';
-      cell.label.style.left = `${projected.x}px`;
-      cell.label.style.top = `${projected.y}px`;
+      cell.label.setVisible(true);
+      cell.label.move(projected.x,projected.y);
     }
   }
 }

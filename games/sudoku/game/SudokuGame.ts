@@ -1,3 +1,4 @@
+import { controllerOverlay } from '../../gamepad/ui/ControllerOverlay';
 import { gameDelay } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { HaiyueEngine } from '@haiyue/engine';
@@ -113,7 +114,10 @@ export class SudokuGame {
     this._buildScreenUI();
     canvas.addEventListener('click', this.canvasClickHandler);
     await this._loadOrCreateState();
+    // Resizing clears the presentation target even when this static puzzle is idle.
+    this.engine.on('resize', () => { this.renderFramesRemaining = Math.max(this.renderFramesRemaining, 3); });
     this.engine.on('update', ({ detail: { time, delta } }) => {
+      if (controllerOverlay.visible) this.renderFramesRemaining = Math.max(this.renderFramesRemaining, 2);
       if (this.renderFramesRemaining <= 0) return;
       this.world.update(time, delta);
       this.renderFramesRemaining--;

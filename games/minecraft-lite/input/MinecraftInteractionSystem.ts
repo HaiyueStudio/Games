@@ -1,3 +1,5 @@
+import type{MinecraftHud}from'../ui/MinecraftHud';
+import type{GuiButton}from'@haiyue/engine/gui';
 import { gamepadFrame } from '../../gamepad/runtime';
 import { CartesianTransform3D, System, type World as EngineWorld } from '@haiyue/engine';
 import {
@@ -14,10 +16,7 @@ interface MinecraftInteractionOptions {
   readonly cameraTransform: CartesianTransform3D;
   readonly world: MinecraftWorld;
   readonly renderer: MinecraftVoxelRenderer;
-  readonly hotbar: HTMLElement;
-  readonly target: HTMLElement;
-  readonly blockCount: HTMLElement;
-  readonly message: HTMLElement;
+  readonly hud: MinecraftHud;
   readonly initialPalette?: number;
   readonly onStateChanged?: (selectedPalette: number) => void;
 }
@@ -28,12 +27,9 @@ export class MinecraftInteractionSystem extends System {
   private readonly _cameraTransform: CartesianTransform3D;
   private readonly _voxelWorld: MinecraftWorld;
   private readonly _renderer: MinecraftVoxelRenderer;
-  private readonly _hotbar: HTMLElement;
-  private readonly _target: HTMLElement;
-  private readonly _blockCount: HTMLElement;
-  private readonly _message: HTMLElement;
+  private readonly _hud: MinecraftHud;
   private readonly _direction = new Float32Array(3);
-  private readonly _buttons: HTMLButtonElement[] = [];
+  private readonly _buttons: GuiButton[] = [];
   private _selectedPalette = 3;
   private readonly _onStateChanged: (selectedPalette: number) => void;
   private _hit: VoxelRaycastHit | null = null;
@@ -48,10 +44,7 @@ export class MinecraftInteractionSystem extends System {
     this._cameraTransform = options.cameraTransform;
     this._voxelWorld = options.world;
     this._renderer = options.renderer;
-    this._hotbar = options.hotbar;
-    this._target = options.target;
-    this._blockCount = options.blockCount;
-    this._message = options.message;
+    this._hud=options.hud;
     this._selectedPalette = options.initialPalette ?? 3;
     this._onStateChanged = options.onStateChanged ?? (() => undefined);
     this._buildHotbar();
@@ -65,9 +58,9 @@ export class MinecraftInteractionSystem extends System {
     if (this._disposed) return this;
     viewDirection(this._cameraTransform.rotation, this._direction);
     this._hit = this._voxelWorld.raycast(this._cameraTransform.position, this._direction, 9);
-    this._target.textContent = this._hit
+    this._hud.target.setText(this._hit
       ? `${this._hit.block.x}, ${this._hit.block.y}, ${this._hit.block.z}`
-      : '—';
+      : '—');
     return this;
   }
 
@@ -86,17 +79,9 @@ export class MinecraftInteractionSystem extends System {
   }
 
   private _buildHotbar(): void {
-    this._hotbar.replaceChildren();
-    for (const [index, color] of MINECRAFT_BLOCK_COLORS.entries()) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.style.setProperty('--block-color', color.hex);
-      button.title = `${color.digit} · ${color.name}`;
-      button.setAttribute('aria-label', `选择 ${color.name} 方块`);
-      button.innerHTML = `<span>${color.digit}</span><i></i>`;
-      button.addEventListener('click', () => this._selectPalette(index));
-      this._buttons.push(button);
-      this._hotbar.append(button);
+    for(const [index,color] of MINECRAFT_BLOCK_COLORS.entries()){
+      const button=this._hud.button(String(color.digit),75+index*85,590,78,()=>this._selectPalette(index),45);
+      button.setStyle({backgroundColor:color.hex});this._buttons.push(button);
     }
     this._selectPalette(this._selectedPalette);
   }
@@ -106,8 +91,7 @@ export class MinecraftInteractionSystem extends System {
     document.body.dataset.selectedBlock = String(index);
     for (const [buttonIndex, button] of this._buttons.entries()) {
       const selected = buttonIndex === index;
-      button.classList.toggle('selected', selected);
-      button.setAttribute('aria-pressed', String(selected));
+      button.setStyle({borderColor:selected?'#ffffff':'#263447',color:selected?'#ffffff':'#18202b'});
     }
     this._onStateChanged(this._selectedPalette);
   }
@@ -120,6 +104,7 @@ export class MinecraftInteractionSystem extends System {
   };
 
   private _onMouseDown = (event: MouseEvent): void => {
+    if(document.pointerLockElement!==this._canvas && this._hud.hit(event.clientX,event.clientY,this._canvas))return;
     if ((document.pointerLockElement !== this._canvas && !gamepadFrame()) || !this._hit) return;
     if (event.button === 0) this._removeBlock(this._hit.block);
     else if (event.button === 2 && this._hit.adjacent) this._addBlock(this._hit.adjacent);
@@ -160,16 +145,16 @@ export class MinecraftInteractionSystem extends System {
   }
 
   private _syncHud(): void {
-    this._blockCount.textContent = this._voxelWorld.blockCount.toLocaleString();
+    this._hud.blockCount.setText(this._voxelWorld.blockCount.toLocaleString());
     document.body.dataset.visibleBlocks = String(this._renderer.visibleBlockCount);
     document.body.dataset.selectedBlock = String(this._selectedPalette);
   }
 
   private _flash(message: string): void {
-    this._message.textContent = message;
-    this._message.classList.add('visible');
+    this._hud.message.setText(message);
+    this._hud.message.setVisible(true);
     if (this._messageTimer !== 0) window.clearTimeout(this._messageTimer);
-    this._messageTimer = window.setTimeout(() => this._message.classList.remove('visible'), 1200);
+    this._messageTimer = window.setTimeout(() => this._hud.message.setVisible(false), 1200);
   }
 }
 

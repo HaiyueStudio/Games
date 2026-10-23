@@ -1,3 +1,4 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { AmbientLight } from '@haiyue/engine/lighting';
@@ -133,8 +134,6 @@ const FOUNDATION_Z = -222;
 const STOCK_X = -468;
 const FOUNDATION_START_X = -42;
 const FOUNDATION_GAP = 76;
-const HUD_Z = -318;
-const HUD_Y = 5.5;
 const DEAL_ANIMATION_MS = 1250;
 const RUN_COLLECT_ANIMATION_MS = 760;
 const ANIMATION_STAGGER_MS = 42;
@@ -292,6 +291,7 @@ export class SpiderSolitaire {
     this.cameraEntity.addComponent(camera);
     this.cameraEntity.addComponent(this.orbitTransform);
     this.world.addEntity(this.cameraEntity);
+    fitPerspectiveCamera(this.engine, this.world, camera);
     const inputHeight = Math.max(160, this.canvas.getBoundingClientRect().height);
     this.orbitControl = new OrbitControl(this.platform.orbitCanvas ?? this.canvas, this.orbitTransform, {
       inputRegion: { x: 0, y: 84 / inputHeight, width: 1, height: 1 - 124 / inputHeight },

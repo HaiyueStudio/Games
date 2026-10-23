@@ -62,9 +62,12 @@ test('public-domain score catalog contains valid local MIDI files', () => {
 test('piano exposes automatic playback and pointer glissando controls', () => {
   const html = read('games', 'piano', 'index.html');
   const main = read('games', 'piano', 'app/bootstrap.ts');
-  assert.match(html, /id="score-list"/);
-  assert.match(html, /id="auto-play"/);
-  assert.match(html, /id="auto-stop"/);
+  const hud = read('games', 'piano', 'ui/PianoHud.ts');
+  assert.match(hud, /new GuiSelect/);
+  assert.match(hud, /this\.button\('Auto play'/);
+  assert.match(hud, /this\.button\('Stop'/);
+  assert.match(hud, /new GuiProgress/);
+  assert.doesNotMatch(html, /<(button|select|progress)\b/);
   assert.match(main, /addEventListener\('pointerdown'/);
   assert.match(main, /addEventListener\('pointermove'/);
   assert.match(main, /setPointerCapture\(event\.pointerId\)/);
@@ -74,7 +77,7 @@ test('piano exposes automatic playback and pointer glissando controls', () => {
 test('piano canvas and camera follow the browser viewport', () => {
   const html = read('games', 'piano', 'index.html');
   const main = read('games', 'piano', 'app/bootstrap.ts');
-  assert.match(html, /#wrap\s*\{[^}]*width:\s*100vw;[^}]*height:\s*100dvh;/s);
+  assert.match(html, /html,body\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/s);
   assert.match(html, /canvas\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/s);
   assert.match(html, /<canvas id="canvas"><\/canvas>/);
   assert.match(main, /devicePixelRatio:\s*\(\) => Math\.min\(window\.devicePixelRatio \|\| 1, 2\)/);

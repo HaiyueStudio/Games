@@ -1,3 +1,5 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
+import { TetrisHud } from '../ui/TetrisHud';
 import { GameEngine } from '../../session/GameEngine';
 import { HaiyueEngine } from '@haiyue/engine';
 import { World } from '@haiyue/engine';
@@ -70,13 +72,7 @@ class TetrisGame {
   private score = 0;
   private dropAccumulator = 0;
 
-  private elScore!: HTMLElement;
-  private elNext!: HTMLElement;
-  private elStatus!: HTMLElement;
-  private elStatusTitle!: HTMLElement;
-  private elStatusSub!: HTMLElement;
-  private elPauseButton!: HTMLButtonElement;
-  private nextCells: HTMLElement[] = [];
+  private hud!: TetrisHud;
 
   constructor(private config: Config) {
     this.config.rows = Math.max(10, Math.floor(config.rows || 20));
@@ -93,9 +89,9 @@ class TetrisGame {
     await this.engine.init();
 
     this.world = new World('Tetris');
+    this.hud = new TetrisHud(this.engine, this.world, () => this._togglePause(), () => this._newGame());
     this._setupCamera();
     this._setupLights();
-    this._setupDOM();
     this._setupInput();
     this._buildCells();
     await this._loadOrCreateState();
@@ -126,6 +122,7 @@ class TetrisGame {
     this.camEntity.addComponent(this.cam3D);
     this.camEntity.addComponent(spherical);
     this.world.addEntity(this.camEntity);
+    fitPerspectiveCamera(this.engine, this.world, this.cam3D);
     const render3DSystem = new Render3DSystem(this.engine, this.camEntity, {
       priority: 0,
       loadOp: 'clear',
@@ -149,26 +146,6 @@ class TetrisGame {
       direction: [-0.55, -1, -0.35],
     }));
     this.world.addEntity(directional);
-  }
-
-  private _setupDOM() {
-    this.elScore = document.getElementById('score')!;
-    this.elNext = document.getElementById('next')!;
-    this.elStatus = document.getElementById('status')!;
-    this.elStatusTitle = document.getElementById('status-title')!;
-    this.elStatusSub = document.getElementById('status-sub')!;
-    this.elPauseButton = document.getElementById('btn-pause') as HTMLButtonElement;
-    document.getElementById('btn-new')!.addEventListener('click', () => this._newGame());
-    this.elPauseButton.addEventListener('click', () => this._togglePause());
-
-    this.nextCells = [];
-    this.elNext.innerHTML = '';
-    for (let i = 0; i < 16; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'next-cell';
-      this.elNext.appendChild(cell);
-      this.nextCells.push(cell);
-    }
   }
 
   private _setupInput() {
@@ -433,30 +410,29 @@ class TetrisGame {
     const filled = new Set(SHAPES[this.nextKind].map(point => `${point.row}_${point.col}`));
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
-        const el = this.nextCells[row * 4 + col];
+        const el = this.hud.next[row * 4 + col];
         const active = filled.has(`${row}_${col}`);
         if (!el) continue;
-        el.className = active ? 'next-cell filled' : 'next-cell';
-        el.style.background = active ? COLORS[this.nextKind] : 'rgba(51, 65, 85, 0.52)';
+        el.setStyle({ backgroundColor: active ? COLORS[this.nextKind] : 'rgba(51, 65, 85, 0.52)' });
       }
     }
   }
 
   private _syncHUD() {
-    this.elScore.textContent = String(this.score);
+    this.hud.score.setText(String(this.score));
   }
 
   private _syncStatus() {
     if (this.phase === 'playing') {
-      this.elStatus.classList.remove('visible');
+      this.hud.title.setVisible(false); this.hud.detail.setVisible(false);
       this._syncPauseButton();
       return;
     }
-    this.elStatusTitle.textContent = this.phase === 'paused' ? 'Paused' : 'Game over';
-    this.elStatusSub.textContent = this.phase === 'paused'
+    this.hud.title.setText(this.phase === 'paused' ? 'Paused' : 'Game over');
+    this.hud.detail.setText(this.phase === 'paused'
       ? 'Press P to resume.'
-      : `Score: ${this.score}. Start a new game.`;
-    this.elStatus.classList.add('visible');
+      : `Score: ${this.score}. Start a new game.`);
+    this.hud.title.setVisible(true); this.hud.detail.setVisible(true);
     this._syncPauseButton();
   }
 
@@ -468,8 +444,8 @@ class TetrisGame {
   }
 
   private _syncPauseButton() {
-    this.elPauseButton.textContent = this.phase === 'paused' ? 'Resume' : 'Pause';
-    this.elPauseButton.disabled = this.phase === 'lost';
+    this.hud.pause.setText(this.phase === 'paused' ? 'Resume' : 'Pause');
+    this.hud.pause.setDisabled(this.phase === 'lost');
   }
 
   private _tick(time: number, delta: number) {

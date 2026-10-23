@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      min-height: 100vh;
+      min-height: 100dvh;
       overflow: hidden;
       background: #14171c;
       color: #f8fafc;
@@ -16,30 +16,22 @@
     #wrap {
       position: relative;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
     }
     canvas {
       display: block;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: #0d1015;
       touch-action: none;
     }
-    #title {
-      position: absolute;
-      left: 24px;
-      top: 20px;
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: 0;
-      pointer-events: none;
-    }
+
   </style>
 </head>
 <body>
   <div id="wrap">
     <canvas id="canvas"></canvas>
-    <div id="title">Pad Simulator</div>
+
   </div>
   <script src="./bundle.js"></script>
 </body>

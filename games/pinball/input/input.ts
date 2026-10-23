@@ -22,26 +22,18 @@ export class PinballInput {
       this.held.delete(event.code);
       if (wasCharging && !this.down('charge')) this.releasedCharge = true;
     }, options);
-    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-control]')) {
-      const control = button.dataset.control as Control;
-      button.addEventListener('pointerdown', event => {
-        event.preventDefault(); button.setPointerCapture(event.pointerId);
-        this.held.add(`touch:${control}:${event.pointerId}`); this.actions.add(control);
-      }, options);
-      const release = (event: PointerEvent) => {
-        const wasCharging = this.down('charge');
-        this.held.delete(`touch:${control}:${event.pointerId}`);
-        if (event.type === 'pointerup' && wasCharging && !this.down('charge')) this.releasedCharge = true;
-      };
-      button.addEventListener('pointerup', release, options);
-      button.addEventListener('pointercancel', release, options);
-      button.addEventListener('lostpointercapture', release, options);
-      // Keyboard activation of the accessible touch controls.
-      button.addEventListener('click', event => {
-        if (event.detail === 0) this.actions.add(control === 'charge' ? 'launch' : control);
-      }, options);
-    }
+    window.addEventListener('pointerup', event => this.release(event.pointerId), options);
+    window.addEventListener('pointercancel', event => this.release(event.pointerId, true), options);
   }
+  press(control: Control, pointerId: number): void {
+    this.held.add(`touch:${control}:${pointerId}`); this.actions.add(control);
+  }
+  release(pointerId: number, cancelled = false): void {
+    const wasCharging = this.down('charge');
+    for (const key of this.held) if (key.startsWith('touch:') && key.endsWith(`:${pointerId}`)) this.held.delete(key);
+    if (!cancelled && wasCharging && !this.down('charge')) this.releasedCharge = true;
+  }
+
   down(control: Control): boolean {
     for (const key of this.held) if (key.startsWith(`touch:${control}:`) || controlFor(key) === control) return true;
     return false;

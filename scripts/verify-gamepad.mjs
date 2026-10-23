@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
@@ -26,7 +26,9 @@ async function run(name, fixture, query, exercise) {
   const checks = [];
   const gameId = /^games\/([^/]+)\/index\.html$/.exec(fixture)?.[1];
   const entry = gameId ? `games/${gameId}/${['mugen','gravity-maze'].includes(gameId)?'dist/':''}bundle.js` : null;
-  const inputs = Object.fromEntries([fixture,entry].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
+  const sourceInputs = gameId ? readdirSync(resolve(root, 'games', gameId), { recursive: true }).filter(file => /\.(ts|html|css)$/.test(file)).map(file => `games/${gameId}/${file}`) : [];
+  sourceInputs.push('games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
+  const inputs = Object.fromEntries([fixture,entry,...sourceInputs].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
   const result = await runChromeWebGpuFixture({root, fixture, query, timeoutMs:90000, disableDx12InfoCollection:true,
     mounts:[{prefix:'/site/games',directory:resolve(root,'games')}],
     visualCapture:{viewportWidth:1040,viewportHeight:600},
@@ -213,6 +215,26 @@ await run('tank-menu','games/tank-battle/index.html',{verify:1},async({evaluate,
   check(await evaluate('__tankBattle.snapshot().mode')===1,'Start preserves current mode');
 });
 
+await run('sudoku-layout','games/sudoku/index.html',{gamepadVerify:1},async({evaluate,until,check,cdp})=>{
+  await until('window.__gameReturn?.snapshot().gameFrames>30','Sudoku initialized');
+  for (const [width,height,dpr] of [[1920,1080,1],[2560,1080,1],[1280,720,1],[390,844,2],[844,390,2],[1040,600,2]]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:dpr,mobile:false});
+    await delay(700);
+    const rect=await evaluate('(()=>{const c=document.querySelector("canvas"),r=c.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,pixels:[c.width,c.height],overflow:document.documentElement.scrollWidth>innerWidth||document.documentElement.scrollHeight>innerHeight}})()');
+    const label=width+'x'+height+'@'+dpr;
+    check(Math.abs(rect.width/rect.height-1.5)<.002,label+' keeps square board cells through uniform scaling');
+    check(rect.x>=-.5&&rect.y>=-.5&&rect.x+rect.width<=width+.5&&rect.y+rect.height<=height+.5&&!rect.overflow,label+' fits the viewport without clipping');
+    check(Math.abs(rect.x-(width-rect.width)/2)<1&&Math.abs(rect.y-(height-rect.height)/2)<1,label+' centers the scene');
+    check(Math.abs(rect.pixels[0]/rect.pixels[1]-1.5)<.005,label+' resizes the GPU target consistently');
+    const point={x:rect.x+450/900*rect.width,y:rect.y+298.5/600*rect.height};
+    await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});
+    await delay(350);
+    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});
+    writeFileSync(resolve(output,'sudoku-layout-'+label+'.png'),Buffer.from(shot.result.data,'base64'));
+  }
+});
+
 await run('tank-return','games/tank-battle/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
   await until('!!window.__tankBattle','tank ready');await pads();await press(0);
   await until('__tankBattle.snapshot().tick>5','combat started');
@@ -280,20 +302,20 @@ await run('minecraft','games/minecraft-lite/index.html',{verify:1,seed:1985},asy
   check(after.position.some((v,i)=>i!==1&&Math.abs(v-before.position[i])>.1),'left stick moves the first person camera');
   check(Math.abs(after.rotation[0]-before.rotation[0])>.1&&Math.abs(after.rotation[1]-before.rotation[1])>.1,'right stick controls pitch and yaw without pointer lock');
   await press(4);check(await evaluate('__minecraftInput.snapshot().selectedPalette')===1,'LB selects a building material');
-  await press(11);check(await evaluate('!document.querySelector("#start-overlay").classList.contains("hidden")'),'R3 exposes the menu in pointer mode');
+  await press(11);check(await evaluate('__gameHud.nodes.some(n=>n.type==="GuiButton"&&n.text==="开始游玩"&&n.visible)'),'R3 exposes the menu in pointer mode');
 });
 
 await run('piano-return','games/piano/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
-  await until('!!document.querySelector("#auto-play") && !document.querySelector("#auto-play").disabled','MIDI catalog ready');await pads();
-  const button=await evaluate('(()=>{const r=document.querySelector("#auto-play").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await until('window.__gameHud?.nodes.some(n=>n.text==="Auto play"&&!n.disabled)','MIDI catalog ready');await pads();
+  const button=await evaluate('(()=>{const r=__gameHud.nodes.find(n=>n.text==="Auto play").rect,c=document.querySelector("canvas").getBoundingClientRect();return {x:c.x+(r.x+r.width/2)*c.width/__gameHud.width,y:c.y+(r.y+r.height/2)*c.height/__gameHud.height}})()');
   await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...button,button:'left',buttons:1,clickCount:1});
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...button,button:'left',buttons:0,clickCount:1});
-  await until('document.querySelector("#playback-progress").value>0.001','MIDI starts with real user activation');
-  const before=await evaluate('document.querySelector("#playback-progress").value');await delay(400);
-  const speed=await evaluate('document.querySelector("#playback-progress").value')-before;
-  await press(8);const paused=await evaluate('document.querySelector("#playback-progress").value');await delay(1200);
-  check(await evaluate('document.querySelector("#playback-progress").value')===paused,'Back freezes the independent MIDI playback loop');
-  await press(1);await delay(200);const resumed=await evaluate('document.querySelector("#playback-progress").value');
+  await until('__gameHud.nodes.find(n=>n.type==="GuiProgress").value>0.001','MIDI starts with real user activation');
+  const before=await evaluate('__gameHud.nodes.find(n=>n.type==="GuiProgress").value');await delay(400);
+  const speed=await evaluate('__gameHud.nodes.find(n=>n.type==="GuiProgress").value')-before;
+  await press(8);const paused=await evaluate('__gameHud.nodes.find(n=>n.type==="GuiProgress").value');await delay(1200);
+  check(await evaluate('__gameHud.nodes.find(n=>n.type==="GuiProgress").value')===paused,'Back freezes the independent MIDI playback loop');
+  await press(1);await delay(200);const resumed=await evaluate('__gameHud.nodes.find(n=>n.type==="GuiProgress").value');
   check(resumed>paused,'cancel resumes MIDI playback');
   check(resumed-paused<speed*2.2,'resuming excludes time spent in return confirmation');
 });
@@ -336,8 +358,17 @@ await run('triangle-calendar','games/triangle-calendar-puzzle/index.html',{verif
 // The same Back/confirm/cancel contract is exercised against every manifest game.
 const returnGames = JSON.parse(readFileSync(resolve(root,'games/manifest.json'),'utf8')).entries;
 for (const game of returnGames) await run('return-'+game.id,'games/'+game.id+'/index.html',{gamepadVerify:1},async({evaluate,until,pads,press,check,cdp})=>{
-  await until('window.__gameReturn?.snapshot().ready','session engine ready');
-  await delay(1000);await pads();
+  await until('window.__gameReturn?.snapshot().ready && __gameReturn.snapshot().gameFrames>3','session renderer ready');
+  await delay(1000);
+  for (const [width,height] of [[1440,900],[390,844],[844,390]]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await delay(400);
+    const layout=await evaluate(`(()=>({width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight,canvases:[...document.querySelectorAll('canvas')].map(c=>{const r=c.getBoundingClientRect();return {width:r.width,height:r.height,x:r.x,y:r.y,right:r.right,bottom:r.bottom,pixelWidth:c.width,pixelHeight:c.height}}).filter(r=>r.width>0&&r.height>0)}))()`);
+    writeFileSync(resolve(output,`return-${game.id}-${width}-layout.json`),JSON.stringify(layout,null,2));
+    check(layout.width<=width+1&&layout.height<=height+1,game.id+' page fits '+width);
+    check(layout.canvases.every(r=>r.x>=-1&&r.y>=-1&&r.right<=width+1&&r.bottom<=height+1),game.id+' visible canvases fit viewport '+width);
+    check(layout.canvases.every(r=>Math.abs(r.width/r.height-r.pixelWidth/r.pixelHeight)<.025),game.id+' canvas aspect is preserved '+width);
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1040,height:600,deviceScaleFactor:1,mobile:false});await delay(300);await pads();
   const canvasCount=await evaluate('document.querySelectorAll("canvas").length');
   await press(8);await until('__gameReturn.snapshot().active','Back opens confirmation');
   check(await evaluate('__gameReturn.snapshot().paused'),'Back pauses the session');
@@ -360,4 +391,71 @@ for (const game of returnGames) await run('return-'+game.id,'games/'+game.id+'/i
   await evaluate('window.__pads[0].buttons[0]={value:1,pressed:true,touched:false}');
   await until('!location.pathname.includes("/games/") && !!document.querySelector("#game-grid")','confirmed return loads homepage');
   check(true,'confirmed return reaches actual standalone homepage');
+});
+
+
+// Verify actual GUI layout and GPU canvas sizes at desktop, portrait and landscape sizes.
+const migratedHudGames = ['tetris','pong','match-3','minesweeper','icosahedron-minesweeper','piano','wfc-map','sokoban-3d','gravity-maze','minecraft-lite','pacman','pinball','pad-simulator'];
+for (const id of migratedHudGames) await run('gui-'+id, `games/${id}/index.html`, {gamepadVerify:1}, async({evaluate,until,check,cdp,pads}) => {
+  await until('window.__gameHud?.width>0 && __gameReturn.snapshot().gameFrames>3', 'engine HUD '+id);
+  for (const [width,height,dpr] of [[1440,900,1],[390,844,2],[844,390,2]]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:dpr,mobile:false});
+    await delay(700);
+    const layout = await evaluate(`(()=>{const c=document.querySelector('canvas'),r=c.getBoundingClientRect();return {hud:__gameHud,canvas:{x:r.x,y:r.y,width:r.width,height:r.height,backingWidth:c.width,backingHeight:c.height},scroll:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},domControls:[...document.querySelectorAll('button,select,progress,dialog,input:not([type=file])')].filter(n=>n.getBoundingClientRect().width>0).length}})()`);
+    check(layout.scroll.width<=width+1 && layout.scroll.height<=height+1, id+' fits '+width+'x'+height);
+    check(Math.abs(layout.canvas.backingWidth/layout.canvas.backingHeight-layout.canvas.width/layout.canvas.height)<.015, id+' GPU canvas matches display aspect '+width);
+    check(layout.domControls===0,id+' uses no DOM gameplay controls '+width);
+    const buttons=layout.hud.nodes.filter(n=>n.type==='GuiButton'&&n.visible);
+    check(buttons.every(n=>n.rect.x>=-1&&n.rect.y>=-1&&n.rect.x+n.rect.width<=layout.hud.width+1&&n.rect.y+n.rect.height<=layout.hud.height+1),id+' GUI buttons stay inside the canvas '+width);
+    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`gui-${id}-${width}.png`),Buffer.from(shot.result.data,'base64'));
+    writeFileSync(resolve(output,`gui-${id}-${width}-layout.json`),JSON.stringify(layout,null,2));
+  }
+  await pads();
+  check(await evaluate('!document.querySelector("[data-gamepad-hint],[data-gamepad-cursor]")'), id+' controller feedback creates no DOM overlay');
+});
+
+await run('gui-mugen', 'games/mugen/index.html', {gamepadVerify:1}, async({evaluate,until,check,cdp}) => {
+  await until('window.__mugenGui?.nodes.some(n=>n.text==="设置"&&!n.disabled)', 'MUGEN menu');
+  const click = async text => {
+    await until(`__mugenGui.nodes.some(n=>n.type==='GuiButton'&&n.text===${JSON.stringify(text)}&&!n.disabled)`, 'GUI '+text);
+    const point=await evaluate(`(()=>{const g=__mugenGui,n=g.nodes.find(n=>n.type==='GuiButton'&&n.text===${JSON.stringify(text)}),c=document.querySelector('#flow-canvas').getBoundingClientRect();return {x:c.x+(n.rect.x+n.rect.width/2)*c.width/g.width,y:c.y+(n.rect.y+n.rect.height/2)*c.height/g.height}})()`);
+    await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});await delay(250);
+  };
+  await click('设置'); await click('详细按键设置');
+  check(await evaluate('__mugenGui.keySettings'),'Engine GUI opens key bindings');
+  await click('W');
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'q',code:'KeyQ',windowsVirtualKeyCode:81});
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'q',code:'KeyQ',windowsVirtualKeyCode:81});await delay(250);
+  await click('保存并应用');
+  check(await evaluate('document.body.dataset.p1KeyBindings.split(",")[0]==="KeyQ" && !__mugenGui.keySettings'),'GUI saves a real key binding');
+  await click('详细按键设置');await click('恢复默认');await click('取消');
+  check(await evaluate('document.body.dataset.p1KeyBindings.split(",")[0]==="KeyQ"'),'cancel discards draft bindings');
+  await click('恢复默认按键');
+  check(await evaluate('document.body.dataset.p1KeyBindings.split(",")[0]==="KeyW"'),'restore defaults applies through GUI');
+  for (const [width,height] of [[1440,900],[390,844],[844,390]]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await delay(500);
+    check(await evaluate('!document.querySelector("button,select,dialog")'),'MUGEN has no duplicate DOM controls '+width);
+    check(await evaluate('__mugenGui.nodes.filter(n=>n.type==="GuiButton").every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=__mugenGui.width+1&&n.rect.y+n.rect.height<=__mugenGui.height+1)'),'MUGEN settings fit '+width);
+    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`gui-mugen-${width}.png`),Buffer.from(shot.result.data,'base64'));
+  }
+});
+
+await run('pinball-physics', 'games/pinball/index.html', {verify:1}, async({evaluate,until,check}) => {
+  await until('document.querySelector("#result")?.dataset.status==="passed"', 'pinball physics verification');
+  const result=await evaluate('JSON.parse(document.querySelector("#result").textContent)');
+  check(result.checks.length>15, 'existing pinball physics and lifecycle cases pass');
+});
+await run('pinball-touch', 'games/pinball/index.html', {gamepadVerify:1}, async({evaluate,until,check,cdp}) => {
+  await until('window.__pinball?.snapshot().ready&&window.__gameHud?.width>0','pinball GUI ready');
+  const point=async text=>evaluate(`(()=>{const n=__gameHud.nodes.find(n=>n.type==='GuiButton'&&n.text===${JSON.stringify(text)}),c=document.querySelector('canvas').getBoundingClientRect();return {x:c.x+(n.rect.x+n.rect.width/2)*c.width/__gameHud.width,y:c.y+(n.rect.y+n.rect.height/2)*c.height/__gameHud.height}})()`);
+  const mouse=async(type,p)=>{await cdp.call('Input.dispatchMouseEvent',{type,...p,button:'left',buttons:type==='mousePressed'?1:0,clickCount:1});await delay(100);};
+  const charge=await point('↓ 蓄力发球');await mouse('mousePressed',charge);await delay(400);
+  check(await evaluate('__pinball.snapshot().charge>0.1'),'holding the Engine button charges the ball');
+  await mouse('mouseReleased',charge);check(await evaluate('__pinball.snapshot().phase==="playing"'),'releasing the Engine button launches');
+  const pause=await point('Ⅱ 暂停');await mouse('mousePressed',pause);await mouse('mouseReleased',pause);
+  check(await evaluate('__pinball.snapshot().paused'),'Engine pause button pauses physics');
+  const before=await evaluate('__pinball.snapshot().time');await delay(250);check(await evaluate('__pinball.snapshot().time')===before,'paused physics time remains fixed');
+  const restart=await point('重开');await mouse('mousePressed',restart);await mouse('mouseReleased',restart);
+  check(await evaluate('__pinball.snapshot().phase==="ready"&&!__pinball.snapshot().paused'),'Engine restart resets the game');
 });

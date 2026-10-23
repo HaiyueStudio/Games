@@ -29,6 +29,11 @@ export class TankBattleHud {
   private readonly atlas = new Image();
   private modal!: GuiElement;
   private cleared!: GuiLabel;
+  private viewWidth = 0;
+  private viewHeight = 0;
+  private scale = 1;
+  private offsetX = 0;
+  private offsetY = 0;
   private width = 0;
   private height = 0;
   private board: GuiRect = { x: 0, y: 0, width: 416, height: 416 };
@@ -68,7 +73,11 @@ export class TankBattleHud {
   }
   private place<T extends GuiElement>(element: T, rect: () => GuiRect, parent: GuiElement = this.root.root): T {
     const layout = element.layout.bind(element);
-    element.layout = parentRect => { layout(parentRect); Object.assign(element.rect, rect()); };
+    const fontSize = element instanceof GuiLabel ? element.fontSize : undefined;
+    element.layout = parentRect => {
+      layout(parentRect); Object.assign(element.rect, this.displayRect(rect()));
+      if (element instanceof GuiLabel && fontSize !== undefined) element.setFontSize(fontSize * this.scale);
+    };
     parent.add(element); return element;
   }
   private label(id: string, text: string, rect: () => GuiRect, fontSize = 13, color = TEXT, parent?: GuiElement): GuiLabel {
@@ -150,14 +159,19 @@ export class TankBattleHud {
   }
   private resize(): void {
     if (this.disposed) return;
-    const width = Math.floor(this.host.clientWidth); if (width === this.width) return; this.width = width;
-    this.mobile = width < 700;
+    const viewWidth = Math.floor(this.host.clientWidth), viewHeight = Math.floor(this.host.clientHeight);
+    if (viewWidth === this.viewWidth && viewHeight === this.viewHeight) return;
+    this.viewWidth = viewWidth; this.viewHeight = viewHeight;
+    const width = Math.max(800, Math.min(1040, viewWidth)); this.width = width;
+    this.mobile = false;
     const size = this.mobile ? width - 24 : Math.min(width - 300, 680);
     this.board = { x: 12, y: 112, width: size, height: size };
     this.touchY = 112 + size + 101;
     this.sideX = this.mobile ? 12 : size + 34; this.sideY = this.mobile ? this.touchY + 103 : 112; this.sideW = this.mobile ? width - 24 : width - this.sideX - 12;
     this.supplyY = this.mobile ? this.sideY + 234 : Math.max(112 + size + 105, 642);
-    this.height = this.supplyY + (this.mobile ? 205 : 143); this.host.style.height = `${this.height}px`;
+    this.height = this.supplyY + (this.mobile ? 205 : 143); this.scale = Math.min(viewWidth / this.width, viewHeight / this.height);
+    this.offsetX = (viewWidth - this.width * this.scale) / 2; this.offsetY = (viewHeight - this.height * this.scale) / 2;
+    this.root.theme.fontSize = 13 * this.scale;
     for (const id of ['stage', 'enemies', 'best', 'menu']) (this.labels.get(id) ?? this.buttons.get(id))!.setVisible(!this.mobile);
     for (const id of Object.keys(TOUCH_KEYS)) this.buttons.get(id)!.setVisible(this.mobile);
     this.images.get('menu-tank')!.setVisible(this.board.width >= 340);
@@ -165,7 +179,7 @@ export class TankBattleHud {
       this.labels.get(`terrain-label-${i}`)!.setText(this.mobile ? text.split(' / ')[0]! : text);
     });
     this.engine.resizeToDisplaySize(true);
-    this.root.root.markDirty(); this.root.layout(this.width, this.height);
+    this.root.root.markDirty(); this.root.layout(this.engine.displayWidth, this.engine.displayHeight);
     if (this.view) this.update(this.view);
   }
   update(view: HudState): void {
@@ -195,7 +209,8 @@ export class TankBattleHud {
     this.labels.get('overlay-description')!.setText(ended ? s.message : hasRun ? `第 ${s.stage} 关 · ${STAGE_NAMES[s.stage - 1]}` : '保护基地，击毁闪光敌军。');
     this.labels.get('overlay-detail')!.setText(ended ? `总分 ${s.players.reduce((n, p) => n + p.score, 0)}` : hasRun ? '继续进度，或选择模式开始新任务。' : '5 个战区 / 4 种敌军 / 6 种补给');
   }
-  drawBattlefield(state: GameState): void { this.battlefield.draw(state, this.board); }
+  private displayRect(rect: GuiRect): GuiRect { return { x: this.offsetX + rect.x * this.scale, y: this.offsetY + rect.y * this.scale, width: rect.width * this.scale, height: rect.height * this.scale }; }
+  drawBattlefield(state: GameState): void { this.battlefield.draw(state, this.displayRect(this.board)); }
   private menuButtons(): GuiButton[] {
     return ['resume', 'solo', 'duo'].map(id => this.buttons.get(id)!).filter(button => button.visible && !button.disabled);
   }
@@ -232,15 +247,16 @@ export class TankBattleHud {
   }
   touchKey(event: PointerEvent): string | undefined {
     const rect = this.canvas.getBoundingClientRect();
-    const hit = this.root.hitTest((event.clientX - rect.left) * this.width / rect.width, (event.clientY - rect.top) * this.height / rect.height);
+    const hit = this.root.hitTest((event.clientX - rect.left) * this.engine.displayWidth / rect.width, (event.clientY - rect.top) * this.engine.displayHeight / rect.height);
     return hit ? TOUCH_KEYS[hit.id] : undefined;
   }
   /** Read-only geometry for real pointer-driven browser coverage. */
   snapshot() {
     const canvas = this.canvas.getBoundingClientRect();
+    const board = this.displayRect(this.board);
     const text = [...this.labels.values(), ...this.buttons.values()].map(element => element.text).join('');
     return { renderer: 'engine-gui', battlefieldRenderer: 'engine-gui', canvasCount: document.querySelectorAll('canvas').length,
-      board: { ...this.board, x: canvas.left + this.board.x, y: canvas.top + this.board.y }, menuVisible: this.modal.visible, selectedMenu: this.modal.visible ? this.system.focus.focused?.id : null, mobile: this.mobile, saveStatus: this.view?.saveStatus, muted: this.view?.muted,
+      board: { ...board, x: canvas.left + board.x, y: canvas.top + board.y }, menuVisible: this.modal.visible, selectedMenu: this.modal.visible ? this.system.focus.focused?.id : null, mobile: this.mobile, saveStatus: this.view?.saveStatus, muted: this.view?.muted,
       viewport: { width: this.engine.displayWidth, height: this.engine.displayHeight, cssWidth: canvas.width, cssHeight: canvas.height },
       missingGlyphs: [...new Set([...text].filter(char => !HUD_FONT_CHARS.includes(char)))],
       buttons: Object.fromEntries([...this.buttons].map(([id, b]) => [id, { ...b.rect, x: canvas.left + b.rect.x, y: canvas.top + b.rect.y, visible: b.visible, disabled: b.disabled }])),

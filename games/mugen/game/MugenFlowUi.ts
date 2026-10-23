@@ -1,8 +1,10 @@
+import { fitGuiLayout } from '../../shared/ui/GameHud';
+import { MUGEN_BINDABLE_ACTIONS, mugenKeyLabel, type MugenKeyBindings, type MugenBindingPlayer, type MugenBindableAction } from './MugenKeyBindings';
 import { GameEngine } from '../../session/GameEngine';
 import { Entity, HaiyueEngine, World } from '@haiyue/engine';
 import { KeyboardComponent } from '@haiyue/engine/components';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { GuiButton, GuiImage, GuiLabel, GuiProgress, GuiRoot, GuiSystem, type GuiImageSource } from '@haiyue/engine/gui';
+import { GuiButton, GuiCheckbox, GuiSelect, GuiImage, GuiLabel, GuiProgress, GuiRoot, GuiSystem, type GuiImageSource } from '@haiyue/engine/gui';
 import { mugenCharacterGridColumns } from './MugenCharacterSelection';
 import type { MugenRoundPhase, MugenRoundResultReason } from '../runtime/match/MugenMatchState';
 
@@ -10,6 +12,14 @@ export type MugenGameMode = 'single' | 'versus' | 'ai';
 export type MugenFlowScreen = 'title' | 'select' | 'stage' | 'fight' | 'settings';
 
 export interface MugenFlowCallbacks {
+  readonly verifyDevice: () => void;
+  readonly captureKey: (player: MugenBindingPlayer, action: MugenBindableAction) => void;
+  readonly saveKeys: () => void;
+  readonly cancelKeys: () => void;
+  readonly resetDraft: () => void;
+  readonly setControl: (player: 0 | 1, level: string) => void;
+  readonly toggleDebug: (value: boolean) => void;
+  readonly loadFightFx: () => void;
   readonly chooseMode: (mode: MugenGameMode) => void;
   readonly moveCharacter: (player: 0 | 1, deltaColumn: number, deltaRow: number) => void;
   readonly selectCharacter: (player: 0 | 1, characterId: string) => void;
@@ -26,6 +36,11 @@ export interface MugenFlowCallbacks {
 }
 
 export interface MugenFlowViewModel {
+  readonly keySettings: { bindings: MugenKeyBindings; capture: { player: MugenBindingPlayer; action: MugenBindableAction } | null; status: string } | null;
+  readonly controls: readonly string[];
+  readonly debugBoxes: boolean;
+  readonly fightFxStatus: string;
+  readonly fightFxBusy: boolean;
   readonly screen: MugenFlowScreen;
   readonly ready: boolean;
   readonly loadingProgress: number;
@@ -62,7 +77,7 @@ export interface MugenFlowViewModel {
 }
 
 const MODE_NAMES: Readonly<Record<MugenGameMode, string>> = Object.freeze({ single: '单人模式', versus: '双人模式', ai: 'AI 对战' });
-const FLOW_FONT_CHARACTERS = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·∞‹›↑↓←→…角色与舞台资源载入中单人模式双对战设置选择确认阵容返回进战斗继续暂停主菜单详细按键恢复默认方向攻击电脑简单普通困难最高小键盘空格初始化图形解析音频上传显存准备完成正在首次会动作并精灵目录到';
+const FLOW_FONT_CHARACTERS = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·“”…‹›←↑→↓∞。一上下不与个中为主交人任会传作保停像入公共内冲准击创初到动化单双取台右同后向启器回困图在地备复失头始存完家容对小少尚左已布并应建开式引张录形恢戏成或战所择按换据撞攻效数整斗新方无显普暂最有未本板析查标根格框案模次正法消游源灵点然玩生用电画的盘目相看确碰示空突简精索细继续缺置者脑自舞色菜装览角解认记设证详请调败资载返进选通重键阵难音项预频首验高默（），：；";
 
 export class MugenFlowUi {
   readonly #canvas: HTMLCanvasElement;
@@ -80,9 +95,13 @@ export class MugenFlowUi {
 
   async init(): Promise<void> {
     const engine = new GameEngine({ canvas: this.#canvas, clearColor: { r: 0, g: 0, b: 0, a: 0 }, alphaMode: 'premultiplied', msaaSamples: 4 }); await engine.init(); engine.resizeToDisplaySize(true);
+    if (new URLSearchParams(location.search).has('verify') || new URLSearchParams(location.search).has('gamepadVerify')) {
+      Object.defineProperty(window, '__mugenGui', { configurable: true, get: () => ({ screen: this.#model?.screen, keySettings: !!this.#model?.keySettings, width: engine.displayWidth, height: engine.displayHeight,
+        nodes: this.#root?.root.children.map(node => ({ type: node.constructor.name, text: 'text' in node ? String(node.text) : '', disabled: node.disabled, visible: node.visible, rect: { ...node.rect } })) ?? [] }) });
+    }
     const world = new World('MUGEN Flow UI'); const entity = new Entity('MUGEN Flow Root'); const root = new GuiRoot({ theme: { fontFamily: 'Inter, "Microsoft YaHei", sans-serif', fontSize: 18, radius: 8, colors: { text: '#fff8df', textMuted: '#aaa3c3', primary: '#e6a64f', danger: '#d94c68', background: 'rgba(0,0,0,0)', surface: 'rgba(10,9,22,.82)', border: '#665587', hover: '#493966', active: '#b87638', disabled: '#514c60' } } }); entity.addComponent(root); world.addEntity(entity);
     const inputEntity = new Entity('MUGEN Character Select Input'); const keyboard = new KeyboardComponent(); inputEntity.addComponent(keyboard); world.addEntity(inputEntity);
-    const gui = new GuiSystem(engine, { loadOp: 'clear', font: { chars: FLOW_FONT_CHARACTERS, fontFamily: '"Microsoft YaHei", sans-serif', atlasSize: 1024 } }); world.addSystem(gui); const integration = new RenderIntegration(engine, { label: 'MugenFlowUi.render' }); world.addRuntimeIntegration(integration); integration.registerAll(world, () => ({ pass: 'shared' }));
+    const gui = new GuiSystem(engine, { loadOp: 'clear', font: { chars: FLOW_FONT_CHARACTERS, fontFamily: '"Microsoft YaHei", sans-serif', atlasSize: 2048 } }); world.addSystem(gui); const integration = new RenderIntegration(engine, { label: 'MugenFlowUi.render' }); world.addRuntimeIntegration(integration); integration.registerAll(world, () => ({ pass: 'shared' }));
     engine.on('update', ({ detail: { time, delta } }) => {
       if (!this.#uiDirty && time - this.#lastUiUpdate < 1000 / 30) return;
       engine.resizeToDisplaySize(); world.update(time, delta); this.#pollCharacterSelection(); this.#lastUiUpdate = time; this.#uiDirty = false;
@@ -97,7 +116,8 @@ export class MugenFlowUi {
 
   #rebuild(model: MugenFlowViewModel): void {
     const root = this.#root!; for (const child of [...root.root.children]) root.remove(child);
-    if (model.screen === 'title') this.#title(root, model); else if (model.screen === 'select') this.#select(root, model); else if (model.screen === 'stage') this.#stage(root, model); else if (model.screen === 'fight') this.#fight(root, model); else this.#settings(root, model);
+    if (model.keySettings) this.#bindings(root, model.keySettings); else if (model.screen === 'title') this.#title(root, model); else if (model.screen === 'select') this.#select(root, model); else if (model.screen === 'stage') this.#stage(root, model); else if (model.screen === 'fight') this.#fight(root, model); else this.#settings(root, model);
+    for (const node of root.root.children) fitGuiLayout(node, root, 1280, 720, node instanceof GuiLabel ? node.fontSize : 18);
   }
 
   #title(root: GuiRoot, model: MugenFlowViewModel): void {
@@ -115,7 +135,7 @@ export class MugenFlowUi {
   #select(root: GuiRoot, model: MugenFlowViewModel): void {
     label(root, MODE_NAMES[model.mode], '3%', '4%', '18%', 40, 14, '#d5b16b', 'left'); label(root, '选择角色 · SELECT FIGHTER', '13%', '4%', '74%', 48, 24, '#fff0b5'); label(root, 'PLAYER 1 · WASD', '3%', '15%', '30%', 28, 13, '#65ceff', 'left'); label(root, 'PLAYER 2 · ARROW KEYS', '67%', '15%', '30%', 28, 13, '#ff718d', 'right');
     label(root, model.p1Name, '3%', '21%', '27%', 54, 22, '#ffffff'); label(root, model.p2Name, '70%', '21%', '27%', 54, 22, '#ffffff');
-    const columns = mugenCharacterGridColumns(model.characters.length); const rows = Math.ceil(model.characters.length / columns); const viewportWidth = Math.max(320, this.#canvas.clientWidth); const viewportHeight = Math.max(360, this.#canvas.clientHeight); const gap = 6; const cellSize = Math.max(36, Math.min(84, Math.floor((viewportWidth * .58 - gap * (columns - 1)) / columns), Math.floor((viewportHeight * .5 - gap * (rows - 1)) / rows))); const gridWidth = columns * cellSize + (columns - 1) * gap; const left = Math.round((viewportWidth - gridWidth) / 2); const top = Math.round(viewportHeight * .31);
+    const columns = mugenCharacterGridColumns(model.characters.length); const rows = Math.ceil(model.characters.length / columns); const viewportWidth = 1280; const viewportHeight = 720; const gap = 6; const cellSize = Math.max(36, Math.min(84, Math.floor((viewportWidth * .58 - gap * (columns - 1)) / columns), Math.floor((viewportHeight * .5 - gap * (rows - 1)) / rows))); const gridWidth = columns * cellSize + (columns - 1) * gap; const left = Math.round((viewportWidth - gridWidth) / 2); const top = Math.round(viewportHeight * .31);
     for (const [index, character] of model.characters.entries()) {
       const column = index % columns; const row = Math.floor(index / columns); const x = left + column * (cellSize + gap); const y = top + row * (cellSize + gap); const p1 = character.id === model.p1CharacterId; const p2 = character.id === model.p2CharacterId; const border = p1 && p2 ? '#ffe36f' : p1 ? '#45c8ff' : p2 ? '#ff6684' : '#665587'; const selected = p1 || p2; const inset = selected ? 4 : 1;
       if (selected) { rect(root, x - 8, y - 8, cellSize + 16, cellSize + 16, p1 && p2 ? '#ffe36f24' : p1 ? '#45c8ff24' : '#ff668424', 'rgba(0,0,0,0)', 8); rect(root, x - 4, y - 4, cellSize + 8, cellSize + 8, p1 && p2 ? '#ffe36f66' : p1 ? '#45c8ff66' : '#ff668466', 'rgba(0,0,0,0)', 6); }
@@ -160,17 +180,51 @@ export class MugenFlowUi {
     if (model.paused) label(root, 'PAUSED', '42%', 83, '16%', 26, 16, '#ffd96c');
     if (!model.fightLoading && model.result !== '' && callout === null) label(root, model.result, '20%', '36%', '60%', 90, 54, '#fff1a8');
     if (model.fightLoading) { rect(root, '20%', '38%', '60%', 120, '#05070ce8', '#d7b865', 3); label(root, 'LOADING FIGHTERS', '20%', '41%', '60%', 50, 24, '#fff0a6'); label(root, model.loadingLabel, '22%', '49%', '56%', 32, 13, '#ffffff'); }
+    if (new URLSearchParams(location.search).get('verify') === '1') button(root, 'GPU', '3%', '91%', '9%', 38, this.#callbacks.verifyDevice);
+    button(root, '重开', '66%', '91%', '9%', 38, this.#callbacks.startFight, false, model.fightLoading);
     button(root, model.paused ? '继续' : '暂停', '77%', '91%', '9%', 38, this.#callbacks.togglePause, false, model.fightLoading);
     button(root, '主菜单', '87%', '91%', '10%', 38, this.#callbacks.exitFight, false, model.fightLoading);
   }
 
   #settings(root: GuiRoot, model: MugenFlowViewModel): void {
-    const [p1Move = '', p1Attack = ''] = model.p1Keys.split('\n'); const [p2Move = '', p2Attack = ''] = model.p2Keys.split('\n');
-    label(root, '设置', '8%', '8%', '84%', 60, 40, '#fff0b5'); label(root, 'PLAYER 1', '16%', '27%', '28%', 30, 14, '#65ceff'); label(root, p1Move, '7%', '34%', '43%', 34, 16, '#ffffff'); label(root, p1Attack, '7%', '40%', '43%', 34, 16, '#ffffff'); label(root, 'PLAYER 2', '56%', '27%', '28%', 30, 14, '#ff718d'); label(root, p2Move, '50%', '34%', '43%', 34, 16, '#ffffff'); label(root, p2Attack, '50%', '40%', '43%', 34, 16, '#ffffff'); button(root, '详细按键设置', '35%', '57%', '30%', 50, this.#callbacks.openKeySettings, true); button(root, '恢复默认按键', '35%', '67%', '30%', 46, this.#callbacks.resetKeys); button(root, '返回主菜单', '35%', '82%', '30%', 46, this.#callbacks.goTitle);
+    label(root, '设置', '8%', 30, '84%', 60, 40, '#fff0b5');
+    for (const player of [0, 1] as const) {
+      const x = player === 0 ? 80 : 670;
+      label(root, `PLAYER ${player + 1}`, x, 110, 500, 30, 22, player === 0 ? '#65ceff' : '#ff718d');
+      const lines = (player === 0 ? model.p1Keys : model.p2Keys).split('\n');
+      lines.forEach((line, i) => label(root, line, x, 155 + i * 36, 500, 32, 16, '#ffffff'));
+      root.add(new GuiSelect<string>({ x, y: 240, width: 500, height: 42, value: model.controls[player] ?? '0', options: [{ label: '玩家', value: '0' }, { label: '电脑 · 简单', value: '2' }, { label: '电脑 · 普通', value: '4' }, { label: '电脑 · 困难', value: '6' }, { label: '电脑 · 最高', value: '8' }], onChange: value => queueMicrotask(() => this.#callbacks.setControl(player, value)) }));
+    }
+    button(root, '详细按键设置', 100, 320, 500, 48, this.#callbacks.openKeySettings, true);
+    button(root, '恢复默认按键', 680, 320, 500, 48, this.#callbacks.resetKeys);
+    root.add(new GuiCheckbox({ x: 100, y: 405, width: 320, height: 40, label: '显示碰撞框', checked: model.debugBoxes, onChange: value => queueMicrotask(() => this.#callbacks.toggleDebug(value)) }));
+    button(root, '载入 FightFX', 680, 405, 500, 42, this.#callbacks.loadFightFx, false, model.fightFxBusy);
+    label(root, model.fightFxStatus, 100, 465, 1080, 40, 16, '#b9aed6');
+    button(root, '角色动画查看器', 100, 540, 500, 42, () => window.open('./charactorPreview.html', '_blank', 'noopener'));
+    button(root, '返回主菜单', 440, 630, 400, 48, this.#callbacks.goTitle);
+  }
+
+  #bindings(root: GuiRoot, settings: NonNullable<MugenFlowViewModel['keySettings']>): void {
+    rect(root, 0, 0, 1280, 720, '#0c101ff5');
+    label(root, '按键设置', 100, 15, 1080, 50, 34, '#fff0b5');
+    for (const [playerIndex, player] of (['P1', 'P2'] as const).entries()) {
+      const left = 80 + playerIndex * 600;
+      label(root, player, left, 70, 500, 35, 24, playerIndex === 0 ? '#65ceff' : '#ff718d');
+      MUGEN_BINDABLE_ACTIONS.forEach((action, index) => {
+        const x = left + index % 2 * 260, y = 125 + Math.floor(index / 2) * 78;
+        label(root, ['上', '下', '左', '右', '攻击 1', '攻击 2', '攻击 3', '攻击 4', '攻击 5', '攻击 6'][index]!, x, y, 230, 24, 15, '#b9aed6');
+        const capturing = settings.capture?.player === player && settings.capture.action === action;
+        button(root, capturing ? '请按键…' : mugenKeyLabel(settings.bindings.players[player][action]), x, y + 25, 230, 42, () => this.#callbacks.captureKey(player, action), capturing);
+      });
+    }
+    label(root, settings.status, 40, 535, 1200, 60, 15, '#b9aed6');
+    button(root, '恢复默认', 80, 630, 300, 48, this.#callbacks.resetDraft);
+    button(root, '取消', 490, 630, 300, 48, this.#callbacks.cancelKeys);
+    button(root, '保存并应用', 900, 630, 300, 48, this.#callbacks.saveKeys, true);
   }
 
   #pollCharacterSelection(): void {
-    const keyboard = this.#keyboard; const model = this.#model; if (keyboard === null || model?.screen !== 'select' || !model.ready) return;
+    const keyboard = this.#keyboard; const model = this.#model; if (keyboard === null || model?.screen !== 'select' || model.keySettings !== null || !model.ready) return;
     if (keyboard.wasPressed('KeyA')) this.#callbacks.moveCharacter(0, -1, 0); else if (keyboard.wasPressed('KeyD')) this.#callbacks.moveCharacter(0, 1, 0); else if (keyboard.wasPressed('KeyW')) this.#callbacks.moveCharacter(0, 0, -1); else if (keyboard.wasPressed('KeyS')) this.#callbacks.moveCharacter(0, 0, 1);
     if (keyboard.wasPressed('ArrowLeft')) this.#callbacks.moveCharacter(1, -1, 0); else if (keyboard.wasPressed('ArrowRight')) this.#callbacks.moveCharacter(1, 1, 0); else if (keyboard.wasPressed('ArrowUp')) this.#callbacks.moveCharacter(1, 0, -1); else if (keyboard.wasPressed('ArrowDown')) this.#callbacks.moveCharacter(1, 0, 1);
     for (const [paletteSlot, key] of model.p1AttackKeys.entries()) if (keyboard.wasPressed(key)) { this.#callbacks.confirmCharacter(0, paletteSlot); break; }
@@ -180,7 +234,7 @@ export class MugenFlowUi {
 
 }
 
-function label(root: GuiRoot, text: string, x: number | `${number}%`, y: number | `${number}%`, width: number | `${number}%`, height: number, fontSize: number, color: string, textAlign: 'left' | 'center' | 'right' = 'center'): GuiLabel { return root.add(new GuiLabel({ x, y, width, height, text, fontSize, textAlign, style: { color, backgroundColor: 'rgba(0,0,0,0)', borderColor: 'rgba(0,0,0,0)', padding: 4 } })); }
+function label(root: GuiRoot, text: string, x: number | `${number}%`, y: number | `${number}%`, width: number | `${number}%`, height: number, fontSize: number, color: string, textAlign: 'left' | 'center' | 'right' = 'center'): GuiLabel { return root.add(new GuiLabel({ x, y, width, height, text, fontSize: Math.min(fontSize, (typeof width === 'number' ? width - 8 : parseFloat(width) * 12.8 - 8) / Math.max(1, [...text].reduce((sum, char) => sum + (char.charCodeAt(0) < 128 ? .6 : 1), 0))), textAlign, style: { color, backgroundColor: 'rgba(0,0,0,0)', borderColor: 'rgba(0,0,0,0)', padding: 4 } })); }
 function button(root: GuiRoot, text: string, x: number | `${number}%`, y: number | `${number}%`, width: number | `${number}%`, height: number, onClick: () => void, primary = false, disabled = false): GuiButton { return root.add(new GuiButton({ x, y, width, height, text, variant: primary ? 'primary' : 'default', disabled, onClick: () => queueMicrotask(onClick), style: { backgroundColor: primary ? '#d69145' : 'rgba(17,14,33,.9)', hoverBackgroundColor: primary ? '#efb65f' : '#362b52', borderColor: primary ? '#ffd17c' : '#65567e', color: primary ? '#1a1016' : '#f4efff', hoverColor: '#ffffff', radius: 7, padding: 10 } })); }
 
 function hudPlate(root: GuiRoot, x: `${number}%`, y: number, width: `${number}%`, height: number): void {

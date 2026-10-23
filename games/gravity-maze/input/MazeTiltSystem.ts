@@ -20,6 +20,7 @@ export class MazeTiltSystem extends System {
   constructor(
     private readonly _canvas: HTMLCanvasElement,
     private readonly _onTilt: (pitch: number, roll: number) => void,
+    private readonly _hitGui: (x: number, y: number) => boolean = () => false,
   ) {
     super(() => false);
     this.name = 'MazeTiltSystem';
@@ -97,7 +98,7 @@ export class MazeTiltSystem extends System {
   }
 
   private _onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 || this._pointerId !== null) return;
+    if (event.button !== 0 || this._pointerId !== null || this._hitGui(event.clientX, event.clientY)) return;
     this._pointerId = event.pointerId;
     this._lastX = event.clientX;
     this._lastY = event.clientY;

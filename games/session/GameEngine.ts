@@ -1,9 +1,11 @@
+import { ControllerOverlay, controllerOverlay } from '../gamepad/ui/ControllerOverlay';
 import { HaiyueEngine, type HaiyueEngineOptions } from '@haiyue/engine';
 import { gameSession, gameTime } from './SessionPause';
 const engines = new Set<GameEngine>();
 /** Small host adapter: pause with public Engine stop/run, preserving each engine's running state. */
 export class GameEngine extends HaiyueEngine {
     private wantsRunning = false;
+    private controllerGui: ControllerOverlay | null = null;
     updates = 0;
     private readonly unregister: () => void;
     constructor(options: HaiyueEngineOptions) {
@@ -11,6 +13,11 @@ export class GameEngine extends HaiyueEngine {
         engines.add(this);
         this.unregister = gameSession.register({ pause: () => { super.stop(); }, resume: () => { if (this.wantsRunning && this.state === 'ready')
                 super.run(); } });
+        this.on('after-update', e => {
+            if (!controllerOverlay.visible || gameSession.paused || sessionEngine() !== this) return;
+            this.controllerGui ??= new ControllerOverlay(this);
+            this.controllerGui.draw(e.detail.time, e.detail.delta);
+        }, { priority: -Number.MAX_SAFE_INTEGER });
         for (const event of ['update', 'after-update'] as const)
             this.on(event, e => { if (event === 'update')
                 this.updates++; e.detail.time = gameTime(e.detail.time); }, { priority: Number.MAX_SAFE_INTEGER });
@@ -21,7 +28,7 @@ export class GameEngine extends HaiyueEngine {
     override updateActiveScene(time = performance.now(), delta = 0): this {
         return gameSession.paused ? this : super.updateActiveScene(gameTime(time), delta);
     }
-    override destroy(): void { this.unregister(); engines.delete(this); this.wantsRunning = false; super.destroy(); }
+    override destroy(): void { this.controllerGui?.dispose(); this.controllerGui = null; this.unregister(); engines.delete(this); this.wantsRunning = false; super.destroy(); }
 }
 export function sessionEngine(): GameEngine | undefined {
     return [...engines].filter(engine => engine.state === 'ready' && (engine.canvas?.getBoundingClientRect().width ?? 0) > 0)

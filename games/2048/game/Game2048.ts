@@ -1,3 +1,4 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
 import { GameEngine } from '../../session/GameEngine';
 import { HaiyueEngine } from '@haiyue/engine';
 import { World } from '@haiyue/engine';
@@ -232,6 +233,7 @@ class Game2048 {
     this.camEntity.addComponent(this.cam3D);
     this.camEntity.addComponent(this.spherical);
     this.world.addEntity(this.camEntity);
+    fitPerspectiveCamera(this.engine, this.world, this.cam3D);
 
     const render3DSystem = new Render3DSystem(this.engine, this.camEntity, {
       priority: 0,
@@ -292,7 +294,7 @@ class Game2048 {
     const modalConfig = this.config.hud.modal;
     const status = this._createGuiRoot('2048ModalGui', 16, '#776e65');
     this.guiModal = status.root.add(new GuiModal({
-      width: 440,
+      width: '88%',
       height: 240,
       title: modalConfig.winTitle,
       message: modalConfig.winMessage,
@@ -373,6 +375,7 @@ class Game2048 {
     element.layout = (parentRect) => {
       layout(parentRect);
       element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
+      if (parentRect.width < 600) element.rect.y = parentRect.y + 100;
     };
   }
 
@@ -381,6 +384,7 @@ class Game2048 {
     element.layout = (parentRect) => {
       layout(parentRect);
       element.rect.x = next.rect.x - gap - element.rect.width;
+      element.rect.y = next.rect.y;
     };
   }
 

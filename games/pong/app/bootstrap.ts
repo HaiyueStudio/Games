@@ -1,3 +1,5 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
+import { PongHud } from '../ui/PongHud';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('pong');
@@ -123,6 +125,7 @@ class PongGame {
     name: 'Pong 自动存档',
     validateData: isPongSaveData,
   });
+  private hud!: PongHud;
   private engine!: HaiyueEngine;
   private world!: World;
   private canvas!: HTMLCanvasElement;
@@ -149,12 +152,6 @@ class PongGame {
   private validationFrames = 0;
   private validationErrors: string[] = [];
 
-  private readonly leftScore = query<HTMLElement>('#left-score');
-  private readonly rightScore = query<HTMLElement>('#right-score');
-  private readonly rallyText = query<HTMLElement>('#rally');
-  private readonly speedText = query<HTMLElement>('#speed');
-  private readonly statusText = query<HTMLElement>('#status');
-  private readonly announcement = query<HTMLElement>('#announcement');
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
@@ -167,6 +164,7 @@ class PongGame {
     this.engine.device.addEventListener('uncapturederror', event => this.validationErrors.push(event.error.message));
     this.engine.device.pushErrorScope('validation');
     this.world = new World('PongGL');
+    this.hud = new PongHud(this.engine, this.world, () => this.restart(), () => this.togglePause());
     this.setupCameraAndRenderer();
     this.setupLights();
     this.buildArena();
@@ -198,6 +196,7 @@ class PongGame {
       target: [0, 48, 12],
     }));
     this.world.addEntity(cameraEntity);
+    fitPerspectiveCamera(this.engine, this.world, cameraEntity.getComponent(Camera3D)!, 16 / 9);
 
     const render3D = new Render3DSystem(this.engine, cameraEntity, { priority: 10, loadOp: 'clear', msaaSamples: 4 });
     this.world.addSystem(render3D);
@@ -340,8 +339,6 @@ class PongGame {
     });
     window.addEventListener('keyup', event => this.keys.delete(event.key.toLowerCase()));
     window.addEventListener('blur', () => this.keys.clear());
-    query<HTMLButtonElement>('#restart').addEventListener('click', () => this.restart());
-    query<HTMLButtonElement>('#pause').addEventListener('click', () => this.togglePause());
   }
 
   private tick(timeMs: number, deltaMs: number): void {
@@ -394,8 +391,8 @@ class PongGame {
       this.spawnImpact(this.ball.x > 0 ? TABLE_HALF_WIDTH : -TABLE_HALF_WIDTH, BALL_Y, this.ball.z, this.ball.x > 0 ? -1 : 1, 0, true);
       if (winner) {
         this.phase = 'finished';
-        this.announcement.textContent = `${winner} · 按 R 再来一局`;
-        this.announcement.dataset.visible = 'true';
+        this.hud.announcement.setText(`${winner} · 按 R 再来一局`);
+        this.hud.announcement.setVisible(true);
       } else {
         this.serveDirection = event.scorer === 'left' ? -1 : 1;
         this.prepareServe(`${event.scorer === 'left' ? 'BLUE' : 'RED'} SCORES`);
@@ -560,8 +557,8 @@ class PongGame {
     this.serveTimer = 0.9;
     this.rally = 0;
     this.ball = { x: 0, z: 0, vx: 0, vz: 0 };
-    this.announcement.textContent = message;
-    this.announcement.dataset.visible = 'true';
+    this.hud.announcement.setText(message);
+    this.hud.announcement.setVisible(true);
   }
 
   private launchServe(): void {
@@ -570,28 +567,28 @@ class PongGame {
     const [vx, vz] = serveVelocity(this.serveDirection, angle);
     this.ball = { x: 0, z: 0, vx, vz };
     this.phase = 'playing';
-    this.announcement.dataset.visible = 'false';
+    this.hud.announcement.setVisible(false);
   }
 
   private togglePause(): void {
     if (this.phase === 'paused') {
       this.phase = this.phaseBeforePause;
-      this.announcement.dataset.visible = this.phase === 'serving' ? 'true' : 'false';
+      this.hud.announcement.setVisible(this.phase === 'serving');
       return;
     }
     this.phaseBeforePause = this.phase;
     this.phase = 'paused';
-    this.announcement.textContent = 'PAUSED';
-    this.announcement.dataset.visible = 'true';
+    this.hud.announcement.setText('PAUSED');
+    this.hud.announcement.setVisible(true);
   }
 
   private updateHud(): void {
     const speed = Math.hypot(this.ball.vx, this.ball.vz);
-    this.leftScore.textContent = String(this.scoreLeft);
-    this.rightScore.textContent = String(this.scoreRight);
-    this.rallyText.textContent = String(this.rally).padStart(2, '0');
-    this.speedText.textContent = `${Math.round(speed)} / ${MAX_BALL_SPEED}`;
-    this.statusText.textContent = this.phase === 'paused'
+    this.hud.leftScore.setText(String(this.scoreLeft));
+    this.hud.rightScore.setText(String(this.scoreRight));
+    this.hud.rallyText.setText(String(this.rally).padStart(2, '0'));
+    this.hud.speedText.setText(`${Math.round(speed)} / ${MAX_BALL_SPEED}`);
+    this.hud.statusText.setText(this.phase === 'paused'
       ? '暂停'
       : this.phase === 'finished'
         ? '本局结束'
@@ -599,7 +596,7 @@ class PongGame {
           ? '准备发球'
           : speed > INITIAL_BALL_SPEED * 1.7
             ? '高速对拉'
-            : '对战中';
+            : '对战中');
     document.body.dataset.phase = this.phase;
     document.body.dataset.rally = String(this.rally);
     document.body.dataset.ballSpeed = speed.toFixed(2);
@@ -722,7 +719,7 @@ void main().catch(error => {
   const message = error instanceof Error ? error.message : String(error);
   document.body.dataset.renderStatus = 'failed';
   document.body.dataset.renderError = message;
-  query<HTMLElement>('#announcement').textContent = `启动失败：${message}`;
+
   query<HTMLElement>('#announcement').dataset.visible = 'true';
   query<HTMLElement>('#result').textContent = JSON.stringify({ status: 'failed', errors: [message] });
   console.error(error);

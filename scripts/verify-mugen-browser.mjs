@@ -26,7 +26,19 @@ try {
   cdp.on('Runtime.exceptionThrown', event => errors.push(event.exceptionDetails?.exception?.description ?? event.exceptionDetails?.text ?? 'Unknown browser exception'));
   cdp.on('Runtime.consoleAPICalled', event => { if (event.type === 'error') errors.push((event.args ?? []).map(value => value.description ?? value.value ?? value.type).join(' ')); });
   const evaluate = async expression => { const result = await cdp.call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }); if (result.result?.exceptionDetails) throw new Error(result.result.exceptionDetails.exception?.description ?? result.result.exceptionDetails.text); return result.result?.result?.value; };
-  const activate = async selector => { const activated = await evaluate(`(() => { const value=document.querySelector(${JSON.stringify(selector)}); if (!(value instanceof HTMLElement)) return false; value.click(); return true; })()`); if (!activated) throw new Error(`Could not activate ${selector}.`); };
+  const clickGui = async text => {
+    const point = await waitFor(() => evaluate(`(()=>{const g=window.__mugenGui,n=g?.nodes.find(n=>n.type==='GuiButton'&&n.text===${JSON.stringify(text)}&&!n.disabled);if(!n)return null;const c=document.querySelector('#flow-canvas').getBoundingClientRect();return {x:c.x+(n.rect.x+n.rect.width/2)*c.width/g.width,y:c.y+(n.rect.y+n.rect.height/2)*c.height/g.height}})()`), 30_000, 'GUI button '+text);
+    await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});
+  };
+  const activate = async selector => {
+    if(selector==='#verify-device-loss')return clickGui('GPU');
+    if(selector!=='#start-match')throw new Error('Unsupported action '+selector);
+    const screen=await evaluate('__mugenGui.screen');
+    if(screen==='fight')return clickGui('重开');
+    if(screen==='title')await clickGui('单人模式');
+    await clickGui('确认阵容'); await clickGui('进入战斗');
+  };
   const key = async (type, keyValue, code, virtualKeyCode) => cdp.call('Input.dispatchKeyEvent', { type, key: keyValue, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode });
   try {
     await cdp.call('Page.enable'); await cdp.call('Runtime.enable');

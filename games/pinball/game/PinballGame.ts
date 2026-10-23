@@ -1,3 +1,5 @@
+import { PinballHud } from '../ui/PinballHud';
+import type { GuiLabel } from '@haiyue/engine/gui';
 import { sessionAudio } from '../../session/audio';
 import { GameEngine } from '../../session/GameEngine';
 import { FixedStepClock } from '@haiyue/engine/experimental/simulation';
@@ -24,7 +26,8 @@ export class PinballGame {
   private engine!: HaiyueEngine;
   private world = new World('Notebook Pinball');
   private physics = new Physics2DSystem({ gravity: [0, -650], pixelsPerMeter: 100, fixedTimeStep: STEP, maxSubSteps: 1, velocityIterations: 12, positionIterations: 8 });
-  private input!: PinballInput;
+  private input = new PinballInput();
+  private hud!: PinballHud;
   private ball!: Piece;
   private flippers: Flipper[] = [];
   private scenery!: NotebookScenery;
@@ -44,8 +47,8 @@ export class PinballGame {
   private velocity = { x: 0, y: 0 };
   private hitCooldowns = new Map<number, number>();
   private bumperNodes: HTMLImageElement[] = [];
-  private targetNodes: HTMLElement[] = [];
-  private popups: Array<{ node: HTMLElement; until: number }> = [];
+  private targetNodes: GuiLabel[] = [];
+  private popups: Array<{ node: GuiLabel; until: number }> = [];
   private highlights: Array<{ transform: Transform2D; until: number }> = [];
   private lastHud = '';
 
@@ -62,19 +65,15 @@ export class PinballGame {
     this.world.addSystem(this.physics);
     this.world.addSystem(new Mesh2DRenderSystem(this.engine, camera, { priority: 10 }));
     // Current Games package uses this public experimental bridge to submit 2D passes.
+    this.hud = new PinballHud(this.engine, this.world, this.input, () => this.setPaused(!this.paused), () => this.restart(), () => {
+      this.sound = !this.sound; this.hud.sound.setText(this.sound ? '声音' : '静音');
+    });
     const integration = new RenderIntegration(this.engine, { label: 'Pinball.render' });
     this.world.addRuntimeIntegration(integration);
     integration.registerAll(this.world, () => ({ pass: 'shared' }));
     this.buildTable();
-    this.input = new PinballInput();
     this.best = (await this.saves.load())?.best ?? 0;
     const options = { signal: this.abort.signal };
-    element('pause').addEventListener('click', () => this.setPaused(!this.paused), options);
-    element('restart').addEventListener('click', () => this.restart(), options);
-    element('sound').addEventListener('click', () => {
-      this.sound = !this.sound; element('sound').setAttribute('aria-pressed', String(this.sound));
-      element('sound').textContent = this.sound ? '♪ 声音' : '♪ 静音';
-    }, options);
     window.addEventListener('blur', () => this.setPaused(true), options);
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.setPaused(true); }, options);
     window.addEventListener('pointerdown', () => this.unlockAudio(), options);
@@ -137,11 +136,10 @@ export class PinballGame {
       entity.addComponent(new Transform2D({ x: target.x, y: target.y }));
       entity.addComponent(new Physics2DBody({ type: 'static', shape: 'box', width: 25, height: 38, restitution: 0.95 }));
       this.world.addEntity(entity);
-      const node = document.createElement('span'); node.className = 'target'; node.textContent = ['课', '间', '乐'][i]!;
-      node.style.left = `${(target.x + 300) / 6}%`; node.style.top = `${(450 - target.y) / 9}%`;
-      art.append(node); this.targetNodes.push(node);
+      const node = this.hud.label(['课', '间', '乐'][i]!, target.x + 287, 430 - target.y, 26, 40, 18);
+      this.targetNodes.push(node);
     });
-    this.scenery = new NotebookScenery(this.world, this.physics, art);
+    this.scenery = new NotebookScenery(this.world, this.physics, art, this.hud);
     this.pocketSprings = new PocketSprings(this.world, this.physics, art);
     this.flippers = [this.flipper(-146, -279, false), this.flipper(121, -279, true)];
     const ball = this.mesh('Ball', 235, -324, 22, 22, INK, true);
@@ -258,7 +256,7 @@ export class PinballGame {
         loseBall(this.state); this.pocketSprings.reset(); this.parkBall(); this.tone(145, 0.2);
       }
     }
-    this.popups = this.popups.filter(item => { if (item.until > this.time) return true; item.node.remove(); return false; });
+    this.popups = this.popups.filter(item => { if (item.until > this.time) return true; this.hud.root.remove(item.node); return false; });
     for (const effect of this.highlights) if (effect.until <= this.time) effect.transform.setScale(0);
   }
 
@@ -279,7 +277,7 @@ export class PinballGame {
     this.pocketSprings.reset();
     this.state = newGame(); this.paused = false; this.clock.reset(); this.time = 0;
     this.input.clear(); this.hitCooldowns.clear(); this.launchLane = false;
-    for (const item of this.popups) item.node.remove(); this.popups = [];
+    for (const item of this.popups) this.hud.root.remove(item.node); this.popups = [];
     for (const effect of this.highlights) { effect.until = 0; effect.transform.setScale(0); }
     for (const flipper of this.flippers) {
       this.physics.teleportBody(flipper.body, flipper.pivotX + Math.cos(flipper.rest) * 51.5, flipper.pivotY + Math.sin(flipper.rest) * 51.5, flipper.rest);
@@ -294,10 +292,9 @@ export class PinballGame {
     this.updateHud();
   }
   private feedback(x: number, y: number, points: number): void {
-    if (this.popups.length >= 12) this.popups.shift()!.node.remove();
-    const node = document.createElement('span'); node.className = 'pop'; node.textContent = `+${points}`;
-    node.style.left = `${(x + 300) / 6}%`; node.style.top = `${(450 - y - 38) / 9}%`;
-    element('floaters').append(node); this.popups.push({ node, until: this.time + 0.7 });
+    if (this.popups.length >= 12) this.hud.root.remove(this.popups.shift()!.node);
+    const node = this.hud.label(`+${points}`, x + 255, 390 - y, 90, 30, 20);
+    this.popups.push({ node, until: this.time + 0.7 });
     for (let i = 0; i < this.highlights.length; i++) {
       const effect = this.highlights[i]!, angle = i / 12 * Math.PI * 2;
       effect.transform.setPosition(x + Math.cos(angle) * 53, y + Math.sin(angle) * 53);
@@ -324,19 +321,19 @@ export class PinballGame {
       this.saves.save({ best: this.best });
     }
     const combo = this.time - this.state.lastHit <= 2.2 ? this.state.combo : 0;
-    element('power').style.height = `${this.state.charge * 100}%`;
+    this.hud.power.setValue(this.state.charge);
     const key = `${this.state.phase}/${this.state.score}/${this.state.balls}/${combo}/${this.paused}/${this.state.targets}`;
     if (key === this.lastHud) return; this.lastHud = key;
-    element('score').textContent = String(this.state.score).padStart(6, '0');
-    element('best').textContent = String(this.best).padStart(6, '0');
-    element('balls').textContent = '● '.repeat(this.state.balls) + '○ '.repeat(3 - this.state.balls) + ` 第 ${Math.min(3, 4 - this.state.balls)} 球`;
-    element('combo').textContent = combo > 1 ? `×${combo} 连击!` : 'LET’S PLAY!';
-    element('pause').textContent = this.paused ? '▷ 继续' : 'Ⅱ 暂停';
-    element('pause').setAttribute('aria-label', this.paused ? '继续游戏' : '暂停游戏');
-    this.targetNodes.forEach((node, i) => node.classList.toggle('lit', Boolean(this.state.targets & (1 << i))));
-    const banner = element('banner'); banner.dataset.phase = this.paused ? 'paused' : this.state.phase; banner.hidden = !this.paused && this.state.phase === 'playing';
-    element('banner-title').textContent = this.paused ? '课间休息一下' : this.state.phase === 'over' ? '这页，写得不错。' : '准备好，弹走烦恼。';
-    element('banner-detail').textContent = this.paused ? '按 P / Esc 或点击继续' : this.state.phase === 'over' ? `本局 ${this.state.score} 分 · 按 W / ↑ 再来一局` : '按 W / ↑ 发球 · 或按住 S / ↓ 蓄力后松开';
+    this.hud.score.setText(String(this.state.score).padStart(6, '0'));
+    this.hud.best.setText(String(this.best).padStart(6, '0'));
+    this.hud.balls.setText('● '.repeat(this.state.balls) + '○ '.repeat(3 - this.state.balls) + ` 第 ${Math.min(3, 4 - this.state.balls)} 球`);
+    this.hud.combo.setText(combo > 1 ? `×${combo} 连击!` : 'LET’S PLAY!');
+    this.hud.pause.setText(this.paused ? '▷ 继续' : 'Ⅱ 暂停');
+    this.targetNodes.forEach((node, i) => node.setStyle({ backgroundColor: this.state.targets & (1 << i) ? '#b25c43' : '#e8dec2', color: this.state.targets & (1 << i) ? '#fff4d8' : '#756e58' }));
+    const bannerVisible = this.paused || this.state.phase !== 'playing';
+    this.hud.title.setVisible(bannerVisible); this.hud.detail.setVisible(bannerVisible);
+    this.hud.title.setText(this.paused ? '课间休息一下' : this.state.phase === 'over' ? '这页，写得不错。' : '准备好，弹走烦恼。');
+    this.hud.detail.setText(this.paused ? '按 P / Esc 或点击继续' : this.state.phase === 'over' ? `本局 ${this.state.score} 分 · 按 W / ↑ 再来一局` : '按 W / ↑ 发球 · 或按住 S / ↓ 蓄力后松开');
   }
   snapshot() {
     return { ...this.state, paused: this.paused, time: this.time, ready: this.ready, ball: { x: this.ball.transform.x, y: this.ball.transform.y }, flippers: this.flippers.map(f => f.rest + Math.atan2(Math.sin(f.transform.rotation - f.rest), Math.cos(f.transform.rotation - f.rest))), scenery: this.scenery.snapshot(), springs: this.pocketSprings.snapshot(), resources: this.physics.resourceSnapshot(), entities: this.world.entities.size };
@@ -352,7 +349,7 @@ export class PinballGame {
     if (this.disposed) return; this.disposed = true; this.ready = false;
     this.abort.abort(); this.input?.dispose(); this.scenery?.dispose();
     this.bumperNodes.forEach(node => node.getAnimations().forEach(animation => animation.cancel()));
-    this.popups.forEach(item => item.node.remove());
+    this.popups.forEach(item => this.hud.root.remove(item.node));
     this.engine?.stop(); this.world.destroy(); this.engine?.destroy();
     if (this.audio) void this.audio.close();
   }

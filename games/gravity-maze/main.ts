@@ -1,3 +1,5 @@
+import { fitPerspectiveCamera } from '../shared/rendering/fitPerspectiveCamera';
+import{MazeHud}from'./ui/MazeHud';
 import { GameEngine } from '../session/GameEngine';
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('gravity-maze');
@@ -68,16 +70,12 @@ async function main(): Promise<void> {
     gui: false,
     pipelineLabel: 'GravityMaze.render',
   });
+  fitPerspectiveCamera(engine, scene.world, camera.getComponent(Camera3D)!);
   addLighting(scene);
   addVoidBackdrop(scene);
 
-  const tilt = new MazeTiltSystem(canvas, (pitch, roll) => {
-    requiredElement('tilt-x', HTMLElement).textContent = `${degrees(pitch)}°`;
-    requiredElement('tilt-z', HTMLElement).textContent = `${degrees(roll)}°`;
-    requiredElement('tilt-indicator', HTMLElement).style.transform = (
-      `rotateX(${degrees(pitch)}deg) rotateZ(${degrees(roll)}deg)`
-    );
-  });
+  const hud=new MazeHud(engine,scene);
+  const tilt = new MazeTiltSystem(canvas, (pitch,roll)=>hud.tilt.setText(`前后 ${degrees(pitch)}° · 左右 ${degrees(roll)}°`), (x,y) => hud.hit(x,y,canvas));
   const physics = new Physics3DSystem({
     backend,
     gravity: [0, -24, 0],
@@ -117,7 +115,7 @@ async function main(): Promise<void> {
     .addComponent(ballBody));
 
   const baseSeed = saved?.baseSeed ?? requestedSeed();
-  const game = new GravityMazeGame(scene, physics, tilt, ballTransform, ballBody, baseSeed, level => {
+  const game = new GravityMazeGame(scene, physics, tilt, ballTransform, ballBody, baseSeed, hud, level => {
     saves.save({ baseSeed, level });
   });
   scene.addSystem(new MazeOutcomeSystem(game), false);

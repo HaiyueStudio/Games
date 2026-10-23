@@ -31,7 +31,7 @@ test('M12 loading UI reports parse and GPU upload progress through Haiyue GUI', 
   assert.match(view, /MAX_VIEWPORT_DIMENSION/u); assert.match(view, /Math\.min\(MAX_VIEWPORT_DIMENSION/u);
   assert.match(main, /maxSubSteps: 2, maxBacklogTicks: 4/u); assert.match(main, /performanceBacklogTicks/u);
   assert.match(main, /BROWSER_EFFECT_VERIFICATION_TICKS = 3600/u); assert.match(main, /await this\.#verifyDeviceLoss\(\)/u);
-  assert.match(main, /addEventListener\('pagehide', \(\) => this\.dispose\(\), \{ once: true \}\)/u);
+  assert.match(main, /addEventListener\('pagehide', \(\) => this\.dispose\(\), \{ \.\.\.options, once: true \}\)/u);
   assert.match(main, /previousLifecycleStatus/u); assert.match(main, /writeLifecycleReceipt\('disposed'\)/u);
   assert.match(main, /this\.#disposed && isAbortError\(error\)/u);
   assert.match(main, /#publishBrowserCaptureResult/u); assert.match(main, /result\.dataset\.status = 'passed'/u);

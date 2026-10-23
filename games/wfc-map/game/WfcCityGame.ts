@@ -1,3 +1,5 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
+import{WfcHud}from'../ui/WfcHud';
 import { GameEngine } from '../../session/GameEngine';
 import { EnvironmentLight } from '@haiyue/engine/lighting';
 import { PbrMaterial } from '@haiyue/engine/material';
@@ -351,12 +353,8 @@ export class WfcCityGame {
   private pressed = new Set<string>();
   private moveCooldown = 0;
 
-  private readonly seedText = document.getElementById('seed')!;
-  private readonly fixedSeedToggle = document.getElementById('fixed-seed') as HTMLInputElement;
-  private readonly seedInput = document.getElementById('seed-input') as HTMLInputElement;
-  private readonly backtracksText = document.getElementById('backtracks')!;
-  private readonly pickedText = document.getElementById('picked')!;
-  private readonly statusText = document.getElementById('status')!;
+
+  private hud!: WfcHud;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new GameEngine({
@@ -367,6 +365,7 @@ export class WfcCityGame {
     await this.engine.init();
     await this.blockMeshes.load('./assets/blocks.glb');
     this.world = new World('UnityWfcCity');
+    this.hud=new WfcHud(this.engine,this.world,()=>this.resetWorld());
     this.setupCamera(canvas);
     this.setupLights();
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 10, loadOp: 'clear' });
@@ -379,14 +378,16 @@ export class WfcCityGame {
       this.pointerDownY = event.clientY;
     });
     canvas.addEventListener('pointerup', event => {
+      if(this.hud.hit(event.clientX,event.clientY,canvas))return;
       if (Math.hypot(event.clientX - this.pointerDownX, event.clientY - this.pointerDownY) <= 5) {
         this.pickAt(canvas, event);
       }
     });
-    this.seedInput.value = String(this.seed);
-    this.seedInput.addEventListener('keydown', event => event.stopPropagation());
-    document.getElementById('generate')!.addEventListener('click', () => this.resetWorld());
+    this.hud.seedInput.setValue(String(this.seed),false);
+
+
     window.addEventListener('keydown', event => {
+      if(this.hud.seedInput.focused)return;
       this.pressed.add(event.key);
       if (event.key.toLowerCase() === 'r') this.resetWorld();
       if (event.key.startsWith('Arrow')) event.preventDefault();
@@ -394,8 +395,8 @@ export class WfcCityGame {
     window.addEventListener('keyup', event => this.pressed.delete(event.key));
     const saved = await this.saves.load();
     if (saved) {
-      this.fixedSeedToggle.checked = true;
-      this.seedInput.value = String(saved.seed);
+      this.hud.fixedSeedToggle.setChecked(true);
+      this.hud.seedInput.setValue(String(saved.seed),false);
     }
     this.resetWorld(saved ?? undefined);
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
@@ -412,9 +413,10 @@ export class WfcCityGame {
     });
     this.cameraEntity = new Entity('Camera');
     this.cameraEntity.addComponent(camera);
+    fitPerspectiveCamera(this.engine, this.world, camera);
     this.cameraEntity.addComponent(this.orbitTransform);
     this.world.addEntity(this.cameraEntity);
-    new OrbitControl(canvas, this.orbitTransform, {
+    const orbit = new OrbitControl(canvas, this.orbitTransform, {
       minRadius: 180,
       maxRadius: 720,
       minPhi: Math.PI * 0.12,
@@ -423,6 +425,7 @@ export class WfcCityGame {
       zoomSpeed: 0.42,
       enablePan: true,
     });
+    this.hud.guardOrbit(orbit, canvas);
   }
 
   private setupLights(): void {
@@ -474,7 +477,7 @@ export class WfcCityGame {
     this.createPlayer();
     this.updateCameraTarget();
     this.updateHud();
-    this.pickedText.textContent = 'NavMesh ready';
+    this.hud.pickedText.setText('NavMesh ready');
     this.saveState();
   }
 
@@ -483,14 +486,14 @@ export class WfcCityGame {
   }
 
   private nextSeed(): number {
-    if (!this.fixedSeedToggle.checked) {
+    if (!this.hud.fixedSeedToggle.checked) {
       const next = this.seed + 1;
-      this.seedInput.value = String(next);
+      this.hud.seedInput.setValue(String(next),false);
       return next;
     }
-    const fixed = Number.parseInt(this.seedInput.value, 10);
+    const fixed = Number.parseInt(this.hud.seedInput.value, 10);
     if (Number.isFinite(fixed) && fixed >= 0) return fixed;
-    this.seedInput.value = String(this.seed);
+    this.hud.seedInput.setValue(String(this.seed),false);
     return this.seed;
   }
 
@@ -543,7 +546,7 @@ export class WfcCityGame {
       result = this.generator.collapseArea(minX, maxX, minZ, maxZ, WFC_PROPAGATION_RADIUS);
     } catch (error) {
       console.warn('[WFC] Persistent Unity InfiniteMap collapse failed; chunk was left unchanged.', error);
-      this.backtracksText.textContent = 'failed';
+      this.hud.backtracksText.setText('failed');
       return;
     }
 
@@ -555,7 +558,7 @@ export class WfcCityGame {
 
     const key = this.chunkKey(this.chunkCoord(minX), this.chunkCoord(minZ));
     this.chunks.set(key, { key, cx: minX, cz: minZ, entities: [] });
-    this.backtracksText.textContent = String(result.backtracks);
+    this.hud.backtracksText.setText(String(result.backtracks));
     this.updatePlayableSurface();
   }
 
@@ -689,7 +692,7 @@ export class WfcCityGame {
       this.ensureGeneratedAround(targetCellX, targetCellZ);
       this.commandPlayer(targetX, targetZ);
     } else {
-      this.pickedText.textContent = closest?.name ?? 'No NavMesh target';
+      this.hud.pickedText.setText(closest?.name ?? 'No NavMesh target');
     }
   }
 
@@ -745,7 +748,7 @@ export class WfcCityGame {
       targetZ,
     ], { radius: NAV_AGENT_RADIUS });
     if (!target) {
-      this.pickedText.textContent = 'No reachable NavMesh surface';
+      this.hud.pickedText.setText('No reachable NavMesh surface');
       return;
     }
     this.playerCommandTarget.set(target);
@@ -770,7 +773,7 @@ export class WfcCityGame {
     document.body.dataset.navmeshPathStatus = this.playerPath.status;
     document.body.dataset.navmeshPathPoints = String(this.playerPath.pointCount);
     document.body.dataset.playerMoving = String(this.playerMoving);
-    this.pickedText.textContent = `${this.playerPath.status} path · ${this.playerPath.pointCount} points`;
+    this.hud.pickedText.setText(`${this.playerPath.status} path · ${this.playerPath.pointCount} points`);
   }
 
   private updatePlayerPath(deltaSeconds: number): void {
@@ -836,11 +839,12 @@ export class WfcCityGame {
   }
 
   private updateHud(): void {
-    this.seedText.textContent = String(this.seed);
-    if (!this.fixedSeedToggle.checked) this.seedInput.value = String(this.seed);
+    this.hud.seedText.setText(String(this.seed));
+    if (!this.hud.fixedSeedToggle.checked) this.hud.seedInput.setValue(String(this.seed),false);
     const width = this.maxGeneratedX - this.minGeneratedX + 1;
     const depth = this.maxGeneratedZ - this.minGeneratedZ + 1;
-    this.statusText.textContent = `${width}x${depth} footprint. ${describePlayableWfcSurface(this.playableSurface)}. Click or use WASD/arrow keys to follow the NavMesh. ${BUILD_TAG}`;
+    this.hud.statusText.setText(`${width}x${depth} · ${this.generatedColumns.size} columns · ${this.playableSurface?.verticalTransitions ?? 0} stairs`);
+    document.body.dataset.wfcBuild = BUILD_TAG;
     document.body.dataset.wfcStrategy = 'unity-persistent-connected-surface';
     document.body.dataset.wfcGeneratedColumns = String(this.generatedColumns.size);
   }

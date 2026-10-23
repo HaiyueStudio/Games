@@ -1,3 +1,5 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
+import{SokobanHud}from'../ui/SokobanHud';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('sokoban-3d');
@@ -6,7 +8,7 @@ import { BlinnPhongMaterial } from '@haiyue/engine/material';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createSphere3D, type Geometry3D } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { GuiButton, GuiElement, GuiRoot, GuiSystem } from '@haiyue/engine/gui';
+import { GuiButton, GuiElement } from '@haiyue/engine/gui';
 import { requiredItemAt } from '../../shared/collections/arrayAccess';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
 
@@ -129,10 +131,8 @@ class Sokoban3DGame {
   private levelsHeader!: GuiButton;
   private levelButtons: GuiButton[] = [];
 
-  private levelText = document.getElementById('level')!;
-  private movesText = document.getElementById('moves')!;
-  private boxesText = document.getElementById('boxes')!;
-  private messageText = document.getElementById('message')!;
+
+  private hud!: SokobanHud;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new GameEngine({
@@ -142,6 +142,7 @@ class Sokoban3DGame {
     });
     await this.engine.init();
     this.world = new World('Sokoban3D');
+    this.hud=new SokobanHud(this.engine,this.world,()=>this.restart(),()=>this.undo(),()=>this.changeLevel(-1),()=>this.changeLevel(1));
     this.setupCamera(canvas);
     this.setupLights();
     const render3DSystem = new Render3DSystem(this.engine, this.cameraEntity, { priority: 10, loadOp: 'clear' });
@@ -191,9 +192,10 @@ class Sokoban3DGame {
     });
     this.cameraEntity = new Entity('Camera');
     this.cameraEntity.addComponent(camera);
+    fitPerspectiveCamera(this.engine, this.world, camera);
     this.cameraEntity.addComponent(this.orbitTransform);
     this.world.addEntity(this.cameraEntity);
-    new OrbitControl(canvas, this.orbitTransform, {
+    const orbit = new OrbitControl(canvas, this.orbitTransform, {
       minRadius: 220,
       maxRadius: 760,
       minPhi: Math.PI * 0.12,
@@ -202,6 +204,7 @@ class Sokoban3DGame {
       rotateSpeed: 0.58,
       zoomSpeed: 0.36,
     });
+    this.hud.guardOrbit(orbit, canvas);
   }
 
   private setupLights(): void {
@@ -217,26 +220,7 @@ class Sokoban3DGame {
   }
 
   private setupGui(): void {
-    const rootEntity = new Entity('Sokoban3DGui');
-    const guiRoot = new GuiRoot({
-      theme: {
-        fontSize: 15,
-        radius: 7,
-        colors: {
-          text: '#f8fafc',
-          textMuted: '#cbd5e1',
-          primary: '#15803d',
-          danger: '#dc2626',
-          background: '#0f172a',
-          surface: 'rgba(15,23,42,0.92)',
-          border: 'rgba(148,163,184,0.42)',
-          hover: '#334155',
-          active: '#475569',
-          disabled: '#64748b',
-        },
-      },
-    });
-
+    const guiRoot = this.hud.root;
     this.levelsButton = guiRoot.add(new GuiButton({
       x: '100%',
       y: 66,
@@ -268,13 +252,18 @@ class Sokoban3DGame {
       },
     }));
     this.levelsPanel.layout = parentRect => {
+      const scale = Math.min(1, (parentRect.width - 16) / panelWidth, Math.max(1, parentRect.height - 124) / panelHeight);
       this.levelsPanel.rect = {
-        x: Math.max(8, parentRect.width - panelWidth - 14),
+        x: Math.max(8, parentRect.width - panelWidth * scale - 14),
         y: 112,
-        width: Math.min(panelWidth, parentRect.width - 16),
-        height: panelHeight,
+        width: panelWidth * scale,
+        height: panelHeight * scale,
       };
-      for (const child of this.levelsPanel.children) child.layout(this.levelsPanel.rect);
+      for (const child of this.levelsPanel.children) {
+        child.layout({ x: 0, y: 0, width: panelWidth, height: panelHeight });
+        child.rect.x = this.levelsPanel.rect.x + child.rect.x * scale; child.rect.y = this.levelsPanel.rect.y + child.rect.y * scale;
+        child.rect.width *= scale; child.rect.height *= scale;
+      }
     };
 
     this.levelsHeader = this.levelsPanel.add(new GuiButton({
@@ -300,9 +289,8 @@ class Sokoban3DGame {
       }));
     });
 
-    rootEntity.addComponent(guiRoot);
-    this.world.addEntity(rootEntity);
-    this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
+
+
     this.syncLevelGui();
   }
 
@@ -336,10 +324,6 @@ class Sokoban3DGame {
 
   private bindUi(): void {
     window.addEventListener('keydown', event => this.handleKey(event));
-    document.getElementById('restart')!.addEventListener('click', () => this.restart());
-    document.getElementById('undo')!.addEventListener('click', () => this.undo());
-    document.getElementById('prev')!.addEventListener('click', () => this.changeLevel(-1));
-    document.getElementById('next')!.addEventListener('click', () => this.changeLevel(1));
   }
 
   private loadLevel(index: number, save = true): void {
@@ -385,7 +369,7 @@ class Sokoban3DGame {
     this.syncActors();
     this.updateHud();
     this.syncLevelGui();
-    this.messageText.textContent = `${level.name}: push every cube onto a gold target.`;
+    this.hud.messageText.setText(`${level.name}: push every cube onto a gold target.`);
     if (save) this.saveState();
   }
 
@@ -528,7 +512,7 @@ class Sokoban3DGame {
     if (this.solved()) {
       this.completedLevels.add(this.levelIndex);
       this.syncLevelGui();
-      this.messageText.textContent = `Solved ${requiredItemAt(this.levels, this.levelIndex, 'Sokoban levels').name} in ${this.moves} moves.`;
+      this.hud.messageText.setText(`Solved ${requiredItemAt(this.levels, this.levelIndex, 'Sokoban levels').name} in ${this.moves} moves.`);
     }
     this.saveState();
   }
@@ -553,7 +537,7 @@ class Sokoban3DGame {
     }
     this.syncActors();
     this.updateHud();
-    this.messageText.textContent = 'Move undone.';
+    this.hud.messageText.setText('Move undone.');
     this.saveState();
   }
 
@@ -593,9 +577,9 @@ class Sokoban3DGame {
 
   private updateHud(): void {
     const onTargets = this.boxes.filter(box => this.targets.has(keyOf(box.pos))).length;
-    this.levelText.textContent = `${this.levelIndex + 1} / ${this.levels.length}`;
-    this.movesText.textContent = String(this.moves);
-    this.boxesText.textContent = `${onTargets} / ${this.boxes.length}`;
+    this.hud.levelText.setText(`${this.levelIndex + 1} / ${this.levels.length}`);
+    this.hud.movesText.setText(String(this.moves));
+    this.hud.boxesText.setText(`${onTargets} / ${this.boxes.length}`);
   }
 
   private centerCamera(): void {

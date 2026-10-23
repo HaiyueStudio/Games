@@ -1,3 +1,4 @@
+import{MinecraftHud}from'../ui/MinecraftHud';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad, gamepadFrame } from '../../gamepad/runtime';
 installGamepad('minecraft-lite');
@@ -131,45 +132,39 @@ async function main(): Promise<void> {
     rotation: Array.from(cameraTransform.rotation),
     selectedPalette,
   });
+  const hud=new MinecraftHud(engine,scene,()=>onStart(),()=>onNewWorld());
   const interaction = new MinecraftInteractionSystem({
     canvas,
     cameraTransform,
     world: voxelWorld,
     renderer,
-    hotbar: requiredElement('hotbar', HTMLElement),
-    target: requiredElement('target-cell', HTMLElement),
-    blockCount: requiredElement('block-count', HTMLElement),
-    message: requiredElement('message', HTMLElement),
+    hud,
     initialPalette: selectedPalette,
     onStateChanged: palette => { selectedPalette = palette; saveState(); },
   });
   scene.addSystem(interaction, false);
   scene.addSystem(new PlayerSafetySystem(controls, cameraTransform, voxelWorld, spawn), false);
 
-  const overlay = requiredElement('start-overlay', HTMLElement);
+
   const onPointerLockChange = (): void => {
     const locked = controls.pointerLocked;
-    overlay.classList.toggle('hidden', locked);
+    hud.overlay(!locked);
     document.body.dataset.pointerLocked = String(locked);
   };
-  const onStart = (event: Event): void => {
-    event.stopPropagation();
+  const onStart = (): void => {
     controls.requestPointerLock();
   };
-  const onNewWorld = (event: Event): void => {
-    event.stopPropagation();
+  const onNewWorld = (): void => {
     const next = randomSeed();
     const url = new URL(location.href);
     url.searchParams.set('seed', String(next));
     location.assign(url);
   };
   document.addEventListener('pointerlockchange', onPointerLockChange);
-  requiredElement('start-button', HTMLButtonElement).addEventListener('click', onStart);
-  requiredElement('new-world', HTMLButtonElement).addEventListener('click', onNewWorld);
 
-  requiredElement('seed', HTMLElement).textContent = String(seed);
-  requiredElement('map-size', HTMLElement).textContent = `${voxelWorld.size} × ${voxelWorld.size}`;
-  requiredElement('jump-height', HTMLElement).textContent = `${PLAYER_JUMP_HEIGHT} 格`;
+  hud.seed.setText(String(seed));
+  hud.mapSize.setText(`${voxelWorld.size} × ${voxelWorld.size}`);
+  hud.jumpHeight.setText(`${PLAYER_JUMP_HEIGHT} 格`);
   document.body.dataset.renderStatus = 'pending';
   document.body.dataset.worldSize = `${voxelWorld.size}x${voxelWorld.size}`;
   document.body.dataset.paletteCount = '10';
@@ -188,7 +183,7 @@ async function main(): Promise<void> {
 
   let validationFrames = 0;
   engine.on('after-update', () => {
-    overlay.classList.toggle('hidden', controls.pointerLocked || !!gamepadFrame());
+    hud.overlay(!controls.pointerLocked && !gamepadFrame());
     document.body.dataset.playerGrounded = String(controls.grounded);
     if (++validationFrames === 8) void finishValidation();
     if (validationFrames % 120 === 0) saveState();
@@ -221,8 +216,6 @@ async function main(): Promise<void> {
     if (disposed) return;
     disposed = true;
     document.removeEventListener('pointerlockchange', onPointerLockChange);
-    requiredElement('start-button', HTMLButtonElement).removeEventListener('click', onStart);
-    requiredElement('new-world', HTMLButtonElement).removeEventListener('click', onNewWorld);
     interaction.dispose();
     saveState();
     controls.dispose();

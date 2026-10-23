@@ -1,3 +1,4 @@
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
@@ -172,6 +173,7 @@ class Billiards3DGame {
     this.cameraEntity.addComponent(this.camera);
     this.cameraEntity.addComponent(this.orbitTransform);
     this.world.addEntity(this.cameraEntity);
+    fitPerspectiveCamera(this.engine, this.world, this.camera);
     this.orbit = new OrbitControl(canvas, this.orbitTransform, {
       minRadius: 95,
       maxRadius: 280,

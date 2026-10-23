@@ -1,3 +1,4 @@
+import { Match3Hud } from '../ui/Match3Hud';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('match-3');
@@ -156,6 +157,7 @@ class Match3Game {
     this.regressionRandomState = (Math.imul(this.regressionRandomState, 1664525) + 1013904223) >>> 0;
     return this.regressionRandomState / 0x1_0000_0000;
   };
+  private hud!: Match3Hud;
   private engine!: HaiyueEngine;
   private world!: World;
   private cameraTransform!: SphericalTransform3D;
@@ -188,10 +190,6 @@ class Match3Game {
   private validationFinished = false;
   private readonly validationErrors: string[] = [];
 
-  private readonly scoreText = query<HTMLElement>('#score');
-  private readonly movesText = query<HTMLElement>('#moves');
-  private readonly cascadeText = query<HTMLElement>('#cascade');
-  private readonly messageText = query<HTMLElement>('#message');
   private readonly resultText = query<HTMLElement>('#result');
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
@@ -208,6 +206,7 @@ class Match3Game {
     this.engine.device.pushErrorScope('validation');
 
     this.world = new World('Match3');
+    this.hud = new Match3Hud(this.engine, this.world, () => this.restart());
     this.setupCamera();
     this.setupLights();
     this.setupRenderer();
@@ -321,6 +320,7 @@ class Match3Game {
 
   private bindInput(): void {
     this.canvas.addEventListener('pointerdown', event => {
+      if (this.hud.hit(event.clientX, event.clientY, this.canvas)) return;
       if (!event.isPrimary || event.button !== 0 || this.phase !== 'idle') return;
       const position = this.pointerToCell(event);
       if (!position) return;
@@ -347,7 +347,6 @@ class Match3Game {
     this.canvas.addEventListener('pointermove', event => this.handlePointerMove(event));
     this.canvas.addEventListener('pointerup', event => this.finishPointerGesture(event, false));
     this.canvas.addEventListener('pointercancel', event => this.finishPointerGesture(event, true));
-    query<HTMLButtonElement>('#restart').addEventListener('click', () => this.restart());
     window.addEventListener('keydown', event => {
       if (event.key.toLowerCase() === 'r') this.restart();
     });
@@ -390,18 +389,18 @@ class Match3Game {
     if (!tile) return;
     if (!this.selected) {
       this.selected = tile;
-      this.messageText.textContent = '点击相邻方块，或按住向相邻方向滑动';
+      this.hud.messageText.setText('点击相邻方块，或按住向相邻方向滑动');
       return;
     }
     if (this.selected === tile) {
       this.selected = null;
-      this.messageText.textContent = '点击相邻方块，或按住滑动来交换位置';
+      this.hud.messageText.setText('点击相邻方块，或按住滑动来交换位置');
       return;
     }
     const distance = Math.abs(this.selected.row - tile.row) + Math.abs(this.selected.column - tile.column);
     if (distance !== 1) {
       this.selected = tile;
-      this.messageText.textContent = '已改选方块；请选择它的相邻方块';
+      this.hud.messageText.setText('已改选方块；请选择它的相邻方块');
       return;
     }
 
@@ -435,7 +434,7 @@ class Match3Game {
     if (!cancelled && !gesture.committed && gesture.deselectOnTap
       && this.phase === 'idle' && this.selected === gesture.originTile) {
       this.selected = null;
-      this.messageText.textContent = '点击相邻方块，或按住滑动来交换位置';
+      this.hud.messageText.setText('点击相邻方块，或按住滑动来交换位置');
     }
     this.resetPointerGesture();
   }
@@ -461,7 +460,7 @@ class Match3Game {
     this.pendingSwap = [first, second];
     this.swapTilePositions(first, second);
     this.phase = 'swapping';
-    this.messageText.textContent = '交换中…';
+    this.hud.messageText.setText('交换中…');
   }
 
   private handleMovementComplete(): void {
@@ -482,7 +481,7 @@ class Match3Game {
       if (plan.matchedCellCount === 0) {
         this.swapTilePositions(swap[0], swap[1]);
         this.phase = 'reverting';
-        this.messageText.textContent = '没有形成三连，交换已撤销';
+        this.hud.messageText.setText('没有形成三连，交换已撤销');
         return;
       }
       this.moves++;
@@ -495,7 +494,7 @@ class Match3Game {
     if (this.phase === 'reverting') {
       this.pendingSwap = null;
       this.phase = 'idle';
-      this.messageText.textContent = '点击相邻方块，或按住滑动来交换位置';
+      this.hud.messageText.setText('点击相邻方块，或按住滑动来交换位置');
       this.updateHud();
       this.saveState();
       return;
@@ -513,7 +512,7 @@ class Match3Game {
       if (!this.findPlayableMove()) {
         this.rebuildBoard('没有可行交换，棋盘已自动洗牌');
       } else {
-        this.messageText.textContent = '点击相邻方块，或按住滑动来交换位置';
+        this.hud.messageText.setText('点击相邻方块，或按住滑动来交换位置');
       }
       this.updateHud();
       this.saveState();
@@ -543,9 +542,9 @@ class Match3Game {
       this.pendingArmedSpecial = plan.conversion.special;
       this.phase = 'arming';
       this.phaseElapsedMs = 0;
-      this.messageText.textContent = plan.conversion.special === 'super-bomb'
+      this.hud.messageText.setText(plan.conversion.special === 'super-bomb'
         ? '同色方块正在转化为超级炸弹…'
-        : '同色方块正在转化为炸弹…';
+        : '同色方块正在转化为炸弹…');
       this.updateHud();
       return;
     }
@@ -557,7 +556,7 @@ class Match3Game {
       this.pendingRainbowClear = plan.clear;
       this.phase = 'channeling';
       this.phaseElapsedMs = 0;
-      this.messageText.textContent = '彩色闪电正在锁定同色方块…';
+      this.hud.messageText.setText('彩色闪电正在锁定同色方块…');
       this.updateHud();
       return;
     }
@@ -653,9 +652,9 @@ class Match3Game {
     this.score += (clearedTiles.length + retainedMatchCredits) * 10 * Math.max(1, this.cascade);
     this.phase = 'clearing';
     this.phaseElapsedMs = 0;
-    this.messageText.textContent = overrideMessage ?? (this.cascade > 1
+    this.hud.messageText.setText(overrideMessage ?? (this.cascade > 1
       ? `${this.cascade} 连锁！${clearedTiles.length} 个方块碎裂`
-      : `${clearedTiles.length} 个方块碎裂消除`);
+      : `${clearedTiles.length} 个方块碎裂消除`));
     this.updateHud();
   }
 
@@ -683,7 +682,7 @@ class Match3Game {
       }
     }
     this.phase = 'falling';
-    this.messageText.textContent = '新方块落下中…';
+    this.hud.messageText.setText('新方块落下中…');
   }
 
   private restart(save = true): void {
@@ -737,7 +736,7 @@ class Match3Game {
         this.setTile(row, column, tile);
       }
     }
-    this.messageText.textContent = '已恢复自动存档';
+    this.hud.messageText.setText('已恢复自动存档');
     this.updateHud();
   }
 
@@ -751,7 +750,7 @@ class Match3Game {
     const rainbow = this.tileAt(3, 3);
     if (!rainbow) throw new Error('Rainbow lightning fixture source is missing.');
     this.applyTileSpecial(rainbow, null, 'rainbow');
-    this.messageText.textContent = '验证模式：交换中央彩色方块以触发闪电';
+    this.hud.messageText.setText('验证模式：交换中央彩色方块以触发闪电');
   }
 
   private rebuildBoard(message: string): void {
@@ -770,7 +769,7 @@ class Match3Game {
     this.pendingArmedClear = null;
     this.pendingArmedSpecial = null;
     this.pendingRainbowClear = null;
-    this.messageText.textContent = message;
+    this.hud.messageText.setText(message);
   }
 
   private createTile(kind: GemKind, row: number, column: number, startY?: number): Tile {
@@ -869,7 +868,7 @@ class Match3Game {
     this.fittedWidth = width;
     this.fittedHeight = height;
     const aspect = width / height;
-    const verticalExtent = Math.max(BOARD_HALF_HEIGHT, BOARD_HALF_WIDTH / aspect);
+    const verticalExtent = Math.max(BOARD_HALF_HEIGHT / .72, BOARD_HALF_WIDTH / aspect);
     this.cameraDistance = verticalExtent / Math.tan(CAMERA_FOV / 2) * 1.08;
     this.cameraTransform.radius = this.cameraDistance;
   }
@@ -917,9 +916,9 @@ class Match3Game {
   }
 
   private updateHud(): void {
-    this.scoreText.textContent = String(this.score);
-    this.movesText.textContent = String(this.moves);
-    this.cascadeText.textContent = this.cascade > 1 ? `× ${this.cascade}` : '—';
+    this.hud.scoreText.setText(String(this.score));
+    this.hud.movesText.setText(String(this.moves));
+    this.hud.cascadeText.setText(this.cascade > 1 ? `× ${this.cascade}` : '—');
     const specials = countSpecialTiles(this.toSpecialGrid());
     document.body.dataset.bombCount = String(specials.bomb);
     document.body.dataset.rainbowCount = String(specials.rainbow);

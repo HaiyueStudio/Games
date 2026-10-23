@@ -1,3 +1,5 @@
+import type { GuiLabel } from '@haiyue/engine/gui';
+import type { PinballHud } from '../ui/PinballHud';
 import { Entity, Transform2D, World } from '@haiyue/engine';
 import { Physics2DBody, Physics2DSystem } from '@haiyue/engine/physics';
 import { scoreScene, type PinballState } from '../rules/rules';
@@ -10,15 +12,15 @@ export const SCENERY_ASSETS = ['mushroom-bumper.png', 'pinwheel.png'];
 /** Physical playground props and their registered, fixed-position paper sprites. */
 export class NotebookScenery {
   private readonly mushrooms: HTMLImageElement[] = [];
-  private readonly lanes: HTMLElement[] = [];
+  private readonly lanes: GuiLabel[] = [];
   private readonly spinner: HTMLImageElement;
   private readonly blades: Array<{ body: Physics2DBody; transform: Transform2D }> = [];
-  private readonly meter: HTMLElement;
+  private readonly meter: GuiLabel;
   private spinSpeed = 0.8;
   private nextSpinnerHit = 0;
   private readonly velocity = { x: 0, y: 0 };
 
-  constructor(private world: World, private physics: Physics2DSystem, private art: HTMLElement) {
+  constructor(private world: World, private physics: Physics2DSystem, private art: HTMLElement, private hud: PinballHud) {
     MUSHROOMS.forEach((point, i) => {
       this.body(`scene-mushroom-${i}`, point.x, point.y, new Physics2DBody({ type: 'static', shape: 'circle', radius: 25, restitution: 1, friction: 0 }));
       this.mushrooms.push(this.image('mushroom-bumper.png', point.x, point.y - 3, 66));
@@ -27,7 +29,6 @@ export class NotebookScenery {
     LANES.forEach((point, i) => {
       this.body(`scene-lane-${i}`, point.x, point.y, new Physics2DBody({ type: 'static', shape: 'box', width: 33, height: 76, isSensor: true }));
       const node = this.label('☆', point.x, point.y, 'bonus-lane');
-      node.style.width = '6.3%'; node.style.height = '10%';
       this.lanes.push(node);
       this.label(i ? '右书签' : '左书签', point.x, point.y + 63, 'lane-caption');
     });
@@ -53,8 +54,10 @@ export class NotebookScenery {
     const node = new Image(); node.src = `./assets/${file}`; node.alt = ''; node.style.width = `${size / 6}%`;
     this.place(node, x, y); return node;
   }
-  private label(text: string, x: number, y: number, className: string): HTMLElement {
-    const node = document.createElement('span'); node.className = className; node.textContent = text; this.place(node, x, y); return node;
+  private label(text: string, x: number, y: number, kind: string): GuiLabel {
+    const lane = kind === 'bonus-lane';
+    const node = this.hud.label(text, x + 300 - (lane ? 19 : 70), 450 - y - (lane ? 45 : 12), lane ? 38 : 140, lane ? 90 : 24, lane ? 28 : 13);
+    node.setStyle({ color: '#837454', backgroundColor: lane ? '#98a67c22' : 'transparent' }); return node;
   }
   beforeStep(delta: number): void {
     this.spinSpeed = Math.max(0.8, this.spinSpeed - delta * 2.2);
@@ -62,8 +65,8 @@ export class NotebookScenery {
   }
   sync(state: PinballState): void {
     this.spinner.style.transform = `translate(-50%,-50%) rotate(${-this.blades[0]!.transform.rotation}rad)`;
-    this.lanes.forEach((node, i) => { const lit = Boolean(state.lanes & (1 << i)); node.classList.toggle('lit', lit); node.textContent = lit ? '★' : '☆'; });
-    this.meter.textContent = `风车 ${state.spins} / 5`;
+    this.lanes.forEach((node, i) => { const lit = Boolean(state.lanes & (1 << i)); node.setStyle({ color: lit ? '#a97b30' : '#929b72', backgroundColor: lit ? '#c7b65b66' : '#98a67c22' }); node.setText(lit ? '★' : '☆'); });
+    this.meter.setText(`风车 ${state.spins} / 5`);
   }
   contact(entity: Entity, ball: { body: Physics2DBody; transform: Transform2D }, state: PinballState, time: number): { points: number; x: number; y: number } | null {
     if (!entity.name.startsWith('scene-')) return null;

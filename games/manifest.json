@@ -147,7 +147,8 @@
       "entry": "icosahedron-minesweeper/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -169,7 +170,8 @@
         "content-generation",
         "game-workflow",
         "experimental-ray-tracing",
-        "ray-tracing-product-evidence", "gamepad"
+        "ray-tracing-product-evidence", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -188,7 +190,8 @@
         "3d",
         "game-workflow",
         "input",
-        "geometry-processing", "gamepad"
+        "geometry-processing", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -285,7 +288,8 @@
       "entry": "minesweeper/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -308,7 +312,8 @@
         "pointer-lock",
         "content-generation",
         "game-workflow",
-        "input", "gamepad"
+        "input", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -365,7 +370,8 @@
       "capabilities": [
         "3d",
         "game-workflow",
-        "input", "gamepad"
+        "input", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -382,7 +388,8 @@
       "entry": "piano/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow", "gamepad",
+        "gui"
       ],
       "assets": [
         "piano/scores/catalog.json",
@@ -406,7 +413,8 @@
         "3d",
         "game-workflow",
         "input",
-        "particles", "gamepad"
+        "particles", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -425,7 +433,8 @@
         "3d",
         "scene-workflow",
         "input",
-        "device-recovery", "gamepad"
+        "device-recovery", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -608,7 +617,8 @@
       "entry": "tetris/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -626,7 +636,8 @@
       "capabilities": [
         "tilemap",
         "2d",
-        "content-generation", "gamepad"
+        "content-generation", "gamepad",
+        "gui"
       ],
       "assets": [],
       "screenshot": {
@@ -729,7 +740,8 @@
         "input",
         "game-workflow",
         "generated-assets",
-        "experimental-render-integration", "gamepad"
+        "experimental-render-integration", "gamepad",
+        "gui"
       ],
       "assets": [
         "pinball/assets/notebook-paper.png",

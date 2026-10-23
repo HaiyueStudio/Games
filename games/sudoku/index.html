@@ -20,9 +20,11 @@
     }
     #wrap {
       position: relative;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      /* Match the orthographic scene's 900 × 600 design without stretching it. */
+      width: min(100vw, 150vh);
+      width: min(100vw, 150dvh);
+      aspect-ratio: 3 / 2;
+      flex: none;
     }
     canvas {
       display: block;

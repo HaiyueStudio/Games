@@ -1,3 +1,4 @@
+import { controllerOverlay } from './ui/ControllerOverlay';
 import { GameReturnController } from '../session/GameReturnController';
 import { GamepadSampler, NeutralGate, type PadFrame } from './sampler';
 import { GAMEPAD_PROFILES, keyboardKey } from './profiles';
@@ -14,10 +15,6 @@ export function installGamepad(id:string):()=>void {
   let frame=0,last=0,disposed=false,blocked=false,chord=false,back=false,lookActive=false;
   let x=innerWidth/2,y=innerHeight/2,target:Element|null=null,button=-1,downX=0,downY=0;
   let localPointer=profile.cursor??false;
-  const cursor=document.createElement('div'),hint=document.createElement('div');
-  cursor.dataset.gamepadCursor='';cursor.style.cssText='position:fixed;width:18px;height:18px;border:2px solid #ffe08a;border-radius:50%;box-shadow:0 0 0 2px #182027;z-index:2147483647;pointer-events:none;transform:translate(-50%,-50%);display:none';
-  hint.dataset.gamepadHint='';hint.style.cssText='position:fixed;left:8px;bottom:4px;max-width:calc(100vw - 16px);font:11px sans-serif;color:#fff1c5;background:#141b24dc;padding:5px 8px;border-radius:5px;z-index:2147483646;pointer-events:none;display:none';
-  document.body.append(cursor,hint);
   const captures=new Map<Element,()=>void>();
   const ensureCapture=(el:Element)=>{
     if(captures.has(el))return;
@@ -65,10 +62,10 @@ export function installGamepad(id:string):()=>void {
   const loop=(time:number)=>{
     if(disposed)return;frame=requestAnimationFrame(loop);const dt=Math.min(.05,(time-last)/1000||0);last=time;
     const pads=sampler.sample();
-    if(document.hidden||blocked){gate.reset();release();cursor.style.display=hint.style.display='none';return;}
+    if(document.hidden||blocked){gate.reset();release();controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
     const devices=Array.from(navigator.getGamepads?.()??[]);const active=gate.filter(pads.filter(p=>devices[p.index]?.connected));
-    if(!active.length){release();if(returnMenu.active)returnMenu.update(time,[]);cursor.style.display=hint.style.display='none';return;}
-    if(returnMenu.active){release();returnMenu.update(time,active);cursor.style.display=hint.style.display='none';return;}
+    if(!active.length){release();if(returnMenu.active)returnMenu.update(time,[]);controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
+    if(returnMenu.active){release();returnMenu.update(time,active);controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
     if(active.some(p=>p.pressed.has('b8'))){returnMenu.request();return;}
     const p=active[0]!;
     // R3 is deferred until release so host chords cannot also toggle pointer mode.
@@ -87,15 +84,15 @@ export function installGamepad(id:string):()=>void {
     pointerMode=localPointer;
     current=p;
     document.body.dataset.gamepadActive='true';
-    hint.style.display=profile.engineHud?'none':'block';hint.textContent=`${localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 返回首页 · R3 切换指针 · R3+LB/RB 切游戏`;
+    controllerOverlay.visible = true; controllerOverlay.text=profile.engineHud?'':`${localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 返回首页 · R3 切换指针 · R3+LB/RB 切游戏`;
     const rx=p.values.rx??0,ry=p.values.ry??0;
     const dx=localPointer?(p.values.x??0)+Number(p.held.has('b15'))-Number(p.held.has('b14')):0;
     const dy=localPointer?(p.values.y??0)+Number(p.held.has('b13'))-Number(p.held.has('b12')):0;
     const vx=profile.direct&&!localPointer?0:rx+dx,vy=profile.direct&&!localPointer?0:ry+dy;
     if(vx||vy){x=Math.max(1,Math.min(innerWidth-2,x+vx*700*dt));y=Math.max(1,Math.min(innerHeight-2,y+vy*700*dt));}
     const hit=target??document.elementFromPoint(x,y);
-    cursor.style.display=localPointer||Math.abs(rx)+Math.abs(ry)>.05?'block':cursor.style.display;
-    cursor.style.left=`${x}px`;cursor.style.top=`${y}px`;
+    controllerOverlay.cursor = localPointer || Math.abs(rx) + Math.abs(ry) > .05 || controllerOverlay.cursor;
+    controllerOverlay.x = x; controllerOverlay.y = y;
     const wantButton=(localPointer&&p.held.has('b1'))||(!profile.direct&&!profile.buttons[6]&&p.held.has('b6'))?2:(localPointer&&p.held.has('b0'))||(!profile.direct&&!profile.buttons[7]&&p.held.has('b7'))?0:-1;
     if(target&&button!==wantButton)releasePointer();
     if(wantButton>=0&&!target&&hit){target=hit;button=wantButton;downX=x;downY=y;ensureCapture(target);if(target instanceof HTMLElement)target.focus({preventScroll:true});mouse('pointerdown',target,button,button===2?2:1);mouse('mousedown',target,button,button===2?2:1);rangeValue();}
@@ -125,7 +122,7 @@ export function installGamepad(id:string):()=>void {
     for(const [code,state] of heldKeys){if(!next.has(code)){emitKey(code,false);heldKeys.delete(code);}else if(time-state.since>400&&time-state.repeat>100&&profile.directions?.includes(code)){emitKey(code,true,true);state.repeat=time;}}
     for(const code of next)if(!heldKeys.has(code)){heldKeys.set(code,{since:time,repeat:time});emitKey(code,true);}
   };
-  const dispose=()=>{if(disposed)return;release();disposed=true;cancelAnimationFrame(frame);lifetime.abort();returnMenu.dispose();sampler.dispose();for(const restore of captures.values())restore();cursor.remove();hint.remove();pointerMode=false;};
+  const dispose=()=>{if(disposed)return;release();disposed=true;cancelAnimationFrame(frame);lifetime.abort();returnMenu.dispose();sampler.dispose();for(const restore of captures.values())restore();controllerOverlay.visible = false; controllerOverlay.cursor = false;pointerMode=false;};
   listen(window,'pagehide',e=>{release();if(!(e as PageTransitionEvent).persisted)dispose();});
   frame=requestAnimationFrame(loop);return dispose;
 }

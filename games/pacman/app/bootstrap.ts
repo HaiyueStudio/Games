@@ -1,3 +1,4 @@
+import {PacmanHud}from'../ui/PacmanHud';
 import { sessionAudio } from '../../session/audio';
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
@@ -223,6 +224,7 @@ class PacmanGame {
     createPacmanDisc(0.4, 0.48, 0.06 + index * 0.055)
   ));
 
+  private hud!: PacmanHud;
   private engine!: HaiyueEngine;
   private world!: World;
   private pacman!: MovingActor;
@@ -244,16 +246,6 @@ class PacmanGame {
   private lives: number;
   private level = 1;
 
-  private readonly scoreElement = requiredElement('score');
-  private readonly highScoreElement = requiredElement('high-score');
-  private readonly levelElement = requiredElement('level');
-  private readonly pelletElement = requiredElement('pellets');
-  private readonly livesElement = requiredElement('lives');
-  private readonly statusElement = requiredElement('status');
-  private readonly statusTitleElement = requiredElement('status-title');
-  private readonly statusDetailElement = requiredElement('status-detail');
-  private readonly pauseButton = requiredElement<HTMLButtonElement>('pause');
-  private readonly soundButton = requiredElement<HTMLButtonElement>('sound');
 
   constructor(private readonly config: PacmanConfig) {
     this.lives = config.startingLives;
@@ -267,6 +259,7 @@ class PacmanGame {
     });
     await this.engine.init();
     this.world = new World('Pac-Man');
+    this.hud=new PacmanHud(this.engine,this.world,()=>{this.audio.unlock();this.newGame();},()=>{this.audio.unlock();this.togglePause();},()=>this.toggleSound(),direction=>this.requestDirection(direction));
     this.setupCamera();
     this.setupLights();
     this.buildMaze();
@@ -450,25 +443,9 @@ class PacmanGame {
       }
     });
 
-    requiredElement('new-game').addEventListener('click', () => {
-      this.audio.unlock();
-      this.newGame();
-    });
-    this.pauseButton.addEventListener('click', () => {
-      this.audio.unlock();
-      this.togglePause();
-    });
-    this.soundButton.addEventListener('click', () => this.toggleSound());
-    document.querySelectorAll<HTMLButtonElement>('[data-direction]').forEach(button => {
-      button.addEventListener('pointerdown', event => {
-        event.preventDefault();
-        const direction = button.dataset.direction as Direction | undefined;
-        if (direction) this.requestDirection(direction);
-      });
-    });
-
     let pointerStart: { x: number; y: number } | null = null;
     canvas.addEventListener('pointerdown', event => {
+      if(this.hud.hit(event.clientX,event.clientY,canvas))return;
       pointerStart = { x: event.clientX, y: event.clientY };
       this.audio.unlock();
     });
@@ -613,8 +590,8 @@ class PacmanGame {
 
   private toggleSound(): void {
     const enabled = this.audio.toggle();
-    this.soundButton.textContent = enabled ? 'Sound on' : 'Sound off';
-    this.soundButton.setAttribute('aria-pressed', String(!enabled));
+    this.hud.soundButton.setText(enabled ? 'Sound on' : 'Sound off');
+
   }
 
   private tick(time: number, delta: number): void {
@@ -854,16 +831,11 @@ class PacmanGame {
   }
 
   private syncHud(): void {
-    this.scoreElement.textContent = String(this.score).padStart(6, '0');
-    this.highScoreElement.textContent = String(this.highScore).padStart(6, '0');
-    this.levelElement.textContent = String(this.level).padStart(2, '0');
-    this.pelletElement.textContent = String(this.pellets.size).padStart(3, '0');
-    this.livesElement.replaceChildren(...Array.from({ length: Math.max(0, this.lives) }, () => {
-      const life = document.createElement('span');
-      life.className = 'life';
-      life.setAttribute('aria-label', 'life');
-      return life;
-    }));
+    this.hud.scoreElement.setText(String(this.score).padStart(6, '0'));
+    this.hud.highScoreElement.setText(String(this.highScore).padStart(6, '0'));
+    this.hud.levelElement.setText(String(this.level).padStart(2, '0'));
+    this.hud.pelletElement.setText(String(this.pellets.size).padStart(3, '0'));
+    this.hud.livesElement.setText('● '.repeat(Math.max(0,this.lives)));
     this.syncStatus();
   }
 
@@ -876,12 +848,12 @@ class PacmanGame {
       'game-over': ['GAME OVER', 'Press a direction or New game'],
     };
     const message = messages[this.phase];
-    this.statusElement.classList.toggle('visible', Boolean(message));
+    this.hud.statusTitleElement.setVisible(Boolean(message));this.hud.statusDetailElement.setVisible(Boolean(message));
     if (message) {
-      this.statusTitleElement.textContent = message[0];
-      this.statusDetailElement.textContent = message[1];
+      this.hud.statusTitleElement.setText(message[0]);
+      this.hud.statusDetailElement.setText(message[1]);
     }
-    this.pauseButton.textContent = this.phase === 'paused' ? 'Resume' : 'Pause';
+    this.hud.pauseButton.setText(this.phase === 'paused' ? 'Resume' : 'Pause');
   }
 
   private worldPosition(row: number, column: number, y: number): [number, number, number] {

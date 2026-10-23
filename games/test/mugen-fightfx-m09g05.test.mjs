@@ -55,7 +55,7 @@ test('G05 browser game installs and renders the local fight animation owner', ()
   assert.doesNotMatch(source, /animationOwnerId === 'fight'\) return \[\]/);
   assert.match(source, /verifyFightFx/);
   assert.match(source, /fightfx:verification/);
-  assert.match(html, /id="load-fightfx"/);
+  assert.match(readFileSync(new URL('../mugen/game/MugenFlowUi.ts', import.meta.url), 'utf8'), /button\(root, '载入 FightFX'.*this\.#callbacks\.loadFightFx/);
   assert.match(html, /id="fightfx-directory"[^>]*webkitdirectory/);
 });
 
