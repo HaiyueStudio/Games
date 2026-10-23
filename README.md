@@ -14,6 +14,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 
 | Game | Type | Online preview |
 | --- | --- | --- |
+| 玻璃疾驰 / Glass Rush | 霓虹弯曲隧道生存 · 玻璃球 / Engine GUI / 本机 TOP 5 | [Local build](games/glass-rush/README.md) |
 | 谷外之光 · Beyond the Valley | 3D orthographic illusion puzzle | [Play](https://haiyuestudio.github.io/Games/?game=valley-of-light) |
 | 铁甲前线 · Tank Battle | 2D pixel arcade, 1–2 players | [Play](https://haiyuestudio.github.io/Games/?game=tank-battle) |
 | 2048 | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=2048) |

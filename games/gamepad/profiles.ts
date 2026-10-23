@@ -14,6 +14,7 @@ const wasd = ['KeyW','KeyD','KeyS','KeyA'] as const;
 const puzzle = { cursor:true, buttons:{3:'KeyR'}, help:'左摇杆/方向键移动指针 · A 点选/拖拽 · B 右键 · X/Y 调整选项' };
 /** Explicit, reviewed mappings for every manifest entry. No guessed fallback bindings. */
 export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
+  'glass-rush':{engineHud:true,directions:arrows,buttons:{0:'Enter',9:'KeyP'},help:'方向键旋转 · A 开始 / 继续 · Start 暂停'},
   'valley-of-light':{directions:['KeyQ','KeyD','KeyE','KeyA'],buttons:{0:'Space',1:'Escape',2:'KeyH',3:'KeyJ',4:'KeyQ',5:'KeyE',9:'KeyR'},help:'左摇杆平移/旋转桥 · A 行走 · X 提示 · Y 日志 · LB/RB 转桥'},
   'tank-battle':{engineHud:true,directions:wasd,buttons:{0:'KeyJ',2:'KeyJ',9:'KeyP'},secondDirections:arrows,second:{0:'Enter',2:'Enter',9:'KeyP'},help:'左摇杆/方向键移动 · A/X 开火 · Start 暂停 · 第二手柄控制 2P'},
   '2048':{directions:arrows,buttons:{},help:'左摇杆/方向键滑动方块'},

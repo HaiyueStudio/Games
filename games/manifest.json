@@ -3,6 +3,17 @@
   "kind": "games",
   "entries": [
     {
+      "id": "glass-rush",
+      "thumbnail": "screenshots/glass-rush.png",
+      "title": "玻璃疾驰 / Glass Rush",
+      "entry": "glass-rush/main.ts",
+      "capabilities": ["3d", "input", "gui", "shader", "save", "gamepad"],
+      "assets": [],
+      "screenshot": { "required": false, "baseline": null },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "valley-of-light",
       "thumbnail": "screenshots/valley-of-light.png",
       "title": "谷外之光 · Beyond the Valley",
