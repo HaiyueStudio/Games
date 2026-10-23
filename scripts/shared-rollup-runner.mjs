@@ -24,6 +24,7 @@ export class RollupRunnerError extends Error {
  * known legacy handles after every expected output has been written.
  */
 export async function runRollupOnce(options) {
+  options.signal?.throwIfAborted();
   const expectedOutputs = normalizeExpectedOutputs(options.expectedOutputs);
   const markerPatterns = expectedOutputs.map(output => ({
     output,
@@ -59,6 +60,7 @@ export async function runRollupOnce(options) {
   let exitGraceTimer = null;
   let terminateTimer = null;
   let killTimer = null;
+  let aborted = false;
 
   const child = spawn(command, args, {
     cwd: options.cwd ?? process.cwd(),
@@ -67,7 +69,23 @@ export async function runRollupOnce(options) {
     detached,
   });
 
+  let onAbort;
   const completion = new Promise(resolveCompletion => {
+    onAbort = () => {
+      aborted = true;
+      clearTimer(timeoutTimer);
+      clearTimer(exitGraceTimer);
+      if (closed) return;
+      termination = 'sigterm';
+      signalProcessTree(child, 'SIGTERM', detached);
+      clearTimer(terminateTimer);
+      terminateTimer = setTimeout(() => {
+        if (closed) return;
+        termination = 'sigkill';
+        signalProcessTree(child, 'SIGKILL', detached);
+        killTimer = setTimeout(resolveCompletion, killGraceMs);
+      }, terminateGraceMs);
+    };
     const handleOutput = (chunk, destination) => {
       destination?.write?.(chunk);
       scanBuffer = stripAnsi(`${scanBuffer}${chunk.toString()}`).slice(-131_072);
@@ -76,7 +94,7 @@ export async function runRollupOnce(options) {
           observedOutputs.add(marker.output);
         }
       }
-      if (observedOutputs.size === expectedOutputs.length && markersCompletedAt === null) {
+      if (!aborted && observedOutputs.size === expectedOutputs.length && markersCompletedAt === null) {
         markersCompletedAt = Date.now();
         clearTimer(timeoutTimer);
         exitGraceTimer = setTimeout(() => {
@@ -132,6 +150,8 @@ export async function runRollupOnce(options) {
         killTimer = setTimeout(() => resolveCompletion(), killGraceMs);
       }, terminateGraceMs);
     }, timeoutMs);
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    if (options.signal?.aborted) onAbort();
   });
 
   await completion;
@@ -139,6 +159,7 @@ export async function runRollupOnce(options) {
   clearTimer(exitGraceTimer);
   clearTimer(terminateTimer);
   clearTimer(killTimer);
+  options.signal?.removeEventListener('abort', onAbort);
 
   const result = Object.freeze({
     label,
@@ -156,6 +177,7 @@ export async function runRollupOnce(options) {
   if (spawnError) {
     throw new RollupRunnerError('spawn-error', `Failed to start Rollup for ${label}: ${spawnError.message}`, result, spawnError);
   }
+  if (aborted) throw new RollupRunnerError('aborted', `Rollup ${label} cancelled.`, result);
   if (timedOutBeforeMarker) {
     throw new RollupRunnerError(
       'marker-timeout',

@@ -73,7 +73,27 @@ npm test
 npm run build
 ```
 
-Build a single game while iterating:
+Watch all games and the lobby while iterating:
+
+```bash
+npm run dev
+# Limit initial builds and watching to selected games (the lobby is always included):
+npm run dev -- game:tank-battle
+npm run dev -- game:2048 game:tank-battle
+# Build the same selection once, then exit with a failure status if any target failed:
+npm run dev -- --once game:tank-battle
+```
+
+The watcher queues one isolated Rollup process at a time and closes it after each build,
+so TypeScript/Rollup state cannot accumulate across games or repeated rebuilds. Each child
+keeps the existing 2048 MiB heap limit. Source changes rebuild the owning game and any
+known importers; shared/configuration changes rebuild affected targets. Generated bundles
+and chunks do not trigger rebuilds. Failed builds stay watchable; Ctrl+C closes the watcher
+and its active build. Restart the command after changing `games/manifest.json`.
+`GAME_FILTER` also accepts comma-separated game IDs when no IDs are passed on the command line.
+This command builds/watches files; serve the repository with your usual local HTTP server.
+
+Build a single game without watching:
 
 ```bash
 npm run build:target -- game:minecraft-lite

@@ -5,6 +5,7 @@ import nodeResolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
 import { wgslRaw } from '../scripts/rollup-plugin-wgsl.js';
+import { devDependencies } from './dev-dependencies.js';
 
 /** Shared Rollup policy for every Haiyue TypeScript/WebGPU bundle. */
 export function haiyuePlugins({
@@ -21,6 +22,7 @@ export function haiyuePlugins({
     nodeResolve({ browser: true, preferBuiltins: false, exportConditions: ['source'] }),
     commonjsInterop ? commonjs() : null,
     typescript({ tsconfig, ...(declaration === undefined ? {} : { declaration }) }),
+    devDependencies(),
     ...extra,
   ].filter(Boolean);
 }
