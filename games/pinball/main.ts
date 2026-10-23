@@ -1,13 +1,13 @@
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('pinball');
-import { PinballGame } from './PinballGame';
+import { PinballGame } from './game/PinballGame';
 
 const game = new PinballGame();
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 window.addEventListener('pagehide', event => { if (!event.persisted) game.dispose(); });
 void game.init(canvas).then(async () => {
   if (new URLSearchParams(location.search).has('verify')) {
-    const { verifyPinball } = await import('./verification');
+    const { verifyPinball } = await import('./verification/verification');
     await verifyPinball(game);
   }
 }).catch(error => {

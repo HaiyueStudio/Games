@@ -3,7 +3,7 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {NEON_SOUND_IDS,NEON_SOUNDS} from '../neon-circuit/audio/Sounds.ts';
-import {parseMidi} from '../piano/midi.ts';
+import {parseMidi} from '../piano/music/midi.ts';
 // Native and browser share this policy; replace only its asset-definition import for Node.
 const source=readFileSync(new URL('../neon-circuit/audio/NeonAudio.ts',import.meta.url),'utf8').replace("from './Sounds'",`from '${new URL('../neon-circuit/audio/Sounds.ts',import.meta.url).href}'`);
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;

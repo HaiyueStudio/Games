@@ -8,7 +8,7 @@ import {
   isSudokuValueAllowed,
   setSudokuBoardValue,
   sudokuBoardValue,
-} from '../sudoku/rules.ts';
+} from '../sudoku/rules/rules.ts';
 
 test('Sudoku board helpers clone state without sharing rows', () => {
   const board = emptySudokuBoard();

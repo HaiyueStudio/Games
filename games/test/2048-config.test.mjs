@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { parseGame2048Config } from '../2048/config.ts';
+import { parseGame2048Config } from '../2048/rules/config.ts';
 
 async function readConfig() {
   return JSON.parse(await readFile(new URL('../2048/config.json', import.meta.url), 'utf8'));

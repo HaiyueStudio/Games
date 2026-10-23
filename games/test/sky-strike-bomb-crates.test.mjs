@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SkyStrikeBombCrates,BOMB_CRATE_FIRST_MS,BOMB_CRATE_HEALTH} from '../sky-strike/bombCrates.ts';
+import {SkyStrikeBombCrates,BOMB_CRATE_FIRST_MS,BOMB_CRATE_HEALTH} from '../sky-strike/rules/bombCrates.ts';
 const tick=(field,ms,active=true,bombs=0)=>{while(ms>0){const step=Math.min(16,ms);field.update(step,active,bombs);ms-=step;}};
 test('supplies start only in active boss combat, wait six seconds then use bounded randomized intervals',()=>{
  const f=new SkyStrikeBombCrates();f.reset(()=>.5);tick(f,30000,false);assert.equal(f.crates.length,0);tick(f,BOMB_CRATE_FIRST_MS-1);assert.equal(f.crates.length,0);tick(f,1);assert.equal(f.crates.length,1);assert.equal(f.snapshot().nextMs,12500);

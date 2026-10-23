@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-const url = new URL('../sky-strike/viewport.ts', import.meta.url);
-const source = stripTypeScriptTypes(readFileSync(url, 'utf8')).replace("'./rules'", JSON.stringify(new URL('../sky-strike/rules.ts', import.meta.url).href));
+const url = new URL('../sky-strike/ui/viewport.ts', import.meta.url);
+const source = stripTypeScriptTypes(readFileSync(url, 'utf8')).replace("'../rules/rules'", JSON.stringify(new URL('../sky-strike/rules/rules.ts', import.meta.url).href));
 const { skyStrikeViewport, skyStrikePointerX } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 test('wide and 1:2 screens preserve the full field without stretching', () => {
   const wide = skyStrikeViewport(600, 960, 465);

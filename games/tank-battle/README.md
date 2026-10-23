@@ -32,18 +32,18 @@ The manifest also adds the game to the generated Pages lobby.
 
 ## Architecture and assets
 
-`rules.ts` is a deterministic 60 Hz simulation with no DOM, audio or rendering dependency.
-`render.ts` is a Canvas 2D sprite adapter with nearest-neighbor scaling. `TankBattleHud.ts`
+`rules/rules.ts` is a deterministic 60 Hz simulation with no DOM, audio or rendering dependency.
+`rendering/render.ts` is a Canvas 2D sprite adapter with nearest-neighbor scaling. `ui/TankBattleHud.ts`
 renders the complete interface with public Engine `GuiRoot`, `GuiLabel`, `GuiButton` and
 `GuiImage` components, through `GuiSystem` and `RenderIntegration`. Menus, player status,
 terrain/supply legends and touch controls are engine GUI elements, not DOM widgets.
 `main.ts` runs the fixed simulation from the Engine update event and owns removable input,
 audio and autosave. The GUI now requires a WebGPU-capable browser. Both the GUI world and
 engine are destroyed on teardown; resize changes the existing elements rather than recreating them.
-`pointerCapture.ts` guards stale native capture calls from the installed GUI's deferred touch
+`input/pointerCapture.ts` guards stale native capture calls from the installed GUI's deferred touch
 dispatch, preserving concurrent live touches and restoring the canvas methods on teardown.
 
-`sprites.ts` contains original 16×16 artwork. Regenerate the transparent PNG atlas, independent
+`rendering/sprites.ts` contains original 16×16 artwork. Regenerate the transparent PNG atlas, independent
 terrain/tank/item PNGs, metadata and browsable asset gallery with Node 22.6+:
 
 ```sh
@@ -74,7 +74,7 @@ coverage and CSS/GUI viewport agreement, and exercise high-DPI resizing and two-
 
 手机打开时使用独立 1P 界面，左侧虚拟摇杆、右侧长按开火，可双指操作。
 摇杆有中心死区、四方向判定、移动范围限制和松手回中。手机采用横屏，无需滚动；竖屏时暂停并提示旋转。标准手柄支持 1P：摇杆移动，A 开始/开火，Start 暂停。
-`MobileTankGame.ts` 的战场与 HUD 全部由 Engine GUI 绘制；桌面保留单人/双人模式。
+`mobile/MobileTankGame.ts` 的战场与 HUD 全部由 Engine GUI 绘制；桌面保留单人/双人模式。
 手机单独保存 1P 进度，不会把桌面双人存档加载到手机。切后台会暂停并清除输入。
 按钮贴图是已随项目保存的生成素材，来源见 `assets/controls-art.md`；不需要在线生成。
 

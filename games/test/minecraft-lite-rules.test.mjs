@@ -9,8 +9,8 @@ import {
   PLAYER_STEP_HEIGHT,
   jumpApexHeight,
   paletteIndexForDigit,
-} from '../minecraft-lite/MinecraftRules.ts';
-import { MinecraftWorld } from '../minecraft-lite/MinecraftWorld.ts';
+} from '../minecraft-lite/rules/MinecraftRules.ts';
+import { MinecraftWorld } from '../minecraft-lite/rules/MinecraftWorld.ts';
 
 test('minecraft palette maps every digit key to one of ten colors', () => {
   assert.equal(MINECRAFT_BLOCK_COLORS.length, 10);

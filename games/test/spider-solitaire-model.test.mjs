@@ -9,7 +9,7 @@ import {
   isSpiderMovableRun,
   isSpiderSaveData,
   shuffleSpiderCards,
-} from '../spider-solitaire/model.ts';
+} from '../spider-solitaire/rules/model.ts';
 
 test('Spider Solitaire clones nested card state without sharing references', () => {
   const source = Array.from({ length: SPIDER_COLUMN_COUNT }, (_, column) => [

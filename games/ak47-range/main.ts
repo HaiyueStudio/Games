@@ -1,8 +1,8 @@
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('ak47-range');
 import { HaiyueEngine } from '@haiyue/engine';
-import { RangeGame } from './RangeGame';
-import { verifyRange } from './verification';
+import { RangeGame } from './game/RangeGame';
+import { verifyRange } from './verification/verification';
 import { MemorySaveBackend } from '@haiyue/engine/save';
 const errors: string[] = [];
 const publish = (value: object, status: string) => {

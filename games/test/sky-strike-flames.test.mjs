@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {SkyStrikeFlames,inFlame,FIRE_PROFILES,IGNITION_MS,burningApproach,NARROW_FLAME_TURN_SPEED,IGNITED_APPROACH_SPEED} from '../sky-strike/flames.ts';
+import {SkyStrikeFlames,inFlame,FIRE_PROFILES,IGNITION_MS,burningApproach,NARROW_FLAME_TURN_SPEED,IGNITED_APPROACH_SPEED} from '../sky-strike/rules/flames.ts';
 import {loadSkyStrikeLevels} from '../sky-strike/levels/loader.ts';
 const body=(style='elite')=>({x:240,y:100,radius:20,entered:true,hitPoints:180,definition:{tier:style==='boss'?'boss':style==='normal'?'normal':'elite',size:100,...(style==='normal'?{}:{flameStyle:style})}});
 const player={x:240,y:260,radius:8},safe={x:470,y:900,radius:8};

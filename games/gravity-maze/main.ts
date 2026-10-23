@@ -17,9 +17,9 @@ import { Transform3D } from '@haiyue/engine/components';
 import { Physics3DBody, Physics3DSystem } from '@haiyue/engine/physics';
 import { createRapierPhysics3DBackend } from '@haiyue/engine/physics/backend';
 import { mat4 } from 'wgpu-matrix';
-import { GravityMazeGame, MazeOutcomeSystem } from './GravityMazeGame';
-import { BALL_RADIUS } from './MazeConfig';
-import { MazeTiltSystem } from './MazeTiltSystem';
+import { GravityMazeGame, MazeOutcomeSystem } from './game/GravityMazeGame';
+import { BALL_RADIUS } from './rules/MazeConfig';
+import { MazeTiltSystem } from './input/MazeTiltSystem';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../save/SingleSlotGameSave';
 
 interface GravityMazeSaveData {
@@ -141,7 +141,7 @@ async function main(): Promise<void> {
       renderRasterEvidenceFrame: () => renderSingleEvidenceFrame(engine),
     });
     try {
-      const module = await import('./rayTracingPreview');
+      const module = await import('./rendering/rayTracingPreview');
       await module.startGravityMazeRayTracingPreview(rayContext);
     } catch {
       publishRayBootstrapFailure('RAY_GAME_CANDIDATE_MODULE_FAILED');

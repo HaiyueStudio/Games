@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { newGarden, collectLotus, advanceGarden, LOTUS_POINTS, LOTUS_BONUS } from '../ink-pinball/gardenRules.ts';
+import { newGarden, collectLotus, advanceGarden, LOTUS_POINTS, LOTUS_BONUS } from '../ink-pinball/rules/gardenRules.ts';
 test('flowers score once with a delayed full-set respawn', () => {
  const s=newGarden();assert.equal(collectLotus(s,1,0),250);assert.equal(collectLotus(s,1,.1),0);
  assert.equal(collectLotus(s,0,.2),250);assert.equal(collectLotus(s,2,.3),2250);

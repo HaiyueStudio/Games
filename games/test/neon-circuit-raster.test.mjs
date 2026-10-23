@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { uploadNeonCanvas } from '../neon-circuit/NeonRaster.ts';
+import { uploadNeonCanvas } from '../neon-circuit/rendering/NeonRaster.ts';
 
 globalThis.GPUTextureUsage ??= { TEXTURE_BINDING: 4, COPY_DST: 2 };
 test('native raster upload preserves the exact straight-alpha pixel view and array layer', () => {

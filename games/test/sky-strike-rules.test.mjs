@@ -57,7 +57,7 @@ import {
   steerKamikazeVelocity,
   upgradeWeapon,
   weaponProfile,
-} from '../sky-strike/rules.ts';
+} from '../sky-strike/rules/rules.ts';
 import {
   compileLevelTimeline,
   mixHexColor,
@@ -311,8 +311,8 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
     assert.ok(existsSync(new URL(`../${asset}`, import.meta.url)), `${asset} must exist`);
   }
 
-  const source = (await readFile(new URL('../sky-strike/SkyStrikeGame.ts', import.meta.url), 'utf8')) + (await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8'));
-  const carouselSource = await readFile(new URL('../sky-strike/levelCarousel.ts', import.meta.url), 'utf8');
+  const source = (await readFile(new URL('../sky-strike/game/SkyStrikeGame.ts', import.meta.url), 'utf8')) + (await readFile(new URL('../sky-strike/main.ts', import.meta.url), 'utf8'));
+  const carouselSource = await readFile(new URL('../sky-strike/ui/levelCarousel.ts', import.meta.url), 'utf8');
   const html = await readFile(new URL('../sky-strike/index.html', import.meta.url), 'utf8');
   assert.match(source, /new SingleSlotGameSave<SkyStrikeSaveData>/);
   assert.match(source, /'arrowup'.*'arrowdown'.*'arrowleft'.*'arrowright'.*'w'.*'a'.*'s'.*'d'.*'j'.*'k'.*'b'/s);
@@ -368,7 +368,7 @@ test('manifest assets, one-slot save, and keyboard/pointer controls are wired', 
 
 
 test('serpent missing slots close smoothly without overshoot or frame-rate dependence',async()=>{
- const {advanceSerpentSegmentOrder,serpentSegmentPosition}=await import('../sky-strike/rules.ts');
+ const {advanceSerpentSegmentOrder,serpentSegmentPosition}=await import('../sky-strike/rules/rules.ts');
  assert.equal(advanceSerpentSegmentOrder(5,4,0),5);assert.equal(advanceSerpentSegmentOrder(5,4,110),4.5);
  assert.equal(advanceSerpentSegmentOrder(5,4,500),4);assert.equal(advanceSerpentSegmentOrder(4,4,16),4);
  let order=5;for(let i=0;i<22;i++)order=advanceSerpentSegmentOrder(order,4,10);assert.ok(Math.abs(order-4)<1e-10);
@@ -384,7 +384,7 @@ test('bare serpent head charges above the health gate while dead heads cannot ch
 });
 
 test('red hardpoints follow the swept wings at every upgrade and leave other weapons unchanged', async () => {
-  const {playerMuzzleOffset}=await import('../sky-strike/rules.ts');
+  const {playerMuzzleOffset}=await import('../sky-strike/rules/rules.ts');
   for(let level=1;level<=3;level++){
     const profile=weaponProfile('red',level),points=Array.from({length:profile.projectileCount},(_,i)=>playerMuzzleOffset(profile,i));
     assert.deepEqual(points[0],{x:-30,y:16});assert.deepEqual(points.at(-1),{x:30,y:16});
@@ -398,7 +398,7 @@ test('red hardpoints follow the swept wings at every upgrade and leave other wea
 });
 
 test('Dreadnought four wing hardpoints rotate with hull and remain separate from the laser muzzle',async()=>{
- const {dreadnoughtWingMuzzle,dreadnoughtLaserMuzzle}=await import('../sky-strike/rules.ts');
+ const {dreadnoughtWingMuzzle,dreadnoughtLaserMuzzle}=await import('../sky-strike/rules/rules.ts');
  const e={x:240,y:200,rotation:0,definition:{size:292,renderAspect:1.18}};
  const tips=Array.from({length:4},(_,i)=>dreadnoughtWingMuzzle(e,i)),laser=dreadnoughtLaserMuzzle(e);
  assert.equal(new Set(tips.map(p=>p.x)).size,4);

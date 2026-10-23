@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, chargeBall, launchBall, hit, loseBall, controlFor, scoreScene } from '../pinball/rules.ts';
+import { newGame, chargeBall, launchBall, hit, loseBall, controlFor, scoreScene } from '../pinball/rules/rules.ts';
 
 test('pinball charge is bounded and a ball can only launch once', () => {
   const state = newGame(); chargeBall(state, 8); assert.equal(state.charge, 1);

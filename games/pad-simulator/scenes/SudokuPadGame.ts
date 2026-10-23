@@ -1,4 +1,4 @@
-import { SudokuGame } from '../../sudoku/SudokuGame';
+import { SudokuGame } from '../../sudoku/game/SudokuGame';
 
 interface PointerPoint {
   x: number;

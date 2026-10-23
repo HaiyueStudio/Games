@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mirrorHit,mirrorVertices,reflectedVelocity,consumeMirrorBudget,prismShards,PRISM_SHARD_DAMAGE,PRISM_SHARD_STORM_MS} from '../sky-strike/mirrorPrism.ts';
-import {ENEMY_DEFINITIONS} from '../sky-strike/rules.ts';
+import {mirrorHit,mirrorVertices,reflectedVelocity,consumeMirrorBudget,prismShards,PRISM_SHARD_DAMAGE,PRISM_SHARD_STORM_MS} from '../sky-strike/rendering/mirrorPrism.ts';
+import {ENEMY_DEFINITIONS} from '../sky-strike/rules/rules.ts';
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
 test('mirror triangle reflects from its bottom facet and respects corners and swept fast shots',()=>{
  const hull={x:240,y:300,radius:40,rotation:0,sides:3};

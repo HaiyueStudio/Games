@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LANGUAGES, TEXT, COURSE_TEXT, LANGUAGE_KEY, readLanguage, saveLanguage, lapNotice, localizeCourse } from '../neon-circuit/NeonLocale.ts';
-import { CIRCUITS } from '../neon-circuit/RaceRules.ts';
+import { LANGUAGES, TEXT, COURSE_TEXT, LANGUAGE_KEY, readLanguage, saveLanguage, lapNotice, localizeCourse } from '../neon-circuit/ui/NeonLocale.ts';
+import { CIRCUITS } from '../neon-circuit/rules/RaceRules.ts';
 
 test('language defaults to Chinese and survives a new storage reader without touching records', () => {
   const data = new Map([['race-record','123.45']]);

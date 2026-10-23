@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { calculateMove, canMove } from '../2048/rules.ts';
+import { calculateMove, canMove } from '../2048/rules/rules.ts';
 
 test('2048 move rules merge each tile once and report gained score', () => {
   const result = calculateMove([[2, 2, 2, 2]], 'left');

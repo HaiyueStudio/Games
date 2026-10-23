@@ -117,6 +117,24 @@ startup. Shared queueing, validation failure handling, and the default one-slot 
 
 ## Repository layout
 
+Game source is grouped by responsibility. Keep the manifest `main.ts` entry stable;
+large browser bootstraps live in `app/`, controllers in `game/`, deterministic state
+and rules in `rules/`, input adapters in `input/`, and presentation in `rendering/`,
+`effects/`, `textures/` and `ui/`. Audio, saves, generation and navigation use their
+own folders where needed. Shared collection/rendering helpers live in `games/shared/`.
+MUGEN retains its existing import/runtime/game/viewer boundaries and public preview entry.
+
+Use Engine's public `FixedStepClock` for fixed-rate scheduling and `GameSaveService`
+for persistence/integrity/write ordering. Tank desktop/mobile share one game-specific
+simulation adapter; phase changes stop the current tick batch. The map player migrates
+legacy checkpoints only after a successful Engine save. Game rules, authored shaders,
+pixel artwork, synthesis and presentation policy remain game-owned. Existing seeded
+algorithms are retained where changing the generator would invalidate saved/replay state.
+
+The gamepad adapter deliberately uses the vendored unpublished Engine input candidate;
+it must not deep-import the sibling Engine source tree. Browser/native audio adapters
+that already use `OwnerSafeAudioMixer` retain their public API boundary.
+
 - `games/`: game sources, HTML entry points, game-facing shared code, manifest, and deterministic tests.
 - `scripts/`: repository build, local dependency, target selection, and preview-site tooling.
 - `site/`: source files for the GitHub Pages game lobby.

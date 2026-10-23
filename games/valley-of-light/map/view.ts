@@ -2,7 +2,7 @@ import { defaultStageCamera, type StageCamera } from './model';
 import { createCheckpointMarker, createPathMarker } from './markers';
 import { PathClick } from './pathClick';
 import { decorationMeshes, decorationBounds } from './decorations';
-import { TRAVELER_SIZE_MULTIPLIER } from '../traveler';
+import { TRAVELER_SIZE_MULTIPLIER } from '../rendering/traveler';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, EnvironmentLight, HaiyueEngine, Mesh3D, OrbitControl, PbrMaterial, SphericalTransform3D, createBox3D, createPlane3D, type Scene } from '@haiyue/engine';
 import { createCylinder3D, createPathExtrusion3D, Geometry3D } from '@haiyue/engine/geometry';
 import { applyGltfAnimationClip, createGltfPlugin, GltfModelComponent } from '@haiyue/extensions/gltf';

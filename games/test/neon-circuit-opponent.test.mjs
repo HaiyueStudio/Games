@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {registerHooks} from 'node:module';
 registerHooks({resolve(s,c,next){return next(s==='./RaceRules' && c.parentURL?.endsWith('/RaceOpponent.ts')?'./RaceRules.ts':s,c)}});
-const {RaceOpponent,raceWinner,raceProgress}=await import('../neon-circuit/RaceOpponent.ts');
-import {CIRCUITS,circuitTrack,createInitialRaceState,stepRace,RAIL_LIMIT,CRUISE_MAX_SPEED,BOOST_MAX_SPEED} from '../neon-circuit/RaceRules.ts';
-import {VolcanicHazards} from '../neon-circuit/VolcanicHazards.ts';
+const {RaceOpponent,raceWinner,raceProgress}=await import('../neon-circuit/rules/RaceOpponent.ts');
+import {CIRCUITS,circuitTrack,createInitialRaceState,stepRace,RAIL_LIMIT,CRUISE_MAX_SPEED,BOOST_MAX_SPEED} from '../neon-circuit/rules/RaceRules.ts';
+import {VolcanicHazards} from '../neon-circuit/rendering/VolcanicHazards.ts';
 const initial=()=>({...createInitialRaceState(),lateral:-30});
 function simulate(circuit,difficulty,seed=0x4e4f5641) {
   const track=circuitTrack(circuit),ai=new RaceOpponent(difficulty,seed);

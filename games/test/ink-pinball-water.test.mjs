@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {WaterEvents, entersRiver, WATER_LEVEL} from '../ink-pinball/waterModel.ts';
+import {WaterEvents, entersRiver, WATER_LEVEL} from '../ink-pinball/rules/waterModel.ts';
 
 test('river entry excludes the shooter lane and rising balls',()=>{
  assert.equal(entersRiver(0,WATER_LEVEL,-4),true);

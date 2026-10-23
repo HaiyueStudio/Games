@@ -7,7 +7,7 @@ import {
   isHole,
   nextLevelSeed,
   openNeighbors,
-} from '../gravity-maze/MazeRules.ts';
+} from '../gravity-maze/rules/MazeRules.ts';
 
 test('gravity maze generation is deterministic for a seed', () => {
   const first = generateMaze(12345);

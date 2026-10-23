@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { projectToScreen } from '../billiards-3d/input.ts';
+import { projectToScreen } from '../billiards-3d/input/input.ts';
 
 test('billiards 3d cue picking projects into the current viewport', () => {
   const identity = new Float32Array([
@@ -24,7 +24,7 @@ test('billiards 3d cue picking projects into the current viewport', () => {
 });
 
 test('billiards 3d cue charging takes pointer priority over orbit controls', async () => {
-  const source = await readFile(new URL('../billiards-3d/main.ts', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../billiards-3d/app/bootstrap.ts', import.meta.url), 'utf8');
   assert.match(source, /addEventListener\('pointerdown',[\s\S]*?stopImmediatePropagation\(\);[\s\S]*?capture:\s*true/);
   assert.match(source, /writeProjectionMatrix\(this\.projection, aspect\)/);
   assert.doesNotMatch(source, /\* 450|\* 300/);

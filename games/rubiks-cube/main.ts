@@ -2,9 +2,9 @@ import { installGamepad } from '../gamepad/runtime';
 installGamepad('rubiks-cube');
 import { HaiyueEngine } from '@haiyue/engine';
 import { MemorySaveBackend } from '@haiyue/engine/save';
-import { CubeGame } from './CubeGame';
-import { KINDS, type Kind } from './model';
-import { verifyCube } from './verification';
+import { CubeGame } from './game/CubeGame';
+import { KINDS, type Kind } from './rules/model';
+import { verifyCube } from './verification/verification';
 const errors: string[] = [];
 function publish(result: unknown, status: string): void {
   const output = document.getElementById('result')!;

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { UNITY_WFC_MODULES } from '../wfc-map/unityModuleData.ts';
+import { UNITY_WFC_MODULES } from '../wfc-map/data/unityModuleData.ts';
 import {
   UNITY_WFC_DOWN_CONNECTORS,
   UNITY_WFC_SPAWN_FLAGS,
   UNITY_WFC_UP_CONNECTORS,
-} from '../wfc-map/unityModuleFaces.ts';
+} from '../wfc-map/data/unityModuleFaces.ts';
 
 const UNITY_PROTOTYPE_PROBABILITIES = new Map(Object.entries({
   Wall_Bench: 0.5,

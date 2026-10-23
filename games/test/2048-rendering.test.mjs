@@ -5,7 +5,7 @@ import test from 'node:test';
 test('2048 fills the viewport and renders its HUD with engine GUI and four-sample MSAA', async () => {
   const [html, source] = await Promise.all([
     readFile(new URL('../2048/index.html', import.meta.url), 'utf8'),
-    readFile(new URL('../2048/Game2048.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../2048/game/Game2048.ts', import.meta.url), 'utf8'),
   ]);
 
   assert.match(html, /#canvas\s*{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);

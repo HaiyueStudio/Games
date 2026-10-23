@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { parseMidi } from '../piano/midi.ts';
+import { parseMidi } from '../piano/music/midi.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...parts) => readFileSync(join(repositoryRoot, ...parts), 'utf8');
@@ -61,7 +61,7 @@ test('public-domain score catalog contains valid local MIDI files', () => {
 
 test('piano exposes automatic playback and pointer glissando controls', () => {
   const html = read('games', 'piano', 'index.html');
-  const main = read('games', 'piano', 'main.ts');
+  const main = read('games', 'piano', 'app/bootstrap.ts');
   assert.match(html, /id="score-list"/);
   assert.match(html, /id="auto-play"/);
   assert.match(html, /id="auto-stop"/);
@@ -73,7 +73,7 @@ test('piano exposes automatic playback and pointer glissando controls', () => {
 
 test('piano canvas and camera follow the browser viewport', () => {
   const html = read('games', 'piano', 'index.html');
-  const main = read('games', 'piano', 'main.ts');
+  const main = read('games', 'piano', 'app/bootstrap.ts');
   assert.match(html, /#wrap\s*\{[^}]*width:\s*100vw;[^}]*height:\s*100dvh;/s);
   assert.match(html, /canvas\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/s);
   assert.match(html, /<canvas id="canvas"><\/canvas>/);

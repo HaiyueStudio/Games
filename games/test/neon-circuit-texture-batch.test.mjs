@@ -14,7 +14,7 @@ function load(file) {
   new Function('require','module','exports',code)(name=>load(resolve(dirname(file),name+'.ts')),module,module.exports);
   return module.exports;
 }
-const loadGame=name=>load(fileURLToPath(new URL(`../neon-circuit/${name}.ts`,import.meta.url)));
+const loadGame=name=>load(fileURLToPath(new URL(`../neon-circuit/${name === "RaceRules" ? "rules" : "textures"}/${name}.ts`,import.meta.url)));
 function exercise(batched) {
   const device=createAuditGpuDevice(),audit=getAuditGpuDeviceState(device);
   const source=device.createTexture({size:[32,32],format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING});

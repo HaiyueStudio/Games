@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SkyStrikeAsteroids, MAX_ASTEROIDS, asteroidHealth, miningGrabInterval, sweptCircleTime } from '../sky-strike/asteroids.ts';
-import { createSeededRandom } from '../sky-strike/rules.ts';
+import { SkyStrikeAsteroids, MAX_ASTEROIDS, asteroidHealth, miningGrabInterval, sweptCircleTime } from '../sky-strike/rules/asteroids.ts';
+import { createSeededRandom } from '../sky-strike/rules/rules.ts';
 import { loadSkyStrikeLevels } from '../sky-strike/levels/loader.ts';
 import { readFileSync } from 'node:fs';
 const ship=()=>({x:240,y:150,hitPoints:3400,definition:{hitPoints:3400},entered:true});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newToadCycle, diveToad, advanceToad, toadGateOpen, toadPose, TOAD_DIVE_SECONDS, TOAD_REST_SECONDS, TOAD_RETURN_SECONDS } from '../ink-pinball/toadRules.ts';
+import { newToadCycle, diveToad, advanceToad, toadGateOpen, toadPose, TOAD_DIVE_SECONDS, TOAD_REST_SECONDS, TOAD_RETURN_SECONDS } from '../ink-pinball/rules/toadRules.ts';
 test('toad opens support after its rescue, stays submerged 30 seconds and returns once',()=>{
  const s=newToadCycle(); assert.equal(toadGateOpen(s,0),false); diveToad(s,2);
  assert.equal(toadGateOpen(s,2.2),false); assert.equal(toadGateOpen(s,2.5),true);

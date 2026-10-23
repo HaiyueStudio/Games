@@ -47,7 +47,7 @@ node scripts/verify-pinball.mjs
 
 浏览器验证复用 Engine 的 Chrome / WebGPU runner，覆盖真实键盘事件、发球通道、挡板击球、碰撞计分、三球结束、失焦暂停及连续 20 次重开资源数量。桌面与手机尺寸截图和含源文件 / 素材 SHA-256 的报告写入 `.artifacts/pinball/`，不会自动更新截图基线。
 
-`rules.ts` 不依赖 DOM / GPU；固定 120 Hz 步进使浏览器验证可复现。`input.ts` 的监听器统一由 AbortController 释放；音频节点、动画和碰撞火花均有界，退出页面时销毁 World、物理系统和引擎。
+`rules/rules.ts` 不依赖 DOM / GPU；固定 120 Hz 步进使浏览器验证可复现。`input/input.ts` 的监听器统一由 AbortController 释放；音频节点、动画和碰撞火花均有界，退出页面时销毁 World、物理系统和引擎。
 
 ## 课间奇遇场景元素
 
@@ -56,10 +56,10 @@ node scripts/verify-pinball.mjs
 - 左右星星奖励通道：每球每侧只能领取一次 300 分，双侧集齐额外 800 分；掉球后可重新收集。
 - 纸飞机和虚线航迹、侧边铅笔、小尺、星星、爱心、发球弹簧涂鸦。
 
-新增透明素材 `assets/mushroom-bumper.png`、`assets/pinwheel.png` 使用内置 image_gen 生成，完整提示词记录在 `assets/scenery-provenance.json`。物理体和视觉坐标定义位于 `scenery.ts`。旋转随游戏暂停，重开复位；无额外循环计时器。浏览器验证覆盖蘑菇弹射、通道重复进入防刷分、风车实际碰撞、暂停与资源数量稳定。
+新增透明素材 `assets/mushroom-bumper.png`、`assets/pinwheel.png` 使用内置 image_gen 生成，完整提示词记录在 `assets/scenery-provenance.json`。物理体和视觉坐标定义位于 `rendering/scenery.ts`。旋转随游戏暂停，重开复位；无额外循环计时器。浏览器验证覆盖蘑菇弹射、通道重复进入防刷分、风车实际碰撞、暂停与资源数量稳定。
 
 ## 夹角回弹弹簧
 
 左右斜护栏与短直护栏之间各有一个自动弹簧。Haiyue 触发器检测落入或静止在夹角里的球，短暂压缩后先竖直向上弹射，越过短直护栏顶部才向中央导向，避免斜向推球时再次顶住护栏。弹簧不扣球、不加分；暂停会冻结压缩进度，掉球和重开清除待执行动作。
 
-`springRules.ts` 保存确定性的压缩、弹射、导向与冷却状态，`PocketSprings.ts` 负责引擎触发器、速度控制和矢量弹簧显示。浏览器回归测试覆盖截图中的左侧静止球、左右两侧慢速和高速落球、暂停恢复与重开；每个卡球案例须在两秒内进入中央场地。
+`rules/springRules.ts` 保存确定性的压缩、弹射、导向与冷却状态，`rendering/PocketSprings.ts` 负责引擎触发器、速度控制和矢量弹簧显示。浏览器回归测试覆盖截图中的左侧静止球、左右两侧慢速和高速落球、暂停恢复与重开；每个卡球案例须在两秒内进入中央场地。

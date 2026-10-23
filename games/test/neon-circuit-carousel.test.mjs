@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { carouselOffset, projectCard, cardUv, hitCarousel, swipeStep, carouselRelease, carouselMetrics } from '../neon-circuit/CarouselMath.ts';
+import { carouselOffset, projectCard, cardUv, hitCarousel, swipeStep, carouselRelease, carouselMetrics } from '../neon-circuit/ui/CarouselMath.ts';
 
 test('carousel wraps three or four courses without losing the unwrapped rotation', () => {
   for (const count of [3,4,5]) {

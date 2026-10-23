@@ -9,7 +9,7 @@ import {
   clampPaddleZ,
   serveVelocity,
   stepPongBall,
-} from '../pong/PongRules.ts';
+} from '../pong/rules/PongRules.ts';
 
 test('pong controls clamp paddles to the playable court', () => {
   assert.equal(clampPaddleZ(999), 154);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMobiusTrack, sampleTrack, dot, mixAxes, frameTurn, racePose, BOOST_PADS,
   BOOST_PAD_LENGTH, BOOST_PAD_HALF_WIDTH, ROAD_HALF_WIDTH, boostZoneAt, CIRCUITS, circuitTrack,
-  createInitialRaceState,stepRace,BOOST_MAX_SPEED} from '../neon-circuit/RaceRules.ts';
+  createInitialRaceState,stepRace,BOOST_MAX_SPEED} from '../neon-circuit/rules/RaceRules.ts';
 
 test('Mobius lap visits opposite faces of one ribbon and closes without teleporting',()=>{
   const t=createMobiusTrack(), n=t.samples.length, original=createMobiusTrack(1);

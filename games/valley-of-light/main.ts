@@ -2,13 +2,13 @@ import { installGamepad } from '../gamepad/runtime';
 installGamepad('valley-of-light');
 import { HaiyueEngine } from '@haiyue/engine';
 import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
-import { ValleyHud } from './hud';
-import { ValleyScene } from './scene';
-import { guardDeferredPointerCapture } from './canvasInput';
+import { ValleyHud } from './ui/hud';
+import { ValleyScene } from './rendering/scene';
+import { guardDeferredPointerCapture } from './input/canvasInput';
 import { chooseMap, startMapPlayer } from './map/player';
 import { parseMap } from './map/model';
-import { TEXT } from './story';
-import { canManipulate, clampOffset, distance, initialState, isPuzzleState, joins, midpoint, paths, project, route, snapAngle, snapOffset, type PathId, type PuzzleState, type Vec3 } from './rules';
+import { TEXT } from './rules/story';
+import { canManipulate, clampOffset, distance, initialState, isPuzzleState, joins, midpoint, paths, project, route, snapAngle, snapOffset, type PathId, type PuzzleState, type Vec3 } from './rules/rules';
 
 interface Drag { id: number; kind: 'turn' | 'slide' | null; x: number; y: number; angle: number; offset: number; moved: boolean; target: PathId | null }
 class ValleyGame {

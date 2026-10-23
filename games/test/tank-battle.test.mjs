@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createGame, createMap, createTank, stepGame, nextStage, canMove, applyPowerup, dropPowerup, isGameState, ENEMY_STATS, FORT_CELLS, POWERUPS } from '../tank-battle/rules.ts';
+import { createGame, createMap, createTank, stepGame, nextStage, canMove, applyPowerup, dropPowerup, isGameState, ENEMY_STATS, FORT_CELLS, POWERUPS } from '../tank-battle/rules/rules.ts';
 
 function arena(mode = 1) {
   const s = createGame(mode, 1985); s.tiles.fill('ground'); s.spawnTimer = 150;

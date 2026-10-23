@@ -9,7 +9,7 @@ import {
   isWalkable,
   parseMaze,
   stepFrom,
-} from '../pacman/PacmanRules.ts';
+} from '../pacman/rules/PacmanRules.ts';
 
 test('the Pac-Man maze is rectangular and every pellet is reachable', () => {
   const maze = parseMaze(PACMAN_MAZE_LAYOUT);

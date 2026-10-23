@@ -42,6 +42,10 @@ test('every playable manifest entry has an explicit controller profile and boots
   assert.deepEqual(Object.keys(GAMEPAD_PROFILES).sort(), manifest.entries.map(g => g.id).sort());
   for (const game of manifest.entries) {
     assert.ok(game.capabilities.includes('gamepad'), game.id);
-    assert.ok(readFileSync(new URL('../' + game.entry, import.meta.url), 'utf8').includes(`installGamepad('${game.id}')`), game.id);
+    const entryUrl = new URL('../' + game.entry, import.meta.url);
+    let source = readFileSync(entryUrl, 'utf8');
+    const bootstrap = /export \* from '([^']+)'/.exec(source);
+    if (bootstrap) source += readFileSync(new URL(`${bootstrap[1]}.ts`, entryUrl), 'utf8');
+    assert.ok(source.includes(`installGamepad('${game.id}')`), game.id);
   }
 });

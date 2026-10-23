@@ -1,4 +1,4 @@
-import { SpiderSolitaire } from '../../../spider-solitaire/SpiderSolitaireGame';
+import { SpiderSolitaire } from '../../../spider-solitaire/game/SpiderSolitaireGame';
 import { LocalStorageSaveBackend } from '@haiyue/engine/save';
 const canvas = document.querySelector('canvas')!;
 const result = document.querySelector<HTMLElement>('#result')!;
@@ -9,10 +9,7 @@ const check = (condition: boolean, message: string) => { if (!condition) throw n
 async function run() {
   const backend = new LocalStorageSaveBackend({ namespace: 'haiyue-spider-autosave-fixture' });
   await backend.delete('spider-solitaire', 'autosave');
-  const createGame = () => new SpiderSolitaire({ saveBackend: backend, guiFont: {
-    canvasFactory(width, height) { const atlas = document.createElement('canvas'); atlas.width = width; atlas.height = height; return atlas; },
-    readAtlasPixels(atlas) { return new Uint8Array(atlas.getContext('2d')!.getImageData(0, 0, atlas.width, atlas.height).data); },
-  } });
+  const createGame = () => new SpiderSolitaire({ saveBackend: backend, guiFont: { atlasSize: 2048 } });
   const game = createGame();
   await game.init(canvas);
   await wait(500);

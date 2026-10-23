@@ -1,7 +1,7 @@
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {musicScore,renderMusic} from './neon-music-score.mjs';
-import {parseMidi} from '../games/piano/midi.ts';
+import {parseMidi} from '../games/piano/music/midi.ts';
 import {NEON_SOUNDS,NEON_SOUND_IDS} from '../games/neon-circuit/audio/Sounds.ts';
 const directory=new URL('../games/neon-circuit/assets/audio/',import.meta.url);
 mkdirSync(directory,{recursive:true});

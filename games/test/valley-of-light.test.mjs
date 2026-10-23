@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { canManipulate, clampOffset, distance, initialState, isPuzzleState, joins, midpoint, paths, project, route, snapAngle, snapOffset } from '../valley-of-light/rules.ts';
+import { canManipulate, clampOffset, distance, initialState, isPuzzleState, joins, midpoint, paths, project, route, snapAngle, snapOffset } from '../valley-of-light/rules/rules.ts';
 
 test('unsolved bridges block exit; either mechanism alone is insufficient', () => {
   const state = initialState();

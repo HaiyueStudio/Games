@@ -13,7 +13,7 @@ import { GltfViewerScene } from './GltfViewerScene';
 import { PerpetualCalendarPadApp } from './PerpetualCalendarPadApp';
 import { SpineViewerScene } from './SpineViewerScene';
 import { SudokuPadGame } from './SudokuPadGame';
-import { requiredItemAt, requiredNumberAt } from '../../arrayAccess';
+import { requiredItemAt, requiredNumberAt } from '../../shared/collections/arrayAccess';
 
 function cardColumnAt<T>(columns: T[][], index: number): T[] {
   return requiredItemAt(columns, index, 'PadOS card columns');

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
 const mainUrl = new URL('../gravity-maze/main.ts', import.meta.url);
-const previewUrl = new URL('../gravity-maze/rayTracingPreview.ts', import.meta.url);
+const previewUrl = new URL('../gravity-maze/rendering/rayTracingPreview.ts', import.meta.url);
 
 test('Gravity Maze freezes the source snapshot before one deterministic raster evidence frame', async () => {
   const [main, preview] = await Promise.all([

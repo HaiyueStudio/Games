@@ -13,7 +13,7 @@ import { getEngineDiagnosticsSnapshot } from '@haiyue/engine/diagnostics';
 import { HierarchyUI } from './hierarchyUI';
 import { storyGarden, journeyGarden, checkpointGarden, logicGarden, isWalkable, belongsToGroup, canMarkPath, pathMarker, markerIndex, walkSurfaces, FACE_NAMES, MAX_TWIST, type PathMarkerKind, canAttachPillar, defaultPillarOffset } from '../../../games/valley-of-light/map/model';
 import { HaiyueEngine } from '@haiyue/engine';
-import { guardDeferredPointerCapture } from '../../../games/valley-of-light/canvasInput';
+import { guardDeferredPointerCapture } from '../../../games/valley-of-light/input/canvasInput';
 import { MapView } from '../../../games/valley-of-light/map/view';
 import { moveWheelDrag, type WheelDrag } from '../../../games/valley-of-light/map/wheelDrag';
 import { add, rotate, CATALOG, isDecoration, decorationColorFields, decorationGarden, portalGarden, gateGarden, ladderGarden, PORT_NAMES, WHEEL_PALETTES, MapRuntime, catalogGarden, centerIndex, cloneMap, connections, emptyMap, emptyPoses, pathPorts, playIssues, snapPosition, seasideGarden, splitGarden, rotatedSeamGarden, surfaceGarden, switchGarden, worldSamples, type Action, type Axis, type MapObject, type CornerId, type PortId, type TypeId, type ValleyMap, type Vec3 } from '../../../games/valley-of-light/map/model';

@@ -13,13 +13,13 @@ registerHooks({
   },
 });
 
-const { UnityInfiniteWfcMap } = await import('../wfc-map/UnityInfiniteWfc.ts');
-const { UNITY_WFC_MODULES } = await import('../wfc-map/unityModuleData.ts');
-const { buildWfcGroundNavMesh } = await import('../wfc-map/WfcGroundNavMesh.ts');
+const { UnityInfiniteWfcMap } = await import('../wfc-map/generation/UnityInfiniteWfc.ts');
+const { UNITY_WFC_MODULES } = await import('../wfc-map/data/unityModuleData.ts');
+const { buildWfcGroundNavMesh } = await import('../wfc-map/navigation/WfcGroundNavMesh.ts');
 const {
   isUsefulPlayableWfcSurface,
   selectPlayableWfcSurface,
-} = await import('../wfc-map/WfcPlayableSurface.ts');
+} = await import('../wfc-map/navigation/WfcPlayableSurface.ts');
 
 function bytesFromHex(hex) {
   return Uint8Array.from({ length: hex.length / 2 }, (_value, index) => (

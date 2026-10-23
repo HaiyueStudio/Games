@@ -4,9 +4,9 @@ import {
   expandTriggeredSpecials,
   planMatchedClear,
   planSpecialSwap,
-} from '../match-3/Match3SpecialRules.ts';
-import { MATCH3_GEM_COLORS } from '../match-3/Match3Palette.ts';
-import { createLightningSegments } from '../match-3/Match3LightningGeometry.ts';
+} from '../match-3/rules/Match3SpecialRules.ts';
+import { MATCH3_GEM_COLORS } from '../match-3/rendering/Match3Palette.ts';
+import { createLightningSegments } from '../match-3/effects/Match3LightningGeometry.ts';
 
 const ROWS = 8;
 const COLUMNS = 8;

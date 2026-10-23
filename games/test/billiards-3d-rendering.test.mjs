@@ -5,8 +5,8 @@ import test from 'node:test';
 test('billiards 3d renders its responsive HUD with engine GUI', async () => {
   const [html, source, hud] = await Promise.all([
     readFile(new URL('../billiards-3d/index.html', import.meta.url), 'utf8'),
-    readFile(new URL('../billiards-3d/main.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../billiards-3d/Billiards3DHud.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards-3d/app/bootstrap.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards-3d/ui/Billiards3DHud.ts', import.meta.url), 'utf8'),
   ]);
 
   assert.match(html, /canvas\s*{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
@@ -23,7 +23,7 @@ test('billiards 3d renders its responsive HUD with engine GUI', async () => {
 });
 
 test('billiards 3d delegates matrix operations to wgpu-matrix', async () => {
-  const source = await readFile(new URL('../billiards-3d/main.ts', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../billiards-3d/app/bootstrap.ts', import.meta.url), 'utf8');
 
   assert.match(source, /import \{ mat4 \} from 'wgpu-matrix'/);
   assert.match(source, /mat4\.inverse\(this\.orbitTransform\.worldMatrix, this\.viewMatrix\)/);
@@ -33,8 +33,8 @@ test('billiards 3d delegates matrix operations to wgpu-matrix', async () => {
 
 test('billiards 3d reuses a tapered cue stick and pulls it back with shot power', async () => {
   const [source, cueStick] = await Promise.all([
-    readFile(new URL('../billiards-3d/main.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../billiards-3d/CueStick.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards-3d/app/bootstrap.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards-3d/rendering/CueStick.ts', import.meta.url), 'utf8'),
   ]);
 
   assert.match(source, /this\.cueStick = new CueStick\(this\.world\)/);

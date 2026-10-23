@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createCoasterTrack,dot,cross,frameTurn,sampleTrack,racePose,createInitialRaceState,stepRace} from '../neon-circuit/RaceRules.ts';
-import {roadOverlay} from '../neon-circuit/RoadOverlay.ts';
+import {createCoasterTrack,dot,cross,frameTurn,sampleTrack,racePose,createInitialRaceState,stepRace} from '../neon-circuit/rules/RaceRules.ts';
+import {roadOverlay} from '../neon-circuit/rendering/RoadOverlay.ts';
 
 test('coaster frames remain orthonormal and continuous through vertical poles, rolls and the lap seam',()=>{
   const track=createCoasterTrack(1.8);

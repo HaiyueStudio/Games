@@ -3,10 +3,10 @@ import test from 'node:test';
 import { registerHooks } from 'node:module';
 // Node's type-strip runner needs an explicit extension for this bundler-resolved import.
 registerHooks({resolve(specifier,context,next){
-  return next(specifier==='./RaceRules' && context.parentURL?.endsWith('/HudMapMath.ts')?'./RaceRules.ts':specifier,context);
+  return next(specifier==='../rules/RaceRules' && context.parentURL?.endsWith('/HudMapMath.ts')?'../rules/RaceRules.ts':specifier,context);
 }});
-const { hudMapBasis, hudMapPoint, hudMapProjection, raceHudLayout } = await import('../neon-circuit/HudMapMath.ts');
-import { CIRCUITS, circuitTrack, racePose, sampleTrack, dot, cross, mixAxes } from '../neon-circuit/RaceRules.ts';
+const { hudMapBasis, hudMapPoint, hudMapProjection, raceHudLayout } = await import('../neon-circuit/ui/HudMapMath.ts');
+import { CIRCUITS, circuitTrack, racePose, sampleTrack, dot, cross, mixAxes } from '../neon-circuit/rules/RaceRules.ts';
 
 test('every 3D route fits the same sphere through all vehicle attitudes',()=>{
   for(const circuit of CIRCUITS) {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-const module = async name => import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(readFileSync(new URL(`../sky-strike/${name}.ts`,import.meta.url),'utf8'),{mode:'transform'}).replaceAll("'./rules'", JSON.stringify(new URL('../sky-strike/rules.ts',import.meta.url).href))).toString('base64')}`);
+const module = async name => import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(readFileSync(new URL(`../sky-strike/${name === "i18n" ? "ui" : name === "combatEffects" ? "effects" : "rendering"}/${name}.ts`,import.meta.url),'utf8'),{mode:'transform'}).replaceAll("'../rules/rules'", JSON.stringify(new URL('../sky-strike/rules/rules.ts',import.meta.url).href))).toString('base64')}`);
 const {SkyStrikeLocale,SKY_TEXT,SKY_FONT_CHARACTERS,SKY_LANGUAGE_KEY} = await module('i18n');
 const {SkyStrikeCombatEffects,bossShake,BOSS_BLAST_MS} = await module('combatEffects');
 test('Chinese defaults and language survives restart independently of career save',()=>{
@@ -45,7 +45,7 @@ test('elite/Boss attachment animation follows hull translation and changes over 
 });
 
 test('each hull uses its own attachment and bounded deterministic motion',async()=>{
- const {ENEMY_DEFINITIONS,CARRIER_DEPLOY_INTERVAL_MS}=await import('../sky-strike/rules.ts');
+ const {ENEMY_DEFINITIONS,CARRIER_DEPLOY_INTERVAL_MS}=await import('../sky-strike/rules/rules.ts');
  const ids=['dreadnought','ion-seraph','void-mantis','star-carrier','helios-prism','ore-reaper','crimson-lance','violet-fortress','prism-lancer','fission-elite'];
  const used=new Set();
  for(const id of ids){
@@ -61,7 +61,7 @@ test('each hull uses its own attachment and bounded deterministic motion',async(
 });
 
 test('serpent vertebra follows its predecessor while its gun tracks independently',async()=>{
- const {requiredEnemyDefinition}=await import('../sky-strike/rules.ts');
+ const {requiredEnemyDefinition}=await import('../sky-strike/rules/rules.ts');
  const capture=(previous,target)=>{const calls=[],r=new Proxy({},{get:(_,kind)=>(...args)=>calls.push([kind,...args])});
  drawSerpentSegment(r,{definition:requiredEnemyDefinition('iron-serpent-turret'),x:240,y:300,rotation:0,ageMs:420,segmentOrder:2,hitPoints:100},previous,target);return calls;};
  const a=capture({x:240,y:250},{x:100,y:600}),b=capture({x:290,y:300},{x:100,y:600}),c=capture({x:240,y:250},{x:400,y:600});

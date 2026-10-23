@@ -11,11 +11,11 @@
 - Native 开火触发轻度连续反馈，受击触发中度反馈；后台停用，不使用持续震动定时器。浏览器仅在支持 Vibration API 时提供短脉冲。
 - HUD 和半透明摇杆全部由 Engine GUI 渲染，按屏幕四边安全区定位。3D Canvas 全屏铺满，包括安全区背景；页面只提供 Canvas 与加载/错误提示。
 
-`rules.ts` 是不依赖 GPU/DOM 的确定性弹药、射速、子弹、敌兵 AI、视线和命中规则，导航复用公开的 `@haiyue/engine/navigation`。`RangeGame.ts` 接入场景、骨骼动画、GUI 和输入，每帧更新；敌兵仅为当前可见角色分配独立骨骼、复用的 glTF 视觉对象，离开视野即隐藏；弹道对象按并发峰值复用，每颗弹丸寿命不超过 1.5 秒。失焦、取消、后台和卸载清理操作，恢复时不追补后台时间。
+`rules/rules.ts` 是不依赖 GPU/DOM 的确定性弹药、射速、子弹、敌兵 AI、视线和命中规则，导航复用公开的 `@haiyue/engine/navigation`。`game/RangeGame.ts` 接入场景、骨骼动画、GUI 和输入，每帧更新；敌兵仅为当前可见角色分配独立骨骼、复用的 glTF 视觉对象，离开视野即隐藏；弹道对象按并发峰值复用，每颗弹丸寿命不超过 1.5 秒。失焦、取消、后台和卸载清理操作，恢复时不追补后台时间。
 
 玩家角色材质的基础颜色叠乘冷蓝色 `[0.45, 0.65, 1, 1]`，保留原贴图，敌人保持原始迷彩色以便区分。
 
-角色动画分上下身：`run_bottom`/`idle_bottom` 驱动下身，`run_top2` 提供持枪姿态，`reload_top` 用于装填。原始动画以骨盆附近为原点，通过角色父实体统一调整单位、朝向和落地高度。AK47 挂载在 `1seal_skeleton_Bip01 R Hand` 子实体的握持插槽上，跟随骨骼。镜头参数在 `RangeGame` 的 `orbit` 与 `resize` 中，摇杆参数在 controls 构造处，武器参数在 `rules.ts`。
+角色动画分上下身：`run_bottom`/`idle_bottom` 驱动下身，`run_top2` 提供持枪姿态，`reload_top` 用于装填。原始动画以骨盆附近为原点，通过角色父实体统一调整单位、朝向和落地高度。AK47 挂载在 `1seal_skeleton_Bip01 R Hand` 子实体的握持插槽上，跟随骨骼。镜头参数在 `RangeGame` 的 `orbit` 与 `resize` 中，摇杆参数在 controls 构造处，武器参数在 `rules/rules.ts`。
 
 ## 资源
 

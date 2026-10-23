@@ -10,7 +10,7 @@ import {
   orientTrianglePiece,
   positionBoardCells,
   triangleCellsAreAdjacent,
-} from '../triangle-calendar-puzzle/triangleCalendarLogic.ts';
+} from '../triangle-calendar-puzzle/rules/triangleCalendarLogic.ts';
 
 test('triangle calendar maps 12 months, 31 days, and 7 weekdays to 50 cells', () => {
   const board = createTriangleCalendarBoard();

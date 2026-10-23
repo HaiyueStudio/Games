@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
-const code=stripTypeScriptTypes(readFileSync(new URL('../sky-strike/spaceBackdrop.ts',import.meta.url),'utf8'),{mode:'transform'});
+const code=stripTypeScriptTypes(readFileSync(new URL('../sky-strike/rendering/spaceBackdrop.ts',import.meta.url),'utf8'),{mode:'transform'});
 const {SkyStrikeSpaceBackdrop,spaceTiles,SPACE_THEMES,SPACE_FADE_MS}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 test('all missions resolve a background theme; some include independently moving planets',()=>{

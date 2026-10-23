@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { guardDeferredPointerCapture } from '../valley-of-light/canvasInput.ts';
+import { guardDeferredPointerCapture } from '../valley-of-light/input/canvasInput.ts';
 
 test('queued GUI release cannot cancel a newer gesture with the same mouse ID',()=>{
   class Canvas extends EventTarget {

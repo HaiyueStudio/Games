@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { SPRITES, ATLAS_COLUMNS } from './sprites.ts';
+import { SPRITES, ATLAS_COLUMNS } from './rendering/sprites.ts';
 
 // Dependency-free PNG exporter; all pixels are original artwork in sprites.ts.
 function crc32(bytes) {

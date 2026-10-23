@@ -6,7 +6,7 @@ import {
   isTetrisSaveData,
   randomTetrisKind,
   rotateTetrisPoint,
-} from '../tetris/rules.ts';
+} from '../tetris/rules/rules.ts';
 
 test('Tetris rules create boards and rotate pieces deterministically', () => {
   assert.deepEqual(createEmptyTetrisBoard(2, 3), [[null, null, null], [null, null, null]]);

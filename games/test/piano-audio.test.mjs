@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { midiToFrequency, pianoVoiceDuration } from '../piano/audio.ts';
+import { midiToFrequency, pianoVoiceDuration } from '../piano/audio/audio.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...parts) => readFileSync(join(repositoryRoot, ...parts), 'utf8');
@@ -25,7 +25,7 @@ test('lower piano notes sustain longer than higher notes', () => {
 
 test('piano audio is self-contained and no longer loads MIDI.js', () => {
   const html = read('games', 'piano', 'index.html');
-  const main = read('games', 'piano', 'main.ts');
+  const main = read('games', 'piano', 'app/bootstrap.ts');
   assert.doesNotMatch(html, /MIDI\.min\.js|cdnjs\.cloudflare\.com/);
   assert.match(html, /bundle\.js\?v=piano-fullscreen-v4/);
   assert.doesNotMatch(main, /window\.MIDI|midi-js-soundfonts/);

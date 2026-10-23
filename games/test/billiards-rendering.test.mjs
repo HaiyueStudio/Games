@@ -5,8 +5,8 @@ import test from 'node:test';
 test('billiards fills the viewport and renders its HUD with engine GUI', async () => {
   const [html, source, hud] = await Promise.all([
     readFile(new URL('../billiards/index.html', import.meta.url), 'utf8'),
-    readFile(new URL('../billiards/main.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../billiards/BilliardsHud.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards/app/bootstrap.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../billiards/ui/BilliardsHud.ts', import.meta.url), 'utf8'),
   ]);
 
   assert.match(html, /canvas\s*{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);

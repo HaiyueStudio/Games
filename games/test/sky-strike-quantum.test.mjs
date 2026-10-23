@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {quantumPose,quantumPoint,quantumTurretPose,quantumCoreState,quantumBossX,quantumAttachment,quantumVelocity,quantumPixels,quantumHardpoint,quantumGlitch,QUANTUM_GUN_MOUNTS} from '../sky-strike/quantum.ts';
-import {requiredEnemyDefinition,enemyFireIntervalMs} from '../sky-strike/rules.ts';
+import {quantumPose,quantumPoint,quantumTurretPose,quantumCoreState,quantumBossX,quantumAttachment,quantumVelocity,quantumPixels,quantumHardpoint,quantumGlitch,QUANTUM_GUN_MOUNTS} from '../sky-strike/rules/quantum.ts';
+import {requiredEnemyDefinition,enemyFireIntervalMs} from '../sky-strike/rules/rules.ts';
 import {loadSkyStrikeLevels,compileLevelTimeline} from '../sky-strike/levels/loader.ts';
 const read=p=>JSON.parse(readFileSync(new URL('../sky-strike/'+p,import.meta.url)));
 test('quantum dreadnought health is reduced by fifteen percent',()=>{

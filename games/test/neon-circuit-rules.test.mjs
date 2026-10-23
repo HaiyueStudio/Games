@@ -23,8 +23,8 @@ import {
   racePose,
   sampleTrack,
   stepRace,
-} from '../neon-circuit/RaceRules.ts';
-import { CIRCUITS, circuitTrack, trackMap } from '../neon-circuit/RaceRules.ts';
+} from '../neon-circuit/rules/RaceRules.ts';
+import { CIRCUITS, circuitTrack, trackMap } from '../neon-circuit/rules/RaceRules.ts';
 
 const straightTrack = { length: 100_000, samples: [{ x: 0, y: 0, z: 0, heading: 0, pitch: 0, bank: 0, distance: 0 }, { x: 0, y: 0, z: 100_000, heading: 0, pitch: 0, bank: 0, distance: 100_000 }] };
 
@@ -113,8 +113,8 @@ test('manifest and page expose the racer, controls, timing, boost, and debug hoo
   assert.equal(model.subarray(0, 4).toString('ascii'), 'glTF');
   assert.ok(model.length > 1_000_000);
 
-  const source = await readFile(new URL('../neon-circuit/main.ts', import.meta.url), 'utf8');
-  const flameShader = await readFile(new URL('../neon-circuit/ThrusterFlameTexture.ts', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../neon-circuit/game/NeonCircuitGame.ts', import.meta.url), 'utf8');
+  const flameShader = await readFile(new URL('../neon-circuit/textures/ThrusterFlameTexture.ts', import.meta.url), 'utf8');
   const html = await readFile(new URL('../neon-circuit/index.html', import.meta.url), 'utf8');
   assert.match(source, /new SingleSlotGameSave<RacerSaveData>/);
   assert.match(source, /window\.__neonCircuit/);
@@ -135,7 +135,7 @@ test('manifest and page expose the racer, controls, timing, boost, and debug hoo
   assert.doesNotMatch(source, /`Road-\$\{index\}`/);
   assert.match(source, /arrowleft'[\s\S]*\? 1 : 0\)[\s\S]*-[\s\S]*arrowright'/);
   assert.match(source, /const RACER_MODEL_SCALE = 0\.078/);
-  const gui = await readFile(new URL('../neon-circuit/NeonCircuitGui.ts', import.meta.url), 'utf8');
+  const gui = await readFile(new URL('../neon-circuit/ui/NeonCircuitGui.ts', import.meta.url), 'utf8');
   assert.match(source, /new GuiSystem/);
   assert.match(gui, /new GuiRoot/);
   assert.match(gui, /new GuiButton/);

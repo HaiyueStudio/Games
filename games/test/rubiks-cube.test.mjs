@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CubeModel, inverse, scramble, transform, notation } from '../rubiks-cube/model.ts';
-import { cubeLayout } from '../rubiks-cube/layout.ts';
+import { CubeModel, inverse, scramble, transform, notation } from '../rubiks-cube/rules/model.ts';
+import { cubeLayout } from '../rubiks-cube/ui/layout.ts';
 for (const kind of ['2', '3', '4', 'mirror']) {
   test(`${kind}: all layers have order four and exact inverses`, () => {
     const m = new CubeModel(kind),
@@ -93,9 +93,9 @@ test('portrait and landscape keep controls and interaction stage disjoint', () =
 const { readFileSync } = await import('node:fs');
 const { stripTypeScriptTypes } = await import('node:module');
 const sessionCode = stripTypeScriptTypes(
-  readFileSync(new URL('../rubiks-cube/session.ts', import.meta.url), 'utf8'),
+  readFileSync(new URL('../rubiks-cube/game/session.ts', import.meta.url), 'utf8'),
   { mode: 'transform' },
-).replace("'./model'", JSON.stringify(new URL('../rubiks-cube/model.ts', import.meta.url).href));
+).replace("'../rules/model'", JSON.stringify(new URL('../rubiks-cube/rules/model.ts', import.meta.url).href));
 const { CubeSession } = await import(
   `data:text/javascript;base64,${Buffer.from(sessionCode).toString('base64')}`
 );

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Camera3D, SphericalTransform3D } from '@haiyue/engine';
-import { CameraViewProjectionCache } from '../CameraViewProjectionCache.ts';
+import { CameraViewProjectionCache } from '../shared/rendering/CameraViewProjectionCache.ts';
 
 test('camera projection cache skips unchanged transforms and projections', () => {
   const transform = new SphericalTransform3D({

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceSpring, newSpring, springCompression } from '../pinball/springRules.ts';
+import { advanceSpring, newSpring, springCompression } from '../pinball/rules/springRules.ts';
 
 test('pocket spring compresses, launches vertically, then steers after rail clearance', () => {
   const state = newSpring();

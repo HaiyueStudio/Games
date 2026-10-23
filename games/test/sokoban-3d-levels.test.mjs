@@ -126,7 +126,7 @@ test('Sokoban 3D ships a validated sixteen-level progression', () => {
 });
 
 test('Sokoban 3D level GUI persists completion and uses green completed buttons', () => {
-  const source = read('games', 'sokoban-3d', 'main.ts');
+  const source = read('games', 'sokoban-3d', 'app/bootstrap.ts');
   const page = read('games', 'sokoban-3d', 'index.html');
 
   assert.match(source, /GuiButton, GuiElement, GuiRoot, GuiSystem/);

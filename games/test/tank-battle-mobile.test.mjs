@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MobileControls } from '../tank-battle/mobileControls.ts';
+import { MobileControls } from '../tank-battle/input/mobileControls.ts';
 const pad={x:80,y:600,radius:64},fire={x:310,y:600,radius:55};
 test('joystick dead zone, four directions and clamped knob',()=>{
  const c=new MobileControls();assert.equal(c.down(1,80,600,pad,fire),true);assert.equal(c.input().direction,null);

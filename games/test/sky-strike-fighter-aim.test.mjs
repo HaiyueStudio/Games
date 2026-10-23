@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {turnFighterToward,angleDifference,fighterMuzzle,isAimingFighter,FIGHTER_TURN_RADIANS_PER_SECOND} from '../sky-strike/fighterAim.ts';
-import {ENEMY_DEFINITIONS} from '../sky-strike/rules.ts';
+import {turnFighterToward,angleDifference,fighterMuzzle,isAimingFighter,FIGHTER_TURN_RADIANS_PER_SECOND} from '../sky-strike/rules/fighterAim.ts';
+import {ENEMY_DEFINITIONS} from '../sky-strike/rules/rules.ts';
 test('aim animation turns by the shortest arc with bounded per-frame speed and settles without overshoot',()=>{
  const start=Math.PI-.04,target=-Math.PI+.04,next=turnFighterToward(start,target,16);
  assert.ok(next>start);assert.ok(Math.abs(angleDifference(next,target))<.01);

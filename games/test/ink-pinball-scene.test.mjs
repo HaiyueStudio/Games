@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DRAGON, advanceDragon, newDragon, koiPose, toadJump } from '../ink-pinball/sceneRules.ts';
-import { InkSources, MAX_SPLATS, fluidQuality } from '../ink-pinball/fluidModel.ts';
+import { DRAGON, advanceDragon, newDragon, koiPose, toadJump } from '../ink-pinball/rules/sceneRules.ts';
+import { InkSources, MAX_SPLATS, fluidQuality } from '../ink-pinball/rules/fluidModel.ts';
 test('dragon catches once, holds briefly, spits once and cannot immediately recapture',()=>{
  const s=newDragon();assert.equal(advanceDragon(s,1,true),'capture');
  assert.equal(advanceDragon(s,1.2,true),null);assert.equal(s.phase,'holding');

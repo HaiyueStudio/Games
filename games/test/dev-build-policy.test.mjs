@@ -39,7 +39,7 @@ test('dependency routing handles owners, cross-game imports, shared files and un
   assert.deepEqual(route('games/gamepad/common.ts'), ['lobby', '2048']);
   assert.deepEqual(route('games/gamepad/new.ts'), ['lobby', ...selected]);
   assert.deepEqual(route('games/newShared.ts'), ['lobby', ...selected]);
-  assert.deepEqual(route('games/tank-battle/main.ts'), []);
+  assert.deepEqual(route('games/tank-battle/app/bootstrap.ts'), []);
   assert.deepEqual(route('games/tank-battle/shared.ts'), ['ink-pinball']);
   assert.deepEqual(route('config/rollup.shared.js'), ['lobby', ...selected]);
   assert.deepEqual(route('node_modules/@haiyue/engine/dist/index.js'), ['lobby', ...selected]);
@@ -52,7 +52,7 @@ test('missing dependency graphs retry failed targets when imported files are rep
     ['2048', new Set(['games/save/shared.ts'])],
   ]);
   assert.deepEqual(affectedDevTargets('games/save/shared.ts', ['2048', 'tank-battle'], deps), ['2048', 'tank-battle']);
-  assert.deepEqual(affectedDevTargets('games/2048/rules.ts', ['2048', 'tank-battle'], deps), ['tank-battle', '2048']);
+  assert.deepEqual(affectedDevTargets('games/2048/rules/rules.ts', ['2048', 'tank-battle'], deps), ['tank-battle', '2048']);
 });
 
 test('queue runs one build at a time and coalesces edits during a build into one repeat', async () => {
@@ -108,7 +108,7 @@ test('dependency capture retains resolved imports without the whole TypeScript p
   try {
     process.env.GAME_DEV_DEPENDENCIES_FILE = output;
     const imported = resolve(directory, 'games/2048/main.ts');
-    const unrelated = resolve(directory, 'games/tank-battle/main.ts');
+    const unrelated = resolve(directory, 'games/tank-battle/app/bootstrap.ts');
     const shader = resolve(directory, 'games/2048/effect.wgsl');
     devDependencies().generateBundle.call({
       getModuleIds: () => [imported, '\0virtual-module'],

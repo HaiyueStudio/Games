@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { roadOverlay } from '../neon-circuit/RoadOverlay.ts';
+import { roadOverlay } from '../neon-circuit/rendering/RoadOverlay.ts';
 
 // A sharply banked, nonplanar road quad, followed by its return segment.
 const track = { samples: [{ distance: 0 }, { distance: 100 }], length: 200 };

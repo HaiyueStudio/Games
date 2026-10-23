@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WindshieldDamage } from '../neon-circuit/WindshieldDamage.ts';
-import { CIRCUITS,circuitTrack,createInitialRaceState,stepRace,RAIL_LIMIT,frameTurn } from '../neon-circuit/RaceRules.ts';
+import { WindshieldDamage } from '../neon-circuit/rendering/WindshieldDamage.ts';
+import { CIRCUITS,circuitTrack,createInitialRaceState,stepRace,RAIL_LIMIT,frameTurn } from '../neon-circuit/rules/RaceRules.ts';
 test('rail impacts label the visible left/right side, including inverted road frames',()=>{
  for(const id of ['neon-city','mobius-ring'])for(const distance of [0,.5])for(const side of [-1,1]){
   const track=circuitTrack(CIRCUITS.find(c=>c.id===id));

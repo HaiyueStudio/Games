@@ -5,7 +5,7 @@
     "outDir": "./dist/.typescript"
   },
   "include": [
-    "./*.ts",
+    "./**/*.ts",
     "../../node_modules/@haiyue/engine/src/**/*",
     "../../node_modules/@haiyue/extensions/src/**/*"
   ]

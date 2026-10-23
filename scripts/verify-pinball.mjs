@@ -14,7 +14,7 @@ for (const [name, width, height] of [['desktop', 1440, 1080], ['mobile', 390, 84
     schemaVersion: 1, generatedAt: new Date().toISOString(), workload: 'pinball deterministic keyboard and physics integration',
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     dirty: Boolean(execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()),
-    fingerprints: Object.fromEntries(['PinballGame.ts', 'rules.ts', 'scenery.ts', 'PocketSprings.ts', 'springRules.ts', 'input.ts', 'verification.ts', 'index.html', 'style.css', 'assets/notebook-paper.png', 'assets/star-bumper.png', 'assets/mushroom-bumper.png', 'assets/pinwheel.png'].map(file => [file, createHash('sha256').update(readFileSync(resolve(root, 'games/pinball', file))).digest('hex')])),
+    fingerprints: Object.fromEntries(['game/PinballGame.ts', 'rules/rules.ts', 'rendering/scenery.ts', 'rendering/PocketSprings.ts', 'rules/springRules.ts', 'input/input.ts', 'verification/verification.ts', 'index.html', 'style.css', 'assets/notebook-paper.png', 'assets/star-bumper.png', 'assets/mushroom-bumper.png', 'assets/pinwheel.png'].map(file => [file, createHash('sha256').update(readFileSync(resolve(root, 'games/pinball', file))).digest('hex')])),
   };
   writeFileSync(resolve(evidence, `${name}.json`), JSON.stringify(result, null, 2));
   console.log(JSON.stringify({ profile: name, status: result.status, checks: result.checks, screenshot: resolve(evidence, `${name}.png`) }));

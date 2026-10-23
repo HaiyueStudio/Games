@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VolcanicHazards, MAX_FIREBALLS } from '../neon-circuit/VolcanicHazards.ts';
-import { createInitialRaceState } from '../neon-circuit/RaceRules.ts';
-import { readCameraMode, saveCameraMode, windshieldStage } from '../neon-circuit/CameraMode.ts';
+import { VolcanicHazards, MAX_FIREBALLS } from '../neon-circuit/rendering/VolcanicHazards.ts';
+import { createInitialRaceState } from '../neon-circuit/rules/RaceRules.ts';
+import { readCameraMode, saveCameraMode, windshieldStage } from '../neon-circuit/rendering/CameraMode.ts';
 const initial = () => ({...createInitialRaceState(),speed:500});
 const ready = () => {
   const hazards=new VolcanicHazards(123);

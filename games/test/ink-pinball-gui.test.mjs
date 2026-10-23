@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {newScroll,turnScroll,advanceScroll} from '../ink-pinball/guiRules.ts';
-import {lotusRebound} from '../ink-pinball/gardenRules.ts';
+import {newScroll,turnScroll,advanceScroll} from '../ink-pinball/rules/guiRules.ts';
+import {lotusRebound} from '../ink-pinball/rules/gardenRules.ts';
 test('help replaces page only when rolled shut; duplicate input cannot interrupt it',()=>{
  const s=newScroll();assert.equal(turnScroll(s,'help',10),true);
  advanceScroll(s,10.2);assert.equal(s.page,'game');assert.ok(s.open>0&&s.open<.5);
@@ -22,7 +22,7 @@ test('multi-touch release/capture loss cannot leave a flipper held or launch on 
  const {registerHooks}=await import('node:module');
  const hook=registerHooks({resolve(specifier,context,next){return next(/^\.{1,2}\//.test(specifier)&&! /\.[a-z0-9]+$/i.test(specifier)?specifier+'.ts':specifier,context);}});
  const previous=globalThis.window;globalThis.window=new EventTarget();
- const {InkInput}=await import('../ink-pinball/InkInput.ts');let enabled=true;const input=new InkInput(()=>enabled);
+ const {InkInput}=await import('../ink-pinball/input/InkInput.ts');let enabled=true;const input=new InkInput(()=>enabled);
  const pointer=(type,id)=>{const e=new Event(type);Object.defineProperty(e,'pointerId',{value:id});window.dispatchEvent(e);};
  try {
   input.press('left',10);input.press('right',11);assert.ok(input.down('left')&&input.down('right'));

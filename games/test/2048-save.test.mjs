@@ -6,7 +6,7 @@ import {
   GAME_2048_SAVE_DATA_VERSION,
   GAME_2048_SAVE_ID,
   isGame2048SaveData,
-} from '../2048/saveState.ts';
+} from '../2048/save/saveState.ts';
 
 const valid = {
   rows: 4,
@@ -47,7 +47,7 @@ test('2048 save validation rejects wrong board shape, illegal tiles, and incompl
 });
 
 test('2048 persistence goes through the engine save facade without direct storage calls', async () => {
-  const source = await readFile(new URL('../2048/Game2048.ts', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../2048/game/Game2048.ts', import.meta.url), 'utf8');
   assert.match(source, /from '@haiyue\/engine\/save'/);
   assert.match(source, /maxSlots:\s*1/);
   assert.match(source, /this\.dismissedModalPhase = saved\.data\.dismissedModalPhase \?\? null/);

@@ -1,7 +1,7 @@
-import { BOOST_MAX_SPEED, CRUISE_MAX_SPEED } from '../neon-circuit/RaceRules.ts';
+import { BOOST_MAX_SPEED, CRUISE_MAX_SPEED } from '../neon-circuit/rules/RaceRules.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EXHAUST_SOCKETS, healthRingColor, damageEnvelope, propulsionEnvelope, rotateBodyPoint, speedFov, speedCameraPhi } from '../neon-circuit/RacerEffects.ts';
+import { EXHAUST_SOCKETS, healthRingColor, damageEnvelope, propulsionEnvelope, rotateBodyPoint, speedFov, speedCameraPhi } from '../neon-circuit/effects/RacerEffects.ts';
 
 test('idle and coasting jets stay short even at boost speed; throttle controls sustained thrust', () => {
   for (const speed of [0, CRUISE_MAX_SPEED, BOOST_MAX_SPEED]) {
@@ -58,7 +58,7 @@ test('health dial changes colour strictly below two-thirds and one-third health'
 
 
 test('speedometer units match distance travelled and course distance units', async () => {
-  const { speedKmh, distanceKm, formatSpeed } = await import('../neon-circuit/RaceUnits.ts');
+  const { speedKmh, distanceKm, formatSpeed } = await import('../neon-circuit/rules/RaceUnits.ts');
   for (const speed of [0,100,650,920]) {
     assert.ok(Math.abs(speedKmh(speed) - distanceKm(speed * 3600)) < 1e-9);
   }
@@ -88,7 +88,7 @@ test('narrower high-speed lens gains a forward sightline and follows the road sl
 });
 
 test('wall haptic strength grades speed-and-incidence impact and handles invalid values', async () => {
-  const {wallHaptic}=await import('../neon-circuit/RacerEffects.ts');
+  const {wallHaptic}=await import('../neon-circuit/effects/RacerEffects.ts');
   assert.equal(wallHaptic(.23),'light');assert.equal(wallHaptic(.5),'medium');assert.equal(wallHaptic(.9),'heavy');
   assert.equal(wallHaptic(-1),'light');assert.equal(wallHaptic(NaN),'light');assert.equal(wallHaptic(5),'heavy');
 });

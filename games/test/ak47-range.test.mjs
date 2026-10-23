@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { RangeRules, MAGAZINE, resolvePlayerHeading, PLAYER_FOV, ENEMY_FOV, RELOAD_SECONDS, ENEMY_FIRE_RANGE, CORPSE_SECONDS, BULLET_SPEED } from '../ak47-range/rules.ts';
-import { radarContact } from '../ak47-range/radar.ts';
+import { RangeRules, MAGAZINE, resolvePlayerHeading, PLAYER_FOV, ENEMY_FOV, RELOAD_SECONDS, ENEMY_FIRE_RANGE, CORPSE_SECONDS, BULLET_SPEED } from '../ak47-range/rules/rules.ts';
+import { radarContact } from '../ak47-range/rules/radar.ts';
 const muzzle = { x: 0, y: 1.2, z: 0 };
 test('held trigger fires at 600 rpm; releasing immediately stops', () => {
   const game = new RangeRules(); game.setFiring(true);

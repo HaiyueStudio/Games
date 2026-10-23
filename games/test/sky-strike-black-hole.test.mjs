@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {SkyStrikeBlackHole,advancePlayer,BLACK_HOLE_CAPACITY,BLACK_HOLE_ABSORPTION_SCALE,BLACK_HOLE_GROWTH_PER_SECOND,BLACK_HOLE_BLAST_RADIUS,BLACK_HOLE_MAX_Y,PLAYER_DRAG_MAX_SPEED} from '../sky-strike/blackHole.ts';
-import {asteroidHealth} from '../sky-strike/asteroids.ts';
+import {SkyStrikeBlackHole,advancePlayer,BLACK_HOLE_CAPACITY,BLACK_HOLE_ABSORPTION_SCALE,BLACK_HOLE_GROWTH_PER_SECOND,BLACK_HOLE_BLAST_RADIUS,BLACK_HOLE_MAX_Y,PLAYER_DRAG_MAX_SPEED} from '../sky-strike/rules/blackHole.ts';
+import {asteroidHealth} from '../sky-strike/rules/asteroids.ts';
 const advance=(h,ms)=>{let blasts=0;while(ms>0){const dt=Math.min(16,ms);blasts+=Number(h.update(dt));ms-=dt;}return blasts;};
 test('absorption is reduced 70 percent and size grows continuously even after a large body',()=>{
  const h=new SkyStrikeBlackHole();h.reset(true);h.absorb(90);h.absorb(Infinity);assert.equal(h.mass,0);assert.equal(h.radius,22);
