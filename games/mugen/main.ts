@@ -1,3 +1,5 @@
+import { installGamepad, gamepadFrame } from '../gamepad/runtime';
+installGamepad('mugen');
 import { evaluateMugenAirAction } from './import/air/MugenAirRuntime';
 import { createMugenImportWorkerClient, type MugenImportWorkerClient } from './import/worker/MugenImportWorkerClient';
 import { isAbortError } from './import/diagnostics';
@@ -536,7 +538,7 @@ class MugenFightApp {
     const settings = [['P1', this.#p1Control, this.#p1Select], ['P2', this.#p2Control, this.#p2Select]] as const;
     const configs = settings.flatMap(([playerId, control, selection]) => { const aiLevel = Number(control.value); const fixture = this.#fixtures.get(selection.value); return aiLevel > 0 && fixture !== undefined ? [{ playerId, aiLevel, seed: `${this.#requireStage().sourceSetSha256}:${playerId}:${fixture.packageSha256.slice(0, 32)}`, commands: fixture.commands }] : []; });
     const legacyAi = configs.length === 0 ? null : new MugenLegacyAiInput(configs);
-    return new MugenFixedStepInputDriver({ players: createMugenBrowserPlayerBindings(bindings), maxSubSteps: 2, maxBacklogTicks: 4, ...(legacyAi === null ? {} : { transformSource: source => legacyAi.apply(source) }) });
+    return new MugenFixedStepInputDriver({ getGamepads: () => gamepadFrame() ? navigator.getGamepads() : [], players: createMugenBrowserPlayerBindings(bindings), maxSubSteps: 2, maxBacklogTicks: 4, ...(legacyAi === null ? {} : { transformSource: source => legacyAi.apply(source) }) });
   }
   #refreshInputDriver(): void { if (this.#running) return; const previous = this.#driver; this.#driver = this.#createInputDriver(this.#keyBindings); previous.dispose(); this.#syncKeySettingsUi(); }
   #syncKeySettingsUi(): void {

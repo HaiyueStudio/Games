@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('tetris');
 import { startTetris } from './TetrisGame';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;

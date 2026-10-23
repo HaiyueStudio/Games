@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('ink-pinball');
 import { InkPinballGame } from './InkPinballGame';
 
 const game = new InkPinballGame();

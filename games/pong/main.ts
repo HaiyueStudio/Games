@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('pong');
 import {
   Camera3D,
   CartesianTransform3D,

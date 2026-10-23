@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('wfc-map');
 import { EnvironmentLight } from '@haiyue/engine/lighting';
 import { PbrMaterial } from '@haiyue/engine/material';
 import { Render3DSystem } from '@haiyue/engine/systems';

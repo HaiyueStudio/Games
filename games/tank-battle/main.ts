@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('tank-battle');
 import { ArcadeAudio } from './audio';
 import { TankBattleHud } from './TankBattleHud';
 import { launchMobile } from './mobile';

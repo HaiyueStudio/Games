@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('piano');
 import { HaiyueEngine } from '@haiyue/engine';
 import { World } from '@haiyue/engine';
 import { Entity } from '@haiyue/engine';

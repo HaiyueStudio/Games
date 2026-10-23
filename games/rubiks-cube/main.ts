@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('rubiks-cube');
 import { HaiyueEngine } from '@haiyue/engine';
 import { MemorySaveBackend } from '@haiyue/engine/save';
 import { CubeGame } from './CubeGame';

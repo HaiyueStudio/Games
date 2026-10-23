@@ -6,7 +6,7 @@ import {
   type FixedStepAdvanceResult,
   type FixedStepTick,
   type SimulationStateValue,
-} from '@haiyue/engine/experimental/simulation';
+} from '@haiyue/engine-gamepad/experimental/simulation';
 
 export type MugenFacing = -1 | 1;
 export type MugenScreenDirection = 'N' | 'U' | 'D' | 'L' | 'R' | 'UL' | 'UR' | 'DL' | 'DR';
@@ -76,10 +76,10 @@ export const MUGEN_DEFAULT_PLAYER_BINDINGS = Object.freeze([
     id: 'P1',
     gamepadIndex: 0,
     bindings: Object.freeze({
-      up: { keys: ['KeyW'], gamepadAxes: [{ axis: 1, direction: 'negative' as const }] },
-      down: { keys: ['KeyS'], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
-      left: { keys: ['KeyA'], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
-      right: { keys: ['KeyD'], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
+      up: { keys: ['KeyW'], gamepadButtons: [12], gamepadAxes: [{ axis: 1, direction: 'negative' as const }] },
+      down: { keys: ['KeyS'], gamepadButtons: [13], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
+      left: { keys: ['KeyA'], gamepadButtons: [14], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
+      right: { keys: ['KeyD'], gamepadButtons: [15], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
       a: { keys: ['KeyJ'], gamepadButtons: [0] }, b: { keys: ['KeyK'], gamepadButtons: [1] }, c: { keys: ['KeyL'], gamepadButtons: [2] },
       x: { keys: ['KeyU'], gamepadButtons: [3] }, y: { keys: ['KeyI'], gamepadButtons: [4] }, z: { keys: ['KeyO'], gamepadButtons: [5] },
       start: { keys: ['Enter'], gamepadButtons: [9] },
@@ -89,10 +89,10 @@ export const MUGEN_DEFAULT_PLAYER_BINDINGS = Object.freeze([
     id: 'P2',
     gamepadIndex: 1,
     bindings: Object.freeze({
-      up: { keys: ['ArrowUp'], gamepadAxes: [{ axis: 1, direction: 'negative' as const }] },
-      down: { keys: ['ArrowDown'], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
-      left: { keys: ['ArrowLeft'], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
-      right: { keys: ['ArrowRight'], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
+      up: { keys: ['ArrowUp'], gamepadButtons: [12], gamepadAxes: [{ axis: 1, direction: 'negative' as const }] },
+      down: { keys: ['ArrowDown'], gamepadButtons: [13], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
+      left: { keys: ['ArrowLeft'], gamepadButtons: [14], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
+      right: { keys: ['ArrowRight'], gamepadButtons: [15], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
       a: { keys: ['Numpad1'], gamepadButtons: [0] }, b: { keys: ['Numpad2'], gamepadButtons: [1] }, c: { keys: ['Numpad3'], gamepadButtons: [2] },
       x: { keys: ['Numpad4'], gamepadButtons: [3] }, y: { keys: ['Numpad5'], gamepadButtons: [4] }, z: { keys: ['Numpad6'], gamepadButtons: [5] },
       start: { keys: ['Numpad0'], gamepadButtons: [9] },

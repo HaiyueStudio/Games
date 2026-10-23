@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('2048');
 import { start2048 } from './Game2048';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;

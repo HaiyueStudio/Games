@@ -42,10 +42,10 @@ export function createMugenBrowserPlayerBindings(value: MugenKeyBindings): NonNu
     return Object.freeze({
       id, gamepadIndex: index,
       bindings: Object.freeze({
-        up: { keys: [keys.up], gamepadAxes: [{ axis: 1, direction: 'negative' as const }] },
-        down: { keys: [keys.down], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
-        left: { keys: [keys.left], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
-        right: { keys: [keys.right], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
+        up: { keys: [keys.up], gamepadButtons: [12], gamepadAxes: [{ axis: 1, direction: 'negative' as const }] },
+        down: { keys: [keys.down], gamepadButtons: [13], gamepadAxes: [{ axis: 1, direction: 'positive' as const }] },
+        left: { keys: [keys.left], gamepadButtons: [14], gamepadAxes: [{ axis: 0, direction: 'negative' as const }] },
+        right: { keys: [keys.right], gamepadButtons: [15], gamepadAxes: [{ axis: 0, direction: 'positive' as const }] },
         x: { keys: [keys.attack1], gamepadButtons: [3] }, y: { keys: [keys.attack2], gamepadButtons: [4] }, z: { keys: [keys.attack3], gamepadButtons: [5] },
         a: { keys: [keys.attack4], gamepadButtons: [0] }, b: { keys: [keys.attack5], gamepadButtons: [1] }, c: { keys: [keys.attack6], gamepadButtons: [2] },
         start: { keys: [index === 0 ? 'Enter' : 'Numpad0'], gamepadButtons: [9] },

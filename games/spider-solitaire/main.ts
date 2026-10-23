@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('spider-solitaire');
 import { startSpiderSolitaire } from './SpiderSolitaireGame';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;

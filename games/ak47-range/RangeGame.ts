@@ -1,9 +1,10 @@
+import { gamepadFrame } from '../gamepad/runtime';
 import { Camera3D, CartesianTransform3D, DirectionalLight, Entity, EnvironmentLight, HaiyueEngine,
   Geometry3D, Mesh3D, PbrMaterial, SphericalTransform3D, World, createBox3D, createSphere3D } from '@haiyue/engine';
 import { GuiRoot, GuiElement, GuiLabel, GuiButton, GuiSystem, type GuiFontOptions, type GuiRect } from '@haiyue/engine/gui';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { VirtualJoystickControls } from '@haiyue/extensions/controls';
+import { VirtualJoystickControls } from '@haiyue/extensions-controls/controls';
 import { applyGltfAnimationClip, disposeGltfModel, loadGltfModel, type LoadedGltfModel, type GltfAnimationClip } from '@haiyue/extensions/gltf';
 import { MAGAZINE, RELOAD_SECONDS, SIGHT_RANGE, PLAYER_FOV, ENEMY_FOV, CORPSE_SECONDS, ENEMY_FIRE_RANGE, RangeRules, resolvePlayerHeading } from './rules';
 import { RadarHud } from './RadarHud';
@@ -243,6 +244,7 @@ export class RangeGame {
     }
   }
 
+  private padFiring = false;
   private readonly frame = ({ detail }: { detail: { time: number; delta: number } }): void => {
     if (this.disposed || !this.initialized) return;
     if (this.enemyLoadError) throw this.enemyLoadError;
@@ -254,6 +256,20 @@ export class RangeGame {
     this.controls.step(Math.max(0, detail.delta));
     this.aimControls.step(Math.max(0, detail.delta));
     this.playerTransform.setRotation(0, resolvePlayerHeading(this.playerTransform.rotation[1]!, this.controls.state, this.aimControls.state, dt), 0);
+    const pad = !this.controls.disabled ? gamepadFrame() : undefined;
+    if (pad) {
+      const mx=(pad.values.x??0)+Number(pad.held.has('b15'))-Number(pad.held.has('b14'));
+      const my=(pad.values.y??0)+Number(pad.held.has('b13'))-Number(pad.held.has('b12'));
+      const length=Math.max(1,Math.hypot(mx,my)),position=this.playerTransform.position;
+      this.playerTransform.setPosition(position[0]!+mx/length*4.4*dt,0,position[2]!+my/length*4.4*dt);
+      const ax=pad.values.rx??0,ay=pad.values.ry??0;
+      if(ax||ay)this.playerTransform.setRotation(0,Math.atan2(-ax,-ay),0);
+      else if(mx||my)this.playerTransform.setRotation(0,Math.atan2(-mx,-my),0);
+      const firing=pad.held.has('b7');
+      if(firing||this.padFiring)this.rules.setFiring(firing);
+      this.padFiring=firing;
+      if(pad.pressed.has('b2'))this.rules.reload();
+    } else if(this.padFiring){this.rules.setFiring(false);this.padFiring=false;}
     const p = this.playerTransform.position;
     const moved = this.rules.move(old, { x: p[0]!, z: p[2]! });
     this.playerTransform.setPosition(moved.x, 0, moved.z);

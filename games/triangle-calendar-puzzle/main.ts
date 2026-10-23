@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('triangle-calendar-puzzle');
 import {
   TRIANGLE_CALENDAR_PIECES,
   type OrientedTriangleCell,

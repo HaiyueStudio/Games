@@ -1,3 +1,4 @@
+import { gamepadFrame } from '../gamepad/runtime';
 import { CartesianTransform3D, System, type World as EngineWorld } from '@haiyue/engine';
 import {
   MINECRAFT_BLOCK_COLORS,
@@ -119,7 +120,7 @@ export class MinecraftInteractionSystem extends System {
   };
 
   private _onMouseDown = (event: MouseEvent): void => {
-    if (document.pointerLockElement !== this._canvas || !this._hit) return;
+    if ((document.pointerLockElement !== this._canvas && !gamepadFrame()) || !this._hit) return;
     if (event.button === 0) this._removeBlock(this._hit.block);
     else if (event.button === 2 && this._hit.adjacent) this._addBlock(this._hit.adjacent);
     else return;

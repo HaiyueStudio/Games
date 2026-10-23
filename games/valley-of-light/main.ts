@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('valley-of-light');
 import { HaiyueEngine } from '@haiyue/engine';
 import { SingleSlotGameSave } from '../save/SingleSlotGameSave';
 import { ValleyHud } from './hud';

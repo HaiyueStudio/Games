@@ -1,13 +1,11 @@
+import { installLobbyGamepad } from './gamepad.js';
 const catalogUrl = './games/manifest.json';
 
 const gameDetails = {
-<<<<<<< HEAD
   'valley-of-light': { genre: 'puzzle', description: '转动金桥、平移青桥，让断路在正交投影中相遇。跟随旅行者微，走出无知山谷。', mark: '光' },
   'tank-battle': { genre: 'arcade', description: '单人或双人合作守卫基地。突破砖墙、雪地、海水与丛林，击毁闪光坦克获取六种补给。', mark: '坦' },
-=======
   'ink-pinball': { genre: 'physics', description: '宣纸山水、云龙游鲤。以墨为球，在会晕开的笔触间游玩水墨弹球。', mark: '墨' },
   'rubiks-cube': { genre: 'puzzle', description: 'Turn 2×2, 3×3, 4×4 and shape-shifting mirror cubes, then replay your moves to restore them.', mark: '3×3' },
->>>>>>> d1010ef3e970ca80baa082ac07f3aab92a2acec3
   '2048': { genre: 'puzzle', description: 'Slide matching tiles and build the elusive 2048 tile.', mark: '20' },
   'billiards-3d': { genre: 'physics', description: 'A tactile three-dimensional billiards table driven by physics.', mark: '3D' },
   billiards: { genre: 'physics', description: 'Line up the shot and clear a crisp top-down billiards table.', mark: '8' },
@@ -119,6 +117,7 @@ function createCard(game, index) {
   const visual = document.createElement('button');
   visual.type = 'button';
   visual.className = 'card-visual';
+  visual.dataset.gameId = game.id;
   visual.dataset.tone = String((index % 6) + 1);
   visual.setAttribute('aria-label', `Play ${game.title}`);
   visual.addEventListener('click', () => openGame(game));
@@ -189,6 +188,7 @@ function openGame(game, updateHistory = true) {
   elements.playerTitle.textContent = game.title;
   elements.newTab.href = url;
   elements.frame.title = `${game.title} preview`;
+  elements.frame.dataset.gameId = game.id;
   elements.frame.src = url;
   if (!elements.dialog.open) elements.dialog.showModal();
   if (updateHistory) setGameQuery(game.id);
@@ -197,6 +197,7 @@ function openGame(game, updateHistory = true) {
 function closeGame(updateHistory = true) {
   if (elements.dialog.open) elements.dialog.close();
   elements.frame.src = 'about:blank';
+  delete elements.frame.dataset.gameId;
   if (updateHistory) setGameQuery(null);
 }
 
@@ -240,3 +241,21 @@ elements.dialog.addEventListener('click', (event) => {
 window.addEventListener('popstate', syncGameFromUrl);
 
 loadCatalog();
+
+installLobbyGamepad({
+  cards: () => [...elements.grid.querySelectorAll('.card-visual')],
+  filters: () => [...elements.filters.querySelectorAll('button')],
+  playing: () => elements.dialog.open,
+  hint: document.querySelector('#gamepad-help'),
+});
+elements.frame.addEventListener('load', () => { if(elements.dialog.open) elements.frame.contentWindow.focus(); });
+window.addEventListener('message', event => {
+  if(event.origin !== location.origin || event.source !== elements.frame.contentWindow || !elements.dialog.open) return;
+  if(event.data?.type === 'haiyue-gamepad-home') { closeGame(); return; }
+  const direction = event.data?.type === 'haiyue-gamepad-next' ? 1 : event.data?.type === 'haiyue-gamepad-previous' ? -1 : 0;
+  if(!direction) return;
+  const visible = [...elements.grid.querySelectorAll('.card-visual')].map(card => games.find(game => game.id === card.dataset.gameId));
+  if(!visible.length) return;
+  const index=visible.findIndex(game => game.id === elements.frame.dataset.gameId);
+  openGame(visible[(index+direction+visible.length)%visible.length]);
+});

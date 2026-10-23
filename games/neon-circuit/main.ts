@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('neon-circuit');
 import { RaceOpponent, AI_DIFFICULTIES, raceProgress, raceWinner, type RaceMode, type AiDifficulty, type RaceWinner } from './RaceOpponent';
 import { readCameraMode, saveCameraMode, type CameraMode } from './CameraMode';
 import { VolcanicHazards } from './VolcanicHazards';

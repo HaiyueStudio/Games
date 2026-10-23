@@ -1,3 +1,5 @@
+import { installGamepad, gamepadFrame } from '../gamepad/runtime';
+installGamepad('minecraft-lite');
 import {
   Camera3D,
   CartesianTransform3D,
@@ -177,10 +179,16 @@ async function main(): Promise<void> {
   document.body.dataset.visibleBlocks = String(renderer.visibleBlockCount);
 
   engine.switchScene(scene);
+  if (new URLSearchParams(location.search).has('verify')) {
+    Object.defineProperty(window, '__minecraftInput', { configurable: true, value: {
+      snapshot: () => ({ position: Array.from(cameraTransform.position), rotation: Array.from(cameraTransform.rotation), selectedPalette, edits: voxelWorld.snapshotEdits() }),
+    } });
+  }
   engine.run();
 
   let validationFrames = 0;
   engine.on('after-update', () => {
+    overlay.classList.toggle('hidden', controls.pointerLocked || !!gamepadFrame());
     document.body.dataset.playerGrounded = String(controls.grounded);
     if (++validationFrames === 8) void finishValidation();
     if (validationFrames % 120 === 0) saveState();

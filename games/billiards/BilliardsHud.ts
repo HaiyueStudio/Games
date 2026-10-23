@@ -14,6 +14,11 @@ const PANEL_HEIGHT = 52;
 const PANEL_GAP = 10;
 const NARROW_BREAKPOINT = 620;
 
+/** A host can supply shared layout without coupling the game to a package version. */
+export type BilliardsHudLayout = (root: GuiRoot, controls: {
+  title: GuiLabel; help: GuiLabel; score: GuiLabel; state: GuiLabel; newGame: GuiButton;
+}) => () => void;
+
 const HUD_THEME: GuiTheme = {
   fontFamily: 'Arial, Helvetica, sans-serif',
   fontSize: 16,
@@ -35,9 +40,12 @@ const HUD_THEME: GuiTheme = {
 export class BilliardsHud {
   private readonly score: GuiLabel;
   private readonly state: GuiLabel;
+  private readonly entity: Entity;
+  private releaseLayout: (() => void) | undefined;
+  private disposed = false;
 
-  constructor(world: World, onNewGame: () => void) {
-    const entity = new Entity('Billiards HUD');
+  constructor(world: World, onNewGame: () => void, mountLayout?: BilliardsHudLayout) {
+    const entity = this.entity = new Entity('Billiards HUD');
     const root = new GuiRoot({ theme: HUD_THEME });
     entity.addComponent(root);
     world.addEntity(entity);
@@ -51,7 +59,7 @@ export class BilliardsHud {
       fontSize: 34,
       style: { color: '#f8fafc' },
     }));
-    this.layoutHeading(title, false);
+    if (!mountLayout) this.layoutHeading(title, false);
 
     const help = root.add(new GuiLabel({
       x: HUD_MARGIN,
@@ -62,13 +70,13 @@ export class BilliardsHud {
       fontSize: 13,
       style: { color: 'rgba(248,250,252,0.76)' },
     }));
-    this.layoutHeading(help, true);
+    if (!mountLayout) this.layoutHeading(help, true);
 
     this.score = root.add(this.createPanel('POTTED  0 / 10'));
-    this.layoutPanel(this.score, 0);
+    if (!mountLayout) this.layoutPanel(this.score, 0);
 
     this.state = root.add(this.createPanel('STATE  Ready'));
-    this.layoutPanel(this.state, 1);
+    if (!mountLayout) this.layoutPanel(this.state, 1);
 
     const newGame = root.add(new GuiButton({
       x: 0,
@@ -86,7 +94,22 @@ export class BilliardsHud {
       },
       onClick: onNewGame,
     }));
-    this.layoutNewGameButton(newGame);
+    if (!mountLayout) this.layoutNewGameButton(newGame);
+    else {
+      try {
+        this.releaseLayout = mountLayout(root, {title, help, score: this.score, state: this.state, newGame});
+      } catch (error) {
+        entity.destroy();
+        throw error;
+      }
+    }
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    try { this.releaseLayout?.(); }
+    finally { this.releaseLayout = undefined; this.entity.destroy(); }
   }
 
   setScore(potted: number): void {

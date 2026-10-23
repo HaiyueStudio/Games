@@ -7,7 +7,7 @@
       "thumbnail": "screenshots/valley-of-light.png",
       "title": "谷外之光 · Beyond the Valley",
       "entry": "valley-of-light/main.ts",
-      "capabilities": ["3d", "orthographic", "optical-illusion", "worker", "input", "gui", "gltf", "animation", "game-workflow"],
+      "capabilities": ["3d", "orthographic", "optical-illusion", "worker", "input", "gui", "gltf", "animation", "game-workflow", "gamepad"],
       "assets": ["valley-of-light/assets/traveler.gltf", "valley-of-light/maps/switch-garden.json", "valley-of-light/maps/catalog-garden.json", "valley-of-light/maps/decoration-garden.json", "valley-of-light/maps/ladder-garden.json", "valley-of-light/maps/portal-garden.json", "valley-of-light/maps/logic-garden.json", "valley-of-light/maps/checkpoint-garden.json", "valley-of-light/maps/journey-garden.json", "valley-of-light/maps/story-garden.json", "valley-of-light/maps/chapter-two-garden.json", "valley-of-light/maps/catalog.json", "valley-of-light/maps/split-cube.json", "valley-of-light/maps/seaside-garden.json", "valley-of-light/maps/rotated-seam.json", "valley-of-light/maps/six-surfaces.json", "valley-of-light/maps/arc-surfaces.json", "valley-of-light/maps/map.schema.json", "valley-of-light/maps/compact-map.schema.json"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
@@ -18,7 +18,7 @@
       "thumbnail": "screenshots/tank-battle.png",
       "title": "铁甲前线 · Tank Battle",
       "entry": "tank-battle/main.ts",
-      "capabilities": ["2d", "gui", "game-workflow", "input", "local-coop", "pixel-art", "generated-assets"],
+      "capabilities": ["2d", "gui", "game-workflow", "input", "local-coop", "pixel-art", "generated-assets", "gamepad"],
       "assets": [
         "tank-battle/assets/atlas.png", "tank-battle/assets/atlas.json",
         "tank-battle/assets/mobile-atlas.png", "tank-battle/assets/controls.png",
@@ -54,7 +54,7 @@
       "entry": "2048/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -73,7 +73,7 @@
         "3d",
         "3d-physics",
         "pbr-workflow",
-        "input"
+        "input", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -94,7 +94,7 @@
       "capabilities": [
         "2d",
         "2d-physics",
-        "input"
+        "input", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -112,7 +112,7 @@
       "capabilities": [
         "2d",
         "game-workflow",
-        "input"
+        "input", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -129,7 +129,7 @@
       "entry": "entanglement-path/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -146,7 +146,7 @@
       "entry": "icosahedron-minesweeper/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -168,7 +168,7 @@
         "content-generation",
         "game-workflow",
         "experimental-ray-tracing",
-        "ray-tracing-product-evidence"
+        "ray-tracing-product-evidence", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -187,7 +187,7 @@
         "3d",
         "game-workflow",
         "input",
-        "geometry-processing"
+        "geometry-processing", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -211,7 +211,7 @@
         "gui",
         "particles",
         "custom-shader",
-        "procedural-geometry"
+        "procedural-geometry", "gamepad"
       ],
       "assets": [
         "neon-circuit/assets/wraith-raider.glb",
@@ -284,7 +284,7 @@
       "entry": "minesweeper/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -307,7 +307,7 @@
         "pointer-lock",
         "content-generation",
         "game-workflow",
-        "input"
+        "input", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -329,7 +329,7 @@
         "input",
         "asset-lifecycle",
         "worker",
-        "experimental-indexed-sprite"
+        "experimental-indexed-sprite", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -346,7 +346,7 @@
       "entry": "pad-simulator/main.ts",
       "capabilities": [
         "input",
-        "gui"
+        "gui", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -364,7 +364,7 @@
       "capabilities": [
         "3d",
         "game-workflow",
-        "input"
+        "input", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -381,7 +381,7 @@
       "entry": "piano/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [
         "piano/scores/catalog.json",
@@ -405,7 +405,7 @@
         "3d",
         "game-workflow",
         "input",
-        "particles"
+        "particles", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -424,7 +424,7 @@
         "3d",
         "scene-workflow",
         "input",
-        "device-recovery"
+        "device-recovery", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -446,7 +446,7 @@
         "particles",
         "generated-assets",
         "experimental-indexed-sprite",
-        "gui"
+        "gui", "gamepad"
       ],
       "assets": [
         "sky-strike/assets/player-fighter.png",
@@ -573,7 +573,7 @@
       "capabilities": [
         "2d",
         "gui",
-        "asset-lifecycle"
+        "asset-lifecycle", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -590,7 +590,7 @@
       "entry": "sudoku/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -607,7 +607,7 @@
       "entry": "tetris/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -625,7 +625,7 @@
       "capabilities": [
         "tilemap",
         "2d",
-        "content-generation"
+        "content-generation", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -644,7 +644,7 @@
         "pbr-workflow",
         "input",
         "gui",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -666,7 +666,7 @@
         "navigation",
         "input",
         "gui",
-        "game-workflow"
+        "game-workflow", "gamepad"
       ],
       "assets": [
         "ak47-range/assets/provenance.json",
@@ -728,7 +728,7 @@
         "input",
         "game-workflow",
         "generated-assets",
-        "experimental-render-integration"
+        "experimental-render-integration", "gamepad"
       ],
       "assets": [
         "pinball/assets/notebook-paper.png",
@@ -756,7 +756,7 @@
         "gui",
         "game-workflow",
         "generated-assets",
-        "experimental-render-integration"
+        "experimental-render-integration", "gamepad"
       ],
       "assets": [
         "ink-pinball/assets/landscape-plate.png",

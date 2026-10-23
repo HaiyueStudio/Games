@@ -404,3 +404,7 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+.card-visual.gamepad-selected { outline: 4px solid #e4c477; outline-offset: -4px; }
+#gamepad-help { color: var(--text); padding: 12px 0; font-size: 14px; }
+.card-visual.gamepad-selected::after { content: ""; position: absolute; inset: 0; border: 4px solid #e4c477; z-index: 4; pointer-events: none; }

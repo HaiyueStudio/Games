@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('sky-strike');
 import { SkyStrikeAudio } from './audio/SkyStrikeAudio';
 import { SkyStrikeBrowserAudio } from './audio/browser';
 import { browserSkyStrikeLocale } from './i18n';

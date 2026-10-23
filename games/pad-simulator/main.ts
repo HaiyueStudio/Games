@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('pad-simulator');
 import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Geometry3D, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createSphere3D } from '@haiyue/engine';
 import { Ray } from '@haiyue/engine/math';
 import { Render3DSystem } from '@haiyue/engine/systems';

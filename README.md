@@ -44,6 +44,14 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 The lobby is generated from `games/manifest.json`, so the manifest remains the source of truth for the published
 game list. Direct links use `?game=<id>` and open the selected game automatically.
 
+## Gamepad controls
+
+All 28 games and the lobby support standard browser gamepads. Use the D-pad/stick to
+select a game, A to enter, and LB/RB to change categories. In games, Back toggles the
+virtual pointer, Back+Start returns to the lobby, and Back+LB/RB switches games.
+See [controller mappings and verification](games/gamepad/README.md) and
+[unpublished package provenance](vendor/README.md).
+
 ## Local development
 
 Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine`, `UI`, and `Games`

@@ -1,3 +1,4 @@
+import { gamepadFrame } from '../gamepad/runtime';
 import { HaiyueEngine } from '@haiyue/engine';
 import { MobileTankGame } from './MobileTankGame';
 import { guardQueuedPointerCapture } from './pointerCapture';
@@ -19,7 +20,12 @@ export async function launchMobile(): Promise<void> {
     const saves=new SingleSlotGameSave<GameState>({gameId:'tank-battle-mobile',name:'铁甲前线 1P',validateData:isGameState});
     const saved=await saves.load();
     game=new MobileTankGame(engine,atlas,controls,{read:()=>saved,write:state=>saves.save(structuredClone(state))},{},{unlock:()=>audio.unlock(),play:sound=>audio.play(sound),stop:()=>audio.suspend()});
-    engine.on('update',({detail:{time,delta}})=>game!.update(time,delta));
+    engine.on('update',({detail:{time,delta}})=>{
+      const p=gamepadFrame();
+      const x=(p?.values.x??0)+Number(p?.held.has('b15')??false)-Number(p?.held.has('b14')??false);
+      const y=(p?.values.y??0)+Number(p?.held.has('b13')??false)-Number(p?.held.has('b12')??false);
+      game!.update(time,delta,p?{input:{direction:Math.abs(x)+Math.abs(y)<.25?null:Math.abs(x)>Math.abs(y)?(x>0?1:3):(y>0?2:0),fire:p.held.has('b0')||p.held.has('b2')},confirm:p.pressed.has('b0'),pause:p.pressed.has('b9')}:undefined);
+    });
     window.addEventListener('blur',()=>game!.pause(),{signal:abort.signal});
     document.addEventListener('visibilitychange',()=>{if(document.hidden)game!.pause();},{signal:abort.signal});
     window.addEventListener('pagehide',e=>{game!.pause();if(!e.persisted)dispose();},{signal:abort.signal});

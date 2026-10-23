@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import lobby from './rollup.gamepad.config.js';
 import { cleanOutputDirectory, haiyuePlugins, loadContentManifest, selectContentEntries, toGlobalName } from './config/rollup.shared.js';
 
 const gamesDirectory = resolve(process.cwd(), 'games');
@@ -41,4 +42,4 @@ const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
     plugins: haiyuePlugins({ declaration: false, tsconfig: './tsconfig.rollup.json' }),
   }));
 
-export default configs;
+export default process.env.GAME_FILTER ? configs : [lobby, ...configs];

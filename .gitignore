@@ -1,4 +1,6 @@
 node_modules/
+/site/gamepad.js
+/site/gamepad.js.map
 .npm-cache/
 .cert/
 dist/

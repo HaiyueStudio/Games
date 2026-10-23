@@ -1,0 +1,16 @@
+{
+  "scope": "Local development candidates; not published",
+  "packages": {
+    "haiyue-engine-0.2.1.tgz": {
+      "sha256": "572fad1c7538621e9409361026e1cb25ca5dee36e2babe1c4b3b3d6536d593db",
+      "source": "Engine/engine public npm pack",
+      "revision": "5c0c55bdd8a792f740dbc737e9400e429873c07a",
+      "dirty": true
+    },
+    "haiyue-extensions-controls-0.1.0.tgz": {
+      "sha256": "62fb49e1a0ffe0dbaed447d5c8b1d47fa723fb624371d6096b0d6720cb343f97",
+      "source": "Native/examples/ak47-range/vendor/haiyue-extensions-0.1.0.tgz",
+      "revision": "c8554c313b4ffcf43756db0cc0a8b1c526b72dc7"
+    }
+  }
+}

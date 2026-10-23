@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('billiards');
 import { Camera2D, ColorSRGB, Entity, Material2D, Mesh2D, Transform2D, HaiyueEngine, World } from '@haiyue/engine';
 import { Mesh2DRenderSystem } from '@haiyue/engine/systems';
 import { createCircle2D, createRect2D } from '@haiyue/engine/geometry';

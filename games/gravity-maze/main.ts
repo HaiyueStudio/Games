@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('gravity-maze');
 import {
   Camera3D,
   DirectionalLight,

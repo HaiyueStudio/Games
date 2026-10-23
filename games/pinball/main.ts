@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('pinball');
 import { PinballGame } from './PinballGame';
 
 const game = new PinballGame();

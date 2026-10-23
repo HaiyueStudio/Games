@@ -118,9 +118,9 @@ try {
   await capture('compact-desktop.png');
   await click('#resume'); assert.equal((await snapshot()).phase, 'playing');
   await click('#pause'); assert.equal((await snapshot()).phase, 'paused');
-  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 1, mobile: true });
   await delay(300);
-  await navigate('/games/tank-battle/index.html?verify=1');
+  await navigate('/games/tank-battle/index.html?verify=1&mobile=1');
   assert.equal(await evaluate('window.__tankBattle.hud().buttons.duo'), undefined, 'mobile offers only 1P');
   await capture('mobile-title.png');
   await click('#solo');
@@ -138,7 +138,7 @@ try {
   await delay(100);
   assert.deepEqual(await evaluate('window.__tankBattle.hud().controls'),{direction:null,fire:false});
   await click('#pause');const mobileSaved=await snapshot();await delay(500);
-  await navigate('/games/tank-battle/index.html?verify=1');
+  await navigate('/games/tank-battle/index.html?verify=1&mobile=1');
   assert.equal((await snapshot()).tick,mobileSaved.tick,'mobile 1P save restores independently');
   assert.equal((await snapshot()).mode,1);
   await click('#resume');assert.equal((await snapshot()).phase,'playing');
@@ -147,6 +147,8 @@ try {
   assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth && document.documentElement.scrollHeight<=innerHeight'),true,'mobile controls fit viewport');
   await cdp('Emulation.setDeviceMetricsOverride',{width:320,height:568,deviceScaleFactor:2,mobile:true});
   await delay(300);await capture('mobile-small.png');
+  assert.equal(await evaluate('window.__tankBattle.hud().portraitPaused'),true,'portrait pauses and asks to rotate');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:568,height:320,deviceScaleFactor:2,mobile:true});await delay(300);
   assert.ok(await evaluate('(() => { const h=window.__tankBattle.hud();return [h.stick,h.fire].every(p=>p.x-p.radius>=0 && p.x+p.radius<=innerWidth && p.y+p.radius<=innerHeight); })()'),'small phone controls remain within the screen');
   await evaluate('window.dispatchEvent(new Event("blur"))');
   assert.equal((await snapshot()).phase,'paused','mobile pauses when backgrounded');

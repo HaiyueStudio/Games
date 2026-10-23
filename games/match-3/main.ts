@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('match-3');
 import {
   Camera3D,
   CartesianTransform3D,

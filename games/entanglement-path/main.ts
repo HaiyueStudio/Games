@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('entanglement-path');
 import { startEntanglementPath } from './EntanglementPathGame';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement | null;

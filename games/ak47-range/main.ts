@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('ak47-range');
 import { HaiyueEngine } from '@haiyue/engine';
 import { RangeGame } from './RangeGame';
 import { verifyRange } from './verification';

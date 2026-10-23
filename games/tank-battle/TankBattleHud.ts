@@ -7,7 +7,7 @@ import { POWERUP_NAMES, STAGE_NAMES, type GameState } from './rules';
 export interface HudState { state: GameState; best: number; hasRun: boolean; menuOpen: boolean; muted: boolean; saveStatus: string }
 export type HudAction = 'solo' | 'duo' | 'resume' | 'pause' | 'menu' | 'sound';
 const GOLD = '#e4c477', MUTED = '#a0ad90', TEXT = '#e9e5d4';
-const FONT_COPY = '铁甲前线作战指挥当前战区等待指令进行中暂停结束任务完成基地完好失守加固敌军冻结待清除消灭全部进入下一先先锋僚机未加入已阵亡生命最高总分移动开火声音关继续单人出击双协守住最后的防线选择模式开始新任务五个战区全部肃清所有坦克耗尽摧毁准备前往发现补给获得区域即将第秒火力升级无敌护盾全屏爆破时间铁锹额外射速双弹破甲免疫伤害增加一辆砖墙可坏满级穿雪地滑行海水阻挡丛林隐蔽战场补给击毁闪光敌军后掉落驾驶坦克拾取进度自动保存正在已失败当前对局仍可素材图鉴重新出发返回大厅' + STAGE_NAMES.join('') + Object.values(POWERUP_NAMES).join('');
+const FONT_COPY = '手柄摇杆指针切换铁甲前线作战指挥当前战区等待指令进行中暂停结束任务完成基地完好失守加固敌军冻结待清除消灭全部进入下一先先锋僚机未加入已阵亡生命最高总分移动开火声音关继续单人出击双协守住最后的防线选择模式开始新任务五个战区全部肃清所有坦克耗尽摧毁准备前往发现补给获得区域即将第秒火力升级无敌护盾全屏爆破时间铁锹额外射速双弹破甲免疫伤害增加一辆砖墙可坏满级穿雪地滑行海水阻挡丛林隐蔽战场补给击毁闪光敌军后掉落驾驶坦克拾取进度自动保存正在已失败当前对局仍可素材图鉴重新出发返回大厅' + STAGE_NAMES.join('') + Object.values(POWERUP_NAMES).join('');
 export const HUD_FONT_CHARS = [...new Set(Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join('') + FONT_COPY + '菜单 / 保护基地！或上了种被' + '·×←↑→↓▶Ⅱ▰↗—…：，。/！')].join('');
 export const TOUCH_KEYS: Record<string, string> = { up: 'KeyW', left: 'KeyA', down: 'KeyS', right: 'KeyD', fire: 'KeyJ' };
 
@@ -53,7 +53,11 @@ export class TankBattleHud {
     this.resizeObserver.observe(this.host); this.resize();
   }
   start(update: (time: number) => void): void {
-    this.engine.on('update', ({ detail: { time, delta } }) => { update(performance.now()); this.world.update(time, delta); });
+    this.engine.on('update', ({ detail: { time, delta } }) => { update(performance.now());
+      const controller=document.body.dataset.gamepadActive==='true';
+      for(const player of [1,2])this.labels.get(`p${player}-keys`)!.setText(controller?`${player}P 摇杆移动 / A 开火`:player===1?'W A S D 移动 / J 开火':'↑ ← ↓ → 移动 / Enter 开火');
+      this.labels.get('brand')!.setText(controller?'Back 指针 / Start 暂停 / Back+Start 大厅 / Back+LB/RB 切换':'HAIYUE  /  ARCADE DIVISION');
+      this.world.update(time, delta); });
     this.engine.run();
   }
   private place<T extends GuiElement>(element: T, rect: () => GuiRect, parent: GuiElement = this.root.root): T {

@@ -73,7 +73,7 @@ coverage and CSS/GUI viewport agreement, and exercise high-DPI resizing and two-
 ## 手机 / Native
 
 手机打开时使用独立 1P 界面，左侧虚拟摇杆、右侧长按开火，可双指操作。
-摇杆有中心死区、四方向判定、移动范围限制和松手回中。横竖屏适配，无需滚动。
+摇杆有中心死区、四方向判定、移动范围限制和松手回中。手机采用横屏，无需滚动；竖屏时暂停并提示旋转。标准手柄支持 1P：摇杆移动，A 开始/开火，Start 暂停。
 `MobileTankGame.ts` 的战场与 HUD 全部由 Engine GUI 绘制；桌面保留单人/双人模式。
 手机单独保存 1P 进度，不会把桌面双人存档加载到手机。切后台会暂停并清除输入。
 按钮贴图是已随项目保存的生成素材，来源见 `assets/controls-art.md`；不需要在线生成。

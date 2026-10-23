@@ -1,3 +1,5 @@
+import { installGamepad } from '../gamepad/runtime';
+installGamepad('billiards-3d');
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BlinnPhongMaterial, RadialShadowMaterial } from '@haiyue/engine/material';
 import { RadialShadowRenderFeature, Render3DSystem } from '@haiyue/engine/systems';
