@@ -8,7 +8,7 @@ import { MobileControls, type Pad } from '../input/mobileControls';
 
 export interface MobileSave { read(): unknown; write(state: GameState): void }
 export interface MobileAudio { unlock(): void; play(sound: GameState['sounds'][number]): void; stop(): void }
-const TEXT = '指针请横屏继续铁甲前线单人出击继续作战暂停重新开始保护基地左侧摇杆移动右侧按住开火生命敌军分数胜利基地失守作战结束区域肃清下一关存档失败';
+const TEXT = '返回首页指针请横屏继续铁甲前线单人出击继续作战暂停重新开始保护基地左侧摇杆移动右侧按住开火生命敌军分数胜利基地失守作战结束区域肃清下一关存档失败';
 const chars = [...new Set(TEXT + Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join(''))].join('');
 const rect = (x: number, y: number, width: number, height: number): GuiRect => ({ x, y, width, height });
 /** Portable single-player scene: all battlefield sprites and HUD use public Engine GUI. */
@@ -150,7 +150,7 @@ export class MobileTankGame {
     for(let i=count;i<this.sprites.length;i++)this.sprites[i]!.setVisible(false);
     const p=s.players[0]!;
     this.labels.get('status')!.setText(`1P  生命 ${p.lives}   分数 ${p.score}   敌军 ${s.total-s.killed}   ${s.stage}/5`);
-    this.labels.get('hint')!.setText(this.saveFailed?'存档失败':s.phase==='cleared'?'区域肃清 / 下一关':controller?'摇杆移动 / A 开火 / Start 暂停 / Back 指针':'左侧摇杆移动 / 右侧按住开火');
+    this.labels.get('hint')!.setText(this.saveFailed?'存档失败':s.phase==='cleared'?'区域肃清 / 下一关':controller?'摇杆移动 / A 开火 / Start 暂停 / Back 返回首页':'左侧摇杆移动 / 右侧按住开火');
     this.modal.setVisible(this.menu);
     this.labels.get('heading')!.setText(this.portrait?'请横屏继续':s.phase==='victory'?'胜利':s.phase==='gameover'?'作战结束':this.started?'暂停':'铁甲前线');
     this.labels.get('description')!.setText(!s.baseAlive?'基地失守':'保护基地 / 1P');

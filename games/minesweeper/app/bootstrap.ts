@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('minesweeper');
 import { HaiyueEngine } from '@haiyue/engine';
@@ -278,7 +280,7 @@ class Minesweeper {
   }
 
   async init(canvas: HTMLCanvasElement) {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.07, b: 0.13, a: 1 },
       msaaSamples: 4,
@@ -425,7 +427,7 @@ class Minesweeper {
     this._newGame(false);
     this.phase = saved.phase;
     this.elapsedSec = saved.elapsedSec;
-    this.startTime = performance.now() - this.elapsedSec * 1000;
+    this.startTime = gameTime() - this.elapsedSec * 1000;
     this.flagCount = 0;
     this.revealedCount = 0;
     for (let row = 0; row < this.rows; row++) {
@@ -579,7 +581,7 @@ class Minesweeper {
 
     if (this.phase === 'idle') {
       this.phase = 'playing';
-      this.startTime = performance.now();
+      this.startTime = gameTime();
       this._placeMines(cell.row, cell.col);
     }
 

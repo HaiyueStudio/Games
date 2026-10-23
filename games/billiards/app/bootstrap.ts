@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('billiards');
 import { Camera2D, ColorSRGB, Entity, Material2D, Mesh2D, Transform2D, HaiyueEngine, World } from '@haiyue/engine';
@@ -93,7 +94,7 @@ class BilliardsGame {
   private newGameRequested = false;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.16, b: 0.12, a: 1 },
       msaaSamples: 4,

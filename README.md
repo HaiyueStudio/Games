@@ -140,6 +140,20 @@ that already use `OwnerSafeAudioMixer` retain their public API boundary.
 - `site/`: source files for the GitHub Pages game lobby.
 - `.github/workflows/deploy-pages.yml`: builds Engine package candidates, all games, and the Pages artifact.
 
+## Game launcher
+
+The launcher in `site/` provides a focused game preview, searchable catalog, favorites,
+and recent launches. `catalog/` owns presentation metadata and filtering, `state/` owns
+local launcher preferences, and `ui/` owns cards and the embedded player presentation.
+Game entries and screenshots still come from `games/manifest.json`.
+
+Use arrow keys to select a cover, Enter to launch, F to favorite, and `/` to search.
+Escape returns from the embedded game to its selected cover. On a controller, A launches,
+X favorites, Y cycles library views, and LB/RB change categories. In-game Back pauses
+and asks whether to return home; R3+LB/RB switches games and R3+Start opens the same confirmation. Favorites and launch history are
+local to this browser and do not replace gameplay saves. The launcher adapts to phone
+portrait/landscape screens and respects reduced-motion preferences.
+
 ## Publishing
 
 Pushes to `master` or `main` deploy the lobby through GitHub Actions. The workflow can also be started manually

@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { HaiyueEngine } from '@haiyue/engine';
 import { World } from '@haiyue/engine';
 import { Entity } from '@haiyue/engine';
@@ -177,7 +178,7 @@ class Game2048 {
   }
 
   async init(canvas: HTMLCanvasElement) {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.98, g: 0.96, b: 0.90, a: 1 },
       msaaSamples: 4,

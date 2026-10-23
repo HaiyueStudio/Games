@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('pad-simulator');
 import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Geometry3D, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createSphere3D } from '@haiyue/engine';
@@ -205,7 +207,7 @@ class PadSimulator {
   private ray = new Ray();
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       msaaSamples: 4,
       clearColor: { r: 0.055, g: 0.065, b: 0.085, a: 1 },
@@ -384,7 +386,7 @@ class PadSimulator {
       canvas.setPointerCapture(event.pointerId);
       this.screenScene.pointerDown({
         ...point,
-        time: performance.now(),
+        time: gameTime(),
         button: event.button,
         buttons: event.buttons,
         ctrlKey: event.ctrlKey,
@@ -399,7 +401,7 @@ class PadSimulator {
       this.lastScreenPoint = point;
       this.screenScene.pointerMove({
         ...point,
-        time: performance.now(),
+        time: gameTime(),
         button: event.button,
         buttons: event.buttons,
         ctrlKey: event.ctrlKey,
@@ -414,7 +416,7 @@ class PadSimulator {
       if (point) {
         this.screenScene.pointerUp({
           ...point,
-          time: performance.now(),
+          time: gameTime(),
           button: event.button,
           buttons: event.buttons,
           ctrlKey: event.ctrlKey,
@@ -436,7 +438,7 @@ class PadSimulator {
       if (!point) return;
       this.screenScene.wheel({
         ...point,
-        time: performance.now(),
+        time: gameTime(),
         deltaY: event.deltaY,
         button: 0,
         buttons: 0,

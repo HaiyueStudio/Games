@@ -1,9 +1,10 @@
+import { sessionAudio } from '../../session/audio';
 import {OwnerSafeAudioMixer} from '@haiyue/engine/experimental/audio';
 import {NEON_SOUND_IDS,soundPath,type NeonSound} from './Sounds';
 import type {NeonAudioBackend,NeonAudioPlay} from './NeonAudio';
 /** Public experimental Engine mixer; two owned buses crossfade the engine registers. */
 export class NeonBrowserAudio implements NeonAudioBackend {
-  private readonly mixer=new OwnerSafeAudioMixer({maxVoicesTotal:10,maxVoicesPerOwner:10});
+  private readonly mixer=new OwnerSafeAudioMixer({ contextFactory: () => sessionAudio(new AudioContext()),maxVoicesTotal:10,maxVoicesPerOwner:10});
   private error:string|null=null;
   private disposed=false;
   private active=false;

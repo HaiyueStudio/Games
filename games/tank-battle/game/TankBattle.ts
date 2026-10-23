@@ -5,7 +5,6 @@ import { TankBattleHud } from '../ui/TankBattleHud';
 import { guardQueuedPointerCapture } from '../input/pointerCapture';
 import { desktopTankInput } from '../input/desktopControls';
 import { SingleSlotGameSave, isRecord, isNonNegativeInteger } from '../../save/SingleSlotGameSave';
-import { BattlefieldRenderer } from '../rendering/render';
 import { createGame, createTank, isGameState, type GameState, type Input } from '../rules/rules';
 
 interface SaveData { state: GameState; best: number; muted: boolean }
@@ -17,10 +16,9 @@ export class TankBattle {
   private readonly abort = new AbortController();
   private readonly canvas = element<HTMLCanvasElement>('gui');
   private readonly restorePointerCapture = guardQueuedPointerCapture(this.canvas);
-  private readonly renderer = new BattlefieldRenderer(element<HTMLCanvasElement>('battlefield'));
   private readonly audio = new ArcadeAudio();
   private saveStatus = '进度自动保存';
-  private readonly hud = new TankBattleHud(this.canvas, element<HTMLCanvasElement>('battlefield'), element('game'), action => {
+  private readonly hud = new TankBattleHud(this.canvas, element('game'), action => {
     if (action === 'solo') this.start(1);
     if (action === 'duo') this.start(2);
     if (action === 'resume') this.resume();
@@ -45,7 +43,7 @@ export class TankBattle {
   private lastHud = '';
   private disposed = false;
   async init(): Promise<void> {
-    await this.renderer.init(); await this.hud.init();
+    await this.hud.init();
     const saved = await this.saves.load();
     if (saved) {
       this.state = saved.state; this.best = saved.best; this.audio.muted = saved.muted; this.hasRun = true;
@@ -67,9 +65,10 @@ export class TankBattle {
   }
   private bindInput(): void {
     const options = { signal: this.abort.signal };
-    const controls = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'Space', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Enter', 'Slash', 'KeyP', 'Escape']);
+    const controls = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'Space', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Enter', 'Slash', 'KeyP', 'Escape', 'Tab']);
     this.listen('keydown', e => {
       if (!controls.has(e.code) || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (this.hud.handleMenuKey(e)) return;
       if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) { e.preventDefault(); this.togglePause(); return; }
       if (this.menuOpen || this.state.phase !== 'playing') return;
       e.preventDefault(); if (!e.repeat) { this.keys.delete(e.code); this.keys.add(e.code); } this.audio.unlock();
@@ -131,7 +130,7 @@ export class TankBattle {
       });
       if (transitioned) { this.clearInput(); this.save(); }
     }
-    this.renderer.draw(this.state); this.updateHud();
+    this.hud.drawBattlefield(this.state); this.updateHud();
   };
   dispose(): void { if (this.disposed) return; this.disposed = true; this.abort.abort(); this.clearInput(); this.audio.dispose(); this.hud.dispose(); this.restorePointerCapture(); }
 }

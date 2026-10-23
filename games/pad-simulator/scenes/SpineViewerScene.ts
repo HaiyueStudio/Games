@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { Camera2D, Entity, Transform2D, HaiyueEngine, World } from '@haiyue/engine';
 import {
   GuiButton,
@@ -373,7 +375,7 @@ export class SpineViewerScene {
   async init(): Promise<void> {
     if (this.initialized) return;
     this.initialized = true;
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas: this.canvas,
       clearColor: { r: 0.032, g: 0.041, b: 0.060, a: 1 },
       alphaMode: 'premultiplied',
@@ -426,7 +428,7 @@ export class SpineViewerScene {
   dispatchPointer(type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel', x: number, y: number, options: PointerOptions = {}): void {
     if (this.draggingSpine && type === 'pointermove') {
       this.dragSpineTo(x, y);
-      this.update(performance.now());
+      this.update(gameTime());
       return;
     }
 
@@ -452,13 +454,13 @@ export class SpineViewerScene {
       this.draggingSpine = false;
     }
 
-    this.update(performance.now());
+    this.update(gameTime());
   }
 
   dispatchWheel(x: number, y: number, deltaY: number, options: PointerOptions = {}): void {
     if (this.isPreviewPoint(x, y)) {
       this.zoomSpine(deltaY);
-      this.update(performance.now());
+      this.update(gameTime());
       return;
     }
 
@@ -474,7 +476,7 @@ export class SpineViewerScene {
       cancelable: true,
     });
     this.canvas.dispatchEvent(event);
-    this.update(performance.now());
+    this.update(gameTime());
   }
 
   private isPreviewPoint(x: number, y: number): boolean {

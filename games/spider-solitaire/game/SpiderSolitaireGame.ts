@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity, Mesh3D, OrbitControl, SphericalTransform3D, HaiyueEngine, World, createBox3D, createPlane3D, type Geometry3D } from '@haiyue/engine';
 import { Interactive, KeyboardComponent, type InteractiveEvent } from '@haiyue/engine/components';
@@ -240,7 +242,7 @@ export class SpiderSolitaire {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = this.platform.engine ?? new HaiyueEngine({
+    this.engine = this.platform.engine ?? new GameEngine({
       canvas,
       clearColor: { r: 0.04, g: 0.11, b: 0.09, a: 1 },
       msaaSamples: 4,
@@ -701,7 +703,7 @@ export class SpiderSolitaire {
     }
 
     this.pushHistory();
-    const now = performance.now();
+    const now = gameTime();
     const dealsLeftBefore = Math.floor(this.stock.length / COLUMN_COUNT);
     const stockFrom = this.stockCardPose(Math.max(0, dealsLeftBefore - 1));
     for (let column = 0; column < COLUMN_COUNT; column++) {
@@ -914,7 +916,7 @@ export class SpiderSolitaire {
 
   private addAnimatedFlights(): void {
     if (this.flights.length === 0) return;
-    const now = performance.now();
+    const now = gameTime();
     for (const flight of this.flights) {
       const rawT = Math.max(0, Math.min(1, (now - flight.startTime) / flight.duration));
       const moveStart = 0;
@@ -1086,7 +1088,7 @@ export class SpiderSolitaire {
   }
 
   private addRunCollectAnimation(cards: Card[], column: number, startIndex: number, runIndex: number): void {
-    const now = performance.now();
+    const now = gameTime();
     cards.forEach((card, offset) => {
       this.flights.push({
         card: cloneCard(card),

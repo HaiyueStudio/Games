@@ -1,3 +1,4 @@
+import { GameReturnController } from '../session/GameReturnController';
 import { GamepadSampler, NeutralGate, type PadFrame } from './sampler';
 import { GAMEPAD_PROFILES, keyboardKey } from './profiles';
 let current:PadFrame|undefined;
@@ -54,6 +55,7 @@ export function installGamepad(id:string):()=>void {
     target=null;button=-1;
   };
   const release=()=>{for(const code of heldKeys.keys())emitKey(code,false);heldKeys.clear();releasePointer(true);current=undefined;lookActive=false;delete document.body.dataset.gamepadActive;};
+  const returnMenu = new GameReturnController(() => { release(); physicalKeys.clear(); gate.reset(); });
   const listen=(el:EventTarget,type:string,fn:EventListener)=>el.addEventListener(type,fn,{signal:lifetime.signal});
   listen(window,'keydown',e=>{if(e.isTrusted)physicalKeys.add((e as KeyboardEvent).code);});
   listen(window,'keyup',e=>{if(e.isTrusted){const code=(e as KeyboardEvent).code;physicalKeys.delete(code);if(heldKeys.has(code))queueMicrotask(()=>{if(!disposed&&heldKeys.has(code)&&!physicalKeys.has(code))emitKey(code,true);});}});
@@ -65,17 +67,19 @@ export function installGamepad(id:string):()=>void {
     const pads=sampler.sample();
     if(document.hidden||blocked){gate.reset();release();cursor.style.display=hint.style.display='none';return;}
     const devices=Array.from(navigator.getGamepads?.()??[]);const active=gate.filter(pads.filter(p=>devices[p.index]?.connected));
-    if(!active.length){release();cursor.style.display=hint.style.display='none';return;}
+    if(!active.length){release();if(returnMenu.active)returnMenu.update(time,[]);cursor.style.display=hint.style.display='none';return;}
+    if(returnMenu.active){release();returnMenu.update(time,active);cursor.style.display=hint.style.display='none';return;}
+    if(active.some(p=>p.pressed.has('b8'))){returnMenu.request();return;}
     const p=active[0]!;
-    // Back is deferred until release so host chords cannot also toggle pointer mode.
-    if(p.held.has('b8')){
+    // R3 is deferred until release so host chords cannot also toggle pointer mode.
+    if(p.held.has('b11')){
       back=true;
       const command=p.held.has('b9')?'home':p.held.has('b4')?'previous':p.held.has('b5')?'next':null;
       release();
       if(command&&!chord){
         chord=true;
-        if(parent!==window)parent.postMessage({type:'haiyue-gamepad-'+command},location.origin);
-        else if(command==='home')location.assign('../../');
+        if(command==='home')returnMenu.request();
+        else if(parent!==window)parent.postMessage({type:'haiyue-gamepad-'+command},location.origin);
       }
       return;
     }
@@ -83,7 +87,7 @@ export function installGamepad(id:string):()=>void {
     pointerMode=localPointer;
     current=p;
     document.body.dataset.gamepadActive='true';
-    hint.style.display=profile.engineHud?'none':'block';hint.textContent=`${localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 切换指针 · Back+Start 大厅 · Back+LB/RB 切游戏`;
+    hint.style.display=profile.engineHud?'none':'block';hint.textContent=`${localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 返回首页 · R3 切换指针 · R3+LB/RB 切游戏`;
     const rx=p.values.rx??0,ry=p.values.ry??0;
     const dx=localPointer?(p.values.x??0)+Number(p.held.has('b15'))-Number(p.held.has('b14')):0;
     const dy=localPointer?(p.values.y??0)+Number(p.held.has('b13'))-Number(p.held.has('b12')):0;
@@ -121,7 +125,7 @@ export function installGamepad(id:string):()=>void {
     for(const [code,state] of heldKeys){if(!next.has(code)){emitKey(code,false);heldKeys.delete(code);}else if(time-state.since>400&&time-state.repeat>100&&profile.directions?.includes(code)){emitKey(code,true,true);state.repeat=time;}}
     for(const code of next)if(!heldKeys.has(code)){heldKeys.set(code,{since:time,repeat:time});emitKey(code,true);}
   };
-  const dispose=()=>{if(disposed)return;release();disposed=true;cancelAnimationFrame(frame);lifetime.abort();sampler.dispose();for(const restore of captures.values())restore();cursor.remove();hint.remove();pointerMode=false;};
+  const dispose=()=>{if(disposed)return;release();disposed=true;cancelAnimationFrame(frame);lifetime.abort();returnMenu.dispose();sampler.dispose();for(const restore of captures.values())restore();cursor.remove();hint.remove();pointerMode=false;};
   listen(window,'pagehide',e=>{release();if(!(e as PageTransitionEvent).persisted)dispose();});
   frame=requestAnimationFrame(loop);return dispose;
 }

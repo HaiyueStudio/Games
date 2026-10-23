@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('pong');
 import {
@@ -157,7 +158,7 @@ class PongGame {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.025, g: 0.095, b: 0.19, a: 1 },
       msaaSamples: 4,

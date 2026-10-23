@@ -1,9 +1,10 @@
+import { sessionAudio } from '../../session/audio';
 import {OwnerSafeAudioMixer} from '@haiyue/engine/experimental/audio';
 import {SKY_AUDIO_ASSETS,soundPath,type SkyAudioAsset} from './synthesis';
 import type {SkyAudioBackend,SkyAudioPlay} from './SkyStrikeAudio';
 /** Uses the Engine's public mixer; context unlock happens directly in a user gesture. */
 export class SkyStrikeBrowserAudio implements SkyAudioBackend {
-  private readonly mixer=new OwnerSafeAudioMixer({maxVoicesTotal:12,maxVoicesPerOwner:12});
+  private readonly mixer=new OwnerSafeAudioMixer({ contextFactory: () => sessionAudio(new AudioContext()),maxVoicesTotal:12,maxVoicesPerOwner:12});
   private error:string|null=null;
   private disposed=false;
   private wantsRunning=false;

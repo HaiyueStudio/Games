@@ -1,3 +1,4 @@
+import { gameTime, gameDelay } from '../../session/SessionPause';
 export interface ScreenPointerEvent {
   x: number;
   y: number;
@@ -213,7 +214,7 @@ class SokobanPadGame implements BuiltinPadGame {
     }
     this.player = next;
     this.moves++;
-    if (this.boxes.every(box => this.targets.has(`${box.x},${box.y}`))) setTimeout(() => this.loadLevel(this.level + 1), 280);
+    if (this.boxes.every(box => this.targets.has(`${box.x},${box.y}`))) gameDelay(() => this.loadLevel(this.level + 1), 280);
   }
 
   private render(): void {
@@ -362,7 +363,7 @@ class SpiderSolitairePadGame implements BuiltinPadGame {
 
   private deal(): void {
     if (this.stock.length < 10 || this.columns.some(col => col.length === 0)) return;
-    const now = performance.now();
+    const now = gameTime();
     const stockFrom = this.stockPosition(Math.max(0, Math.floor(this.stock.length / 10) - 1));
     for (let c = 0; c < 10; c++) {
       const card = this.stock.pop();
@@ -404,7 +405,7 @@ class SpiderSolitairePadGame implements BuiltinPadGame {
       const run = col.slice(-13);
       if (run.every((card, i) => card.faceUp && card.rank === 13 - i)) {
         const startIndex = col.length - 13;
-        const now = performance.now();
+        const now = gameTime();
         run.forEach((card, i) => {
           this.flights.push({
             card,
@@ -451,7 +452,7 @@ class SpiderSolitairePadGame implements BuiltinPadGame {
     }
     return null;
   }
-  private render(time = performance.now()): void {
+  private render(time = gameTime()): void {
     const ctx = this.ctx;
     ctx.fillStyle = '#0f6b48';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -827,13 +828,13 @@ export class PadOSScene {
     if (this.deviceOrientation === orientation && this.orientationTargetAngle === angle) return;
     this.orientationFromAngle = this.orientationAngle;
     this.orientationTargetAngle = angle;
-    this.orientationAnimStart = performance.now();
+    this.orientationAnimStart = gameTime();
     this.deviceOrientation = orientation;
     if (this.mode === 'home') {
       this.dragging = false;
       this.animFrom = this.page;
       this.animTo = this.page;
-      this.animStart = performance.now();
+      this.animStart = gameTime();
     }
   }
 

@@ -15,6 +15,9 @@ The manifest also adds the game to the generated Pages lobby.
 
 - Player 1: WASD to move, J or Space to fire.
 - Player 2: arrow keys to move, Enter or / to fire.
+- Menu: WASD / arrows or controller stick / D-pad selects; Enter / Space / J or A / X confirms.
+  The highlighted choice starts 1P or 2P; paused games also offer Continue.
+- Controller: A / X fires, Start pauses/resumes; a second controller operates 2P.
 - P or Escape pauses/resumes. Losing focus pauses automatically. Touch controls operate player 1.
 - Teammates cannot damage each other; either side's shots can destroy the base.
 - Each player starts with three lives and receives a three-second shield when spawning.
@@ -33,13 +36,20 @@ The manifest also adds the game to the generated Pages lobby.
 ## Architecture and assets
 
 `rules/rules.ts` is a deterministic 60 Hz simulation with no DOM, audio or rendering dependency.
-`rendering/render.ts` is a Canvas 2D sprite adapter with nearest-neighbor scaling. `ui/TankBattleHud.ts`
-renders the complete interface with public Engine `GuiRoot`, `GuiLabel`, `GuiButton` and
+`rendering/render.ts` renders pooled battlefield sprites and effects with public Engine GUI,
+using the existing four-direction atlas. Five ordered GUI roots preserve terrain, tanks, forest, pickups
+and effect layering before the HUD root. One WebGPU canvas and one GUI system render both
+the battlefield and interface; no Canvas 2D battlefield or per-frame texture upload is used.
+The atlas is expanded once with pixelated sampling to retain crisp edges with the installed GUI sampler.
+`ui/TankBattleHud.ts` renders the complete interface with public Engine `GuiRoot`, `GuiLabel`, `GuiButton` and
 `GuiImage` components, through `GuiSystem` and `RenderIntegration`. Menus, player status,
 terrain/supply legends and touch controls are engine GUI elements, not DOM widgets.
-`main.ts` runs the fixed simulation from the Engine update event and owns removable input,
-audio and autosave. The GUI now requires a WebGPU-capable browser. Both the GUI world and
-engine are destroyed on teardown; resize changes the existing elements rather than recreating them.
+`game/TankBattle.ts` runs the fixed simulation from the Engine update event and owns removable input,
+audio and autosave. The GUI now requires a WebGPU-capable browser. The GUI world,
+engine and expanded bitmap are destroyed on teardown; resize changes the existing elements rather than recreating them.
+Menu selection uses Engine `GuiFocusManager`; the installed 0.1.0 GUI has no directional
+navigation API, so the game maps its visible mode buttons to the existing controller key adapter.
+`RenderIntegration` remains an intentional experimental dependency.
 `input/pointerCapture.ts` guards stale native capture calls from the installed GUI's deferred touch
 dispatch, preserving concurrent live touches and restoring the canvas methods on teardown.
 

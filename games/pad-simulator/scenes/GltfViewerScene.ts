@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { Camera3D, CartesianTransform3D, Entity, SphericalTransform3D, HaiyueEngine, World } from '@haiyue/engine';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import {
@@ -191,7 +193,7 @@ export class GltfViewerScene {
   async init(): Promise<void> {
     if (this.initialized) return;
     this.initialized = true;
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas: this.canvas,
       clearColor: { r: 0.030, g: 0.038, b: 0.055, a: 1 },
       alphaMode: 'premultiplied',
@@ -258,7 +260,7 @@ export class GltfViewerScene {
   dispatchPointer(type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel', x: number, y: number, options: PointerOptions = {}): void {
     if (this.draggingModel && type === 'pointermove') {
       this.dragModelTo(x, y);
-      this.update(performance.now());
+      this.update(gameTime());
       return;
     }
 
@@ -284,13 +286,13 @@ export class GltfViewerScene {
       this.draggingModel = false;
     }
 
-    this.update(performance.now());
+    this.update(gameTime());
   }
 
   dispatchWheel(x: number, y: number, deltaY: number, options: PointerOptions = {}): void {
     if (this.isPreviewPoint(x, y)) {
       this.zoomModel(deltaY);
-      this.update(performance.now());
+      this.update(gameTime());
       return;
     }
 
@@ -306,7 +308,7 @@ export class GltfViewerScene {
       cancelable: true,
     });
     this.canvas.dispatchEvent(event);
-    this.update(performance.now());
+    this.update(gameTime());
   }
 
   private buildGui(): void {

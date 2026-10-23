@@ -1,3 +1,4 @@
+import { GameEngine } from '../session/GameEngine';
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('gravity-maze');
 import {
@@ -42,7 +43,7 @@ async function main(): Promise<void> {
   const saved = await saves.load();
   const rayTracingEvidence = new URLSearchParams(location.search).get('rayTracing') === '1';
   const canvas = requiredElement('canvas', HTMLCanvasElement);
-  const engine = new HaiyueEngine({
+  const engine = new GameEngine({
     canvas,
     clearColor: { r: 0.025, g: 0.045, b: 0.075, a: 1 },
     msaaSamples: 4,

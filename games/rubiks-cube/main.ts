@@ -1,6 +1,6 @@
+import { GameEngine } from '../session/GameEngine';
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('rubiks-cube');
-import { HaiyueEngine } from '@haiyue/engine';
 import { MemorySaveBackend } from '@haiyue/engine/save';
 import { CubeGame } from './game/CubeGame';
 import { KINDS, type Kind } from './rules/model';
@@ -23,7 +23,7 @@ function fail(error: unknown): void {
 }
 async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas')!;
-  const engine = new HaiyueEngine({
+  const engine = new GameEngine({
     canvas,
     clearColor: { r: 0.022, g: 0.037, b: 0.063, a: 1 },
     msaaSamples: 4,

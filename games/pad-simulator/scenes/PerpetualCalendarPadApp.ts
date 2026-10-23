@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, HaiyueEngine, Mesh3D, World, createPlane3D } from '@haiyue/engine';
 import { BitmapText } from '@haiyue/engine/components';
 import { BitmapTextRenderSystem, Render3DSystem } from '@haiyue/engine/systems';
@@ -213,7 +214,7 @@ class PerpetualCalendarGpuScene {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: COLORS.background[0], g: COLORS.background[1], b: COLORS.background[2], a: 1 },
       msaaSamples: 4,

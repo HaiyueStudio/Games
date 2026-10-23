@@ -1,3 +1,6 @@
+import { sessionAudio } from '../../session/audio';
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { FixedStepClock } from '@haiyue/engine/experimental/simulation';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('pacman');
@@ -152,12 +155,12 @@ class ArcadeAudio {
 
   unlock(): void {
     if (!this.enabled) return;
-    this.context ??= new AudioContext();
+    this.context ??= sessionAudio(new AudioContext());
     if (this.context.state === 'suspended') void this.context.resume();
   }
 
   pellet(): void {
-    const now = performance.now();
+    const now = gameTime();
     if (now - this.lastPelletAt < 45) return;
     this.lastPelletAt = now;
     this.tone(520, 0.035, 0.025, 'square');
@@ -257,7 +260,7 @@ class PacmanGame {
   }
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.002, g: 0.004, b: 0.018, a: 1 },
       msaaSamples: 4,
@@ -580,7 +583,7 @@ class PacmanGame {
       ghost.visualState = '';
       ghost.root.disabled = false;
     }
-    this.syncVisuals(performance.now());
+    this.syncVisuals(gameTime());
   }
 
   private requestDirection(direction: Direction): void {

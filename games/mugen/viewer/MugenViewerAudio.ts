@@ -1,3 +1,4 @@
+import { sessionAudio } from '../../session/audio';
 import { OwnerSafeAudioMixer, type AudioMixerPlayRequest } from '@haiyue/engine/experimental/audio';
 import type { MugenCharacterModel, MugenViewerAction, MugenViewerAudioCue, MugenViewerSound } from './MugenCharacterModel';
 
@@ -26,7 +27,7 @@ export class MugenViewerAudio {
   #eventSequence = 0;
   #disposed = false;
 
-  constructor(mixer: MugenViewerAudioMixer = new OwnerSafeAudioMixer({ maxVoicesTotal: 12, maxVoicesPerOwner: 12 })) { this.#mixer = mixer; }
+  constructor(mixer: MugenViewerAudioMixer = new OwnerSafeAudioMixer({ contextFactory: () => sessionAudio(new AudioContext()), maxVoicesTotal: 12, maxVoicesPerOwner: 12 })) { this.#mixer = mixer; }
 
   setVolume(value: number): void { this.#mixer.setMasterVolume(Math.max(0, Math.min(1, value))); }
 

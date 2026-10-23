@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { AmbientLight, PointLight } from '@haiyue/engine/lighting';
 import { BasicMaterial, Camera2D, Camera3D, CartesianTransform3D, ColorSRGB, Component, DirectionalLight, Entity, Geometry2D, Geometry3D, Material2D, Mesh2D, Mesh3D, SphericalTransform3D, System, Transform2D, HaiyueEngine, World } from '@haiyue/engine';
 import { BasisTransform3D, DataComponent, InstancedMesh3D, KeyboardComponent, MeshHelper, ScriptComponent, ScriptResource, Transform3D, type JsonObject, type ScriptLifecycleName, type ScriptRuntimeApi, type ScriptRuntimeContext, type ScriptRuntimeReadApi, type ScriptRuntimeSceneApi } from '@haiyue/engine/components';
@@ -666,7 +667,7 @@ export class EmbeddedScenePlayer {
     this.stop();
     document.body.append(this.canvas);
     const defaults = getEngineDefaultsFromEmbeddedGlobals(scene.globals);
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas: this.canvas,
       ...(defaults === undefined ? {} : { defaults }),
       alphaMode: 'premultiplied',

@@ -27,7 +27,7 @@ test('every game engine enables four-sample MSAA', async () => {
     for (const sourceFile of sourceFiles) {
       const source = await readFile(sourceFile, 'utf8');
       assert.doesNotMatch(source, /msaaSamples:\s*1\b/, `${entry.id} must not disable the game MSAA default`);
-      for (const engineOptions of source.matchAll(/new HaiyueEngine\(\{([\s\S]*?)\}\);/g)) {
+      for (const engineOptions of source.matchAll(/new (?:HaiyueEngine|GameEngine)\(\{([\s\S]*?)\}\);/g)) {
         engineCount++;
         assert.match(
           engineOptions[1],

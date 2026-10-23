@@ -1,3 +1,4 @@
+import { sessionAudio } from '../../session/audio';
 import { OwnerSafeAudioMixer, type AudioMixerPlayRequest } from '@haiyue/engine/experimental/audio';
 import type { MugenBuiltInGameFixture, MugenGameSound } from './MugenGameFixture';
 import type { MugenMatchEvent } from '../runtime/match/MugenMatchState';
@@ -7,7 +8,7 @@ import { createMugenDefaultFightSounds, MUGEN_DEFAULT_FIGHT_SOUND_PACKAGE } from
 export interface MugenGameAudioConsumeResult { readonly requested: number; readonly played: number; readonly missing: number }
 
 export class MugenGameAudio {
-  readonly #mixer = new OwnerSafeAudioMixer({ maxVoicesTotal: 32, maxVoicesPerOwner: 8 });
+  readonly #mixer = new OwnerSafeAudioMixer({ contextFactory: () => sessionAudio(new AudioContext()), maxVoicesTotal: 32, maxVoicesPerOwner: 8 });
   readonly #sounds = new Map<string, MugenGameSound>();
   readonly #ownerPackages = new Map<string, string>();
   #fightSoundCount = 0;

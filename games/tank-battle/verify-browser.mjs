@@ -85,6 +85,8 @@ try {
   console.log('Engine GUI ready; checking pointer and keyboard input.');
   assert.equal(await evaluate('window.__tankBattle.hud().renderer'), 'engine-gui');
   assert.equal(await evaluate('document.querySelectorAll("button,aside,img").length'), 0, 'HUD must not use DOM widgets');
+  assert.equal(await evaluate('document.querySelectorAll("canvas").length'), 1, 'battlefield and HUD share one canvas');
+  assert.equal(await evaluate('window.__tankBattle.hud().battlefieldRenderer'), 'engine-gui');
   await capture('title.png');
   await click('#solo'); let state = await snapshot(); assert.equal(state.mode, 1); assert.equal(state.phase, 'playing');
   await key('keyDown', 'w', 'KeyW', 87); await key('keyDown', 'j', 'KeyJ', 74); await delay(400);
@@ -100,7 +102,7 @@ try {
   state = await snapshot(); assert.equal(state.mode, 2);
   for (const p of [1, 2]) { assert.ok(state.tanks.find(t => t.player === p).y < 385); assert.ok(state.bullets.some(b => b.player === p)); }
   await delay(4000); await capture('gameplay.png');
-  const rectangle = await evaluate('(() => { const r=document.querySelector("#battlefield").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1};})()');
+  const rectangle = await evaluate('(() => { const r=window.__tankBattle.hud().board;return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1};})()');
   await capture('thumbnail.png', { clip: rectangle });
   if (process.argv.includes('--update-thumbnail')) writeFileSync(resolve(root, 'site/screenshots/tank-battle.png'), readFileSync(resolve(output, 'thumbnail.png')));
   await click('#sound'); assert.equal(await evaluate('window.__tankBattle.hud().muted'), true);
@@ -114,7 +116,7 @@ try {
   await evaluate('window.dispatchEvent(new Event("blur"))'); assert.equal((await snapshot()).phase, 'paused');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 768, deviceScaleFactor: 2, mobile: false });
   await delay(300);
-  assert.ok(await evaluate('(() => {const r=document.querySelector("#battlefield").getBoundingClientRect();return Math.abs(r.width-r.height)<1;})()'), 'compact desktop battlefield must remain square');
+  assert.ok(await evaluate('(() => {const r=window.__tankBattle.hud().board;return Math.abs(r.width-r.height)<1;})()'), 'compact desktop battlefield must remain square');
   await capture('compact-desktop.png');
   await click('#resume'); assert.equal((await snapshot()).phase, 'playing');
   await click('#pause'); assert.equal((await snapshot()).phase, 'paused');
@@ -122,6 +124,7 @@ try {
   await delay(300);
   await navigate('/games/tank-battle/index.html?verify=1&mobile=1');
   assert.equal(await evaluate('window.__tankBattle.hud().buttons.duo'), undefined, 'mobile offers only 1P');
+  assert.equal(await evaluate('document.querySelectorAll("canvas").length'), 1, 'mobile also uses one canvas');
   await capture('mobile-title.png');
   await click('#solo');
   assert.equal((await snapshot()).mode, 1);
@@ -153,7 +156,7 @@ try {
   await evaluate('window.dispatchEvent(new Event("blur"))');
   assert.equal((await snapshot()).phase,'paused','mobile pauses when backgrounded');
   assert.deepEqual(errors, [], 'browser errors');
-  writeFileSync(resolve(output, 'browser.json'), `${JSON.stringify({ result: 'pass', checks: ['assets', 'single-player movement/fire', 'simultaneous co-op controls', 'pause/resume', 'mute', 'exact autosave restore', 'blur pause', 'responsive square battlefield', '1P-only mobile menu', 'joystick and simultaneous fire', 'touch cancellation', 'independent mobile autosave', '320px and landscape layout', 'mobile background pause'], browserErrors: errors, screenshots: ['title.png', 'gameplay.png', 'compact-desktop.png', 'mobile.png', 'mobile-title.png', 'mobile-landscape.png', 'mobile-small.png'] }, null, 2)}\n`);
+  writeFileSync(resolve(output, 'browser.json'), `${JSON.stringify({ result: 'pass', checks: ['single shared Engine GUI canvas', 'assets', 'single-player movement/fire', 'simultaneous co-op controls', 'pause/resume', 'mute', 'exact autosave restore', 'blur pause', 'responsive square battlefield', '1P-only mobile menu', 'joystick and simultaneous fire', 'touch cancellation', 'independent mobile autosave', '320px and landscape layout', 'mobile background pause'], browserErrors: errors, screenshots: ['title.png', 'gameplay.png', 'compact-desktop.png', 'mobile.png', 'mobile-title.png', 'mobile-landscape.png', 'mobile-small.png'] }, null, 2)}\n`);
   console.log('Tank Battle browser checks passed. Screenshots: artifacts/tank-battle/');
   socket.close();
 } catch (error) {

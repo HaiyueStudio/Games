@@ -1,13 +1,16 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { Entity, HaiyueEngine, World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { GuiRoot, GuiElement, GuiLabel, GuiButton, GuiImage, GuiSystem, type GuiRect } from '@haiyue/engine/gui';
+import { BattlefieldRenderer } from '../rendering/render';
 import { SPRITE_INDEX, ATLAS_COLUMNS, SPRITES } from '../rendering/sprites';
 import { POWERUP_NAMES, STAGE_NAMES, type GameState } from '../rules/rules';
 
 export interface HudState { state: GameState; best: number; hasRun: boolean; menuOpen: boolean; muted: boolean; saveStatus: string }
 export type HudAction = 'solo' | 'duo' | 'resume' | 'pause' | 'menu' | 'sound';
 const GOLD = '#e4c477', MUTED = '#a0ad90', TEXT = '#e9e5d4';
-const FONT_COPY = '手柄摇杆指针切换铁甲前线作战指挥当前战区等待指令进行中暂停结束任务完成基地完好失守加固敌军冻结待清除消灭全部进入下一先先锋僚机未加入已阵亡生命最高总分移动开火声音关继续单人出击双协守住最后的防线选择模式开始新任务五个战区全部肃清所有坦克耗尽摧毁准备前往发现补给获得区域即将第秒火力升级无敌护盾全屏爆破时间铁锹额外射速双弹破甲免疫伤害增加一辆砖墙可坏满级穿雪地滑行海水阻挡丛林隐蔽战场补给击毁闪光敌军后掉落驾驶坦克拾取进度自动保存正在已失败当前对局仍可素材图鉴重新出发返回大厅' + STAGE_NAMES.join('') + Object.values(POWERUP_NAMES).join('');
+const FONT_COPY = '首页确认 手柄摇杆指针切换铁甲前线作战指挥当前战区等待指令进行中暂停结束任务完成基地完好失守加固敌军冻结待清除消灭全部进入下一先先锋僚机未加入已阵亡生命最高总分移动开火声音关继续单人出击双协守住最后的防线选择模式开始新任务五个战区全部肃清所有坦克耗尽摧毁准备前往发现补给获得区域即将第秒火力升级无敌护盾全屏爆破时间铁锹额外射速双弹破甲免疫伤害增加一辆砖墙可坏满级穿雪地滑行海水阻挡丛林隐蔽战场补给击毁闪光敌军后掉落驾驶坦克拾取进度自动保存正在已失败当前对局仍可素材图鉴重新出发返回大厅' + STAGE_NAMES.join('') + Object.values(POWERUP_NAMES).join('');
 export const HUD_FONT_CHARS = [...new Set(Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join('') + FONT_COPY + '菜单 / 保护基地！或上了种被' + '·×←↑→↓▶Ⅱ▰↗—…：，。/！')].join('');
 export const TOUCH_KEYS: Record<string, string> = { up: 'KeyW', left: 'KeyA', down: 'KeyS', right: 'KeyD', fire: 'KeyJ' };
 
@@ -17,7 +20,9 @@ export class TankBattleHud {
   private readonly world = new World('Tank Battle GUI');
   private readonly root = new GuiRoot({ theme: { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 13, radius: 0,
     colors: { text: TEXT, textMuted: MUTED, primary: GOLD, danger: '#b85e44', background: '#182218', surface: '#263222', border: '#536345', hover: '#475737', active: '#677746', disabled: '#4b5544' } } });
+  private readonly battlefield = new BattlefieldRenderer(this.world);
   private system!: GuiSystem;
+  private highlighted: GuiButton | null = null;
   private readonly labels = new Map<string, GuiLabel>();
   private readonly buttons = new Map<string, GuiButton>();
   private readonly images = new Map<string, GuiImage>();
@@ -36,14 +41,14 @@ export class TankBattleHud {
   private view: HudState | null = null;
   private readonly resizeObserver: ResizeObserver;
   private disposed = false;
-  constructor(private readonly canvas: HTMLCanvasElement, private readonly battlefield: HTMLCanvasElement,
+  constructor(private readonly canvas: HTMLCanvasElement,
     private readonly host: HTMLElement, private readonly action: (action: HudAction) => void) {
-    this.engine = new HaiyueEngine({ canvas, clearColor: { r: 0, g: 0, b: 0, a: 0 }, alphaMode: 'premultiplied', msaaSamples: 4,
+    this.engine = new GameEngine({ canvas, clearColor: { r: 21 / 255, g: 27 / 255, b: 23 / 255, a: 1 }, alphaMode: 'opaque', msaaSamples: 4,
       devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
     this.resizeObserver = new ResizeObserver(() => this.resize());
   }
   async init(): Promise<void> {
-    this.atlas.src = './assets/atlas.png'; await this.atlas.decode(); await this.engine.init();
+    this.atlas.src = './assets/atlas.png'; await Promise.all([this.atlas.decode(), this.engine.init(), this.battlefield.init()]);
     const entity = new Entity('TankBattleHud'); entity.addComponent(this.root); this.world.addEntity(entity);
     this.build();
     this.system = new GuiSystem(this.engine, { loadOp: 'clear', font: { chars: HUD_FONT_CHARS, fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
@@ -53,10 +58,11 @@ export class TankBattleHud {
     this.resizeObserver.observe(this.host); this.resize();
   }
   start(update: (time: number) => void): void {
-    this.engine.on('update', ({ detail: { time, delta } }) => { update(performance.now());
+    this.engine.on('update', ({ detail: { time, delta } }) => { update(gameTime());
       const controller=document.body.dataset.gamepadActive==='true';
       for(const player of [1,2])this.labels.get(`p${player}-keys`)!.setText(controller?`${player}P 摇杆移动 / A 开火`:player===1?'W A S D 移动 / J 开火':'↑ ← ↓ → 移动 / Enter 开火');
-      this.labels.get('brand')!.setText(controller?'Back 指针 / Start 暂停 / Back+Start 大厅 / Back+LB/RB 切换':'HAIYUE  /  ARCADE DIVISION');
+      this.syncMenuFocus();
+      this.labels.get('brand')!.setText(controller?(this.modal.visible?'摇杆 / ↑↓ 选择 · A 确认 · Start 暂停 · Back 返回首页':'Back 返回首页 / Start 暂停 / R3 指针 / R3+LB/RB 切换'):'HAIYUE  /  ARCADE DIVISION');
       this.world.update(time, delta); });
     this.engine.run();
   }
@@ -139,7 +145,7 @@ export class TankBattleHud {
     this.label('overlay-detail', '', () => { const a = dialog(); return r(a.x + 12, a.y + 79, a.width - 24, 22); }, 11, MUTED, this.modal);
     this.image('menu-tank', 'p1-3-0', () => { const a = dialog(); return r(a.x + a.width / 2 - 18, a.y + 110, 36, 36); }, this.modal);
     for (const [i, id, text] of [[0, 'resume', '继续作战'], [1, 'solo', '单人出击  /  1P'], [2, 'duo', '双人协作  /  2P']] as const) {
-      this.button(id, text, () => { const a = dialog(); const h = this.mobile ? 35 : 40; return r(a.x + 15, a.y + a.height - (3 - i) * (h + 7) - 12, a.width - 30, h); }, () => this.action(id), this.modal, id !== 'duo');
+      this.button(id, text, () => { const a = dialog(); const h = this.mobile ? 35 : 40; return r(a.x + 15, a.y + a.height - (3 - i) * (h + 7) - 12, a.width - 30, h); }, () => this.action(id), this.modal);
     }
   }
   private resize(): void {
@@ -152,7 +158,6 @@ export class TankBattleHud {
     this.sideX = this.mobile ? 12 : size + 34; this.sideY = this.mobile ? this.touchY + 103 : 112; this.sideW = this.mobile ? width - 24 : width - this.sideX - 12;
     this.supplyY = this.mobile ? this.sideY + 234 : Math.max(112 + size + 105, 642);
     this.height = this.supplyY + (this.mobile ? 205 : 143); this.host.style.height = `${this.height}px`;
-    Object.assign(this.battlefield.style, { left: `${this.board.x}px`, top: `${this.board.y}px`, width: `${size}px`, height: `${size}px` });
     for (const id of ['stage', 'enemies', 'best', 'menu']) (this.labels.get(id) ?? this.buttons.get(id))!.setVisible(!this.mobile);
     for (const id of Object.keys(TOUCH_KEYS)) this.buttons.get(id)!.setVisible(this.mobile);
     this.images.get('menu-tank')!.setVisible(this.board.width >= 340);
@@ -184,12 +189,47 @@ export class TankBattleHud {
     this.buttons.get('sound')!.setText(`声音 ${muted ? '关' : '开'}`);
     this.modal.setVisible(menuOpen || ended || s.phase === 'paused');
     this.buttons.get('resume')!.setVisible(hasRun && !ended);
+    this.syncMenuFocus();
     this.cleared.setVisible(s.phase === 'cleared' && !menuOpen);
     this.labels.get('overlay-title')!.setText(ended ? (s.phase === 'victory' ? '防线守住了' : '作战结束') : menuOpen ? '守住最后的防线' : '作战已暂停');
     this.labels.get('overlay-description')!.setText(ended ? s.message : hasRun ? `第 ${s.stage} 关 · ${STAGE_NAMES[s.stage - 1]}` : '保护基地，击毁闪光敌军。');
     this.labels.get('overlay-detail')!.setText(ended ? `总分 ${s.players.reduce((n, p) => n + p.score, 0)}` : hasRun ? '继续进度，或选择模式开始新任务。' : '5 个战区 / 4 种敌军 / 6 种补给');
   }
-  releaseFocus(): void { this.system.focus.blur(); this.canvas.focus({ preventScroll: true }); }
+  drawBattlefield(state: GameState): void { this.battlefield.draw(state, this.board); }
+  private menuButtons(): GuiButton[] {
+    return ['resume', 'solo', 'duo'].map(id => this.buttons.get(id)!).filter(button => button.visible && !button.disabled);
+  }
+  private syncMenuFocus(): void {
+    if (!this.modal.visible && !this.highlighted) return;
+    const buttons = this.menuButtons();
+    if (this.modal.visible && !buttons.includes(this.system.focus.focused as GuiButton)) this.system.focus.focus(buttons[0]!);
+    const focused = this.modal.visible ? this.system.focus.focused as GuiButton : null;
+    if (focused === this.highlighted) return;
+    this.highlighted = focused;
+    for (const id of ['resume', 'solo', 'duo']) {
+      const button = this.buttons.get(id)!;
+      button.setStyle({ backgroundColor: button === focused ? GOLD : '#2b3825', color: button === focused ? '#202a1c' : TEXT,
+        hoverBackgroundColor: button === focused ? '#f4d68b' : '#4a5d37', hoverColor: button === focused ? '#202a1c' : TEXT });
+    }
+    if (!this.modal.visible) this.system.focus.blur();
+  }
+  /** Installed Engine GUI exposes focus but not directional navigation; map menu keys locally. */
+  handleMenuKey(event: KeyboardEvent): boolean {
+    if (!this.modal.visible) return false;
+    const previous = ['KeyW', 'KeyA', 'ArrowUp', 'ArrowLeft'].includes(event.code) || (event.code === 'Tab' && event.shiftKey);
+    const next = ['KeyS', 'KeyD', 'ArrowDown', 'ArrowRight'].includes(event.code) || (event.code === 'Tab' && !event.shiftKey);
+    const confirm = ['KeyJ', 'Enter', 'Space'].includes(event.code);
+    if (!previous && !next && !confirm) return false;
+    event.preventDefault(); this.syncMenuFocus();
+    const buttons = this.menuButtons(), selected = this.system.focus.focused as GuiButton;
+    if (previous || next) this.system.focus.focus(buttons[(buttons.indexOf(selected) + (previous ? -1 : 1) + buttons.length) % buttons.length]!);
+    else if (!event.repeat) this.action(selected.id as HudAction);
+    this.syncMenuFocus(); return true;
+  }
+  releaseFocus(): void {
+    if (!this.modal.visible) this.system.focus.blur();
+    this.syncMenuFocus(); this.canvas.focus({ preventScroll: true });
+  }
   touchKey(event: PointerEvent): string | undefined {
     const rect = this.canvas.getBoundingClientRect();
     const hit = this.root.hitTest((event.clientX - rect.left) * this.width / rect.width, (event.clientY - rect.top) * this.height / rect.height);
@@ -199,11 +239,12 @@ export class TankBattleHud {
   snapshot() {
     const canvas = this.canvas.getBoundingClientRect();
     const text = [...this.labels.values(), ...this.buttons.values()].map(element => element.text).join('');
-    return { renderer: 'engine-gui', mobile: this.mobile, saveStatus: this.view?.saveStatus, muted: this.view?.muted,
+    return { renderer: 'engine-gui', battlefieldRenderer: 'engine-gui', canvasCount: document.querySelectorAll('canvas').length,
+      board: { ...this.board, x: canvas.left + this.board.x, y: canvas.top + this.board.y }, menuVisible: this.modal.visible, selectedMenu: this.modal.visible ? this.system.focus.focused?.id : null, mobile: this.mobile, saveStatus: this.view?.saveStatus, muted: this.view?.muted,
       viewport: { width: this.engine.displayWidth, height: this.engine.displayHeight, cssWidth: canvas.width, cssHeight: canvas.height },
       missingGlyphs: [...new Set([...text].filter(char => !HUD_FONT_CHARS.includes(char)))],
       buttons: Object.fromEntries([...this.buttons].map(([id, b]) => [id, { ...b.rect, x: canvas.left + b.rect.x, y: canvas.top + b.rect.y, visible: b.visible, disabled: b.disabled }])),
       labels: Object.fromEntries([...this.labels].map(([id, l]) => [id, l.text])) };
   }
-  dispose(): void { if (this.disposed) return; this.disposed = true; this.resizeObserver.disconnect(); this.world.destroy(); this.engine.destroy(); }
+  dispose(): void { if (this.disposed) return; this.disposed = true; this.resizeObserver.disconnect(); this.world.destroy(); this.engine.destroy(); this.battlefield.dispose(); }
 }

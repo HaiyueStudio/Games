@@ -1,3 +1,5 @@
+import { sessionAudio } from '../../session/audio';
+import { GameEngine } from '../../session/GameEngine';
 import { FixedStepClock } from '@haiyue/engine/experimental/simulation';
 import { Camera2D, ColorSRGB, Entity, HaiyueEngine, Material2D, Mesh2D, Transform2D, World } from '@haiyue/engine';
 import { createCircle2D, createRect2D } from '@haiyue/engine/geometry';
@@ -51,7 +53,7 @@ export class PinballGame {
     const images = ['notebook-paper.png', 'star-bumper.png', ...SCENERY_ASSETS].map(file => {
       const image = new Image(); image.src = `./assets/${file}`; return image.decode();
     });
-    this.engine = new HaiyueEngine({ canvas, renderProfile: 'simple', alphaMode: 'premultiplied', clearColor: { r: 0, g: 0, b: 0, a: 0 }, msaaSamples: 4 });
+    this.engine = new GameEngine({ canvas, renderProfile: 'simple', alphaMode: 'premultiplied', clearColor: { r: 0, g: 0, b: 0, a: 0 }, msaaSamples: 4 });
     await Promise.all([this.engine.init(), ...images]);
     this.engine.resizeToDisplaySize(true);
     const camera = new Entity('Camera');
@@ -304,7 +306,7 @@ export class PinballGame {
   }
   private unlockAudio(): void {
     if (!this.sound) return;
-    this.audio ??= new AudioContext();
+    this.audio ??= sessionAudio(new AudioContext());
     void this.audio.resume().catch(() => {});
   }
   private tone(frequency: number, duration: number): void {

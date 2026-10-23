@@ -1,3 +1,5 @@
+import { gameDelay } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { HaiyueEngine } from '@haiyue/engine';
 import { requireEngineCanvas } from '@haiyue/engine/experimental';
 import { World } from '@haiyue/engine';
@@ -98,7 +100,7 @@ export class SudokuGame {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.95, g: 0.92, b: 0.86, a: 1 },
       msaaSamples: 4,
@@ -530,7 +532,7 @@ export class SudokuGame {
 
   private _requestRender(frames = 16) {
     this.renderFramesRemaining = Math.max(this.renderFramesRemaining, frames);
-    window.setTimeout(() => {
+    gameDelay(() => {
       this.renderFramesRemaining = Math.max(this.renderFramesRemaining, 3);
     }, 80);
   }

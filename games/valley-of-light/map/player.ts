@@ -1,6 +1,7 @@
+import { GameEngine } from '../../session/GameEngine';
 import {StoryHud,storyCharacters} from './storyHud';
 import { getEngineDiagnosticsSnapshot } from '@haiyue/engine/diagnostics';
-import { Entity, HaiyueEngine } from '@haiyue/engine';
+import { Entity } from '@haiyue/engine';
 import { GuiButton, GuiElement, GuiLabel, GuiRoot } from '@haiyue/engine/gui';
 import { guardDeferredPointerCapture } from '../input/canvasInput';
 import { MapView } from './view';
@@ -17,7 +18,7 @@ export async function chooseMap():Promise<ValleyMap|null>{
 }
 export async function startMapPlayer(map:ValleyMap):Promise<void>{
   const canvas=document.querySelector<HTMLCanvasElement>('#canvas')!,abort=new AbortController(),releaseCapture=guardDeferredPointerCapture(canvas,abort.signal);
-  const engine=new HaiyueEngine({canvas,msaaSamples:4,diagnostics:{enabled:new URLSearchParams(location.search).has('verify')},devicePixelRatio:()=>Math.min(devicePixelRatio,2)});await engine.init();
+  const engine=new GameEngine({canvas,msaaSamples:4,diagnostics:{enabled:new URLSearchParams(location.search).has('verify')},devicePixelRatio:()=>Math.min(devicePixelRatio,2)});await engine.init();
   let runtime:MapRuntime;
   const texts='本次动作链已取消。平台正在移动，请等待停靠。平台已停靠进入场景阶段切换需要可行走且已停靠的入口。平台站点不存在或请求过多。返回检查点重试区域区域起点已返回检查点已保存所选区域已重置，其他区域的进度已保留。重置后没有安全落点，请设置可行走的检查点。连续重置过多，请检查恢复事件规则。正在穿过传送门。已穿过传送门。传送门目的地未就绪。点击道路行走；绕动手轮，拖动平移机关。道路尚未连通。寻找开关，或调整机关。旅行者正在前往新的道路。山谷的另一侧，又多了一盏灯。开关已触发。物体组正在移动，稍后再选择道路。机关已就位。点击新的道路继续前行。载入地图重新开始返回序章前往出口正在加载角色地图模式开关已触发旋转视角恢复行走复位视角拖动画面，再次点击按钮恢复行走。';
   const view=new MapView(engine,'./assets/traveler.gltf',Array.from(new Set(texts+'检查点保存失败，当前游戏仍可继续。检查点清理失败，当前游戏仍可继续。'+storyCharacters(map)+'出口尚未开启。寻找机关。前方道路已关闭，请选择其他道路。规则循环触发过多，已停止关卡逻辑。关卡变量超过数值范围，已停止关卡逻辑。'+(map.logic?.rules??[]).flatMap(r=>flattenActions(r.actions)).map(a=>a.kind==='message'?a.text:a.kind==='checkpoint'?a.name:'').join('')+map.objects.map(o=>o.checkpoint?.name??'').join('')+map.groups.map(g=>g.name+(g.platform?.stations.map(s=>s.name).join('')??'')).join('')+(map.stages?.items.map(s=>s.name).join('')??'')+map.name+'0123456789 /·：')).join(''));

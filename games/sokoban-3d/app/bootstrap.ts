@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('sokoban-3d');
 import { AmbientLight } from '@haiyue/engine/lighting';
@@ -134,7 +135,7 @@ class Sokoban3DGame {
   private messageText = document.getElementById('message')!;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.07, g: 0.09, b: 0.11, a: 1 },
       msaaSamples: 4,

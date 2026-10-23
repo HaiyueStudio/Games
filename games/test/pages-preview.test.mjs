@@ -9,7 +9,7 @@ const read = (...parts) => readFileSync(join(repositoryRoot, ...parts), 'utf8');
 
 test('Pages lobby is driven by the game manifest', () => {
   const manifest = JSON.parse(read('games', 'manifest.json'));
-  const app = read('site', 'app.js');
+  const app = [read('site', 'app.js'), read('site', 'catalog', 'details.js'), read('site', 'ui', 'library.js')].join('\n');
 
   assert.ok(manifest.entries.length > 0);
   assert.match(app, /fetch\(catalogUrl\)/);

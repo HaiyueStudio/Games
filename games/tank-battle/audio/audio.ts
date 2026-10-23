@@ -1,9 +1,10 @@
+import { sessionAudio } from '../../session/audio';
 import type { GameState } from '../rules/rules';
 export class ArcadeAudio {
   private context: AudioContext | null = null;
   muted = false;
   unlock(): void {
-    try { this.context ??= new AudioContext(); void this.context.resume().catch(() => {}); } catch { /* Audio is optional. */ }
+    try { this.context ??= sessionAudio(new AudioContext()); void this.context.resume().catch(() => {}); } catch { /* Audio is optional. */ }
   }
   play(kind: GameState['sounds'][number]): void {
     if (this.muted || !this.context || this.context.state !== 'running') return;

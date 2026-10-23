@@ -3,7 +3,6 @@
 body { margin: 0; }
 #game { position: relative; width: min(1040px, calc(100% - 32px)); height: 920px; margin: 16px auto; }
 canvas { position: absolute; display: block; }
-#battlefield { image-rendering: pixelated; pointer-events: none; }
 #gui { inset: 0; width: 100%; height: 100%; touch-action: none; outline: none; }
 #gui:focus-visible { outline: 1px solid #a8b786; }
 #fatal { padding: 16px; color: #edaf94; }
@@ -11,5 +10,4 @@ canvas { position: absolute; display: block; }
 @media (max-width: 700px) { #game { width: 100%; margin: 0; } #gui { touch-action: pan-y; } }
 .tank-mobile, .tank-mobile body { overflow: hidden; overscroll-behavior: none; }
 .tank-mobile #game { width: 100%; height: 100dvh; margin: 0; padding: 0; }
-.tank-mobile #battlefield { display: none; }
 .tank-mobile #gui { touch-action: none; }

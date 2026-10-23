@@ -1,261 +1,240 @@
 import { installLobbyGamepad } from './gamepad.js';
+import { detailFor, filterGames, filterOptions, gameUrl, genreLabels, is3d, thumbnailUrl } from './catalog/details.js';
+import { LibraryState } from './state/library.js';
+import { createCard, focusCard } from './ui/library.js';
+
 const catalogUrl = './games/manifest.json';
-
-const gameDetails = {
-  'valley-of-light': { genre: 'puzzle', description: '转动金桥、平移青桥，让断路在正交投影中相遇。跟随旅行者微，走出无知山谷。', mark: '光' },
-  'tank-battle': { genre: 'arcade', description: '单人或双人合作守卫基地。突破砖墙、雪地、海水与丛林，击毁闪光坦克获取六种补给。', mark: '坦' },
-  'ink-pinball': { genre: 'physics', description: '宣纸山水、云龙游鲤。以墨为球，在会晕开的笔触间游玩水墨弹球。', mark: '墨' },
-  'rubiks-cube': { genre: 'puzzle', description: 'Turn 2×2, 3×3, 4×4 and shape-shifting mirror cubes, then replay your moves to restore them.', mark: '3×3' },
-  '2048': { genre: 'puzzle', description: 'Slide matching tiles and build the elusive 2048 tile.', mark: '20' },
-  'billiards-3d': { genre: 'physics', description: 'A tactile three-dimensional billiards table driven by physics.', mark: '3D' },
-  billiards: { genre: 'physics', description: 'Line up the shot and clear a crisp top-down billiards table.', mark: '8' },
-  'triangle-calendar-puzzle': { genre: 'puzzle', description: 'Solve a triangular calendar with geometric pieces.', mark: '△' },
-  'entanglement-path': { genre: 'puzzle', description: 'Rotate tiles to weave the longest path without crossing the edge.', mark: '∞' },
-  'icosahedron-minesweeper': { genre: 'puzzle', description: 'Minesweeper wraps around the faces of an icosahedron.', mark: '◆' },
-  'gravity-maze': { genre: 'physics', description: 'Tilt a physical maze, dodge holes, and roll to the goal.', mark: '●' },
-  'match-3': { genre: 'puzzle', description: 'Swap colorful pieces and build satisfying chain reactions.', mark: '✦' },
-  minesweeper: { genre: 'puzzle', description: 'Clear the board with deduction, flags, and a little nerve.', mark: '✹' },
-  'minecraft-lite': { genre: 'sandbox', description: 'Explore a voxel world and add or remove colorful blocks.', mark: '▦' },
-  'pad-simulator': { genre: 'audio', description: 'Play a responsive drum-pad grid with pointer or keyboard input.', mark: '▤' },
-  pacman: { genre: 'arcade', description: 'Navigate the maze, collect every pellet, and avoid the ghosts.', mark: 'ᗧ' },
-  piano: { genre: 'audio', description: 'A playable browser piano with keyboard and pointer controls.', mark: '♬' },
-  pong: { genre: 'arcade', description: 'A fast two-player 3D Pong table with reactive paddles, smoke, and an ever-faster ball.', mark: 'VS' },
-  'sky-strike': { genre: 'arcade', description: 'Pilot a starfighter through dense formations and cascading bullet patterns.', mark: '▲' },
-  'sokoban-3d': { genre: 'puzzle', description: 'Push every crate into place in a dimensional warehouse.', mark: '⬡' },
-  'spider-solitaire': { genre: 'cards', description: 'Build descending runs and complete all eight suits.', mark: '♠' },
-  sudoku: { genre: 'puzzle', description: 'A clean number puzzle with notes, checks, and saved progress.', mark: '9' },
-  tetris: { genre: 'arcade', description: 'Stack falling pieces, clear lines, and keep the board alive.', mark: '▥' },
-  'wfc-map': { genre: 'procedural', description: 'Watch wave function collapse assemble a fresh tiled world.', mark: '⌘' },
-};
-
-const filterOptions = [
-  ['all', 'All games'],
-  ['puzzle', 'Puzzle'],
-  ['3d', '3D'],
-  ['physics', 'Physics'],
-  ['arcade', 'Arcade'],
-  ['audio', 'Audio'],
-];
-
+const $ = selector => document.querySelector(selector);
 const elements = {
-  count: document.querySelector('#game-count'),
-  dialog: document.querySelector('#game-dialog'),
-  empty: document.querySelector('#empty-state'),
-  filters: document.querySelector('#game-filters'),
-  frame: document.querySelector('#game-frame'),
-  grid: document.querySelector('#game-grid'),
-  newTab: document.querySelector('#player-new-tab'),
-  playerTitle: document.querySelector('#player-title'),
-  search: document.querySelector('#game-search'),
-  status: document.querySelector('#webgpu-status'),
+  dialog: $('#game-dialog'), frame: $('#game-frame'), grid: $('#game-grid'), filters: $('#game-filters'),
+  search: $('#game-search'), empty: $('#empty-state'), title: $('#spotlight-title'), image: $('#spotlight-image'),
+  description: $('#spotlight-description'), tags: $('#spotlight-tags'), play: $('#spotlight-play'),
+  favorite: $('#favorite-toggle'), loading: $('#player-loading'), announcement: $('#catalog-announcement'),
 };
+let storage;
+try { storage = window.localStorage; } catch { /* The launcher also works without persistence. */ }
+const library = new LibraryState(storage);
+let games = [], visible = [], selectedId = '', category = 'all', view = 'all';
+const viewTitles = { all: '全部游戏', recent: '最近游玩', favorites: '我的收藏' };
+const cards = () => [...elements.grid.querySelectorAll('.card-visual')];
+const selectedGame = () => games.find(game => game.id === selectedId);
 
-let games = [];
-let activeFilter = 'all';
-
-function gameUrl(game) {
-  return `./games/${encodeURIComponent(game.id)}/index.html`;
-}
-
-function thumbnailUrl(game) {
-  return `./${game.thumbnail}`;
-}
-
-function detailFor(game) {
-  return gameDetails[game.id] ?? {
-    genre: 'game',
-    description: `A HaiyueStudio Engine experiment featuring ${game.capabilities.join(', ')}.`,
-    mark: game.title.slice(0, 2).toUpperCase(),
-  };
-}
-
-function is3d(game) {
-  return game.capabilities.some((capability) => capability.toLowerCase().includes('3d'));
-}
-
-function matchesFilter(game) {
-  const details = detailFor(game);
-  if (activeFilter === 'all') return true;
-  if (activeFilter === '3d') return is3d(game);
-  if (activeFilter === 'physics') {
-    return details.genre === 'physics' || game.capabilities.some((capability) => capability.includes('physics'));
+function selectGame(game) {
+  selectedId = game?.id ?? '';
+  for (const card of cards()) {
+    const selected = card.dataset.gameId === selectedId;
+    card.classList.toggle('selected', selected);
+    card.setAttribute('aria-current', String(selected));
+    if (!selected) card.classList.remove('gamepad-selected');
+    card.tabIndex = selected ? 0 : -1;
   }
-  return details.genre === activeFilter;
+  elements.play.disabled = elements.favorite.disabled = !game;
+  elements.image.hidden = !game;
+  elements.favorite.setAttribute('aria-pressed', String(library.favorites.includes(selectedId)));
+  elements.favorite.setAttribute('aria-label', `${library.favorites.includes(selectedId) ? '取消收藏' : '收藏'}${game ? `：${detailFor(game).title}` : '当前游戏'}`);
+  if (!game) {
+    elements.title.textContent = view === 'favorites' ? '把喜欢的，留在这里' : view === 'recent' ? '下一场，从这里开始' : '换个关键词试试';
+    elements.description.textContent = '浏览游戏库，发现值得再玩一次的游戏。';
+    elements.tags.replaceChildren();
+    return;
+  }
+  const detail = detailFor(game);
+  if (elements.image.dataset.gameId !== game.id) {
+    elements.image.dataset.gameId = game.id;
+    elements.image.src = thumbnailUrl(game);
+  }
+  elements.title.textContent = detail.title;
+  elements.description.textContent = detail.description;
+  $('#spotlight-kicker').textContent = library.recent.includes(game.id) ? '再次出发 · 重返喜欢的世界' : '准备就绪 · 即刻游玩';
+  const labels = [genreLabels[detail.genre], is3d(game) ? '3D 世界' : '2D 游戏'];
+  if (game.capabilities.includes('gamepad')) labels.push('支持手柄');
+  elements.tags.replaceChildren(...labels.map(label => {
+    const tag = document.createElement('span'); tag.textContent = label; return tag;
+  }));
 }
 
 function renderFilters() {
-  elements.filters.replaceChildren(
-    ...filterOptions.map(([value, label]) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = label;
-      button.dataset.filter = value;
-      button.classList.toggle('active', value === activeFilter);
-      button.setAttribute('aria-pressed', String(value === activeFilter));
-      button.addEventListener('click', () => {
-        activeFilter = value;
-        renderFilters();
-        renderGames();
-      });
-      return button;
-    }),
-  );
+  elements.filters.replaceChildren(...filterOptions.map(([value, label]) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = label; button.dataset.filter = value;
+    button.classList.toggle('active', value === category);
+    button.setAttribute('aria-pressed', String(value === category));
+    button.addEventListener('click', () => {
+      category = value;
+      // Retain the actual focused button for keyboard users.
+      for (const item of elements.filters.children) {
+        item.classList.toggle('active', item === button);
+        item.setAttribute('aria-pressed', String(item === button));
+      }
+      renderGames(true);
+    });
+    return button;
+  }));
 }
 
-function createTag(label) {
-  const tag = document.createElement('span');
-  tag.textContent = label.replaceAll('-', ' ');
-  return tag;
+function renderGames(resetScroll = false) {
+  const scrollTop = resetScroll ? 0 : elements.grid.scrollTop;
+  visible = filterGames(games, { category, term: elements.search.value, view, ...library });
+  if (!visible.some(game => game.id === selectedId)) selectedId = visible[0]?.id ?? '';
+  elements.grid.replaceChildren(...visible.map((game, index) => createCard(game, index, {
+    selected: game.id === selectedId, favorite: library.favorites.includes(game.id), select: selectGame, launch: openGame,
+  })));
+  elements.grid.scrollTop = scrollTop;
+  selectGame(selectedGame());
+  elements.empty.hidden = visible.length !== 0;
+  elements.grid.hidden = visible.length === 0;
+  $('#visible-count').textContent = `${visible.length} 款`;
+  $('#favorite-count').textContent = library.favorites.length;
+  elements.announcement.textContent = `${viewTitles[view]}，${visible.length} 款游戏`;
+  const searching = elements.search.value.trim() || category !== 'all';
+  $('#empty-title').textContent = searching ? '没有找到匹配的游戏' : view === 'favorites' ? '还没有收藏' : '还没有游玩记录';
+  $('#empty-description').textContent = searching ? '试试其他名称，或切换游戏分类。' : view === 'favorites' ? '选中游戏后按 F，或点击爱心，即可加入收藏。' : '启动一款游戏，下次就能在这里快速找到它。';
 }
 
-function createCard(game, index) {
-  const details = detailFor(game);
-  const article = document.createElement('article');
-  article.className = 'game-card';
-  article.style.setProperty('--delay', `${Math.min(index, 10) * 45}ms`);
-
-  const visual = document.createElement('button');
-  visual.type = 'button';
-  visual.className = 'card-visual';
-  visual.dataset.gameId = game.id;
-  visual.dataset.tone = String((index % 6) + 1);
-  visual.setAttribute('aria-label', `Play ${game.title}`);
-  visual.addEventListener('click', () => openGame(game));
-
-  const screenshot = document.createElement('img');
-  screenshot.className = 'card-screenshot';
-  screenshot.src = thumbnailUrl(game);
-  screenshot.alt = `${game.title} gameplay screenshot`;
-  screenshot.loading = index < 3 ? 'eager' : 'lazy';
-  screenshot.decoding = 'async';
-  if (index < 3) screenshot.fetchPriority = 'high';
-  screenshot.addEventListener('load', () => visual.classList.add('has-screenshot'));
-  screenshot.addEventListener('error', () => screenshot.remove());
-
-  const mark = document.createElement('span');
-  mark.className = 'card-mark';
-  mark.textContent = details.mark;
-  visual.append(screenshot, mark);
-
-  const body = document.createElement('div');
-  body.className = 'card-body';
-
-  const heading = document.createElement('div');
-  heading.className = 'card-heading';
-  const title = document.createElement('h3');
-  title.textContent = game.title;
-  const play = document.createElement('button');
-  play.type = 'button';
-  play.className = 'play-button';
-  play.textContent = 'Play →';
-  play.addEventListener('click', () => openGame(game));
-  heading.append(title, play);
-
-  const description = document.createElement('p');
-  description.textContent = details.description;
-
-  const tags = document.createElement('div');
-  tags.className = 'tags';
-  const labels = [details.genre, is3d(game) ? '3D' : '2D'];
-  tags.append(...[...new Set(labels)].map(createTag));
-
-  body.append(heading, description, tags);
-  article.append(visual, body);
-  return article;
+function setView(next) {
+  view = next; category = 'all'; elements.search.value = '';
+  for (const button of document.querySelectorAll('[data-view]')) {
+    button.classList.toggle('active', button.dataset.view === view);
+    button.setAttribute('aria-pressed', String(button.dataset.view === view));
+  }
+  $('#collection-title').textContent = viewTitles[view];
+  renderFilters(); renderGames(true);
 }
 
-function renderGames() {
-  const term = elements.search.value.trim().toLocaleLowerCase();
-  const visibleGames = games.filter((game) => {
-    const details = detailFor(game);
-    const searchText = `${game.title} ${game.id} ${details.genre} ${details.description} ${game.capabilities.join(' ')}`.toLocaleLowerCase();
-    return matchesFilter(game) && searchText.includes(term);
-  });
-
-  elements.grid.replaceChildren(...visibleGames.map(createCard));
-  elements.empty.hidden = visibleGames.length !== 0;
+function toggleFavorite() {
+  if (!selectedGame()) return;
+  const hadCardFocus = elements.grid.contains(document.activeElement);
+  library.toggleFavorite(selectedId);
+  renderGames();
+  if (hadCardFocus) {
+    if (visible.length) focusCard(cards(), visible.findIndex(game => game.id === selectedId));
+    else $('#empty-reset').focus();
+  }
 }
 
-function setGameQuery(id, mode = 'push') {
-  const url = new URL(window.location.href);
-  if (id) url.searchParams.set('game', id);
-  else url.searchParams.delete('game');
-  window.history[`${mode}State`]({}, '', url);
+function setGameQuery(id) {
+  const url = new URL(location.href);
+  if (id) url.searchParams.set('game', id); else url.searchParams.delete('game');
+  history.pushState({}, '', url);
 }
 
 function openGame(game, updateHistory = true) {
-  const url = gameUrl(game);
-  elements.playerTitle.textContent = game.title;
-  elements.newTab.href = url;
-  elements.frame.title = `${game.title} preview`;
+  selectGame(game);
+  library.recordLaunch(game.id);
+  $('#player-title').textContent = detailFor(game).title;
+  $('#player-new-tab').href = gameUrl(game);
+  elements.frame.title = `${detailFor(game).title}游戏`;
   elements.frame.dataset.gameId = game.id;
-  elements.frame.src = url;
+  elements.loading.hidden = false;
+  elements.frame.src = gameUrl(game);
   if (!elements.dialog.open) elements.dialog.showModal();
   if (updateHistory) setGameQuery(game.id);
 }
 
 function closeGame(updateHistory = true) {
-  if (elements.dialog.open) elements.dialog.close();
+  const wasOpen = elements.dialog.open;
+  if (wasOpen) elements.dialog.close();
   elements.frame.src = 'about:blank';
   delete elements.frame.dataset.gameId;
   if (updateHistory) setGameQuery(null);
+  if (wasOpen) {
+    renderGames();
+    if (visible.length) focusCard(cards(), visible.findIndex(game => game.id === selectedId));
+    else $('#empty-reset').focus();
+  }
 }
 
 function syncGameFromUrl() {
-  const id = new URL(window.location.href).searchParams.get('game');
-  const game = games.find((entry) => entry.id === id);
-  if (game) openGame(game, false);
-  else closeGame(false);
+  const id = new URL(location.href).searchParams.get('game');
+  const game = games.find(entry => entry.id === id);
+  if (game) openGame(game, false); else closeGame(false);
 }
 
 async function loadCatalog() {
-  elements.status.textContent = 'gpu' in navigator ? 'WebGPU ready' : 'WebGPU unavailable';
-  elements.status.classList.toggle('unsupported', !('gpu' in navigator));
-
+  const status = $('#webgpu-status');
+  status.textContent = 'gpu' in navigator ? 'WebGPU 可用' : '浏览器未提供 WebGPU';
+  status.classList.toggle('unsupported', !('gpu' in navigator));
   try {
     const response = await fetch(catalogUrl);
     if (!response.ok) throw new Error(`Catalog request failed with ${response.status}`);
     const manifest = await response.json();
     if (!Array.isArray(manifest.entries)) throw new Error('Catalog has no entries array');
     games = manifest.entries;
-    elements.count.textContent = String(games.length).padStart(2, '0');
-    renderFilters();
-    renderGames();
-    syncGameFromUrl();
+    library.reconcile(games);
+    $('#game-count').textContent = games.length;
+    renderFilters(); renderGames(); syncGameFromUrl();
   } catch (error) {
     elements.empty.hidden = false;
-    elements.empty.textContent = 'The game catalog could not be loaded. Please refresh the page.';
+    $('#empty-title').textContent = '游戏库暂时无法载入';
+    $('#empty-description').textContent = '请检查连接，然后刷新页面重试。';
+    $('#empty-reset').hidden = true;
+    elements.description.textContent = '游戏库暂时无法载入，请刷新页面重试。';
     console.error(error);
   }
 }
 
-elements.search.addEventListener('input', renderGames);
-document.querySelector('#player-close').addEventListener('click', () => closeGame());
-elements.dialog.addEventListener('cancel', (event) => {
-  event.preventDefault();
-  closeGame();
-});
-elements.dialog.addEventListener('click', (event) => {
-  if (event.target === elements.dialog) closeGame();
-});
+for (const button of document.querySelectorAll('[data-view]')) button.addEventListener('click', () => setView(button.dataset.view));
+$('#empty-reset').addEventListener('click', () => { setView('all'); focusCard(cards(), 0); });
+elements.search.addEventListener('input', () => renderGames(true));
+elements.play.addEventListener('click', () => { const game = selectedGame(); if (game) openGame(game); });
+elements.favorite.addEventListener('click', toggleFavorite);
+$('#player-close').addEventListener('click', () => closeGame());
+elements.dialog.addEventListener('cancel', event => { event.preventDefault(); closeGame(); });
 window.addEventListener('popstate', syncGameFromUrl);
 
-loadCatalog();
+document.addEventListener('keydown', event => {
+  if (elements.dialog.open || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+  if (event.target.matches('input, textarea, [contenteditable]')) {
+    if (event.key === 'Escape') { elements.search.value = ''; renderGames(true); focusCard(cards(), 0); }
+    return;
+  }
+  if (event.key === '/') { event.preventDefault(); elements.search.focus(); return; }
+  if (event.key.toLowerCase() === 'f' && !event.repeat) { event.preventDefault(); toggleFavorite(); return; }
+  if (event.key === 'Escape') { setView('all'); focusCard(cards(), 0); return; }
+  const targets = cards();
+  if (!targets.length || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+  if (!(elements.grid.contains(event.target) || event.target === document.body || event.target === elements.play)) return;
+  event.preventDefault();
+  const index = Math.max(0, visible.findIndex(game => game.id === selectedId));
+  const columns = targets.filter(card => Math.abs(card.getBoundingClientRect().top - targets[0].getBoundingClientRect().top) < 4).length || 1;
+  const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns }[event.key];
+  focusCard(targets, event.key === 'Home' ? 0 : event.key === 'End' ? targets.length - 1 : index + offset);
+});
 
-installLobbyGamepad({
-  cards: () => [...elements.grid.querySelectorAll('.card-visual')],
-  filters: () => [...elements.filters.querySelectorAll('button')],
-  playing: () => elements.dialog.open,
-  hint: document.querySelector('#gamepad-help'),
+elements.frame.addEventListener('load', () => {
+  if (!elements.dialog.open || !elements.frame.dataset.gameId) return;
+  elements.loading.hidden = true;
+  // Same-origin games keep their own controls; Escape is the launcher's return key.
+  elements.frame.contentWindow.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || elements.frame.contentDocument.body.dataset.gameReturnOpen === 'true') return;
+    event.preventDefault(); event.stopImmediatePropagation(); closeGame();
+  }, { capture: true });
+  elements.frame.contentWindow.focus();
 });
-elements.frame.addEventListener('load', () => { if(elements.dialog.open) elements.frame.contentWindow.focus(); });
 window.addEventListener('message', event => {
-  if(event.origin !== location.origin || event.source !== elements.frame.contentWindow || !elements.dialog.open) return;
-  if(event.data?.type === 'haiyue-gamepad-home') { closeGame(); return; }
+  if (event.origin !== location.origin || event.source !== elements.frame.contentWindow || !elements.dialog.open) return;
+  if (event.data?.type === 'haiyue-gamepad-home') { closeGame(); return; }
   const direction = event.data?.type === 'haiyue-gamepad-next' ? 1 : event.data?.type === 'haiyue-gamepad-previous' ? -1 : 0;
-  if(!direction) return;
-  const visible = [...elements.grid.querySelectorAll('.card-visual')].map(card => games.find(game => game.id === card.dataset.gameId));
-  if(!visible.length) return;
-  const index=visible.findIndex(game => game.id === elements.frame.dataset.gameId);
-  openGame(visible[(index+direction+visible.length)%visible.length]);
+  if (!direction || !visible.length) return;
+  const index = visible.findIndex(game => game.id === elements.frame.dataset.gameId);
+  openGame(visible[(index + direction + visible.length) % visible.length]);
 });
+
+function updateTime() {
+  const now = new Date();
+  $('#system-time').textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  $('#system-time').dateTime = now.toISOString();
+}
+let timer, disposeGamepad;
+function startSystem() {
+  updateTime(); timer = setInterval(updateTime, 15000);
+  disposeGamepad = installLobbyGamepad({ cards, filters: () => [...elements.filters.querySelectorAll('button')],
+    views: () => [...document.querySelectorAll('[data-view]')], favorite: toggleFavorite,
+    playing: () => elements.dialog.open, hint: $('#gamepad-help'),
+    connection: connected => { $('#input-status').textContent = connected ? '手柄已连接 · X 收藏 · Y 切换视图' : '手柄 / 键鼠 / 触屏'; },
+  });
+}
+window.addEventListener('pagehide', () => { clearInterval(timer); disposeGamepad?.(); });
+window.addEventListener('pageshow', event => { if (event.persisted) startSystem(); });
+startSystem();
+void loadCatalog();

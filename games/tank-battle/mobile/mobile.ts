@@ -1,5 +1,5 @@
+import { GameEngine } from '../../session/GameEngine';
 import { gamepadFrame } from '../../gamepad/runtime';
-import { HaiyueEngine } from '@haiyue/engine';
 import { MobileTankGame } from './MobileTankGame';
 import { guardQueuedPointerCapture } from '../input/pointerCapture';
 import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
@@ -9,7 +9,7 @@ export async function launchMobile(): Promise<void> {
   document.documentElement.classList.add('tank-mobile');
   const canvas=document.querySelector<HTMLCanvasElement>('#gui')!;
   const restore=guardQueuedPointerCapture(canvas);
-  const engine=new HaiyueEngine({canvas,msaaSamples:4,clearColor:{r:.06,g:.09,b:.055,a:1},devicePixelRatio:()=>Math.min(devicePixelRatio,2)});
+  const engine=new GameEngine({canvas,msaaSamples:4,clearColor:{r:.06,g:.09,b:.055,a:1},devicePixelRatio:()=>Math.min(devicePixelRatio,2)});
   let game:MobileTankGame|undefined;
   const abort=new AbortController();
   const audio=new ArcadeAudio();

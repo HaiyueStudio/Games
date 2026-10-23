@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('billiards-3d');
 import { AmbientLight } from '@haiyue/engine/lighting';
@@ -120,7 +122,7 @@ class Billiards3DGame {
   } | null = null;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.03, g: 0.07, b: 0.06, a: 1 },
       msaaSamples: 4,
@@ -535,7 +537,7 @@ class Billiards3DGame {
 
   private startCameraTransition(to: { radius: number; theta: number; phi: number; target: [number, number, number] }, duration: number, done: () => void): void {
     this.transition = {
-      startTime: performance.now(),
+      startTime: gameTime(),
       duration,
       from: {
         radius: this.orbitTransform.radius,
@@ -554,7 +556,7 @@ class Billiards3DGame {
 
   private updateCameraTransition(_time: number): void {
     if (!this.transition) return;
-    const t = ease(clamp01((performance.now() - this.transition.startTime) / this.transition.duration));
+    const t = ease(clamp01((gameTime() - this.transition.startTime) / this.transition.duration));
     const { from, to } = this.transition;
     this.orbitTransform.setTarget(
       lerp(from.target[0], to.target[0], t),

@@ -1,3 +1,4 @@
+import { GameEngine } from '../session/GameEngine';
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('valley-of-light');
 import { HaiyueEngine } from '@haiyue/engine';
@@ -37,7 +38,7 @@ class ValleyGame {
     onStatus: status => { this.saveStatus = status; this.saved = status === 'error' ? '保存失败' : status === 'saving' ? '保存中' : '已保存'; this.refreshHud(); } });
   async init(): Promise<void> {
     this.releaseCapture=guardDeferredPointerCapture(this.canvas,this.abort.signal);
-    this.engine = new HaiyueEngine({ canvas: this.canvas, clearColor: { r: .914, g: .933, b: .906, a: 1 }, msaaSamples: 4, devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
+    this.engine = new GameEngine({ canvas: this.canvas, clearColor: { r: .914, g: .933, b: .906, a: 1 }, msaaSamples: 4, devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
     await this.engine.init();
     this.engine.device.addEventListener('uncapturederror', e => { this.errors.push(e.error.message); this.publish(); }, { signal: this.abort.signal });
     this.view = new ValleyScene(this.engine);

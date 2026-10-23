@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { HaiyueEngine } from '@haiyue/engine';
 import { World } from '@haiyue/engine';
 import { Entity } from '@haiyue/engine';
@@ -84,7 +85,7 @@ class TetrisGame {
   }
 
   async init(canvas: HTMLCanvasElement) {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.07, g: 0.10, b: 0.16, a: 1 },
       msaaSamples: 4,

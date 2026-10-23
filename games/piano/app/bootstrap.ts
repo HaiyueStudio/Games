@@ -1,3 +1,6 @@
+import { gameTime, gameSession } from '../../session/SessionPause';
+import { sessionAudio } from '../../session/audio';
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('piano');
 import { HaiyueEngine } from '@haiyue/engine';
@@ -171,7 +174,7 @@ class PianoDemo {
   private keys: PianoKey[] = [];
   private viewProj = new Float32Array(16);
   private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
-  private readonly audio = new PianoSynth();
+  private readonly audio = new PianoSynth(sessionAudio);
   private audioReady = false;
   private readonly scoreCache = new Map<string, ParsedMidi>();
   private scores: ScoreCatalogEntry[] = [];
@@ -193,7 +196,7 @@ class PianoDemo {
   }
 
   async init(canvas: HTMLCanvasElement) {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.08, b: 0.10, a: 1 },
       msaaSamples: 4,
@@ -365,7 +368,7 @@ class PianoDemo {
   }
 
   private _pressKey(key: PianoKey, velocity = 118, persist = true) {
-    const now = performance.now();
+    const now = gameTime();
     key.pressUntil = now + PRESS_MS;
     this.elNote.textContent = `${key.name}  MIDI ${key.midi}`;
     this._setKeyPressed(key, true);
@@ -459,13 +462,15 @@ class PianoDemo {
   }
 
   private _startPlayback(score: ScoreCatalogEntry, midi: ParsedMidi, token: number) {
-    const startedAt = performance.now();
+    const startedAt = gameTime();
     let cursor = 0;
     this.elPlaybackStatus.textContent = `Playing ${score.title}`;
     this.elPlaybackProgress.value = 0;
 
     const advance = (now: number) => {
       if (token !== this.playbackToken) return;
+      if (gameSession.paused) { this.playbackFrame = requestAnimationFrame(advance); return; }
+      now = gameTime(now);
       const elapsed = now - startedAt;
       while (cursor < midi.notes.length) {
         const note = midi.notes[cursor];
@@ -551,7 +556,7 @@ class PianoDemo {
       this.engine.displayHeight,
     );
 
-    const now = performance.now();
+    const now = gameTime();
     for (const key of this.keys) {
       if (key.pressUntil && now >= key.pressUntil) {
         key.pressUntil = 0;

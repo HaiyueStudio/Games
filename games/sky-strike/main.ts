@@ -1,9 +1,10 @@
+import { GameEngine } from '../session/GameEngine';
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('sky-strike');
 import { SkyStrikeAudio } from './audio/SkyStrikeAudio';
 import { SkyStrikeBrowserAudio } from './audio/browser';
 import { browserSkyStrikeLocale } from './ui/i18n';
-import { HaiyueEngine, World } from '@haiyue/engine';
+import { World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { SkyStrikeGame } from './game/SkyStrikeGame';
 import { SkyStrikeBattleLayer, loadSkySprites } from './rendering/battleLayer';
@@ -11,7 +12,7 @@ import { SkyStrikeGuiHud } from './ui/guiHud';
 
 async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas')!;
-  const engine = new HaiyueEngine({ canvas, clearColor: { r: 0.004, g: 0.004, b: 0.016, a: 1 }, msaaSamples: 4, devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
+  const engine = new GameEngine({ canvas, clearColor: { r: 0.004, g: 0.004, b: 0.016, a: 1 }, msaaSamples: 4, devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2) });
   await engine.init();
   const world = new World('Sky Strike');
   const battle = new SkyStrikeBattleLayer(engine, await loadSkySprites()); world.addSystem(battle);

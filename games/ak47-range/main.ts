@@ -1,6 +1,6 @@
+import { GameEngine } from '../session/GameEngine';
 import { installGamepad } from '../gamepad/runtime';
 installGamepad('ak47-range');
-import { HaiyueEngine } from '@haiyue/engine';
 import { RangeGame } from './game/RangeGame';
 import { verifyRange } from './verification/verification';
 import { MemorySaveBackend } from '@haiyue/engine/save';
@@ -15,7 +15,7 @@ function fail(error: unknown): void {
   console.error(error);
 }
 async function main(): Promise<void> {
-  const engine = new HaiyueEngine({ canvas: '#game-canvas', msaaSamples: 4, renderProfile: 'simple',
+  const engine = new GameEngine({ canvas: '#game-canvas', msaaSamples: 4, renderProfile: 'simple',
     clearColor: { r: 0.075, g: 0.12, b: 0.14, a: 1 }, devicePixelRatio: () => Math.min(devicePixelRatio || 1, 2) });
   await engine.init();
   engine.device.addEventListener('uncapturederror', e => fail(e.error));

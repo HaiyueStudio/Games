@@ -40,6 +40,8 @@ function audioContextConstructor(): typeof AudioContext | null {
 }
 
 export class PianoSynth {
+  private readonly prepareContext: (context: AudioContext) => AudioContext;
+  constructor(prepareContext: (context: AudioContext) => AudioContext = context => context) { this.prepareContext = prepareContext; }
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private readonly activeVoices = new Set<ActiveVoice>();
@@ -143,7 +145,7 @@ export class PianoSynth {
     const AudioContextType = audioContextConstructor();
     if (!AudioContextType) throw new Error('Web Audio is unavailable in this browser.');
 
-    this.context = new AudioContextType({ latencyHint: 'interactive' });
+    this.context = this.prepareContext(new AudioContextType({ latencyHint: 'interactive' }));
     this.master = this.context.createGain();
     this.master.gain.value = 0.34;
     this.master.connect(this.context.destination);

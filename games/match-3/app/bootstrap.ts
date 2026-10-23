@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('match-3');
 import {
@@ -195,7 +196,7 @@ class Match3Game {
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.canvas = canvas;
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.018, g: 0.025, b: 0.056, a: 1 },
       msaaSamples: 4,

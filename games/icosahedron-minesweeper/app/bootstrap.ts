@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('icosahedron-minesweeper');
 import { HaiyueEngine } from '@haiyue/engine';
@@ -309,7 +310,7 @@ class IcosahedronMinesweeper {
   private labelRoot = document.getElementById('labels')!;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.035, g: 0.04, b: 0.055, a: 1 },
       msaaSamples: 4,

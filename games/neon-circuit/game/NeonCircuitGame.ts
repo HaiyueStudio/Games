@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { FixedStepClock } from '@haiyue/engine/experimental/simulation';
 import { RaceOpponent, AI_DIFFICULTIES, raceProgress, raceWinner, type RaceMode, type AiDifficulty, type RaceWinner } from '../rules/RaceOpponent';
 import { readCameraMode, saveCameraMode, type CameraMode } from '../rendering/CameraMode';
@@ -239,7 +241,7 @@ export class NeonCircuitGame {
   private readonly touchKeys = new Map<number, string>();
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: this.colors.sky[0], g: this.colors.sky[1], b: this.colors.sky[2], a: 1 },
       msaaSamples: 4,
@@ -1266,7 +1268,7 @@ export class NeonCircuitGame {
       await settleCarousel();
       const rect = this.gui.snapshot.carouselBounds, x=rect.x+rect.width/2, y=rect.y+rect.height/2;
       const target = this.gui.root.hitTest(x,y)!;
-      const startTime = performance.now();
+      const startTime = gameTime();
       const native = (type: string): PointerEvent => {
         const event = new PointerEvent(type);
         Object.defineProperty(event, 'timeStamp', { value: startTime + (type === 'pointerdown' ? 0 : duration + (type === 'pointermove' ? 0 : 16)) });
@@ -1513,7 +1515,7 @@ export class NeonCircuitGame {
     if (shot === 'high-speed') {
       // A stationary diagnostic pose isolates lens/paint/HUD changes from steering.
       this.state = { ...this.state, speed: BOOST_MAX_SPEED };
-      for (let i = 0; i < 120; i++) this.updateVisuals(performance.now(), 1 / 60);
+      for (let i = 0; i < 120; i++) this.updateVisuals(gameTime(), 1 / 60);
       await frames(2);
     }
     if(shot === 'coaster-overlook') {

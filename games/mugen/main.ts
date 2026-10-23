@@ -1,3 +1,4 @@
+import { gameSession } from '../session/SessionPause';
 import { installGamepad, gamepadFrame } from '../gamepad/runtime';
 installGamepad('mugen');
 import { evaluateMugenAirAction } from './import/air/MugenAirRuntime';
@@ -259,6 +260,7 @@ class MugenFightApp {
 
   #frame(time: number): void {
     if (this.#disposed) return;
+    if (gameSession.paused) { this.#lastFrameTime = time; this.#animationFrame = requestAnimationFrame(next => this.#frame(next)); return; }
     const delta = Math.max(0, Math.min(100, time - this.#lastFrameTime)); this.#lastFrameTime = time;
     try {
       const simulationStart = performance.now();

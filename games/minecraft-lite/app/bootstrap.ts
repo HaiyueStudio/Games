@@ -1,3 +1,4 @@
+import { GameEngine } from '../../session/GameEngine';
 import { installGamepad, gamepadFrame } from '../../gamepad/runtime';
 installGamepad('minecraft-lite');
 import {
@@ -6,7 +7,6 @@ import {
   DirectionalLight,
   Entity,
   EnvironmentLight,
-  HaiyueEngine,
   System,
   type World as EngineWorld,
 } from '@haiyue/engine';
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   const saved = await saves.load();
   const canvas = requiredElement('canvas', HTMLCanvasElement);
   const seed = requestedSeed() ?? saved?.seed ?? randomSeed();
-  const engine = new HaiyueEngine({
+  const engine = new GameEngine({
     canvas,
     clearColor: { r: 0.34, g: 0.62, b: 0.86, a: 1 },
     msaaSamples: 4,

@@ -1,3 +1,5 @@
+import { sessionAudio } from '../../session/audio';
+import { GameEngine } from '../../session/GameEngine';
 import { FixedStepClock } from '@haiyue/engine/experimental/simulation';
 import { Camera2D, ColorSRGB, Entity, HaiyueEngine, Material2D, Mesh2D, Transform2D, World } from '@haiyue/engine';
 import { createCircle2D, createRect2D } from '@haiyue/engine/geometry';
@@ -65,7 +67,7 @@ export class InkPinballGame {
     const images = ['landscape-plate.png', 'brush.png', 'spirit-orb.png', 'dragon.png', 'toad.png', 'koi.png', 'lily-pad.png', 'river-lotuses.png', 'crane-poses.png'].map(file => {
       const image = new Image(); image.src = `./assets/${file}`; return image.decode();
     });
-    this.engine = new HaiyueEngine({ canvas, renderProfile: 'simple', alphaMode: 'premultiplied', clearColor: { r: 0, g: 0, b: 0, a: 0 }, msaaSamples: 4, devicePixelRatio: () => Math.min(devicePixelRatio, 1.5) });
+    this.engine = new GameEngine({ canvas, renderProfile: 'simple', alphaMode: 'premultiplied', clearColor: { r: 0, g: 0, b: 0, a: 0 }, msaaSamples: 4, devicePixelRatio: () => Math.min(devicePixelRatio, 1.5) });
     await Promise.all([this.engine.init(), ...images]);
     this.engine.resizeToDisplaySize(true);
     const camera = new Entity('Camera');
@@ -337,7 +339,7 @@ export class InkPinballGame {
   private feedback(x: number, y: number, points: number): void { this.gui.feedback(x,y,points); }
   private unlockAudio(): void {
     if (!this.sound) return;
-    this.audio ??= new AudioContext();
+    this.audio ??= sessionAudio(new AudioContext());
     void this.audio.resume().catch(() => {});
   }
   private tone(frequency: number, duration: number): void {

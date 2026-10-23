@@ -1,3 +1,5 @@
+import { gameTime } from '../../session/SessionPause';
+import { GameEngine } from '../../session/GameEngine';
 import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Geometry3D, Mesh3D, HaiyueEngine, World, createPlane3D } from '@haiyue/engine';
 import { FixedScreenTransform3D, MusicPlayerComponent, Transform3D } from '@haiyue/engine/components';
 import { FixedScreenTransform3DSystem, Render3DSystem } from '@haiyue/engine/systems';
@@ -993,7 +995,7 @@ class EntanglementPathGame {
   private pointerCanvasPoint: { x: number; y: number } | null = null;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
-    this.engine = new HaiyueEngine({
+    this.engine = new GameEngine({
       canvas,
       clearColor: { r: 0.06, g: 0.10, b: 0.13, a: 1 },
       msaaSamples: 4,
@@ -1903,7 +1905,7 @@ class EntanglementPathGame {
   }
 
   private pressRotateButton(button: RotateButtonState): void {
-    button.pressStart = performance.now();
+    button.pressStart = gameTime();
     this.rotate(button.direction);
   }
 
@@ -1959,7 +1961,7 @@ class EntanglementPathGame {
       previewScale,
     );
     this.swapOverlays = [previewOverlay, reserveOverlay];
-    this.swapAnimationStart = performance.now();
+    this.swapAnimationStart = gameTime();
     this.swapAnimationActive = true;
     this.previewTransform.setScale(0, 0, 1);
     this.reserveTransform.setLocalScale(0, 0, 1);
@@ -1974,7 +1976,7 @@ class EntanglementPathGame {
     this.lastPathPulseBucket = -1;
     this.previewSpinFrom = 0;
     this.previewSpinTo = shortestRotationAngle(previousRotation, this.rotation);
-    this.previewSpinStart = performance.now();
+    this.previewSpinStart = gameTime();
     this.previewSpinActive = true;
     this.saveState();
   }
@@ -2343,7 +2345,7 @@ class EntanglementPathGame {
   }
 
   private updatePathPulse(): void {
-    const pulse = (Math.sin(performance.now() * 0.0045) + 1) / 2;
+    const pulse = (Math.sin(gameTime() * 0.0045) + 1) / 2;
     const bucket = Math.round(pulse * 8);
     if (bucket === this.lastPathPulseBucket) return;
     this.lastPathPulseBucket = bucket;
@@ -2444,14 +2446,14 @@ class EntanglementPathGame {
       entity,
       transform,
       material,
-      startTime: performance.now(),
+      startTime: gameTime(),
       startPosition,
     });
   }
 
   private updateScorePopups(): void {
     if (this.scorePopups.length === 0) return;
-    const now = performance.now();
+    const now = gameTime();
     for (let index = this.scorePopups.length - 1; index >= 0; index--) {
       const popup = requiredItemAt(this.scorePopups, index, 'score popups');
       const elapsed = now - popup.startTime;
@@ -2523,7 +2525,7 @@ class EntanglementPathGame {
 
   private updateRotateButtons(): void {
     if (this.rotateButtons.length === 0) return;
-    const now = performance.now();
+    const now = gameTime();
     const pointerOverTile = this.isPointerOverCurrentTile(this.pointerCanvasPoint);
     const hoveredButton = this.hitRotateButton(this.pointerCanvasPoint);
     const visibleTarget = pointerOverTile || Boolean(hoveredButton) ? 1 : 0;
@@ -2560,7 +2562,7 @@ class EntanglementPathGame {
 
   private updateSwapAnimation(): void {
     if (!this.swapAnimationActive) return;
-    const progress = Math.min(1, (performance.now() - this.swapAnimationStart) / this.swapAnimationDuration);
+    const progress = Math.min(1, (gameTime() - this.swapAnimationStart) / this.swapAnimationDuration);
     const eased = easeOutCubic(progress);
     const arc = Math.sin(progress * Math.PI) * 0.36;
     for (const overlay of this.swapOverlays) {
@@ -2605,7 +2607,7 @@ class EntanglementPathGame {
 
   private updatePreviewRotationAnimation(): void {
     if (!this.previewSpinActive) return;
-    const progress = (performance.now() - this.previewSpinStart) / this.previewSpinDuration;
+    const progress = (gameTime() - this.previewSpinStart) / this.previewSpinDuration;
     const eased = easeOutCubic(progress);
     this.previewTransform.setRotation(0, 0, this.previewSpinFrom + (this.previewSpinTo - this.previewSpinFrom) * eased);
     if (progress >= 1) this.finishPreviewRotationAnimation();

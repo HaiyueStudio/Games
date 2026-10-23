@@ -111,6 +111,7 @@
       "entry": "triangle-calendar-puzzle/main.ts",
       "capabilities": [
         "2d",
+        "gui",
         "game-workflow",
         "input", "gamepad"
       ],
