@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { runChromeWebGpuFixture } from '../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
 
 const root = resolve(import.meta.dirname, '..'), output = resolve(root, 'artifacts/gamepad');
+const catalogCount = JSON.parse(readFileSync(resolve(root, 'games/manifest.json'), 'utf8')).entries.length;
 mkdirSync(output, { recursive: true });
 const delay = ms => new Promise(done => setTimeout(done, ms));
 const mock = `
@@ -28,8 +29,10 @@ async function run(name, fixture, query, exercise) {
   const entry = gameId ? `games/${gameId}/${['mugen','gravity-maze'].includes(gameId)?'dist/':''}bundle.js` : null;
   const sourceInputs = gameId ? readdirSync(resolve(root, 'games', gameId), { recursive: true }).filter(file => /\.(ts|html|css|svg)$/.test(file)).map(file => `games/${gameId}/${file}`) : [];
   sourceInputs.push('games/shared/input/pointerCapture.ts', 'games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
+  sourceInputs.push('games/manifest.json');
   sourceInputs.push('games/gamepad/connections.ts', 'games/gamepad/connectionMonitor.ts', 'games/gamepad/ui/ConnectionNotifications.ts');
   if (gameId === 'jigsaw-puzzle') sourceInputs.push('games/test/fixtures/jigsaw/portrait.svg', 'games/test/fixtures/jigsaw/broken.svg');
+  if (gameId === 'fruit-ninja') sourceInputs.push('games/fruit-ninja/assets/fruits.png', 'games/fruit-ninja/assets/fruits-extra.png', 'games/fruit-ninja/assets/items.png', 'games/fruit-ninja/assets/provenance.json', 'games/fruit-ninja/assets/fruits-extra.provenance.json');
   if (fixture === 'site/index.html') sourceInputs.push('site/gamepad.js');
   const inputs = Object.fromEntries([fixture,entry,...sourceInputs].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
   const result = await runChromeWebGpuFixture({root, fixture, query, timeoutMs:90000, disableDx12InfoCollection:true,
@@ -90,13 +93,13 @@ await run('input','games/test/fixtures/gamepad/index.html',{},async({evaluate,un
 });
 
 await run('lobby','site/index.html',{},async({evaluate,until,pads,press,check})=>{
-  await until('document.querySelectorAll(".card-visual").length===29','manifest catalog');await pads();
+  await until(`document.querySelectorAll(".card-visual").length===${catalogCount}`,'manifest catalog');await pads();
   const first=await evaluate('document.querySelector(".gamepad-selected").dataset.gameId');
   await press(15);check(await evaluate('document.querySelector(".gamepad-selected").dataset.gameId')!==first,'D-pad selects another game');
   await press(5);check(await evaluate('document.querySelector(".filters .active").dataset.filter')==='puzzle','RB changes category');
   await press(4);
   check(await evaluate('document.querySelector(".filters .active").dataset.filter')==='all','LB returns to all games');
-  await press(15);await press(15);
+  for(let i=0;i<catalogCount&&await evaluate('document.querySelector(".gamepad-selected").dataset.gameId')!=='2048';i++) await press(15);
   await press(0);await until('document.querySelector("#game-dialog").open','game opens');
   check(await evaluate('document.querySelector("#game-frame").dataset.gameId')==='2048','A opens selected game');
   await until('document.querySelector("#game-frame").contentDocument.body.dataset.gamepadActive === "true"','game controller boot');
@@ -114,7 +117,7 @@ await run('lobby','site/index.html',{},async({evaluate,until,pads,press,check})=
 
 await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check,cdp})=>{
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
-  await until('document.querySelectorAll(".card-visual").length===29','OS catalog');await pads();
+  await until(`document.querySelectorAll(".card-visual").length===${catalogCount}`,'OS catalog');await pads();
   await press(15);
   check(await evaluate('document.querySelector("#spotlight-title").textContent')==='铁甲前线','controller selection updates the featured game');
   await press(2);
@@ -133,7 +136,7 @@ await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check
   check(await evaluate('document.activeElement.id==="game-search" && document.querySelectorAll(".card-visual").length===1'),'idle gamepad does not steal search input focus');
   await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
-  check(await evaluate('document.querySelectorAll(".card-visual").length')===29,'Escape clears search and restores card focus');
+  check(await evaluate('document.querySelectorAll(".card-visual").length')===catalogCount,'Escape clears search and restores card focus');
   await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
   check(await evaluate('document.querySelector("#spotlight-title").textContent')==='铁甲前线','keyboard arrows update the selected game');
   await evaluate('[...document.querySelectorAll(".card-visual")].find(button=>button.dataset.gameId==="2048").focus()');
@@ -145,7 +148,7 @@ await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check
   await evaluate('document.querySelector("[data-view=recent]").click()');
   check(await evaluate('document.querySelectorAll(".card-visual").length===1 && document.querySelector(".card-visual").dataset.gameId==="2048"'),'recent list contains only actually launched games');
   await cdp.call('Page.reload');
-  await until('document.querySelectorAll(".card-visual").length===29','reloaded catalog');
+  await until(`document.querySelectorAll(".card-visual").length===${catalogCount}`,'reloaded catalog');
   check(await evaluate('document.querySelector("#favorite-count").textContent')==='1','favorites persist after reload');
   await evaluate('document.querySelector("[data-view=recent]").click()');
   check(await evaluate('document.querySelector(".card-visual").dataset.gameId')==='2048','launch history persists after reload');
@@ -154,7 +157,7 @@ await run('lobby-os','site/index.html',{},async({evaluate,until,pads,press,check
 });
 
 await run('lobby-mobile','site/index.html',{},async({evaluate,until,check,cdp})=>{
-  await until('document.querySelectorAll(".card-visual").length===29','mobile catalog');
+  await until(`document.querySelectorAll(".card-visual").length===${catalogCount}`,'mobile catalog');
   for(const [width,height] of [[390,844],[844,390],[320,568]]){
     await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await delay(200);
     check(await evaluate('document.documentElement.scrollWidth<=innerWidth && document.documentElement.scrollHeight<=innerHeight'),`${width}x${height} shell fits viewport`);
@@ -522,6 +525,106 @@ await run('notifications-startup','games/tank-battle/index.html',{gamepadVerify:
   check(true,'loading longer than five seconds does not consume the startup notification');
   await delay(5200);
   check(await evaluate('__controllerNotifications.length')===0,'startup notification also expires');
+});
+
+await run('fruit-combo','games/fruit-ninja/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,pads,press,check,cdp})=>{
+  await until('window.__fruitNinja?.ready','fruit combo ready');
+  const mouse=(x,y)=>cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x,y,button:'none',buttons:0});
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  await until('__fruitNinja.items.filter(n=>n.kind==="fruit"&&Math.abs(n.vy)<400&&n.screen.y>130&&n.screen.y<400).length>=2','two fruit in first wave');
+  const pair=(await evaluate('__fruitNinja.items')).filter(n=>n.kind==='fruit').sort((a,b)=>a.screen.x-b.screen.x).slice(0,2);
+  const a=pair[0].screen,b=pair[1].screen,dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
+  await mouse(5,5);await mouse(a.x-dx/length*55,a.y-dy/length*55);await mouse(a.x,a.y);await mouse(b.x,b.y);
+  const combo=await evaluate('__fruitNinja');
+  check(combo.combo.count>=2,'one physical swipe combines hits across pointer events');
+  check(combo.combo.bonus===5*combo.combo.count*(combo.combo.count-1)/2,'progressive combo bonus');
+  check(combo.score===combo.combo.count*10+combo.combo.bonus,'base score and bonus awarded exactly once');
+  await until('__gameHud.nodes.some(n=>n.visible&&n.text.includes("连切 · 额外"))','Engine GUI combo feedback');check(true,'combo shown in same-canvas GUI');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-combo.png'),Buffer.from(shot.result.data,'base64'));
+  await pads();await press(8);await until('document.body.dataset.gameReturnOpen==="true"','combo interrupted by shared pause');
+  check(await evaluate('__fruitNinja.combo.count')===0,'return dialog ends combo immediately');
+  await press(1);await pads([]);
+  await mouse(5,5);check(await evaluate('__fruitNinja.combo.count')===0,'entering HUD ends the swipe');
+  const captured=new Set(), names=['banana','strawberry','coconut','grapes'];
+  for(let frame=0;frame<240&&captured.size<4;frame++) {
+    const state=await evaluate('__fruitNinja');
+    for(const fruit of state.items.filter(n=>n.kind==='fruit'&&n.fruit>=4&&Math.abs(n.vy)<400&&n.screen.y>140&&n.screen.y<450)) {
+      if(captured.has(fruit.fruit))continue;
+      const image=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`fruit-ninja-${names[fruit.fruit-4]}.png`),Buffer.from(image.result.data,'base64'));captured.add(fruit.fruit);
+    }
+    await delay(80);
+  }
+  check(captured.size===4,'banana strawberry coconut and grapes all spawn and render');
+  check(await evaluate('document.querySelectorAll("canvas").length')===1,'expanded fruit still uses one visible canvas');
+});
+
+await run('fruit-ninja','games/fruit-ninja/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,pads,press,check,cdp})=>{
+  await until('window.__fruitNinja?.ready','fruit game ready');
+  const state=()=>evaluate('__fruitNinja');
+  const mouse=(type,p)=>cdp.call('Input.dispatchMouseEvent',{type,x:p.x,y:p.y,button:type==='mouseMoved'?'none':'left',buttons:type==='mousePressed'?1:0,clickCount:type==='mouseMoved'?0:1});
+  const button=async text=>{
+    const node=await evaluate(`__gameHud.nodes.find(n=>n.visible&&n.type==='GuiButton'&&n.text===${JSON.stringify(text)})`);
+    assert.ok(node,'GUI button '+text);const p={x:node.rect.x+node.rect.width/2,y:node.rect.y+node.rect.height/2};
+    await mouse('mouseMoved',p);await mouse('mousePressed',p);await mouse('mouseReleased',p);await delay(100);
+  };
+  const cut=async kind=>{
+    await until(`__fruitNinja.items.some(n=>n.kind==='${kind}'&&Math.abs(n.vy)<250&&n.screen.y>__fruitNinja.view.y+20&&n.screen.y<__fruitNinja.view.y+__fruitNinja.view.height-30)`,'visible '+kind+' near apex');
+    await mouse('mouseMoved',{x:5,y:5});
+    const s=await state(), item=s.items.find(n=>n.kind===kind&&Math.abs(n.vy)<350&&n.screen.y>s.view.y+20&&n.screen.y<s.view.y+s.view.height-30);
+    if(!item)return cut(kind);
+    await mouse('mouseMoved',{x:item.screen.x-24,y:item.screen.y});
+    await mouse('mouseMoved',{x:item.screen.x+24,y:item.screen.y});
+    return { item, remaining: s.remaining };
+  };
+  check((await state()).remaining===60,'ready screen starts with sixty seconds');
+  check(await evaluate('document.querySelectorAll("canvas").length===1&&!document.querySelector("button,select")'),'one canvas; Engine GUI controls');
+  await button('开始游戏');await until('__fruitNinja.phase==="playing"','start via Engine GUI');
+  await cut('fruit');await until('__fruitNinja.score>0','mouse hover slices fruit');
+  check((await state()).effects.fragments>0,'cut creates separate fruit halves');
+  await until('__fruitNinja.effects.particles>0','Engine juice particles');check(true,'juice particles emitted');
+  check((await state()).effects.trail>0,'mouse movement creates a blade trail');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-play.png'),Buffer.from(shot.result.data,'base64'));
+  await mouse('mouseMoved',{x:10,y:10});
+  for(let i=0;i<=12;i++) await mouse('mouseMoved',{x:120+i*18,y:220-Math.sin(i/12*Math.PI)*55});
+  const trailShot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-trail.png'),Buffer.from(trailShot.result.data,'base64'));
+  await delay(350);check((await state()).effects.trail===0,'trail expires after movement stops');
+  await button('暂停');const paused=(await state()).remaining;await delay(500);
+  check((await state()).remaining===paused,'GUI pause freezes round clock');await button('继续游戏');
+  await pads();await press(8);await until('document.body.dataset.gameReturnOpen==="true"','Back return dialog');
+  const time=(await state()).remaining;await delay(400);check((await state()).remaining===time,'shared return dialog pauses the round');
+  await press(1);await until('document.body.dataset.gameReturnOpen!=="true"','return cancelled');
+  const resumed=(await state()).remaining;await delay(250);check(resumed-(await state()).remaining<1,'return dialog time excluded after resume');
+  await pads([{axes:[.9,0,0,0]}]);check((await state()).effects.trail>0,'controller stick produces blade movement');await pads();
+  await press(2);check((await state()).phase==='paused','controller X pauses');await press(2);check((await state()).phase==='playing','controller X resumes');await pads([]);
+  const clockCut=await cut('clock');await delay(80);
+  check((await state()).remaining>clockCut.remaining+9,'slicing stopwatch adds ten seconds');
+  check(!(await state()).items.some(item=>item.id===clockCut.item.id),'stopwatch is consumed once');
+  for(let attempt=0;attempt<10&&(await state()).phase==='playing';attempt++) {
+    await cut('bomb');
+    if(attempt===0){const explosion=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-explosion.png'),Buffer.from(explosion.result.data,'base64'));}
+    await delay(120);
+  }
+  check((await state()).bombs===3&&(await state()).phase==='over'&&(await state()).reason==='bombs','third sliced bomb ends the game');
+  check((await state()).effects.particles>0,'bomb explosion emits particles');
+  const best=(await state()).best;check(best>0,'completed score updates best');
+  await button('再来一局');check((await state()).bombs===0&&(await state()).score===0&&(await state()).remaining>59,'restart resets bombs score and timer');
+  for(const [width,height] of [[390,844],[844,390],[1440,900]]) {
+    await button('暂停');await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<900});await delay(150);
+    check(await evaluate(`__gameHud.nodes.filter(n=>n.visible&&n.type==='GuiButton').every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=${width}+1&&n.rect.y+n.rect.height<=${height}+1)`),'GUI fits '+width+'x'+height);
+    check(await evaluate(`__fruitNinja.effects.viewport.width===${width}&&__fruitNinja.effects.viewport.height===${height}`),'particles use screen pixels without stretch '+width+'x'+height);
+    await button('继续游戏');
+    const capture=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`fruit-ninja-${width}x${height}.png`),Buffer.from(capture.result.data,'base64'));
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(150);
+  await until('__fruitNinja.items.some(n=>n.kind==="fruit"&&Math.abs(n.vy)<400&&n.screen.y>150&&n.screen.y<600)','mobile fruit near apex');
+  const beforeTouch=(await state()).score, fruit=(await state()).items.find(n=>n.kind==='fruit'&&Math.abs(n.vy)<500&&n.screen.y>150&&n.screen.y<600);
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:fruit.screen.x-18,y:fruit.screen.y,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:fruit.screen.x-10,y:fruit.screen.y,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:fruit.screen.x+18,y:fruit.screen.y,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(100);
+  check((await state()).score>beforeTouch,'touch swipe slices fruit');
+  await cdp.call('Page.reload');await until('window.__fruitNinja?.ready','reload');check((await state()).best===best,'Engine save restores best score');
 });
 
 await run('jigsaw-smoke','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,check,cdp})=>{

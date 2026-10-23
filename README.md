@@ -17,6 +17,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | 谷外之光 · Beyond the Valley | 3D orthographic illusion puzzle | [Play](https://haiyuestudio.github.io/Games/?game=valley-of-light) |
 | 铁甲前线 · Tank Battle | 2D pixel arcade, 1–2 players | [Play](https://haiyuestudio.github.io/Games/?game=tank-battle) |
 | 2048 | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=2048) |
+| 水果忍者 · Fruit Ninja | 2D arcade · blade trail, juice particles, bombs and time bonuses | [Local build](games/fruit-ninja/README.md) |
 | 3D Billiards | 3D physics | [Play](https://haiyuestudio.github.io/Games/?game=billiards-3d) |
 | Billiards | 2D physics | [Play](https://haiyuestudio.github.io/Games/?game=billiards) |
 | Triangle Calendar Puzzle | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=triangle-calendar-puzzle) |

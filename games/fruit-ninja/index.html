@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>水果忍者 · Fruit Ninja</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b211f;font-family:Microsoft YaHei,sans-serif}
+    #fruit-board{display:block;width:100%;height:100%;touch-action:none;outline:none}
+    #load-status{position:absolute;inset:40% 8% auto;padding:20px;background:#163c32;color:#ffe3a2}
+  </style>
+</head>
+<body>
+  <canvas id="fruit-board" tabindex="0" role="application" aria-label="水果忍者。滑动鼠标或手指挥刀，避开炸弹。空格开始，P 暂停。"></canvas>
+  <p id="load-status" hidden role="alert"></p>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>

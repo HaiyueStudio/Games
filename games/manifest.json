@@ -812,6 +812,17 @@
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"
+    },
+    {
+      "id": "fruit-ninja",
+      "thumbnail": "screenshots/fruit-ninja.png",
+      "title": "水果忍者 · Fruit Ninja",
+      "entry": "fruit-ninja/main.ts",
+      "capabilities": ["2d", "gui", "input", "particles", "generated-assets", "game-workflow", "gamepad"],
+      "assets": ["fruit-ninja/assets/fruits.png", "fruit-ninja/assets/fruits-extra.png", "fruit-ninja/assets/items.png", "fruit-ninja/assets/provenance.json", "fruit-ninja/assets/fruits-extra.provenance.json"],
+      "screenshot": { "required": false, "baseline": null },
+      "performance": null,
+      "ci": "smoke"
     }
   ]
 }

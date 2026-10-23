@@ -1,5 +1,6 @@
 // Presentation metadata only; playable entries and assets come from the manifest.
 const entries = [
+  ['fruit-ninja', '水果忍者', 'arcade', '划出刀光，切开鲜果。避开炸弹，抓住加时道具，在一分钟内挑战最高分。', '果'],
   ['valley-of-light', '谷外之光', 'puzzle', '转动金桥，连接看似不可能的道路。跟随旅行者微，在光影与错觉之间寻找山谷的出口。', '光'],
   ['tank-battle', '铁甲前线', 'arcade', '穿过砖墙与丛林，守住最后的基地。独自出击，或与朋友并肩迎战。', '坦'],
   ['2048', '2048', 'puzzle', '滑动、合并，再走一步。让相同的数字相遇，向 2048 发起挑战。', '20'],

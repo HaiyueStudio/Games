@@ -1,0 +1,53 @@
+{
+  "generator": "OpenAI builtin imagegen",
+  "generatedAt": "2026-10-24",
+  "file": "fruits-extra.png",
+  "columns": 3,
+  "rows": 4,
+  "rowsOrder": [
+    "banana",
+    "strawberry",
+    "coconut",
+    "grapes"
+  ],
+  "columnsOrder": [
+    "whole",
+    "left-half",
+    "right-half"
+  ],
+  "sampling": {
+    "columns": [
+      [
+        16,
+        380
+      ],
+      [
+        400,
+        718
+      ],
+      [
+        750,
+        1070
+      ]
+    ],
+    "rows": [
+      [
+        0,
+        350
+      ],
+      [
+        350,
+        700
+      ],
+      [
+        700,
+        1048
+      ],
+      [
+        1048,
+        1448
+      ]
+    ]
+  },
+  "prompt": "Use case: stylized-concept. Production transparent PNG sprite atlas for an existing juicy hand-painted fruit slicing arcade game. Exactly 3 columns and 4 rows of equally sized square cells, portrait 3:4 canvas. Row 1 BANANA, row 2 STRAWBERRY, row 3 COCONUT, row 4 PURPLE GRAPE BUNCH. In EVERY row column 1 is the WHOLE fruit; column 2 is one LEFT HALF; column 3 is one RIGHT HALF. Banana is a single curved yellow banana (not a bunch), split crosswise into two short sections with creamy circular cut faces. Strawberry is one red strawberry with green leaves, halves expose pale red juicy flesh. Coconut is a round brown hairy coconut, hemispheres expose thick white flesh and hollow centers. Grapes are one small compact purple grape bunch with green stem; each half is half of the bunch with several cut grapes showing pale translucent lavender flesh. Each cut sprite must be one isolated half, no loose extra pieces. Saturated glossy painterly cartoon illustration, subtle dark outline, soft top-left light, detailed but readable game silhouettes, front three-quarter view. All twelve sprites centered EXACTLY in their cells, all artwork strictly inside the CENTRAL 65% OF EACH CELL. Wide completely transparent gutters between cells and around outer edges are essential. No sprite or leaf crosses its cell. Uniform apparent whole fruit size. No labels, text, grid, separators, scenery, shadows on floor, decorative splashes, logos or watermarks. True alpha transparency."
+}

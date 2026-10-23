@@ -1,0 +1,36 @@
+{
+  "generator": "OpenAI builtin imagegen",
+  "generatedAt": "2026-10-23",
+  "sampling": "Generated grid spacing is approximate. FruitScene uses measured column boundaries [16,404], [404,728], [744,1070] and row boundaries [0,354], [355,704], [704,1078], [1078,1448] to avoid neighbor bleed while preserving pixel aspect ratio.",
+  "atlases": [
+    {
+      "file": "fruits.png",
+      "columns": 3,
+      "rows": 4,
+      "rowsOrder": [
+        "apple",
+        "orange",
+        "watermelon",
+        "kiwi"
+      ],
+      "columnsOrder": [
+        "whole",
+        "left-half",
+        "right-half"
+      ]
+    },
+    {
+      "file": "items.png",
+      "columns": 2,
+      "rows": 1,
+      "columnsOrder": [
+        "bomb",
+        "clock"
+      ]
+    }
+  ],
+  "prompts": [
+    "Use case: stylized-concept. Asset type: production 2D game sprite atlas for a fruit slicing arcade game. Generate one transparent PNG sprite sheet, 3 columns by 4 rows, with twelve equally sized square cells on a perfectly regular grid. Portrait canvas aspect ratio 3:4. Row 1 red apple; row 2 orange; row 3 striped green watermelon; row 4 fuzzy brown kiwi. Every row: column 1 one whole fruit, column 2 the left half of that fruit showing juicy cut flesh, column 3 the right half showing juicy cut flesh. Halves are individual isolated pieces, not two halves together. Consistent hand-painted cartoon game style, saturated appetizing colors, soft dimensional highlights, crisp readable silhouette, top-left lighting, modest dark outline. Front three-quarter view with readable cut surfaces. Each sprite centered in its cell, fit inside the central 70% of its cell, keep ample fully transparent gutters. Whole fruits same apparent diameter. Watermelon halves vivid red flesh and black seeds; orange halves segmented orange flesh; apple halves creamy flesh and brown seeds; kiwi halves bright green radial flesh and tiny black seeds. Absolutely no text, labels, grid lines, borders, background, scenery, decorative splashes, cast ground shadows, logos or watermark. Real alpha transparency.",
+    "Use case: stylized-concept. Asset type: production 2D game item sprite atlas. Generate one transparent PNG sprite sheet with exactly TWO equally sized square cells side by side (2:1 landscape canvas). Left cell: a single round black cartoon bomb with a short lit rope fuse and tiny warm spark, shiny charcoal casing, no letters. Right cell: a single mint-turquoise and gold stopwatch power-up with a clear white dial, two dark hands, a top crown, small glowing mint accent, NO digits and no letters. Match a premium hand-painted cartoon fruit-slicing arcade game: saturated colors, soft 3D highlights, subtle dark edges, top-left lighting, front three-quarter view. Each object centered in its own cell and fits inside its central 70%, with large transparent gutters, no overlap. No background, no floor shadow, no grid, no text, no labels, no watermark. Real alpha transparency."
+  ]
+}
