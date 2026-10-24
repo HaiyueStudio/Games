@@ -1,0 +1,48 @@
+{
+  "generator": "OpenAI builtin imagegen",
+  "generatedAt": "2026-10-24",
+  "assets": [
+    {
+      "file": "dojo-backdrop.png",
+      "width": 1536,
+      "height": 1024,
+      "role": "Warm walnut dojo wall; cover-cropped with overscan for camera shake",
+      "prompt": "Use case: stylized-concept. Asset type: final production background texture for a fruit-slicing arcade game, wide landscape 3:2 canvas. Entire image is a straight-on flat wooden dojo chopping wall, no perspective, warm aged dark walnut horizontal wide planks with softly painted wood grain, subtle knife scratches and restrained natural wear. Premium hand-painted 2D mobile game art, classic cheerful ninja training aesthetic. Center 80 percent deliberately uncluttered medium-dark brown so bright flying fruit and colored juice stains read clearly. Gentle warm amber center illumination and dark vignette corners; muted small bamboo-leaf shadow hints confined to far upper corners. Wood fills every edge; no frame needed. No fruits, no knives, no weapons, no characters, no text, no UI, no circles, no grid, no splashes, no logo or watermark. Rich readable wood texture, not photorealistic, no extreme contrast. Intended to be cropped responsively on mobile."
+    },
+    {
+      "file": "dojo-gui.png",
+      "width": 1536,
+      "height": 1024,
+      "role": "Transparent four-panel GUI atlas; native Engine nine-slice skins",
+      "panels": {
+        "plaque": [
+          40,
+          180,
+          692,
+          276
+        ],
+        "parchment": [
+          800,
+          76,
+          700,
+          480
+        ],
+        "primary": [
+          40,
+          654,
+          692,
+          230
+        ],
+        "secondary": [
+          798,
+          654,
+          704,
+          230
+        ]
+      },
+      "prompt": "Use case: stylized-concept. Asset type: production GUI texture atlas for the same hand-painted fruit-slicing ninja arcade game. Create a landscape 3:2 sprite sheet with EXACTLY four independent rectangular textures on a perfectly regular TWO COLUMN by TWO ROW grid. True transparent background. Each object fits inside its own equal cell with a generous 8 percent transparent gutter and is front-on flat, no perspective. Upper-left cell: long horizontal dark walnut wooden HUD plaque, subtly beveled, small antique brass corner fittings, EMPTY clean dark central area for cream game text. Upper-right cell: large pale warm parchment menu panel, gently rolled bamboo rods on left and right, dark wooden outer edge, large EMPTY cream inner area for dark brown Chinese game text. Lower-left cell: wide horizontal amber-gold lacquered wooden primary button, carved beveled edge, slight orange center gradient, tiny brass end caps, EMPTY center for dark brown label. Lower-right cell: wide horizontal deep jade-green lacquered wooden secondary button, carved edge with thin aged-gold trim, EMPTY center for cream label. Cohesive polished painterly cartoon game materials matching a dark walnut dojo backdrop. Exactly four assets, one per cell, centered and separate. Keep the rectangular inner surfaces broad and uniform for runtime text, keep borders modest. No text, no letters, no symbols, no numbers, no fruit, no extra items, no shadow outside silhouettes, no grid lines, no watermark. Transparent alpha gutters.",
+      "refinementPrompt": "Use case: background-extraction. Edit target: the supplied four-element GUI atlas. Remove ALL background pixels, colored glows, dark gradients and external shadows between and outside the four solid GUI panels. Replace all those pixels with real alpha transparency. Preserve EXACTLY the four wooden/brass/green/parchment GUI panels, their painted details, layout, dimensions and position. Keep all opaque wood and parchment inner surfaces intact. Do not remove the panel interiors. Keep the same 1536 by 1024 canvas, top-left dark wood plaque, top-right parchment scroll, bottom-left amber button, bottom-right jade button. Crisp clean alpha edges. No added objects, no text. This must be a usable transparent sprite atlas with absolutely no dark/colored background remaining in the gutters."
+    }
+  ],
+  "sampling": "Pixel rectangles are [x, y, width, height]; UI converts to normalized origin and extent. Native nine-slice preserves panel borders. Transparent RGB gutters are ignored by alpha blending."
+}

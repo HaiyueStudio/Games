@@ -56,6 +56,8 @@ for (const game of manifest.entries) {
 rmSync(outputRoot, { force: true, recursive: true });
 mkdirSync(outputRoot, { recursive: true });
 copyDirectory(siteSource, outputRoot, () => true);
+const indexPath = join(outputRoot, 'index.html');
+writeFileSync(indexPath, readFileSync(indexPath, 'utf8').replace('name="haiyue-games-root" content="../games/"', 'name="haiyue-games-root" content="./games/"'));
 
 const outputGames = join(outputRoot, 'games');
 mkdirSync(outputGames, { recursive: true });

@@ -56,8 +56,18 @@ See [controller mappings and verification](games/gamepad/README.md) and
 
 ## Local development
 
-Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine`, `UI`, and `Games`
-repositories in the same parent directory and install local package candidates:
+Use Node.js 22 or newer. Local Haiyue dependencies are packed from source and included
+in `vendor/`, so installing Games does not require sibling repositories:
+
+```bash
+npm install
+npm run typecheck
+npm test
+npm run build
+```
+
+To build and temporarily install fresh candidates from sibling `Engine` and `UI`
+repositories during development:
 
 ```bash
 cd ../Engine
@@ -145,8 +155,8 @@ that already use `OwnerSafeAudioMixer` retain their public API boundary.
 ## Game launcher
 
 The launcher in `site/` provides a focused game preview, searchable catalog, favorites,
-and recent launches. `catalog/` owns presentation metadata and filtering, `state/` owns
-local launcher preferences, and `ui/` owns cards and the embedded player presentation.
+and recent launches. `catalog/` owns presentation metadata, URL resolution and filtering;
+`state/` owns local launcher preferences, and `games/launcher/` owns native Engine GUI controls.
 Game entries and screenshots still come from `games/manifest.json`.
 
 Use arrow keys to select a cover, Enter to launch, F to favorite, and `/` to search.
@@ -156,18 +166,25 @@ and asks whether to return home; R3+LB/RB switches games and R3+Start opens the 
 local to this browser and do not replace gameplay saves. The launcher adapts to phone
 portrait/landscape screens and respects reduced-motion preferences.
 
-The Game OS desktop is rendered through Haiyue Engine: a WGSL aurora/grid wallpaper
-and three GUI layers for panels, covers, and foreground controls. The DOM supplies
-responsive layout, accessible controls, native search/IME, and keyboard/gamepad focus.
+Open `index.html` or `site/index.html` with Live Server after `npm run build`.
+Both source entrypoints resolve game URLs independently of the server's root folder;
+`npm run preview:build` also configures the published entrypoint for its own `games/` folder.
+
+The Game OS desktop uses one Haiyue Engine canvas: animated WGSL aurora ribbons,
+drifting particles and a moving perspective grid behind native GUI panels, images,
+buttons, search, scroll view and connection notifications. No hidden DOM interface
+supplies layout or interaction. Engine's invisible browser text responder provides IME
+only while the native GUI search field is focused. A temporary full-screen iframe hosts
+the selected game; its own Engine owns all gameplay UI.
 `games/launcher/` owns the renderer and its activity lifecycle; its public entry is
 exported by the existing lobby bundle. Opening or switching embedded games stops the
 desktop Engine loop; returning resumes it. Hidden tabs and back/forward cache suspension
 also stop rendering. Direct game links initialize without rendering desktop frames.
-Without WebGPU, the semantic HTML remains usable. Reduced motion freezes the wallpaper.
+Reduced motion freezes the wallpaper.
 
-Run `node scripts/verify-game-os.mjs` (`--portrait` or `--direct`) for browser checks
+Run `node scripts/verify-game-os.mjs` (`--portrait`, `--direct`, `--root` or `--published`) for browser checks
 covering native pointer launch, search/favorites, paused frame counts, and repeated
-launch/return. Screenshots and WebGPU diagnostics are written to `.artifacts/game-os/`.
+launch/return. Screenshots and WebGPU diagnostics are written to `artifacts/gamepad/`.
 
 ## Publishing
 

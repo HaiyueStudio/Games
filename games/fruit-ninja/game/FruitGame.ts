@@ -31,11 +31,13 @@ export class FruitGame {
     this.observer = new ResizeObserver(() => this.resize());
   }
   async init(): Promise<void> {
-    const [, fruit, extraFruit, items, saved] = await Promise.all([this.engine.init(), loadAtlas('./assets/fruits.png'), loadAtlas('./assets/fruits-extra.png'), loadAtlas('./assets/items.png'), this.save.load()]);
+    const [, fruit, extraFruit, items, background, gui, saved] = await Promise.all([this.engine.init(), loadAtlas('./assets/fruits.png'), loadAtlas('./assets/fruits-extra.png'), loadAtlas('./assets/items.png'), loadAtlas('./assets/dojo-backdrop.png'), loadAtlas('./assets/dojo-gui.png'), this.save.load()]);
     if (this.disposed) return;
     this.best = saved?.best ?? 0;
-    this.scene = new FruitScene(this.engine, this.effects, fruit, extraFruit, items);
-    this.hud = new FruitHud(this.engine, this.effects, action => this.action(action));
+    this.scene = new FruitScene(this.engine, this.effects, fruit, extraFruit, items, background);
+    await this.scene.initialize(this.lifetime.signal);
+    if (this.disposed) return;
+    this.hud = new FruitHud(this.engine, this.effects, action => this.action(action), gui);
     const integration = new RenderIntegration(this.engine, { label: 'Fruit.effects.GUI' });
     this.effects.addRuntimeIntegration(integration); integration.registerAll(this.effects, () => ({ pass: 'shared' }));
     this.input = new BladeInput(this.canvas, point => this.canSlice(point), (a, b) => this.cut(a, b), action => this.action(action), () => endStroke(this.round));
@@ -52,7 +54,7 @@ export class FruitGame {
     this.engine.run(); document.body.dataset.renderStatus = 'ready';
     if (new URLSearchParams(location.search).has('verify') || new URLSearchParams(location.search).has('gamepadVerify')) {
       Object.defineProperty(window, '__fruitNinja', { configurable: true, get: () => ({ ready: true, phase: this.round.phase, score: this.round.score, best: this.best, bombs: this.round.bombs, remaining: this.round.remaining, reason: this.round.reason,
-        combo: { ...this.round.combo }, view: { ...this.hud.view }, effects: this.scene.snapshot(), items: this.round.items.map(item => ({ ...item, screen: { x: this.hud.view.x + item.x * this.hud.view.scale, y: this.hud.view.y + item.y * this.hud.view.scale } })) }) });
+        art: { background: background.naturalWidth > 0, gui: gui.naturalWidth > 0 }, combo: { ...this.round.combo }, view: { ...this.hud.view }, effects: this.scene.snapshot(), items: this.round.items.map(item => ({ ...item, screen: { x: this.hud.view.x + item.x * this.hud.view.scale, y: this.hud.view.y + item.y * this.hud.view.scale } })) }) });
     }
   }
   private resize(): void {

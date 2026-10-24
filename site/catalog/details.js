@@ -38,8 +38,8 @@ export const filterOptions = [['all', '全部'], ['puzzle', '益智'], ['3d', '�
 const details = new Map(entries.map(([id, title, genre, description, mark]) => [id, { title, genre, description, mark }]));
 export const detailFor = game => details.get(game.id) ?? { title: game.title, genre: 'game', description: '选择游戏，开启新的体验。', mark: game.title.slice(0, 2) };
 export const is3d = game => game.capabilities.some(value => value.toLowerCase().includes('3d'));
-export const gameUrl = game => `./games/${encodeURIComponent(game.id)}/index.html`;
-export const thumbnailUrl = game => `./${game.thumbnail}`;
+export const gameUrl = (game, gamesRoot = './games/') => `${gamesRoot}${encodeURIComponent(game.id)}/index.html`;
+export const thumbnailUrl = (game, siteRoot = './') => `${siteRoot}${game.thumbnail}`;
 
 export function filterGames(games, { category = 'all', term = '', view = 'all', favorites = [], recent = [] } = {}) {
   const query = term.trim().toLocaleLowerCase();

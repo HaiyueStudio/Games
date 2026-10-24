@@ -21,7 +21,7 @@
 | billiards | 引擎 GuiSystem，原有实现 |
 | triangle-calendar-puzzle | 引擎 GuiSystem，原有实现 |
 | entanglement-path | 引擎 CanvasText / Mesh 纹理界面，无 DOM HUD；不是 GuiSystem 控件 |
-| icosahedron-minesweeper | 迁移到 MinesHud；数字标注使用引擎 GuiLabel |
+| icosahedron-minesweeper | MinesHud 显示状态；数字烘焙至格面 PBR 贴图，旗子使用沿面法线插入的几何 mesh |
 | gravity-maze | 迁移到 MazeHud |
 | match-3 | 迁移到 Match3Hud |
 | neon-circuit | 引擎 GuiSystem，原有实现 |

@@ -157,11 +157,13 @@
       "title": "icosahedron minesweeper",
       "entry": "icosahedron-minesweeper/main.ts",
       "capabilities": [
-        "2d",
+        "3d",
+        "input",
+        "procedural-geometry",
         "game-workflow", "gamepad",
         "gui"
       ],
-      "assets": [],
+      "assets": ["icosahedron-minesweeper/assets/titanium-albedo.png", "icosahedron-minesweeper/assets/orbit-gui.png"],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -818,7 +820,7 @@
       "thumbnail": "screenshots/jigsaw-puzzle.png",
       "title": "拾光拼图 · Jigsaw Studio",
       "entry": "jigsaw-puzzle/main.ts",
-      "capabilities": ["2d", "gui", "input", "game-workflow", "gamepad"],
+      "capabilities": ["2d", "gui", "input", "save", "game-workflow", "gamepad"],
       "assets": ["jigsaw-puzzle/assets/alpine-lake.svg"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
@@ -830,7 +832,7 @@
       "title": "水果忍者 · Fruit Ninja",
       "entry": "fruit-ninja/main.ts",
       "capabilities": ["2d", "gui", "input", "particles", "generated-assets", "game-workflow", "gamepad"],
-      "assets": ["fruit-ninja/assets/fruits.png", "fruit-ninja/assets/fruits-extra.png", "fruit-ninja/assets/items.png", "fruit-ninja/assets/provenance.json", "fruit-ninja/assets/fruits-extra.provenance.json"],
+      "assets": ["fruit-ninja/assets/fruits.png", "fruit-ninja/assets/fruits-extra.png", "fruit-ninja/assets/items.png", "fruit-ninja/assets/dojo-backdrop.png", "fruit-ninja/assets/dojo-gui.png", "fruit-ninja/assets/provenance.json", "fruit-ninja/assets/fruits-extra.provenance.json", "fruit-ninja/assets/dojo.provenance.json"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"

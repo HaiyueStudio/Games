@@ -1,6 +1,7 @@
 import type { HaiyueEngine, World } from '@haiyue/engine';
 import { GuiButton, GuiCheckbox, GuiElement, GuiImage, GuiLabel, GuiSelect, type GuiRect } from '@haiyue/engine/gui';
 import { GameHud } from '../../shared/ui/GameHud';
+import type { AutoSaveStatus } from '../../save/SingleSlotGameSave';
 export type Action = 'upload' | 'restart' | 'preview' | 'left' | 'right' | 'scatter' | 'minus' | 'fit' | 'plus';
 const CHARS = '°·−。「」上不中于传住体作候允光入关再准击分切列加动原取可右合同后向吸回固图在块处备失始完定小左已平并应度开式张戏成手才拖择拼拾按接操放效整新方旋无有松柄查模正法消游滚点片理白的相看秒移稍空组继续缩置能行要许设请读败转轮载返连适选邻闭附需页首！，：';
 
@@ -22,7 +23,7 @@ export class JigsawHud extends GameHud {
   private imageAspect = 1.5;
   private busy = false;
   constructor(engine: HaiyueEngine, world: World, action: (action: Action) => void) {
-    super(engine, world, CHARS, 1280, 800);
+    super(engine, world, CHARS + '自动保存正在失败下次操作将重试…', 1280, 800);
     this.root.theme.fontSize = 14;
     this.top = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#16353c' } }));
     this.bottom = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#16353c' } }));
@@ -83,6 +84,10 @@ export class JigsawHud extends GameHud {
     this.root.root.markDirty();
   }
   setImage(image: HTMLCanvasElement): void { this.preview.setSource(image); this.imageAspect = image.width / image.height; }
+  setSaveStatus(status: AutoSaveStatus): void {
+    this.help.setText(status === 'saving' ? '正在自动保存…' : status === 'saved' ? '已自动保存 · 拖动拼块 / 滚轮缩放'
+      : status === 'error' ? '自动保存失败 · 下次操作将重试' : '拖动拼块 / 空白处平移 / 滚轮缩放');
+  }
   setBusy(busy: boolean): void {
     this.busy = busy; this.rows.setDisabled(busy); this.cols.setDisabled(busy); this.rotation.setDisabled(busy);
     for (const button of this.buttons.values()) button.setDisabled(busy);
