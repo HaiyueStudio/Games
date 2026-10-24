@@ -156,6 +156,19 @@ and asks whether to return home; R3+LB/RB switches games and R3+Start opens the 
 local to this browser and do not replace gameplay saves. The launcher adapts to phone
 portrait/landscape screens and respects reduced-motion preferences.
 
+The Game OS desktop is rendered through Haiyue Engine: a WGSL aurora/grid wallpaper
+and three GUI layers for panels, covers, and foreground controls. The DOM supplies
+responsive layout, accessible controls, native search/IME, and keyboard/gamepad focus.
+`games/launcher/` owns the renderer and its activity lifecycle; its public entry is
+exported by the existing lobby bundle. Opening or switching embedded games stops the
+desktop Engine loop; returning resumes it. Hidden tabs and back/forward cache suspension
+also stop rendering. Direct game links initialize without rendering desktop frames.
+Without WebGPU, the semantic HTML remains usable. Reduced motion freezes the wallpaper.
+
+Run `node scripts/verify-game-os.mjs` (`--portrait` or `--direct`) for browser checks
+covering native pointer launch, search/favorites, paused frame counts, and repeated
+launch/return. Screenshots and WebGPU diagnostics are written to `.artifacts/game-os/`.
+
 ## Publishing
 
 Pushes to `master` or `main` deploy the lobby through GitHub Actions. The workflow can also be started manually

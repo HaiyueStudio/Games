@@ -1,4 +1,4 @@
-import { installLobbyGamepad } from './gamepad.js';
+import { installLobbyGamepad, GameOS } from './gamepad.js';
 import { detailFor, filterGames, filterOptions, gameUrl, genreLabels, is3d, thumbnailUrl } from './catalog/details.js';
 import { LibraryState } from './state/library.js';
 import { createCard, focusCard } from './ui/library.js';
@@ -18,6 +18,7 @@ let games = [], visible = [], selectedId = '', category = 'all', view = 'all';
 const viewTitles = { all: '全部游戏', recent: '最近游玩', favorites: '我的收藏' };
 const cards = () => [...elements.grid.querySelectorAll('.card-visual')];
 const selectedGame = () => games.find(game => game.id === selectedId);
+const gameOS = new GameOS($('#os-desktop'));
 
 function selectGame(game) {
   selectedId = game?.id ?? '';
@@ -119,6 +120,7 @@ function setGameQuery(id) {
 }
 
 function openGame(game, updateHistory = true) {
+  gameOS.setPlaying(true);
   selectGame(game);
   library.recordLaunch(game.id);
   $('#player-title').textContent = detailFor(game).title;
@@ -136,6 +138,7 @@ function closeGame(updateHistory = true) {
   if (wasOpen) elements.dialog.close();
   elements.frame.src = 'about:blank';
   delete elements.frame.dataset.gameId;
+  gameOS.setPlaying(false);
   if (updateHistory) setGameQuery(null);
   if (wasOpen) {
     renderGames();
@@ -163,6 +166,8 @@ async function loadCatalog() {
     library.reconcile(games);
     $('#game-count').textContent = games.length;
     renderFilters(); renderGames(); syncGameFromUrl();
+    const glyphs = games.map(game => { const d = detailFor(game); return `${game.title}${d.title}${d.description}${d.mark}`; }).join('') + Object.values(viewTitles).join('') + '把喜欢的留在这里下一场从这里开始换个关键词试试浏览游戏库发现值得再玩一次的游戏没有找到匹配的还没有收藏游玩记录试试其他名称或切换分类选中游戏后按点击爱心即可加入启动一款下次就能在这里快速找到准备就绪即刻游玩再次出发重返喜欢的世界手柄已连接切换视图';
+    void gameOS.init(glyphs).catch(error => { gameOS.destroy(); document.body.dataset.osError = 'true'; console.error('Game OS renderer unavailable', error); });
   } catch (error) {
     elements.empty.hidden = false;
     $('#empty-title').textContent = '游戏库暂时无法载入';

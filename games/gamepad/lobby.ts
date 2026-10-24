@@ -2,6 +2,7 @@ import { GamepadSampler, NeutralGate } from './sampler';
 import { defineNotificationComponents, HYNotification } from '@haiyue/ui/notification';
 import { GamepadConnections } from './connections';
 import { monitorGamepadConnections } from './connectionMonitor';
+export { GameOS } from '../launcher/GameOS';
 
 interface LobbyOptions {
   cards(): HTMLButtonElement[];
