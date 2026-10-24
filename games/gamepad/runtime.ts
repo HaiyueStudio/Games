@@ -4,6 +4,7 @@ import { GameReturnController } from '../session/GameReturnController';
 import { sessionEngine } from '../session/GameEngine';
 import { GamepadSampler, NeutralGate, type PadFrame } from './sampler';
 import { GAMEPAD_PROFILES, keyboardKey } from './profiles';
+import type { GameBridge } from '../host/types';
 let current:PadFrame|undefined;
 let pointerMode=false;
 export const gamepadFrame=():PadFrame|undefined=>pointerMode?undefined:current;
@@ -80,7 +81,7 @@ export function installGamepad(id:string):()=>void {
       if(command&&!chord){
         chord=true;
         if(command==='home')returnMenu.request();
-        else if(parent!==window)parent.postMessage({type:'haiyue-gamepad-'+command},location.origin);
+        else { const host=(window as Window & {__haiyueGameHost?:GameBridge}).__haiyueGameHost;if(host)host.switch(command==='next'?1:-1);else if(parent!==window)parent.postMessage({type:'haiyue-gamepad-'+command},location.origin); }
       }
       return;
     }

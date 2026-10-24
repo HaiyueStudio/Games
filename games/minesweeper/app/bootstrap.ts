@@ -1,5 +1,6 @@
 import {MinesHud} from '../ui/MinesHud';
-import {ProjectedLabel} from '../../shared/ui/ProjectedLabel';
+import { createMinesAudio } from '../../shared/minesweeper/audio/BrowserAudio';
+import type { MinesAudio } from '../../shared/minesweeper/audio/MinesAudio';
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
@@ -13,18 +14,18 @@ import { SphericalTransform3D } from '@haiyue/engine';
 import { Mesh3D } from '@haiyue/engine';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { BasicMaterial } from '@haiyue/engine';
-import { BlinnPhongMaterial } from '@haiyue/engine/material';
-import { ColorSRGB } from '@haiyue/engine';
+import { EnvironmentLight, OrbitControl } from '@haiyue/engine';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { DirectionalLight } from '@haiyue/engine';
-import { createBox3D } from '@haiyue/engine';
-import { createSphere3D } from '@haiyue/engine';
-import { createCone3D } from '@haiyue/engine/geometry';
 import { mat4 } from 'wgpu-matrix';
 import { requiredItemAt, requiredNumberAt } from '../../shared/collections/arrayAccess';
 import { CameraViewProjectionCache } from '../../shared/rendering/CameraViewProjectionCache';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
+import { CellMaterials } from '../../shared/minesweeper/Theme';
+import { BoardGesture, type BoardAction } from '../../shared/minesweeper/BoardGesture';
+import { BoardScene, CELL_SIZE, TILE_TOP, REVEAL_DROP, type TileVisual } from '../rendering/BoardScene';
+import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
+import { verifyMinesweeper } from '../verification/verifyMinesweeper';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -32,23 +33,19 @@ import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/S
 
 type CellState = 'hidden' | 'revealed' | 'flagged';
 
-interface Cell {
+export interface Cell {
   row:       number;
   col:       number;
   isMine:    boolean;
   adjCount:  number;
   state:     CellState;
 
-  // 3D scene entities
-  cubeEntity:  Entity;
-  cubeMat:     BasicMaterial;
-  flagEntity:  Entity | null;
-  mineEntity:  Entity | null;
+  visual: TileVisual;
 }
 
 type GamePhase = 'idle' | 'playing' | 'won' | 'lost';
 
-interface MinesweeperSaveData {
+export interface MinesweeperSaveData {
   rows: number;
   cols: number;
   totalMines: number;
@@ -78,44 +75,10 @@ function isMinesweeperSaveData(value: unknown): value is MinesweeperSaveData {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CELL_SIZE = 1.1;   // spacing between cell centres
-const ORBIT_ROTATE_SPEED = 0.006;
-const ORBIT_ZOOM_SPEED = 0.0015;
 const ORBIT_MIN_PHI = 0.18;
 const ORBIT_MAX_PHI = Math.PI / 2.15;
 const ORBIT_MIN_RADIUS = 5;
 const ORBIT_MAX_RADIUS = 40;
-
-// Number colours (classic minesweeper palette)
-const NUM_COLORS = [
-  '',
-  '#2255ff', // 1
-  '#007b00', // 2
-  '#ff2200', // 3
-  '#00007b', // 4
-  '#7b0000', // 5
-  '#007b7b', // 6
-  '#000000', // 7
-  '#7b7b7b', // 8
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Geometry singletons (shared across all cells)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const geoBox    = createBox3D({ width: 1, height: 0.35, depth: 1 });
-const geoSphere = createSphere3D({ radius: 0.28, widthSegments: 16, heightSegments: 12 });
-const geoCone   = createCone3D({ radius: 0.14, height: 0.45, radialSegments: 12 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Colour helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-const C = (r: number, g: number, b: number, a = 1) => new ColorSRGB(r, g, b, a);
-
-const MAT_HIDDEN   = C(0.38, 0.50, 0.72);
-const MAT_REVEALED = C(0.82, 0.84, 0.90);
-const MAT_HOVER    = C(0.55, 0.68, 0.90);
 
 function cellAt(cells: Cell[][], row: number, col: number): Cell {
   return requiredItemAt(requiredItemAt(cells, row, 'Minesweeper rows'), col, 'Minesweeper cells');
@@ -235,9 +198,14 @@ class Minesweeper {
 
   // Engine GUI
   private hud!: MinesHud;
+  private audio!: MinesAudio;
 
-  // Label elements pool
-  private labelEls: Map<string, ProjectedLabel> = new Map();
+  private scene!: BoardScene;
+  private materials!: CellMaterials;
+  private orbit!: OrbitControl;
+  private readonly gesture = new BoardGesture();
+  private orbitWasEnabled = true;
+  private readonly verifying = new URLSearchParams(location.search).has('verify');
 
   // Game state
   private phase: GamePhase = 'idle';
@@ -249,9 +217,6 @@ class Minesweeper {
 
   // Interaction
   private hoveredCell: Cell | null = null;
-  private isOrbiting = false;
-  private orbitLastX = 0;
-  private orbitLastY = 0;
 
   // viewProj for picking & projection
   private viewProj: Float32Array = new Float32Array(16);
@@ -266,15 +231,21 @@ class Minesweeper {
   async init(canvas: HTMLCanvasElement) {
     this.engine = new GameEngine({
       canvas,
-      clearColor: { r: 0.06, g: 0.07, b: 0.13, a: 1 },
+      clearColor: { r: 0.035, g: 0.04, b: 0.055, a: 1 },
       msaaSamples: 4,
     });
     await this.engine.init();
 
     this.world = new World('Minesweeper');
 
-    this._setupCamera();
-    this.hud = new MinesHud(this.engine, this.world, () => this._newGame());
+    this._setupCamera(canvas);
+    this.audio = await createMinesAudio(this.world, canvas, 'minesweeper');
+    this.hud = new MinesHud(this.engine, this.world, () => this._newGame(), this.rows, this.cols, this.audio);
+    this.hud.guardOrbit(this.orbit, canvas);
+    await this.hud.loadSkin();
+    this.materials = await CellMaterials.load(this.engine);
+    this.world.addRuntimeIntegration({ onDetach: () => this.materials.dispose() });
+    this.scene = new BoardScene(this.world, this.materials, this.rows, this.cols);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'Minesweeper.render' });
     this.world.addRuntimeIntegration(renderIntegration);
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
@@ -287,19 +258,20 @@ class Minesweeper {
     });
 
     this.engine.run();
+    if (this.verifying) await this._verify(canvas);
   }
 
   // ── Camera ────────────────────────────────────────────────────────────────
 
-  private _setupCamera() {
+  private _setupCamera(canvas: HTMLCanvasElement) {
     const gridW = (this.cols - 1) * CELL_SIZE;
     const gridH = (this.rows - 1) * CELL_SIZE;
     const radius = Math.max(gridW, gridH) * 1.3 + 4;
 
     this.spherical = new SphericalTransform3D({
       radius,
-      theta: 0,
-      phi:   Math.PI / 4.5,
+      theta: -0.25,
+      phi:   0.62,
       target: [gridW / 2, 0, gridH / 2],
     });
 
@@ -314,6 +286,9 @@ class Minesweeper {
     this.camEntity.addComponent(this.cam3D);
     this.camEntity.addComponent(this.spherical);
     this.world.addEntity(this.camEntity);
+    fitPerspectiveCamera(this.engine, this.world, this.cam3D, 1.1);
+    this.orbit = new OrbitControl(canvas, this.spherical, { minRadius: ORBIT_MIN_RADIUS, maxRadius: ORBIT_MAX_RADIUS,
+      minPhi: ORBIT_MIN_PHI, maxPhi: ORBIT_MAX_PHI, enablePan: false, rotateSpeed: .75 });
 
     this.render3D = new Render3DSystem(this.engine, this.camEntity, {
       priority: 0,
@@ -324,53 +299,47 @@ class Minesweeper {
 
     // Lights
     const ambientE = new Entity('AmbientLight');
-    ambientE.addComponent(new AmbientLight({ color: [1, 1, 1], intensity: 0.18 }));
+    ambientE.addComponent(new AmbientLight({ color: [.72, .82, 1], intensity: 0.32 }));
     this.world.addEntity(ambientE);
 
     const dirE = new Entity('DirLight');
     dirE.addComponent(new DirectionalLight({
       color: [1, 0.95, 0.88],
-      intensity: 1.1,
+      intensity: 2.1,
       direction: [-0.5, -1, -0.4],
     }));
     this.world.addEntity(dirE);
+    this.world.addEntity(new Entity('Cool fill').addComponent(new DirectionalLight({ color: [.48,.68,1], intensity: .7, direction: [.68,.24,.62] })));
+    this.world.addEntity(new Entity('Environment').addComponent(new EnvironmentLight({ intensity: .55, diffuseColor: [.15,.23,.42], specularColor: [.72,.84,1] })));
   }
 
   // ── New game ──────────────────────────────────────────────────────────────
 
   private _newGame(save = true) {
-    // Remove old entities
-    for (const row of this.cells) {
-      for (const cell of row) {
-        this.world.removeEntity(cell.cubeEntity);
-        if (cell.flagEntity) this.world.removeEntity(cell.flagEntity);
-        if (cell.mineEntity) this.world.removeEntity(cell.mineEntity);
-      }
+    this.audio.reset();
+    this._cancelGesture();
+    this.phase = 'idle'; this.startTime = 0; this.elapsedSec = 0;
+    this.flagCount = 0; this.revealedCount = 0; this.savedElapsedSec = -1;
+    if (!this.cells.length) this._buildGrid();
+    for (const row of this.cells) for (const cell of row) {
+      cell.state = 'hidden'; cell.isMine = false; cell.adjCount = 0; this._syncCell(cell);
     }
-    // Clear labels
-    this.labelEls.forEach(el => this.hud.root.remove(el));
-    this.labelEls.clear();
-
-    this.cells        = [];
-    this.phase        = 'idle';
-    this.startTime    = 0;
-    this.elapsedSec   = 0;
-    this.flagCount    = 0;
-    this.revealedCount= 0;
-    this.hoveredCell  = null;
-
-    this.hud.title.setVisible(false);this.hud.detail.setVisible(false);
+    this.hud.clearMessage();
+    this.hud.showMessage('Left: reveal   Right: flag   Left + Right: open neighbors   Drag: orbit', 4500);
     this._updateHUD();
-    this._buildGrid();
     if (save) this._saveState();
   }
 
   private async _loadOrCreateState(): Promise<void> {
-    const saved = await this.saves.load();
+    const saved = this.verifying ? null : await this.saves.load();
     if (!saved || saved.rows !== this.rows || saved.cols !== this.cols || saved.totalMines !== this.totalMines) {
       this._newGame();
       return;
     }
+    this._restoreState(saved);
+  }
+
+  private _restoreState(saved: MinesweeperSaveData): void {
     this._newGame(false);
     this.phase = saved.phase;
     this.elapsedSec = saved.elapsedSec;
@@ -383,19 +352,13 @@ class Minesweeper {
         const cell = cellAt(this.cells, row, col);
         cell.isMine = data.isMine;
         cell.adjCount = data.adjCount;
-        if (data.state === 'flagged') {
-          this._toggleFlag(cell);
-        } else if (data.state === 'revealed') {
-          cell.state = 'revealed';
-          if (cell.isMine) this._showMine(cell);
-          else {
-            this.revealedCount++;
-            cell.cubeMat.color.setFromSRGB(MAT_REVEALED.r, MAT_REVEALED.g, MAT_REVEALED.b, 1);
-            cell.cubeEntity.getComponent(CartesianTransform3D)!.setPosition(cell.col * CELL_SIZE, -0.15, cell.row * CELL_SIZE);
-          }
-        }
+        cell.state = data.state;
+        if (cell.state === 'flagged') this.flagCount++;
+        if (cell.state === 'revealed' && !cell.isMine) this.revealedCount++;
+        this._syncCell(cell);
       }
     }
+    this.hud.showMessage('Saved game restored.', 2800);
     this._restoreStatusOverlay();
     this._updateHUD();
     this.savedElapsedSec = this.elapsedSec;
@@ -403,13 +366,17 @@ class Minesweeper {
 
   private _restoreStatusOverlay(): void {
     if (this.phase !== 'won' && this.phase !== 'lost') return;
-    this.hud.title.setText(this.phase === 'won' ? '✓  CLEARED' : '💥  BOOM');
-    this.hud.detail.setText(`Time: ${this.elapsedSec}s  ·  R to restart`);
-    this.hud.title.setVisible(true);this.hud.detail.setVisible(true);
+    this.hud.showResult(this.phase === 'won', this.elapsedSec);
   }
 
   private _saveState(): void {
-    this.saves.save({
+    if (this.verifying) return;
+    this.saves.save(this._snapshotState());
+    this.savedElapsedSec = this.elapsedSec;
+  }
+
+  private _snapshotState(): MinesweeperSaveData {
+    return {
       rows: this.rows,
       cols: this.cols,
       totalMines: this.totalMines,
@@ -420,41 +387,22 @@ class Minesweeper {
         adjCount: cell.adjCount,
         state: cell.state,
       }))),
-    });
-    this.savedElapsedSec = this.elapsedSec;
+    };
   }
 
   // ── Build grid ────────────────────────────────────────────────────────────
 
   private _buildGrid() {
-    const offX = 0;
-    const offZ = 0;
+    this.cells = Array.from({ length: this.rows }, (_, row) => Array.from({ length: this.cols }, (_, col) => ({
+      row, col, isMine: false, adjCount: 0, state: 'hidden' as CellState, visual: this.scene.tile(row, col),
+    })));
+  }
 
-    for (let r = 0; r < this.rows; r++) {
-      this.cells[r] = [];
-      for (let c = 0; c < this.cols; c++) {
-        const wx = offX + c * CELL_SIZE;
-        const wz = offZ + r * CELL_SIZE;
-
-        const mat = new BasicMaterial({ color: MAT_HIDDEN.clone() });
-        const cube = new Entity(`cell_${r}_${c}`);
-        const t = new CartesianTransform3D({ position: [wx, 0, wz] });
-        cube.addComponent(t);
-        cube.addComponent(new Mesh3D(geoBox, mat));
-        this.world.addEntity(cube);
-
-        requiredItemAt(this.cells, r, 'Minesweeper rows')[c] = {
-          row: r, col: c,
-          isMine: false,
-          adjCount: 0,
-          state: 'hidden',
-          cubeEntity: cube,
-          cubeMat: mat,
-          flagEntity: null,
-          mineEntity: null,
-        };
-      }
-    }
+  private _syncCell(cell: Cell): void {
+    const surface = cell.state === 'revealed' ? cell.isMine ? 'mine' : 'revealed'
+      : cell.state === 'flagged' ? this.phase === 'lost' && !cell.isMine ? 'wrong-flag' : 'flagged'
+      : cell === this.hoveredCell ? 'hover' : 'hidden';
+    this.scene.update(cell.visual, cell.row, cell.col, cell.state, cell.adjCount, surface);
   }
 
   // ── Mine placement (deferred to first click so first click is safe) ───────
@@ -469,8 +417,10 @@ class Minesweeper {
       }
     }
     // Fisher-Yates shuffle, take first N
+    let seed = 0xc1a551c;
     for (let i = positions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const j = Math.floor((this.verifying ? seed / 4294967296 : Math.random()) * (i + 1));
       const current = requiredItemAt(positions, i, 'mine positions');
       positions[i] = requiredItemAt(positions, j, 'mine positions');
       positions[j] = current;
@@ -570,11 +520,7 @@ class Minesweeper {
       cell.state = 'revealed';
       this.revealedCount++;
 
-      // Update cube colour
-      cell.cubeMat.color.setFromSRGB(MAT_REVEALED.r, MAT_REVEALED.g, MAT_REVEALED.b, 1);
-      // Sink the tile slightly
-      const t = cell.cubeEntity.getComponent(CartesianTransform3D)!;
-      t.setPosition(cell.col * CELL_SIZE, -0.15, cell.row * CELL_SIZE);
+      this._syncCell(cell);
 
       if (cell.adjCount === 0) {
         // Flood neighbours
@@ -597,55 +543,12 @@ class Minesweeper {
 
   private _toggleFlag(cell: Cell) {
     if (cell.state === 'revealed') return;
-
-    if (cell.state === 'flagged') {
-      // Remove flag
-      if (cell.flagEntity) {
-        this.world.removeEntity(cell.flagEntity);
-        cell.flagEntity = null;
-      }
-      cell.state = 'hidden';
-      this.flagCount--;
-    } else {
-      // Place flag (cone on top of cube)
-      const [wx, , wz] = this._cellWorldPos(cell);
-      const flagE = new Entity(`flag_${cell.row}_${cell.col}`);
-      const ft = new CartesianTransform3D({ position: [wx, 0.55, wz] });
-      flagE.addComponent(ft);
-      flagE.addComponent(new Mesh3D(geoCone, new BlinnPhongMaterial({
-        ambient:   [0.15, 0.10, 0.01],
-        diffuse:   [1.00, 0.75, 0.10],
-        specular:  [1.00, 0.90, 0.50],
-        shininess: 128,
-      })));
-      this.world.addEntity(flagE);
-      cell.flagEntity = flagE;
-      cell.state = 'flagged';
-      this.flagCount++;
-    }
-
-    this._updateHUD();
+    if (cell.state === 'flagged') { cell.state = 'hidden'; this.flagCount--; }
+    else { cell.state = 'flagged'; this.flagCount++; }
+    this._syncCell(cell); this._updateHUD();
   }
 
-  // ── Mine visual ───────────────────────────────────────────────────────────
-
-  private _showMine(cell: Cell) {
-    const [wx, , wz] = this._cellWorldPos(cell);
-    // Red cube
-    cell.cubeMat.color.setFromSRGB(0.9, 0.15, 0.15, 1);
-    // Sphere floating above
-    const mineE = new Entity(`mine_${cell.row}_${cell.col}`);
-    const mt = new CartesianTransform3D({ position: [wx, 0.45, wz] });
-    mineE.addComponent(mt);
-    mineE.addComponent(new Mesh3D(geoSphere, new BlinnPhongMaterial({
-      ambient:   [0.15, 0.01, 0.01],
-      diffuse:   [1.00, 0.12, 0.12],
-      specular:  [1.00, 0.50, 0.50],
-      shininess: 64,
-    })));
-    this.world.addEntity(mineE);
-    cell.mineEntity = mineE;
-  }
+  private _showMine(cell: Cell) { this._syncCell(cell); }
 
   // ── Reveal all mines on loss ──────────────────────────────────────────────
 
@@ -659,24 +562,18 @@ class Minesweeper {
           this._showMine(cell);
         }
         // Remove flags that were wrong
-        if (cell.flagEntity && !cell.isMine) {
-          cell.cubeMat.color.setFromSRGB(0.7, 0.2, 0.2, 1);
-        }
+        if (cell.state === 'flagged') this._syncCell(cell);
       }
     }
 
-    this.hud.title.setText('💥  BOOM');
-    this.hud.detail.setText(`Time: ${this.elapsedSec}s  ·  R to restart`);
-    this.hud.title.setVisible(true);this.hud.detail.setVisible(true);
+    this.hud.showResult(false, this.elapsedSec);
   }
 
   private _checkWin() {
     const safeCells = this.rows * this.cols - this.totalMines;
     if (this.revealedCount >= safeCells) {
       this.phase = 'won';
-      this.hud.title.setText('✓  CLEARED');
-        this.hud.detail.setText(`Time: ${this.elapsedSec}s  ·  R to restart`);
-      this.hud.title.setVisible(true);this.hud.detail.setVisible(true);
+      this.hud.showResult(true, this.elapsedSec);
     }
   }
 
@@ -685,139 +582,89 @@ class Minesweeper {
   private _updateHUD() {
     this.hud.mines.setText(String(this.totalMines - this.flagCount));
     this.hud.timer.setText(String(this.elapsedSec));
+    this.hud.elFlags.setText(String(this.flagCount));
+    this.hud.elOpen.setText(String(this.revealedCount));
   }
 
-  // ── Cell number labels (DOM projection) ──────────────────────────────────
-
-  private _updateLabels() {
-    for (const row of this.cells) {
-      for (const cell of row) {
-        const key = `${cell.row}_${cell.col}`;
-        if (cell.state === 'revealed' && !cell.isMine && cell.adjCount > 0) {
-          let el = this.labelEls.get(key);
-          if (!el) {
-            el = this.hud.root.add(new ProjectedLabel(String(cell.adjCount),24));
-            el.setStyle({color:NUM_COLORS[cell.adjCount]??'#fff',backgroundColor:'transparent'});
-            this.labelEls.set(key, el);
-          }
-          // Project world pos to screen
-          const [wx, wy, wz] = this._cellWorldPos(cell);
-          const sc = project3DToScreen(wx, wy + 0.30, wz, this.viewProj, this.engine.displayWidth, this.engine.displayHeight);
-          if (sc.behind) {
-            el.setVisible(false);
-          } else {
-            el.setVisible(true);
-            el.move(sc.x,sc.y);
-          }
-        }
-      }
-    }
-  }
-
-  // ── Input ─────────────────────────────────────────────────────────────────
-
-  private _setupInput(canvas: HTMLCanvasElement) {
-    canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-    canvas.addEventListener('mousedown', (e) => {
-      const cell = this._pickCell(e.clientX, e.clientY, canvas);
-      if (!cell) {
-        this._clearHover();
-        this.isOrbiting = true;
-        this.orbitLastX = e.clientX;
-        this.orbitLastY = e.clientY;
-        e.preventDefault();
-        return;
-      }
-
-      if (this.phase === 'won' || this.phase === 'lost') return;
-
-      if (e.button === 2) {
-        if (cell.state === 'revealed') {
-          this._quickReveal(cell);
-        } else {
-          this._toggleFlag(cell);
-        }
-      } else if (e.button === 0) {
-        if (cell.state === 'hidden') this._reveal(cell);
-      }
-      this._saveState();
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (this.isOrbiting) {
-        const dx = e.clientX - this.orbitLastX;
-        const dy = e.clientY - this.orbitLastY;
-        this.orbitLastX = e.clientX;
-        this.orbitLastY = e.clientY;
-        this._orbitCamera(dx, dy);
-        return;
-      }
-
-      if (this.phase === 'won' || this.phase === 'lost') return;
-      const cell = this._pickCell(e.clientX, e.clientY, canvas);
-
-      if (this.hoveredCell && this.hoveredCell !== cell) {
-        const hc = this.hoveredCell;
-        if (hc.state === 'hidden') {
-          hc.cubeMat.color.setFromSRGB(MAT_HIDDEN.r, MAT_HIDDEN.g, MAT_HIDDEN.b, 1);
-        }
-      }
-
-      if (cell && cell.state === 'hidden') {
-        cell.cubeMat.color.setFromSRGB(MAT_HOVER.r, MAT_HOVER.g, MAT_HOVER.b, 1);
-      }
-
-      this.hoveredCell = cell;
-    });
-
-    canvas.addEventListener('wheel', (e) => {
-      const cell = this._pickCell(e.clientX, e.clientY, canvas);
-      if (cell) return;
-
-      this._zoomCamera(e.deltaY);
-      e.preventDefault();
-    }, { passive: false });
-
-    canvas.addEventListener('mouseleave', () => {
-      this._clearHover();
-    });
-
-    window.addEventListener('mouseup', () => {
-      this.isOrbiting = false;
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'r' || e.key === 'R') this._newGame();
-    });
-  }
-
-  private _clearHover() {
-    if (this.hoveredCell?.state === 'hidden') {
-      this.hoveredCell.cubeMat.color.setFromSRGB(MAT_HIDDEN.r, MAT_HIDDEN.g, MAT_HIDDEN.b, 1);
-    }
+  private _clearHover(): void {
+    if (this.hoveredCell?.state === 'hidden') this.scene.update(this.hoveredCell.visual, this.hoveredCell.row, this.hoveredCell.col, this.hoveredCell.state, this.hoveredCell.adjCount, 'hidden');
     this.hoveredCell = null;
   }
 
-  private _orbitCamera(dx: number, dy: number) {
-    const nextTheta = this.spherical.theta - dx * ORBIT_ROTATE_SPEED;
-    const nextPhi = Math.max(
-      ORBIT_MIN_PHI,
-      Math.min(ORBIT_MAX_PHI, this.spherical.phi + dy * ORBIT_ROTATE_SPEED),
-    );
-    this.spherical.set(this.spherical.radius, nextTheta, nextPhi);
+  private _cancelGesture(): void {
+    if (this.gesture.active) this.orbit.enableRotate = this.orbitWasEnabled;
+    this.gesture.cancel();
+    this._clearHover();
   }
 
-  private _zoomCamera(deltaY: number) {
-    const zoom = 1 + deltaY * ORBIT_ZOOM_SPEED;
-    const nextRadius = Math.max(
-      ORBIT_MIN_RADIUS,
-      Math.min(ORBIT_MAX_RADIUS, this.spherical.radius * zoom),
-    );
-    this.spherical.radius = nextRadius;
+  private _applyPointerAction(action: BoardAction | null): void {
+    if (!action || this.phase === 'lost' || this.phase === 'won') return;
+    const cell = cellAt(this.cells, Math.floor(action.cellId / this.cols), action.cellId % this.cols);
+    const beforeState = cell.state, beforeOpened = this.revealedCount;
+    if (action.kind === 'chord' || action.kind === 'flag' && cell.state === 'revealed') this._quickReveal(cell);
+    else if (action.kind === 'flag') this._toggleFlag(cell);
+    else this._reveal(cell);
+    if ((this.phase as string) === 'lost') this.audio.explosion();
+    else if (action.kind === 'flag' && beforeState !== 'revealed' && cell.state !== beforeState) this.audio.flag(cell.state === 'flagged');
+    else if (this.revealedCount > beforeOpened) this.audio.click();
+    this._updateHUD();
+    this._saveState();
   }
+
+  private _setupInput(canvas: HTMLCanvasElement): void {
+    const abort = new AbortController();
+    const options = { signal: abort.signal, capture: true };
+    this.world.addRuntimeIntegration({ onDetach: () => { this._cancelGesture(); abort.abort(); } });
+    const release = (event: MouseEvent) => {
+      if (!this.gesture.active) return;
+      const action = this.gesture.release(event.clientX, event.clientY, event.buttons,
+        this._cellId(this._pickCell(event.clientX, event.clientY, canvas)));
+      if (!this.gesture.active) this.orbit.enableRotate = this.orbitWasEnabled;
+      this._applyPointerAction(action);
+    };
+    canvas.addEventListener('contextmenu', event => event.preventDefault(), options);
+    canvas.addEventListener('pointerdown', event => {
+      if (this.hud.hit(event.clientX, event.clientY, canvas)) return;
+      if (!this.gesture.active) this.orbitWasEnabled = this.orbit.enableRotate;
+      this._clearHover();
+      this.gesture.begin(event.clientX, event.clientY, event.button, event.buttons, event.pointerId,
+        this._cellId(this._pickCell(event.clientX, event.clientY, canvas)));
+      if (this.gesture.active) this.orbit.enableRotate = false;
+    }, options);
+    canvas.addEventListener('mousedown', event => {
+      this.gesture.move(event.clientX, event.clientY, event.buttons);
+      if (this.gesture.chording) this.orbit.enableRotate = false;
+    }, options);
+    canvas.addEventListener('pointerup', release, options);
+    // Mouse events fire for the second button and first release of a chord, unlike pointer events.
+    canvas.addEventListener('mouseup', release, options);
+    canvas.addEventListener('pointermove', event => {
+      if (this.gesture.active) {
+        this.gesture.move(event.clientX, event.clientY, event.buttons);
+        this.orbit.enableRotate = this.orbitWasEnabled && this.gesture.dragging && !this.gesture.chording;
+        this._clearHover();
+        return;
+      }
+      if (event.buttons !== 0 || this.phase === 'lost' || this.phase === 'won') return;
+      const cell = this._pickCell(event.clientX, event.clientY, canvas);
+      if (cell === this.hoveredCell) return;
+      this._clearHover();
+      if (cell?.state === 'hidden') this.scene.update(cell.visual, cell.row, cell.col, cell.state, cell.adjCount, 'hover');
+      this.hoveredCell = cell;
+    }, options);
+    canvas.addEventListener('pointerleave', () => this._clearHover(), options);
+    canvas.addEventListener('pointercancel', () => this._cancelGesture(), options);
+    window.addEventListener('blur', () => this._cancelGesture(), options);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'r' || event.key === 'R') { this.audio.button(); this._newGame(); }
+    }, options);
+  }
+
+  private _cellId(cell: Cell | null): number | null { return cell ? cell.row * this.cols + cell.col : null; }
 
   private _pickCell(clientX: number, clientY: number, canvas: HTMLCanvasElement): Cell | null {
+    if (this.hud.hit(clientX, clientY, canvas)) return null;
+    this._updateViewProjection();
     const rect = canvas.getBoundingClientRect();
     const px = (clientX - rect.left) * (this.engine.displayWidth / rect.width);
     const py = (clientY - rect.top)  * (this.engine.displayHeight / rect.height);
@@ -832,10 +679,11 @@ class Minesweeper {
       for (const cell of row) {
         const cx = cell.col * CELL_SIZE;
         const cz = cell.row * CELL_SIZE;
+        const drop = cell.state === 'revealed' ? REVEAL_DROP : 0;
         const t = rayIntersectsAABB(
           origin, dir,
-          [cx - 0.5, -0.35, cz - 0.5],
-          [cx + 0.5,  0.35, cz + 0.5],
+          [cx - 0.5, -0.14 + drop, cz - 0.5],
+          [cx + 0.5, TILE_TOP + drop, cz + 0.5],
         );
         if (t !== null && t < bestT) { bestT = t; best = cell; }
       }
@@ -843,10 +691,31 @@ class Minesweeper {
     return best;
   }
 
+  private _updateViewProjection(): void {
+    this.cameraProjection.update(this.spherical, this.cam3D, this.engine.displayWidth, this.engine.displayHeight);
+  }
+
+  private async _verify(canvas: HTMLCanvasElement): Promise<void> {
+    const result = await verifyMinesweeper({
+      canvas, cells: this.cells, materials: this.materials, hud: this.hud, audio: this.audio,
+      reset: () => this._newGame(false), snapshot: () => this._snapshotState(), restore: state => this._restoreState(state),
+      pick: (x,y) => this._cellId(this._pickCell(x,y,canvas)),
+      project: cell => {
+        this._updateViewProjection();
+        const [x,,z] = this._cellWorldPos(cell);
+        const projected = project3DToScreen(x,TILE_TOP+(cell.state==='revealed'?REVEAL_DROP:0),z,this.viewProj,this.engine.displayWidth,this.engine.displayHeight);
+        const rect=canvas.getBoundingClientRect();
+        return {x:rect.left+projected.x*rect.width/this.engine.displayWidth,y:rect.top+projected.y*rect.height/this.engine.displayHeight};
+      },
+      orbit: () => { this.spherical.theta+=.3; },
+    });
+    const output=document.getElementById('result')!;output.textContent=JSON.stringify(result);output.dataset.status='passed';
+  }
+
   // ── Main tick ─────────────────────────────────────────────────────────────
 
   private _tick(time: number, delta: number) {
-    if (this.phase === 'playing') {
+    if (this.phase === 'playing' && !this.verifying) {
       this.elapsedSec = Math.floor((time - this.startTime) / 1000);
       this.hud.timer.setText(String(this.elapsedSec));
       if (this.elapsedSec !== this.savedElapsedSec) this._saveState();
@@ -855,7 +724,8 @@ class Minesweeper {
     // Build viewProj from camera for picking & label projection
     this.cameraProjection.update(this.spherical, this.cam3D, this.engine.displayWidth, this.engine.displayHeight);
 
-    this._updateLabels();
+    this.hud.update(delta);
+    this.audio.update(delta / 1000);
 
     this.world.update(time, delta);
   }
@@ -877,4 +747,4 @@ async function main() {
   await game.init(canvas);
 }
 
-main();
+main().catch(error => { console.error(error); const output=document.getElementById('result'); if(output){output.textContent=JSON.stringify({status:'failed',error:String(error)});output.dataset.status='failed';} });

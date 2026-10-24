@@ -1,0 +1,702 @@
+
+> @haiyue/games-repository@0.1.0 build
+> node scripts/build-games.mjs
+
+
+games/host/index.ts → site/game-host.js...
+created site/game-host.js in 12.8s
+
+games/gamepad/lobby.ts, games/simulator/index.ts → site...
+created site in 4.4s
+
+> rollup game glass-rush
+
+games/glass-rush/main.ts → games/glass-rush/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/glass-rush/bundle.js in 8.3s
+
+> rollup game valley-of-light
+
+games/valley-of-light/main.ts → games/valley-of-light/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/valley-of-light/bundle.js in 8.3s
+
+> rollup game tank-battle
+
+games/tank-battle/main.ts → games/tank-battle/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/tank-battle/bundle.js in 7.8s
+
+> rollup game 2048
+
+games/2048/main.ts → games/2048/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/2048/bundle.js in 8.1s
+
+> rollup game billiards-3d
+
+games/billiards-3d/main.ts → games/billiards-3d/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/billiards-3d/bundle.js in 8.6s
+
+> rollup game billiards
+
+games/billiards/main.ts → games/billiards/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/billiards/bundle.js in 8.7s
+
+> rollup game triangle-calendar-puzzle
+
+games/triangle-calendar-puzzle/main.ts → games/triangle-calendar-puzzle/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/triangle-calendar-puzzle/bundle.js in 7.7s
+
+> rollup game entanglement-path
+
+games/entanglement-path/main.ts → games/entanglement-path/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/entanglement-path/bundle.js in 7.5s
+
+> rollup game icosahedron-minesweeper
+
+games/icosahedron-minesweeper/main.ts → games/icosahedron-minesweeper/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/icosahedron-minesweeper/bundle.js in 7.4s
+
+> rollup game gravity-maze
+
+games/gravity-maze/main.ts → games/gravity-maze/dist...
+created games/gravity-maze/dist in 4.1s
+
+> rollup game match-3
+
+games/match-3/main.ts → games/match-3/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/match-3/bundle.js in 7.8s
+
+> rollup game neon-circuit
+
+games/neon-circuit/main.ts → games/neon-circuit/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/neon-circuit/bundle.js in 7.7s
+
+> rollup game minesweeper
+
+games/minesweeper/main.ts → games/minesweeper/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/minesweeper/bundle.js in 7.5s
+
+> rollup game minecraft-lite
+
+games/minecraft-lite/main.ts → games/minecraft-lite/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/minecraft-lite/bundle.js in 7.7s
+
+> rollup game mugen
+
+games/mugen/main.ts, games/mugen/charactorPreview.ts, games/mugen/import/worker/mugenImport.worker.ts → games/mugen/dist...
+created games/mugen/dist in 5.6s
+
+> rollup game pad-simulator
+
+games/pad-simulator/main.ts → games/pad-simulator/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/pad-simulator/bundle.js in 8.7s
+
+> rollup game pacman
+
+games/pacman/main.ts → games/pacman/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/pacman/bundle.js in 7.5s
+
+> rollup game piano
+
+games/piano/main.ts → games/piano/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/piano/bundle.js in 7.6s
+
+> rollup game pong
+
+games/pong/main.ts → games/pong/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/pong/bundle.js in 7.5s
+
+> rollup game sokoban-3d
+
+games/sokoban-3d/main.ts → games/sokoban-3d/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/sokoban-3d/bundle.js in 7.4s
+
+> rollup game sky-strike
+
+games/sky-strike/main.ts → games/sky-strike/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/sky-strike/bundle.js in 7.9s
+
+> rollup game spider-solitaire
+
+games/spider-solitaire/main.ts → games/spider-solitaire/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/spider-solitaire/bundle.js in 7.5s
+
+> rollup game sudoku
+
+games/sudoku/main.ts → games/sudoku/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/sudoku/bundle.js in 7.4s
+
+> rollup game tetris
+
+games/tetris/main.ts → games/tetris/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/tetris/bundle.js in 7.5s
+
+> rollup game wfc-map
+
+games/wfc-map/main.ts → games/wfc-map/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/wfc-map/bundle.js in 7.7s
+
+> rollup game rubiks-cube
+
+games/rubiks-cube/main.ts → games/rubiks-cube/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/rubiks-cube/bundle.js in 7.4s
+
+> rollup game ak47-range
+
+games/ak47-range/main.ts → games/ak47-range/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/ak47-range/bundle.js in 7.6s
+
+> rollup game pinball
+
+games/pinball/main.ts → games/pinball/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/pinball/bundle.js in 8s
+
+> rollup game ink-pinball
+
+games/ink-pinball/main.ts → games/ink-pinball/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/ink-pinball/bundle.js in 8.3s
+
+> rollup game jigsaw-puzzle
+
+games/jigsaw-puzzle/main.ts → games/jigsaw-puzzle/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/jigsaw-puzzle/bundle.js in 7.7s
+
+> rollup game fruit-ninja
+
+games/fruit-ninja/main.ts → games/fruit-ninja/bundle.js...
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (1:15): @rollup/plugin-typescript TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:1:15
+
+1 import type { IEngine } from '@haiyue/engine';
+                ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:72): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:72
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                          ~~~~~~~
+
+(!) [plugin typescript] games/simulator/DeviceWallpaper.ts (36:156): @rollup/plugin-typescript TS7006: Parameter 'message' implicitly has an 'any' type.
+D:/HaiyueStudio/Games/games/simulator/DeviceWallpaper.ts:36:156
+
+36     const errors = (await module.getCompilationInfo()).messages.filter(message => message.type === 'error'); if (errors.length) throw new Error(errors.map(message => message.message).join('\n'));
+                                                                                                                                                              ~~~~~~~
+
+created games/fruit-ninja/bundle.js in 7.6s

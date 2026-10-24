@@ -6,6 +6,8 @@ import type { AssetHandle } from '@haiyue/engine/assets';
 import type { Item, Point, Round } from '../rules/model';
 import { BLAST_SECONDS, MAX_BLASTS, bombShake, type Blast } from './bombFeedback';
 import { createJuiceMark, juiceRandom, sampleJuiceDrip, JUICE_VARIANTS, STAIN_SECONDS, DRIPS_PER_STAIN, type JuiceMark } from './juice';
+import { FLIGHT_SPEED, ITEM_RADIUS } from '../rules/model';
+import { SPRITE_SIZE } from './layout';
 
 export interface View { x: number; y: number; width: number; height: number; scale: number }
 type Visual = { transform: CartesianTransform3D; mesh: Mesh3D; material: BasicMaterial };
@@ -184,7 +186,7 @@ export class FruitScene {
     const bomb = item.kind === 'bomb', color = item.kind === 'fruit' ? COLORS[item.fruit]! : bomb ? [1, .42, .06, 1] as const : [.3, 1, .8, 1] as const;
     transform.setPosition(view.x + item.x * view.scale - this.engine.displayWidth / 2, this.engine.displayHeight / 2 - view.y - item.y * view.scale);
     emitter.clear(); emitter.startColor = color; emitter.endColor = [color[0], color[1] * .6, color[2] * .5, 0];
-    const scale = Math.max(.65, view.scale);
+    const scale = Math.max(.4, item.radius / ITEM_RADIUS * view.scale);
     emitter.speed = bomb ? [260 * scale, 950 * scale] : [150 * scale, 620 * scale]; emitter.gravity = [0, (bomb ? -320 : -700) * scale];
     emitter.lifetime = bomb ? [.3, .85] : [.45, 1.05];
     emitter.startSize = bomb ? [9 * scale, 32 * scale] : [5 * scale, 19 * scale]; emitter.blendMode = bomb ? 'additive' : 'normal'; emitter.emit(bomb ? 128 : 112);
@@ -246,13 +248,14 @@ export class FruitScene {
     while (stainIndex < this.stains.length) this.stains[stainIndex++]!.transform.setScale(0, 0, 1);
     while (burstIndex < this.bursts.length) this.bursts[burstIndex++]!.transform.setScale(0, 0, 1);
     while (dripIndex < this.drips.length) { const slot = this.drips[dripIndex++]!; slot.trail.transform.setScale(0, 0, 1); slot.drop.transform.setScale(0, 0, 1); }
-    for (const part of this.fragments) { part.age += dt; part.x += part.vx * dt; part.y += part.vy * dt; part.vy += round.height * 2 * dt; part.angle += part.spin * dt; }
+    const flightDt = dt * FLIGHT_SPEED;
+    for (const part of this.fragments) { part.age += dt; part.x += part.vx * flightDt; part.y += part.vy * flightDt; part.vy += round.height * 2 * flightDt; part.angle += part.spin * flightDt; }
     this.fragments = this.fragments.filter(part => part.age < 1 && part.y < round.height + 100);
     let index = 0;
     const draw = (item: Item, frame: number, opacity: number) => {
       const sprite = this.sprites[index++]!; sprite.mesh.geometry = this.frames[frame]!;
       sprite.material.texture = this.atlases[frame < 12 ? 0 : frame < 24 ? 1 : 2]!; sprite.material.color = [1, 1, 1, opacity];
-      const size = item.radius * 2.65 * view.scale;
+      const size = item.radius * SPRITE_SIZE * view.scale;
       this.place(sprite, view.x + item.x * view.scale, view.y + item.y * view.scale, size, size, item.angle, index * .01);
     };
     for (const item of round.items) draw(item, item.kind === 'fruit' ? item.fruit * 3 : item.kind === 'bomb' ? 24 : 25, 1);

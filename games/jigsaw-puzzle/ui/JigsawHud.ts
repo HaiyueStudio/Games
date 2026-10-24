@@ -2,6 +2,7 @@ import type { HaiyueEngine, World } from '@haiyue/engine';
 import { GuiButton, GuiCheckbox, GuiElement, GuiImage, GuiLabel, GuiSelect, type GuiRect } from '@haiyue/engine/gui';
 import { GameHud } from '../../shared/ui/GameHud';
 import type { AutoSaveStatus } from '../../save/SingleSlotGameSave';
+import { woodControl, woodPanel } from './woodSkin';
 export type Action = 'upload' | 'restart' | 'preview' | 'left' | 'right' | 'scatter' | 'minus' | 'fit' | 'plus';
 const CHARS = '°·−。「」上不中于传住体作候允光入关再准击分切列加动原取可右合同后向吸回固图在块处备失始完定小左已平并应度开式张戏成手才拖择拼拾按接操放效整新方旋无有松柄查模正法消游滚点片理白的相看秒移稍空组继续缩置能行要许设请读败转轮载返连适选邻闭附需页首！，：';
 
@@ -22,27 +23,31 @@ export class JigsawHud extends GameHud {
   private readonly help: GuiLabel;
   private imageAspect = 1.5;
   private busy = false;
-  constructor(engine: HaiyueEngine, world: World, action: (action: Action) => void) {
+  constructor(engine: HaiyueEngine, world: World, wood: HTMLImageElement, action: (action: Action) => void, uiClick: () => void) {
     super(engine, world, CHARS + '自动保存正在失败下次操作将重试…', 1280, 800);
     this.root.theme.fontSize = 14;
-    this.top = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#16353c' } }));
-    this.bottom = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#16353c' } }));
-    this.title = this.text('拾光拼图 / JIGSAW', 26, '#f5dfb0');
-    this.stats = this.text('', 14, '#b7d6ce');
-    this.status = this.text('拖动拼块，松开吸附', 13, '#f5dfb0');
-    this.help = this.text('拖动拼块 / 空白处平移 / 滚轮缩放', 11, '#a8bfc0');
+    Object.assign(this.root.theme.colors, { text: '#fff0d2', textMuted: '#d4bc94', primary: '#d8ac60', background: '#382015', surface: '#54301c', border: '#a37a49', hover: '#8a582e', active: '#b7833e', disabled: '#6f5136' });
+    const regular = woodControl(wood), primary = woodControl(wood, true);
+    this.top = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#392115', nineSlice: woodPanel(wood, 0, 4) } }));
+    this.bottom = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#392115', nineSlice: woodPanel(wood, 0, 4) } }));
+    this.title = this.text('拾光拼图 / JIGSAW', 26, '#ffe6ae');
+    this.stats = this.text('', 14, '#e5c797');
+    this.status = this.text('拖动拼块，松开吸附', 13, '#ffe5b1');
+    this.help = this.text('拖动拼块 / 空白处平移 / 滚轮缩放', 11, '#d6bd96');
     const button = (key: Action, text: string, width: number, top = false) => {
-      const node = this.add(new GuiButton({ id: key, text, onClick: () => action(key), style: { backgroundColor: key === 'restart' ? '#d9b873' : '#28505a', color: key === 'restart' ? '#19383d' : '#f6eee0', padding: 4, radius: 7 } }));
+      const node = this.add(new GuiButton({ id: key, text, onClick: () => action(key), themeResource: key === 'restart' ? primary : regular,
+        style: { padding: 4, radius: 7 } }));
       this.buttons.set(key, node); if (top) this.controls.push({ node, width }); return node;
     };
     button('upload', '上传图片', 112, true);
     const select = (suffix: string, value: number) => {
       const node = this.add(new GuiSelect({ value, options: Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `${i + 1} ${suffix}` })), optionHeight: 30, maxVisibleOptions: 4,
-        style: { backgroundColor: '#28505a', color: '#ffffff', borderColor: '#598080' }, onChange: () => this.settingsChanged() }));
+        themeResource: regular, onClick: uiClick, onAction: e => { if (['confirm', 'up', 'down'].includes(e.action)) uiClick(); }, onChange: () => this.settingsChanged() }));
       this.controls.push({ node, width: 88 }); return node;
     };
     this.rows = select('行', 4); this.cols = select('列', 5);
-    this.rotation = this.add(new GuiCheckbox({ label: '允许旋转', checked: false, onChange: () => this.settingsChanged() }));
+    this.rotation = this.add(new GuiCheckbox({ label: '允许旋转', checked: false,
+      style: { borderColor: '#d6ac6b', backgroundColor: '#4a2c1a' }, onClick: uiClick, onChange: () => this.settingsChanged() }));
     this.controls.push({ node: this.rotation, width: 120 });
     button('restart', '开始新拼图', 128, true); button('preview', '原图', 68, true);
     button('left', '左转90°', 90); button('right', '右转90°', 90); button('scatter', '整理', 96);

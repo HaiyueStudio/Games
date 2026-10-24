@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BoardGesture } from '../icosahedron-minesweeper/input/BoardGesture.ts';
+import { BoardGesture } from '../shared/minesweeper/BoardGesture.ts';
 
 test('individual mouse buttons reveal and flag once despite compatibility mouseup', () => {
   for (const [button, buttons, kind] of [[0, 1, 'reveal'], [2, 2, 'flag']]) {

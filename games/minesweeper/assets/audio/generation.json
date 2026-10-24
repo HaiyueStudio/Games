@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "generator": "node --experimental-strip-types scripts/generate-minesweeper-audio.mjs",
+  "method": "Original deterministic offline synthesis: modal metal tile contact, fabric swish/brass pin, filtered-noise explosion with falling bass and debris, and a two-tone UI confirmation. No external samples.",
+  "sampleRate": 44100,
+  "channels": 1,
+  "bits": 16,
+  "effects": [
+    {
+      "id": "click",
+      "file": "click.wav",
+      "seconds": 0.095,
+      "bytes": 8424,
+      "peak": 0.7400000095367432,
+      "rms": 0.1178259336841919,
+      "sha256": "9d56685d81a6cfb5e320808c8820d83752132656bcc5f501c08365e912a18036"
+    },
+    {
+      "id": "flag",
+      "file": "flag.wav",
+      "seconds": 0.23,
+      "bytes": 20330,
+      "peak": 0.7400000095367432,
+      "rms": 0.12078330581085545,
+      "sha256": "d7e6b6fc9e64e3e0b878a90afd203ba51860fa8fb8f57071244eb1cd130018df"
+    },
+    {
+      "id": "explosion",
+      "file": "explosion.wav",
+      "seconds": 1.1,
+      "bytes": 97064,
+      "peak": 0.7400000095367432,
+      "rms": 0.12388295773456581,
+      "sha256": "19666dcae2b62ad72e130d09958c9d984165e28b8a67d1b704538b4b63fd5164"
+    },
+    {
+      "id": "button",
+      "file": "button.wav",
+      "seconds": 0.11,
+      "bytes": 9746,
+      "peak": 0.7400000095367432,
+      "rms": 0.1700005232869072,
+      "sha256": "89a1ef97f87300d397933849ed78679b1cf32fd6df997c3ac3faa7a98aa91646"
+    }
+  ]
+}

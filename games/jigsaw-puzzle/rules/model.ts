@@ -56,6 +56,37 @@ export function groupCenter(puzzle: Puzzle, group: Group): Point {
   const centers = group.pieces.map(id => pieceCenter(puzzle.pieces[id]!, group));
   return { x: centers.reduce((sum, p) => sum + p.x, 0) / centers.length, y: centers.reduce((sum, p) => sum + p.y, 0) / centers.length };
 }
+/** Pack the current rigid groups from their local bounds, independent of previous positions. */
+export function arrangeGroups(puzzle: Puzzle, aspect = 1.55): void {
+  const padding = Math.min(puzzle.cellWidth, puzzle.cellHeight) * .3;
+  const gap = Math.max(12, Math.min(puzzle.cellWidth, puzzle.cellHeight) * .14);
+  const items = puzzle.groups.map(group => {
+    const bounds: Bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    const odd = group.angle % 2;
+    const halfWidth = (odd ? puzzle.cellHeight : puzzle.cellWidth) / 2 + padding;
+    const halfHeight = (odd ? puzzle.cellWidth : puzzle.cellHeight) / 2 + padding;
+    for (const id of group.pieces) {
+      const center = rotate(puzzle.pieces[id]!.center, group.angle);
+      bounds.minX = Math.min(bounds.minX, center.x - halfWidth); bounds.maxX = Math.max(bounds.maxX, center.x + halfWidth);
+      bounds.minY = Math.min(bounds.minY, center.y - halfHeight); bounds.maxY = Math.max(bounds.maxY, center.y + halfHeight);
+    }
+    return { group, bounds, width: bounds.maxX - bounds.minX, height: bounds.maxY - bounds.minY, x: 0, y: 0 };
+  }).sort((a, b) => b.height - a.height || b.width - a.width || a.group.id - b.group.id);
+  if (!items.length) return;
+  const area = items.reduce((sum, item) => sum + (item.width + gap) * (item.height + gap), 0);
+  const targetWidth = Math.max(...items.map(item => item.width), Math.sqrt(area * Math.max(.4, Math.min(2.5, aspect))));
+  let x = 0, y = 0, rowHeight = 0, width = 0;
+  for (const item of items) {
+    if (x > 0 && x + item.width > targetWidth) { x = 0; y += rowHeight + gap; rowHeight = 0; }
+    item.x = x; item.y = y;
+    width = Math.max(width, x + item.width); rowHeight = Math.max(rowHeight, item.height); x += item.width + gap;
+  }
+  const height = y + rowHeight;
+  for (const item of items) {
+    item.group.x = item.x - width / 2 - item.bounds.minX;
+    item.group.y = item.y - height / 2 - item.bounds.minY;
+  }
+}
 export function rotateGroup(puzzle: Puzzle, group: Group, steps: number): boolean {
   if (!puzzle.allowRotation) return false;
   const pivot = groupCenter(puzzle, group), oldAngle = group.angle;

@@ -29,5 +29,6 @@ test('native desktop keeps launch controls and a scrollable shelf inside phone a
     }
     assert.ok(layout.shelf.height >= 60 && layout.cardWidth >= 100, `${width}x${height} usable shelf`);
     assert.ok(layout.columns >= 2 && layout.columns <= 5);
+    assert.ok(Math.abs(layout.cardHeight / layout.cardWidth - .625) < .01, `${width}x${height} image-only card aspect`);
   }
 });

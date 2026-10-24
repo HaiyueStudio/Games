@@ -9,6 +9,7 @@ const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, '.artifacts/icosahedron-minesweeper');
 const asset = 'games/icosahedron-minesweeper/assets/titanium-albedo.png';
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+const audioAssets = ['click', 'flag', 'explosion', 'button'].map(id => `games/icosahedron-minesweeper/assets/audio/${id}.wav`);
 
 async function verifyRotationPixels(cdp) {
   const evaluate = async expression => {
@@ -63,7 +64,9 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
   });
   assert.equal(result.status, 'passed');
   assert.equal(result.browserDiagnostics.unclassifiedFailureCount, 0);
-  assert.equal(result.checks.length, 24);
+  assert.equal(result.checks.length, 39);
+  assert.equal(result.audio.backend.buffers, 4); assert.equal(result.audio.backend.error, null); assert.equal(result.audio.backend.state, 'running');
+  for (const id of ['click', 'flag', 'explosion', 'button']) assert.ok(result.audio.played[id] > 0, `Real mixer scheduled ${id}`);
   result.rotationPixels = rotationPixels;
   result.checks.push('23 orbit frames have no abrupt cell lighting/albedo jumps', 'Returning to the original view reproduces the same tile lighting');
   const png = Buffer.from(result.visualCapture.pngBase64, 'base64');
@@ -77,8 +80,10 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     fingerprints: Object.fromEntries([
       asset, 'games/icosahedron-minesweeper/app/bootstrap.ts', 'games/icosahedron-minesweeper/rendering/CellVisuals.ts',
       'games/icosahedron-minesweeper/verification/verifyMinesweeper.ts', 'games/icosahedron-minesweeper/bundle.js',
-      'games/icosahedron-minesweeper/input/BoardGesture.ts', 'games/icosahedron-minesweeper/ui/MinesHud.ts',
+      'games/shared/minesweeper/BoardGesture.ts', 'games/shared/minesweeper/Theme.ts', 'games/shared/minesweeper/MinesHud.ts', 'games/icosahedron-minesweeper/ui/MinesHud.ts',
       'games/icosahedron-minesweeper/assets/orbit-gui.png',
+      ...['SoundAssets.ts', 'MinesAudio.ts', 'BrowserAudio.ts', 'verifyAudio.ts'].map(name => `games/shared/minesweeper/audio/${name}`),
+      ...audioAssets, 'games/icosahedron-minesweeper/assets/audio/generation.json', 'scripts/generate-minesweeper-audio.mjs', 'scripts/verify-icosahedron-minesweeper.mjs',
     ].map(path => [path, sha256(readFileSync(resolve(root, path)))])),
     screenshotSha256: sha256(png),
   };
@@ -88,6 +93,11 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
   const guiPath = 'games/icosahedron-minesweeper/assets/orbit-gui.png';
   assert.equal(result.httpProvenance.files.find(file => file.sourcePath === guiPath)?.sha256,
     result.provenance.fingerprints[guiPath], 'Browser must fetch the exact generated GUI atlas');
+  for (const path of audioAssets) {
+    const fetched = result.httpProvenance.files.find(file => file.sourcePath === path);
+    assert.equal(fetched?.sha256, result.provenance.fingerprints[path], `Browser fetched the exact WAV: ${path}`);
+    assert.equal(fetched?.byteLength, readFileSync(resolve(root, path)).length);
+  }
   writeFileSync(resolve(output, `${name}.json`), JSON.stringify(result, null, 2) + '\n');
-  console.log(`${name}: ${result.checks.length} WebGPU/pointer/material/flag/restore checks passed; ${resolve(output, `${name}.png`)}`);
+  console.log(`${name}: ${result.checks.length} WebGPU/pointer/material/flag/restore/audio checks passed; ${resolve(output, `${name}.png`)}`);
 }

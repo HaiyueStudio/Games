@@ -46,18 +46,23 @@ export async function createPieceTextures(puzzle: Puzzle, image: HTMLCanvasEleme
     ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
     ctx.save(); ctx.clip(path);
     ctx.drawImage(image, -piece.col * w, -piece.row * h, puzzle.width, puzzle.height);
-    // Offset strokes clipped to the actual silhouette light every curved shoulder
-    // and socket by its direction. Bake once, so dragging needs no extra passes.
-    const rim = (offset: number, color: string, width: number) => {
+    // Blend light into the local image pixels: soft light keeps colored shoulders
+    // saturated, while multiply darkens the picture without a blue/gray outline.
+    // Bake once, so dragging needs no extra passes.
+    const rim = (offset: number, color: string, width: number, blend: GlobalCompositeOperation) => {
       ctx.save(); ctx.translate(offset, offset); ctx.strokeStyle = color;
+      ctx.globalCompositeOperation = blend;
       ctx.lineWidth = width; ctx.stroke(path); ctx.restore();
     };
-    rim(bevel * .8, '#fff9e99c', bevel * 1.5);
-    rim(-bevel * .8, '#1829367a', bevel * 1.5);
-    rim(bevel * .35, '#ffffffb8', bevel * .55);
-    rim(-bevel * .35, '#25303b80', bevel * .55);
+    rim(bevel * .8, '#ffffffa6', bevel * 1.5, 'soft-light');
+    rim(-bevel * .8, '#00000073', bevel * 1.5, 'multiply');
+    rim(bevel * .35, '#ffffff26', bevel * .55, 'screen');
+    rim(-bevel * .35, '#00000038', bevel * .55, 'multiply');
+    // Keep the fine cut inside the image too; an outer stroke would tint the
+    // transparent silhouette independently of the source picture.
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = '#00000038'; ctx.lineWidth = .45; ctx.stroke(path);
     ctx.restore();
-    ctx.strokeStyle = '#26343b66'; ctx.lineWidth = .55; ctx.stroke(path);
     textures.push({ canvas, path, padding });
     // Bound image preparation per frame; textures are prepared once, never during dragging.
     if (piece.id % 8 === 7) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));

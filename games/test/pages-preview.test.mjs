@@ -14,7 +14,7 @@ test('Pages lobby is driven by the game manifest', () => {
   assert.ok(manifest.entries.length > 0);
   assert.match(app, /fetch\(catalogUrl\)/);
   assert.match(app, /gameUrl\(game, paths\.gamesRoot\)/);
-  for (const path of ['index.html', 'site/index.html']) {
+  for (const path of ['index.html', 'site/index.html', 'simulator/index.html']) {
     const html = read(path), body = /<body>([\s\S]*?)<\/body>/.exec(html)[1];
     assert.match(body, /<canvas id="os-desktop"/);
     assert.equal(body.replace(/<canvas[\s\S]*?<\/canvas>/, '').trim(), '', `${path} has no DOM interface behind the Engine canvas`);

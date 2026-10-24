@@ -5,10 +5,14 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { runChromeWebGpuFixture } from '../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
 import { createPortablePixelRecord, comparePortablePixelRecords } from '../../Engine/scripts/visual-regression/portable-pixels.mjs';
+import { decodePng } from '../../Engine/scripts/visual-regression/png.mjs';
+import { runRollupOnce } from './shared-rollup-runner.mjs';
+import { rotateSimulatorCamera } from './simulator-camera.mjs';
 
 const root = resolve(import.meta.dirname, '..'), output = resolve(root, 'artifacts/gamepad');
-const catalogCount = JSON.parse(readFileSync(resolve(root, 'games/manifest.json'), 'utf8')).entries.length;
+const catalogCount = JSON.parse(readFileSync(resolve(root, 'games/manifest.json'), 'utf8')).entries.filter(entry=>entry.launcher!==false).length;
 mkdirSync(output, { recursive: true });
+if (!process.env.GAMEPAD_CASE || process.env.GAMEPAD_CASE.split(',').includes('input')) await runRollupOnce({cwd:root,config:'rollup.gamepad-fixture.config.js',expectedOutputs:['artifacts/gamepad/fixture.js'],label:'gamepad input fixture',timeoutMs:120000});
 const delay = ms => new Promise(done => setTimeout(done, ms));
 const mock = `
 if(window===top)window.__pads=[];
@@ -32,9 +36,13 @@ async function run(name, fixture, query, exercise) {
   sourceInputs.push('games/shared/input/pointerCapture.ts', 'games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
   sourceInputs.push('games/manifest.json');
   sourceInputs.push('games/gamepad/connections.ts', 'games/gamepad/connectionMonitor.ts', 'games/gamepad/ui/ConnectionNotifications.ts');
-  if (gameId === 'jigsaw-puzzle') sourceInputs.push('games/test/fixtures/jigsaw/portrait.svg', 'games/test/fixtures/jigsaw/broken.svg', 'games/save/SingleSlotGameSave.ts');
+  if (gameId === 'jigsaw-puzzle') sourceInputs.push('games/test/fixtures/jigsaw/portrait.svg', 'games/test/fixtures/jigsaw/broken.svg', 'games/test/fixtures/jigsaw/rim-colors.svg', 'games/save/SingleSlotGameSave.ts',
+    'games/jigsaw-puzzle/assets/wood-ui.png', 'games/jigsaw-puzzle/assets/wood-ui.provenance.json', 'games/session/audio.ts', 'scripts/generate-jigsaw-audio.mjs',
+    ...readdirSync(resolve(root,'games/jigsaw-puzzle/assets/audio')).map(file=>`games/jigsaw-puzzle/assets/audio/${file}`));
   if (gameId === 'fruit-ninja') sourceInputs.push('games/fruit-ninja/assets/fruits.png', 'games/fruit-ninja/assets/fruits-extra.png', 'games/fruit-ninja/assets/items.png', 'games/fruit-ninja/assets/dojo-backdrop.png', 'games/fruit-ninja/assets/dojo-gui.png', 'games/fruit-ninja/assets/provenance.json', 'games/fruit-ninja/assets/fruits-extra.provenance.json', 'games/fruit-ninja/assets/dojo.provenance.json');
-  if (!gameId) sourceInputs.push('site/gamepad.js', 'site/catalog/paths.js', ...readdirSync(resolve(root, 'games/launcher')).filter(file => file.endsWith('.ts')).map(file => `games/launcher/${file}`));
+  if (gameId === 'fruit-ninja') sourceInputs.push(...readdirSync(resolve(root, 'games/fruit-ninja/assets/audio')).map(file => `games/fruit-ninja/assets/audio/${file}`), 'games/session/audio.ts', 'scripts/generate-fruit-audio.mjs');
+  if (!gameId) sourceInputs.push('site/gamepad.js', 'site/game-host.js', 'site/simulator.js', 'scripts/simulator-camera.mjs', 'site/catalog/paths.js', ...['launcher','host','simulator'].flatMap(folder=>readdirSync(resolve(root,'games',folder)).filter(file=>file.endsWith('.ts')).map(file=>`games/${folder}/${file}`)),...readdirSync(resolve(root,'site/core')).filter(file=>file.endsWith('.js')).map(file=>'site/core/'+file));
+  if (!gameId) for (const id of ['2048','fruit-ninja','mugen']) sourceInputs.push(...readdirSync(resolve(root,'games',id),{recursive:true}).filter(file=>/\.(?:ts|html|css|js)$/.test(file)).map(file=>'games/'+id+'/'+file));
   const inputs = Object.fromEntries([fixture,entry,...sourceInputs].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
   const result = await runChromeWebGpuFixture({root, fixture, query, timeoutMs:90000, disableDx12InfoCollection:true,
     visualCapture:{viewportWidth:1040,viewportHeight:600},
@@ -114,19 +122,19 @@ await run('lobby','site/index.html',{verify:1},async(context)=>{
   await press(5);check(await evaluate('__gameOS.category')==='puzzle','RB changes category');
   await press(4);check(await evaluate('__gameOS.category')==='all','LB returns to all games');
   for(let index=0;index<catalogCount&&await evaluate('__gameOS.selected')!=='2048';index++)await press(15);
-  await press(0);await until('!!document.querySelector("#game-frame")','game opens');
-  check(await evaluate('document.querySelector("#game-frame").dataset.gameId')==='2048','A opens selected game');
-  await until('document.querySelector("#game-frame").contentDocument.body.dataset.gamepadActive==="true"','game controller boot');
+  await press(0);await until('__gameHost.id==="2048"&&__gameHost.phase==="playing"','game module opens');
+  check(await evaluate('document.querySelectorAll("iframe").length===0&&__gameHost.id==="2048"'),'A mounts selected game directly without an iframe');
+  await until('document.querySelector("#game-host .game-mount")?.shadowRoot.querySelector("#game-document").dataset.gamepadActive==="true"','game controller boot');
   const stopped=await evaluate('__gameOS.frames');await delay(300);
   check(await evaluate('__gameOS.frames')===stopped,'launcher does not render behind the game');
-  await press(15);check(await evaluate('document.querySelector("#game-frame").contentWindow.__keys.some(event=>event.code==="ArrowRight"&&event.type==="keydown")'),'game receives independent controller input');
+  await press(15);check(await evaluate('__keys.some(event=>event.code==="ArrowRight"&&event.type==="keydown")'),'game receives independent controller input');
   await pads([{buttons:[11,4]}]);await pads();
-  await until('document.querySelector("#game-frame").dataset.gameId==="tank-battle"','previous game');
-  check(await evaluate('__gameOS.frames')===stopped,'switching games keeps the desktop stopped');
-  await until('document.querySelector("#game-frame").contentDocument.body.dataset.gamepadActive==="true"','new controller boot');
-  await press(8);await until('document.querySelector("#game-frame").contentDocument.body.dataset.gameReturnOpen==="true"','return confirmation');
-  check(await evaluate('!!document.querySelector("#game-frame")'),'Back waits for Engine confirmation');
-  await press(15);await press(0);await until('!document.querySelector("#game-frame")&&__gameOS.running','return to native desktop');
+  await until('__gameHost.id==="tank-battle"&&__gameHost.phase==="playing"','previous game module');
+  const switched=await evaluate('__gameOS.frames');await delay(200);check(await evaluate('__gameOS.frames')===switched,'desktop stops again after the shared loading screen completes');
+  await until('document.querySelector("#game-host .game-mount")?.shadowRoot.querySelector("#game-document").dataset.gamepadActive==="true"','new controller boot');
+  await press(8);await until('window.haiyueGameOS.game.debug.__gameReturn?.snapshot().active','return confirmation');
+  check(await evaluate('__gameHost.id==="tank-battle"'),'Back waits for Engine confirmation');
+  await press(15);await press(0);await until('!__gameHost.mounted&&__gameOS.running','return to native desktop');
   await until('__gameOS.focused==="game-tank-battle"','native card focus restored after return');
   check(await evaluate('__gameOS.focused')==='game-tank-battle','return restores the selected Engine GUI card');
 });
@@ -153,9 +161,9 @@ await run('lobby-os','site/index.html',{verify:1},async(context)=>{
   check(await evaluate('__gameOS.selected')!==first,'keyboard navigation selects native cards');
   await clickDesktop(context,'favorite');
   await clickDesktop(context,'game-2048');
-  await until('document.querySelector("#game-frame")?.contentDocument?.readyState==="complete"','game document');
-  await evaluate('document.querySelector("#game-frame").contentWindow.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');
-  await until('!document.querySelector("#game-frame")&&__gameOS.running','Escape returns to desktop');
+  await until('__gameHost.id==="2048"&&__gameHost.phase==="playing"','game module mounted');
+  await desktopKey(cdp,'Escape','Escape',27);
+  await until('!__gameHost.mounted&&__gameOS.running','Escape returns to desktop');
   await until('__gameOS.focused==="game-2048"','native focus after returning to desktop');
   check(await evaluate('__gameOS.focused')==='game-2048','return restores native focus');
   await clickDesktop(context,'view-recent');
@@ -197,25 +205,261 @@ await run('lobby-mobile','site/index.html',{verify:1},async(context)=>{
   }
 });
 
+await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
+  const {evaluate,until,check,cdp}=context;
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>5`,'image-only card catalog');
+  await delay(400);
+  const snapshot=()=>evaluate('__gameOS'), capture=async(name)=>{
+    const bytes=Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).result.data,'base64');
+    if(name)writeFileSync(resolve(output,name+'.png'),bytes);return bytes;
+  };
+  const initial=await snapshot(), first=initial.games[0], second=initial.games[1];
+  const details=state=>state.nodes.filter(node=>state.games.some(game=>['caption','title','genre','dimension','input','glow'].some(prefix=>node.id===`${prefix}-${game}`)));
+  check(!initial.selectionActive&&details(initial).length===0,'initial cards contain preview images without metadata or glow');
+  const restingPixels=decodePng(await capture('lobby-cards-default'));
+  const secondCard=initial.nodes.find(node=>node.id==='game-'+second).rect;
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:secondCard.x+secondCard.width/2,y:secondCard.y+secondCard.height/2,button:'none',buttons:0});
+  await until(`__gameOS.nodes.some(node=>node.id==='title-${second}')`,'hover card caption');await delay(300);
+  await until(`__gameOS.hoverCards.some(card=>card.id==='${second}'&&card.amount>.99)`,'hover card reaches its raised pose');
+  let state=await snapshot();
+  check(state.nodes.some(node=>node.id==='genre-'+second)&&state.nodes.some(node=>node.id==='dimension-'+second)&&state.nodes.some(node=>node.id==='input-'+second),'hover reveals title and genre/dimension/controller tags');
+  check(state.selected===first&&!state.selectionActive&&!state.nodes.some(node=>node.id.startsWith('glow-')),'hover does not latch a selection or a bloom border');
+  const hovered=state.hoverCards.find(card=>card.id===second);
+  check(hovered.scale>1.04&&hovered.scale<1.05&&hovered.rotation<0&&hovered.rotation>-.025&&hovered.lift<0,'hover gently scales, tilts and lifts the complete card');
+  check(JSON.stringify(state.nodes.find(node=>node.id==='game-'+second).rect)===JSON.stringify(secondCard),'hover presentation keeps the native hit region stable without layout shifts');
+  const hoveredPixels=decodePng(await capture('lobby-cards-hover'));
+  check(['input','mobile','keyboard'].every(prefix=>state.nodes.some(node=>node.id===prefix+'-'+second&&node.type==='GuiImage')),'controller, mobile and keyboard support use native GUI icons');
+  const badgeColors={};
+  for(const prefix of ['genre','dimension','input','mobile','keyboard']){
+    const rectangle=state.nodes.find(node=>node.id===prefix+'-'+second).rect;let vivid=0,total=0;
+    for(let row=Math.ceil(rectangle.y+2);row<rectangle.y+rectangle.height-2;row++)for(let column=Math.ceil(rectangle.x+2);column<rectangle.x+rectangle.width-2;column++){
+      const index=(row*hoveredPixels.width+column)*4,channels=[hoveredPixels.data[index],hoveredPixels.data[index+1],hoveredPixels.data[index+2]];
+      if(Math.max(...channels)-Math.min(...channels)>80)vivid++;total++;
+    }
+    badgeColors[prefix]=vivid/total;check(badgeColors[prefix]>.35,prefix+' badge has vivid GPU colors rather than a grey background');
+  }
+  writeFileSync(resolve(output,'lobby-badge-colors.json'),JSON.stringify(badgeColors,null,2));
+  const brightTop=(pixels,column)=>{
+    for(let row=Math.floor(secondCard.y)-12;row<secondCard.y+12;row++){
+      const offset=(row*pixels.width+Math.round(column))*4;
+      if(pixels.data[offset]>110&&pixels.data[offset+1]>150&&pixels.data[offset+2]>110)return row;
+    }
+    return null;
+  };
+  const left=secondCard.x+24,right=secondCard.x+secondCard.width-24;
+  const tilt={restLeft:brightTop(restingPixels,left),restRight:brightTop(restingPixels,right),hoverLeft:brightTop(hoveredPixels,left),hoverRight:brightTop(hoveredPixels,right)};
+  writeFileSync(resolve(output,'lobby-card-tilt.json'),JSON.stringify(tilt,null,2));
+  check(Object.values(tilt).every(value=>value!==null)&&Math.abs(tilt.restLeft-tilt.restRight)<=1&&tilt.hoverLeft-tilt.hoverRight>=2&&tilt.hoverRight<tilt.restRight,'GPU pixels show the card enlarged and rotated rather than only reporting a hover pose');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:10,button:'none',buttons:0});
+  await until('__gameOS.nodes.every(node=>!node.id.startsWith("title-"))','hover caption fades away');
+  await until('__gameOS.hoverCards.length===0','card smoothly returns to its resting pose');
+  await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await delay(150);
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:secondCard.x+secondCard.width/2,y:secondCard.y+secondCard.height/2,button:'none',buttons:0});await delay(150);
+  state=await snapshot();
+  check(state.hoverCards.length===0&&state.nodes.some(node=>node.id==='title-'+second),'reduced motion reveals metadata without scaling or tilting cards');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:10,button:'none',buttons:0});await delay(100);
+  const before=decodePng(await capture());
+  await desktopKey(cdp,'ArrowRight','ArrowRight',39);
+  await until(`__gameOS.selectionActive&&__gameOS.nodes.some(node=>node.id==='glow-${second}')`,'keyboard selection bloom');
+  await delay(250);state=await snapshot();
+  check(state.selected===second&&state.nodes.some(node=>node.id==='title-'+second),'keyboard selection retains the card information');
+  const glow=state.nodes.find(node=>node.id==='glow-'+second).rect, selected=state.nodes.find(node=>node.id==='game-'+second).rect;
+  check(glow.x<selected.x&&glow.y<selected.y&&glow.width>selected.width&&glow.height>selected.height,'selected border has an exterior bloom halo');
+  const after=decodePng(await capture('lobby-cards-selected'));
+  let gain=0,brightened=0,samples=0;
+  for(let row=Math.floor(selected.y-9);row<selected.y+selected.height+9;row++)for(let column=Math.floor(selected.x-9);column<selected.x+selected.width+9;column++){
+    const horizontal=column>selected.x+18&&column<selected.x+selected.width-18&&(row<selected.y-3||row>selected.y+selected.height+3);
+    const vertical=row>selected.y+18&&row<selected.y+selected.height-18&&(column<selected.x-3||column>selected.x+selected.width+3);
+    if((!horizontal&&!vertical)||column<0||row<0||column>=after.width||row>=after.height)continue;
+    const index=(row*after.width+column)*4+1,delta=after.data[index]-before.data[index];
+    gain+=Math.max(0,delta);if(delta>3)brightened++;samples++;
+  }
+  const bloom={meanGreenGain:gain/samples,brightenedRatio:brightened/samples,samples};
+  check(bloom.meanGreenGain>3&&bloom.brightenedRatio>.25,'GPU pixels outside the card brighten with a soft bloom, beyond the thin focus border');
+  writeFileSync(resolve(output,'lobby-card-bloom.json'),JSON.stringify(bloom,null,2));
+  await cdp.call('Emulation.setEmulatedMedia',{features:[]});await delay(100);
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:secondCard.x+secondCard.width/2,y:secondCard.y+secondCard.height/2,button:'none',buttons:0});
+  await until(`__gameOS.hoverCards.some(card=>card.id==='${second}'&&card.amount>.99)`,'selected card also animates on hover');
+  state=await snapshot();check(state.selected===second&&state.nodes.some(node=>node.id==='glow-'+second),'hover movement retains the selected card bloom and information');
+  await capture('lobby-cards-selected-hover');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:10,button:'none',buttons:0});
+  await until('__gameOS.hoverCards.length===0','selected card returns without a retained tilt');
+  const shelf=(await snapshot()).shelf, point={x:shelf.x+shelf.width/2,y:shelf.y+shelf.height/2};
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',...point,button:'none',buttons:0});
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:0,deltaY:360});await delay(40);
+  const early=(await snapshot()).shelf;await delay(150);const later=(await snapshot()).shelf;
+  check(early.scrollY>0&&early.scrollY<350&&early.animating,'wheel input starts a smooth bounded animation');
+  check(later.scrollY>early.scrollY+5&&later.scrollY<361,'list continues moving after wheel input stops');
+  await until('!__gameOS.shelf.animating','wheel inertia settles');
+  check(Math.abs((await snapshot()).shelf.scrollY-360)<1,'wheel scrolling settles without overshoot');
+  await clickDesktop(context,'category-puzzle');
+  check((await snapshot()).shelf.scrollY===0&&!(await snapshot()).shelf.animating,'filtering resets and cancels scroll momentum');
+  await clickDesktop(context,'category-all');
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(200);
+  await evaluate(`window.__scrollEvents=[];for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])document.querySelector('canvas').addEventListener(type,event=>window.__scrollEvents.push({type:event.type,y:event.clientY,time:event.timeStamp}));`);
+  const mobileShelf=(await snapshot()).shelf, touchX=mobileShelf.x+mobileShelf.width/2, touchTime=Date.now()/1000;
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',timestamp:touchTime,touchPoints:[{x:touchX,y:mobileShelf.y+mobileShelf.height*.85,id:0}]});
+  for(const [index,fraction] of [.72,.55,.35].entries()){
+    await delay(20);await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',timestamp:touchTime+(index+1)*.04,touchPoints:[{x:touchX,y:mobileShelf.y+mobileShelf.height*fraction,id:0}]});
+  }
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',timestamp:touchTime+.14,touchPoints:[]});
+  const released=(await snapshot()).shelf.scrollY;await delay(120);const coasted=(await snapshot()).shelf.scrollY;
+  writeFileSync(resolve(output,'lobby-scroll-touch.json'),JSON.stringify({released,coasted,shelf:(await snapshot()).shelf,events:await evaluate('window.__scrollEvents')},null,2));
+  check(coasted>released+1,'touch release also coasts with native Engine inertia');
+  check(await evaluate('!__gameHost.route.game&&!document.querySelector("iframe")'),'scrolling across cards does not launch a game');
+  await capture('lobby-scroll-momentum');
+  await clickDesktop(context,'category-all');
+  await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await delay(100);
+  const reducedShelf=(await snapshot()).shelf;
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',x:reducedShelf.x+reducedShelf.width/2,y:reducedShelf.y+reducedShelf.height/2,deltaX:0,deltaY:120});await delay(100);
+  check(Math.abs((await snapshot()).shelf.scrollY-120)<1&&!(await snapshot()).shelf.animating,'reduced motion keeps wheel scrolling immediate');
+  await cdp.call('Emulation.setEmulatedMedia',{features:[]});
+});
+
 for(const [name,fixture,expected]of[['lobby-root','index.html','/games/2048/index.html'],['lobby-published','artifacts/pages/index.html','/artifacts/pages/games/2048/index.html']]){
   await run(name,fixture,{verify:1},async(context)=>{
-    const {evaluate,until,check}=context;
+    const {evaluate,until,check,cdp}=context;
+    const requests=[];cdp.on('Network.requestWillBeSent',event=>requests.push(new URL(event.request.url).pathname));
+    await cdp.call('Network.enable');
     await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>2`,'catalog resolves from entrypoint');
     await clickDesktop(context,'game-2048');
-    await until('document.querySelector("#game-frame")?.contentDocument?.readyState==="complete"','game page loads');
-    check(await evaluate('document.querySelector("#game-frame").contentWindow.location.pathname')===expected,'game resolves inside the correct server or publication directory');
-    check(await evaluate('document.querySelector("#game-frame").contentDocument.querySelector("canvas")!==null'),'resolved game has its real canvas');
-    await evaluate('document.querySelector("#game-frame").contentWindow.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');
-    await until('!document.querySelector("#game-frame")&&__gameOS.running','entrypoint return');
+    await until('__gameHost.id==="2048"&&__gameHost.phase==="playing"','game module loads');
+    check(await evaluate('new URL(document.querySelector("#game-host .game-mount").shadowRoot.querySelector("canvas").ownerDocument.location.href).pathname')===new URL(fixture,'http://test/').pathname,'mounted canvas belongs to the current document');
+    check(await evaluate('!!window.haiyueGameOS.game.canvas&&!document.querySelector("iframe")'),'resolved game has its real canvas without a nested document');
+    check(requests.includes(expected)&&requests.includes(expected.replace('index.html','bundle.js')),'game layout and dynamic module resolve inside the correct server or publication directory');
+    await desktopKey(cdp,'Escape','Escape',27);
+    await until('!__gameHost.mounted&&__gameOS.running','entrypoint return');
   });
 }
-await run('lobby-direct','site/index.html',{verify:1,game:'2048'},async({evaluate,until,check})=>{
-  await until('__gameOS?.ready&&!!document.querySelector("#game-frame")','direct game link');
-  await delay(400);check(await evaluate('__gameOS.frames===0&&!__gameOS.running'),'direct link initializes without drawing desktop frames');
-  await until('document.querySelector("#game-frame").contentDocument?.readyState==="complete"','direct game loaded');
-  await evaluate('document.querySelector("#game-frame").contentWindow.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');
-  await until('__gameOS.running&&__gameOS.frames>2&&!document.querySelector("#game-frame")','direct return');
+await run('lobby-direct','site/index.html',{verify:1,game:'2048'},async({evaluate,until,check,cdp})=>{
+  await until('__gameHost?.id==="2048"&&__gameHost.phase==="playing"','direct game module link');
+  const frames=await evaluate('__gameOS.frames');await delay(400);check(await evaluate('!__gameOS.running&&!__gameOS.loading')&&await evaluate('__gameOS.frames')===frames,'direct link stops the desktop after unified loading');
+  await desktopKey(cdp,'Escape','Escape',27);
+  await until('__gameOS.running&&__gameOS.frames>2&&!__gameHost.mounted','direct return');
   check(await evaluate('__gameOS.selected')==='2048','direct return selects the launched card');
+});
+await run('lobby-routes','site/index.html',{verify:1},async(context)=>{
+  const {evaluate,until,check,cdp}=context,requests=[];let pending=null;
+  cdp.on('Network.requestWillBeSent',event=>requests.push(new URL(event.request.url).pathname));
+  await cdp.call('Network.enable');
+  await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>2`,'route catalog');
+  check(!requests.some(path=>/\/games\/[^/]+\/(?:dist\/)?bundle\.js$/.test(path)),'opening the game library downloads no game modules');
+  cdp.on('Fetch.requestPaused',event=>{pending=event.requestId;});
+  await cdp.call('Fetch.enable',{patterns:[{urlPattern:'*/games/2048/bundle.js*',requestStage:'Response'}]});
+  await evaluate('haiyueGameOS.navigate("2048");true');await until('__gameOS.loading&&__gameHost.phase==="loading"','native code loading screen');
+  for(let attempt=0;attempt<100&&!pending;attempt++)await delay(50);check(!!pending,'only the selected game bundle is dynamically requested');
+  await desktopKey(cdp,'Escape','Escape',27);await until('__gameHost.phase==="desktop"&&!__gameHost.mounted','cancel pending code load');
+  await evaluate('haiyueGameOS.navigate("fruit-ninja");true');await until('__gameHost.id==="fruit-ninja"&&__gameHost.phase==="playing"','another game can start while prior code is pending');
+  await cdp.call('Fetch.continueRequest',{requestId:pending});await cdp.call('Fetch.disable');await delay(350);
+  check(await evaluate('__gameHost.id==="fruit-ninja"&&document.querySelectorAll("#game-host .game-mount").length===1'),'a stale import cannot boot or remove the new game container');
+  await evaluate('window.__routeEngine=haiyueGameOS.game.engine;haiyueGameOS.navigate("2048");true');await until('__gameHost.id==="2048"&&__gameHost.phase==="playing"','reopen cached deferred module');
+  check(await evaluate('__routeEngine.state==="destroyed"'),'switching routes destroys the old game engine');
+  await evaluate('history.back();true');await until('__gameHost.id==="fruit-ninja"&&__gameHost.phase==="playing"','browser back mounts the previous game');
+  await evaluate('history.forward();true');await until('__gameHost.id==="2048"&&__gameHost.phase==="playing"','browser forward mounts the next game');
+  check(!requests.some(path=>/\/games\/(?!2048\/|fruit-ninja\/)[^/]+\/(?:dist\/)?bundle\.js$/.test(path)),'route transitions never fetch unrelated game bundles');
+  await desktopKey(cdp,'Escape','Escape',27);await until('__gameOS.running&&!__gameHost.mounted','route return');
+  check(await evaluate('!document.querySelector("#game-host,iframe")'),'cancel and browser history leave no nested pages or abandoned hosts');
+});
+
+await run('lobby-devices','site/index.html',{verify:1},async(context)=>{
+  const {evaluate,until,check,cdp}=context;
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await until(`__gameOS?.games.length===${catalogCount}`,'device catalog');
+  await clickDesktop(context,'devices');await until('__gameOS.simulatorHome?.mode==="pad"','native tablet home');
+  check(await evaluate('!document.querySelector("iframe")&&!__gameHost.route.game'),'device icon desktop does not boot a nested game page');
+  const screen=await evaluate('__gameOS.simulatorHome.screen'),touchX=screen.x+screen.width*.8,touchY=screen.y+screen.height*.45;
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:touchX,y:touchY,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:screen.x+screen.width*.2,y:touchY,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await until('__gameOS.simulatorHome.page===1&&Math.abs(__gameOS.simulatorHome.offset-1)<.01','swipe changes the icon page');
+  check(await evaluate('__gameOS.simulatorHome.pages>=2'),'all manifest games are reachable through multiple device icon pages');
+  await desktopKey(cdp,'ArrowLeft','ArrowLeft',37);await until('__gameOS.simulatorHome.page===0&&__gameOS.simulatorHome.offset<.01','keyboard returns to first page');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'simulator-pad-home.png'),Buffer.from(shot.result.data,'base64'));
+  await clickDesktop(context,'sim-icon-2048');await until('__gameHost.id==="2048"&&__gameHost.simulator?.frames>3','game renders in tablet RTT screen');
+  check(await evaluate('__gameHost.mode==="texture"&&__gameHost.simulator.texture.width===820&&__gameHost.simulator.texture.height===1080'),'tablet uses a real independent game RTT target');
+  check(await evaluate('document.querySelectorAll("iframe").length===0&&!__gameOS.running'),'game texture presentation replaces iframe embedding and stops desktop rendering');
+  const before=await evaluate('JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)');
+  await desktopKey(cdp,'ArrowLeft','ArrowLeft',37);await delay(450);await desktopKey(cdp,'ArrowDown','ArrowDown',40);await delay(450);
+  check(await evaluate('JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)')!==before,'keyboard input reaches the actual game inside the RTT device');
+  const won=await evaluate('haiyueGameOS.game.debug.__forge2048.snapshot().phase==="won"');
+  const playedBoard=await evaluate('JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)');
+  const restart=await evaluate('haiyueGameOS.game.debug.__forge2048.snapshot().buttons.'+(won?'keep':'restart'));
+  const point=await evaluate(`haiyueGameOS.simulator.projectGame(${(restart.x+restart.width/2)/820},${(restart.y+restart.height/2)/1080})`);
+  await evaluate('haiyueGameOS.game.canvas.addEventListener("pointerdown",event=>{window.__devicePrimary=event.isPrimary;},{once:true});true');
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...point,id:0}]});
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(250);
+  check(await evaluate('__devicePrimary===true'),'simulated touch retains primary-pointer semantics required by match-3 and cube gestures');
+  const touchBoard=await evaluate('JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)');
+  await desktopKey(cdp,'ArrowRight','ArrowRight',39);await delay(400);await desktopKey(cdp,'ArrowUp','ArrowUp',38);await delay(400);
+  check(won?await evaluate('JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)')!==touchBoard:touchBoard!==playedBoard,'real tablet touch activates the actual game GUI so gameplay can continue');
+  const tablet=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'simulator-pad-game.png'),Buffer.from(tablet.result.data,'base64'));
+  const rotateGame=async(mode,width,height)=>{
+    await until('!haiyueGameOS.game.debug.__forge2048.snapshot().busy','board animations settle before orientation');
+    await evaluate('window.__rotationInstance=haiyueGameOS.game;window.__rotationBoard=JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board);true');
+    await rotateSimulatorCamera(context,'landscape');await until(`__gameHost.simulator.texture.width===${height}&&__gameHost.simulator.texture.height===${width}`,'real '+mode+' landscape target');
+    check(await evaluate('haiyueGameOS.game===__rotationInstance&&JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)===__rotationBoard'),mode+' rotation resizes the current game without losing board progress');
+    check((await evaluate('haiyueGameOS.simulator.pixels()')).colors>20,mode+' landscape draws actual game pixels');
+    const muted=await evaluate('haiyueGameOS.game.debug.__forge2048.snapshot().muted');
+    const point=await evaluate('(()=>{const game=haiyueGameOS.game,snapshot=game.debug.__forge2048.snapshot(),button=snapshot.buttons.sound;return haiyueGameOS.simulator.projectGame((button.x+button.width/2)/snapshot.viewport.width,(button.y+button.height/2)/snapshot.viewport.height);})()');
+    await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...point,id:0}]});await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(150);
+    check(await evaluate('haiyueGameOS.game.debug.__forge2048.snapshot().muted')!==muted,mode+' landscape perspective touch activates the actual game GUI');
+    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'simulator-'+mode+'-landscape.png'),Buffer.from(shot.result.data,'base64'));
+    await rotateSimulatorCamera(context,'portrait');await until(`__gameHost.simulator.texture.width===${width}`,'return to '+mode+' portrait');
+    check(await evaluate('haiyueGameOS.game===__rotationInstance&&JSON.stringify(haiyueGameOS.game.debug.__forge2048.snapshot().board)===__rotationBoard'),mode+' round-trip rotation preserves the same game state');
+  };
+  await rotateGame('pad',820,1080);
+  const control=await evaluate('__gameHost.simulator.nodes.find(node=>node.id==="sim-phone").rect');
+  await evaluate('window.__previousGame=haiyueGameOS.game.engine;true');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',x:control.x+control.width/2,y:control.y+control.height/2,button:'left',buttons:1,clickCount:1});
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',x:control.x+control.width/2,y:control.y+control.height/2,button:'left',buttons:0,clickCount:1});
+  await until('__gameHost.route.device==="phone"&&__gameHost.simulator?.frames>3','phone game RTT');
+  check(await evaluate('__previousGame.state==="destroyed"&&__gameHost.simulator.texture.width===390&&__gameHost.simulator.texture.height===760'),'switching device replaces and disposes the prior render target and game');
+  const phone=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'simulator-phone-game.png'),Buffer.from(phone.result.data,'base64'));
+  await rotateGame('phone',390,760);
+  await desktopKey(cdp,'Escape','Escape',27);await until('__gameOS.simulatorHome?.mode==="phone"&&!__gameHost.mounted','Escape returns to phone icon home');
+  await clickDesktop(context,'sim-desktop');await until('__gameOS.running&&!__gameHost.route.device','return to native game library');
+  check(await evaluate('!document.querySelector("#device-simulator,#game-host,iframe")'),'return disposes the simulator canvas and mounted game container');
+});
+
+await run('lobby-mugen-rtt','site/index.html',{verify:1,game:'mugen',device:'pad'},async({evaluate,until,check,cdp})=>{
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await until('__gameHost?.id==="mugen"&&__gameHost.simulator?.frames>4','multi-canvas game module and device presenter');
+  check(await evaluate('__gameHost.simulator.layers===2'),'multi-canvas sprite world and debug overlay are composited behind the native game HUD');
+  await evaluate('window.__mugenRotationInstance=haiyueGameOS.game;true');
+  await rotateSimulatorCamera({evaluate,cdp,until},'landscape');
+  check(await evaluate('haiyueGameOS.game===__mugenRotationInstance&&__gameHost.simulator.texture.width===1080'),'multi-canvas rotation preserves the mounted game and resizes its device RTT');
+  const tap=async text=>{
+    const node=await evaluate(`haiyueGameOS.game.debug.__mugenGui.nodes.find(node=>node.text===${JSON.stringify(text)}&&node.visible&&!node.disabled)`);assert.ok(node,'MUGEN control '+text);
+    const size=await evaluate('({width:haiyueGameOS.game.canvas.getBoundingClientRect().width,height:haiyueGameOS.game.canvas.getBoundingClientRect().height})'),point=await evaluate(`haiyueGameOS.simulator.projectGame(${(node.rect.x+node.rect.width/2)/size.width},${(node.rect.y+node.rect.height/2)/size.height})`);
+    await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...point,id:0}]});await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(200);
+  };
+  await tap('AI 对战');await until('haiyueGameOS.game.debug.__mugenGui.screen==="select"','touch opens fighter selection');
+  await tap('确认阵容');await until('haiyueGameOS.game.debug.__mugenGui.screen==="stage"','touch confirms fighters');
+  await tap('进入战斗');await until('document.querySelector("#game-host .game-mount").shadowRoot.querySelector("#game-document").dataset.gameStatus==="running"','real sprites and combat runtime start');await delay(500);
+  check(await evaluate('haiyueGameOS.game.debug.__mugenGui.screen==="fight"&&__gameHost.simulator.frames>10&&__gameHost.simulator.status==="playing"'),'device touch launches the actual multi-canvas fight, not a menu preview or a stale loading screen');
+  const fightPixels=await evaluate('haiyueGameOS.simulator.pixels()');
+  check(fightPixels.colors>1000&&fightPixels.layerColors.some(colors=>colors>1000),'late fighter resource loads preserve the mounted game and its actual composited sprites, not just the wallpaper');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'simulator-mugen-fight.png'),Buffer.from(shot.result.data,'base64'));
+  await desktopKey(cdp,'Escape','Escape',27);await until('__gameOS.simulatorHome&&!__gameHost.mounted','multi-canvas game cleanup');
+});
+for(const [name,fixture] of [['simulator-external','simulator/index.html'],['simulator-published','artifacts/pages/simulator/index.html']]){
+  await run(name,fixture,{verify:1},async(context)=>{
+    const {evaluate,until,check,cdp}=context;
+    await until('__gameOS?.simulatorHome?.mode==="pad"','external native device desktop');
+    check(await evaluate('__gameHost.route.device==="pad"&&!document.querySelector("iframe")'),'external simulator uses the same native device and route components');
+    await clickDesktop(context,'sim-icon-2048');await until('__gameHost.id==="2048"&&__gameHost.simulator?.frames>3','external simulator renders a real game texture');
+    check(await evaluate('__gameHost.simulator.texture.width===820'),'external simulator resolves independently built game modules');
+    await desktopKey(cdp,'Escape','Escape',27);await until('__gameOS.simulatorHome&&!__gameHost.mounted','external simulator returns to its icon home');
+  });
+}
+await run('standalone-home','games/tank-battle/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
+  await until('!!window.__tankBattle','independent game ready');await pads();await press(8);
+  await until('__gameReturn.snapshot().active','independent return confirmation');
+  const point=await evaluate('(()=>{const button=__gameReturn.snapshot().buttons.confirm,canvas=document.querySelector("canvas").getBoundingClientRect();return{x:canvas.x+button.x+button.width/2,y:canvas.y+button.y+button.height/2};})()');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});
+  await until('location.pathname==="/index.html"&&document.body.dataset.osReady==="true"','independent game returns to actual game library');
+  check(await evaluate('!document.querySelector("iframe,#game-host")'),'independent pages preserve their return navigation and release the old renderer');
 });
 
 await run('tank-menu','games/tank-battle/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
@@ -619,15 +863,21 @@ await run('fruit-ninja','games/fruit-ninja/index.html',{gamepadVerify:1,seed:104
   };
   check((await state()).remaining===60,'ready screen starts with sixty seconds');
   check((await state()).art.background&&(await state()).art.gui,'generated dojo background and GUI atlas are decoded before play');
+  check((await state()).audio.backend.buffers===9&&(await state()).audio.backend.error===null,'all nine WAV sounds are decoded before play');
+  check((await state()).audio.backend.state==='locked'&&Object.values((await state()).audio.played).every(count=>count===0),'sound stays locked and silent before user activation');
   const menuShot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-dojo-menu.png'),Buffer.from(menuShot.result.data,'base64'));
   check(await evaluate('document.querySelectorAll("canvas").length===1&&!document.querySelector("button,select")'),'one canvas; Engine GUI controls');
   await button('开始游戏');await until('__fruitNinja.phase==="playing"','start via Engine GUI');
+  await until('__fruitNinja.audio.played.button===1&&__fruitNinja.audio.backend.state==="running"','first GUI click unlocks and plays its sound');
   check((await state()).effects.texturesReady,'all atlases and splashes are GPU-ready before play');
   await until('__fruitNinja.items.some(n=>n.kind==="fruit"&&Math.abs(n.vy)<250)','fruit for hover regression');
+  check((await state()).audio.played.throw>0,'fruit wave triggers a throw whoosh');
   const hover=(await state()).items.find(item=>item.kind==='fruit'&&Math.abs(item.vy)<350);
   await mouse('mouseMoved',{x:hover.screen.x-30,y:hover.screen.y});await mouse('mouseMoved',{x:hover.screen.x+30,y:hover.screen.y});
   check((await state()).score===0&&(await state()).effects.trail===0,'hovering over fruit neither cuts nor draws a trail');
+  check((await state()).audio.played.splash===0,'hovering cannot trigger juice audio');
   await cut('fruit');await until('__fruitNinja.score>0','pressed mouse drag slices fruit');
+  check((await state()).audio.played.splash>0,'slicing fruit plays a wet splash');
   check((await state()).effects.fragments>0,'cut creates separate fruit halves');
   await until('__fruitNinja.effects.particles>0','Engine juice particles');check((await state()).effects.particles>=80,'dense juice burst emitted');
   check((await state()).effects.trail>0,'pressed mouse movement creates a blade trail');
@@ -650,11 +900,13 @@ await run('fruit-ninja','games/fruit-ninja/index.html',{gamepadVerify:1,seed:104
   check(new Set(variants.map(mark=>JSON.stringify([mark.variant,mark.angle,mark.stretch,mark.squash]))).size>1,'separate cuts create different splash shapes and proportions');
   check(variants.reduce((sum,mark)=>sum+mark.flows.length,0)<=(await state()).effects.dripCapacity,'juice drip geometry stays inside the fixed pool');
   await delay(700);const varietyShot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-juice-variety.png'),Buffer.from(varietyShot.result.data,'base64'));
-  await button('暂停');const paused=(await state()).remaining, pausedJuice=(await state()).effects.juice;await delay(500);
+  await button('暂停');const paused=(await state()).remaining, pausedJuice=(await state()).effects.juice, pausedAudio=(await state()).audio.played;await delay(500);
   check((await state()).remaining===paused,'GUI pause freezes round clock');
+  check((await state()).audio.backend.voices===0&&(await state()).audio.played.throw===pausedAudio.throw,'pause stops gameplay voices and has no throw backlog');
   check(JSON.stringify((await state()).effects.juice)===JSON.stringify(pausedJuice),'pause freezes juice flow and falling droplets');await button('继续游戏');
   await pads();await press(8);await until('document.body.dataset.gameReturnOpen==="true"','Back return dialog');
   const time=(await state()).remaining;await delay(400);check((await state()).remaining===time,'shared return dialog pauses the round');
+  check((await state()).audio.backend.voices===0&&(await state()).audio.backend.state==='suspended','system return dialog suspends the audio context');
   await press(1);await until('document.body.dataset.gameReturnOpen!=="true"','return cancelled');
   const resumed=(await state()).remaining;await delay(250);check(resumed-(await state()).remaining<1,'return dialog time excluded after resume');
   await pads([{axes:[.9,0,0,0]}]);check((await state()).effects.trail===0,'controller hover does not cut');await pads();
@@ -666,6 +918,7 @@ await run('fruit-ninja','games/fruit-ninja/index.html',{gamepadVerify:1,seed:104
   for(let attempt=0;attempt<10&&(await state()).phase==='playing';attempt++) {
     await cut('bomb');
     if(attempt===0){
+      check((await state()).audio.played.bomb>0,'bomb hit plays the explosion sound');
       await until('__fruitNinja.effects.explosions.length>0 && Math.hypot(__fruitNinja.effects.shake.x,__fruitNinja.effects.shake.y)>1','bomb blast and camera shake');
       check((await state()).effects.explosions.length<=(await state()).effects.blastCapacity,'bomb effects use a bounded pool');
       const explosion=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'fruit-ninja-explosion.png'),Buffer.from(explosion.result.data,'base64'));
@@ -681,16 +934,26 @@ await run('fruit-ninja','games/fruit-ninja/index.html',{gamepadVerify:1,seed:104
   }
   check((await state()).bombs===3&&(await state()).phase==='over'&&(await state()).reason==='bombs','third sliced bomb ends the game');
   check((await state()).effects.particles>0,'bomb explosion emits particles');
+  await until('__fruitNinja.audio.played.over===1','game ending cue plays once after the last explosion');
+  check((await state()).audio.backend.voices<=12&&(await state()).audio.backend.error===null,'audio stays inside the voice budget without playback errors');
   const best=(await state()).best;check(best>0,'completed score updates best');
   await button('再来一局');check((await state()).bombs===0&&(await state()).score===0&&(await state()).remaining>59&&(await state()).effects.stains===0,'restart resets bombs score timer and background juice');
   check((await state()).effects.explosions.length===0&&Math.hypot((await state()).effects.shake.x,(await state()).effects.shake.y)===0,'restart clears explosions and camera shake');
   check((await state()).effects.juice.length===0,'restart clears all juice trails and droplets');
+  check((await state()).audio.played.over===1&&(await state()).audio.active,'restart starts a fresh audio session without replaying the ending');
   for(const [width,height] of [[390,844],[844,390],[1440,900]]) {
-    await button('暂停');await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<900});await delay(150);
+    await button('暂停');await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:width<900?2:1,mobile:width<900});await delay(150);
     check(await evaluate(`__gameHud.nodes.filter(n=>n.visible&&n.type==='GuiButton').every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=${width}+1&&n.rect.y+n.rect.height<=${height}+1)`),'GUI fits '+width+'x'+height);
     check(await evaluate(`__fruitNinja.effects.viewport.width===${width}&&__fruitNinja.effects.viewport.height===${height}`),'particles use screen pixels without stretch '+width+'x'+height);
     const menuCapture=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`fruit-ninja-menu-${width}x${height}.png`),Buffer.from(menuCapture.result.data,'base64'));
     await button('继续游戏');
+    await until(`['fruit','bomb'].every(kind=>__fruitNinja.items.some(item=>item.kind===kind&&item.screen.y>__fruitNinja.view.y+40&&item.screen.y<__fruitNinja.view.y+__fruitNinja.view.height-60))`,'visible fruit and bomb at '+width+'x'+height);
+    const sizing=await state(), targets=sizing.items.filter(item=>item.kind!=='clock');
+    check(targets.every(item=>item.screen.size>=72-.01&&item.screen.size<=110+.01),'fruit and bomb sizes stay readable and bounded '+width+'x'+height);
+    check(targets.every(item=>Math.abs(item.screen.size/item.screen.radius-2.65)<.001),'visual size and hit radius match '+width+'x'+height);
+    const oldSize=46*2.65*sizing.view.scale;
+    check(targets.every(item=>width<600?item.screen.size>oldSize*1.5:item.screen.size<oldSize*.8),'phone targets enlarge and desktop targets shrink '+width+'x'+height);
+    writeFileSync(resolve(output,`fruit-ninja-sizing-${width}x${height}.json`),JSON.stringify({viewport:{width,height},view:sizing.view,oldSize,items:targets},null,2));
     const capture=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`fruit-ninja-${width}x${height}.png`),Buffer.from(capture.result.data,'base64'));
   }
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(150);
@@ -702,16 +965,24 @@ await run('fruit-ninja','games/fruit-ninja/index.html',{gamepadVerify:1,seed:104
   await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(100);
   check((await state()).score>beforeTouch,'touch swipe slices fruit');
   await cdp.call('Page.reload');await until('window.__fruitNinja?.ready','reload');check((await state()).best===best,'Engine save restores best score');
+  check((await state()).audio.backend.buffers===9&&(await state()).audio.backend.voices===0&&(await state()).audio.backend.state==='locked','reload recreates nine buffers with no old voices or autoplay');
 });
 
 await run('jigsaw-smoke','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,check,cdp})=>{
   await until('window.__jigsaw?.ready && !__jigsaw.busy','jigsaw ready');
+  check(await evaluate('__jigsaw.art.wood && __jigsaw.art.woodDesk && __jigsaw.audio.backend.buffers===4 && __jigsaw.audio.backend.voices===0 && __jigsaw.audio.backend.state==="locked"'),'wood GUI/tabletop and four preloaded effects without autoplay');
   check(await evaluate('document.querySelectorAll("canvas").length===1 && __gameHud.nodes.filter(n=>n.type==="GuiButton").length===9'),'shared engine canvas and GUI');
   check(await evaluate('__jigsaw.groups.length===20'),'default 4x5 puzzle');
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
   await delay(500);
   const overview=await cdp.call('Page.captureScreenshot',{format:'png'});
   writeFileSync(resolve(output,'jigsaw-curved-overview.png'),Buffer.from(overview.result.data,'base64'));
+  writeFileSync(resolve(output,'jigsaw-wood-ui.png'),Buffer.from(overview.result.data,'base64'));
+  const floor=decodePng(Buffer.from(overview.result.data,'base64')),desk=await evaluate('__jigsaw.view');
+  const grain=[24,120,230,343,456,640,800,980,1130].map(x=>{
+    const i=(Math.round(desk.y+10)*floor.width+x)*4;return [...floor.data.subarray(i,i+3)];
+  });
+  check(grain.every(c=>c[0]>c[2]+10) && Math.max(...grain.map(c=>c[0]))-Math.min(...grain.map(c=>c[0]))>5,'middle work area renders visible warm wood grain');
   const state=await evaluate('__jigsaw');
   const width=Math.min(600,450*state.image.width/state.image.height)/state.cols;
   const height=width*state.cols*state.image.height/state.image.width/state.rows;
@@ -730,6 +1001,46 @@ await run('jigsaw-smoke','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:
   check(await evaluate('__jigsaw.view.scale')>1,'curved contours and bevel can be inspected at enlarged scale');
   const detail=await cdp.call('Page.captureScreenshot',{format:'png'});
   writeFileSync(resolve(output,'jigsaw-curved-detail.png'),Buffer.from(detail.result.data,'base64'));
+});
+
+await run('jigsaw-color-rims','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,check,cdp})=>{
+  await until('window.__jigsaw?.ready && !__jigsaw.busy','jigsaw ready');
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await delay(250);
+  const click=async point=>{
+    await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});
+    await delay(100);
+  };
+  for(const [index,value] of [[0,2],[1,3]]) {
+    const n=(await evaluate('__gameHud.nodes')).filter(n=>n.type==='GuiSelect')[index];
+    await click({x:n.rect.x+n.rect.width/2,y:n.rect.y+n.rect.height/2});
+    await click({x:n.rect.x+30,y:n.rect.y+n.rect.height+4+(value-1)*30-Math.max(0,n.value-4)*30+15});
+  }
+  const document=await cdp.call('DOM.getDocument');
+  const input=await cdp.call('DOM.querySelector',{nodeId:document.result.root.nodeId,selector:'#image-upload'});
+  await cdp.call('DOM.setFileInputFiles',{nodeId:input.result.nodeId,files:[resolve(root,'games/test/fixtures/jigsaw/rim-colors.svg')]});
+  await until('__jigsaw.rows===2 && __jigsaw.cols===3 && __jigsaw.image.width===900 && __jigsaw.image.height===600 && !__jigsaw.busy','colored rim fixture');
+  await delay(250);
+  const state=await evaluate('__jigsaw'),height=400/2*state.view.scale;
+  const capture=await cdp.call('Page.captureScreenshot',{format:'png'}),png=Buffer.from(capture.result.data,'base64');
+  writeFileSync(resolve(output,'jigsaw-color-rims.png'),png);
+  const pixels=decodePng(png);
+  const pixel=(x,y)=>{
+    const offset=(Math.round(y)*pixels.width+Math.round(x))*4;
+    return [...pixels.data.subarray(offset,offset+3)];
+  };
+  const light=rgb=>rgb.reduce((sum,n)=>sum+n,0);
+  const chroma=rgb=>(Math.max(...rgb)-Math.min(...rgb))/Math.max(1,Math.max(...rgb));
+  for(const piece of state.pieces) {
+    const center=pixel(piece.screen.x,piece.screen.y),direction=piece.row===0?1:-1;
+    const edge=piece.screen.y-direction*height/2;
+    const band=Array.from({length:3},(_,i)=>pixel(piece.screen.x,edge+direction*(i+2)));
+    const rim=band.sort((a,b)=>direction*(light(b)-light(a)))[0];
+    check(center[piece.col]===Math.max(...center),'fixture keeps source color in piece '+piece.id);
+    check(direction*(light(rim)-light(center))>3,(piece.row===0?'highlight brightens':'shadow darkens')+' image at piece '+piece.id);
+    check(chroma(rim)>chroma(center)*.65,'rim retains local image saturation at piece '+piece.id);
+  }
 });
 
 await run('jigsaw-play','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1042},async({evaluate,until,pads,press,check,cdp})=>{
@@ -764,20 +1075,30 @@ await run('jigsaw-play','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1
   await select(0,2);await select(1,2);await button('开始新拼图');
   await until('__jigsaw.rows===2 && __jigsaw.cols===2 && !__jigsaw.busy','GUI starts 2x2');
   check((await state()).groups.length===4,'row/column GUI generates requested pieces');
+  check((await state()).audio.played['ui-click']>=3,'wood buttons and settings play UI clicks after user gesture');
   await button('−');await button('−');
   await merge(0,1);
   let s=await state();check(s.groups.some(g=>g.pieces.includes(0)&&g.pieces.includes(1)),'neighbor pieces snap into one group');
+  check(s.audio.played['piece-click']>0 && s.audio.played.snap>0 && s.audio.played.complete===0,'piece selection and real merges play distinct sounds');
   const before=s.pieces.slice(0,2).map(p=>p.screen),p=before[0];
   await drag(p,{x:p.x+40,y:p.y+20});s=await state();
   const dx=s.pieces[0].screen.x-before[0].x,dy=s.pieces[0].screen.y-before[0].y;
   check(Math.hypot(dx,dy)>5 && before.every((p,i)=>Math.abs(s.pieces[i].screen.x-p.x-dx)<1 && Math.abs(s.pieces[i].screen.y-p.y-dy)<1),'joined pieces drag as a rigid group');
   const angle=s.groups.find(g=>g.pieces.includes(0)).angle;await key('KeyR');
   check((await state()).groups.find(g=>g.pieces.includes(0)).angle===angle,'rotation-disabled mode ignores rotate input');
+  const beforeArrange=(await state()).groups.map(({x,y,...g})=>g);
+  await button('整理');const arranged=(await state()).groups;
+  for(let i=0;i<8;i++)await button('整理');
+  check(JSON.stringify((await state()).groups)===JSON.stringify(arranged),'repeated arrange clicks keep positions stable instead of spreading pieces');
+  check(JSON.stringify((await state()).groups.map(({x,y,...g})=>g))===JSON.stringify(beforeArrange),'arrange preserves joined members, angles and stacking order');
   await reloadSaved('Engine autosave restores joined groups, moved positions, seeded cuts and move count');
   // Restoring fits the saved arrangement to the viewport; leave room for the following drags.
   await button('−');await button('−');
   await merge(0,2);await merge(0,3);check((await state()).complete,'all pieces can be assembled');
+  await until('__jigsaw.audio.played.complete===1','completion cue');
+  await delay(250);check((await state()).audio.played.complete===1,'final merge plays one completion cue');
   await reloadSaved('completed puzzle stays completed after reopening');
+  check((await state()).audio.played.complete===0 && (await state()).audio.backend.voices===0,'restored completed puzzle has no completion autoplay');
   await click(center((await node('GuiCheckbox')).rect));await button('开始新拼图');
   await until('__jigsaw.allowRotation && !__jigsaw.busy && __jigsaw.groups.length===4','rotation puzzle');
   await button('−');await button('−');
@@ -800,6 +1121,7 @@ await run('jigsaw-play','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1
   await drag(start,{x:start.x+30,y:start.y+10},false);
   await pads();await press(8);await until('document.body.dataset.gameReturnOpen==="true"','Back pauses jigsaw');
   check(!(await state()).dragging,'return dialog cancels active piece drag');
+  check((await state()).audio.paused && (await state()).audio.backend.voices===0 && (await state()).audio.pending===0,'return dialog clears active and pending audio');
   await press(1);await until('document.body.dataset.gameReturnOpen!=="true"','resume jigsaw');await mouse('mouseReleased',start);await pads([]);
   const doc=await cdp.call('DOM.getDocument'),input=await cdp.call('DOM.querySelector',{nodeId:doc.result.root.nodeId,selector:'#image-upload'});
   let chooser = null;cdp.on('Page.fileChooserOpened',event=>{chooser=event;});
@@ -843,6 +1165,9 @@ await run('jigsaw-play','games/jigsaw-puzzle/index.html',{gamepadVerify:1,seed:1
   check(await evaluate('__gameHud.nodes.filter(n=>n.type==="GuiSelect").every(n=>n.value===12)'),'GUI dropdown scrolling selects 12 rows and columns');
   await button('开始新拼图');await until('__jigsaw.rows===12 && __jigsaw.cols===12 && !__jigsaw.busy','maximum piece count');
   check((await state()).groups.length===144,'12x12 creates all 144 pieces');
+  await button('整理');const arranged144=(await state()).groups;await button('整理');
+  check(JSON.stringify((await state()).groups)===JSON.stringify(arranged144),'144-piece arrangement stays bounded and stable');
+  check((await state()).audio.backend.buffers===4 && (await state()).audio.backend.voices<=4,'restarts and uploads retain four buffers and bounded voices');
   check(await evaluate('document.querySelectorAll("canvas").length===1 && !document.querySelector("button,select")'),'all visible controls stay in Engine GUI after restart/upload');
   await reloadSaved('144-piece uploaded puzzle restores every piece after reopening');
   check(await evaluate('__jigsaw.rows===12 && __jigsaw.cols===12 && __jigsaw.allowRotation'),'Engine save restores row/column and rotation preferences');
@@ -858,4 +1183,6 @@ await run('jigsaw-save-unavailable','games/jigsaw-puzzle/index.html',{gamepadVer
   await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',buttons:1,clickCount:1});
   check(await evaluate('__jigsaw.dragging'),'game remains playable when storage is unavailable');
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...p,button:'left',buttons:0,clickCount:1});
+  await evaluate('dispatchEvent(new PageTransitionEvent("pagehide",{persisted:false}))');
+  check(await evaluate('__jigsaw.audio.backend.disposed && __jigsaw.audio.backend.buffers===0 && __jigsaw.audio.backend.voices===0 && __jigsaw.audio.backend.audioNodes===0'),'leaving the game disposes every sound buffer and audio node');
 });

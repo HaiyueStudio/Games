@@ -1,0 +1,6 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "asset": "titanium-albedo.png",
+  "prompt": "Use case: stylized-concept. Asset type: production albedo surface texture for small polygon tiles in a polished 3D spherical minesweeper game. Primary request: a seamless square material swatch of pearl silver ceramic-coated brushed titanium, delicate fine grain, extremely subtle tiny machining marks and restrained flecks, pale cool neutral silver. Flat orthographic texture covering entire square edge to edge, uniform diffuse illumination with no baked directional shadows, no perspective. Mostly clean quiet surface so colored digits overlaid later will be very readable. Premium tactile space instrument finish. No borders, no panel outlines, no shapes, no symbols, no numbers, no text, no logos, no watermark. Generate one square texture.",
+  "usage": "Shared 256px albedo variants are composed at load time with crisp digits and mine/wrong-flag markings; all graphics are sampled by the actual tile mesh."
+}

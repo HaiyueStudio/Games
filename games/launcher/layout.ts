@@ -1,4 +1,6 @@
 export interface DesktopRect { x: number; y: number; width: number; height: number }
+export const SHELF_INSET = 12;
+export const CARD_GAP = 16;
 
 export function desktopLayout(width: number, height: number) {
   const compact = width < 720, shallow = width >= 600 && height < 520;
@@ -18,7 +20,7 @@ export function desktopLayout(width: number, height: number) {
   const shelfTop = collection.y + (stacked ? 76 : 42) + filterRows * 34 + 10;
   const shelf = { x: collection.x, y: shelfTop, width: collection.width, height: Math.max(60, height - footer - gap - shelfTop) };
   const columns = Math.max(2, Math.min(5, Math.floor((shelf.width + 14) / (compact ? 148 : shallow ? 145 : 210))));
-  const cardWidth = (shelf.width - (columns - 1) * 14 - 8) / columns;
-  const cardHeight = Math.round(cardWidth * (shallow ? .44 : .58) + (shallow ? 46 : 50));
+  const cardWidth = (shelf.width - SHELF_INSET * 2 - (columns - 1) * CARD_GAP - 8) / columns;
+  const cardHeight = Math.round(cardWidth * .625);
   return { width, height, compact, shallow, gap, header, footer, sidebar, navigation, hero, collection, shelf, columns, cardWidth, cardHeight, stacked, filterRows };
 }

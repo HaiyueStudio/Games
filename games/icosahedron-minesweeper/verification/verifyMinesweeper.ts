@@ -1,6 +1,8 @@
 import type { Geometry3D, Mesh3D } from '@haiyue/engine';
 import { dot, TILE_HEIGHT, type Vec3, type CellFlag, type CellMaterials, type CellSurface } from '../rendering/CellVisuals';
 import type { MinesHud } from '../ui/MinesHud';
+import type { MinesAudio } from '../../shared/minesweeper/audio/MinesAudio';
+import { audioCounts, cueDelta, verifyAudioReady, verifyAudioControls } from '../../shared/minesweeper/audio/verifyAudio';
 
 interface State {
   phase: 'playing' | 'won' | 'lost'; opened: number; flags: number;
@@ -12,7 +14,7 @@ interface Cell extends CellState {
   flag: CellFlag | null; surface: CellSurface;
 }
 interface Host {
-  canvas: HTMLCanvasElement; cells: Cell[]; materials: CellMaterials; hud: MinesHud;
+  canvas: HTMLCanvasElement; cells: Cell[]; materials: CellMaterials; hud: MinesHud; audio: MinesAudio;
   reset(): void; pick(x: number, y: number): number | null;
   project(cell: Cell): { x: number; y: number }; orbit(): void;
   snapshot(): State; restore(state: State): void;
@@ -48,6 +50,7 @@ export async function verifyMinesweeper(host: Host) {
   host.canvas.releasePointerCapture = id => { if (id !== 10001) release(id); };
   try {
     await settle();
+    verifyAudioReady(host.audio, check);
     check(host.cells.length === 162, '162 connected polygon cells');
     check(host.cells.every(c => c.geometry.positions.every(Number.isFinite)), 'Finite tile geometry');
     check([...Object.values(host.materials.surfaces), ...host.materials.numbers].every(material => {
@@ -56,8 +59,10 @@ export async function verifyMinesweeper(host: Host) {
     }), 'All cell albedos are resident GPU textures before the first frame');
     const number = find(c => !c.mine && c.count > 0);
     await click(number, 0);
+    check(cueDelta(host.audio,{click:0,flag:0,explosion:0,button:0},{click:1}),'Revealing a tile emits one click cue');
     check(number.state === 'revealed' && number.mesh?.material === host.materials.numbers[number.count], 'Pointer reveal uses numbered albedo on the cell mesh');
     const flagCell = find(c => c.state === 'hidden' && c.mine);
+    let beforeAudio=audioCounts(host.audio);
     await click(flagCell, 2);
     const flag = flagCell.flag;
     check(flag && !flag.root.disabled, 'Right click plants pole and pennant geometry');
@@ -66,11 +71,14 @@ export async function verifyMinesweeper(host: Host) {
     for (let i = 0; i < polePositions.length; i += 3) heights.push(dot([polePositions[i]!, polePositions[i + 1]!, polePositions[i + 2]!], flagCell.normal));
     check(Math.min(...heights) < TILE_HEIGHT && Math.max(...heights) > TILE_HEIGHT + 0.29, 'Pole penetrates the tile and extends along its normal');
     for (let i = 0; i < 4; i++) { await click(flagCell, 2); await click(flagCell, 2); }
+    check(cueDelta(host.audio,beforeAudio,{flag:9}),'Flag placement and eight toggles emit one flag cue each');
     check(flagCell.flag === flag && !flag.root.disabled, 'Repeated flag toggles reuse the same mesh pair');
     const saved = host.snapshot();
+    beforeAudio=audioCounts(host.audio);
     host.reset(); await settle();
     check(host.cells.every(c => !c.flag || c.flag.root.disabled), 'Restart hides every planted flag');
     host.restore(saved); await settle();
+    check(cueDelta(host.audio,beforeAudio,{}),'Reset and save restoration never replay gameplay audio');
     check(number.mesh?.material === host.materials.numbers[number.count] && flagCell.flag === flag && !flag.root.disabled, 'Save restore reconstructs number textures and flag meshes');
     host.orbit(); await settle();
     const rotated = find(c => c.state === 'hidden' && !c.mine && c.count > 0);
@@ -78,7 +86,9 @@ export async function verifyMinesweeper(host: Host) {
     check(rotated.mesh?.material === host.materials.numbers[rotated.count], 'Ray picking and attached glyphs survive orbit and zoom');
     const wrong = find(c => c.state === 'hidden' && !c.mine);
     await click(wrong, 2);
+    beforeAudio=audioCounts(host.audio);
     await click(find(c => c.state === 'hidden' && c.mine), 0);
+    check(cueDelta(host.audio,beforeAudio,{explosion:1}),'One mine hit emits one explosion without a tile cue or per-mine replay');
     check(host.snapshot().phase === 'lost' && host.cells.filter(c => c.mine).every(c => c.surface === 'mine' && (!c.flag || c.flag.root.disabled)), 'Loss exposes textured mines and removes their flags');
     check(wrong.surface === 'wrong-flag' && wrong.flag?.cloth.material === host.materials.wrongCloth, 'Wrong flags retain their mesh with a crossed-out face');
     const lost = host.snapshot(); host.reset(); host.restore(lost); await settle();
@@ -92,6 +102,7 @@ export async function verifyMinesweeper(host: Host) {
       for (const id of target.neighbors) if (host.cells[id]!.mine) state.cells[id]!.state = 'flagged';
       state.flags = state.cells.filter(c => c.state === 'flagged').length;
       host.restore(state); await settle();
+      const beforeChord=audioCounts(host.audio);
       const { x, y } = host.project(target);
       const emit = (type: string, button: number, buttons: number) => {
         const init = { clientX: x, clientY: y, button, buttons, pointerId: 10001, pointerType: 'mouse', bubbles: true };
@@ -107,6 +118,7 @@ export async function verifyMinesweeper(host: Host) {
       await settle();
       check(safe.every(id => host.cells[id]!.state === 'revealed') && host.snapshot().phase === 'playing'
         && once === JSON.stringify(host.snapshot()), `Native chord: first button ${first}, remaining mask ${remaining}, one reveal`);
+      check(cueDelta(host.audio,beforeChord,{click:1}),`Native chord emits one cue across both releases: ${first}/${remaining}`);
     }
     host.reset(); await settle();
     const dragTarget = find(c => c.state === 'hidden');
@@ -122,6 +134,9 @@ export async function verifyMinesweeper(host: Host) {
     check(host.hud.noticeSnapshot().visible && host.hud.noticeSnapshot().text === 'Saved game restored.', 'Restored game notification appears briefly');
     host.hud.update(4000);
     check(!host.hud.noticeSnapshot().visible, 'Restored game notification hides automatically');
+    await verifyAudioControls(host.audio,host.hud,host.canvas,check,settle,async()=>{
+      await click(find(c=>!c.mine&&c.count>0),0);await click(find(c=>c.mine&&c.state==='hidden'),2);
+    });
     host.reset(); await settle();
     // Readable screenshot arrangement, produced by the normal input path.
     for (const cell of host.cells.filter(c => visible(c) && !c.mine).slice(0, 15)) await click(cell, 0);
@@ -131,7 +146,7 @@ export async function verifyMinesweeper(host: Host) {
     'Final deterministic gameplay frame contains revealed digits and exactly four active flag assemblies');
     host.hud.update(6000);
     await settle();
-    return { schemaVersion: 1, suite: 'icosahedron-minesweeper-visuals', status: 'passed', checks, final: { opened: host.snapshot().opened, flags: host.snapshot().flags } };
+    return { schemaVersion: 1, suite: 'icosahedron-minesweeper-visuals', status: 'passed', checks, audio:host.audio.snapshot(), final: { opened: host.snapshot().opened, flags: host.snapshot().flags } };
   } finally {
     host.canvas.setPointerCapture = capture; host.canvas.releasePointerCapture = release;
   }

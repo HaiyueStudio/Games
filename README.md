@@ -28,7 +28,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | Match 3 | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=match-3) |
 | Minesweeper | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=minesweeper) |
 | Minecraft Lite | 3D sandbox | [Play](https://haiyuestudio.github.io/Games/?game=minecraft-lite) |
-| Pad Simulator | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=pad-simulator) |
+| Device Simulator | Phone / tablet icon desktop and game RTT | [Open](simulator/index.html) |
 | Pac-Man | 2D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pacman) |
 | Piano | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=piano) |
 | 墨游 · 龙鲤 / Ink Pinball | 2D physics · 水墨山水 / WGSL 墨迹扩散 / WASD | [Local build](games/ink-pinball/README.md) |
@@ -46,9 +46,76 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 The lobby is generated from `games/manifest.json`, so the manifest remains the source of truth for the published
 game list. Direct links use `?game=<id>` and open the selected game automatically.
 
+## Game OS and device simulator
+
+The launcher UI (including loading and cards) uses Haiyue Engine GUI; device chassis use real 3D meshes.
+Cards use vivid genre tags and controller/touch/keyboard icons. Games mount in the current
+document through a route component, not an iframe. Browser back/forward and direct links
+select the same route; `?game=2048&device=phone` and `?game=2048&device=pad` open a device screen.
+
+Choose **设备模拟器** for a swipeable icon desktop, or open `simulator/index.html` independently.
+Phone and tablet screens render a live game texture with mapped touch/drag, keyboard and gamepad
+input. Drag outside the screen to orbit the camera, scroll to zoom, and use **相机复位** to reset.
+The physical Home key below the screen returns to the device desktop and cancels pending launches.
+Orbit the camera around the chassis to switch orientation automatically; there is no rotation button.
+Projected screen direction selects all four quarter-turns with hysteresis and a short stability delay.
+The screen rotates with an eased, fitted transition while the same game retains its progress.
+The icon desktop, loading and perspective touch mapping reflow together; Home stays on the physical chassis.
+An independent liquid-prism shader animates the device wallpaper, distinct from the outer aurora.
+Reduced-motion preferences freeze the wallpaper and skip the rotation tween.
+Games retain their original `games/<id>/index.html` standalone entrypoints.
+
+Game code is imported only when selected; MUGEN and Gravity Maze also retain their internal lazy
+chunks. A shared Engine loading screen covers code, resource bytes and initialization, with
+cancel/retry. Returning or switching aborts pending work and disposes game listeners, timers,
+workers, audio and graphics resources. In device mode, loading, progress, errors and retry are
+drawn inside the device screen; the chassis and camera persist across game/home transitions.
+The simulator itself is a separate lazy module.
+
+Every built game exports the same API:
+
+```js
+const { mountGame } = await import('./games/2048/bundle.js');
+const controller = new AbortController();
+const game = await mountGame({
+  root: document.querySelector('#game'),
+  signal: controller.signal,
+  mode: 'screen',
+  onProgress: progress => console.log(progress.phase, progress.loaded, progress.bytes),
+  onHome: () => controller.abort(),
+});
+game.pause();
+game.resume();
+game.dispose();
+```
+
+Give the host element an explicit size. Dispose with `game.dispose()` or `controller.abort()`.
+Texture mode accepts `width`/`height` in CSS pixels and uses DPR 1. `game.engine` owns
+`game.texture`; sample it on the same GPU device. `game.layers` exposes auxiliary canvases
+for older multi-canvas games, composited behind the main texture by the device presenter.
+Legacy image/SVG/background decorations are included as a separate layer. Multi-pass RTTs retain
+MSAA scene samples so later HUD passes do not erase the scene. For a separate GPU device,
+`game.presentFrame()` copies the RTT to its browser canvas; copy that canvas with
+`copyExternalImageToTexture` rather than sharing a GPUTexture across devices. The device presenter
+uses this GPU-backed bridge without per-frame CPU readback and preserves screen color space.
+`game.resize(width, height)` updates the mounted viewport and render target while retaining game state.
+`game.pointer(type, x, y, id)` accepts normalized screen coordinates; `game.key(code, down)`
+and `game.wheel(x, y, deltaX, deltaY)` forward other input. Do not destroy borrowed GPU resources.
+The mount promise resolves after asynchronous bootstrap, initial resources and the first frame.
+
+Build selected modules with `npm run build:target -- game:2048` (the host and simulator are
+included). Run `node scripts/verify-game-host.mjs` for screen/RTT lifecycle verification and
+`node scripts/verify-game-os.mjs --simulator` for native device navigation and touch coverage.
+Run `node scripts/verify-simulator.mjs` for all manifest games in both real device screens,
+including in-screen loading/cancel, camera orbit, physical Home and final-composite pixel checks.
+Each game rotates in place between portrait and landscape in both device modes; browser checks
+also cover preserved game state, perspective touch input and rotated mobile viewport fitting.
+Camera checks use real pointer drags, verify intermediate animation frames and compare wallpaper
+pixels over time. Separate game/auxiliary-layer pixel checks prevent wallpaper colors from hiding blank games.
+
 ## Gamepad controls
 
-All 28 games and the lobby support standard browser gamepads. Use the D-pad/stick to
+Manifest games and the lobby support standard browser gamepads. Use the D-pad/stick to
 select a game, A to enter, and LB/RB to change categories. In games, Back toggles the
 virtual pointer, Back+Start returns to the lobby, and Back+LB/RB switches games.
 See [controller mappings and verification](games/gamepad/README.md) and
@@ -181,8 +248,14 @@ exported by the existing lobby bundle. Opening or switching embedded games stops
 desktop Engine loop; returning resumes it. Hidden tabs and back/forward cache suspension
 also stop rendering. Direct game links initialize without rendering desktop frames.
 Reduced motion freezes the wallpaper.
+The shelf supports smooth wheel momentum and touch inertia. Cards show only their
+covers until hovered or selected, then reveal their title and genre/2D-or-3D/controller
+tags over the image. Keyboard and controller selection adds a soft mint bloom border.
+Mouse hover gently enlarges cards by 4.5%, tilts them by 1.2 degrees and lifts them
+by two pixels, easing back on exit without moving their native hit regions.
+Reduced motion makes scrolling and card information transitions immediate and disables card movement.
 
-Run `node scripts/verify-game-os.mjs` (`--portrait`, `--direct`, `--root` or `--published`) for browser checks
+Run `node scripts/verify-game-os.mjs` (`--cards`, `--portrait`, `--direct`, `--root` or `--published`) for browser checks
 covering native pointer launch, search/favorites, paused frame counts, and repeated
 launch/return. Screenshots and WebGPU diagnostics are written to `artifacts/gamepad/`.
 

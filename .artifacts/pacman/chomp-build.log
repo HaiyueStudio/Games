@@ -1,0 +1,15 @@
+
+> @haiyue/games-repository@0.1.0 build
+> node scripts/build-games.mjs
+
+
+games/host/index.ts → site/game-host.js...
+created site/game-host.js in 5.9s
+
+games/gamepad/lobby.ts, games/simulator/index.ts → site...
+created site in 3.6s
+
+> rollup game pacman
+
+games/pacman/main.ts → games/pacman/bundle.js...
+created games/pacman/bundle.js in 8.6s

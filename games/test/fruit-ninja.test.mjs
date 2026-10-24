@@ -1,19 +1,78 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
-import { advance, createRound, slice, intersects, resizeRound, MAX_ITEMS, FRUIT_COUNT, comboBonus, endStroke } from '../fruit-ninja/rules/model.ts';
+import { advance, createRound, slice, intersects, resizeRound, MAX_ITEMS, FRUIT_COUNT, ITEM_RADIUS, FLIGHT_SPEED, comboBonus, endStroke } from '../fruit-ninja/rules/model.ts';
 import { Swipe } from '../fruit-ninja/rules/swipe.ts';
 import { isBestScore } from '../fruit-ninja/save/best.ts';
 import { bombShake, SHAKE_SECONDS, BLAST_SECONDS, MAX_BLASTS } from '../fruit-ninja/rendering/bombFeedback.ts';
 import { createJuiceMark, sampleJuiceDrip, JUICE_VARIANTS, STAIN_SECONDS, DRIPS_PER_STAIN } from '../fruit-ninja/rendering/juice.ts';
 import { dojoSkin } from '../fruit-ninja/ui/dojoSkin.ts';
 const inputHook = registerHooks({ resolve(specifier, context, nextResolve) {
-  return nextResolve(context.parentURL?.endsWith('/BladeInput.ts') && specifier === '../rules/swipe' ? `${specifier}.ts` : specifier, context);
+  const local = context.parentURL?.endsWith('/BladeInput.ts') && specifier === '../rules/swipe'
+    || context.parentURL?.endsWith('/fruit-ninja/rendering/layout.ts') && specifier === '../rules/model';
+  return nextResolve(local ? `${specifier}.ts` : specifier, context);
 } });
 const { BladeInput } = await import('../fruit-ninja/input/BladeInput.ts');
+const { itemRadiusScale, SPRITE_SIZE } = await import('../fruit-ninja/rendering/layout.ts');
 inputHook.deregister();
 function playing() { const round = createRound(1042); round.phase = 'playing'; return round; }
 function item(id, kind = 'fruit', x = 100) { return { id, kind, fruit: 0, x, y: 100, radius: 30, vx: 0, vy: 0, angle: 0, spin: 0 }; }
+
+test('item sizing enlarges phone targets and caps desktop sprites without changing aspect', () => {
+  for (const [width, height] of [[320, 430], [390, 706], [844, 272], [1040, 482], [1440, 782], [1920, 962], [3440, 1322]]) {
+    const scale = itemRadiusScale(width, height), pixels = ITEM_RADIUS * scale * SPRITE_SIZE * width / 1000;
+    assert.ok(pixels >= 72 - 1e-8 && pixels <= 110 + 1e-8, `${width}x${height}: ${pixels}`);
+    if (width < 600) assert.ok(pixels > ITEM_RADIUS * SPRITE_SIZE * width / 1000 * 1.5, 'phone fruit is substantially larger');
+    if (width >= 1040) assert.ok(pixels < ITEM_RADIUS * SPRITE_SIZE * width / 1000 * .8, 'desktop fruit is substantially smaller');
+  }
+});
+
+test('resize updates current and future fruit/bomb hit radii with no repeated-resize drift', () => {
+  const round = playing(); advance(round, 3);
+  const initial = round.items.map(value => ({ ...value })), height = round.height;
+  for (let repeat = 0; repeat < 3; repeat++) {
+    resizeRound(round, 1800, itemRadiusScale(390, 706));
+    resizeRound(round, 540, itemRadiusScale(1440, 782));
+    resizeRound(round, height, 1);
+  }
+  round.items.forEach((value, i) => {
+    assert.ok(Math.abs(value.radius - initial[i].radius) < 1e-8);
+    assert.ok(Math.abs(value.y - initial[i].y) < 1e-8 && Math.abs(value.vy - initial[i].vy) < 1e-8);
+  });
+  const scale = itemRadiusScale(390, 706);
+  resizeRound(round, height, scale); advance(round, 3);
+  assert.ok(round.items.some(value => value.kind === 'bomb'));
+  for (const value of round.items) {
+    const expected = (value.kind === 'clock' ? 42 : ITEM_RADIUS) * scale;
+    assert.ok(Math.abs(value.radius - expected) < 1e-8, 'old and newly spawned items share the same scale');
+    const line = offset => [{ x: value.x - value.radius * 2, y: value.y + offset }, { x: value.x + value.radius * 2, y: value.y + offset }];
+    assert.equal(intersects(...line(value.radius * .99), value), true);
+    assert.equal(intersects(...line(value.radius * 1.01), value), false);
+  }
+});
+
+test('fruit and bombs follow the same arc at 75 percent speed while the timer stays real-time', () => {
+  assert.equal(FLIGHT_SPEED, .75);
+  const round = playing(); round.nextWave = round.nextClock = 1000;
+  round.items = ['fruit', 'bomb'].map((kind, i) => ({ ...item(i + 1, kind), y: 300, vx: 120, vy: -320, spin: 2 }));
+  advance(round, .6);
+  const flightTime = .45;
+  for (const value of round.items) {
+    assert.ok(Math.abs(value.x - (100 + 120 * flightTime)) < 1e-8);
+    assert.ok(Math.abs(value.y - (300 - 320 * flightTime + 600 * 1.4 * flightTime ** 2)) < 1e-8);
+    assert.ok(Math.abs(value.vy - (-320 + 600 * 2.8 * flightTime)) < 1e-8);
+    assert.ok(Math.abs(value.angle - 2 * flightTime) < 1e-8);
+  }
+  assert.ok(Math.abs(round.elapsed - .6) < 1e-8 && Math.abs(round.remaining - 59.4) < 1e-8);
+});
+
+test('display size cannot change seeded wave timing, item choices or flight paths', () => {
+  const small = createRound(1042, 600, .7), large = createRound(1042, 600, 1.7);
+  small.phase = large.phase = 'playing';
+  for (let i = 0; i < 600; i++) { advance(small, 1 / 60); advance(large, 1 / 60); }
+  const withoutScale = round => ({ ...round, itemScale: 1, items: round.items.map(value => ({ ...value, radius: 1 })) });
+  assert.deepEqual(withoutScale(small), withoutScale(large));
+});
 
 test('juice splashes vary across fruit hits and replay without consuming gameplay randomness', () => {
   const marks = Array.from({ length: 120 }, (_, i) => createJuiceMark(item(i + 1)));

@@ -19,7 +19,7 @@ R3+LB/RB 切换当前列表的上一个/下一个游戏。新页面、恢复焦�
 设备状态通过浏览器连接事件和轮询共同检测，启动时已经连接的设备也会提示；与按键回中、
 焦点和输入映射无关。同一槽位快速重连会替换旧通知并重新计时，最多同时保留 4 条。
 游戏内使用 `ui/ConnectionNotifications.ts` 在原有引擎画布上绘制，暂停返回窗口也能显示，
-倒计时不受游戏暂停影响；首页复用 Haiyue UI 的 `HYNotification`，打开游戏时由游戏接管提示。
+倒计时不受游戏暂停影响；首页复用原生 Engine GUI 通知，打开游戏时由游戏接管提示。
 状态与计时位于 `connections.ts`，浏览器监听及清理位于 `connectionMonitor.ts`。
 
 统一返回流程位于 `games/session/`：复用游戏的 Engine 和 canvas 绘制 `GuiModal`；
@@ -40,14 +40,14 @@ MUGEN 独立帧循环、钢琴 MIDI 播放、游戏延迟任务与现有音频�
 npm run build
 node --experimental-strip-types --test games/test/gamepad.test.mjs games/test/mugen-input-g07.test.mjs
 node --experimental-strip-types --test games/test/gamepad-connections.test.mjs
-node node_modules/rollup/dist/bin/rollup -c rollup.gamepad.config.js --input games/test/fixtures/gamepad/main.js --file artifacts/gamepad/fixture.js
 node scripts/verify-gamepad.mjs
 ```
 
 浏览器检查复用 Engine 的 Chrome/HTTP helper，需要相邻 Engine 开发仓库和 Chrome。
 统一返回检查使用 `gamepadVerify=1` 暴露只读会话快照，避免触发游戏自身的 `verify` 自动玩法测试。
-它模拟 `navigator.getGamepads`，验证真实页面事件、双玩家、拖拽、失焦、首页及 iframe
-切换；报告与截图在 `artifacts/gamepad`。模拟设备验证不等于实体蓝牙/USB 手柄实测。
+脚本自动构建输入测试入口。它模拟 `navigator.getGamepads`，验证真实页面事件、双玩家、
+拖拽、失焦、原生首页及同页路由切换；报告与截图在 `artifacts/gamepad`。
+模拟设备验证不等于实体蓝牙/USB 手柄实测。
 `notifications-sudoku`、`notifications-tank-battle`、`notifications-mugen` 和 `notifications-lobby`
 覆盖连接去重、断开、重连、5 秒关闭、手机布局，以及暂停期间通知关闭但游戏帧仍冻结。
 `notifications-startup` 延迟真实 GPU 初始化，验证启动加载超过 5 秒也不会提前耗尽通知时间。

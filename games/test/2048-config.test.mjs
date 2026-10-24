@@ -19,7 +19,7 @@ test('2048 JSON config owns board, geometry, animation, input, and palette setti
   assert.equal(config.input.swipeThreshold, 24);
   assert.equal(config.hud.modal.winTitle, 'You win!');
   assert.equal(config.hud.modal.confirmText, 'New Game');
-  assert.deepEqual(config.colors.tiles['2048'], { bg: '#edc22e', fg: '#f9f6f2' });
+  assert.deepEqual(config.colors.tiles['2048'], { bg: '#edc779', fg: '#162333' });
 });
 
 test('2048 config validation rejects unsafe dimensions and malformed colors', async () => {

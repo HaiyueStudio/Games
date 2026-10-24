@@ -1,5 +1,7 @@
 import { fitPerspectiveCamera } from '../../shared/rendering/fitPerspectiveCamera';
 import { MinesHud } from '../ui/MinesHud';
+import { createMinesAudio } from '../../shared/minesweeper/audio/BrowserAudio';
+import type { MinesAudio } from '../../shared/minesweeper/audio/MinesAudio';
 import { GameEngine } from '../../session/GameEngine';
 import { installGamepad } from '../../gamepad/runtime';
 installGamepad('icosahedron-minesweeper');
@@ -26,7 +28,7 @@ import { CameraViewProjectionCache } from '../../shared/rendering/CameraViewProj
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
 import { CellMaterials, createCellFlag, tileGeometry, tangentFrame, normalize, dot, TILE_HEIGHT, type CellSurface, type CellFlag } from '../rendering/CellVisuals';
 import { verifyMinesweeper } from '../verification/verifyMinesweeper';
-import { BoardGesture, type BoardAction } from '../input/BoardGesture';
+import { BoardGesture, type BoardAction } from '../../shared/minesweeper/BoardGesture';
 
 type CellState = 'hidden' | 'revealed' | 'flagged';
 type GamePhase = 'playing' | 'won' | 'lost';
@@ -179,6 +181,7 @@ class IcosahedronMinesweeper {
   private orbitWasEnabled = true;
 
   private hud!: MinesHud;
+  private audio!: MinesAudio;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new GameEngine({
@@ -189,7 +192,8 @@ class IcosahedronMinesweeper {
     await this.engine.init();
 
     this.world = new World('IcosahedronMinesweeper');
-    this.hud = new MinesHud(this.engine, this.world, () => this._newGame());
+    this.audio = await createMinesAudio(this.world, canvas, 'icosahedron-minesweeper');
+    this.hud = new MinesHud(this.engine, this.world, () => this._newGame(), { audio: this.audio });
     this.cameraTransform = new SphericalTransform3D({
       radius: 6.6,
       theta: Math.PI * 0.22,
@@ -261,6 +265,7 @@ class IcosahedronMinesweeper {
     this.engine.on('update', ({ detail: { time, delta } }) => {
       this._updateViewProjection();
       this.hud.update(delta);
+      this.audio.update(delta / 1000);
       this.world.update(time, delta);
     });
     this.engine.run();
@@ -294,9 +299,13 @@ class IcosahedronMinesweeper {
   private _applyPointerAction(action: BoardAction | null): void {
     if (!action || this.phase !== 'playing') return;
     const cell = requiredItemAt(this.cells, action.cellId, 'icosahedron cells');
+    const beforeState = cell.state, beforeOpened = this.opened;
     if (action.kind === 'chord' || action.kind === 'flag' && cell.state === 'revealed') this._chordReveal(cell);
     else if (action.kind === 'flag') this._toggleFlag(cell);
     else this._reveal(cell);
+    if ((this.phase as string) === 'lost') this.audio.explosion();
+    else if (action.kind === 'flag' && beforeState !== 'revealed' && cell.state !== beforeState) this.audio.flag(cell.state === 'flagged');
+    else if (this.opened > beforeOpened) this.audio.click();
   }
 
   private _setupInput(canvas: HTMLCanvasElement): void {
@@ -344,11 +353,12 @@ class IcosahedronMinesweeper {
     canvas.addEventListener('pointercancel', () => this._cancelGesture(), options);
     window.addEventListener('blur', () => this._cancelGesture(), options);
     document.addEventListener('keydown', event => {
-      if (event.key === 'r' || event.key === 'R') this._newGame();
+      if (event.key === 'r' || event.key === 'R') { this.audio.button(); this._newGame(); }
     }, options);
   }
 
   private _newGame(save = true): void {
+    this.audio.reset();
     this._cancelGesture();
     this.phase = 'playing';
     this.opened = 0;
@@ -391,6 +401,7 @@ class IcosahedronMinesweeper {
   }
 
   private _restoreState(saved: IcosahedronMinesweeperSaveData): void {
+    this.audio.reset();
     this.phase = saved.phase;
     this.opened = saved.opened;
     this.flags = saved.flags;
@@ -562,7 +573,7 @@ class IcosahedronMinesweeper {
 
   private async _verify(canvas: HTMLCanvasElement): Promise<void> {
     const result = await verifyMinesweeper({
-      canvas, cells: this.cells, materials: this.cellMaterials,
+      canvas, cells: this.cells, materials: this.cellMaterials, audio: this.audio,
       reset: () => this._newGame(false),
       pick: (x, y) => this._pickCell(x, y, canvas)?.id ?? null,
       project: cell => {

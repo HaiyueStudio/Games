@@ -12,6 +12,15 @@ export interface MoveResult {
   board: number[][];
   gained: number;
   movements: TileMovement[];
+  merges: TileMerge[];
+}
+
+/** Both contributors are explicit so presentation never guesses a merge from a new spawn. */
+export interface TileMerge {
+  sources: readonly [TileMovement, TileMovement];
+  toRow: number;
+  toCol: number;
+  value: number;
 }
 
 interface LineCoordinate {
@@ -59,6 +68,7 @@ export function calculateMove(board: readonly number[][], direction: MoveDirecti
   const cols = rows > 0 ? requiredItemAt(board, 0, '2048 board rows').length : 0;
   const next = createEmptyBoard(rows, cols);
   const movements: TileMovement[] = [];
+  const merges: TileMerge[] = [];
   let gained = 0;
 
   for (const line of createMoveLines(rows, cols, direction)) {
@@ -76,6 +86,13 @@ export function calculateMove(board: readonly number[][], direction: MoveDirecti
         const merged = current.value * 2;
         setBoardValue(next, target.row, target.col, merged);
         gained += merged;
+        merges.push({
+          sources: [
+            { fromRow: current.row, fromCol: current.col, toRow: target.row, toCol: target.col },
+            { fromRow: nextValue.row, fromCol: nextValue.col, toRow: target.row, toCol: target.col },
+          ],
+          toRow: target.row, toCol: target.col, value: merged,
+        });
         movements.push({
           fromRow: nextValue.row,
           fromCol: nextValue.col,
@@ -96,7 +113,7 @@ export function calculateMove(board: readonly number[][], direction: MoveDirecti
     }
   }
 
-  return { board: next, gained, movements };
+  return { board: next, gained, movements, merges };
 }
 
 export function canMove(board: readonly number[][]): boolean {

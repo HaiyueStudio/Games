@@ -1,0 +1,98 @@
+{
+  "generator": "node --experimental-strip-types scripts/generate-fruit-audio.mjs",
+  "version": 1,
+  "method": "Original deterministic offline synthesis: modal bamboo/wood percussion, filtered-noise air whooshes, liquid chirps, layered bass explosion and descending wooden bells. No third-party recordings, samples or models.",
+  "sampleRate": 44100,
+  "channels": 1,
+  "bits": 16,
+  "design": {
+    "ui-click": "Dry bamboo/wood contact, 110ms",
+    "bomb-explosion": "Sharp attack, falling sub-bass body, noisy debris tail and one aftershock",
+    "fruit-throw": "Three soft rising air swishes",
+    "fruit-splash": "Three wet squelches with independently timed liquid droplets",
+    "game-over": "Three descending bell notes followed by a low drum, 1.6s"
+  },
+  "effects": [
+    {
+      "id": "ui-click",
+      "file": "ui-click.wav",
+      "seconds": 0.11,
+      "bytes": 9746,
+      "peak": 0.7799999713897705,
+      "rms": 0.14339104545589418,
+      "sha256": "b12fbd2a78e916aaf1df7aca4774c06fb11435589296a83c9ea9598fb02e42e4"
+    },
+    {
+      "id": "bomb-explosion",
+      "file": "bomb-explosion.wav",
+      "seconds": 1.25,
+      "bytes": 110294,
+      "peak": 0.7799999713897705,
+      "rms": 0.131734249229781,
+      "sha256": "78aedfaaab58edcab8c94944a69f5f456b8e66b1fa7dc8a47038932e27afeae8"
+    },
+    {
+      "id": "fruit-throw-a",
+      "file": "fruit-throw-a.wav",
+      "seconds": 0.28,
+      "bytes": 24740,
+      "peak": 0.7799999713897705,
+      "rms": 0.19860113216111488,
+      "sha256": "825dbb2fe495b67f2e1e9868a4a9b9c47d6366674e4084d692fb1f321f0ffc7a"
+    },
+    {
+      "id": "fruit-throw-b",
+      "file": "fruit-throw-b.wav",
+      "seconds": 0.32,
+      "bytes": 28268,
+      "peak": 0.7799999713897705,
+      "rms": 0.19309532365561655,
+      "sha256": "716875b0eaa105b71dc0aa701af7af8845f02495291a74d087e8069fee5ec44d"
+    },
+    {
+      "id": "fruit-throw-c",
+      "file": "fruit-throw-c.wav",
+      "seconds": 0.26,
+      "bytes": 22976,
+      "peak": 0.7799999713897705,
+      "rms": 0.18333116181964607,
+      "sha256": "0263e8140cd6800a5dd2f80c504763f78347251e6e571cc141c7063747ccb38b"
+    },
+    {
+      "id": "fruit-splash-a",
+      "file": "fruit-splash-a.wav",
+      "seconds": 0.42,
+      "bytes": 37088,
+      "peak": 0.7799999713897705,
+      "rms": 0.12310395047392496,
+      "sha256": "841834a3d3f55b333152be2faf4b707d4c29ecd0a813b51444301d0e38246ace"
+    },
+    {
+      "id": "fruit-splash-b",
+      "file": "fruit-splash-b.wav",
+      "seconds": 0.47,
+      "bytes": 41498,
+      "peak": 0.7799999713897705,
+      "rms": 0.1168082213327276,
+      "sha256": "339e5a93b8da0b81f14295055241850fa1f3cdae8ec89e42556bba9d191680a2"
+    },
+    {
+      "id": "fruit-splash-c",
+      "file": "fruit-splash-c.wav",
+      "seconds": 0.4,
+      "bytes": 35324,
+      "peak": 0.7799999713897705,
+      "rms": 0.12174987692239583,
+      "sha256": "fd129d1f0a3af187fabd863a3d0f831702f46b7c4e70571a89fef9ef0dfedb15"
+    },
+    {
+      "id": "game-over",
+      "file": "game-over.wav",
+      "seconds": 1.6,
+      "bytes": 141164,
+      "peak": 0.7799999713897705,
+      "rms": 0.1494527198485654,
+      "sha256": "0c32034b76dddef331e4f379375369c65dea596265e88a9a20cfefe57b782170"
+    }
+  ]
+}

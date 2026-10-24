@@ -29,4 +29,7 @@ test('Tetris save validation rejects incomplete and malformed state', () => {
   assert.equal(isTetrisSaveData(valid), true);
   assert.equal(isTetrisSaveData({ ...valid, nextKind: 'X' }), false);
   assert.equal(isTetrisSaveData({ ...valid, board: [[null]] }), false);
+  assert.equal(isTetrisSaveData({ ...valid, lines: 12 }), true);
+  assert.equal(isTetrisSaveData({ ...valid, lines: -1 }), false);
+  assert.equal(isTetrisSaveData({ ...valid, lines: 1.5 }), false);
 });
