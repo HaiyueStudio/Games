@@ -29,9 +29,15 @@ export function cellPigment(q: number, r: number, level: number): number {
 }
 
 export function boardPigmentAt(x: number, y: number, seed: number): readonly [number, number, number] {
-  const density = .91 + pigmentAt(x, y, seed) * .13 + (inkHash(seed, 23) - .5) * .06;
+  const density = .86 + pigmentAt(x, y, seed) * .14 + (inkHash(seed, 23) - .5) * .22;
   const grain = (inkHash(x, y, seed) - .5) * 2.8;
   return [136 * density + grain, 164 * density + grain, 155 * density + grain];
+}
+
+/** Pigment washes out into paper before the outer fibers become transparent. */
+export function paperEdgeFade(distance: number, width = 18): { pigment: number; alpha: number } {
+  const smooth = (value: number) => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
+  return { pigment: smooth(distance / width), alpha: smooth((distance + .4) / 2.6) };
 }
 
 export const OPEN_SCROLL_MS = 1350;

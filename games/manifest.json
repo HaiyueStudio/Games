@@ -141,14 +141,17 @@
       "entry": "entanglement-path/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow", "gamepad", "audio"
       ],
       "assets": [
+        "entanglement-path/assets/bgm.mp3",
         "entanglement-path/assets/ink/scroll-landscape.png",
         "entanglement-path/assets/ink/ui-atlas.png",
         "entanglement-path/assets/ink/title-qianmo.png",
         "entanglement-path/assets/ink/title-qianmo-reference.png",
         "entanglement-path/assets/ink/title-qianmo-generation.json",
+        "entanglement-path/assets/ink/rotate-brush.png",
+        "entanglement-path/assets/ink/rotate-brush-generation.json",
         "entanglement-path/assets/ink/digits.png",
         "entanglement-path/assets/ink/digits.json",
         "entanglement-path/assets/ink/digits.fnt",

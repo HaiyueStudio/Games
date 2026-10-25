@@ -201,10 +201,10 @@ const DEFAULT_HEX_WORLD = 0.92;
 const DEFAULT_HEX_SCREEN = 40;
 const HEX_HIT_SCALE = 2 / Math.sqrt(3);
 const SOURCE_EXIT_INSET = 26;
-const DEFAULT_BOARD_OFFSET_X = 80;
+const DEFAULT_BOARD_OFFSET_X = 0;
 const DEFAULT_BOARD_OFFSET_Y = 0;
 const SWAP_PANEL_LEFT = 74;
-const SWAP_PANEL_BOTTOM = 50;
+const SWAP_PANEL_BOTTOM = 285;
 const SWAP_PANEL_W = 216;
 const SWAP_PANEL_H = 190;
 const SWAP_PANEL_HEADER_H = 36;
@@ -213,11 +213,10 @@ const SWAP_TILE_H = 124;
 const SWAP_TILE_LEFT = SWAP_PANEL_LEFT + (SWAP_PANEL_W - SWAP_TILE_W) / 2;
 const SWAP_TILE_BOTTOM = SWAP_PANEL_BOTTOM + (SWAP_PANEL_H - SWAP_PANEL_HEADER_H - SWAP_TILE_H) / 2;
 const SWAP_PANEL_Z = 1.0;
-const SWAP_PANEL_HOVER_Z = 1.01;
 const SWAP_TILE_Z = 1.02;
 const SWAP_TEXT_Z = 1.03;
-const SCORE_PANEL_W = 232;
-const SCORE_PANEL_H = 246;
+const SCORE_PANEL_W = 200;
+const SCORE_PANEL_H = 170;
 
 const SCORE_POPUP_DURATION = 3000;
 const SCORE_POPUP_FADE_START = 2000;
@@ -424,17 +423,22 @@ function resolveLevel(config: LevelConfig, index: number): ResolvedLevel {
   if (startWall) wallKeys.add(key(resolvedStart.q, resolvedStart.r));
   else wallKeys.delete(key(resolvedStart.q, resolvedStart.r));
   const tileLibrary = (Array.isArray(config.tileLibrary) ? config.tileLibrary.map(normalizePairing).filter(Boolean) : []) as Pairing[];
+  const boardCells = uniqueCells.length > 0 ? uniqueCells : radiusCells(DEFAULT_BOARD_RADIUS);
+  const hexScreen = (Number.isFinite(config.hexScreen) ? Math.max(20, Number(config.hexScreen)) : DEFAULT_HEX_SCREEN) * .95;
+  const centers = boardCells.map(cell => hexCenter(cell.q, cell.r, hexScreen));
+  const centerX = (Math.min(...centers.map(p => p.x)) + Math.max(...centers.map(p => p.x))) / 2;
+  const centerY = (Math.min(...centers.map(p => p.y)) + Math.max(...centers.map(p => p.y))) / 2;
 
   return {
     id: config.id || `level-${index + 1}`,
     name: config.name || `Level ${index + 1}`,
-    cells: uniqueCells.length > 0 ? uniqueCells : radiusCells(DEFAULT_BOARD_RADIUS),
+    cells: boardCells,
     start: resolvedStart,
     entry: Number.isInteger(config.entry) ? mod12(config.entry ?? DEFAULT_START_ENTRY) : DEFAULT_START_ENTRY,
-    hexScreen: (Number.isFinite(config.hexScreen) ? Math.max(20, Number(config.hexScreen)) : DEFAULT_HEX_SCREEN) * .95,
+    hexScreen,
     hexWorld: Number.isFinite(config.hexWorld) ? Math.max(0.45, Number(config.hexWorld)) : DEFAULT_HEX_WORLD,
-    boardOffsetX: Number(config.boardOffsetX ?? 0) + DEFAULT_BOARD_OFFSET_X,
-    boardOffsetY: Number(config.boardOffsetY ?? 0) + DEFAULT_BOARD_OFFSET_Y,
+    boardOffsetX: Number(config.boardOffsetX ?? 0) + DEFAULT_BOARD_OFFSET_X - centerX,
+    boardOffsetY: Number(config.boardOffsetY ?? 0) + DEFAULT_BOARD_OFFSET_Y - centerY,
     wallKeys,
     startWall,
     randomStartExit: config.randomStartExit ?? startWall,
@@ -653,7 +657,6 @@ class EntanglementPathGame {
   private reserveMesh!: Mesh3D;
   private reserveEntity: Entity | null = null;
   private swapPanelTransform!: CartesianTransform3D;
-  private swapPanelHighlightMaterial!: BasicMaterial;
   private swapHoverTarget = 0;
   private swapHoverAmount = 0;
   private swapAnimationStart = 0;
@@ -700,7 +703,7 @@ class EntanglementPathGame {
   private cameraTransform!: CartesianTransform3D;
   private backgroundTransform!: CartesianTransform3D;
   private introTransform: CartesianTransform3D | null = null;
-  private swapHoverTransform!: CartesianTransform3D;
+  private music!: MusicPlayerComponent;
   private readonly uiPlanes = new Map<string, { transform: CartesianTransform3D; x: number; y: number; z: number }>();
   private viewWidth = VIEW_W;
   private viewHeight = VIEW_H;
@@ -907,20 +910,27 @@ class EntanglementPathGame {
     const place = (name: string, x: number, y: number) => {
       const item = this.uiPlanes.get(name); item?.transform.setPosition(x, y, item.z);
     };
-    const panelX = portrait ? this.cameraX : screenToWorld(SWAP_PANEL_LEFT + SWAP_PANEL_W / 2, 0)[0];
-    const panelY = portrait ? -this.viewHeight / 2 + 1.9 : screenToWorld(0, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H / 2)[1];
+    const panelX = portrait ? this.cameraX - this.viewWidth / 2 + 1.9 : screenToWorld(SWAP_PANEL_LEFT + SWAP_PANEL_W / 2, 0)[0];
+    const panelY = portrait ? this.viewHeight / 2 - 5.5 : screenToWorld(0, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H / 2)[1];
     this.swapPanelTransform.setPosition(panelX, panelY, SWAP_PANEL_Z);
-    this.swapHoverTransform.setPosition(panelX, panelY, SWAP_PANEL_HOVER_Z);
     this.reserveTransform.setPosition(panelX, panelY - .23, SWAP_TILE_Z);
     if (portrait) {
       const top = this.viewHeight / 2;
       place('Ink Title', this.cameraX - 2.5, top - 3.1);
       place('Ink Subtitle', this.cameraX - 2.5, top - 3.85);
       place('Ink Seal', this.cameraX - .70, top - 3.1);
-      place('Score Panel', this.cameraX + 2.5, top - 3.6);
       place('Swap Title', panelX, panelY + .76);
-      place('Ink Instructions', panelX, panelY + 1.55);
+      place('Ink Instructions', panelX, panelY - 1.22);
       place('Restart Prompt', this.cameraX, -this.viewHeight * .25);
+    }
+    const score = this.uiPlanes.get('Score Panel');
+    if (score) {
+      const scale = portrait ? 1.2 : 1;
+      const width = SCORE_PANEL_W / CANVAS_W * VIEW_W * scale;
+      const height = SCORE_PANEL_H / CANVAS_H * VIEW_H * scale;
+      score.transform.setScale(width, height, 1);
+      place('Score Panel', this.cameraX + this.viewWidth * .432 - width / 2,
+        this.viewHeight * .425 - .35 - height / 2);
     }
   }
 
@@ -951,19 +961,13 @@ class EntanglementPathGame {
 
   private setupMusic(): void {
     const music = new Entity('Music');
-    music.addComponent(new MusicPlayerComponent({
-      urls: [
-        './assets/Layer1_1.ogg',
-        './assets/Layer1_2.ogg',
-        './assets/Layer1_3.ogg',
-        './assets/Layer1_4.ogg',
-        './assets/Layer1_5.ogg',
-        './assets/Layer1_6.ogg',
-      ],
+    this.music = new MusicPlayerComponent({
+      urls: ['./assets/bgm.mp3'],
       volume: 0.5,
       autoplay: true,
       loop: true,
-    }));
+    });
+    music.addComponent(this.music);
     this.world.addEntity(music);
   }
 
@@ -1017,7 +1021,7 @@ class EntanglementPathGame {
   }
 
   private buildPanel(): void {
-    this.scoreText = this.createText('Score Panel', '', 66, 220, SCORE_PANEL_W, SCORE_PANEL_H, 24, INK);
+    this.scoreText = this.createText('Score Panel', '', 958, 88, SCORE_PANEL_W, SCORE_PANEL_H, 24, INK);
 
     const previewMat = new BasicMaterial({
       texture: this.getPreviewTexture(),
@@ -1061,7 +1065,7 @@ class EntanglementPathGame {
     this.restartText = this.createText(
       'Restart Prompt',
       '路线已结束\n点击画面重新开始\n也可按空格或回车',
-      438, 580, 480, 120, 24, PAPER, 'center', 500, undefined, 2,
+      360, 580, 480, 120, 24, PAPER, 'center', 500, undefined, 2,
     );
     const restart = this.art.panel('dark', 480, 120), restartCtx = restart.getContext('2d')!;
     restartCtx.drawImage(drawTextTexture('此局已尽\n点击画面重新落笔\n也可按空格或回车', { width: 480, height: 120, fontSize: 24, color: PAPER }), 0, 0);
@@ -1111,19 +1115,11 @@ class EntanglementPathGame {
   }
 
   private buildSwapPanel(): void {
-    const panel = this.art.panel('reserve', SWAP_PANEL_W, SWAP_PANEL_H);
     const transform = new CartesianTransform3D({
       position: screenToWorld(SWAP_PANEL_LEFT + SWAP_PANEL_W / 2, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H / 2, SWAP_PANEL_Z),
       scale: [SWAP_PANEL_W / CANVAS_W * VIEW_W, SWAP_PANEL_H / CANVAS_H * VIEW_H, 1],
     });
-    const entity = new Entity('Ink Reserve Panel'); entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), new BasicMaterial({ texture: this.canvasToGpuTexture(panel), blending: 'normal', depthWrite: false })));
-    this.world.addEntity(entity); this.swapPanelTransform = transform;
-    this.swapPanelHighlightMaterial = new BasicMaterial({ texture: this.canvasToGpuTexture(panel), color: [1, .86, .67, 0], blending: 'normal', depthWrite: false });
-    const hover = new Entity('Ink Reserve Hover');
-    this.swapHoverTransform = new CartesianTransform3D({ position: screenToWorld(SWAP_PANEL_LEFT + SWAP_PANEL_W / 2, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H / 2, SWAP_PANEL_HOVER_Z), scale: [SWAP_PANEL_W / CANVAS_W * VIEW_W, SWAP_PANEL_H / CANVAS_H * VIEW_H, 1] });
-    hover.addComponent(this.swapHoverTransform);
-    hover.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), this.swapPanelHighlightMaterial)); this.world.addEntity(hover);
+    this.swapPanelTransform = transform;
     this.createText('Swap Title', '换 一 笔', SWAP_PANEL_LEFT, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H + 15, SWAP_PANEL_W, 34, 22, INK, 'center', 500, undefined, SWAP_TEXT_Z);
   }
 
@@ -1999,12 +1995,11 @@ class EntanglementPathGame {
   }
 
   private updateSwapPanelHover(): void {
-    if (!this.swapPanelHighlightMaterial) return;
+    if (!this.reserveMesh) return;
     this.swapHoverAmount += (this.swapHoverTarget - this.swapHoverAmount) * 0.16;
-    const alpha = this.swapHoverAmount;
-    if (Math.abs(this.swapPanelHighlightMaterial.color.a - alpha) > 0.002) {
-      this.swapPanelHighlightMaterial.color.a = alpha;
-    }
+    if (this.swapAnimationActive) return;
+    const scale = 1 + this.swapHoverAmount * .05;
+    this.reserveTransform.setScale(SWAP_TILE_W / CANVAS_W * VIEW_W * scale, SWAP_TILE_H / CANVAS_H * VIEW_H * scale, 1);
   }
 
   private updateRotateButtons(): void {

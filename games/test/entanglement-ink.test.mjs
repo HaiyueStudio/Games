@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
-import { boardPigmentAt, cellPigment, pigmentAt, scrollProgress, revealProgress, veilAlpha, INTRO_DURATION_MS } from '../entanglement-path/art/inkNoise.ts';
+import { boardPigmentAt, cellPigment, paperEdgeFade, pigmentAt, scrollProgress, revealProgress, veilAlpha, INTRO_DURATION_MS } from '../entanglement-path/art/inkNoise.ts';
 import { decodePng } from '../../../Engine/scripts/visual-regression/png.mjs';
 const hook = registerHooks({ resolve(specifier, context, next) {
   return next(/^\.{1,2}\//.test(specifier) && !/\.[a-z0-9]+$/i.test(specifier) ? `${specifier}.ts` : specifier, context);
@@ -26,7 +26,7 @@ test('ink variation is deterministic, spatially continuous and independent per b
   assert.ok(Math.max(...values) - Math.min(...values) > .25);
 });
 
-test('board pigment keeps a single hue and only a small luminance range', () => {
+test('board pigment keeps a single hue with visible but bounded per-cell shade variation', () => {
   const greens = [];
   for (let seed = 0; seed < 100; seed++) for (let x = 0; x < 256; x += 16) {
     const [r, g, b] = boardPigmentAt(x, 110, seed); greens.push(g);
@@ -34,7 +34,21 @@ test('board pigment keeps a single hue and only a small luminance range', () => 
     assert.ok(Math.abs(b / g - 155 / 164) < .004);
   }
   const range = Math.max(...greens) - Math.min(...greens);
-  assert.ok(range > 5 && range < 30, 'subtle shade variation instead of a multicolor palette');
+  assert.ok(range > 25 && range < 65, 'clear light/dark variation without introducing other hues');
+});
+
+test('tile rim washes into paper smoothly, then becomes transparent at the outer fibers', () => {
+  let pigment = 0, alpha = 0;
+  for (let distance = -1; distance <= 24; distance += .1) {
+    const sample = paperEdgeFade(distance);
+    assert.ok(sample.pigment >= pigment && sample.alpha >= alpha);
+    assert.ok(sample.pigment >= 0 && sample.pigment <= 1 && sample.alpha >= 0 && sample.alpha <= 1);
+    pigment = sample.pigment; alpha = sample.alpha;
+  }
+  assert.deepEqual(paperEdgeFade(-1), { pigment: 0, alpha: 0 });
+  assert.deepEqual(paperEdgeFade(24), { pigment: 1, alpha: 1 });
+  assert.ok(paperEdgeFade(3).pigment < .1 && paperEdgeFade(3).alpha === 1, 'outer rim is opaque paper, not a dark stroke');
+  assert.ok(paperEdgeFade(9).pigment > .4 && paperEdgeFade(9).pigment < .6, 'halfway through the rim mixes paper and pigment');
 });
 
 test('brush contour wanders, varies pressure and joins its corners without discontinuities', () => {

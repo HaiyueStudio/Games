@@ -32,6 +32,14 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
           const r = document.querySelector('canvas').getBoundingClientRect(), g = __entanglementPath;
           if (Math.abs(r.width - innerWidth) > 1 || Math.abs(r.height - innerHeight) > 1) throw Error('canvas must fill the viewport');
           if (Math.abs(g.viewWidth / g.viewHeight - r.width / r.height) > .001) throw Error('camera must preserve hex proportions');
+          const cells = [...g.cells.values()], xs = cells.map(c => c.screenX), ys = cells.map(c => c.screenY);
+          const board = __inkPoint((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2);
+          if (Math.abs(board.x - r.x - r.width / 2) > 1 || Math.abs(board.y - r.y - r.height / 2) > 1) throw Error('entire board must stay centered in the scroll');
+          if (g.world.getEntity('Ink Reserve Panel') || g.world.getEntity('Ink Reserve Hover') || g.swapPanelTransform.position[0] >= g.cameraX - g.viewWidth * .1) throw Error('reserve tile must sit bare on the left scroll paper');
+          const score = g.scoreText.transform;
+          if (score.position[0] - score.scale[0] / 2 <= g.cameraX + g.viewWidth * .1
+            || score.position[1] <= g.viewHeight * .1
+            || score.position[1] + score.scale[1] / 2 > g.viewHeight * .43) throw Error('score readouts must stay on the upper-right scroll paper');
           if (r.width / r.height < .95) {
             const title = g.uiPlanes.get('Ink Title').transform;
             if (g.viewHeight / 2 - title.position[1] - title.scale[1] / 2 < g.viewHeight * .075) throw Error('portrait title must sit on light scroll paper');
@@ -101,6 +109,12 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         return { name: document.title, loaded: g.art.titleImage.complete && g.art.titleImage.naturalWidth > 400, ink, clear, runs };
       })()`);
       assert.equal(title.name, '阡陌交通'); assert.ok(title.loaded && title.ink > 2500 && title.clear > 10000 && title.runs === 4, 'transparent brush title retains four separate seal-script glyphs');
+      const scoreInk = await evaluate(`(() => {
+        const canvas = __entanglementPath.art.score(123, 15, 9, 456), pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let clear = 0; for (let i = 3; i < pixels.length; i += 4) if (!pixels[i]) clear++;
+        return { clear: clear / (canvas.width * canvas.height), corners: [pixels[3], pixels[(canvas.width - 1) * 4 + 3], pixels[(canvas.height - 1) * canvas.width * 4 + 3]] };
+      })()`);
+      assert.ok(scoreInk.clear > .8 && scoreInk.clear < .99 && scoreInk.corners.every(alpha => alpha === 0), 'score texture contains ink readouts on a transparent background');
       await untilReady();
       assert.ok(await evaluate('__entanglementPath.introTexture === null && __entanglementPath.introEntity === null'), 'intro GPU texture and overlay are released');
       await cdp.call('Page.addScriptToEvaluateOnNewDocument', { source: `
@@ -122,6 +136,29 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         await frame();
       }
       await capture('controller-and-swap-title');
+      for (const [kind, delta] of [['ccw', -1], ['cw', 1]]) {
+        const point = await evaluate(`(() => { const p = __entanglementPath.rotateButtonCenter('${kind}'); return __inkPoint(p.x, p.y); })()`);
+        await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, button: 'none' });
+        await new Promise(accept => setTimeout(accept, 180));
+        const before = await evaluate('__entanglementPath.rotation');
+        await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 });
+        await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
+        assert.equal(await evaluate('__entanglementPath.rotation'), (before + delta + 6) % 6, 'brush arrow click rotates ' + kind);
+      }
+      await capture('brush-arrows');
+      const musicDeadline = Date.now() + 5000;
+      while (!await evaluate(`__entanglementPath.music.context?.state === 'running' && __entanglementPath.music.source?.buffer?.duration > 1`)) {
+        assert.ok(Date.now() < musicDeadline, 'desktop MP3 decodes and plays after a real input gesture');
+        await new Promise(accept => setTimeout(accept, 40));
+      }
+      assert.ok(await evaluate(`__entanglementPath.music.data.loop && __entanglementPath.music.data.urls.length === 1 && __entanglementPath.music.data.urls[0] === './assets/bgm.mp3'`), 'music uses only the requested desktop MP3 and loops');
+      await evaluate(`(() => { const m = __entanglementPath.music; window.__previousMusicSource = m.source; m.source.stop(m.context.currentTime + .03); })()`);
+      const loopDeadline = Date.now() + 3000;
+      while (!await evaluate(`__entanglementPath.music.source && __entanglementPath.music.source !== window.__previousMusicSource`)) {
+        assert.ok(Date.now() < loopDeadline, 'track completion starts the MP3 again');
+        await new Promise(accept => setTimeout(accept, 40));
+      }
+      await evaluate('window.__loopedMusicSource = __entanglementPath.music.source');
       const tilesBefore = await evaluate('({ next: __entanglementPath.nextTile.id, reserve: __entanglementPath.reserveTile.id })');
       const swapPoint = await evaluate(`(() => { const p = __entanglementPath.swapPanelTransform.position; return __inkWorld(p[0], p[1]); })()`);
       await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...swapPoint, button: 'left', clickCount: 1 });
@@ -144,13 +181,22 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         const a = art.tile('pigment', 42).getContext('2d').getImageData(0, 0, 256, 256).data;
         const b = art.tile('pigment', 43).getContext('2d').getImageData(0, 0, 256, 256).data;
         const greens = []; let difference = 0;
-        for (let y = 60; y < 190; y += 10) for (let x = 60; x < 190; x += 10) {
+        for (let y = 84; y < 178; y += 10) for (let x = 84; x < 178; x += 10) {
           const i = (y * 256 + x) * 4;
           greens.push(a[i + 1]); difference = Math.max(difference, Math.abs(a[i + 1] - b[i + 1]));
           if (Math.abs(a[i] / a[i + 1] - 136 / 164) > .015 || Math.abs(a[i + 2] / a[i + 1] - 155 / 164) > .015) throw Error('board hue must remain consistent');
         }
         const range = Math.max(...greens) - Math.min(...greens);
-        if (range < 3 || range > 30 || difference < 2 || difference > 30 || a[3] !== 0) throw Error('pigment wash must retain subtle shade variation within/across transparent hexes');
+        if (range < 3 || range > 30 || difference < 2 || difference > 65 || a[3] !== 0) throw Error('pigment wash must retain visible same-hue shade variation within/across transparent hexes');
+        let darkest = 255, lightRim = 0;
+        for (let i = 0; i < a.length; i += 4) if (a[i + 3] > 240) darkest = Math.min(darkest, a[i]);
+        const centerGreen = a[(128 * 256 + 128) * 4 + 1];
+        for (let y = 90; y < 160; y += 5) for (let x = 226; x < 245; x++) {
+          const i = (y * 256 + x) * 4;
+          if (a[i + 3] > 220 && a[i + 1] > centerGreen + 20) lightRim++;
+        }
+        if (darkest < 80 || lightRim < 10) throw Error('tile edge must fade to paper without a black outline');
+        if (!art.arrowImage.complete || art.arrowImage.naturalWidth < 400) throw Error('generated brush arrow atlas must load');
       })()`);
       const png = await capture('colors');
       const colors = await evaluate(`(async () => {
@@ -164,6 +210,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await evaluate(`(() => { for (let i = 0; i < 4; i++) __entanglementPath.world.removeEntity('Color Probe ' + i); })()`);
       for (let level = 0; level < 3; level++) {
         await evaluate(`__entanglementPath.loadLevel(${level}, true)`);
+        await untilReady();
         let before = await finish();
         if (level === 0) {
           const ended = await capture('ended');
@@ -186,6 +233,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         before = await finish(); await key('Enter'); await checkRestart(before);
         before = await finish(); await key(' '); await checkRestart(before);
       }
+      assert.ok(await evaluate('__entanglementPath.music.source === window.__loopedMusicSource'), 'level changes and restarts preserve one music source');
       let before = await finish();
       await cdp.call('Emulation.setTouchEmulationEnabled', { enabled: true });
       const point = await evaluate(`(() => { const p = __entanglementPath.restartText.transform.position; return __inkWorld(p[0], p[1]); })()`);
@@ -238,12 +286,13 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         await frame(); await untilReady();
       }
       await evaluate(`(() => { const node = document.createElement('pre'); node.id = 'result'; node.hidden = true;
-        node.dataset.status = 'passed'; node.textContent = JSON.stringify({ status: 'passed', checks: ['fullscreen canvas and resize', 'single-hue pigment', 'scroll unrolling', 'noise and crossfade', 'bitmap font', 'seeded pigment hexes', 'intro resource cleanup', 'X/Y and LB/RB rotations', 'reserve swap and cleanup', 'sRGB pixels', 'three levels', 'mouse restart', 'keyboard restart', 'touch restart', 'ended save restart', 'key repeat', 'play after restart'] }); document.body.append(node); })()`);
+        node.dataset.status = 'passed'; node.textContent = JSON.stringify({ status: 'passed', checks: ['centered board', 'bare score and reserve', 'desktop MP3 playback and loop', 'fullscreen canvas and resize', 'single-hue pigment', 'scroll unrolling', 'noise and crossfade', 'bitmap font', 'seeded pigment hexes', 'intro resource cleanup', 'X/Y and LB/RB rotations', 'reserve swap and cleanup', 'sRGB pixels', 'three levels', 'mouse restart', 'keyboard restart', 'touch restart', 'ended save restart', 'key repeat', 'play after restart'] }); document.body.append(node); })()`);
     },
   });
   assert.equal(result.status, 'passed');
   assert.equal(result.browserDiagnostics.unclassifiedFailureCount, 0);
-  for (const path of ['bundle.js', 'assets/ink/scroll-landscape.png', 'assets/ink/ui-atlas.png', 'assets/ink/title-qianmo.png', 'assets/ink/digits.png', 'assets/ink/digits.json', 'levels.json']) {
+  assert.ok(!result.httpProvenance.files.some(file => /\/Layer1_/.test(file.sourcePath)), 'old background music is never fetched');
+  for (const path of ['bundle.js', 'assets/bgm.mp3', 'assets/ink/scroll-landscape.png', 'assets/ink/ui-atlas.png', 'assets/ink/title-qianmo.png', 'assets/ink/rotate-brush.png', 'assets/ink/digits.png', 'assets/ink/digits.json', 'levels.json']) {
     const sourcePath = `games/entanglement-path/${path}`;
     assert.equal(result.httpProvenance.files.find(file => file.sourcePath === sourcePath)?.sha256,
       createHash('sha256').update(readFileSync(resolve(root, sourcePath))).digest('hex'));

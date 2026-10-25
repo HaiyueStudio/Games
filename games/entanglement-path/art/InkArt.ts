@@ -1,5 +1,5 @@
-import { CINNABAR, BOARD_PIGMENT, INK, PAPER, boardPigmentAt, inkHash, pigmentAt, revealProgress, scrollProgress, veilAlpha } from './inkNoise';
-import { brushEdgePoint, HEX_TEXTURE_STRETCH } from './hexGeometry';
+import { CINNABAR, BOARD_PIGMENT, INK, boardPigmentAt, inkHash, paperEdgeFade, pigmentAt, revealProgress, scrollProgress, veilAlpha } from './inkNoise';
+import { brushEdgePoint, HEX_RADIUS, HEX_TEXTURE_STRETCH } from './hexGeometry';
 
 export const INK_FONT = '"KaiTi", "STKaiti", "FangSong", "Noto Serif CJK SC", serif';
 export interface GlyphRect { x: number; y: number; width: number; height: number }
@@ -15,18 +15,20 @@ async function imageAt(url: string): Promise<HTMLImageElement> {
 
 export class InkArt {
   private constructor(readonly landscape: HTMLImageElement, readonly ui: HTMLImageElement,
-    readonly digits: HTMLImageElement, readonly metrics: FontMetrics, readonly titleImage: HTMLImageElement) {}
+    readonly digits: HTMLImageElement, readonly metrics: FontMetrics, readonly titleImage: HTMLImageElement,
+    readonly arrowImage: HTMLImageElement) {}
   private readonly tiles = new Map<string, HTMLCanvasElement>();
   private readonly tintedGlyphs = new Map<string, HTMLCanvasElement>();
   readonly bitmapDraws = { count: 0 };
 
   static async load(): Promise<InkArt> {
-    const [landscape, ui, digits, metrics, titleImage] = await Promise.all([
+    const [landscape, ui, digits, metrics, titleImage, arrowImage] = await Promise.all([
       imageAt('./assets/ink/scroll-landscape.png'), imageAt('./assets/ink/ui-atlas.png'), imageAt('./assets/ink/digits.png'),
       fetch('./assets/ink/digits.json').then(response => { if (!response.ok) throw new Error('Missing ink bitmap font metrics'); return response.json() as Promise<FontMetrics>; }),
       imageAt('./assets/ink/title-qianmo.png'),
+      imageAt('./assets/ink/rotate-brush.png'),
     ]);
-    return new InkArt(landscape, ui, digits, metrics, titleImage);
+    return new InkArt(landscape, ui, digits, metrics, titleImage, arrowImage);
   }
 
   title(width: number, height: number): HTMLCanvasElement {
@@ -50,37 +52,38 @@ export class InkArt {
     const color = kind === 'wall' || kind === 'source' ? INK : kind === 'path' ? CINNABAR : BOARD_PIGMENT;
     const rgb = [1, 3, 5].map(offset => parseInt(color.slice(offset, offset + 2), 16));
     const pixels = ctx.createImageData(64, 64);
+    const paper = [243, 232, 206];
+    const normals = Array.from({ length: 6 }, (_, edge) => ({ x: Math.cos(edge * Math.PI / 3), y: Math.sin(edge * Math.PI / 3) }));
+    const rimWidth = 16 + inkHash(seed, 91) * 5;
     for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
       const offset = (y * 64 + x) * 4;
+      const dx = x * 4 + 2 - 128, dy = y * 4 + 2 - 128;
+      let edge = 0, projection = -Infinity;
+      for (let side = 0; side < 6; side++) {
+        const normal = normals[side]!, p = dx * normal.x + dy * normal.y;
+        if (p > projection) { projection = p; edge = side; }
+      }
+      const normal = normals[edge]!, tangent = -dx * normal.y + dy * normal.x;
+      const t = Math.max(0, Math.min(22, (.5 + tangent / HEX_RADIUS) * 22));
+      const lo = Math.floor(t), hi = Math.min(22, lo + 1), a = edges[edge]![lo]!, b = edges[edge]![hi]!;
+      const wander = a.offset + (b.offset - a.offset) * (t - lo);
+      const fade = paperEdgeFade(HEX_RADIUS * Math.cos(Math.PI / 6) - projection + wander, rimWidth);
+      const mix = (channel: number, c: number) => channel * fade.pigment + paper[c]! * (1 - fade.pigment);
       if (kind === 'pigment') {
         const color = boardPigmentAt(x * 4, y * 4, seed);
-        for (let c = 0; c < 3; c++) pixels.data[offset + c] = color[c]!;
-        pixels.data[offset + 3] = 255;
+        for (let c = 0; c < 3; c++) pixels.data[offset + c] = mix(color[c]!, c);
+        pixels.data[offset + 3] = fade.alpha * 255;
         continue;
       }
       const wash = pigmentAt(x * 4, y * 4, seed);
       const grain = (inkHash(x, y, seed) - .5) * 15;
       const density = .65 + wash * .63;
-      for (let c = 0; c < 3; c++) pixels.data[offset + c] = Math.min(255, rgb[c]! * density + grain + (kind === 'wall' || kind === 'source' ? wash * 11 : 0));
-      pixels.data[offset + 3] = 255;
+      for (let c = 0; c < 3; c++) pixels.data[offset + c] = mix(Math.min(255, rgb[c]! * density + grain + (kind === 'wall' || kind === 'source' ? wash * 11 : 0)), c);
+      pixels.data[offset + 3] = fade.alpha * 255;
     }
     const pigment = canvas(64); pigment.getContext('2d')!.putImageData(pixels, 0, 0);
     ctx.drawImage(pigment, 0, 0, 256, 256);
     ctx.restore();
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(22,34,28,.11)'; ctx.lineWidth = 12; ctx.stroke(hex);
-    // Paint short connected segments with varying pressure and opacity. Fine
-    // off-center bristles leave dry ink traces rather than a uniform vector edge.
-    for (const [edge, points] of edges.entries()) for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1]!, b = points[i]!;
-      ctx.strokeStyle = `rgba(19,31,25,${.24 + b.pressure * .46})`; ctx.lineWidth = 1.2 + b.pressure * 8.5;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      if (inkHash(edge, i, seed + 18) < .38) continue;
-      const angle = edge * Math.PI / 3, drift = 2.4 + inkHash(i, edge, seed) * 3;
-      ctx.strokeStyle = 'rgba(24,36,28,.22)'; ctx.lineWidth = .55;
-      ctx.beginPath(); ctx.moveTo(a.x + Math.cos(angle) * drift, a.y + Math.sin(angle) * drift);
-      ctx.lineTo(b.x + Math.cos(angle) * drift, b.y + Math.sin(angle) * drift); ctx.stroke();
-    }
     this.tiles.set(id, target); return target;
   }
 
@@ -112,23 +115,24 @@ export class InkArt {
   }
 
   score(score: number, length: number, tiles: number, best: number): HTMLCanvasElement {
-    const target = this.panel('score', 232, 246), ctx = target.getContext('2d')!;
-    ctx.fillStyle = INK; ctx.font = `18px ${INK_FONT}`; ctx.fillText('本 局', 25, 58);
-    this.drawNumber(ctx, score, 26, 70, 44);
-    ctx.strokeStyle = '#a44834'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(25, 130); ctx.lineTo(201, 130); ctx.stroke();
+    const target = canvas(200, 170), ctx = target.getContext('2d')!;
+    ctx.fillStyle = INK; ctx.font = `18px ${INK_FONT}`; ctx.fillText('本 局', 8, 22);
+    this.drawNumber(ctx, score, 8, 33, 42);
     for (const [i, label, value] of [[0, '最长纪录', best], [1, '路径长度', length], [2, '落子数量', tiles]] as const) {
-      const y = 145 + i * 26; ctx.font = `16px ${INK_FONT}`; ctx.fillText(label, 26, y + 18);
-      this.drawNumber(ctx, value, 199, y, 23, INK, 'right');
+      const y = 91 + i * 25; ctx.font = `16px ${INK_FONT}`; ctx.fillText(label, 8, y + 17);
+      this.drawNumber(ctx, value, 106, y, 21, INK);
     }
     return target;
   }
 
   rotationArrow(clockwise: boolean): HTMLCanvasElement {
     const target = canvas(96), ctx = target.getContext('2d')!;
-    ctx.fillStyle = PAPER; ctx.beginPath(); ctx.arc(48, 48, 39, 0, Math.PI * 2); ctx.fill();
-    ctx.save(); if (!clockwise) { ctx.translate(96, 0); ctx.scale(-1, 1); }
-    ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(48, 48, 23, .3, Math.PI * 1.8); ctx.stroke();
-    ctx.fillStyle = CINNABAR; ctx.beginPath(); ctx.moveTo(69, 25); ctx.lineTo(76, 43); ctx.lineTo(58, 36); ctx.closePath(); ctx.fill(); ctx.restore();
+    const wash = ctx.createRadialGradient(48, 48, 20, 48, 48, 46);
+    wash.addColorStop(0, 'rgba(243,232,206,.94)'); wash.addColorStop(.65, 'rgba(243,232,206,.85)'); wash.addColorStop(1, 'rgba(243,232,206,0)');
+    ctx.fillStyle = wash; ctx.fillRect(0, 0, 96, 96);
+    const width = this.arrowImage.width / 2, height = this.arrowImage.height, scale = Math.min(92 / width, 92 / height);
+    const w = width * scale, h = height * scale;
+    ctx.drawImage(this.arrowImage, clockwise ? width : 0, 0, width, height, (96 - w) / 2, (96 - h) / 2, w, h);
     return target;
   }
 }

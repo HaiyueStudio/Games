@@ -8,12 +8,22 @@
     "digits.png": "Production transparent bitmap font atlas. Four columns and three rows of equally sized cells. Exact glyph order: row one 0 1 2 3; row two 4 5 6 7; row three 8 9 + /. Legible Arabic digits, same cap height, adapted Chinese brush calligraphy, tapered strokes, ink pooling, subtle bristle gaps, rich near-black sumi ink. Each glyph centered and isolated with large clear spacing. No duplicates, missing glyphs, Chinese numerals, labels, paper, borders or watermark. Real transparent alpha."
   },
   "runtimeArt": {
-    "tiles": "Coordinate-seeded single blue-green pigment with subtle luminance variation, asymmetric brush-pressure contours and dry bristles; dark ink walls, cinnabar path blocks, white unconnected curves and black connected ink curves.",
+    "tiles": "Coordinate-seeded single blue-green pigment with visible random per-cell light/dark variation. No dark contour stroke: irregular rims wash from pigment into warm xuan-paper color, with transparent outer fibers. Dark ink walls and cinnabar path blocks use the same paper-wash edge treatment.",
     "intro": "1350 ms horizontal scroll opening; board appears from 1150 to 2900 ms through soft noise threshold multiplied by crossfade. One bounded raster surface and one persistent upload texture, released after the intro.",
     "font": "Atlas pixels remain unchanged. Dominant-component glyph bounds exclude neighboring brush flecks. digits.json is used by the game; digits.fnt is BMFont text metadata.",
     "paths": "Shared exact edge ports and constant inward Bezier handles give C1 continuity across all twelve lanes. Hex plane size derives from the same board spacing; preview and placed tiles share one scale.",
     "viewport": "Full viewport canvas with aspect-preserving orthographic camera. Portrait reflows title, score and reserve panels. Painting and opening overlay fill the complete viewport.",
-    "title": "阡陌交通: transparent brush-ink adaptation of the user-provided seal-script glyphs, preserving their structure and horizontal order. See title-qianmo-generation.json for the exact edit prompt and reference/output fingerprints."
+    "title": "阡陌交通: transparent brush-ink adaptation of the user-provided seal-script glyphs, preserving their structure and horizontal order. See title-qianmo-generation.json for the exact edit prompt and reference/output fingerprints.",
+    "rotationButtons": "Two transparent Chinese brush-painted arrows from rotate-brush.png: left counterclockwise, right clockwise, presented over a soft paper wash. Exact generation prompt is saved in rotate-brush-generation.json.",
+    "score": "Bare calligraphic labels and ink bitmap numerals on a transparent texture, anchored to the upper-right blank scroll paper in landscape and portrait. No score plaque, fill or decorative background.",
+    "board": "The full hex board is centered on the scroll using its projected cell bounds, including asymmetric levels.",
+    "reserve": "A bare replaceable cinnabar path tile on the left scroll paper, with a calligraphic caption and a slight hover scale; no plaque or separate panel texture.",
+    "music": {
+      "file": "../bgm.mp3",
+      "source": "user-provided desktop bgm.mp3",
+      "loop": true,
+      "sha256": "a3885094be6361cd20c29381a396269c9b21c8544bfcf12112818f242e0d4586"
+    }
   },
   "generatedOn": "2026-10-25",
   "sha256": {
@@ -22,6 +32,7 @@
     "digits.png": "ba4c8eb58a920997406824aa3a7165b975787a1cb1d238b9be9626b548422c8b",
     "digits.json": "a5eae50821034686e2f38b4643ddfc59f5b175ca06f5a5488eb17a0049aef6cb",
     "digits.fnt": "96c8933cfdd6fc6897e98ca332eb34a26d4f7938497873149944c0b6762bbe6c",
-    "title-qianmo.png": "c1d1660a8aac7e413f2aca3bc3ecec3ad7d7b1b42a93e5ce450a51accf7501e0"
+    "title-qianmo.png": "c1d1660a8aac7e413f2aca3bc3ecec3ad7d7b1b42a93e5ce450a51accf7501e0",
+    "rotate-brush.png": "581efd1f824503881b75e3a5692f6747fba6665cac57ce947e17ac7a79186975"
   }
 }
