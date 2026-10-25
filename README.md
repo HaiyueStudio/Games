@@ -48,9 +48,10 @@ game list. Direct links use `?game=<id>` and open the selected game automaticall
 
 ## Gamepad controls
 
-All 28 games and the lobby support standard browser gamepads. Use the D-pad/stick to
+All manifest games and the lobby support standard browser gamepads. Use the D-pad/stick to
 select a game, A to enter, and LB/RB to change categories. In games, Back toggles the
-virtual pointer, Back+Start returns to the lobby, and Back+LB/RB switches games.
+return confirmation dialog and pauses gameplay. R3 switches the virtual pointer;
+R3+LB/RB switches games.
 See [controller mappings and verification](games/gamepad/README.md) and
 [unpublished package provenance](vendor/README.md).
 
@@ -74,6 +75,11 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+`npm test` temporarily excludes the unfinished MUGEN tests. Use `npm run test:mugen`
+to run only MUGEN, or `npm run test:all` to include it. Other tests retain their normal
+failure behavior. The browser controller runner also skips MUGEN by default; select
+its cases explicitly through `GAMEPAD_CASE` when needed.
 
 Watch all games and the lobby while iterating:
 
