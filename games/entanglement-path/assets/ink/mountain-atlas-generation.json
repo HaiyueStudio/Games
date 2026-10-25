@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "generatedOn": "2026-10-25",
+  "transparentBackground": true,
+  "prompt": "Use case: stylized-concept. Production transparent sprite atlas for a Chinese shan shui ink painting hexagonal river puzzle. Square image, strict 3 columns by 2 rows grid, six isolated motifs with ample transparent padding in each cell. Top row: three different low, broad mountain ridge groups in very pale gray-blue and muted malachite ink wash, fine elegant Chinese brush cun texture, mist dissolving into transparent ground at the base. Bottom left: a darker steep crag with expressive charcoal dry-brush strokes and a few sparse pine silhouettes. Bottom middle: a second dark mountain wall grouping, asymmetrical, ink fading into mist at its base. Bottom right: a tiny sparse riverside scene of two reeds and a small willow branch, muted gray-green with one tiny cinnabar accent. All are flat hand-painted Chinese landscape art, viewed like details inside a traditional horizontal scroll. Open airy silhouettes, restrained texture, fine irregular dry bristles. Do not fill the squares; leave real transparent alpha around and within loose brush edges. Keep each motif separate within its exact grid cell; no overlap between cells. No text, labels, frames, paper, hexagons, UI, watermarks, drop shadows or 3D. These are subtle background landscape stamps: luminous, quiet, without dense black masses except the two dark crags.",
+  "sha256": "6f8c6b79377b1f4612649c88ef5ef584fe161e5916312f5c0f437a8283d167a6"
+}

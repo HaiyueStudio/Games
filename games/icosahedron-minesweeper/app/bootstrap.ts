@@ -3,7 +3,7 @@ import { MinesHud } from '../ui/MinesHud';
 import { createMinesAudio } from '../../shared/minesweeper/audio/BrowserAudio';
 import type { MinesAudio } from '../../shared/minesweeper/audio/MinesAudio';
 import { GameEngine } from '../../session/GameEngine';
-import { installGamepad } from '../../gamepad/runtime';
+import { installGamepad, gamepadPointer } from '../../gamepad/runtime';
 installGamepad('icosahedron-minesweeper');
 import { HaiyueEngine } from '@haiyue/engine';
 import { World } from '@haiyue/engine';
@@ -176,6 +176,9 @@ class IcosahedronMinesweeper {
   private opened = 0;
   private flags = 0;
   private hovered: Cell | null = null;
+  private hoverPointer: { x: number; y: number } | null = null;
+  private hoverSample: { x: number; y: number; view: number; left: number; top: number; width: number; height: number } | null = null;
+  private viewRevision = 0;
   private readonly gesture = new BoardGesture(PICK_DRAG_THRESHOLD);
   private orbit!: OrbitControl;
   private orbitWasEnabled = true;
@@ -262,8 +265,20 @@ class IcosahedronMinesweeper {
     this._setupInput(canvas);
     await this._loadOrCreateState();
 
+    if (new URLSearchParams(location.search).has('gamepadVerify')) Object.defineProperty(window, '__icosahedronInput', { configurable: true, get: () => {
+      const pointer = gamepadPointer();
+      const eye = this.cameraTransform.eyePosition, facing = normalize(eye[0]!, eye[1]!, eye[2]!);
+      return { pointer, picked: pointer ? this._pickCell(pointer.x, pointer.y, canvas)?.id ?? null : null,
+        hovered: this.hovered?.id ?? null, highlighted: this.cells.filter(cell => cell.surface === 'hover').map(cell => cell.id),
+        phase: this.phase, opened: this.opened, flags: this.flags, gesture: this.gesture.active,
+        camera: { theta: this.cameraTransform.theta, phi: this.cameraTransform.phi, radius: this.cameraTransform.radius },
+        cells: this.cells.map(cell => ({ id: cell.id, state: cell.state, mine: cell.mine, count: cell.count,
+          front: dot(cell.normal, facing) > .75, point: this._projectCell(cell, canvas) })) };
+    } });
+
     this.engine.on('update', ({ detail: { time, delta } }) => {
       this._updateViewProjection();
+      this._refreshHover(canvas);
       this.hud.update(delta);
       this.audio.update(delta / 1000);
       this.world.update(time, delta);
@@ -288,11 +303,28 @@ class IcosahedronMinesweeper {
   private _clearHover(): void {
     if (this.hovered?.state === 'hidden') this._setCellSurface(this.hovered, 'hidden');
     this.hovered = null;
+    this.hoverSample = null;
+  }
+
+  private _refreshHover(canvas: HTMLCanvasElement): void {
+    const pointer = gamepadPointer() ?? this.hoverPointer;
+    if (!pointer || this.gesture.active || this.phase !== 'playing') { this._clearHover(); return; }
+    const previous = this.hoverSample, { left, top, width, height } = canvas.getBoundingClientRect();
+    if (previous && pointer.x === previous.x && pointer.y === previous.y && previous.view === this.viewRevision
+      && left === previous.left && top === previous.top && width === previous.width && height === previous.height) return;
+    const cell = this._pickCell(pointer.x, pointer.y, canvas);
+    if (cell !== this.hovered) {
+      this._clearHover();
+      if (cell?.state === 'hidden') this._setCellSurface(cell, 'hover');
+      this.hovered = cell;
+    }
+    this.hoverSample = { ...pointer, view: this.viewRevision, left, top, width, height };
   }
 
   private _cancelGesture(): void {
     if (this.gesture.active) this.orbit.enableRotate = this.orbitWasEnabled;
     this.gesture.cancel();
+    this.hoverPointer = null;
     this._clearHover();
   }
 
@@ -313,6 +345,7 @@ class IcosahedronMinesweeper {
     const options = { signal: abort.signal, capture: true };
     this.world.addRuntimeIntegration({ onDetach: () => { this._cancelGesture(); abort.abort(); } });
     const release = (event: MouseEvent) => {
+      this.hoverPointer = { x: event.clientX, y: event.clientY };
       if (!this.gesture.active) return;
       const action = this.gesture.release(event.clientX, event.clientY, event.buttons,
         this._pickCell(event.clientX, event.clientY, canvas)?.id ?? null);
@@ -321,6 +354,7 @@ class IcosahedronMinesweeper {
     };
     canvas.addEventListener('contextmenu', event => event.preventDefault(), options);
     canvas.addEventListener('pointerdown', event => {
+      this.hoverPointer = { x: event.clientX, y: event.clientY };
       if (this.hud.hit(event.clientX, event.clientY, canvas)) return;
       if (!this.gesture.active) this.orbitWasEnabled = this.orbit.enableRotate;
       this._clearHover();
@@ -336,20 +370,15 @@ class IcosahedronMinesweeper {
     // Mouse events fire for the second button and first release of a chord, unlike pointer events.
     canvas.addEventListener('mouseup', release, options);
     canvas.addEventListener('pointermove', event => {
+      this.hoverPointer = { x: event.clientX, y: event.clientY };
       if (this.gesture.active) {
         this.gesture.move(event.clientX, event.clientY, event.buttons);
         this.orbit.enableRotate = this.orbitWasEnabled && this.gesture.dragging && !this.gesture.chording;
         this._clearHover();
         return;
       }
-      if (event.buttons !== 0 || this.phase !== 'playing') return;
-      const cell = this._pickCell(event.clientX, event.clientY, canvas);
-      if (cell === this.hovered) return;
-      this._clearHover();
-      if (cell?.state === 'hidden') this._setCellSurface(cell, 'hover');
-      this.hovered = cell;
     }, options);
-    canvas.addEventListener('pointerleave', () => this._clearHover(), options);
+    canvas.addEventListener('pointerleave', () => { this.hoverPointer = null; this._clearHover(); }, options);
     canvas.addEventListener('pointercancel', () => this._cancelGesture(), options);
     window.addEventListener('blur', () => this._cancelGesture(), options);
     document.addEventListener('keydown', event => {
@@ -401,6 +430,7 @@ class IcosahedronMinesweeper {
   }
 
   private _restoreState(saved: IcosahedronMinesweeperSaveData): void {
+    this._cancelGesture();
     this.audio.reset();
     this.phase = saved.phase;
     this.opened = saved.opened;
@@ -563,12 +593,22 @@ class IcosahedronMinesweeper {
 
   private _updateViewProjection(): void {
     const camera = this.camera.getComponent(Camera3D)!;
-    this.cameraProjection.update(
+    if (this.cameraProjection.update(
       this.cameraTransform,
       camera,
       this.engine.displayWidth,
       this.engine.displayHeight,
-    );
+    )) this.viewRevision++;
+  }
+
+  private _projectCell(cell: Cell, canvas: HTMLCanvasElement): { x: number; y: number } {
+    this._updateViewProjection();
+    const rect = canvas.getBoundingClientRect(), m = this.viewProj, p = cell.center;
+    const w = m[3]! * p[0] + m[7]! * p[1] + m[11]! * p[2] + m[15]!;
+    return {
+      x: rect.left + ((m[0]! * p[0] + m[4]! * p[1] + m[8]! * p[2] + m[12]!) / w + 1) * rect.width / 2,
+      y: rect.top + (1 - (m[1]! * p[0] + m[5]! * p[1] + m[9]! * p[2] + m[13]!) / w) * rect.height / 2,
+    };
   }
 
   private async _verify(canvas: HTMLCanvasElement): Promise<void> {
@@ -576,15 +616,7 @@ class IcosahedronMinesweeper {
       canvas, cells: this.cells, materials: this.cellMaterials, audio: this.audio,
       reset: () => this._newGame(false),
       pick: (x, y) => this._pickCell(x, y, canvas)?.id ?? null,
-      project: cell => {
-        this._updateViewProjection();
-        const rect = canvas.getBoundingClientRect(), m = this.viewProj, p = cell.center;
-        const w = m[3]! * p[0] + m[7]! * p[1] + m[11]! * p[2] + m[15]!;
-        return {
-          x: rect.left + ((m[0]! * p[0] + m[4]! * p[1] + m[8]! * p[2] + m[12]!) / w + 1) * rect.width / 2,
-          y: rect.top + (1 - (m[1]! * p[0] + m[5]! * p[1] + m[9]! * p[2] + m[13]!) / w) * rect.height / 2,
-        };
-      },
+      project: cell => this._projectCell(cell, canvas),
       orbit: () => { this.cameraTransform.theta += 0.35; this.cameraTransform.radius = 6.3; },
       hud: this.hud,
       snapshot: () => this._snapshotState(),

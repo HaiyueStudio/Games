@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "tool": "built-in image_gen",
   "style": "Chinese shui mo ink wash, mineral danqing pigments, warm xuan paper, cinnabar seals",
   "prompts": {
@@ -8,22 +8,25 @@
     "digits.png": "Production transparent bitmap font atlas. Four columns and three rows of equally sized cells. Exact glyph order: row one 0 1 2 3; row two 4 5 6 7; row three 8 9 + /. Legible Arabic digits, same cap height, adapted Chinese brush calligraphy, tapered strokes, ink pooling, subtle bristle gaps, rich near-black sumi ink. Each glyph centered and isolated with large clear spacing. No duplicates, missing glyphs, Chinese numerals, labels, paper, borders or watermark. Real transparent alpha."
   },
   "runtimeArt": {
-    "tiles": "Coordinate-seeded single blue-green pigment with visible random per-cell light/dark variation. No dark contour stroke: irregular rims wash from pigment into warm xuan-paper color, with transparent outer fibers. Dark ink walls and cinnabar path blocks use the same paper-wash edge treatment.",
+    "tiles": "Orthographic overhead cartography: seeded peak, ridge, basin and island combinations from terrain-topdown-atlas.png. Mountain anchors avoid actual Bezier riverbeds; three soft destination-out passes carve valleys and radial fading clears shared edge ports. Terrain is attached to the piece seed derived from its saved ID/variant and rotates rigidly in 60-degree steps with the rivers, unchanged through reserve swap and placement. CPU caches are bounded.",
     "intro": "1350 ms horizontal scroll opening; board appears from 1150 to 2900 ms through soft noise threshold multiplied by crossfade. One bounded raster surface and one persistent upload texture, released after the intro.",
     "font": "Atlas pixels remain unchanged. Dominant-component glyph bounds exclude neighboring brush flecks. digits.json is used by the game; digits.fnt is BMFont text metadata.",
-    "paths": "Shared exact edge ports and constant inward Bezier handles give C1 continuity across all twelve lanes. Hex plane size derives from the same board spacing; preview and placed tiles share one scale.",
-    "viewport": "Full viewport canvas with aspect-preserving orthographic camera. Portrait reflows title, score and reserve panels. Painting and opening overlay fill the complete viewport.",
+    "paths": "Exact shared ports and normal Bezier handles retain C1 seams. Pale dry riverbeds become deep blue-green water in traversal order, driven by sampled arc length over 650-1200 ms. Delayed bank wetness, small traveling highlights, and tiny bridges at crossings preserve independent channels. Rapid moves remain playable; old pours settle. Saved routes restore fully wet.",
+    "viewport": "Full viewport, aspect-preserving camera and centered board. scroll-topdown-map.png uses overhead map ridges, woodland, shoals and waterways around blank scroll paper; title, score and reserve stay bare on the paper.",
     "title": "阡陌交通: transparent brush-ink adaptation of the user-provided seal-script glyphs, preserving their structure and horizontal order. See title-qianmo-generation.json for the exact edit prompt and reference/output fingerprints.",
     "rotationButtons": "Two transparent Chinese brush-painted arrows from rotate-brush.png: left counterclockwise, right clockwise, presented over a soft paper wash. Exact generation prompt is saved in rotate-brush-generation.json.",
-    "score": "Bare calligraphic labels and ink bitmap numerals on a transparent texture, anchored to the upper-right blank scroll paper in landscape and portrait. No score plaque, fill or decorative background.",
+    "score": "Bare ink labels and bitmap numerals on the upper-right scroll: primary score, best score, and secondary wetted-river count. Smaller, shorter-lived score sparks keep the board clear.",
     "board": "The full hex board is centered on the scroll using its projected cell bounds, including asymmetric levels.",
-    "reserve": "A bare replaceable cinnabar path tile on the left scroll paper, with a calligraphic caption and a slight hover scale; no plaque or separate panel texture.",
+    "reserve": "The exact same overhead landform and river layout as the placed candidate, using a stable per-piece seed and orientation; no panel background.",
     "music": {
       "file": "../bgm.mp3",
       "source": "user-provided desktop bgm.mp3",
       "loop": true,
       "sha256": "a3885094be6361cd20c29381a396269c9b21c8544bfcf12112818f242e0d4586"
-    }
+    },
+    "selection": "One persistent transparent, noise-warped wet-ink halo follows the active tile with a slow opacity/scale breath. Cinnabar dashed thread previews the active route without committing water.",
+    "source": "Overhead blue-green spring and ripples. Seeded overhead canopy patches and tiny shoals emerge beside wetted rivers.",
+    "generation": "Current overhead asset prompts and output fingerprints are in topdown-generation.json; original side-view art remains archived beside these assets and is not fetched at runtime."
   },
   "generatedOn": "2026-10-25",
   "sha256": {
@@ -33,6 +36,9 @@
     "digits.json": "a5eae50821034686e2f38b4643ddfc59f5b175ca06f5a5488eb17a0049aef6cb",
     "digits.fnt": "96c8933cfdd6fc6897e98ca332eb34a26d4f7938497873149944c0b6762bbe6c",
     "title-qianmo.png": "c1d1660a8aac7e413f2aca3bc3ecec3ad7d7b1b42a93e5ce450a51accf7501e0",
-    "rotate-brush.png": "581efd1f824503881b75e3a5692f6747fba6665cac57ce947e17ac7a79186975"
+    "rotate-brush.png": "581efd1f824503881b75e3a5692f6747fba6665cac57ce947e17ac7a79186975",
+    "mountain-atlas.png": "6f8c6b79377b1f4612649c88ef5ef584fe161e5916312f5c0f437a8283d167a6",
+    "terrain-topdown-atlas.png": "969352a67780fdcca395d681b5a924544238479ed2f66f6bc26f5f82f9ec6757",
+    "scroll-topdown-map.png": "37cf24f47d8ad3e7f4ef3076556d9f1eb9750489bcfe572574ee3732db1e38e5"
   }
 }

@@ -8,7 +8,9 @@ import { requiredItemAt, requiredNumberAt } from '../../shared/collections/array
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
 import { InkArt, INK_FONT, ScrollReveal } from '../art/InkArt';
 import { INK, PAPER, INTRO_DURATION_MS, cellPigment } from '../art/inkNoise';
-import { hexPoint, hexCenter, hexPlaneSize, portPoint, pathCurve, HEX_TEXTURE_STRETCH } from '../art/hexGeometry';
+import { hexCenter, hexPlaneSize } from '../art/hexGeometry';
+import { drawRiverTile as drawHexPath, drawWetInkHalo } from '../art/RiverPainter';
+import { RiverFlow, type RiverRoute } from '../art/riverFlow';
 
 type AxialKey = string;
 type Phase = 'playing' | 'ended';
@@ -200,7 +202,6 @@ const DEFAULT_BOARD_RADIUS = 4;
 const DEFAULT_HEX_WORLD = 0.92;
 const DEFAULT_HEX_SCREEN = 40;
 const HEX_HIT_SCALE = 2 / Math.sqrt(3);
-const SOURCE_EXIT_INSET = 26;
 const DEFAULT_BOARD_OFFSET_X = 0;
 const DEFAULT_BOARD_OFFSET_Y = 0;
 const SWAP_PANEL_LEFT = 74;
@@ -218,8 +219,8 @@ const SWAP_TEXT_Z = 1.03;
 const SCORE_PANEL_W = 200;
 const SCORE_PANEL_H = 170;
 
-const SCORE_POPUP_DURATION = 3000;
-const SCORE_POPUP_FADE_START = 2000;
+const SCORE_POPUP_DURATION = 1500;
+const SCORE_POPUP_FADE_START = 650;
 const SCORE_POPUP_RISE = 0.88;
 const ROTATE_BUTTON_W = 32;
 const ROTATE_BUTTON_H = 35;
@@ -484,17 +485,6 @@ function findConnectedPort(tile: TileDef, rotation: number, entry: Port): Port |
   return null;
 }
 
-function isActivePair(tile: TileDef, rotation: number, pair: [Port, Port], activeEntry: Port | null | undefined): boolean {
-  if (activeEntry == null) return false;
-  const a = rotatePort(pair[0], rotation);
-  const b = rotatePort(pair[1], rotation);
-  return a === activeEntry || b === activeEntry;
-}
-
-function hasActivePair(tile: TileDef, rotation: number, pair: [Port, Port], activeEntries: readonly Port[]): boolean {
-  return activeEntries.some((entry) => isActivePair(tile, rotation, pair, entry));
-}
-
 function activeSegmentKeys(tile: TileDef, rotation: number, activeEntries: readonly Port[]): Set<string> {
   const segments = new Set<string>();
   for (const entry of activeEntries) {
@@ -505,79 +495,6 @@ function activeSegmentKeys(tile: TileDef, rotation: number, activeEntries: reado
     segments.add(`${a}-${b}`);
   }
   return segments;
-}
-
-function strokePortPath(ctx: CanvasRenderingContext2D, startPort: Port, endPort: Port): void {
-  const curve = pathCurve(startPort, endPort);
-  ctx.beginPath(); ctx.moveTo(curve.start.x, curve.start.y);
-  ctx.bezierCurveTo(curve.control1.x, curve.control1.y, curve.control2.x, curve.control2.y, curve.end.x, curve.end.y);
-  ctx.stroke();
-}
-
-function strokeStraightPath(ctx: CanvasRenderingContext2D, start: { x: number; y: number }, end: { x: number; y: number }): void {
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.stroke();
-}
-
-function drawHexPath(
-  tile: TileDef | null,
-  rotation: number,
-  options: {
-    fill: string;
-    stroke: string;
-    path: string;
-    glow?: boolean;
-    entry?: number | null;
-    exit?: number | null;
-    activeEntry?: number | null;
-    activeEntries?: Port[];
-    pulseEntries?: Port[];
-    pulse?: number;
-    sourceExit?: Port | null;
-    label?: string;
-    markers?: boolean;
-    baseImage?: HTMLCanvasElement | null;
-  },
-): HTMLCanvasElement {
-  const canvas = makeCanvas();
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-  if (options.baseImage) ctx.drawImage(options.baseImage, 0, 0, 256, 256);
-  ctx.save(); ctx.translate(128, 0); ctx.scale(HEX_TEXTURE_STRETCH, 1); ctx.translate(-128, 0);
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (options.sourceExit != null) {
-    const end = portPoint(options.sourceExit);
-    const start = portPoint(options.sourceExit, SOURCE_EXIT_INSET);
-    ctx.strokeStyle = '#171f1b'; ctx.lineWidth = 10.5; strokeStraightPath(ctx, start, end);
-  }
-  if (tile) {
-    const active = options.activeEntries ?? (options.activeEntry == null ? [] : [options.activeEntry]);
-    ctx.save(); ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const point = hexPoint(i, 118);
-      if (i === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
-    }
-    ctx.closePath(); ctx.clip();
-    for (const [a, b] of tile.pairs) {
-      ctx.strokeStyle = 'rgba(255,248,229,.96)'; ctx.lineWidth = 5;
-      strokePortPath(ctx, rotatePort(a, rotation), rotatePort(b, rotation));
-    }
-    ctx.restore();
-    for (const [a, b] of tile.pairs) {
-      if (!hasActivePair(tile, rotation, [a, b], active)) continue;
-      const pulse = hasActivePair(tile, rotation, [a, b], options.pulseEntries ?? []) ? (options.pulse ?? 0) : 0;
-      ctx.strokeStyle = 'rgba(24,29,25,.24)'; ctx.lineWidth = 16 + pulse * 2;
-      strokePortPath(ctx, rotatePort(a, rotation), rotatePort(b, rotation));
-      ctx.strokeStyle = '#171f1b'; ctx.lineWidth = 10.5 + pulse;
-      strokePortPath(ctx, rotatePort(a, rotation), rotatePort(b, rotation));
-      ctx.strokeStyle = 'rgba(11,18,13,.45)'; ctx.lineWidth = 3;
-      strokePortPath(ctx, rotatePort(a, rotation), rotatePort(b, rotation));
-    }
-  }
-  ctx.restore();
-  return canvas;
 }
 
 function drawTextTexture(
@@ -669,6 +586,15 @@ class EntanglementPathGame {
   private activeEntries = new Map<AxialKey, Port[]>();
   private previewTextureCache = new Map<string, GPUTexture>();
   private reserveTextureCache = new Map<string, GPUTexture>();
+  private readonly riverFlow = new RiverFlow();
+  private readonly riverCanvases = new Map<AxialKey, HTMLCanvasElement>();
+  private riverFrame = -1;
+  private riverSettledCursor = 0;
+  private readonly previousFlowCells = new Set<AxialKey>();
+  private haloTransform!: CartesianTransform3D;
+  private haloMaterial!: BasicMaterial;
+  private haloCell = '';
+  private haloStarted = 0;
   private pathPulse = 0;
   private lastPathPulseBucket = -1;
   private previousBreathingEntries = new Map<AxialKey, Port[]>();
@@ -741,6 +667,7 @@ class EntanglementPathGame {
       this.updateRotateButtons();
       this.updatePreviewRotationAnimation();
       this.updatePathPulse();
+      this.updateRiverVisuals();
       this.updateIntro();
       this.world.update(time, 16);
     });
@@ -975,6 +902,12 @@ class EntanglementPathGame {
     return this.art.tile(row === 1 ? 'wall' : row === 2 ? 'path' : 'pigment', variant);
   }
 
+  private terrainSeed(tile: TileDef): number { return cellPigment(tile.id, tile.variant, 71); }
+
+  private pathTerrain(tile: TileDef, rotation: number): HTMLCanvasElement {
+    return this.art.tile('path', this.terrainSeed(tile), tile.pairs, rotation);
+  }
+
   private drawBaseCell(cell: Pick<BoardCell, 'wall' | 'variant'> & Partial<Pick<BoardCell, 'source'>>): HTMLCanvasElement {
     const source = Boolean(cell.source);
     const baseImage = source ? this.art.tile('source', cell.variant) : this.getBlockTile(cell.wall ? 1 : 0, cell.variant);
@@ -986,13 +919,7 @@ class EntanglementPathGame {
       baseImage,
       markers: false,
     });
-    if (source) this.drawSourcePathLength(texture);
     return texture;
-  }
-
-  private drawSourcePathLength(canvas: HTMLCanvasElement): void {
-    const ctx = canvas.getContext('2d'); if (!ctx) return;
-    this.art.drawNumber(ctx, this.pathLength, 128, 86, 78, PAPER, 'center');
   }
 
   private buildBoard(): void {
@@ -1042,6 +969,11 @@ class EntanglementPathGame {
     this.previewTransform = previewTransform;
     this.previewMesh = previewMesh;
 
+    const halo = new Entity('Wet Ink Current Halo');
+    this.haloMaterial = new BasicMaterial({ texture: this.canvasToGpuTexture(drawWetInkHalo()), blending: 'normal', depthWrite: false });
+    this.haloTransform = new CartesianTransform3D({ scale: [0, 0, 1] });
+    halo.addComponent(this.haloTransform); halo.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), this.haloMaterial));
+    this.world.addEntity(halo);
     this.buildRotateButtons();
     this.buildSwapPanel();
     const reserveMat = new BasicMaterial({
@@ -1187,9 +1119,8 @@ class EntanglementPathGame {
     return texture;
   }
 
-  private getPreviewTexture(rotation = this.rotation, pulse = 0): GPUTexture {
-    const pulseBucket = Math.round(pulse * 8);
-    const cacheKey = `${this.nextTile.id}:${rotation}:${this.incomingSide}:${pulseBucket}`;
+  private getPreviewTexture(rotation = this.rotation): GPUTexture {
+    const cacheKey = `${this.nextTile.id}:${rotation}:${this.incomingSide}`;
     const cached = this.previewTextureCache.get(cacheKey);
     if (cached) return cached;
     const texture = this.canvasToGpuTexture(drawHexPath(this.nextTile, rotation, {
@@ -1199,9 +1130,8 @@ class EntanglementPathGame {
       glow: true,
       entry: this.incomingSide,
       activeEntry: this.incomingSide,
-      pulse: pulseBucket / 8,
       markers: false,
-      baseImage: this.getBlockTile(2, this.nextTile.variant),
+      baseImage: this.pathTerrain(this.nextTile, rotation),
     }));
     this.previewTextureCache.set(cacheKey, texture);
     return texture;
@@ -1216,7 +1146,7 @@ class EntanglementPathGame {
       stroke: '#7dd3fc',
       path: '#d93a2f',
       markers: false,
-      baseImage: this.getBlockTile(2, this.reserveTile.variant),
+      baseImage: this.pathTerrain(this.reserveTile, this.reserveRotation),
     }));
     this.reserveTextureCache.set(cacheKey, texture);
     return texture;
@@ -1232,7 +1162,7 @@ class EntanglementPathGame {
       activeEntry: this.incomingSide,
       pulse: this.pathPulse,
       markers: false,
-      baseImage: this.getBlockTile(2, tile.variant),
+      baseImage: this.pathTerrain(tile, rotation),
     }));
   }
 
@@ -1242,7 +1172,7 @@ class EntanglementPathGame {
       stroke: '#7dd3fc',
       path: '#d93a2f',
       markers: false,
-      baseImage: this.getBlockTile(2, tile.variant),
+      baseImage: this.pathTerrain(tile, rotation),
     }));
   }
 
@@ -1547,6 +1477,7 @@ class EntanglementPathGame {
       order: this.placed.size + 1,
     });
     const trace = this.rebuildActivePath();
+    this.riverFlow.connect(this.activeRiverRoutes(), gameTime());
     this.redrawPlacedTiles();
     this.pathLength = this.calculatePathLength();
     this.redrawSourceCell();
@@ -1577,6 +1508,7 @@ class EntanglementPathGame {
   }
 
   private reset(): void {
+    this.clearRiverVisuals();
     this.clearTileTextureCaches();
     for (const cellKey of this.placed.keys()) {
       const cell = this.cells.get(cellKey);
@@ -1619,6 +1551,7 @@ class EntanglementPathGame {
     this.syncReserve();
     this.syncScore();
     this.updateCurrentCell();
+    this.pruneTileTextureCaches();
   }
 
   private changeLevel(delta: number): void {
@@ -1626,6 +1559,7 @@ class EntanglementPathGame {
   }
 
   private loadLevel(index: number, sync: boolean): void {
+    this.clearRiverVisuals();
     this.clearTileTextureCaches();
     this.clearBoard();
     this.levelIndex = (index + this.levels.length) % this.levels.length;
@@ -1689,6 +1623,7 @@ class EntanglementPathGame {
     this.tileSerial = saved.tileSerial;
     this.previewRenderedRotation = this.rotation;
     this.rebuildActivePath();
+    this.riverFlow.connect(this.activeRiverRoutes(), gameTime(), true);
     this.redrawPlacedTiles();
     this.redrawSourceCell();
   }
@@ -1742,6 +1677,14 @@ class EntanglementPathGame {
     this.previewTextureCache.clear(); this.reserveTextureCache.clear();
   }
 
+  private pruneTileTextureCaches(): void {
+    // Rebind the two live materials first, then release textures from preceding moves.
+    const live = new Set([this.previewMaterial.texture, (this.reserveMesh.material as BasicMaterial).texture]);
+    for (const cache of [this.previewTextureCache, this.reserveTextureCache]) {
+      for (const [id, texture] of cache) if (!live.has(texture)) { texture.destroy(); cache.delete(id); }
+    }
+  }
+
   private addActiveEntry(cellKey: AxialKey, entry: Port): void {
     const entries = this.activeEntries.get(cellKey);
     if (!entries) {
@@ -1758,23 +1701,63 @@ class EntanglementPathGame {
   }
 
   private redrawPlacedTile(cellKey: AxialKey, breathingEntries: Map<AxialKey, Port[]>, pulse: number): void {
-    const placed = this.placed.get(cellKey);
-    const cell = this.cells.get(cellKey);
+    const placed = this.placed.get(cellKey), cell = this.cells.get(cellKey);
     if (!placed || !cell) return;
-    const activeEntries = this.mergeEntries(this.activeEntries.get(cellKey), breathingEntries.get(cellKey), [placed.entry]);
-    const pulseEntries = breathingEntries.get(cellKey) ?? [];
-      this.setCellTexture(cell, drawHexPath(placed.tile, placed.rotation, {
-        fill: '#263241',
-        stroke: '#f6c85f',
-      path: '#d93a2f',
-      entry: placed.entry,
-      exit: placed.exit,
-      activeEntries,
-        pulseEntries,
-        pulse: breathingEntries.has(cellKey) ? pulse : 0,
-        markers: false,
-      baseImage: this.getBlockTile(2, cell.variant),
-      }));
+    let target = this.riverCanvases.get(cellKey);
+    if (!target) { target = makeCanvas(); this.riverCanvases.set(cellKey, target); }
+    const wetness = this.riverFlow.wetness(cellKey, gameTime());
+    drawHexPath(placed.tile, placed.rotation, {
+      pulseEntries: breathingEntries.get(cellKey) ?? [], pulse,
+      wetness, time: gameTime(), baseImage: this.pathTerrain(placed.tile, placed.rotation), target,
+    });
+    this.art.growBank(target.getContext('2d')!, this.terrainSeed(placed.tile), wetness);
+    this.setCellTexture(cell, target);
+  }
+
+  private clearRiverVisuals(): void {
+    this.riverFlow.clear(); this.riverCanvases.clear(); this.previousFlowCells.clear();
+    this.riverFrame = -1; this.riverSettledCursor = 0;
+    this.haloCell = '';
+  }
+
+  private activeRiverRoutes(): RiverRoute[] {
+    const routes: RiverRoute[] = [], visited = new Set<string>();
+    let current = { ...this.pathStart }, entry = this.pathEntry;
+    for (let step = 0; step < this.placed.size * 12 + 1; step++) {
+      const cellKey = key(current.q, current.r), placed = this.placed.get(cellKey);
+      if (!placed || visited.has(`${cellKey}:${entry}`)) break;
+      visited.add(`${cellKey}:${entry}`);
+      const exit = this.findExitSide(placed.tile, placed.rotation, entry);
+      routes.push({ cell: cellKey, entry, exit });
+      const dir = requiredItemAt(DIRECTIONS, portSide(exit), 'hex directions');
+      current = { q: current.q + dir.q, r: current.r + dir.r }; entry = oppositePort(exit);
+    }
+    return routes;
+  }
+
+  private updateRiverVisuals(): void {
+    const now = gameTime(), frame = Math.floor(now / 40);
+    // The halo reuses one texture, following only position, scale and opacity.
+    if (this.haloTransform) {
+      const cell = this.cells.get(key(this.current.q, this.current.r));
+      if (this.phase === 'playing' && cell && !this.introActive && !this.swapAnimationActive) {
+        const currentKey = key(this.current.q, this.current.r);
+        if (currentKey !== this.haloCell) { this.haloCell = currentKey; this.haloStarted = now; }
+        const spread = Math.min(1, (now - this.haloStarted) / 900);
+        const scale = 1.32 + spread * .16 + Math.sin(now * .0018) * .025;
+        this.haloTransform.setPosition(...screenToWorld(cell.screenX, cell.screenY, .20));
+        this.haloTransform.setScale(tileScale(this.level).x * scale, tileScale(this.level).y * scale, 1);
+        this.haloMaterial.color.a = .64 + Math.sin(now * .0018) * .13;
+      } else this.haloTransform.setScale(0, 0, 1);
+    }
+    if (frame === this.riverFrame) return;
+    this.riverFrame = frame;
+    const moving = this.riverFlow.movingCells(now), dirty = new Set([...moving, ...this.previousFlowCells]);
+    this.previousFlowCells.clear(); for (const cell of moving) this.previousFlowCells.add(cell);
+    // Two settled cells per tick keep tiny highlights drifting without redrawing the full board.
+    const settled = [...this.placed.keys()];
+    for (let i = 0; i < Math.min(2, settled.length); i++) dirty.add(settled[this.riverSettledCursor++ % settled.length]!);
+    for (const cell of dirty) this.redrawPlacedTile(cell, this.previousBreathingEntries, this.pathPulse);
   }
 
   private mergeEntries(primary?: readonly Port[], secondary?: readonly Port[], baseEntries: readonly Port[] = []): Port[] {
@@ -1833,13 +1816,12 @@ class EntanglementPathGame {
   }
 
   private updatePathPulse(): void {
-    const pulse = (Math.sin(gameTime() * 0.0045) + 1) / 2;
+    const pulse = (Math.sin(gameTime() * 0.0018) + 1) / 2;
     const bucket = Math.round(pulse * 8);
     if (bucket === this.lastPathPulseBucket) return;
     this.lastPathPulseBucket = bucket;
     this.pathPulse = bucket / 8;
     this.refreshBreathingContinuation();
-    if (this.phase === 'playing') this.applyPreviewMaterial(this.pathPulse);
   }
 
   private refreshBreathingContinuation(): void {
@@ -1919,7 +1901,7 @@ class EntanglementPathGame {
     ] as [number, number, number];
     const transform = new CartesianTransform3D({
       position: startPosition,
-      scale: [0.86, 0.48, 1],
+      scale: [0.58, 0.33, 1],
     });
     const entity = new Entity(`Score Popup +${value}`);
     entity.addComponent(transform);
@@ -2075,8 +2057,8 @@ class EntanglementPathGame {
     this.swapOverlays = [];
   }
 
-  private applyPreviewMaterial(pulse = this.pathPulse): void {
-    this.previewMaterial.texture = this.getPreviewTexture(this.previewRenderedRotation, pulse);
+  private applyPreviewMaterial(): void {
+    this.previewMaterial.texture = this.getPreviewTexture(this.previewRenderedRotation);
   }
 
   private updatePreviewRotationAnimation(): void {

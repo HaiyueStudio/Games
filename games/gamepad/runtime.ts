@@ -9,6 +9,7 @@ let current:PadFrame|undefined;
 let pointerMode=false;
 export const gamepadFrame=():PadFrame|undefined=>pointerMode?undefined:current;
 export const isGamepadPointerMode=():boolean=>pointerMode;
+export const gamepadPointer=():{x:number;y:number}|null=>controllerOverlay.visible&&controllerOverlay.cursor?{x:controllerOverlay.x,y:controllerOverlay.y}:null;
 const VIRTUAL_POINTER=9000;
 /** Compatibility adapter for existing game input handlers. Physical sampling stays in Engine. */
 export function installGamepad(id:string):()=>void {
@@ -60,6 +61,8 @@ export function installGamepad(id:string):()=>void {
   const listen=(el:EventTarget,type:string,fn:EventListener)=>el.addEventListener(type,fn,{signal:lifetime.signal});
   listen(window,'keydown',e=>{if(e.isTrusted)physicalKeys.add((e as KeyboardEvent).code);});
   listen(window,'keyup',e=>{if(e.isTrusted){const code=(e as KeyboardEvent).code;physicalKeys.delete(code);if(heldKeys.has(code))queueMicrotask(()=>{if(!disposed&&heldKeys.has(code)&&!physicalKeys.has(code))emitKey(code,true);});}});
+  // Mouse and controller share one client-space pointer, including when the stick is stationary.
+  listen(window,'pointermove',e=>{const event=e as PointerEvent;if(event.isTrusted&&event.pointerType==='mouse'&&!target&&(!profile.direct||localPointer)){x=event.clientX;y=event.clientY;controllerOverlay.x=x;controllerOverlay.y=y;}});
   listen(window,'blur',()=>{blocked=true;gate.reset();physicalKeys.clear();release();});
   listen(window,'focus',()=>{blocked=false;gate.reset();});
   listen(document,'visibilitychange',()=>{blocked=document.hidden;if(blocked){gate.reset();release();}});
@@ -85,16 +88,25 @@ export function installGamepad(id:string):()=>void {
       }
       return;
     }
-    if(back){if(!chord)localPointer=!localPointer;back=false;chord=false;release();gate.reset();return;}
+    if(back){
+      const switching=!chord&&!profile.pointerOnly,reset=chord||switching;
+      if(switching)localPointer=!localPointer;
+      back=false;chord=false;
+      if(reset){release();gate.reset();return;}
+    }
     pointerMode=localPointer;
     current=p;
     document.body.dataset.gamepadActive='true';
-    controllerOverlay.visible = true; controllerOverlay.text=profile.engineHud?'':`${localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 返回首页 · R3 切换指针 · R3+LB/RB 切游戏`;
+    controllerOverlay.visible = true; controllerOverlay.text=profile.engineHud?'':`${profile.pointerOnly?profile.help:localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 返回首页${profile.pointerOnly?'':' · R3 切换指针'} · R3+LB/RB 切游戏`;
     const rx=p.values.rx??0,ry=p.values.ry??0;
     const dx=localPointer?(p.values.x??0)+Number(p.held.has('b15'))-Number(p.held.has('b14')):0;
     const dy=localPointer?(p.values.y??0)+Number(p.held.has('b13'))-Number(p.held.has('b12')):0;
     const vx=profile.direct&&!localPointer?0:rx+dx,vy=profile.direct&&!localPointer?0:ry+dy;
-    if(vx||vy){x=Math.max(1,Math.min(innerWidth-2,x+vx*700*dt));y=Math.max(1,Math.min(innerHeight-2,y+vy*700*dt));}
+    x+=vx*700*dt;y+=vy*700*dt;
+    const area=sessionEngine()?.canvas?.getBoundingClientRect();
+    const left=area?.left??0,top=area?.top??0,width=area?.width||innerWidth,height=area?.height||innerHeight;
+    // Re-clamp while idle too: resizing or a hosted canvas offset must not strand the cursor offscreen.
+    x=Math.max(left+1,Math.min(left+width-2,x));y=Math.max(top+1,Math.min(top+height-2,y));
     const hit=target??document.elementFromPoint(x,y);
     controllerOverlay.cursor = localPointer || Math.abs(rx) + Math.abs(ry) > .05 || controllerOverlay.cursor;
     controllerOverlay.x = x; controllerOverlay.y = y;

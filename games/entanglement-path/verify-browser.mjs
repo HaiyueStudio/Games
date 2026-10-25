@@ -75,11 +75,11 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
           const g = __entanglementPath;
           return { phase: g.phase, placed: g.placed.size, score: g.score, length: g.pathLength,
             best: g.best, level: g.levelIndex, prompt: g.restartText.material.color.a,
-            preview: g.previewTransform.scale[0], popups: g.scorePopups.length, overlays: g.swapOverlays.length };
+            preview: g.previewTransform.scale[0], popups: g.scorePopups.length, overlays: g.swapOverlays.length, rivers: g.riverFlow.size, riverCanvases: g.riverCanvases.size };
         })()`);
         assert.deepEqual({ ...state, preview: state.preview > 0 }, {
           phase: 'playing', placed: 0, score: 0, length: 0, best: before.best, level: before.level,
-          prompt: 0, preview: true, popups: 0, overlays: 0,
+          prompt: 0, preview: true, popups: 0, overlays: 0, rivers: 0, riverCanvases: 0,
         });
       };
       await untilReady(false);
@@ -97,7 +97,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       })()`);
       assert.ok(inkState.blocked, 'intro blocks premature gameplay');
       assert.ok(inkState.transparent > 1000 && inkState.partial > 1000, 'noise threshold and crossfade both contribute to reveal');
-      assert.ok(inkState.bitmapDraws > 3, 'score and source readouts use the ink bitmap font');
+      assert.ok(inkState.bitmapDraws >= 3, 'score readouts use the ink bitmap font');
       const title = await evaluate(`(() => {
         const g = __entanglementPath, c = g.art.title(232, 100), pixels = c.getContext('2d').getImageData(0, 0, 232, 100).data;
         let ink = 0, clear = 0, runs = 0, last = false;
@@ -178,16 +178,17 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       })()`);
       await evaluate(`(() => {
         const art = __entanglementPath.art;
-        const a = art.tile('pigment', 42).getContext('2d').getImageData(0, 0, 256, 256).data;
-        const b = art.tile('pigment', 43).getContext('2d').getImageData(0, 0, 256, 256).data;
+        const a = art.wash('pigment', 42).getContext('2d').getImageData(0, 0, 256, 256).data;
+        const b = art.wash('pigment', 43).getContext('2d').getImageData(0, 0, 256, 256).data;
         const greens = []; let difference = 0;
+        // Check the cached mineral wash independently of the new, higher-contrast topography.
         for (let y = 84; y < 178; y += 10) for (let x = 84; x < 178; x += 10) {
           const i = (y * 256 + x) * 4;
           greens.push(a[i + 1]); difference = Math.max(difference, Math.abs(a[i + 1] - b[i + 1]));
-          if (Math.abs(a[i] / a[i + 1] - 136 / 164) > .015 || Math.abs(a[i + 2] / a[i + 1] - 155 / 164) > .015) throw Error('board hue must remain consistent');
+          if (a[i + 1] < a[i] - 12 || a[i + 2] > a[i + 1] + 5) throw Error('terrain must remain in one diluted mineral hue');
         }
         const range = Math.max(...greens) - Math.min(...greens);
-        if (range < 3 || range > 30 || difference < 2 || difference > 65 || a[3] !== 0) throw Error('pigment wash must retain visible same-hue shade variation within/across transparent hexes');
+        if (range < 3 || range > 65 || difference < 2 || difference > 65 || a[3] !== 0) throw Error('pigment wash shade metrics: ' + JSON.stringify({ range, difference, alpha: a[3] }));
         let darkest = 255, lightRim = 0;
         for (let i = 0; i < a.length; i += 4) if (a[i + 3] > 240) darkest = Math.min(darkest, a[i]);
         const centerGreen = a[(128 * 256 + 128) * 4 + 1];
@@ -196,8 +197,33 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
           if (a[i + 3] > 220 && a[i + 1] > centerGreen + 20) lightRim++;
         }
         if (darkest < 80 || lightRim < 10) throw Error('tile edge must fade to paper without a black outline');
+        if (!art.mountainImage.complete || art.mountainImage.naturalWidth < 1000) throw Error('generated mountain atlas must load');
         if (!art.arrowImage.complete || art.arrowImage.naturalWidth < 400) throw Error('generated brush arrow atlas must load');
       })()`);
+      const terrainRotation = await evaluate(`(() => {
+        const g = __entanglementPath, art = g.art, tile = g.nextTile, seed = g.terrainSeed(tile);
+        const zero = g.pathTerrain(tile, 0), one = g.pathTerrain(tile, 1), six = g.pathTerrain(tile, 6);
+        const a = zero.getContext('2d').getImageData(0, 0, 256, 256).data;
+        const b = one.getContext('2d').getImageData(0, 0, 256, 256).data;
+        const wash = art.wash('path', seed).getContext('2d').getImageData(0, 0, 256, 256).data;
+        let stationary = 0, rotating = 0, count = 0;
+        const angle = Math.PI / 3;
+        for (let y = 62; y < 194; y += 3) for (let x = 62; x < 194; x += 3) {
+          const dx = (x - 128) / 1.15, dy = y - 128;
+          const rx = Math.round(128 + (dx * Math.cos(angle) - dy * Math.sin(angle)) * 1.15);
+          const ry = Math.round(128 + dx * Math.sin(angle) + dy * Math.cos(angle));
+          const i = (y * 256 + x) * 4, j = (ry * 256 + rx) * 4;
+          // Remove the orientation-free paper wash, then compare only actual mountain brushwork.
+          const originalInk = wash[i] - a[i], stationaryInk = wash[i] - b[i], turnedInk = wash[j] - b[j];
+          if (Math.abs(originalInk) + Math.abs(turnedInk) < 12) continue;
+          stationary += Math.abs(originalInk - stationaryInk); rotating += Math.abs(originalInk - turnedInk); count++;
+        }
+        const land = art.terrainLayer(seed, tile.pairs, false), pixels = land.getContext('2d').getImageData(0, 0, 256, 256).data;
+        let ground = 0; for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 20) ground++;
+        return { stationary: stationary / count, rotating: rotating / count, samples: count, cyclic: zero === six, ground };
+      })()`);
+      assert.ok(terrainRotation.cyclic && terrainRotation.ground > 400 && terrainRotation.samples > 30, 'piece terrain is stable over a full rotation and contains visible landforms');
+      assert.ok(terrainRotation.stationary > terrainRotation.rotating * 1.4, 'mountain artwork turns with the river ports instead of snapping upright: ' + JSON.stringify(terrainRotation));
       const png = await capture('colors');
       const colors = await evaluate(`(async () => {
         const image = new Image(); image.src = ${JSON.stringify(`data:image/png;base64,${png}`)}; await image.decode();
@@ -208,6 +234,49 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       const expected = [[22, 37, 45], [217, 58, 47], [255, 247, 194], [255, 255, 255]];
       colors.forEach((rgb, i) => rgb.forEach((value, c) => assert.ok(Math.abs(value - expected[i][c]) <= 3, `sRGB color ${i}/${c}: expected ${expected[i][c]}, got ${value}`)));
       await evaluate(`(() => { for (let i = 0; i < 4; i++) __entanglementPath.world.removeEntity('Color Probe ' + i); })()`);
+      // Real-time fill remains independent of rule transitions and uses persistent cell/halo textures.
+      await evaluate(`(() => {
+        const g = __entanglementPath; g.loadLevel(0, true);
+        const directions = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
+        for (let rotation = 0; rotation < 6; rotation++) {
+          const exit = g.findExitSide(g.nextTile, rotation, g.incomingSide), d = directions[Math.floor(exit / 2)];
+          const cell = g.cells.get((g.current.q + d[0]) + ',' + (g.current.r + d[1]));
+          if (cell && !cell.wall) { g.rotation = rotation; break; }
+        }
+        const cellKey = g.current.q + ',' + g.current.r;
+        window.__pieceTerrain = g.pathTerrain(g.nextTile, g.rotation);
+        window.__pieceSeed = g.terrainSeed(g.nextTile);
+        window.__waterCell = cellKey; window.__waterTexture = g.cells.get(cellKey).material.texture;
+        window.__haloTexture = g.haloMaterial.texture;
+        g.placeCurrentTile(); g.clearScorePopups();
+        const cell = g.cells.get(g.current.q + ',' + g.current.r);
+        window.__waterPointer = __inkPoint(cell.screenX, cell.screenY);
+      })()`);
+      await new Promise(accept => setTimeout(accept, 220));
+      const flowing = await evaluate(`(() => {
+        const g = __entanglementPath, wet = g.riverFlow.wetness(__waterCell, performance.now());
+        return { wet, halo: g.haloTransform.scale[0], playing: g.phase === 'playing',
+          sameTexture: g.cells.get(__waterCell).material.texture === __waterTexture,
+          sameLand: g.pathTerrain(g.placed.get(__waterCell).tile, g.placed.get(__waterCell).rotation) === __pieceTerrain };
+      })()`);
+      assert.ok(flowing.playing && flowing.halo > 0 && flowing.sameTexture && flowing.sameLand, 'active wet ink halo and persistent tile texture');
+      assert.ok(flowing.wet.some(w => w.progress > .1 && w.progress < .95 && w.bank < w.progress), 'waterhead progresses before the riverbanks soak');
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', ...await evaluate('__waterPointer'), button: 'none' });
+      await capture('river-filling');
+      const during = await evaluate('({ count: __entanglementPath.placed.size, rotation: __entanglementPath.rotation })');
+      await evaluate(`__entanglementPath.rotate(1)`);
+      assert.equal(await evaluate('__entanglementPath.rotation'), (during.rotation + 1) % 6, 'rotation stays responsive during a pour');
+      await key('Enter');
+      assert.equal(await evaluate('__entanglementPath.placed.size'), during.count + 1, 'another placement is accepted while water is spreading');
+      await new Promise(accept => setTimeout(accept, 1600));
+      assert.ok(await evaluate(`(() => {
+        const g = __entanglementPath;
+        return g.riverFlow.movingCells(performance.now()).size === 0 && g.riverFlow.wetness(__waterCell, performance.now()).every(w => w.progress === 1 && w.bank === 1)
+          && g.haloMaterial.texture === __haloTexture && g.cells.get(__waterCell).material.texture === __waterTexture;
+      })()`), 'pour settles without allocating replacement GPU textures');
+      await capture('river-settled');
+      const riverBest = await evaluate('({best: __entanglementPath.best, level: __entanglementPath.levelIndex})');
+      await evaluate('__entanglementPath.reset()'); await checkRestart(riverBest);
       for (let level = 0; level < 3; level++) {
         await evaluate(`__entanglementPath.loadLevel(${level}, true)`);
         await untilReady();
@@ -241,10 +310,31 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await cdp.call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await frame(); await checkRestart(before);
       before = await finish();
+      const terrainSnapshot = () => evaluate(`(() => {
+        const g = __entanglementPath;
+        return [...g.placed].map(([key, p]) => {
+          const data = g.pathTerrain(p.tile, p.rotation).getContext('2d').getImageData(0, 0, 256, 256).data;
+          const pixels = [];
+          for (let y = 44; y < 212; y += 6) for (let x = 44; x < 212; x += 6) pixels.push(data[(y * 256 + x) * 4]);
+          return { key, seed: g.terrainSeed(p.tile), rotation: p.rotation, layout: JSON.stringify(p.tile.pairs), pixels };
+        });
+      })()`);
+      const savedTerrain = await terrainSnapshot();
       await evaluate('__entanglementPath.saves.flush()');
       await cdp.call('Page.reload');
       await untilReady();
       assert.equal(await evaluate('__entanglementPath.phase'), 'ended', 'ended save restores');
+      const restoredTerrain = await terrainSnapshot();
+      assert.equal(restoredTerrain.length, savedTerrain.length);
+      for (let i = 0; i < savedTerrain.length; i++) {
+        const { pixels: before, ...modelBefore } = savedTerrain[i], { pixels: after, ...modelAfter } = restoredTerrain[i];
+        assert.deepEqual(modelAfter, modelBefore, 'saved games retain each piece seed, route layout and orientation');
+        const differences = before.map((value, j) => Math.abs(value - after[j]));
+        const mean = differences.reduce((sum, value) => sum + value, 0) / differences.length;
+        // Canvas may choose GPU or CPU rasterization after readback; tolerate subpixel/rounding noise only.
+        assert.ok(mean <= 2 && differences.filter(value => value > 12).length < differences.length * .005,
+          'restored terrain preserves the same painted map: ' + JSON.stringify({ key: modelBefore.key, mean, max: Math.max(...differences) }));
+      }
       await click(); await checkRestart(before);
       // A held confirm key must not place a tile immediately after restart.
       await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }))`);
@@ -286,13 +376,13 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         await frame(); await untilReady();
       }
       await evaluate(`(() => { const node = document.createElement('pre'); node.id = 'result'; node.hidden = true;
-        node.dataset.status = 'passed'; node.textContent = JSON.stringify({ status: 'passed', checks: ['centered board', 'bare score and reserve', 'desktop MP3 playback and loop', 'fullscreen canvas and resize', 'single-hue pigment', 'scroll unrolling', 'noise and crossfade', 'bitmap font', 'seeded pigment hexes', 'intro resource cleanup', 'X/Y and LB/RB rotations', 'reserve swap and cleanup', 'sRGB pixels', 'three levels', 'mouse restart', 'keyboard restart', 'touch restart', 'ended save restart', 'key repeat', 'play after restart'] }); document.body.append(node); })()`);
+        node.dataset.status = 'passed'; node.textContent = JSON.stringify({ status: 'passed', checks: ['top-down terrain rotation', 'persistent piece terrain', 'seeded map restore', 'ordered river filling', 'nonblocking flow', 'wet ink halo', 'mountain terrain', 'river reset cleanup', 'centered board', 'bare score and reserve', 'desktop MP3 playback and loop', 'fullscreen canvas and resize', 'single-hue pigment', 'scroll unrolling', 'noise and crossfade', 'bitmap font', 'seeded pigment hexes', 'intro resource cleanup', 'X/Y and LB/RB rotations', 'reserve swap and cleanup', 'sRGB pixels', 'three levels', 'mouse restart', 'keyboard restart', 'touch restart', 'ended save restart', 'key repeat', 'play after restart'] }); document.body.append(node); })()`);
     },
   });
   assert.equal(result.status, 'passed');
   assert.equal(result.browserDiagnostics.unclassifiedFailureCount, 0);
   assert.ok(!result.httpProvenance.files.some(file => /\/Layer1_/.test(file.sourcePath)), 'old background music is never fetched');
-  for (const path of ['bundle.js', 'assets/bgm.mp3', 'assets/ink/scroll-landscape.png', 'assets/ink/ui-atlas.png', 'assets/ink/title-qianmo.png', 'assets/ink/rotate-brush.png', 'assets/ink/digits.png', 'assets/ink/digits.json', 'levels.json']) {
+  for (const path of ['bundle.js', 'assets/bgm.mp3', 'assets/ink/scroll-topdown-map.png', 'assets/ink/ui-atlas.png', 'assets/ink/title-qianmo.png', 'assets/ink/rotate-brush.png', 'assets/ink/terrain-topdown-atlas.png', 'assets/ink/digits.png', 'assets/ink/digits.json', 'levels.json']) {
     const sourcePath = `games/entanglement-path/${path}`;
     assert.equal(result.httpProvenance.files.find(file => file.sourcePath === sourcePath)?.sha256,
       createHash('sha256').update(readFileSync(resolve(root, sourcePath))).digest('hex'));

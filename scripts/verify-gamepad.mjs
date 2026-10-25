@@ -68,6 +68,7 @@ async function run(name, fixture, query, exercise) {
     ...readdirSync(resolve(root,'games/jigsaw-puzzle/assets/audio')).map(file=>`games/jigsaw-puzzle/assets/audio/${file}`));
   if (gameId === 'fruit-ninja') sourceInputs.push('games/fruit-ninja/assets/fruits.png', 'games/fruit-ninja/assets/fruits-extra.png', 'games/fruit-ninja/assets/items.png', 'games/fruit-ninja/assets/dojo-backdrop.png', 'games/fruit-ninja/assets/dojo-gui.png', 'games/fruit-ninja/assets/provenance.json', 'games/fruit-ninja/assets/fruits-extra.provenance.json', 'games/fruit-ninja/assets/dojo.provenance.json');
   if (gameId === 'fruit-ninja') sourceInputs.push(...readdirSync(resolve(root, 'games/fruit-ninja/assets/audio')).map(file => `games/fruit-ninja/assets/audio/${file}`), 'games/session/audio.ts', 'scripts/generate-fruit-audio.mjs');
+  if (gameId === 'icosahedron-minesweeper') sourceInputs.push(...readdirSync(resolve(root, 'games/shared/minesweeper'), { recursive: true }).filter(file => file.endsWith('.ts')).map(file => `games/shared/minesweeper/${file}`));
   if (!gameId) sourceInputs.push('site/gamepad.js', 'site/game-host.js', 'site/simulator.js', 'scripts/simulator-camera.mjs', 'site/catalog/paths.js', ...['launcher','host','simulator'].flatMap(folder=>readdirSync(resolve(root,'games',folder)).filter(file=>file.endsWith('.ts')).map(file=>`games/${folder}/${file}`)),...readdirSync(resolve(root,'site/core')).filter(file=>file.endsWith('.js')).map(file=>'site/core/'+file));
   if (!gameId) for (const id of ['2048','fruit-ninja','mugen']) sourceInputs.push(...readdirSync(resolve(root,'games',id),{recursive:true}).filter(file=>/\.(?:ts|html|css|js)$/.test(file)).map(file=>'games/'+id+'/'+file));
   const inputs = Object.fromEntries([fixture,entry,...sourceInputs].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
@@ -129,6 +130,75 @@ await run('input','games/test/fixtures/gamepad/index.html',{},async({evaluate,un
   await pads([{buttons:[0]}]);await evaluate('dispatchEvent(new Event("blur"))');
   check((await evaluate('fixture.events')).some(e=>e.type==='pointercancel'),'blur cancels virtual pointer capture');
   await evaluate('fixture.dispose()');check(await evaluate('!document.querySelector("[data-gamepad-hint]")&&!document.querySelector("[data-gamepad-cursor]")'),'dispose removes adapter UI');
+});
+
+for(const mobile of [false,true])await run('icosahedron-pointer'+(mobile?'-mobile':''),'games/icosahedron-minesweeper/index.html',{gamepadVerify:1},async({evaluate,until,pads,press,check,cdp})=>{
+  await until('!!window.__icosahedronInput','icosahedron input fixture');await pads();
+  await until('__icosahedronInput.pointer!==null&&!!window.__controllerPointer','virtual crosshair');
+  if(mobile){await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:false});await delay(250);await pads();}
+  check(await evaluate('(()=>{const p=__icosahedronInput.pointer,r=document.querySelector("canvas").getBoundingClientRect();return p.x>=r.left&&p.x<r.right&&p.y>=r.top&&p.y<r.bottom})()'),'idle cursor remains inside the canvas after viewport changes');
+  check(await evaluate('__icosahedronInput.hovered===__icosahedronInput.picked'),'initial stationary crosshair agrees with its ray, including gaps between tiles');
+  const before=await evaluate('__icosahedronInput.pointer');
+  await pads([{axes:[-.5,0,0,0],buttons:[11]}]);await pads([{axes:[-.5,0,0,0]}]);await pads();
+  check((await evaluate('__icosahedronInput.pointer.x'))<before.x-10,'R3 release while moving cannot disable the left stick or demand another neutral cycle');
+  const aim=async(predicate='true')=>{
+    const cell=await evaluate(`(()=>{const r=document.querySelector('canvas').getBoundingClientRect();return __icosahedronInput.cells.find(c=>c.front&&c.state==='hidden'&&c.point.y>r.top+175&&c.point.y<r.bottom-40&&c.point.x>r.left+30&&c.point.x<r.right-30&&(${predicate}))})()`);
+    assert.ok(cell,'front-facing target for controller fixture');
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:cell.point.x,y:cell.point.y,button:'none',buttons:0});await pads();
+    return cell;
+  };
+  let cell=await aim();
+  check(await evaluate(`__icosahedronInput.picked===${cell.id}&&__icosahedronInput.hovered===${cell.id}&&__icosahedronInput.highlighted.length===1`),'mouse and gamepad share the same face beneath their pointer');
+  check(await evaluate('(()=>{const a=__controllerPointer.center,b=__icosahedronInput.pointer;return __controllerPointer.visible&&Math.hypot(a.x-b.x,a.y-b.y)<.5})()'),'rendered crosshair center matches ray coordinates at the current DPI');
+  const parked=await evaluate('__icosahedronInput.pointer');await delay(180);
+  check(await evaluate(`Math.hypot(__icosahedronInput.pointer.x-${parked.x},__icosahedronInput.pointer.y-${parked.y})<.01`),'neutral stick does not drift');
+  const oldPick=await evaluate('__icosahedronInput.picked');
+  for(let step=0;step<5&&await evaluate('__icosahedronInput.picked')===oldPick;step++){await pads([{buttons:[5]}]);await pads();}
+  check(await evaluate(`__icosahedronInput.picked!==${oldPick}&&__icosahedronInput.hovered===__icosahedronInput.picked`),'zoom re-picks a changed face beneath a stationary crosshair');
+  await aim();const beforeShift=await evaluate('__icosahedronInput.picked');
+  await evaluate(`document.querySelector('canvas').style.transform='translateX(${mobile?32:64}px)'`);await pads();
+  check(await evaluate(`__icosahedronInput.picked!==${beforeShift}&&__icosahedronInput.hovered===__icosahedronInput.picked`),'canvas offset re-picks selection without any pointer or projection movement');
+  await evaluate('document.querySelector("canvas").style.transform=""');await pads();
+  check(await evaluate('__icosahedronInput.hovered===__icosahedronInput.picked'),'restoring the canvas position restores matching selection');
+  cell=await aim('!c.mine');
+  await press(1);
+  check(await evaluate(`__icosahedronInput.flags===1&&__icosahedronInput.cells[${cell.id}].state==='flagged'`),'B plants exactly one flag on the crosshair face');
+  await press(1);
+  check(await evaluate(`__icosahedronInput.flags===0&&__icosahedronInput.cells[${cell.id}].state==='hidden'`),'B removes the same flag and restores the face highlight');
+  await press(0);
+  check(await evaluate(`__icosahedronInput.cells[${cell.id}].state==='revealed'&&__icosahedronInput.opened>0`),'A reveals the face beneath the displayed crosshair');
+  await press(3);await aim();
+  const drag=await evaluate('({camera:__icosahedronInput.camera,opened:__icosahedronInput.opened})');
+  await pads([{buttons:[0]}]);await pads([{axes:[.45,.2,0,0],buttons:[0]}]);
+  check(await evaluate('__icosahedronInput.gesture&&__icosahedronInput.highlighted.length===0'),'orbit drag temporarily clears hover without leaving an old selected face');
+  await pads();
+  check(await evaluate(`!__icosahedronInput.gesture&&__icosahedronInput.opened===${drag.opened}&&__icosahedronInput.camera.theta!==${drag.camera.theta}&&__icosahedronInput.hovered===__icosahedronInput.picked`),'drag release restores selection using the final camera without revealing a tile');
+  await aim();await pads([{axes:[0,0,-.45,0]}]);await pads();
+  check(await evaluate('__icosahedronInput.hovered===__icosahedronInput.picked'),'right-stick movement shares the same picking position');
+  await press(8);await until('__gameReturn.snapshot().active','return dialog pauses the board');await press(1);
+  await until('!__gameReturn.snapshot().active','return cancelled');await pads();
+  await pads([{axes:[-.4,0,0,0]}]);await pads();
+  check(await evaluate('__icosahedronInput.pointer!==null&&__icosahedronInput.hovered===__icosahedronInput.picked'),'canceling the return dialog resumes cursor movement and selection');
+});
+
+await run('icosahedron-pointer-host','site/index.html',{gamepadVerify:1,game:'icosahedron-minesweeper'},async({evaluate,until,pads,press,check,cdp})=>{
+  const probe='haiyueGameOS.game.debug.__icosahedronInput';
+  await until('__gameHost?.id==="icosahedron-minesweeper"&&__gameHost.phase==="playing"&&!!haiyueGameOS.game.debug.__icosahedronInput','sphere mounted from the homepage');
+  await pads();await until(`${probe}.pointer!==null`,'hosted controller');
+  const cell=await evaluate(`${probe}.cells.find(c=>c.front&&!c.mine&&c.point.y>175&&c.point.y<innerHeight-40)`);
+  assert.ok(cell,'hosted front face');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:cell.point.x,y:cell.point.y,button:'none',buttons:0});await pads();
+  check(await evaluate(`${probe}.picked===${cell.id}&&${probe}.hovered===${cell.id}`),'homepage-mounted game shares the crosshair and highlight coordinates');
+  await press(1);
+  check(await evaluate(`${probe}.cells[${cell.id}].state==='flagged'&&${probe}.flags===1`),'hosted virtual pointer reaches the game canvas through its ShadowRoot');
+  await press(1);
+  const before=await evaluate(`${probe}.pointer.x`);await press(11);await pads([{axes:[-.4,0,0,0]}]);await pads();
+  check(await evaluate(`${probe}.pointer.x<${before}-5&&${probe}.hovered===${probe}.picked`),'R3 and subsequent stick movement remain aligned in the hosted game');
+  await pads([{buttons:[11,9]}]);await pads();
+  await until('haiyueGameOS.game.debug.__gameReturn?.snapshot().active','R3 plus Start host chord');
+  check(await evaluate('__gameHost.id==="icosahedron-minesweeper"'),'pointer-only mode preserves the R3 plus Start return confirmation');
+  await press(1);await until('!haiyueGameOS.game.debug.__gameReturn.snapshot().active','host return canceled');await pads();
+  check(await evaluate(`${probe}.pointer!==null&&!${probe}.gesture`),'canceling hosted return leaves no captured virtual gesture');
 });
 
 async function clickDesktop(context, id) {
