@@ -53,6 +53,7 @@ export function createGameModule(id: string, moduleUrl: string, boot: (environme
       get viewport() { const canvas = instance.canvas, parent = body.getBoundingClientRect(), rectangle = canvas ? (bounds.get(canvas) ?? canvas.getBoundingClientRect.bind(canvas))() : parent; return { x: (rectangle.left - parent.left) / (parent.width || 1), y: (rectangle.top - parent.top) / (parent.height || 1), width: rectangle.width / (parent.width || 1), height: rectangle.height / (parent.height || 1) }; },
       get texture() { return scope.engine?.screenTexture ?? null; }, get layers() { return [...(decorations ? [decorations.canvas] : []), ...[...body.querySelectorAll('canvas')].filter(canvas => canvas !== instance.canvas && canvas.width > 0 && canvas.height > 0 && getComputedStyle(canvas).display !== 'none')]; }, debug: scope.debug, get disposed() { return scope.disposed; }, pause: () => scope.engine?.pauseForHost?.(), resume: () => scope.engine?.resumeForHost?.(),
       dispose() { scope.dispose(); container?.remove(); },
+      get audio() { return scope.audio.snapshot(); }, setVolume(level) { scope.audio.setVolume(level); },
       presentFrame() { decorations?.update(); return scope.disposed || !scope.engine || !instance.texture ? null : presentGameFrame(scope.engine, instance.texture); },
       resize(width, height) { if (scope.disposed) return; scope.setSize(width, height); if (container) { options.root.style.width = width + 'px'; options.root.style.height = height + 'px'; } },
       pointer(type, x, y, pointerId = 7100) {

@@ -3,7 +3,8 @@ import test from 'node:test';
 import { deviceDimensions, deviceGeometry, screenUv } from '../simulator/deviceGeometry.ts';
 import { presentGameFrame } from '../host/presentation.ts';
 import { preserveGamePass } from '../session/gamePass.ts';
-import { deviceIconGrid, deviceViewport, iconRectangle } from '../simulator/layout.ts';
+import { deviceIconGrid, deviceViewport, iconLabelHeight, iconRectangle, phoneHomeRectangle } from '../simulator/layout.ts';
+import { paintIcon } from '../simulator/iconTexture.ts';
 import { resizeGameViewport } from '../host/viewport.ts';
 import { cameraQuarter, quarterOrientation, screenFit, screenPoint, ScreenOrientation } from '../simulator/orientation.ts';
 import { rotateSimulatorCamera } from '../../scripts/simulator-camera.mjs';
@@ -52,22 +53,55 @@ test('screen rotation shader coordinates and perspective input remain inverse th
   }
 });
 
-test('rotating either device swaps real screen dimensions and keeps all icons and Home inside its chassis', () => {
+test('device grids fit 5 by 4 on pad and 7 by 4 on phone, keeping page capacity when rotated', () => {
   for (const mode of ['pad', 'phone']) {
     const portrait = deviceDimensions(mode), landscape = deviceDimensions(mode, 'landscape');
     assert.equal(landscape.width, portrait.height); assert.equal(landscape.height, portrait.width);
     assert.equal(landscape.screenWidth, portrait.screenHeight); assert.equal(landscape.screenHeight, portrait.screenWidth);
     assert.equal(landscape.homeX, portrait.homeZ); assert.equal(landscape.homeZ, 0);
-    assert.ok(landscape.homeX < -landscape.screenWidth / 2);
+    if (mode === 'pad') assert.ok(landscape.homeX < -landscape.screenWidth / 2);
     for (const orientation of ['portrait', 'landscape']) {
       const viewport = deviceViewport(mode, orientation), dimensions = deviceDimensions(mode, orientation), grid = deviceIconGrid(mode, viewport.width, viewport.height);
       assert.ok(Math.abs(viewport.width / viewport.height - dimensions.screenWidth / dimensions.screenHeight) < 1e-10);
-      assert.equal(grid.columns * grid.rows, 12);
-      for (let index = 0; index < 12; index++) {
+      const rows = mode === 'phone' ? 7 : 5;
+      assert.deepEqual(grid, orientation === 'portrait' ? { columns: 4, rows } : { columns: rows, rows: 4 });
+      assert.equal(grid.columns * grid.rows, mode === 'phone' ? 28 : 20);
+      for (let index = 0; index < grid.columns * grid.rows; index++) {
         const icon = iconRectangle(index, viewport, grid.columns, grid.rows);
-        assert.ok(icon.x >= 0 && icon.x + icon.width <= viewport.width && icon.y + icon.height + 28 <= viewport.height);
+        assert.ok(icon.x >= 0 && icon.x + icon.width <= viewport.width && icon.y + icon.height + iconLabelHeight(viewport, grid.rows) + 4 <= viewport.height - 24);
       }
     }
+  }
+});
+
+test('device bodies are 25 percent thinner with a shallow pad Home and edge-to-edge phone glass', () => {
+  for (const mode of ['pad', 'phone']) {
+    const size = deviceDimensions(mode);
+    assert.equal(size.thickness, .24 * .75);
+    assert.ok(size.bezelY > size.thickness / 2 && size.screenY > size.bezelY);
+    assert.ok(size.screenY - size.thickness / 2 < .02);
+    assert.ok(size.homeThickness < .16 * .32 / 4);
+    if (mode === 'phone') {
+      assert.ok(size.screenWidth * size.screenHeight / (size.width * size.height) > .93);
+      assert.ok((size.width - size.screenWidth) / 2 < .08 && (size.height - size.screenHeight) / 2 < .09);
+      for (const orientation of ['portrait', 'landscape']) {
+        const viewport = deviceViewport(mode, orientation), bar = phoneHomeRectangle(viewport.width, viewport.height), hit = phoneHomeRectangle(viewport.width, viewport.height, true);
+        assert.equal(bar.height, 5); assert.ok(bar.y + bar.height < viewport.height);
+        assert.ok(hit.x <= bar.x && hit.x + hit.width >= bar.x + bar.width && hit.y <= bar.y && hit.y + hit.height >= bar.y + bar.height);
+        assert.ok(hit.y + hit.height <= viewport.height && hit.x >= 0 && hit.x + hit.width <= viewport.width);
+      }
+    }
+  }
+});
+
+test('icon textures clip the real thumbnail to rounded corners and center-crop without stretching', () => {
+  for (const [width, height] of [[640, 360], [360, 640]]) {
+    const calls = [], image = { naturalWidth: width, naturalHeight: height };
+    const context = Object.fromEntries(['clearRect', 'save', 'beginPath', 'roundRect', 'clip', 'drawImage', 'restore'].map(method => [method, (...args) => calls.push([method, ...args])]));
+    paintIcon(context, image, 256);
+    assert.deepEqual(calls.map(call => call[0]), ['clearRect', 'save', 'beginPath', 'roundRect', 'clip', 'drawImage', 'restore']);
+    assert.deepEqual(calls[3], ['roundRect', 0, 0, 256, 256, 256 * .22]);
+    assert.deepEqual(calls[5], ['drawImage', image, (width - 360) / 2, (height - 360) / 2, 360, 360, 0, 0, 256, 256]);
   }
 });
 
@@ -95,10 +129,11 @@ test('3D phone and pad screen meshes preserve their RTT aspect and front-facing 
     const size = deviceDimensions(mode), aspect = mode === 'phone' ? 390 / 760 : 820 / 1080;
     assert.ok(Math.abs(size.screenWidth / size.screenHeight - aspect) < 1e-10);
     assert.ok(size.screenWidth < size.width && size.screenHeight < size.height);
-    assert.ok(size.homeZ < -size.screenHeight / 2 && size.screenY > size.thickness / 2);
+    if (mode === 'pad') assert.ok(size.homeZ < -size.screenHeight / 2);
+    assert.ok(size.screenY > size.thickness / 2);
     assert.deepEqual(screenUv(size.screenWidth / 2, size.screenHeight / 2, size.screenWidth, size.screenHeight), { x: 0, y: 0 });
     assert.deepEqual(screenUv(-size.screenWidth / 2, -size.screenHeight / 2, size.screenWidth, size.screenHeight), { x: 1, y: 1 });
-    const screen = deviceGeometry(size.screenWidth, size.screenHeight, .16, 0, true);
+    const screen = deviceGeometry(size.screenWidth, size.screenHeight, size.screenRadius, 0, true);
     assert.equal(screen.normals.length, screen.positions.length);
     assert.equal(screen.textureCoordinates[0].data.length, screen.positions.length / 3 * 2);
     for (let index = 0; index < screen.positions.length / 3; index++) {

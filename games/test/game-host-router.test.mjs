@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {GameRouter,readGameRoute,routeUrl,gameModuleUrl} from '../host/GameRouter.ts';
 import {gameStyles,deviceMediaMatches} from '../host/styles.ts';
-import {deviceLayout,iconRectangle,swipePage,gameRectangle} from '../simulator/layout.ts';
+import {deviceLayout,iconLabelHeight,iconRectangle,swipePage,gameRectangle} from '../simulator/layout.ts';
 import {isGameCancellation} from '../host/cancellation.ts';
 import {publishGameModule} from '../../scripts/preview-layout.mjs';
 import {canPresentGame} from '../host/readiness.ts';
@@ -78,7 +78,7 @@ test('device input reports touch and viewport media without overriding reduced-m
 test('phone and pad frames, icons and swipe limits stay within their owning viewport',()=>{
   for(const [width,height]of[[320,568],[390,844],[844,390],[1440,900]])for(const mode of ['pad','phone']){
     const layout=deviceLayout(width,height,mode);assert.ok(layout.body.x>=0&&layout.body.y+layout.body.height<=height-42);
-    for(let index=0;index<12;index++){const icon=iconRectangle(index,layout.screen,layout.columns,layout.rows);assert.ok(icon.x>=0&&icon.x+icon.width<=layout.screen.width+.1&&icon.y+icon.height+28<=layout.screen.height);}
+    for(let index=0;index<layout.pages;index++){const icon=iconRectangle(index,layout.screen,layout.columns,layout.rows);assert.ok(icon.x>=0&&icon.x+icon.width<=layout.screen.width+.1&&icon.y+icon.height+iconLabelHeight(layout.screen,layout.rows)+4<=layout.screen.height);}
   }
   assert.equal(swipePage(0,100,300,3),0);assert.equal(swipePage(0,-100,300,3),1);assert.equal(swipePage(2,-100,300,3),2);assert.equal(swipePage(1,5,300,3),1);
   assert.deepEqual(gameRectangle({x:100,y:200,width:400,height:800},{x:0,y:.25,width:1,height:.5}),{x:100,y:400,width:400,height:400});

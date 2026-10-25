@@ -21,14 +21,15 @@ test('launcher resolves source, root and published games under arbitrary Live Se
 });
 
 test('native desktop keeps launch controls and a scrollable shelf inside phone and desktop viewports', () => {
-  for (const [width, height] of [[320, 568], [390, 844], [600, 800], [844, 390], [1040, 600], [1440, 900], [2560, 1080]]) {
+  for (const [width, height] of [[320, 568], [390, 844], [600, 800], [640, 360], [844, 390], [1040, 600], [1440, 900], [2560, 1080]]) {
     const layout = desktopLayout(width, height);
     for (const rectangle of [layout.hero, layout.shelf]) {
       assert.ok(rectangle.x >= 0 && rectangle.y >= 0, `${width}x${height} origin`);
       assert.ok(rectangle.x + rectangle.width <= width && rectangle.y + rectangle.height <= height - layout.footer, `${width}x${height} bounds`);
     }
     assert.ok(layout.shelf.height >= 60 && layout.cardWidth >= 100, `${width}x${height} usable shelf`);
-    assert.ok(layout.columns >= 2 && layout.columns <= 5);
+    assert.equal(layout.columns, 1, 'controller up/down moves one item in the single horizontal row');
+    assert.ok(layout.cardHeight + 24 <= layout.shelf.height, `${width}x${height} carousel card fits without vertical scrolling`);
     assert.ok(Math.abs(layout.cardHeight / layout.cardWidth - .625) < .01, `${width}x${height} image-only card aspect`);
   }
 });

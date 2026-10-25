@@ -1,7 +1,7 @@
 import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Geometry3D, HaiyueEngine, Mesh3D, OrbitControl, SphericalTransform3D, World, createBox3D, createSphere3D } from '@haiyue/engine';
 import { Ray } from '@haiyue/engine/math';
 import { Render3DSystem } from '@haiyue/engine/systems';
-import { GuiSystem, type GuiLabel } from '@haiyue/engine/gui';
+import { GuiSystem, type GuiButton, type GuiLabel } from '@haiyue/engine/gui';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { mat4 } from 'wgpu-matrix';
 import { Aurora } from '../launcher/Aurora';
@@ -12,17 +12,21 @@ import { guardQueuedPointerCapture } from '../shared/input/pointerCapture';
 import { DeviceGui, SIMULATOR_TEXT } from './DeviceGui';
 import { DeviceScreen } from './DeviceScreen';
 import { deviceDimensions, deviceGeometry, screenUv } from './deviceGeometry';
-import { deviceViewport, type DeviceMode, type DeviceOrientation } from './layout';
+import { deviceViewport, phoneHomeRectangle, type DeviceMode, type DeviceOrientation } from './layout';
 import { quarterOrientation, screenPoint, ScreenOrientation } from './orientation';
 import { ScreenSurface } from './ScreenSurface';
+import { DeviceVolume, DEVICE_VOLUME_KEY, readDeviceVolume } from './DeviceVolume';
+import type { LauncherCue } from '../launcher/audio/soundscape';
 
 export interface SimulatorPlayerOptions {
   mode: DeviceMode; games: DesktopGame[]; instance?: MountedGame; title?: string;
   launch(id: string): void; home(): void; desktop(): void; device(mode: DeviceMode): void; retry(): void; external(): void;
+  sound?(cue: LauncherCue, key?: string): void; toggleSound?(): void; soundMuted?(): boolean;
 }
 export class SimulatorPlayer {
   readonly mode: DeviceMode;
-  private readonly gui = new DeviceGui(false);
+  readonly volume: DeviceVolume;
+  private readonly gui: DeviceGui;
   private readonly world = new World('Device simulator 3D chassis');
   private readonly lifetime = new AbortController();
   private readonly canvas = document.createElement('canvas');
@@ -38,6 +42,7 @@ export class SimulatorPlayer {
   private readonly homeTransform: CartesianTransform3D;
   private readonly screenMaterial = new BasicMaterial({ cullMode: 'none', sampler: { magFilter: 'linear', minFilter: 'linear' } });
   private readonly rotation = new ScreenOrientation();
+  private readonly volumeKeys: { id: string; direction: -1 | 1; geometry: Geometry3D; transform: CartesianTransform3D; material: BasicMaterial; pressed: number }[] = [];
   private surface!: ScreenSurface;
   private deviceOrientation: DeviceOrientation = 'portrait';
   private screen!: DeviceScreen;
@@ -53,18 +58,22 @@ export class SimulatorPlayer {
   private fitRadius = 0;
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private readonly keys = new Set<string>();
+  private storage: Storage | null = null;
   constructor(private readonly options: SimulatorPlayerOptions) {
+    this.gui = new DeviceGui(false, options.sound);
     this.mode = options.mode; this.dimensions = deviceDimensions(options.mode);
+    let level = 1; try { this.storage = localStorage; level = readDeviceVolume(this.storage); } catch { this.storage = null; }
+    this.volume = new DeviceVolume(level);
     this.canvas.id = 'device-simulator'; this.canvas.tabIndex = 0;
     this.canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:3;touch-action:none;outline:none;'; document.body.append(this.canvas);
     this.engine = new HaiyueEngine({ canvas: this.canvas, msaaSamples: 4, devicePixelRatio: () => Math.min(devicePixelRatio || 1, 1.5), clearColor: { r: .015, g: .025, b: .06, a: 1 } });
-    this.screenGeometry = new Geometry3D(deviceGeometry(this.dimensions.screenWidth, this.dimensions.screenHeight, .16, 0, true));
+    this.screenGeometry = new Geometry3D(deviceGeometry(this.dimensions.screenWidth, this.dimensions.screenHeight, this.dimensions.screenRadius, 0, true));
     this.screenTransform = new CartesianTransform3D({ position: [0, this.dimensions.screenY, 0] });
-    this.homeTransform = new CartesianTransform3D({ position: [0, .154, this.dimensions.homeZ], scale: [1, .16, 1] });
+    this.homeTransform = new CartesianTransform3D({ position: [0, this.dimensions.homeY, this.dimensions.homeZ], scale: [1, this.dimensions.homeThickness / .32, 1] });
   }
   async init(): Promise<this> {
     await this.engine.init(); if (this.disposed) return this;
-    this.screen = new DeviceScreen(this.engine, this.options);
+    this.screen = new DeviceScreen(this.engine, { ...this.options, volume: this.volume });
     await this.screen.init(); if (this.disposed) return this;
     const size = deviceViewport(this.mode); this.surface = new ScreenSurface(this.engine, size.width, size.height); await this.surface.init(); if (this.disposed) return this;
     this.aurora = new Aurora(this.engine); await this.aurora.init(); if (this.disposed) return this;
@@ -92,21 +101,29 @@ export class SimulatorPlayer {
   private buildDevice(): void {
     const size = this.dimensions;
     this.mesh('Metal device body', new Geometry3D(deviceGeometry(size.width, size.height, size.radius, size.thickness)), new BasicMaterial({ color: [.26, .3, .39, 1] }));
-    this.mesh('Polished front bezel', new Geometry3D(deviceGeometry(size.width - .08, size.height - .08, size.radius - .02)), new BasicMaterial({ color: [.06, .075, .11, 1] }), new CartesianTransform3D({ position: [0, .126, 0] }));
+    this.mesh('Polished front bezel', new Geometry3D(deviceGeometry(size.width - .08, size.height - .08, size.radius - .02)), new BasicMaterial({ color: [.06, .075, .11, 1] }), new CartesianTransform3D({ position: [0, size.bezelY, 0] }));
     this.screenMaterial.texture = this.surface.texture;
     this.mesh('Live device screen', this.screenGeometry, this.screenMaterial, this.screenTransform);
-    this.mesh('Physical Home key', this.homeGeometry, new BasicMaterial({ color: [.36, .42, .54, 1] }), this.homeTransform);
-    this.mesh('Home key inset', createSphere3D({ radius: .12, widthSegments: 32, heightSegments: 8 }), new BasicMaterial({ color: [.07, .09, .14, 1] }), new CartesianTransform3D({ position: [0, .181, size.homeZ], scale: [1, .04, 1] }));
-    this.mesh('Front camera', createSphere3D({ radius: .05, widthSegments: 20, heightSegments: 8 }), new BasicMaterial({ color: [.15, .22, .38, 1] }), new CartesianTransform3D({ position: [0, .15, size.height / 2 - .22], scale: [1, .16, 1] }));
-    this.mesh('Power key', createBox3D({ width: .06, height: .1, depth: .5 }), new BasicMaterial({ color: [.48, .52, .6, 1] }), new CartesianTransform3D({ position: [size.width / 2 + .015, 0, size.height * .25] }));
-    for (const vertical of [.08, .18]) this.mesh('Volume key', createBox3D({ width: .06, height: .1, depth: .36 }), new BasicMaterial({ color: [.48, .52, .6, 1] }), new CartesianTransform3D({ position: [-size.width / 2 - .015, 0, size.height * vertical] }));
+    if (this.mode === 'pad') {
+      this.mesh('Physical Home key', this.homeGeometry, new BasicMaterial({ color: [.36, .42, .54, 1] }), this.homeTransform);
+      this.mesh('Home key inset', createSphere3D({ radius: .12, widthSegments: 32, heightSegments: 8 }), new BasicMaterial({ color: [.07, .09, .14, 1] }), new CartesianTransform3D({ position: [0, size.homeY + size.homeThickness / 2 + .0003, size.homeZ], scale: [1, .005, 1] }));
+    }
+    this.mesh('Front camera', createSphere3D({ radius: this.mode === 'phone' ? .042 : .05, widthSegments: 20, heightSegments: 8 }), new BasicMaterial({ color: [.035, .05, .09, 1] }), new CartesianTransform3D({ position: [0, size.screenY + .001, size.height / 2 - (this.mode === 'phone' ? .16 : .22)], scale: [1, .025, 1] }));
+    this.mesh('Power key', createBox3D({ width: .06, height: .075, depth: .5 }), new BasicMaterial({ color: [.48, .52, .6, 1] }), new CartesianTransform3D({ position: [size.width / 2 + .015, 0, size.height * .25] }));
+    for (const direction of [-1, 1] as const) {
+      const transform = new CartesianTransform3D({ position: [-size.width / 2 - .015, 0, size.height * (direction > 0 ? .18 : .08)] }), material = new BasicMaterial({ color: [.48, .52, .6, 1] });
+      this.mesh(direction > 0 ? 'Volume up key' : 'Volume down key', createBox3D({ width: .06, height: .075, depth: .36 }), material, transform);
+      this.volumeKeys.push({ id: direction > 0 ? 'sim-volume-up' : 'sim-volume-down', direction, geometry: createBox3D({ width: .18, height: .3, depth: .5 }), transform, material, pressed: 0 });
+    }
   }
   private setupToolbar(): void {
     this.gui.label('device-brand', 'HAIYUE / DEVICE OS', 20, '#dbffb0');
     this.gui.label('device-hint', '屏外拖拽相机 · 自动横竖屏 · 滚轮缩放 · Home 返回', 13, '#bad6f1');
-    this.gui.button('sim-desktop', '游戏库', this.options.desktop, '#245d93');
-    this.gui.button('sim-pad', '平板', () => this.options.device('pad')); this.gui.button('sim-phone', '手机', () => this.options.device('phone'));
-    this.gui.button('sim-reset', '相机复位', () => this.resetCamera(), '#245d93'); this.gui.button('sim-external', '↗', this.options.external, '#245d93');
+    this.gui.button('sim-desktop', '游戏库', this.options.desktop);
+    this.gui.button('sim-pad', '平板', () => this.options.device('pad'), 'chip'); this.gui.button('sim-phone', '手机', () => this.options.device('phone'), 'chip');
+    this.gui.selectButton('sim-' + this.mode, true);
+    this.gui.button('sim-reset', '相机复位', () => this.resetCamera()); this.gui.button('sim-external', '↗', this.options.external, 'icon');
+    this.gui.button('sim-audio', '♪ 声音', () => this.options.toggleSound?.(), 'icon').setVisible(!!this.options.toggleSound);
   }
   private layout(): void {
     if (this.disposed || !this.screen) return; this.engine.resizeToDisplaySize();
@@ -114,11 +131,14 @@ export class SimulatorPlayer {
     this.camera.updateAspect(this.engine.width / this.engine.height);
     if (!this.fitted) this.resetCamera();
     else { const radius = this.fittedRadius(); this.orbitTransform.radius *= radius / this.fitRadius; this.fitRadius = radius; }
-    this.gui.place('device-brand', { x: 20, y: 17, width: Math.max(90, width - 440), height: 34 });
+    this.gui.place('device-brand', { x: 20, y: 17, width: width < 650 ? width - 40 : Math.max(120, width - 440), height: 34 });
     (this.gui.nodes.get('device-brand') as GuiLabel).setText(width < 900 ? 'DEVICE OS' : 'HAIYUE / DEVICE OS');
     this.gui.place('device-hint', { x: 20, y: height - 35, width: width - 40, height: 28 });
-    const compact = width < 650, button = compact ? 47 : 72, start = Math.max(12, width - (button + 6) * 4 - 46), top = compact ? 58 : 18;
-    for (const [index, id] of ['sim-desktop', 'sim-pad', 'sim-phone', 'sim-reset'].entries()) this.gui.place(id, { x: start + index * (button + 6), y: top, width: button, height: 32 });
+    (this.gui.nodes.get('device-hint') as GuiLabel).setText(width < 650 ? '屏外拖拽 · 自动横竖屏 · 滚轮缩放' : '屏外拖拽相机 · 自动横竖屏 · 滚轮缩放 · Home 返回');
+    const buttons = ['sim-desktop', 'sim-pad', 'sim-phone', 'sim-reset', ...(this.options.toggleSound ? ['sim-audio'] : [])];
+    const compact = width < 650, button = compact ? 47 : 72, start = Math.max(12, width - (button + 6) * buttons.length - 46), top = compact ? 58 : 18;
+    for (const [index, id] of buttons.entries()) { this.gui.place(id, { x: start + index * (button + 6), y: top, width: button, height: 32 }); this.gui.nodes.get(id)!.setStyle({ fontSize: compact ? 12 : 14, contentInsets: { top: 0, right: 4, bottom: 0, left: 4 } }); }
+    (this.gui.nodes.get('sim-reset') as GuiButton).setText(compact ? '复位' : '相机复位');
     this.gui.place('sim-external', { x: width - 42, y: top, width: 30, height: 32 });
   }
   resetCamera(): void {
@@ -175,18 +195,30 @@ export class SimulatorPlayer {
       if (this.gui.snapshot().some(node => node.id.startsWith('sim-') && event.clientX >= node.rect.x && event.clientX < node.rect.x + node.rect.width && event.clientY >= node.rect.y && event.clientY < node.rect.y + node.rect.height)) return;
       if (event.button !== 0 || event.altKey) return;
       this.setRay(event); this.homeTransform.updateWorldMatrix();
-      if (this.ray.intersectMesh(this.homeGeometry, this.homeTransform.worldMatrix, { useBVH: false })) { event.preventDefault(); event.stopImmediatePropagation(); queueMicrotask(this.options.home); return; }
+      for (const key of this.volumeKeys) {
+        key.transform.updateWorldMatrix();
+        if (!this.ray.intersectMesh(key.geometry, key.transform.worldMatrix, { useBVH: false })) continue;
+        this.volume.adjust(key.direction); this.instance?.setVolume(this.volume.level); key.pressed = .14;
+        this.options.sound?.('volume');
+        try { this.storage?.setItem(DEVICE_VOLUME_KEY, String(this.volume.level)); } catch { this.storage = null; }
+        this.canvas.focus({ preventScroll: true }); event.preventDefault(); event.stopImmediatePropagation(); return;
+      }
+      if (this.mode === 'pad' && this.ray.intersectMesh(this.homeGeometry, this.homeTransform.worldMatrix, { useBVH: false })) { event.preventDefault(); event.stopImmediatePropagation(); queueMicrotask(this.options.home); return; }
       const point = this.screenHit(event); if (!point) return;
+      const home = phoneHomeRectangle(this.size.width, this.size.height, true);
+      if (this.mode === 'phone' && point.x * this.size.width >= home.x && point.x * this.size.width <= home.x + home.width && point.y * this.size.height >= home.y && point.y * this.size.height <= home.y + home.height) { event.preventDefault(); event.stopImmediatePropagation(); queueMicrotask(this.options.home); return; }
       if (this.rotation.rotating) { event.preventDefault(); event.stopImmediatePropagation(); return; }
       this.pointers.set(event.pointerId, point); this.canvas.setPointerCapture(event.pointerId); this.screen.pointer('pointerdown', point.x, point.y, event.pointerId);
       event.preventDefault(); event.stopImmediatePropagation();
     }, settings);
     for (const type of ['pointermove', 'pointerup', 'pointercancel'] as const) this.canvas.addEventListener(type, event => {
-      const last = this.pointers.get(event.pointerId); if (!last) return;
+      const last = this.pointers.get(event.pointerId);
+      if (!last) { if (type === 'pointermove' && event.pointerType !== 'touch' && !this.instance) this.screen.hover(this.rotation.rotating ? null : this.screenHit(event), event.pointerId); return; }
       const point = this.screenHit(event, true) ?? last; this.pointers.set(event.pointerId, point); this.screen.pointer(type, point.x, point.y, event.pointerId);
       if (type !== 'pointermove') { this.pointers.delete(event.pointerId); if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId); }
       event.preventDefault(); event.stopImmediatePropagation();
     }, settings);
+    this.canvas.addEventListener('pointerleave', () => this.screen.hover(null), { signal: this.lifetime.signal });
     this.canvas.addEventListener('wheel', event => {
       const point = this.screenHit(event);
       if (!point || !this.instance || event.ctrlKey || event.altKey) return;
@@ -201,9 +233,13 @@ export class SimulatorPlayer {
   }
   private tick(time: number): void {
     if (this.disposed) return; const delta = this.last ? Math.min(.1, Math.max(0, (time - this.last) / 1000)) : 0; this.last = time;
+    this.volume.update(delta);
+    (this.gui.nodes.get('sim-audio') as GuiButton).setText(this.options.soundMuted?.() ? '♪ 关' : '♪ 声音');
+    for (const key of this.volumeKeys) { key.pressed = Math.max(0, key.pressed - delta); key.material.color = key.pressed ? [.7, .95, .57, 1] : [.48, .52, .6, 1]; }
     const radius = this.fittedRadius(); this.orbitTransform.radius *= radius / this.fitRadius; this.fitRadius = radius;
     const origin = this.projectPoint(0, this.dimensions.screenY, 0), top = this.projectPoint(0, this.dimensions.screenY, this.dimensions.screenHeight / 2), heading = Math.atan2(top.x - origin.x, origin.y - top.y);
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.gui.updateButtons(!reduced);
     if (this.rotation.update(heading, delta, reduced)) {
       this.releaseInput(); this.deviceOrientation = quarterOrientation(this.rotation.quarter); const size = this.size; this.screen.resize(size.width, size.height);
     }
@@ -212,7 +248,7 @@ export class SimulatorPlayer {
   }
   showHome(): void { this.releaseInput(); this.instance = null; this.screen.showHome(); this.canvas.focus({ preventScroll: true }); }
   showLoading(progress: GameProgress, title: string): void { this.releaseInput(); this.instance = null; this.screen.showLoading(progress, title); }
-  setGame(instance: MountedGame): void { this.releaseInput(); this.instance = instance; this.screen.setGame(instance); this.canvas.focus({ preventScroll: true }); }
+  setGame(instance: MountedGame): void { this.releaseInput(); this.instance = instance; instance.setVolume(this.volume.level); this.screen.setGame(instance); this.canvas.focus({ preventScroll: true }); }
   get orientation(): DeviceOrientation { return this.deviceOrientation; }
   get size() { return deviceViewport(this.mode, this.deviceOrientation); }
   setCamera(view: { theta: number; phi?: number; radius?: number }): void {
@@ -223,16 +259,18 @@ export class SimulatorPlayer {
   move(horizontal: number, vertical: number): void { this.screen.home.move(horizontal, vertical); }
   launch(): void { this.screen.home.launch(); }
   private releaseInput(): void {
+    this.screen?.hover(null);
     for (const [pointer, point] of this.pointers) { this.screen?.pointer('pointercancel', point.x, point.y, pointer); if (this.canvas.hasPointerCapture(pointer)) this.canvas.releasePointerCapture(pointer); }
     for (const key of this.keys) this.instance?.key(key, false); this.pointers.clear(); this.keys.clear();
   }
   snapshot() {
     const content = this.screen.snapshot(), screen = this.projectRect({ x: 0, y: 0, width: this.screen.target.width, height: this.screen.target.height });
     const nodes = [...this.gui.snapshot(), ...content.nodes.map(node => ({ ...node, rect: this.projectRect(node.rect) }))];
-    const size = this.dimensions, home = this.projectPoint(0, .154, size.homeZ), radius = Math.max(8, Math.min(screen.width, screen.height) * .16 / size.screenWidth);
-    nodes.push({ id: 'sim-home', type: 'Mesh3D', text: 'Home', rect: { x: home.x - radius, y: home.y - radius, width: radius * 2, height: radius * 2 } });
-    return { mode: this.mode, orientation: this.deviceOrientation, frames: this.frames, mesh: true, camera: { theta: this.orbitTransform.theta, phi: this.orbitTransform.phi, radius: this.orbitTransform.radius, rotateSpeed: this.orbit?.rotateSpeed ?? .65 }, rotation: { angle: this.rotation.angle, target: this.rotation.quarter * Math.PI / 2, quarter: this.rotation.quarter, active: this.rotation.rotating }, wallpaper: content.wallpaper, screen, game: this.projectRect(gameRectangleForViewport(content.gameViewport, this.screen.target.width, this.screen.target.height)), corners: [this.project(0, 0), this.project(1, 0), this.project(1, 1), this.project(0, 1)], layers: content.layers, texture: content.texture, loading: content.loading, status: content.status,
-      simulatorHome: content.home ? { ...content.home.simulatorHome, screen } : null, nodes };
+    const size = this.dimensions, home = this.projectPoint(0, size.homeY, size.homeZ), radius = Math.max(8, Math.min(screen.width, screen.height) * .16 / size.screenWidth);
+    nodes.push({ id: 'sim-home', type: this.mode === 'phone' ? 'GuiElement' : 'Mesh3D', text: 'Home', rect: this.mode === 'phone' ? this.projectRect(phoneHomeRectangle(this.size.width, this.size.height, true)) : { x: home.x - radius, y: home.y - radius, width: radius * 2, height: radius * 2 } });
+    for (const key of this.volumeKeys) { const point = this.projectPoint(key.transform.position[0]!, key.transform.position[1]!, key.transform.position[2]!); nodes.push({ id: key.id, type: 'Mesh3D', text: key.direction > 0 ? '音量 +' : '音量 -', rect: { x: point.x - 6, y: point.y - 9, width: 12, height: 18 } }); }
+    return { mode: this.mode, orientation: this.deviceOrientation, frames: this.frames, mesh: true, chassis: { thickness: size.thickness, homeThickness: this.mode === 'phone' ? 0 : size.homeThickness, fullScreen: this.mode === 'phone', screenCoverage: size.screenWidth * size.screenHeight / (size.width * size.height) }, camera: { theta: this.orbitTransform.theta, phi: this.orbitTransform.phi, radius: this.orbitTransform.radius, rotateSpeed: this.orbit?.rotateSpeed ?? .65 }, rotation: { angle: this.rotation.angle, target: this.rotation.quarter * Math.PI / 2, quarter: this.rotation.quarter, active: this.rotation.rotating }, wallpaper: content.wallpaper, screen, game: this.projectRect(gameRectangleForViewport(content.gameViewport, this.screen.target.width, this.screen.target.height)), corners: [this.project(0, 0), this.project(1, 0), this.project(1, 1), this.project(0, 1)], layers: content.layers, texture: content.texture, loading: content.loading, status: content.status,
+      volume: { ...content.volume, rect: this.projectRect(content.volume.rect) }, simulatorHome: content.home ? { ...content.home.simulatorHome, screen } : null, nodes };
   }
   async pixels() {
     const result = await this.texturePixels(this.surface.texture), game = this.screen.gameTexture;
@@ -250,7 +288,7 @@ export class SimulatorPlayer {
     } finally { buffer.destroy(); }
   }
   dispose(): void {
-    if (this.disposed) return; this.disposed = true; this.releaseInput(); this.lifetime.abort(); this.resize?.disconnect(); this.engine.stop(); this.orbit?.dispose(); this.restoreCapture(); this.screen?.destroy(); this.surface?.destroy(); this.gui.destroy(); this.world.destroy(); this.engine.destroy(); this.canvas.remove();
+    if (this.disposed) return; this.disposed = true; this.releaseInput(); this.lifetime.abort(); this.volume.destroy(); this.resize?.disconnect(); this.engine.stop(); this.orbit?.dispose(); this.restoreCapture(); this.screen?.destroy(); this.surface?.destroy(); this.gui.destroy(); this.world.destroy(); this.engine.destroy(); this.canvas.remove();
   }
 }
 

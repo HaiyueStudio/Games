@@ -68,3 +68,9 @@ test('mute, stale unlock requests, pause and disposal cannot replay old fracture
   audio.dispose();audio.dispose();audio.unlock();audio.toggle();audio.sync(round,1);
   assert.equal(calls.length,count);assert.equal(backend.disposed,1);
 });
+test('music-only toggle preserves fracture cues and does not duplicate the resumed loop',()=>{
+  const { audio,round,calls,stops }=fixture();round.phase='playing';audio.sync(round,0);
+  audio.toggleMusic();audio.sync(round,.016);assert.equal(audio.snapshot().musicMuted,true);assert.equal(audio.snapshot().musicPlaying,false);
+  round.hits=1;audio.sync(round,.016);assert.equal(calls.at(-1).id,'impact');assert.equal(audio.snapshot().played.music,1);assert.ok(stops.includes('music'));
+  audio.toggleMusic();audio.sync(round,.016);audio.sync(round,.016);assert.equal(audio.snapshot().played.music,2);assert.equal(audio.snapshot().musicPlaying,true);
+});

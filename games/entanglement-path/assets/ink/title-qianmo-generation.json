@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "title": "阡陌交通",
+  "tool": "built-in image_gen",
+  "mode": "edit",
+  "reference": "title-qianmo-reference.png",
+  "output": "title-qianmo.png",
+  "transparent": true,
+  "prompt": "Use case: style-transfer. Edit target: the attached reference image of the four seal-script glyphs for 阡陌交通. This is a game title art asset. Preserve exactly the four glyphs' ancient seal-script structures, stroke topology, relative proportions, order and horizontal left-to-right arrangement from the input; do not replace them with modern Chinese print, regular script, or different seal forms. Transform ONLY the stroke rendering from uniform monoline digital strokes into authentic Chinese ink-brush calligraphy: natural pressure-dependent thick and thin strokes, tapered starts and lifts, rich near-black ink pooling, restrained dry-brush bristle splits and fei bai negative-space streaks, softly feathered ink on a few edges. Confident rounded seal-script brushwork, elegant and very legible, no exaggerated splatters. The title is exactly “阡陌交通” (qian mo jiao tong); all four original reference glyph silhouettes and distinctive internal components must remain recognizable. Deep charcoal-black ink approximately #202825. Remove the white background completely, real transparent alpha outside the ink, including holes inside glyphs. Keep a single horizontal row of four separate glyphs, evenly spaced, vertically aligned, fill most of a wide canvas with modest transparent margins, no clipping. No seal stamp, no border, no subtitle, no paper, no added characters, no watermark. Output a production-ready transparent PNG title sprite, not a mockup.",
+  "sha256": {
+    "title-qianmo-reference.png": "6d5cbd0813c3347536d7a58aa2decd653b034bdd491330057f04ca83cfab489c",
+    "title-qianmo.png": "c1d1660a8aac7e413f2aca3bc3ecec3ad7d7b1b42a93e5ce450a51accf7501e0"
+  }
+}

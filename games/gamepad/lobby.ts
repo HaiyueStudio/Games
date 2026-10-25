@@ -9,6 +9,7 @@ interface LobbyOptions {
   category(direction: number): void;
   view(): void;
   favorite(): void;
+  cancel?(): void;
   playing(): boolean;
   ready(): boolean;
   notices(notices: readonly ConnectionNotice[], connected: boolean): void;
@@ -31,6 +32,7 @@ export function installLobbyGamepad(options: LobbyOptions): () => void {
     if (pad.pressed.has('b4') || pad.pressed.has('b5')) options.category(pad.pressed.has('b5') ? 1 : -1);
     if (pad.pressed.has('b3')) options.view();
     if (pad.pressed.has('b2')) options.favorite();
+    if (pad.pressed.has('b1')) options.cancel?.();
     const horizontal = (pad.values.x ?? 0) + Number(pad.held.has('b15')) - Number(pad.held.has('b14'));
     const vertical = (pad.values.y ?? 0) + Number(pad.held.has('b13')) - Number(pad.held.has('b12'));
     const next = Math.abs(horizontal) > Math.abs(vertical) ? horizontal > .4 ? 'right' : horizontal < -.4 ? 'left' : '' : vertical > .4 ? 'down' : vertical < -.4 ? 'up' : '';

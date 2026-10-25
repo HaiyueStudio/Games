@@ -23,7 +23,7 @@ export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
   'jigsaw-puzzle':{cursor:true,buttons:{2:'KeyR',3:'KeyV'},help:'左摇杆移动指针 · A 拖动拼块/组合 · X 旋转 · Y 原图'},
   'fruit-ninja':{cursor:true,buttons:{2:'KeyP',9:'Space'},help:'按住 A + 左摇杆挥刀 · A 点选界面 · X 暂停/继续 · Start 开始/暂停'},
   'triangle-calendar-puzzle':{...puzzle,buttons:{2:'KeyR',3:'KeyF'},help:'左摇杆移动指针 · A 拾取/拖动拼块 · X 旋转 · Y 翻转'},
-  'entanglement-path':{directions:arrows,buttons:{0:'Enter',2:'KeyR',4:'BracketLeft',5:'BracketRight'},help:'左右旋转 · A 放置 · LB/RB 切关'},
+  'entanglement-path':{directions:arrows,buttons:{0:'Enter',2:'ArrowLeft',3:'ArrowRight',4:'ArrowLeft',5:'ArrowRight'},help:'X/LB 逆时针旋转 · Y/RB 顺时针旋转 · A 放置/重开'},
   'icosahedron-minesweeper':puzzle,
   'gravity-maze':{directions:arrows,buttons:{0:'Enter',3:'KeyR'},help:'左摇杆/方向键倾斜迷宫 · A 下一关 · Y 重开'},
   'match-3':puzzle,

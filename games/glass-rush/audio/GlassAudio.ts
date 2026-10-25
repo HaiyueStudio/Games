@@ -12,6 +12,7 @@ export interface GlassAudioBackend {
 /** Phase and hit transitions only: audio never consumes gameplay randomness or advances rules. */
 export class GlassAudio {
   muted = false;
+  musicMuted = false;
   private round: Round | null = null;
   private phase = 'ready';
   private hits = 0;
@@ -29,6 +30,11 @@ export class GlassAudio {
     if (this.disposed) return;
     this.muted = !this.muted; this.pending = null; this.backend.stop(); this.music = false;
     if (this.muted) this.pause(); else if (this.phase === 'playing') this.unlock();
+  }
+  toggleMusic(): void {
+    if (this.disposed) return;
+    this.musicMuted = !this.musicMuted; this.backend.stop('music'); this.music = false;
+    if (!this.musicMuted && this.phase === 'playing') this.unlock();
   }
   sync(round: Round, dt: number): void {
     if (this.disposed) return;
@@ -49,8 +55,8 @@ export class GlassAudio {
       if (this.clock > this.pending.until) this.pending = null;
       else if (this.backend.play(this.pending.id, false)) { this.played[this.pending.id]++; this.pending = null; }
     }
-    if (round.phase === 'playing' && !this.music && this.backend.play('music', true)) { this.music = true; this.played.music++; }
+    if (round.phase === 'playing' && !this.musicMuted && !this.music && this.backend.play('music', true)) { this.music = true; this.played.music++; }
   }
-  snapshot() { return { muted: this.muted, musicPlaying: this.music && !this.suspended && !this.muted && this.phase === 'playing', played: { ...this.played }, pending: !!this.pending, backend: this.backend.snapshot() }; }
+  snapshot() { return { muted: this.muted, musicMuted: this.musicMuted, musicPlaying: this.music && !this.suspended && !this.muted && !this.musicMuted && this.phase === 'playing', played: { ...this.played }, pending: !!this.pending, backend: this.backend.snapshot() }; }
   dispose(): void { if (this.disposed) return; this.disposed = true; this.pending = null; this.backend.dispose(); }
 }

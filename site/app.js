@@ -1,6 +1,6 @@
 import { installLobbyGamepad, GameOS } from './gamepad.js';
 import { GameRouter, GameNavigation, gameModuleUrl } from './game-host.js';
-import { detailFor, filterGames, filterOptions, gameUrl, genreLabels, is3d, thumbnailUrl } from './catalog/details.js';
+import { detailFor, filterGames, gameUrl, genreLabels, is3d, thumbnailUrl } from './catalog/details.js';
 import { launcherPaths } from './catalog/paths.js';
 import { LibraryState } from './state/library.js';
 
@@ -27,32 +27,35 @@ const gameOS = new GameOS(canvas, {
   search: value => { search = value; render(true); }, favorite: () => toggleFavorite(),
   external: id => window.open(gameUrl(games.find(game => game.id === id), paths.gamesRoot), '_blank', 'noopener'),
   home: () => navigation.route.game ? closeGame() : navigation.navigate({game:null,device:null}), retry: () => void syncRoute(), simulator: mode => navigation.navigate({game:null,device:mode}),
+  sound: (cue,key) => gameOS.audio.cue(cue,key), toggleSound: () => gameOS.toggleSound(),
 });
+gameOS.audio.setAssetBase(import.meta.url);
 canvas.style.cssText = 'position:fixed;inset:0;z-index:2;';
 function render(resetScroll = false) {
   visible = filterGames(games, { category, term: search, view, ...library });
-  if (!visible.some(game => game.id === selectedId)) { selectedId = visible[0]?.id ?? ''; selectionActive = false; }
+  if (resetScroll || !visible.some(game => game.id === selectedId)) { selectedId = visible[0]?.id ?? ''; selectionActive = false; }
   gameOS.setState({ games: visible.map(presentation), selected: selectedGame() ? presentation(selectedGame()) : null, selectionActive, view, category, search, total: games.length, favorites: library.favorites.length, error }, resetScroll);
 }
 function selectGame(id, focus = false) {
   if (!visible.some(game => game.id === id)) return;
-  if (selectedId !== id || !selectionActive) { selectedId = id; selectionActive = true; render(); }
+  if (selectedId !== id || !selectionActive) { selectedId = id; selectionActive = true; gameOS.audio.cue('select',id); render(); }
   if (focus) gameOS.focusCard(id);
 }
 function move(horizontal, vertical) {
+  if (gameOS.settingsOpen) { gameOS.settingsAction(horizontal ? horizontal > 0 ? 'right' : 'left' : vertical > 0 ? 'down' : 'up'); return; }
   if (navigation.route.device && !navigation.route.game) { simulator?.move(horizontal, vertical); return; }
   if (!visible.length) return;
   const index = Math.max(0, visible.findIndex(game => game.id === selectedId));
   selectGame(visible[Math.max(0, Math.min(visible.length - 1, index + horizontal + vertical * gameOS.columns))].id, true);
 }
 function launchSelected() {
+  if (gameOS.settingsOpen) { gameOS.settingsAction('confirm'); return; }
   if (navigation.route.device && !navigation.route.game) simulator?.launch(); else openGame(selectedGame());
 }
-function setView(value) { view = value; category = 'all'; search = ''; render(true); }
-function toggleFavorite() { if (!selectedId) return; library.toggleFavorite(selectedId); render(); }
-function cycleCategory(direction) { const index = filterOptions.findIndex(([value]) => value === category); category = filterOptions[(index + direction + filterOptions.length) % filterOptions.length][0]; render(true); }
-function openGame(game) { if (game) navigation.navigate({ game: game.id, device: navigation.route.device }); }
-function closeGame() { navigation.navigate({ game: null, device: navigation.route.device }); }
+function setView(value) { if (gameOS.settingsOpen) return; view = value; category = 'all'; search = ''; render(true); }
+function toggleFavorite() { if (!selectedId || gameOS.settingsOpen) return; library.toggleFavorite(selectedId); render(); }
+function openGame(game) { if (game) { gameOS.audio.cue('launch'); navigation.navigate({ game: game.id, device: navigation.route.device }); } }
+function closeGame() { gameOS.audio.cue('back'); navigation.navigate({ game: null, device: navigation.route.device }); }
 function switchGame(direction) {
   const list = visible.length ? visible : games, index = list.findIndex(game => game.id === navigation.route.game);
   if (list.length) openGame(list[(index + direction + list.length) % list.length]);
@@ -63,10 +66,11 @@ async function loadSimulator() {
 }
 function clearPlayer(disposeDevice = false) {
   simulator?.showHome(); router.clear(); gameRoot?.remove(); gameRoot = null;
-  if (disposeDevice) { simulator?.dispose(); simulator = null; gameOS.setDeviceView(null); }
+  if (disposeDevice) { gameOS.audio.bindVolume(null); simulator?.dispose(); simulator = null; gameOS.setDeviceView(null); }
 }
 async function syncRoute() {
   const current = ++transition, route = navigation.route;
+  gameOS.audio.setActive(!route.game);
   clearPlayer(); gameOS.setPanel(null);
   if (!route.device || simulator && simulator.mode !== route.device) clearPlayer(true);
   if (route.device && !simulator) {
@@ -75,8 +79,9 @@ async function syncRoute() {
       const module = await loadSimulator(); if (current !== transition) return;
       const device = await module.createSimulatorDevice({ mode: route.device, games: games.map(presentation), launch: id => openGame(games.find(game => game.id === id)),
         home: closeGame, retry: () => void syncRoute(), desktop: () => navigation.navigate({game:null,device:null}),
-        device: mode => navigation.navigate({game:navigation.route.game,device:mode}), external: () => window.open(new URL('../simulator/index.html', paths.gamesRoot), '_blank', 'noopener') });
-      if (current !== transition) { device.dispose(); return; } simulator = device;
+        device: mode => navigation.navigate({game:navigation.route.game,device:mode}), external: () => window.open(new URL('../simulator/index.html', paths.gamesRoot), '_blank', 'noopener'),
+        sound: (cue,key) => gameOS.audio.cue(cue,key), toggleSound: () => gameOS.toggleSound(), soundMuted: () => gameOS.audio.isMuted });
+      if (current !== transition) { device.dispose(); return; } simulator = device; gameOS.audio.bindVolume(device.volume);
       gameOS.setDeviceView(() => { const snapshot = simulator?.snapshot(); return snapshot ? { simulatorHome: snapshot.simulatorHome, nodes: snapshot.nodes } : {}; });
     } catch (failure) {
       if (current !== transition) return; phase = 'error';
@@ -104,7 +109,7 @@ async function syncRoute() {
   try {
     const instance = await router.mount(game.id, gameModuleUrl(game.id, paths.gamesRoot), {
       root, url: gameUrl(game, paths.gamesRoot)+(location.search || ''), mode: route.device ? 'texture' : 'screen',
-      ...(route.device ? {width,height} : {}), onHome: closeGame, onSwitch: switchGame,
+      ...(route.device ? {width,height,volume:simulator.volume} : {}), onHome: closeGame, onSwitch: switchGame,
       onProgress: progress => { if (current === transition && phase === 'loading') { if (route.device) simulator?.showLoading(progress, title); else gameOS.setLoading(progress, title); } },
     });
     if (!instance || current !== transition) return;
@@ -124,6 +129,10 @@ window.addEventListener('keydown', event => {
   if (!ready || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
   if (navigation.route.game) {
     if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); closeGame(); }
+    return;
+  }
+  if (gameOS.settingsOpen) {
+    if (event.key === 'Escape') { gameOS.closeSettings(); event.preventDefault(); event.stopImmediatePropagation(); }
     return;
   }
   let handled = true;
@@ -154,14 +163,15 @@ window.addEventListener('keydown', event => {
 let disposeGamepad;
 function startController() {
   disposeGamepad?.();
-  disposeGamepad = installLobbyGamepad({ move, launch: launchSelected, category: cycleCategory,
+  disposeGamepad = installLobbyGamepad({ move, launch: launchSelected, category: direction => move(direction, 0),
     view: () => { const values = ['all', 'recent', 'favorites']; setView(values[(values.indexOf(view) + 1) % values.length]); },
     favorite: toggleFavorite, playing: () => !!navigation.route.game, ready: () => ready,
-    notices: (notices, connected) => gameOS.setNotices(notices, connected) });
+    cancel: () => { if (gameOS.settingsOpen) gameOS.closeSettings(); },
+    notices: notices => gameOS.setNotices(notices) });
 }
 window.addEventListener('pagehide', event => { disposeGamepad?.(); if (!event.persisted) { clearPlayer(true); navigation.dispose(); router.dispose(); lifetime.abort(); } });
 window.addEventListener('pageshow', event => { if (event.persisted) startController(); });
-window.haiyueGameOS = {navigate:(game,device=null)=>navigation.navigate({game,device}),get game(){return router.instance;},get simulator(){return simulator;},get route(){return navigation.route;}};
+window.haiyueGameOS = {navigate:(game,device=null)=>navigation.navigate({game,device}),get game(){return router.instance;},get simulator(){return simulator;},get route(){return navigation.route;},get audio(){return gameOS.audio.snapshot();}};
 if (new URLSearchParams(location.search).has('verify') || new URLSearchParams(location.search).has('gamepadVerify')) Object.defineProperty(window,'__gameHost',{configurable:true,get:()=>({route:navigation.route,phase,id:router.instance?.id??null,engine:router.instance?.engine?.state??null,mode:router.instance?.texture?'texture':'screen',mounted:!!router.instance,simulator:simulator?.snapshot?.()??null})});
 async function loadCatalog() {
   try {

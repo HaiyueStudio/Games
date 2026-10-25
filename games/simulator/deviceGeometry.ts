@@ -1,10 +1,12 @@
 import type { DeviceMode, DeviceOrientation } from './layout';
 
 export function deviceDimensions(mode: DeviceMode, orientation: DeviceOrientation = 'portrait') {
-  const height = mode === 'phone' ? 6.8 : 7.5, screenHeight = mode === 'phone' ? 5.8 : 6.5;
+  const height = mode === 'phone' ? 6.32 : 7.5, screenHeight = mode === 'phone' ? 6.16 : 6.5;
   const width = mode === 'phone' ? 3.3 : 5.6, screenWidth = screenHeight * (mode === 'phone' ? 390 / 760 : 820 / 1080), home = -height / 2 + .25, landscape = orientation === 'landscape';
-  return { width: landscape ? height : width, height: landscape ? width : height, thickness: .24, radius: mode === 'phone' ? .3 : .4,
-    screenWidth: landscape ? screenHeight : screenWidth, screenHeight: landscape ? screenWidth : screenHeight, screenY: .15, homeX: landscape ? home : 0, homeZ: landscape ? 0 : home };
+  const thickness = .24 * .75, bezelY = thickness / 2 + .006;
+  return { width: landscape ? height : width, height: landscape ? width : height, thickness, radius: mode === 'phone' ? .3 : .4,
+    screenWidth: landscape ? screenHeight : screenWidth, screenHeight: landscape ? screenWidth : screenHeight, screenRadius: mode === 'phone' ? .24 : .16,
+    bezelY, screenY: bezelY + .009, homeY: bezelY + .001, homeThickness: .012, homeX: landscape ? home : 0, homeZ: landscape ? 0 : home };
 }
 
 export function deviceGeometry(width: number, height: number, radius: number, thickness = 0, flipU = false) {

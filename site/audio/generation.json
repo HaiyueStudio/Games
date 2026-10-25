@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "description": "Original deterministic quiet ambient pads and ethereal glass UI tones; no third-party recordings.",
+  "generator": "scripts/generate-launcher-audio.mjs",
+  "assets": [
+    {
+      "kind": "ambient",
+      "file": "quiet-orbit.wav",
+      "seconds": 32,
+      "sampleRate": 22050,
+      "channels": 2,
+      "peak": 0.10385285317897797,
+      "rms": 0.02850460378829846,
+      "bytes": 2822444,
+      "sha256": "a15598dfcb7e2ea50722a54f0fae112f76dd389433bf2a4934e88da9c4384f21"
+    },
+    {
+      "kind": "click",
+      "file": "glass-click.wav",
+      "seconds": 0.6,
+      "sampleRate": 22050,
+      "channels": 2,
+      "peak": 0.33513790369033813,
+      "rms": 0.08726635871444631,
+      "bytes": 52964,
+      "sha256": "89afb9d4390b820deca481871cf3a31c39244c356186b6e26649d6e9b176be10"
+    },
+    {
+      "kind": "select",
+      "file": "airy-select.wav",
+      "seconds": 0.85,
+      "sampleRate": 22050,
+      "channels": 2,
+      "peak": 0.39454060792922974,
+      "rms": 0.07233051959149828,
+      "bytes": 75016,
+      "sha256": "88765953fb5f7fe6a045e525b431cdb76974bdc52c85ff8151bba2b688e6ef13"
+    },
+    {
+      "kind": "launch",
+      "file": "starlight-launch.wav",
+      "seconds": 1.4,
+      "sampleRate": 22050,
+      "channels": 2,
+      "peak": 0.594579815864563,
+      "rms": 0.09294779275132427,
+      "bytes": 123524,
+      "sha256": "494f7ce9fbefa666a2fbbb65d0f17ac46941a1a5f738c88c85e3651eb277b559"
+    },
+    {
+      "kind": "back",
+      "file": "soft-return.wav",
+      "seconds": 1,
+      "sampleRate": 22050,
+      "channels": 2,
+      "peak": 0.4976779520511627,
+      "rms": 0.08914672414977931,
+      "bytes": 88244,
+      "sha256": "238c400da12f74cc5e78ebfb8d3a17c31dc76ea60b631cddf4a1055549b7c46a"
+    },
+    {
+      "kind": "volume",
+      "file": "volume-drop.wav",
+      "seconds": 0.4,
+      "sampleRate": 22050,
+      "channels": 2,
+      "peak": 0.33356615900993347,
+      "rms": 0.10026397564687925,
+      "bytes": 35324,
+      "sha256": "041b8d7d317426a1b4039ebc65d1061af4ac4b608c55da425f1001c3fd3460c3"
+    }
+  ]
+}

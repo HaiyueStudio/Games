@@ -10,7 +10,8 @@ import { runRollupOnce } from './shared-rollup-runner.mjs';
 import { rotateSimulatorCamera } from './simulator-camera.mjs';
 
 const root = resolve(import.meta.dirname, '..'), output = resolve(root, 'artifacts/gamepad');
-const catalogCount = JSON.parse(readFileSync(resolve(root, 'games/manifest.json'), 'utf8')).entries.filter(entry=>entry.launcher!==false).length;
+const catalog = JSON.parse(readFileSync(resolve(root, 'games/manifest.json'), 'utf8')).entries.filter(entry=>entry.launcher!==false);
+const catalogCount = catalog.length;
 mkdirSync(output, { recursive: true });
 if (!process.env.GAMEPAD_CASE || process.env.GAMEPAD_CASE.split(',').includes('input')) await runRollupOnce({cwd:root,config:'rollup.gamepad-fixture.config.js',expectedOutputs:['artifacts/gamepad/fixture.js'],label:'gamepad input fixture',timeoutMs:120000});
 const delay = ms => new Promise(done => setTimeout(done, ms));
@@ -19,6 +20,28 @@ if(window===top)window.__pads=[];
 Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>top.__pads});
 window.__keys=[];
 for(const type of ['keydown','keyup'])addEventListener(type,e=>window.__keys.push({type,code:e.code,repeat:e.repeat}));
+if(typeof GPUDevice!=='undefined'){
+ window.__previewTextures={created:0,live:0,peak:0,sizes:[]};
+ const createTexture=GPUDevice.prototype.createTexture;
+ GPUDevice.prototype.createTexture=function(descriptor){
+  const texture=createTexture.call(this,descriptor);
+  if(descriptor.label==='Game OS card preview slot'){
+   const stats=window.__previewTextures;stats.created++;stats.live++;stats.peak=Math.max(stats.peak,stats.live);stats.sizes.push([texture.width,texture.height]);
+   const destroy=texture.destroy.bind(texture);let destroyed=false;
+   texture.destroy=()=>{if(!destroyed){destroyed=true;stats.live--;}destroy();};
+  }
+  return texture;
+ };
+ const create=GPUDevice.prototype.createShaderModule;
+ GPUDevice.prototype.createShaderModule=function(descriptor){
+  const module=create.call(this,descriptor);
+  if(descriptor.label?.startsWith('Game OS wallpaper'))void module.getCompilationInfo().then(info=>{
+   const errors=info.messages.filter(message=>message.type==='error');
+   if(errors.length)console.error(descriptor.label+': '+errors.map(error=>error.lineNum+':'+error.linePos+' '+error.message).join(' | '));
+  });
+  return module;
+ };
+}
 `;
 const provenance = {
   revision: execFileSync('git', ['-c', 'safe.directory='+root.replaceAll('\\','/'), 'rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -35,7 +58,11 @@ async function run(name, fixture, query, exercise) {
   const sourceInputs = gameId ? readdirSync(resolve(root, 'games', gameId), { recursive: true }).filter(file => /\.(ts|html|css|svg)$/.test(file)).map(file => `games/${gameId}/${file}`) : [];
   sourceInputs.push('games/shared/input/pointerCapture.ts', 'games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
   sourceInputs.push('games/manifest.json');
-  sourceInputs.push('games/gamepad/connections.ts', 'games/gamepad/connectionMonitor.ts', 'games/gamepad/ui/ConnectionNotifications.ts');
+  sourceInputs.push('games/session/ReturnDialog.ts', 'games/session/returnDialogArt.ts', 'games/launcher/buttonStyle.ts');
+  if (!gameId) sourceInputs.push('site/assets/haiyue-logo.png');
+  if (name.startsWith('lobby-artwork')) sourceInputs.push(...catalog.map(game=>'site/'+game.thumbnail));
+  if (name === 'lobby-glass') sourceInputs.push('games/test/fixtures/launcher/glass-checker.svg');
+  sourceInputs.push('games/gamepad/connections.ts', 'games/gamepad/connectionMonitor.ts', 'games/gamepad/ui/ConnectionNotifications.ts', 'games/gamepad/ui/connectionNoticeArt.ts');
   if (gameId === 'jigsaw-puzzle') sourceInputs.push('games/test/fixtures/jigsaw/portrait.svg', 'games/test/fixtures/jigsaw/broken.svg', 'games/test/fixtures/jigsaw/rim-colors.svg', 'games/save/SingleSlotGameSave.ts',
     'games/jigsaw-puzzle/assets/wood-ui.png', 'games/jigsaw-puzzle/assets/wood-ui.provenance.json', 'games/session/audio.ts', 'scripts/generate-jigsaw-audio.mjs',
     ...readdirSync(resolve(root,'games/jigsaw-puzzle/assets/audio')).map(file=>`games/jigsaw-puzzle/assets/audio/${file}`));
@@ -49,7 +76,7 @@ async function run(name, fixture, query, exercise) {
     interact:async cdp=>{
       cdp.on('Runtime.consoleAPICalled', event => {
         if(event.type!=='error')return;
-        for(const arg of event.args??[])if(arg.objectId)void cdp.call('Runtime.callFunctionOn',{objectId:arg.objectId,functionDeclaration:'function(){return this.message}',returnByValue:true})
+        for(const arg of event.args??[])if(arg.objectId)void cdp.call('Runtime.callFunctionOn',{objectId:arg.objectId,functionDeclaration:'function(){const messages=[];let error=this;for(let i=0;error&&i<8;i++,error=error.cause)messages.push(error.message??String(error));return messages.join("\\nCaused by: ")}',returnByValue:true})
           .then(result=>{const message=result.result?.result?.value;if(message)console.error('Browser error detail: '+message);}).catch(()=>{});
       });
       const evaluate=async expression=>{
@@ -59,7 +86,11 @@ async function run(name, fixture, query, exercise) {
       };
       const until=async(expression,label)=>{
         for(let n=0;n<240;n++){try{if(await evaluate(expression))return;}catch{}await delay(100);}
-        throw new Error('Timed out: '+label);
+        const state=await evaluate('window.__gameOS??null').catch(()=>null);
+        const input=await evaluate('({events:window.__desktopPointerLog,inner:[innerWidth,innerHeight],canvas:document.querySelector("canvas")?.getBoundingClientRect().toJSON(),active:document.activeElement?.outerHTML})').catch(()=>null);
+        writeFileSync(resolve(output,name+'-timeout.json'),JSON.stringify({label,state,input},null,2));
+        const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,name+'-timeout.png'),Buffer.from(shot.result.data,'base64'));
+        throw new Error('Timed out: '+label+' (snapshot: '+name+'-timeout.json)');
       };
       await until('document.readyState === "complete"','initial document');
       await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:mock});
@@ -101,6 +132,7 @@ await run('input','games/test/fixtures/gamepad/index.html',{},async({evaluate,un
 });
 
 async function clickDesktop(context, id) {
+  if (id.startsWith('game-')) await context.until('!__gameOS.shelf.animating','carousel card stops moving before clicking');
   const node = await context.evaluate(`__gameOS.nodes.find(node=>node.id===${JSON.stringify(id)})`);
   assert.ok(node, 'native GUI control '+id);
   const point={x:node.rect.x+node.rect.width/2,y:node.rect.y+node.rect.height/2};
@@ -119,8 +151,8 @@ await run('lobby','site/index.html',{verify:1},async(context)=>{
   await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>2`,'native catalog');await pads();
   const first=await evaluate('__gameOS.selected');await press(15);
   check(await evaluate('__gameOS.selected')!==first,'D-pad selects another Engine GUI cover');
-  await press(5);check(await evaluate('__gameOS.category')==='puzzle','RB changes category');
-  await press(4);check(await evaluate('__gameOS.category')==='all','LB returns to all games');
+  const previous=await evaluate('__gameOS.selected');await press(5);check(await evaluate('__gameOS.selected')!==previous,'RB advances the carousel');
+  await press(4);check(await evaluate('__gameOS.selected')===previous,'LB returns to the previous game');
   for(let index=0;index<catalogCount&&await evaluate('__gameOS.selected')!=='2048';index++)await press(15);
   await press(0);await until('__gameHost.id==="2048"&&__gameHost.phase==="playing"','game module opens');
   check(await evaluate('document.querySelectorAll("iframe").length===0&&__gameHost.id==="2048"'),'A mounts selected game directly without an iframe');
@@ -139,19 +171,145 @@ await run('lobby','site/index.html',{verify:1},async(context)=>{
   check(await evaluate('__gameOS.focused')==='game-tank-battle','return restores the selected Engine GUI card');
 });
 
+await run('lobby-glass','site/index.html',{verify:1},async({evaluate,until,check,cdp})=>{
+  const fixture=readFileSync(resolve(root,'games/test/fixtures/launcher/glass-checker.svg')),intercepts=[];
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await cdp.call('Network.enable');await cdp.call('Network.setCacheDisabled',{cacheDisabled:true});
+  cdp.on('Fetch.requestPaused',event=>{intercepts.push(event.request.url);void cdp.call('Fetch.fulfillRequest',{requestId:event.requestId,responseCode:200,
+    responseHeaders:[{name:'Content-Type',value:'image/svg+xml'},{name:'Cache-Control',value:'no-store'}],body:fixture.toString('base64')});});
+  await cdp.call('Fetch.enable',{patterns:[{urlPattern:'*/screenshots/*',requestStage:'Request'}]});
+  await cdp.call('Page.reload');await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.backdrop.gpu.blurBuilds>0&&__gameOS.frames>15`,'checkerboard glass fixture');
+  await until('__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)','visible checkerboard previews');await delay(250);
+  const state=await evaluate('__gameOS'),shot=Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).result.data,'base64'),pixels=decodePng(shot);
+  writeFileSync(resolve(output,'lobby-glass-fixture.png'),shot);
+  const light=(x,y)=>{const offset=(y*pixels.width+x)*4;return (pixels.data[offset]+pixels.data[offset+1]+pixels.data[offset+2])/3;};
+  // Four-pixel differences measure the 16px checker, rather than amplifying one-LSB GPU quantization in dark areas.
+  const energy=(x0,y0,width,height)=>{let gradient=0,mean=0,count=0;for(let y=y0;y<y0+height-4;y++)for(let x=x0;x<x0+width-4;x++){
+    const value=light(x,y);mean+=value;gradient+=(Math.abs(value-light(x+4,y))+Math.abs(value-light(x,y+4)))/2;count++;
+  }return {mean:mean/count,gradient:gradient/count,normalized:gradient/(mean+count)};};
+  const regions={top:energy(900,24,200,30),middle:energy(900,440,200,50),bottom:energy(900,836,200,22)};
+  check(intercepts.length>0&&intercepts.length<=state.artwork.capacity+3&&intercepts.length<catalogCount,'glass fixture supplies provenance-tracked high-frequency images only for the visible artwork window and wallpaper');
+  check(regions.middle.normalized>.05&&regions.top.normalized<regions.middle.normalized*.2,'header background removes high-frequency detail while the central wallpaper remains sharp');
+  check(regions.bottom.normalized<regions.middle.normalized*.2,'lower wallpaper has a genuine Gaussian blur rather than only a dark translucent fill');
+  const band=(x,y,width,height)=>{let total=0;for(let row=y;row<y+height;row++)for(let column=x;column<x+width;column++)total+=light(column,row);return total/(width*height);};
+  const cards=state.nodes.filter(n=>n.id.startsWith('game-')&&n.rect.x>=state.shelf.x&&n.rect.x+n.rect.width<=state.shelf.x+state.shelf.width),first=cards[0].rect,last=cards.at(-1).rect;
+  const leftFade=band(Math.ceil(first.x+5),Math.ceil(first.y+35),7,50),leftSolid=band(Math.ceil(first.x+70),Math.ceil(first.y+35),7,50);
+  const rightFade=band(Math.floor(last.x+last.width-12),Math.ceil(last.y+35),7,50),rightSolid=band(Math.floor(last.x+last.width-75),Math.ceil(last.y+35),7,50);
+  check(leftSolid-leftFade>25&&rightSolid-rightFade>25,'both carousel edges progressively fade real card pixels into the wallpaper');
+  const icon=state.nodes.find(n=>n.id==='view-all').rect,sharpInk={peakGreen:0,edgeContrast:0};
+  for(let y=Math.ceil(icon.y);y<icon.y+icon.height-1;y++)for(let x=Math.ceil(icon.x);x<icon.x+icon.width-1;x++){
+    const offset=(y*pixels.width+x)*4;sharpInk.peakGreen=Math.max(sharpInk.peakGreen,pixels.data[offset+1]);
+    sharpInk.edgeContrast=Math.max(sharpInk.edgeContrast,Math.abs(pixels.data[offset+1]-pixels.data[offset+5]));
+  }
+  check(sharpInk.peakGreen>200&&sharpInk.edgeContrast>60,'native mint navigation glyphs retain bright pixels and sharp one-pixel edges above the frosted background');
+  const gpu=state.backdrop.gpu;await delay(600);
+  check(await evaluate(`__gameOS.backdrop.gpu.blurBuilds===${gpu.blurBuilds}&&__gameOS.backdrop.gpu.uploads===${gpu.uploads}`),'unchanged wallpaper reuses its blur without extra background renders or uploads');
+  writeFileSync(resolve(output,'lobby-glass-metrics.json'),JSON.stringify({regions,leftFade,leftSolid,rightFade,rightSolid,sharpInk,gpu,fixtureSha256:createHash('sha256').update(fixture).digest('hex')},null,2));
+  await cdp.call('Fetch.disable');
+});
+
+await run('lobby-artwork','site/index.html',{verify:1},async(context)=>{
+  const {evaluate,until,check,cdp}=context,requests=[];
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await cdp.call('Network.enable');await cdp.call('Network.setCacheDisabled',{cacheDisabled:true});
+  cdp.on('Network.requestWillBeSent',event=>{if(event.request.url.includes('/screenshots/'))requests.push(event.request.url);});
+  await cdp.call('Page.reload');await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.artwork.cards.length>0&&__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)`,'cold visible artwork window');
+  const initial=await evaluate('__gameOS'),gpuInitial=await evaluate('__previewTextures');
+  check(new Set(requests).size===initial.artwork.sourceCount&&requests.length<catalogCount,'cold load requests only the visible previews, overscan and selected wallpaper');
+  check(initial.artwork.capacity===9&&gpuInitial.live<=9&&gpuInitial.created===initial.artwork.slots,'actual WebGPU texture allocation follows the 1440px viewport budget');
+  check(gpuInitial.sizes.every(([width,height])=>width===512&&height===320),'HD source artwork is downsampled into reusable 512 by 320 card textures');
+  const shelf=initial.shelf,point={x:shelf.x+shelf.width/2,y:shelf.y+shelf.height/2};
+  for(let step=0;step<8;step++){
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:900,deltaY:0});
+    await until('!__gameOS.shelf.animating','artwork scroll settles');
+    await until('__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)','new visible previews ready');
+    const state=await evaluate('__gameOS'),gpu=await evaluate('__previewTextures');
+    check(gpu.created<=initial.artwork.capacity&&gpu.live<=state.artwork.capacity&&state.artwork.sourceCount<=state.artwork.capacity+3&&state.artwork.inFlight<=2,`scroll ${step+1} reuses textures and evicts decoded off-screen images`);
+    const visible=state.nodes.filter(node=>node.id.startsWith('game-')&&node.rect.x<state.shelf.x+state.shelf.width&&node.rect.x+node.rect.width>state.shelf.x).map(node=>node.id.slice(5));
+    check(visible.every(id=>state.artwork.cards.some(card=>card.id===id&&card.ready)),`scroll ${step+1} covers every intersecting card`);
+  }
+  check(new Set(requests).size===catalogCount,'scrolling through the full carousel eventually loads every real preview');
+  const end=await evaluate('__gameOS');check(end.artwork.sourceCount<catalogCount/2,'decoded artwork cache does not retain the catalogue after browsing it');
+  const idle=await evaluate('({gpu:__previewTextures.created,uploads:__gameOS.artwork.uploads,requests:__gameOS.artwork.requests})');await delay(500);
+  check(await evaluate(`__previewTextures.created===${idle.gpu}&&__gameOS.artwork.uploads===${idle.uploads}&&__gameOS.artwork.requests===${idle.requests}`),'idle carousel performs no allocations, uploads or repeated requests');
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await until('__gameOS.artwork.capacity===5&&__gameOS.artwork.pending===0&&__gameOS.artwork.retired===0','mobile artwork budget');
+  check(await evaluate('__previewTextures.live<=5&&__gameOS.artwork.sourceCount<=8'),'viewport shrink retires excess GPU slots and decoded images');
+  await clickDesktop(context,'view-favorites');await until('__gameOS.games.length===0&&__previewTextures.live===0&&__gameOS.artwork.pending===0','empty filtered artwork window');
+  check(await evaluate('__gameOS.artwork.slots===0&&__gameOS.artwork.sourceCount<=3'),'empty carousel releases every card texture while retaining the wallpaper');
+  await clickDesktop(context,'view-all');await until('__gameOS.artwork.cards.length>0&&__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)','artwork restored after filter');
+  check(await evaluate('__previewTextures.live<=5'),'returning to all games rebuilds only the mobile-sized pool');
+  const final=await evaluate('({artwork:__gameOS.artwork,gpu:__previewTextures})');
+  writeFileSync(resolve(output,'lobby-artwork-metrics.json'),JSON.stringify({initial:initial.artwork,gpuInitial,end:end.artwork,final,requests},null,2));
+});
+
+await run('lobby-artwork-races','site/index.html',{verify:1},async(context)=>{
+  const {evaluate,until,check,cdp}=context,held=[],served=[];
+  let hold=true,breakUrl='',broken=false;
+  const fulfill=async event=>{
+    const path=new URL(event.request.url).pathname.replace(/^\//,''),bytes=readFileSync(resolve(root,path));
+    const corrupt=event.request.url===breakUrl&&!broken;if(corrupt)broken=true;
+    served.push({path,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),corrupt});
+    try{await cdp.call('Fetch.fulfillRequest',{requestId:event.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:path.endsWith('.webp')?'image/webp':'image/png'},{name:'Cache-Control',value:'no-store'}],body:(corrupt?Buffer.from('deliberately invalid image fixture'):bytes).toString('base64')});}
+    catch(error){if(!/Invalid InterceptionId|Invalid interceptionId|Invalid requestId/i.test(String(error)))throw error;}
+  };
+  const errors=[];
+  cdp.on('Fetch.requestPaused',event=>{if(hold)held.push(event);else void fulfill(event).catch(error=>errors.push(String(error)));});
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await cdp.call('Network.enable');await cdp.call('Network.setCacheDisabled',{cacheDisabled:true});
+  await cdp.call('Fetch.enable',{patterns:[{urlPattern:'*/screenshots/*',requestStage:'Request'}]});
+  await cdp.call('Page.reload');await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.artwork.inFlight===2`,'two held image requests');
+  check(held.length===2,'cold image loading starts only two concurrent requests');
+  const first=await evaluate('__gameOS'),point={x:first.shelf.x+first.shelf.width/2,y:first.shelf.y+first.shelf.height/2};
+  breakUrl=held[1].request.url;
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:6500,deltaY:0});
+  await until('!__gameOS.shelf.animating&&__gameOS.shelf.scrollX>5000&&__gameOS.artwork.cancelled>0','fling evicts pending off-screen loads');
+  check(await evaluate('__gameOS.artwork.inFlight<=2&&__gameOS.artwork.sourceCount<=__gameOS.artwork.capacity+3'),'rapid scroll keeps pending loads and source cache bounded');
+  // Return old responses in reverse order after their cards have left the resident window.
+  hold=false;for(const event of [...held].reverse())await fulfill(event);
+  await until('__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)&&!__gameOS.backdrop.waiting','late image responses reconciled');
+  const after=await evaluate('__gameOS');
+  check(after.artwork.cards.every(card=>after.nodes.find(node=>node.id==='game-'+card.id).rect.x>0||!card.visible),'late responses leave textures assigned to the current visible window');
+  check(await evaluate('__previewTextures.created<=__gameOS.artwork.capacity'),'rapid request replacement still reuses the original GPU texture pool');
+  // A bad image must settle on the card placeholder without a per-frame retry loop.
+  broken=false;
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:-6500,deltaY:0});
+  await until('__gameOS.shelf.scrollX<1&&!__gameOS.shelf.animating&&__gameOS.artwork.pending===0&&__gameOS.artwork.failed.length===1','broken preview settles');
+  const failed=await evaluate('__gameOS.artwork');await delay(500);
+  check(await evaluate(`__gameOS.artwork.requests===${failed.requests}&&__gameOS.artwork.failed.length===1`),'image decode failure does not spin or repeatedly request the broken preview');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:6500,deltaY:0});
+  await until('__gameOS.shelf.scrollX>5000&&!__gameOS.shelf.animating&&__gameOS.artwork.pending===0','broken preview leaves the window');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:-6500,deltaY:0});
+  await until('__gameOS.shelf.scrollX<1&&!__gameOS.shelf.animating&&__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)','preview retries after leaving and re-entering the window');
+  check(await evaluate('__gameOS.artwork.failed.length===0'),'returning to a previously failed card recovers its real preview');
+  check(errors.length===0,'request interception completed without unexpected errors');
+  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'lobby-artwork-races-before-dispose.png'),Buffer.from(shot.result.data,'base64'));
+  const beforeDispose=await evaluate('({artwork:__gameOS.artwork,gpu:__previewTextures})');
+  await evaluate('dispatchEvent(new PageTransitionEvent("pagehide",{persisted:false}))');
+  await until('__previewTextures.live===0','artwork pool disposal');
+  check(await evaluate('__gameOS.artwork.slots===0&&__gameOS.artwork.sourceCount===0'),'destroy clears every preview texture and image callback');
+  writeFileSync(resolve(output,'lobby-artwork-races-metrics.json'),JSON.stringify({held:held.map(event=>event.request.url),after:after.artwork,beforeDispose,served},null,2));
+  await cdp.call('Fetch.disable');
+});
+
 await run('lobby-os','site/index.html',{verify:1},async(context)=>{
   const {evaluate,until,pads,press,check,cdp}=context;
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
   await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>5`,'desktop initialized');await pads();
   check(await evaluate('document.querySelectorAll("canvas").length===1&&!document.querySelector("button,nav,header,main,dialog,svg,hy-notification")'),'one canvas with no hidden DOM interface');
+  check(await evaluate('__gameOS.nodes.every(node=>!["sidebar","edition","context","status","nav-caption","sidebar-note","sidebar-help","input-status"].includes(node.id))'),'desktop omits the sidebar, edition and auxiliary labels');
+  check(await evaluate('["brand-logo","brand"].every(id=>__gameOS.nodes.some(node=>node.id===id&&node.type==="GuiImage"))'),'crescent logo and glass wordmark use native GUI artwork');
+  check(await evaluate('["view-all","view-favorites","devices"].every(id=>{const node=__gameOS.nodes.find(node=>node.id===id);return node?.type==="GuiButton"&&node.text===""&&node.rect.y<78})'),'three icon controls live in the top bar');
+  check(await evaluate('__gameOS.nodes.every(node=>!["collection-title","visible-count"].includes(node.id)&&!node.id.startsWith("category-"))'),'carousel has no list heading, game count or category filters');
+  check(await evaluate('__gameOS.shelf.y>innerHeight*.65&&__gameOS.nodes.find(n=>n.id==="game-"+__gameOS.games[0]).rect.width===200'),'smaller desktop cards sit near the bottom edge');
   const first=await evaluate('__gameOS.selected');await press(15);
   check(await evaluate('__gameOS.selected')!==first,'controller updates native featured game');
   await press(2);check(await evaluate('__gameOS.favorites')===1,'X favorites current game');
   await press(3);check(await evaluate('__gameOS.view==="recent"&&__gameOS.games.length===0'),'Y opens actual empty history');
   await press(3);check(await evaluate('__gameOS.view==="favorites"&&__gameOS.games.length===1'),'Y opens favorites');
   await press(2);check(await evaluate('__gameOS.games.length')===0,'last favorite removal shows native empty state');
-  await press(5);check(await evaluate('__gameOS.category')==='puzzle','categories remain available in empty views');
-  await clickDesktop(context,'view-all');await clickDesktop(context,'search');
+  await press(5);check(await evaluate('__gameOS.games.length===0&&__gameOS.category==="all"'),'shoulder navigation preserves an empty view without applying hidden filters');
+  await clickDesktop(context,'view-all');await clickDesktop(context,'search-toggle');
   await cdp.call('Input.insertText',{text:'铁甲'});await delay(200);
   check(await evaluate('__gameOS.editing&&__gameOS.games.length===1&&__gameOS.games[0]==="tank-battle"'),'native search supports Chinese text while idle gamepad preserves focus');
   check(await evaluate('!document.querySelector("input:not([data-haiyue-text-input]),textarea:not([data-haiyue-text-input])")'),'only Engine-owned invisible IME responder exists');
@@ -166,40 +324,167 @@ await run('lobby-os','site/index.html',{verify:1},async(context)=>{
   await until('!__gameHost.mounted&&__gameOS.running','Escape returns to desktop');
   await until('__gameOS.focused==="game-2048"','native focus after returning to desktop');
   check(await evaluate('__gameOS.focused')==='game-2048','return restores native focus');
-  await clickDesktop(context,'view-recent');
+  await press(3);
   check(await evaluate('__gameOS.games.length===1&&__gameOS.games[0]==="2048"'),'history contains launched games only');
   await cdp.call('Page.reload');await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>3`,'reloaded native desktop');
   check(await evaluate('__gameOS.favorites')===1,'favorites persist');
-  await clickDesktop(context,'view-recent');check(await evaluate('__gameOS.games[0]')==='2048','history persists');
+  await pads();await press(3);check(await evaluate('__gameOS.games[0]')==='2048','history persists');
   await clickDesktop(context,'view-all');await pads([]);await delay(300);
   const capture=async()=>Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).result.data,'base64');
-  const firstImage=await capture();await delay(900);const nextImage=await capture();
-  const animated=comparePortablePixelRecords(createPortablePixelRecord(firstImage),createPortablePixelRecord(nextImage));
-  check(animated.meanAbsoluteError>1.5&&animated.changedChannelRatio>.05,'wallpaper visibly moves across at least five percent of channels');
-  writeFileSync(resolve(output,'lobby-wallpaper-a.png'),firstImage);writeFileSync(resolve(output,'lobby-wallpaper-b.png'),nextImage);
+  await until('!!__gameOS.backdrop.current&&!__gameOS.backdrop.transitioning&&!__gameOS.shelf.animating','selected game backdrop and carousel settle');
+  const idleGpu=await evaluate('__gameOS.backdrop.gpu');
+  const firstImage=await capture();await delay(700);
+  const idle=comparePortablePixelRecords(createPortablePixelRecord(firstImage),createPortablePixelRecord(await capture()));
+  check(idle.meanAbsoluteError<.1,'selected game background is still while idle, with no animated shader');
+  check(await evaluate(`__gameOS.backdrop.gpu.draws===${idleGpu.draws}&&__gameOS.backdrop.gpu.uploads===${idleGpu.uploads}&&__gameOS.backdrop.gpu.blurBuilds===${idleGpu.blurBuilds}`),'idle wallpaper performs no transition draws, blur rebuilds or image uploads');
+  await desktopKey(cdp,'ArrowRight','ArrowRight',39);
+  await until('__gameOS.backdrop.transitioning&&__gameOS.backdrop.progress>.35&&__gameOS.backdrop.progress<.7','horizontal zoom intermediate frame');
+  const midpoint=await evaluate('__gameOS.backdrop'), middleImage=await capture();
+  await until('!__gameOS.backdrop.transitioning&&__gameOS.backdrop.current===__gameOS.backdrop.requested','crossfade completes');
+  const nextImage=await capture();
+  const changed=comparePortablePixelRecords(createPortablePixelRecord(firstImage),createPortablePixelRecord(nextImage));
+  writeFileSync(resolve(output,'lobby-wallpaper-a.png'),firstImage);writeFileSync(resolve(output,'lobby-wallpaper-mid.png'),middleImage);writeFileSync(resolve(output,'lobby-wallpaper-b.png'),nextImage);
+  writeFileSync(resolve(output,'lobby-wallpaper-diagnostic.json'),JSON.stringify({changed,midpoint,final:await evaluate('__gameOS.backdrop')},null,2));
+  check(changed.meanAbsoluteError>1.5&&changed.changedChannelRatio>.05,'selecting another game visibly replaces the full screen backdrop');
+  const [before,middle,after]=[firstImage,middleImage,nextImage].map(decodePng);
+  // Compare real GPU pixels against the supplied formula using independently decoded source images.
+  // These points lie below the hero controls and above the lower glass region.
+  const measurements=[];
+  for(let y=430;y<=570;y+=35)for(let x=80;x<1400;x+=64){
+    const offset=(y*before.width+x)*4;
+    measurements.push({p:[(x+.5)/before.width,(y+.5)/before.height],before:[...before.data.slice(offset,offset+3)],middle:[...middle.data.slice(offset,offset+3)],after:[...after.data.slice(offset,offset+3)]});
+  }
+  const zoom=await evaluate(`(async()=>{
+    const observations=${JSON.stringify(measurements)},urls=${JSON.stringify([midpoint.current,midpoint.incoming])},aspect=${before.width/before.height};
+    const images=await Promise.all(urls.map(async url=>{const image=new Image();image.src=url;await image.decode();const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const c=canvas.getContext('2d');c.drawImage(image,0,0);return {width:canvas.width,height:canvas.height,data:c.getImageData(0,0,canvas.width,canvas.height).data};}));
+    function sample(image,p){const ratio=image.width/image.height,w=Math.min(1,aspect/ratio),h=Math.min(1,ratio/aspect);
+      const x=Math.max(0,Math.min(image.width-1,((1-w)/2+p[0]*w)*image.width-.5)),y=Math.max(0,Math.min(image.height-1,((1-h)/2+p[1]*h)*image.height-.5));
+      const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;return [0,1,2].map(channel=>{const at=(column,row)=>image.data[(Math.min(row,image.height-1)*image.width+Math.min(column,image.width-1))*4+channel];return (at(ix,iy)*(1-fx)+at(ix+1,iy)*fx)*(1-fy)+(at(ix,iy+1)*(1-fx)+at(ix+1,iy+1)*fx)*fy;});
+    }
+    const shade=[3,9,20];let referenceError=0;
+    const points=observations.map(point=>{const colors=images.map(image=>sample(image,point.p));let numerator=0,denominator=0;
+      colors.forEach((color,index)=>color.forEach((value,channel)=>{const d=value-shade[channel];numerator+=d*(point[index?'after':'before'][channel]-shade[channel]);denominator+=d*d;}));
+      const opacity=Math.max(0,Math.min(1,numerator/Math.max(1,denominator)));
+      colors.forEach((color,index)=>color.forEach((value,channel)=>{referenceError+=Math.abs(opacity*value+(1-opacity)*shade[channel]-point[index?'after':'before'][channel]);}));
+      return {...point,opacity,colors};});
+    const smooth=value=>{const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
+    function error(progress,mode){let difference=0;for(const point of points){const x=smooth(mode==='uniform'?progress:progress*2+point.p[0]-1);
+      const a=mode==='fade'?point.colors[0]:sample(images[0],point.p.map(value=>(value-.5)*(1-x)+.5));
+      const b=mode==='fade'?point.colors[1]:sample(images[1],point.p.map(value=>(value-.5)*x+.5));
+      for(let channel=0;channel<3;channel++)difference+=Math.abs(point.opacity*(a[channel]*(1-x)+b[channel]*x)+(1-point.opacity)*shade[channel]-point.middle[channel]);
+    }return difference/(points.length*3);}
+    const best={zoom:{error:Infinity},fade:{error:Infinity},uniform:{error:Infinity}};
+    // Screenshot presentation can lag the JS snapshot by a few frames; fit only this small time window.
+    for(let t=Math.max(0,${midpoint.progress}-.15);t<=Math.min(1,${midpoint.progress}+.15);t+=.005)for(const mode of ['zoom','fade','uniform']){const value=error(t,mode);if(value<best[mode].error)best[mode]={error:value,progress:t};}
+    return {referenceError:referenceError/(points.length*6),samples:points.length,best};
+  })()`);
+  const blend={progress:midpoint.progress,...zoom,gpu:midpoint.gpu};
+  writeFileSync(resolve(output,'lobby-wallpaper-zoom.json'),JSON.stringify(blend,null,2));
+  check(midpoint.effect==='horizontal-zoom'&&zoom.referenceError<4&&zoom.best.zoom.error<5.5,'real GPU background pixels match the supplied position-dependent zoom formula');
+  check(zoom.best.zoom.error<zoom.best.fade.error*.6&&zoom.best.zoom.error<zoom.best.uniform.error*.6,'GPU transition zooms both image coordinates and advances by horizontal position rather than using a plain fade or uniform zoom');
+  check(await evaluate('["wallpaper-a","wallpaper-shade"].every(id=>{const rect=__gameOS.nodes.find(node=>node.id===id).rect;return rect.x===0&&rect.y===0&&rect.width===innerWidth&&rect.height===innerHeight})'),'game image and readability shade cover the entire canvas');
+  writeFileSync(resolve(output,'lobby-wallpaper-a.png'),firstImage);writeFileSync(resolve(output,'lobby-wallpaper-mid.png'),middleImage);writeFileSync(resolve(output,'lobby-wallpaper-b.png'),nextImage);
+  for(let index=0;index<4;index++)await desktopKey(cdp,'ArrowRight','ArrowRight',39);
+  await until('!__gameOS.backdrop.transitioning&&__gameOS.backdrop.current===__gameOS.backdrop.requested','latest rapid selection wins');
+  const finalSelection=await evaluate('__gameOS.selected'), finalBackdrop=await evaluate('__gameOS.backdrop');
+  check(!finalBackdrop.waiting&&finalBackdrop.current.endsWith('/'+catalog.find(game=>game.id===finalSelection).thumbnail),'rapid selections settle on the latest selected game picture');
+  await delay(100);
+  // Six retained textures: shade, sharp output, small input, blurred output, glass composite and current image.
+  check(await evaluate('__gameOS.backdrop.gpu.liveTextures<=6'),'rapid transitions reuse their glass textures and release obsolete image textures without a noise texture');
   await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await delay(250);
+  const reducedGpu=await evaluate('__gameOS.backdrop.gpu');
+  await desktopKey(cdp,'ArrowRight','ArrowRight',39);await delay(100);
+  check(await evaluate('!__gameOS.backdrop.transitioning&&__gameOS.backdrop.current===__gameOS.backdrop.requested'),'reduced motion changes game images immediately');
+  check(await evaluate(`__gameOS.backdrop.gpu.draws===${reducedGpu.draws}&&__gameOS.backdrop.gpu.uploads<=${reducedGpu.uploads+1}`),'reduced motion skips zoom and only uploads the new image once for its static glass background');
+  await until('__gameOS.notices.length===0&&!__gameOS.shelf.animating','temporary notices and carousel settle before the still comparison');
   const still=await capture();await delay(500);
   const reduced=comparePortablePixelRecords(createPortablePixelRecord(still),createPortablePixelRecord(await capture()));
-  check(await evaluate('!__gameOS.motion')&&reduced.meanAbsoluteError<.1,'reduced motion freezes wallpaper pixels');
+  check(await evaluate('!__gameOS.motion')&&reduced.meanAbsoluteError<.1,'reduced motion keeps the selected game background still');
   await cdp.call('Emulation.setEmulatedMedia',{features:[]});
-  writeFileSync(resolve(output,'lobby-wallpaper-metrics.json'),JSON.stringify({animated:{status:'passed',meanAbsoluteError:animated.meanAbsoluteError,changedChannelRatio:animated.changedChannelRatio},reduced:{status:'passed',meanAbsoluteError:reduced.meanAbsoluteError,changedChannelRatio:reduced.changedChannelRatio}},null,2));
+  writeFileSync(resolve(output,'lobby-wallpaper-metrics.json'),JSON.stringify({idle,changed:{...changed,status:'passed',comparison:'expected-difference'},blend,reduced},null,2));
+});
+
+await run('lobby-settings','site/index.html',{verify:1},async(context)=>{
+  const {evaluate,until,check,cdp,pads,press}=context;
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await until('__gameOS?.ready&&__gameOS.logo.loaded','supplied brand artwork');
+  const expectedLogo=createHash('sha256').update(readFileSync(resolve(root,'site/assets/haiyue-logo.png'))).digest('hex');
+  check(await evaluate(`(async()=>{const icon=document.querySelector('link[rel="icon"]');const bytes=await(await fetch(icon.href)).arrayBuffer();const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');return icon.href===__gameOS.logo.url&&hash===${JSON.stringify(expectedLogo)};})()`),'native logo and favicon use the exact same supplied PNG bytes');
+  check(await evaluate('__gameOS.nodes.some(n=>n.id==="search-toggle")&&!__gameOS.nodes.some(n=>n.id==="search")&&!__gameOS.searchExpanded'),'search initially shows only its icon on desktop');
+  await until('__gameOS.backdrop.current&&!__gameOS.backdrop.transitioning&&__gameOS.backdrop.gpu.blurBuilds>0','stable search background');
+  const searchIcon=await evaluate('__gameOS.nodes.find(n=>n.id==="search-toggle").rect');
+  const collapsedSearchImage=decodePng(Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).result.data,'base64'));
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:searchIcon.x+searchIcon.width/2,y:searchIcon.y+searchIcon.height/2,button:'none',buttons:0});
+  await until('__gameOS.searchReveal===1','search hover expansion');
+  check(await evaluate('(()=>{const input=__gameOS.nodes.find(n=>n.id==="search");return input.rect.x>innerWidth/2&&input.rect.y+input.rect.height<78&&input.backgroundColor==="transparent"&&input.borderColor==="transparent"&&!__gameOS.editing})()'),'hover expands a transparent top-right search without stealing keyboard focus');
+  const hoverSearch=await evaluate('__gameOS.nodes.find(n=>n.id==="search").rect');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:hoverSearch.x+hoverSearch.width/2,y:hoverSearch.y+hoverSearch.height/2,button:'none',buttons:0});await delay(350);
+  check(await evaluate('__gameOS.searchExpanded&&__gameOS.searchReveal===1'),'moving from the search icon into the field keeps it open');
+  const searchImage=await cdp.call('Page.captureScreenshot',{format:'png'}),expandedSearchBytes=Buffer.from(searchImage.result.data,'base64');writeFileSync(resolve(output,'lobby-search-expanded.png'),expandedSearchBytes);
+  writeFileSync(resolve(output,'lobby-search-expanded.json'),JSON.stringify(await evaluate('__gameOS'),null,2));
+  const expandedSearchImage=decodePng(expandedSearchBytes);let searchInk=0;
+  for(let y=Math.ceil(hoverSearch.y+4);y<hoverSearch.y+hoverSearch.height-4;y++)for(let x=Math.ceil(hoverSearch.x+6);x<hoverSearch.x+130;x++){
+    const offset=(y*expandedSearchImage.width+x)*4;
+    if(expandedSearchImage.data[offset]>collapsedSearchImage.data[offset]+30&&expandedSearchImage.data[offset+1]>collapsedSearchImage.data[offset+1]+30)searchInk++;
+  }
+  check(hoverSearch.width===220&&searchInk>40,'expanded search displays readable placeholder pixels across its full input width');
+  let counterInk=0;
+  for(let y=Math.ceil(hoverSearch.y+4);y<hoverSearch.y+hoverSearch.height-4;y++)for(let x=Math.ceil(hoverSearch.x+hoverSearch.width-46);x<hoverSearch.x+hoverSearch.width-8;x++){
+    const offset=(y*expandedSearchImage.width+x)*4;
+    if(expandedSearchImage.data[offset]>collapsedSearchImage.data[offset]+30&&expandedSearchImage.data[offset+1]>collapsedSearchImage.data[offset+1]+30)counterInk++;
+  }
+  check(counterInk<3,'expanded search has no character-limit counter on its right edge');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:150,button:'none',buttons:0});
+  await until('__gameOS.searchReveal===0&&!__gameOS.nodes.some(n=>n.id==="search")','empty search collapses after leaving');
+  check(await evaluate('__gameOS.shelf.axis==="horizontal"&&__gameOS.shelf.contentWidth>innerWidth&&__gameOS.shelf.scrollY===0'),'all games use a single native horizontal viewport');
+  await desktopKey(cdp,'End','End',35);await until('!__gameOS.shelf.animating','last game scrolls into view');
+  check(await evaluate('(()=>{const state=__gameOS,card=state.nodes.find(n=>n.id==="game-"+state.selected).rect,s=state.shelf;return card.x>=s.x-1&&card.x+card.width<=s.x+s.width+1})()'),'keyboard End fully reveals the final carousel card');
+  await desktopKey(cdp,'Home','Home',36);await until('!__gameOS.shelf.animating','first carousel card');
+  await clickDesktop(context,'carousel-next');await until('!__gameOS.shelf.animating','next carousel game');
+  check(await evaluate('__gameOS.selected===__gameOS.games[1]'),'next arrow selects the adjacent game and updates its backdrop');
+  const selected=await evaluate('__gameOS.selected');
+  await clickDesktop(context,'settings');await until('__gameOS.settingsOpen&&__gameOS.nodes.find(n=>n.id==="settings-effects").rect.width>0','native settings dialog');
+  check(await evaluate('!document.querySelector("button,dialog,select")'),'settings switches and modal create no DOM controls');
+  await pads();await press(2);await press(3);await press(5);
+  check(await evaluate(`__gameOS.selected===${JSON.stringify(selected)}&&__gameOS.favorites===0&&__gameOS.view==="all"&&__gameOS.category==="all"`),'settings modal blocks underlying controller favorites, views and categories');
+  await clickDesktop(context,'settings-effects');
+  check(await evaluate('!haiyueGameOS.audio.preferences.effects&&haiyueGameOS.audio.preferences.music&&__gameOS.nodes.find(n=>n.id==="settings-effects").checked===false'),'sound effects switch changes only the effects preference');
+  await clickDesktop(context,'settings-music');await until('!haiyueGameOS.audio.music','background loop stops');
+  check(await evaluate('!haiyueGameOS.audio.preferences.effects&&!haiyueGameOS.audio.preferences.music'),'music can be disabled independently');
+  await clickDesktop(context,'settings-effects');
+  check(await evaluate('haiyueGameOS.audio.preferences.effects&&!haiyueGameOS.audio.preferences.music'),'effects can run while background music remains disabled');
+  await press(1);await until('!__gameOS.settingsOpen','controller B closes settings');
+  check(await evaluate(`__gameOS.selected===${JSON.stringify(selected)}&&!__gameHost.route.game`),'closing settings preserves the selected game without launching it');
+  await cdp.call('Page.reload');await until('__gameOS?.ready','stored settings after reload');
+  check(await evaluate('haiyueGameOS.audio.preferences.effects&&!haiyueGameOS.audio.preferences.music&&!haiyueGameOS.audio.unlocked'),'independent settings persist without automatic audio playback');
+  for(const [width,height]of[[1440,900],[390,844],[844,390],[320,568]]){
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});await delay(200);
+    await evaluate(`window.__desktopPointerLog=[];if(!window.__pointerLogInstalled){window.__pointerLogInstalled=true;for(const type of ['pointerdown','pointerup','click'])window.addEventListener(type,event=>window.__desktopPointerLog.push({type,x:event.clientX,y:event.clientY,target:event.target?.id}),true);}`);
+    await clickDesktop(context,'search-toggle');await until('__gameOS.editing','header search');await cdp.call('Input.insertText',{text:'铁甲'});await delay(150);check(await evaluate('__gameOS.games.length===1&&__gameOS.games[0]==="tank-battle"'),`${width} icon search filters real games`);await desktopKey(cdp,'Escape','Escape',27);
+    await clickDesktop(context,'settings');await until('__gameOS.settingsOpen','settings reopens');
+    check(await evaluate('__gameOS.nodes.filter(n=>["settings-close","settings-effects","settings-music"].includes(n.id)).every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=innerWidth&&n.rect.y+n.rect.height<=innerHeight)'),`${width} settings controls remain inside the canvas`);
+    const image=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`lobby-settings-${width}.png`),Buffer.from(image.result.data,'base64'));
+    await desktopKey(cdp,'Escape','Escape',27);check(await evaluate('!__gameOS.settingsOpen'),`${width} Escape closes the modal`);
+  }
 });
 
 await run('lobby-mobile','site/index.html',{verify:1},async(context)=>{
   const {evaluate,until,check,cdp}=context;
   await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>2`,'mobile catalog');
-  for(const [width,height]of[[390,844],[844,390],[320,568]]){
+  for(const [width,height]of[[390,844],[844,390],[640,360],[320,568]]){
     await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await delay(250);
     check(await evaluate('document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight'),`${width}x${height} no DOM overflow`);
     check(await evaluate('__gameOS.shelf.height>=60'),`${width}x${height} usable native scroll shelf`);
+    check(await evaluate('["brand-logo","brand","view-all","view-favorites","devices","search-toggle","settings"].every(id=>{const rect=__gameOS.nodes.find(node=>node.id===id).rect;return rect.x>=0&&rect.x+rect.width<=innerWidth&&rect.y+rect.height<=(innerWidth<600?112:62)})'),`${width}x${height} top bar artwork and icons stay inside the viewport`);
     check(await evaluate('(()=>{const button=__gameOS.nodes.find(node=>node.id==="play").rect,hero=__gameOS.hero;return button.x>=hero.x&&button.y>=hero.y&&button.x+button.width<=hero.x+hero.width&&button.y+button.height<=hero.y+hero.height})()'),`${width}x${height} launch control fits preview`);
+    check(await evaluate('(()=>{const title=__gameOS.nodes.find(node=>node.id==="hero-title").rect,play=__gameOS.nodes.find(node=>node.id==="play").rect;return title.y+title.height<=play.y})()'),`${width}x${height} game title and launch row do not overlap`);
     await clickDesktop(context,'view-favorites');check(await evaluate('__gameOS.view==="favorites"&&__gameOS.games.length===0'),`${width}x${height} native empty favorites`);
     await clickDesktop(context,'empty-reset');check(await evaluate('__gameOS.games.length')===catalogCount,`${width}x${height} browse all button works`);
     const shelf=await evaluate('__gameOS.shelf');
-    await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:shelf.x+shelf.width/2,y:shelf.y+shelf.height*.8,id:0}]});
-    await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:shelf.x+shelf.width/2,y:shelf.y+shelf.height*.2,id:0}]});
+    await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:shelf.x+shelf.width*.8,y:shelf.y+shelf.height/2,id:0}]});
+    await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:shelf.x+shelf.width*.2,y:shelf.y+shelf.height/2,id:0}]});
     await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(200);
-    check(await evaluate('__gameOS.shelf.scrollY')>0,`${width}x${height} touch scroll uses Engine GUI`);
+    check(await evaluate('__gameOS.shelf.scrollX>0&&__gameOS.shelf.scrollY===0'),`${width}x${height} touch scroll uses the native horizontal axis`);
     await clickDesktop(context,'view-all');
     const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`lobby-${width}x${height}.png`),Buffer.from(shot.result.data,'base64'));
   }
@@ -209,6 +494,7 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
   const {evaluate,until,check,cdp}=context;
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
   await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>5`,'image-only card catalog');
+  await until('__gameOS.artwork.pending===0&&__gameOS.artwork.cards.every(card=>card.ready)','initial visible artwork');
   await delay(400);
   const snapshot=()=>evaluate('__gameOS'), capture=async(name)=>{
     const bytes=Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).result.data,'base64');
@@ -217,18 +503,27 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
   const initial=await snapshot(), first=initial.games[0], second=initial.games[1];
   const details=state=>state.nodes.filter(node=>state.games.some(game=>['caption','title','genre','dimension','input','glow'].some(prefix=>node.id===`${prefix}-${game}`)));
   check(!initial.selectionActive&&details(initial).length===0,'initial cards contain preview images without metadata or glow');
-  const restingPixels=decodePng(await capture('lobby-cards-default'));
+  await until('!!__gameOS.backdrop.current&&!__gameOS.backdrop.transitioning','initial card wallpaper');
+  const defaultImage=await capture('lobby-cards-default');let restingPixels=decodePng(defaultImage);
   const secondCard=initial.nodes.find(node=>node.id==='game-'+second).rect;
+  check(initial.nodes.find(node=>node.id==='game-'+second).button.radius>16,'carousel cards use a larger corner radius');
+  const brightness=(x,y)=>{const offset=(Math.floor(y)*restingPixels.width+Math.floor(x))*4;return (restingPixels.data[offset]+restingPixels.data[offset+1]+restingPixels.data[offset+2])/3;};
+  check(brightness(secondCard.x+28,secondCard.y+4)-brightness(secondCard.x+3,secondCard.y+3)>80,'real thumbnail pixels have transparent rounded corners rather than a square cover hiding the card radius');
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:secondCard.x+secondCard.width/2,y:secondCard.y+secondCard.height/2,button:'none',buttons:0});
+  await until(`__gameOS.previewGame==='${second}'&&__gameOS.backdrop.transitioning`,'hover immediately starts the wallpaper crossfade');
   await until(`__gameOS.nodes.some(node=>node.id==='title-${second}')`,'hover card caption');await delay(300);
   await until(`__gameOS.hoverCards.some(card=>card.id==='${second}'&&card.amount>.99)`,'hover card reaches its raised pose');
   let state=await snapshot();
   check(state.nodes.some(node=>node.id==='genre-'+second)&&state.nodes.some(node=>node.id==='dimension-'+second)&&state.nodes.some(node=>node.id==='input-'+second),'hover reveals title and genre/dimension/controller tags');
-  check(state.selected===first&&!state.selectionActive&&!state.nodes.some(node=>node.id.startsWith('glow-')),'hover does not latch a selection or a bloom border');
+  const hoverGlow=state.nodes.find(node=>node.id==='glow-'+second);
+  check(state.selected===first&&!state.selectionActive&&hoverGlow?.opacity>.25&&hoverGlow.opacity<.4,'hover adds a subtle bloom without latching a selection');
   const hovered=state.hoverCards.find(card=>card.id===second);
   check(hovered.scale>1.04&&hovered.scale<1.05&&hovered.rotation<0&&hovered.rotation>-.025&&hovered.lift<0,'hover gently scales, tilts and lifts the complete card');
   check(JSON.stringify(state.nodes.find(node=>node.id==='game-'+second).rect)===JSON.stringify(secondCard),'hover presentation keeps the native hit region stable without layout shifts');
-  const hoveredPixels=decodePng(await capture('lobby-cards-hover'));
+  await until('!__gameOS.backdrop.transitioning&&__gameOS.backdrop.current===__gameOS.backdrop.requested','hover wallpaper completes');
+  const hoverImage=await capture('lobby-cards-hover');let hoveredPixels=decodePng(hoverImage);
+  const wallpaper=comparePortablePixelRecords(createPortablePixelRecord(defaultImage),createPortablePixelRecord(hoverImage));
+  check(wallpaper.meanAbsoluteError>1.5&&wallpaper.changedChannelRatio>.05,'hover changes real full-screen wallpaper pixels while selection stays unchanged');
   check(['input','mobile','keyboard'].every(prefix=>state.nodes.some(node=>node.id===prefix+'-'+second&&node.type==='GuiImage')),'controller, mobile and keyboard support use native GUI icons');
   const badgeColors={};
   for(const prefix of ['genre','dimension','input','mobile','keyboard']){
@@ -240,6 +535,12 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
     badgeColors[prefix]=vivid/total;check(badgeColors[prefix]>.35,prefix+' badge has vivid GPU colors rather than a grey background');
   }
   writeFileSync(resolve(output,'lobby-badge-colors.json'),JSON.stringify(badgeColors,null,2));
+  await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await until('__gameOS.hoverCards.length===0','flat card on the same hovered wallpaper');
+  restingPixels=decodePng(await capture('lobby-cards-flat-preview'));
+  await cdp.call('Emulation.setEmulatedMedia',{features:[]});
+  await until(`__gameOS.hoverCards.some(card=>card.id==='${second}'&&card.amount>.99)`,'hover pose with unchanged wallpaper');
+  hoveredPixels=decodePng(await capture('lobby-cards-hover'));
   const brightTop=(pixels,column)=>{
     for(let row=Math.floor(secondCard.y)-12;row<secondCard.y+12;row++){
       const offset=(row*pixels.width+Math.round(column))*4;
@@ -251,18 +552,33 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
   const tilt={restLeft:brightTop(restingPixels,left),restRight:brightTop(restingPixels,right),hoverLeft:brightTop(hoveredPixels,left),hoverRight:brightTop(hoveredPixels,right)};
   writeFileSync(resolve(output,'lobby-card-tilt.json'),JSON.stringify(tilt,null,2));
   check(Object.values(tilt).every(value=>value!==null)&&Math.abs(tilt.restLeft-tilt.restRight)<=1&&tilt.hoverLeft-tilt.hoverRight>=2&&tilt.hoverRight<tilt.restRight,'GPU pixels show the card enlarged and rotated rather than only reporting a hover pose');
+  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:secondCard.x+secondCard.width+8,y:secondCard.y+secondCard.height/2,button:'none',buttons:0});await delay(800);
+  check(await evaluate(`__gameOS.previewGame==='${second}'&&__gameOS.backdrop.current===__gameOS.backdrop.requested&&!__gameOS.backdrop.transitioning`),'dwelling in the gap between cards preserves the preview instead of crossfading to the first game');
+  const previewUrl=await evaluate('__gameOS.backdrop.current');
+  await evaluate(`window.__previewTrace=[];window.__tracePreview=true;requestAnimationFrame(function trace(){if(!window.__tracePreview)return;window.__previewTrace.push({current:__gameOS.backdrop.current,incoming:__gameOS.backdrop.incoming,requested:__gameOS.backdrop.requested});requestAnimationFrame(trace)});`);
+  for(const id of [initial.games[2],initial.games[3],second]){
+    const rect=initial.nodes.find(node=>node.id==='game-'+id).rect;
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:rect.x+rect.width/2,y:rect.y+rect.height/2,button:'none',buttons:0});
+  }
+  await until(`__gameOS.previewGame==='${second}'&&!__gameOS.backdrop.transitioning&&__gameOS.backdrop.current===__gameOS.backdrop.requested`,'rapid hover keeps the final preview');
+  await evaluate('window.__tracePreview=false');
+  check(await evaluate(`window.__previewTrace.every(frame=>![frame.current,frame.incoming,frame.requested].includes(${JSON.stringify(initial.backdrop.current)}))`),'rapid inter-card hover never inserts the first game into a preview transition');
+  check((await snapshot()).backdrop.current===previewUrl,'rapid hover finishes on the latest hovered background');
+  check(await evaluate(`__gameOS.selected==='${first}'&&!__gameOS.selectionActive&&!__gameHost.route.game`),'rapidly passing several cards previews the final game without changing selection or launching');
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:10,button:'none',buttons:0});
   await until('__gameOS.nodes.every(node=>!node.id.startsWith("title-"))','hover caption fades away');
   await until('__gameOS.hoverCards.length===0','card smoothly returns to its resting pose');
+  await until('__gameOS.previewGame===""&&!__gameOS.backdrop.transitioning&&__gameOS.backdrop.current===__gameOS.backdrop.requested','leaving hover restores the selected wallpaper');
+  check((await snapshot()).backdrop.current===initial.backdrop.current,'leaving the carousel restores the selected game background');
   await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await delay(150);
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:secondCard.x+secondCard.width/2,y:secondCard.y+secondCard.height/2,button:'none',buttons:0});await delay(150);
   state=await snapshot();
   check(state.hoverCards.length===0&&state.nodes.some(node=>node.id==='title-'+second),'reduced motion reveals metadata without scaling or tilting cards');
-  await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:10,button:'none',buttons:0});await delay(100);
   const before=decodePng(await capture());
   await desktopKey(cdp,'ArrowRight','ArrowRight',39);
   await until(`__gameOS.selectionActive&&__gameOS.nodes.some(node=>node.id==='glow-${second}')`,'keyboard selection bloom');
   await delay(250);state=await snapshot();
+  check(state.nodes.find(node=>node.id==='glow-'+second).opacity>.99,'selection retains a stronger bloom than the hover preview');
   check(state.selected===second&&state.nodes.some(node=>node.id==='title-'+second),'keyboard selection retains the card information');
   const glow=state.nodes.find(node=>node.id==='glow-'+second).rect, selected=state.nodes.find(node=>node.id==='game-'+second).rect;
   check(glow.x<selected.x&&glow.y<selected.y&&glow.width>selected.width&&glow.height>selected.height,'selected border has an exterior bloom halo');
@@ -289,37 +605,38 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',...point,button:'none',buttons:0});
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',...point,deltaX:0,deltaY:360});await delay(40);
   const early=(await snapshot()).shelf;await delay(150);const later=(await snapshot()).shelf;
-  check(early.scrollY>0&&early.scrollY<350&&early.animating,'wheel input starts a smooth bounded animation');
-  check(later.scrollY>early.scrollY+5&&later.scrollY<361,'list continues moving after wheel input stops');
+  check(early.scrollX>0&&early.scrollX<350&&early.animating,'wheel input starts a smooth bounded horizontal animation');
+  check(later.scrollX>early.scrollX+5&&later.scrollX<361,'carousel continues moving after wheel input stops');
   await until('!__gameOS.shelf.animating','wheel inertia settles');
-  check(Math.abs((await snapshot()).shelf.scrollY-360)<1,'wheel scrolling settles without overshoot');
-  await clickDesktop(context,'category-puzzle');
-  check((await snapshot()).shelf.scrollY===0&&!(await snapshot()).shelf.animating,'filtering resets and cancels scroll momentum');
-  await clickDesktop(context,'category-all');
+  check(Math.abs((await snapshot()).shelf.scrollX-360)<1,'horizontal scrolling settles without overshoot');
+  await clickDesktop(context,'view-all');
+  check((await snapshot()).shelf.scrollX===0&&!(await snapshot()).shelf.animating,'returning to the library resets and cancels scroll momentum');
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(200);
   await evaluate(`window.__scrollEvents=[];for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])document.querySelector('canvas').addEventListener(type,event=>window.__scrollEvents.push({type:event.type,y:event.clientY,time:event.timeStamp}));`);
-  const mobileShelf=(await snapshot()).shelf, touchX=mobileShelf.x+mobileShelf.width/2, touchTime=Date.now()/1000;
-  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',timestamp:touchTime,touchPoints:[{x:touchX,y:mobileShelf.y+mobileShelf.height*.85,id:0}]});
+  const mobileShelf=(await snapshot()).shelf, touchY=mobileShelf.y+mobileShelf.height/2, touchTime=Date.now()/1000;
+  await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',timestamp:touchTime,touchPoints:[{x:mobileShelf.x+mobileShelf.width*.85,y:touchY,id:0}]});
   for(const [index,fraction] of [.72,.55,.35].entries()){
-    await delay(20);await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',timestamp:touchTime+(index+1)*.04,touchPoints:[{x:touchX,y:mobileShelf.y+mobileShelf.height*fraction,id:0}]});
+    await delay(20);await cdp.call('Input.dispatchTouchEvent',{type:'touchMove',timestamp:touchTime+(index+1)*.04,touchPoints:[{x:mobileShelf.x+mobileShelf.width*fraction,y:touchY,id:0}]});
   }
   await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',timestamp:touchTime+.14,touchPoints:[]});
-  const released=(await snapshot()).shelf.scrollY;await delay(120);const coasted=(await snapshot()).shelf.scrollY;
+  const released=(await snapshot()).shelf.scrollX;await delay(120);const coasted=(await snapshot()).shelf.scrollX;
   writeFileSync(resolve(output,'lobby-scroll-touch.json'),JSON.stringify({released,coasted,shelf:(await snapshot()).shelf,events:await evaluate('window.__scrollEvents')},null,2));
   check(coasted>released+1,'touch release also coasts with native Engine inertia');
   check(await evaluate('!__gameHost.route.game&&!document.querySelector("iframe")'),'scrolling across cards does not launch a game');
   await capture('lobby-scroll-momentum');
-  await clickDesktop(context,'category-all');
+  await clickDesktop(context,'view-all');
   await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await delay(100);
   const reducedShelf=(await snapshot()).shelf;
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',x:reducedShelf.x+reducedShelf.width/2,y:reducedShelf.y+reducedShelf.height/2,deltaX:0,deltaY:120});await delay(100);
-  check(Math.abs((await snapshot()).shelf.scrollY-120)<1&&!(await snapshot()).shelf.animating,'reduced motion keeps wheel scrolling immediate');
+  check(Math.abs((await snapshot()).shelf.scrollX-120)<1&&!(await snapshot()).shelf.animating,'reduced motion keeps horizontal wheel scrolling immediate');
   await cdp.call('Emulation.setEmulatedMedia',{features:[]});
 });
 
 for(const [name,fixture,expected]of[['lobby-root','index.html','/games/2048/index.html'],['lobby-published','artifacts/pages/index.html','/artifacts/pages/games/2048/index.html']]){
   await run(name,fixture,{verify:1},async(context)=>{
     const {evaluate,until,check,cdp}=context;
+    await until('__gameOS?.logo.loaded','entrypoint logo and favicon');
+    check(await evaluate('document.querySelector("link[rel=icon]").href===__gameOS.logo.url'),'entrypoint native logo and browser favicon share the same image URL');
     const requests=[];cdp.on('Network.requestWillBeSent',event=>requests.push(new URL(event.request.url).pathname));
     await cdp.call('Network.enable');
     await until(`__gameOS?.games.length===${catalogCount}&&__gameOS.frames>2`,'catalog resolves from entrypoint');
@@ -510,6 +827,35 @@ await run('sudoku-layout','games/sudoku/index.html',{gamepadVerify:1},async({eva
     const shot=await cdp.call('Page.captureScreenshot',{format:'png'});
     writeFileSync(resolve(output,'sudoku-layout-'+label+'.png'),Buffer.from(shot.result.data,'base64'));
   }
+});
+
+await run('return-dialog-ui','games/2048/index.html',{gamepadVerify:1},async({evaluate,until,pads,press,check,cdp})=>{
+  await until('window.__gameReturn?.snapshot().ready&&__gameReturn.snapshot().gameFrames>3','return dialog visual fixture');await pads();
+  const capture=async name=>{const bytes=Buffer.from((await cdp.call('Page.captureScreenshot',{format:'png'})).result.data,'base64');if(name)writeFileSync(resolve(output,name+'.png'),bytes);return decodePng(bytes);};
+  const point=async(choice,edge=false)=>evaluate(`(()=>{const s=__gameReturn.snapshot(),b=s.buttons.${choice},r=document.querySelector('canvas').getBoundingClientRect();return {x:r.x+(b.x+${edge?'12':'b.width/2'})*r.width/s.viewport.width,y:r.y+(b.y+b.height/2)*r.height/s.viewport.height};})()`);
+  for(const [width,height]of[[1440,900],[390,844],[844,390],[320,568],[844,240]]){
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});await delay(300);
+    await press(8);await until('__gameReturn.snapshot().active&&__gameReturn.snapshot().buttons.cancel.width>0','styled return modal');await delay(150);
+    const state=await evaluate('__gameReturn.snapshot()'),r=state.dialog,frames=state.gameFrames;
+    check(state.glass&&state.selected==='cancel'&&r.width<=480&&r.x>=0&&r.y>=0&&r.x+r.width<=state.viewport.width+1&&r.y+r.height<=state.viewport.height+1,`${width} glass return dialog is centered inside the visible canvas and defaults to continue`);
+    check(Object.values(state.buttons).every(b=>b.width>=90&&b.height>=34&&b.x>=r.x&&b.x+b.width<=r.x+r.width&&b.y>=r.y&&b.y+b.height<=r.y+r.height),`${width} both return actions have generous, unclipped hit regions`);
+    check(state.styles.cancel.radius===12&&state.styles.confirm.radius===12&&state.styles.cancel.background==='#bcefc8',`${width} return dialog uses the shared mint primary and glass secondary controls`);
+    const resting=await capture('return-dialog-'+width),sample=await point('cancel',true),target=await point('cancel');
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',...target,button:'none',buttons:0});await delay(230);
+    check(await evaluate('__gameReturn.snapshot().styles.cancel.hovered'),'return dialog receives native pointer hover while gameplay input is isolated');
+    const hovered=await capture(width===1440?'return-dialog-hover':null),offset=(Math.floor(sample.y)*hovered.width+Math.floor(sample.x))*4;
+    check([0,1,2].reduce((sum,c)=>sum+Math.abs(hovered.data[offset+c]-resting.data[offset+c]),0)>20,`${width} actual button pixels brighten on hover`);
+    await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...target,button:'left',buttons:1,clickCount:1});
+    check(await evaluate('__gameReturn.snapshot().styles.cancel.pressed'),'return action has a visible native pressed state');
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:2,y:2,button:'none',buttons:1});
+    await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',x:2,y:2,button:'left',buttons:0,clickCount:1});await delay(150);
+    check(await evaluate(`__gameReturn.snapshot().active&&__gameReturn.snapshot().paused&&__gameReturn.snapshot().gameFrames===${frames}&&!__gameReturn.snapshot().styles.cancel.pressed`),'dragging off an action cancels the click and GUI animation never resumes gameplay');
+    await desktopKey(cdp,'Escape','Escape',27);await until('!__gameReturn.snapshot().active','keyboard cancels return dialog');
+  }
+  await pads();await press(8);await until('__gameReturn.snapshot().active','reduced motion return dialog');
+  await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await delay(150);
+  check(await evaluate('__gameReturn.snapshot().styles.cancel.duration===0&&__gameReturn.snapshot().styles.confirm.duration===0'),'return dialog respects reduced-motion settings');
+  await desktopKey(cdp,'Enter','Enter',13);check(await evaluate('!__gameReturn.snapshot().active&&!__gameReturn.snapshot().paused'),'Enter on the default action resumes the game');
 });
 
 await run('tank-return','games/tank-battle/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
@@ -743,6 +1089,8 @@ for (const game of ['sudoku', 'tank-battle', 'mugen']) await run('notifications-
   await pads([{buttons:[0]}]);
   await until('window.__controllerNotifications?.some(n=>n.text==="手柄 1 已连接")', 'held input still reports connection');
   check(true,'connection does not wait for neutral controls');
+  await until('__controllerNotifications[0]?.opacity===1','game notification finishes its entrance');
+  check(await evaluate('__controllerNotifications[0].appearance==="glass"&&__controllerNotifications[0].icon&&__controllerNotifications[0].accent==="#9ff3d5"'),'game overlay uses the shared glass notification skin and controller icon');
   await evaluate('(()=>{const e=new Event("gamepadconnected");Object.defineProperty(e,"gamepad",{value:__pads[0]});dispatchEvent(e)})()');
   check(await evaluate('__controllerNotifications.length')===1,'native event and polling do not duplicate notifications');
   await pads();
@@ -760,6 +1108,10 @@ for (const game of ['sudoku', 'tank-battle', 'mugen']) await run('notifications-
   await press(8);await until('__gameReturn.snapshot().active','return dialog pauses game');
   await pads([]);
   await until('__gameReturn.snapshot().notifications.some(n=>n.text==="手柄 1 已断开")','disconnect notification inside pause dialog');
+  check(await evaluate('__gameReturn.snapshot().notifications.some(n=>!n.connected&&n.appearance==="glass"&&n.accent==="#ffc58b")'),'pause dialog uses the same amber disconnect notification');
+  await until('__gameReturn.snapshot().notifications.every(n=>n.opacity===1)','paused notifications finish entering');
+  check(await evaluate('__gameReturn.snapshot().notifications.every(n=>n.rect.width>100&&n.rect.height>30)'),'modal lays out every foreground notification with a visible rectangle');
+  const pausedShot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`notifications-${game}-paused.png`),Buffer.from(pausedShot.result.data,'base64'));
   const frames=await evaluate('__gameReturn.snapshot().gameFrames');
   await delay(5200);
   check(await evaluate('__gameReturn.snapshot().notifications.length')===0,'notification expires while gameplay remains paused');
@@ -773,17 +1125,38 @@ await run('notifications-lobby','site/index.html',{verify:1},async({evaluate,unt
   await until('__gameOS?.ready&&__gameOS.frames>2','Engine notification surface ready');
   await pads([{buttons:[0]}]);
   check(await evaluate('__gameOS.notices.length')===1,'homepage reports connection even while a button is held');
-  check(await evaluate('__gameOS.nodes.find(node=>node.id==="input-status").text.includes("已连接")'),'homepage status follows physical connection');
+  check(await evaluate('__gameOS.nodes.some(node=>node.id==="notice-0"&&node.text==="手柄 1 已连接")'),'homepage native notification follows physical connection');
   check(await evaluate('!document.querySelector("hy-notification,button,nav")'),'homepage notification uses native Engine GUI');
+  await until('__gameOS.notifications[0]?.opacity===1','notification finishes its entrance');
+  check(await evaluate('__gameOS.notifications[0].appearance==="glass"&&__gameOS.notifications[0].icon&&__gameOS.notifications[0].detail.length>0&&__gameOS.notifications[0].accent==="#9ff3d5"&&__gameOS.notifications[0].pointerFilter==="ignore"'),'native lobby notice includes the glass skin, controller icon, supporting text and mint status');
+  const remaining=await evaluate('__gameOS.notifications[0].remaining');await delay(250);
+  check(await evaluate(`__gameOS.notifications[0].remaining<${remaining}`),'countdown advances in real time');
   const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'notifications-lobby-connected.png'),Buffer.from(shot.result.data,'base64'));
   await delay(5200);
   check(await evaluate('__gameOS.notices.length')===0,'homepage connection notification expires after five seconds');
   await pads([]);
   check(await evaluate('__gameOS.notices.some(notice=>notice.message==="手柄 1 已断开")'),'homepage reports disconnect');
+  await until('__gameOS.notifications[0]?.opacity===1&&!__gameOS.notifications[0].connected','disconnected notice finishes its entrance');
+  check(await evaluate('__gameOS.notifications[0].accent==="#ffc58b"&&__gameOS.notifications[0].detail.includes("重新连接")'),'disconnect uses a warm amber accent and reconnection hint');
+  const disconnected=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'notifications-lobby-disconnected.png'),Buffer.from(disconnected.result.data,'base64'));
   await pads([{buttons:[0]}]);
   check(await evaluate('__gameOS.notices.length')===1,'rapid reconnect replaces the previous notification');
   await pads([]);await delay(5200);
   check(await evaluate('__gameOS.notices.length')===0,'homepage disconnect notification also expires');
+  for(const [width,height] of [[390,844],[640,360],[320,568]]){
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pads([{}, {}, {}, {}]);
+    await until('__gameOS.notifications.length===4&&__gameOS.notifications.every(n=>n.opacity===1)','four notices finish entering');
+    check(await evaluate(`__gameOS.notifications.every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=${width}&&n.rect.y+n.rect.height<=${height})`),`${width}x${height} stacks four notices within the viewport`);
+    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`notifications-lobby-${width}x${height}.png`),Buffer.from(shot.result.data,'base64'));
+    if(width===640){
+      const state=await evaluate('__gameOS'),pixels=decodePng(Buffer.from(shot.result.data,'base64')),notice=state.notifications[2],x=Math.round(state.shelf.x+state.shelf.width),y=Math.floor(notice.rect.y+notice.rect.height*.65);
+      const delta=[0,1,2].reduce((total,channel)=>total+Math.abs(pixels.data[(y*pixels.width+x-2)*4+channel]-pixels.data[(y*pixels.width+x+2)*4+channel]),0);
+      check(delta<20,'notification glass remains continuous where it crosses the carousel edge fade');
+    }
+    await pads([]);
+  }
+  await cdp.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await pads([{}]);
+  check(await evaluate('__gameOS.notifications.every(n=>n.opacity===1)'),'reduced motion presents notices without slide or fade');
 });
 
 await run('notifications-startup','games/tank-battle/index.html',{gamepadVerify:1},async({evaluate,until,check,cdp})=>{

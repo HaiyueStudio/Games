@@ -21,6 +21,7 @@ export interface GameHostOptions {
   mode?: 'screen' | 'texture';
   width?: number;
   height?: number;
+  volume?: { readonly level: number; subscribe(listener: (level: number) => void): () => void };
   signal?: AbortSignal;
   onProgress?: (progress: GameProgress) => void;
   onHome?: () => void;
@@ -46,6 +47,8 @@ export interface MountedGame {
   readonly viewport: { x: number; y: number; width: number; height: number };
   readonly debug: Record<string, unknown>;
   readonly disposed: boolean;
+  readonly audio: { level: number; contexts: number; gains: number[] };
+  setVolume(level: number): void;
   presentFrame(): HTMLCanvasElement | null;
   resize(width: number, height: number): void;
   pause(): void;

@@ -1,0 +1,17 @@
+info face="MoJing Ink Brush" size=418 bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=0,0
+common lineHeight=418 base=398 scaleW=1254 scaleH=1254 pages=1 packed=0
+page id=0 file="digits.png"
+chars count=12
+char id=48 x=62 y=102 width=230 height=309 xoffset=42 yoffset=89 xadvance=314 page=0 chnl=15
+char id=49 x=386 y=90 width=163 height=328 xoffset=76 yoffset=70 xadvance=314 page=0 chnl=15
+char id=50 x=642 y=100 width=263 height=304 xoffset=26 yoffset=94 xadvance=314 page=0 chnl=15
+char id=51 x=952 y=94 width=253 height=309 xoffset=31 yoffset=89 xadvance=314 page=0 chnl=15
+char id=52 x=61 y=484 width=253 height=334 xoffset=31 yoffset=64 xadvance=314 page=0 chnl=15
+char id=53 x=368 y=506 width=237 height=293 xoffset=39 yoffset=105 xadvance=314 page=0 chnl=15
+char id=54 x=667 y=497 width=219 height=305 xoffset=48 yoffset=93 xadvance=314 page=0 chnl=15
+char id=55 x=968 y=508 width=237 height=311 xoffset=39 yoffset=87 xadvance=314 page=0 chnl=15
+char id=56 x=82 y=879 width=206 height=296 xoffset=54 yoffset=102 xadvance=314 page=0 chnl=15
+char id=57 x=380 y=870 width=209 height=315 xoffset=53 yoffset=83 xadvance=314 page=0 chnl=15
+char id=43 x=673 y=905 width=265 height=274 xoffset=25 yoffset=124 xadvance=314 page=0 chnl=15
+char id=47 x=996 y=886 width=196 height=290 xoffset=59 yoffset=108 xadvance=314 page=0 chnl=15
+kernings count=0

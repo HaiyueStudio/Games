@@ -3,6 +3,7 @@ import { deviceMediaMatches } from './styles';
 import { isGameCancellation } from './cancellation';
 import { canPresentGame } from './readiness';
 import { resizeGameViewport } from './viewport';
+import { GameAudio } from './GameAudio';
 
 export class GameScope {
   readonly controller = new AbortController();
@@ -11,6 +12,7 @@ export class GameScope {
   readonly bridge: GameBridge;
   readonly environment: GameEnvironment;
   readonly ready: Promise<void>;
+  readonly audio = new GameAudio();
   engine: HostedEngine | null = null;
   disposed = false;
   private readonly frames = new Set<number>();
@@ -30,6 +32,8 @@ export class GameScope {
   private resolveReady!: () => void;
   private rejectReady!: (reason: unknown) => void;
   constructor(readonly options: GameHostOptions, readonly body: HTMLElement, readonly tree: Document | ShadowRoot, readonly moduleUrl: string, readonly pageUrl: string) {
+    this.audio.setVolume(options.volume?.level ?? 1); this.own(() => this.audio.destroy());
+    if (options.volume) this.own(options.volume.subscribe(level => this.audio.setVolume(level)));
     this.ready = new Promise((resolve, reject) => { this.resolveReady = resolve; this.rejectReady = reject; });
     void this.ready.catch(() => {});
     this.bridge = { signal: this.controller.signal, mode: options.mode ?? 'screen', own: cleanup => this.own(cleanup), engine: engine => { this.engine = engine; this.own(() => engine.destroy()); },
@@ -167,7 +171,15 @@ export class GameScope {
       override set src(value: string) { super.src = new URL(value, page).href; }
       override async decode(): Promise<void> { try { await super.decode(); scope.controller.signal.throwIfAborted(); } catch (error) { scope.controller.signal.throwIfAborted(); throw error; } }
     }
-    class ScopedAudioContext extends AudioContext { constructor(settings?: AudioContextOptions) { super(settings); scope.own(() => { if (this.state !== 'closed') void this.close().catch(() => {}); }); } }
+    class ScopedAudioContext extends AudioContext {
+      private readonly output: GainNode;
+      constructor(settings?: AudioContextOptions) {
+        super(settings);
+        scope.own(() => { if (this.state !== 'closed') void this.close().catch(() => {}); });
+        this.output = scope.audio.attach(this, super.destination);
+      }
+      override get destination(): AudioDestinationNode { return this.output as unknown as AudioDestinationNode; }
+    }
     const NativeEvent = Event, NativeKeyboardEvent = KeyboardEvent, NativePointerEvent = PointerEvent, NativeMouseEvent = MouseEvent, NativeWheelEvent = WheelEvent;
     class ScopedEvent extends NativeEvent { constructor(type: string, settings?: EventInit) { super(type, { composed: true, ...settings }); } static [Symbol.hasInstance](event: unknown) { return event instanceof NativeEvent; } }
     class ScopedKeyboardEvent extends NativeKeyboardEvent { constructor(type: string, settings?: KeyboardEventInit) { super(type, { composed: true, ...settings }); } static [Symbol.hasInstance](event: unknown) { return event instanceof NativeKeyboardEvent; } }

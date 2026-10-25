@@ -8,7 +8,7 @@
       "title": "玻璃疾驰 / Glass Rush",
       "entry": "glass-rush/main.ts",
       "capabilities": ["3d", "input", "gui", "shader", "geometry", "animation", "audio", "save", "gamepad"],
-      "assets": ["glass-rush/assets/audio/music.wav", "glass-rush/assets/audio/impact.wav", "glass-rush/assets/audio/shatter.wav", "glass-rush/assets/audio/generation.json"],
+      "assets": ["glass-rush/assets/audio/music.wav", "glass-rush/assets/audio/impact.wav", "glass-rush/assets/audio/shatter.wav", "glass-rush/assets/audio/generation.json", "glass-rush/assets/ui/music.svg", "glass-rush/assets/ui/music-off.svg", "glass-rush/assets/ui/pause.svg", "glass-rush/assets/ui/play.svg", "glass-rush/assets/ui/life.svg", "glass-rush/assets/ui/life-empty.svg", "glass-rush/assets/ui/button-icon.svg", "glass-rush/assets/ui/button-primary.svg", "glass-rush/assets/ui/hud-chip.svg", "glass-rush/assets/ui/leaderboard.svg"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"
@@ -84,7 +84,7 @@
         "3d",
         "3d-physics",
         "pbr-workflow",
-        "input", "gamepad"
+        "input", "gamepad", "audio"
       ],
       "assets": [],
       "screenshot": {
@@ -136,14 +136,24 @@
     },
     {
       "id": "entanglement-path",
-      "thumbnail": "screenshots/entanglement-path.webp",
-      "title": "entanglement path",
+      "thumbnail": "screenshots/entanglement-path-ink.png",
+      "title": "阡陌交通",
       "entry": "entanglement-path/main.ts",
       "capabilities": [
         "2d",
         "game-workflow", "gamepad"
       ],
-      "assets": [],
+      "assets": [
+        "entanglement-path/assets/ink/scroll-landscape.png",
+        "entanglement-path/assets/ink/ui-atlas.png",
+        "entanglement-path/assets/ink/title-qianmo.png",
+        "entanglement-path/assets/ink/title-qianmo-reference.png",
+        "entanglement-path/assets/ink/title-qianmo-generation.json",
+        "entanglement-path/assets/ink/digits.png",
+        "entanglement-path/assets/ink/digits.json",
+        "entanglement-path/assets/ink/digits.fnt",
+        "entanglement-path/assets/ink/art-direction.json"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -340,7 +350,7 @@
     },
     {
       "id": "mugen",
-      "thumbnail": "screenshots/mugen-viewer.svg",
+      "thumbnail": "screenshots/mugen.webp",
       "title": "Haiyue MUGEN Fight",
       "entry": "mugen/main.ts",
       "capabilities": [

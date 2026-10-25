@@ -1,7 +1,7 @@
 import type { HaiyueEngine } from '@haiyue/engine';
 import { System, type World } from '@haiyue/engine/ecs';
 import { beginRenderCommandPass, type RenderCommandContext } from '@haiyue/engine/extension-authoring';
-import type { Gate, Round } from '../rules/model';
+import { GATE_SHAPES, type Gate, type Round } from '../rules/model';
 import { createBallFragments, createGateFragments, fragmentsShader, type FragmentMesh } from './Fragments';
 
 const shader = /* wgsl */`
@@ -12,7 +12,8 @@ struct Params { size:vec2f, time:f32, distance:f32, angle:f32, hits:f32, flash:f
 }
 fn bend(z:f32)->vec2f { let d=u.distance;return vec2f(sin((d+z)*.018)-sin(d*.018),cos((d+z)*.023)-cos(d*.023))*.45*z/(z+12.0); }
 fn line(x:f32,width:f32)->f32 { return exp(-abs(x)/max(width,.0001)); }
-@fragment fn fs(@builtin(position) pixel:vec4f)->@location(0) vec4f {
+struct Surface { @location(0) color:vec4f, @builtin(frag_depth) depth:f32 }
+@fragment fn fs(@builtin(position) pixel:vec4f)->Surface {
  let p=(pixel.xy/u.size*2.0-1.0)*vec2f(u.size.x/u.size.y,1);
  // Find the first wall intersection. A fixed-point solve folds distant bends over each other.
  var near=0.0;var far=180.0;
@@ -54,7 +55,9 @@ fn line(x:f32,width:f32)->f32 { return exp(-abs(x)/max(width,.0001)); }
  let impact=u.flash/.6;let shock=abs(length(p-vec2f(0,.65))-(.6-u.flash)*1.8-.08);
  color+=vec3f(1,.3,.4)*line(shock,.012)*impact*.8+impact*vec3f(.14,.015,.025);
  color*=1.0-.22*smoothstep(.3,1.6,length(p));
- return vec4f(1.0-exp(-max(color,vec3f(0))*1.3),1);
+ var out:Surface;out.color=vec4f(1.0-exp(-max(color,vec3f(0))*1.3),1);
+ // Match the geometry's camera projection: an opaque wall owns the nearest depth.
+ out.depth=1.0-.15/(z+4.0);return out;
 }`;
 
 const MAX_ITEMS = 41; // 32 live gates, eight bounded impacts, one ball.
@@ -77,12 +80,12 @@ export class Tunnel extends System {
       const info = await module.getCompilationInfo(), errors = info.messages.filter(m => m.type === 'error');
       if (errors.length) throw new Error(errors.map(m => m.message).join('\n'));
     }
-    this.pipeline = device.createRenderPipeline({ layout: 'auto', vertex: { module: modules[0]!, entryPoint: 'vs' }, fragment: { module: modules[0]!, entryPoint: 'fs', targets: [{ format: this.engine.format }] }, multisample: { count: this.engine.msaaSamples } });
+    this.pipeline = device.createRenderPipeline({ layout: 'auto', vertex: { module: modules[0]!, entryPoint: 'vs' }, fragment: { module: modules[0]!, entryPoint: 'fs', targets: [{ format: this.engine.format }] }, depthStencil: { format: this.engine.getDepthFormat(false), depthWriteEnabled: true, depthCompare: 'always' }, multisample: { count: this.engine.msaaSamples } });
     this.fragments = device.createRenderPipeline({
       layout: 'auto',
       vertex: { module: modules[1]!, entryPoint: 'vs', buffers: [{ arrayStride: 48, attributes: [0, 1, 2, 3].map(i => ({ shaderLocation: i, offset: i * 12, format: 'float32x3' as GPUVertexFormat })) }] },
       fragment: { module: modules[1]!, entryPoint: 'fs', targets: [{ format: this.engine.format, blend: { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } }] },
-      primitive: { cullMode: 'none' }, multisample: { count: this.engine.msaaSamples },
+      primitive: { cullMode: 'none' }, depthStencil: { format: this.engine.getDepthFormat(false), depthWriteEnabled: false, depthCompare: 'less-equal' }, multisample: { count: this.engine.msaaSamples },
     });
     this.uniform = device.createBuffer({ label: 'Glass Rush uniforms', size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.items = device.createBuffer({ label: 'Glass Rush bounded effects', size: this.itemData.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -101,7 +104,7 @@ export class Tunnel extends System {
     const add = (gate: Gate, z: number, angle: number, age: number, impact: number): void => {
       let mesh = this.meshes.get(gate);
       if (!mesh) { mesh = createGateFragments(this.engine.device, gate); this.meshes.set(gate, mesh); }
-      this.itemData.set([z, angle, age, 0, impact, ['arc', 'split', 'crown', 'diamonds'].indexOf(gate.shape), gate.width, 0], draws.length * 8);
+      this.itemData.set([z, angle, age, 0, impact, GATE_SHAPES.indexOf(gate.shape), gate.width, age < 0 ? gate.spin : 0], draws.length * 8);
       draws.push(mesh);
     };
     for (const gate of live) add(gate, gate.z, gate.angle, -1, 0);

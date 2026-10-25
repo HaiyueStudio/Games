@@ -32,7 +32,8 @@ const result = await runChromeWebGpuFixture({ root, fixture: 'site/index.html', 
     };
     const until = async (expression, label) => {
       for (let attempt = 0; attempt < 450; attempt++) { if (await evaluate(expression)) return; await delay(100); }
-      throw new Error('Timed out: ' + label);
+      const state = await evaluate('JSON.stringify({route:__gameHost.route,id:__gameHost.id,phase:__gameHost.phase,status:__gameHost.simulator?.status,home:__gameHost.simulator?.simulatorHome})');
+      throw new Error('Timed out: ' + label + '\n' + state);
     };
     const check = (condition, label) => { assert.ok(condition, label); checks.push(label); };
     const click = async id => {
@@ -44,6 +45,9 @@ const result = await runChromeWebGpuFixture({ root, fixture: 'site/index.html', 
     };
     const screenshot = async name => { const capture = await cdp.call('Page.captureScreenshot', { format: 'png' }); writeFileSync(resolve(output, name + '.png'), Buffer.from(capture.result.data, 'base64')); };
     const orient = orientation => rotateSimulatorCamera({ evaluate, cdp, until }, orientation);
+    const moveRows = async (key, count) => {
+      for (let row = 0; row < count; row++) for (const type of ['keyDown', 'keyUp']) await cdp.call('Input.dispatchKeyEvent', { type, key, code: key });
+    };
     await until('window.__gameHost?.simulator?.status==="home"&&__gameHost.simulator.frames>4', '3D home');
     check(await evaluate('__gameHost.simulator.mesh&&!__gameOS.running&&!document.querySelector("iframe")'), 'device home uses an independent 3D mesh and Engine-rendered screen');
     await evaluate('window.__persistentDevice=haiyueGameOS.simulator;true');
@@ -105,27 +109,53 @@ const result = await runChromeWebGpuFixture({ root, fixture: 'site/index.html', 
     await click('sim-reset');
     await until(`Math.abs(__gameHost.simulator.camera.theta-${original.theta})<.001`, 'camera reset');
 
-    for (const mode of modes) for (const id of cases) {
-      await evaluate(`haiyueGameOS.navigate(${JSON.stringify(id)},${JSON.stringify(mode)});true`);
-      await until(`__gameHost.id===${JSON.stringify(id)}&&__gameHost.phase==="playing"&&__gameHost.simulator.status==="playing"`, id + ' in ' + mode);
-      await delay(200);
-      const pixels = await evaluate('haiyueGameOS.simulator.pixels()');
-      check(pixels.colors > 20 && pixels.gameColors > 20, `${id} ${mode} has real game pixels, not only the shader wallpaper`);
-      if (id === 'pinball') check(pixels.colors > 500 && pixels.layerColors.some(colors => colors > 500) && await evaluate('__gameHost.simulator.layers>=1'), `pinball ${mode} preserves notebook art and the scene below its transparent HUD`);
-      check(await evaluate('!!haiyueGameOS.game.texture&&haiyueGameOS.game.engine.state==="ready"'), `${id} ${mode} owns a live game target`);
-      await screenshot(mode + '-' + id); records.push({ id, mode, orientation: 'portrait', pixels });
-      await evaluate('window.__rotationGame=haiyueGameOS.game;true');
-      await orient('landscape'); await delay(100);
-      const landscape = await evaluate('haiyueGameOS.simulator.pixels()');
-      check(landscape.width > landscape.height && landscape.colors > 20 && landscape.gameColors > 20, `${id} ${mode} landscape RTT contains actual game pixels`);
-      check(await evaluate('haiyueGameOS.game===__rotationGame&&__gameHost.simulator.status==="playing"'), `${id} ${mode} rotation retains the mounted game instead of restarting it`);
-      await screenshot(mode + '-landscape-' + id); records.push({ id, mode, orientation: 'landscape', pixels: landscape });
-      await evaluate('window.__previousEngine=haiyueGameOS.game.engine;true');
-      await click('sim-home'); await until('__gameHost.simulator.status==="home"&&!__gameHost.mounted', 'physical Home key after ' + id);
-      check(await evaluate('__previousEngine.state==="destroyed"'), `${id} ${mode} physical Home disposes the source engine`);
-      check(await evaluate('__gameHost.simulator.orientation==="landscape"'), `${id} ${mode} physical Home retains the rotated chassis`);
-      await orient('portrait');
-      console.log(`${id} ${mode}: ${pixels.colors} portrait / ${landscape.colors} landscape colors, physical Home returned`);
+    for (const mode of modes) {
+      await evaluate(`haiyueGameOS.navigate(null,${JSON.stringify(mode)});true`);
+      await until(`__gameHost.simulator?.mode===${JSON.stringify(mode)}&&__gameHost.simulator.status==="home"&&__gameHost.simulator.frames>4`, mode + ' icon grid');
+      const home = await evaluate('__gameHost.simulator.simulatorHome'), capacity = mode === 'phone' ? 28 : 20;
+      check(home.columns === 4 && home.rows === (mode === 'phone' ? 7 : 5) && home.capacity === capacity && home.pages === Math.ceil(catalog.length / capacity), `${mode} portrait home has the requested dense grid and capacity-based pagination`);
+      check(await evaluate('__gameHost.simulator.chassis.thickness===.24*.75&&__gameHost.simulator.simulatorHome.iconShape==="rounded-rectangle"'), `${mode} uses the thinner chassis and rounded icon textures`);
+      if (mode === 'phone') check(await evaluate('__gameHost.simulator.chassis.fullScreen&&__gameHost.simulator.chassis.screenCoverage>.93&&__gameHost.simulator.nodes.find(node=>node.id==="sim-home").type==="GuiElement"'), 'phone glass is edge-to-edge and Home lives inside the screen');
+      await screenshot(mode + '-home-portrait');
+      const iconIds = await evaluate('__gameHost.simulator.nodes.filter(node=>node.id.startsWith("sim-icon-")).map(node=>node.id)');
+      const lastId = iconIds[capacity - 1].slice('sim-icon-'.length);
+      await click(iconIds[capacity - 1]); await until(`__gameHost.id===${JSON.stringify(lastId)}&&__gameHost.simulator.status==="playing"`, mode + ' last row icon hit');
+      check(await evaluate(`__gameHost.id===${JSON.stringify(lastId)}`), `${mode} last row icon launches the correct game through perspective touch`);
+      await click('sim-home'); await until('__gameHost.simulator.status==="home"', mode + ' last row Home');
+      await moveRows('ArrowDown', home.rows);
+      await until('__gameHost.simulator.simulatorHome.page===1&&Math.abs(__gameHost.simulator.simulatorHome.offset-1)<.001', mode + ' keyboard pagination');
+      await screenshot(mode + '-home-page-two');
+      const nextId = iconIds[capacity].slice('sim-icon-'.length);
+      await click(iconIds[capacity]); await until(`__gameHost.id===${JSON.stringify(nextId)}&&__gameHost.simulator.status==="playing"`, mode + ' page two icon hit');
+      check(await evaluate(`__gameHost.id===${JSON.stringify(nextId)}`), `${mode} second-page icon input uses its actual page capacity`);
+      await click('sim-home'); await until('__gameHost.simulator.status==="home"', mode + ' page two Home');
+      await moveRows('ArrowUp', home.rows);
+      await until('__gameHost.simulator.simulatorHome.page===0&&__gameHost.simulator.simulatorHome.offset===0', mode + ' return first page');
+      await orient('landscape');
+      check(await evaluate(`__gameHost.simulator.simulatorHome.columns===${mode === 'phone' ? 7 : 5}&&__gameHost.simulator.simulatorHome.rows===4&&__gameHost.simulator.simulatorHome.capacity===${capacity}`), `${mode} landscape transposes the grid without changing pagination`);
+      await screenshot(mode + '-home-landscape'); await orient('portrait');
+      for (const id of cases) {
+        await evaluate(`haiyueGameOS.navigate(${JSON.stringify(id)},${JSON.stringify(mode)});true`);
+        await until(`__gameHost.id===${JSON.stringify(id)}&&__gameHost.phase==="playing"&&__gameHost.simulator.status==="playing"`, id + ' in ' + mode);
+        await delay(200);
+        const pixels = await evaluate('haiyueGameOS.simulator.pixels()');
+        check(pixels.colors > 20 && pixels.gameColors > 20, `${id} ${mode} has real game pixels, not only the shader wallpaper`);
+        if (id === 'pinball') check(pixels.colors > 500 && pixels.layerColors.some(colors => colors > 500) && await evaluate('__gameHost.simulator.layers>=1'), `pinball ${mode} preserves notebook art and the scene below its transparent HUD`);
+        check(await evaluate('!!haiyueGameOS.game.texture&&haiyueGameOS.game.engine.state==="ready"'), `${id} ${mode} owns a live game target`);
+        await screenshot(mode + '-' + id); records.push({ id, mode, orientation: 'portrait', pixels });
+        await evaluate('window.__rotationGame=haiyueGameOS.game;true');
+        await orient('landscape'); await delay(100);
+        const landscape = await evaluate('haiyueGameOS.simulator.pixels()');
+        check(landscape.width > landscape.height && landscape.colors > 20 && landscape.gameColors > 20, `${id} ${mode} landscape RTT contains actual game pixels`);
+        check(await evaluate('haiyueGameOS.game===__rotationGame&&__gameHost.simulator.status==="playing"'), `${id} ${mode} rotation retains the mounted game instead of restarting it`);
+        await screenshot(mode + '-landscape-' + id); records.push({ id, mode, orientation: 'landscape', pixels: landscape });
+        await evaluate('window.__previousEngine=haiyueGameOS.game.engine;true');
+        await click('sim-home'); await until('__gameHost.simulator.status==="home"&&!__gameHost.mounted', 'Home key after ' + id);
+        check(await evaluate('__previousEngine.state==="destroyed"'), `${id} ${mode} Home disposes the source engine`);
+        check(await evaluate('__gameHost.simulator.orientation==="landscape"'), `${id} ${mode} Home retains the rotated chassis`);
+        await orient('portrait');
+        console.log(`${id} ${mode}: ${pixels.colors} portrait / ${landscape.colors} landscape colors, Home returned`);
+      }
     }
     for (const [width, height] of [[390, 844], [844, 390]]) {
       await cdp.call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false }); await delay(300);
