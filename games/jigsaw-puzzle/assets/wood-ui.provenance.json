@@ -1,0 +1,9 @@
+{
+  "mode": "built-in image_gen",
+  "source": "exec-b982b484-a2b8-4ea5-aca3-ec782350d0f1.png",
+  "asset": "wood-ui.png",
+  "width": 1536,
+  "height": 1024,
+  "sha256": "1c7b5250329038edd63db088267ecf793b4ff83a4ff9d8d252e6e9af6299d0ba",
+  "prompt": "Use case: stylized-concept. Asset type: production game GUI nine-slice texture atlas, exactly 1536 by 1024 pixels, four horizontal rows each exactly 256 pixels tall. Primary request: a warm handcrafted wooden jigsaw puzzle interface, tactile polished real wood, elegant small bevels. Each row is ONE complete horizontal rectangular wooden panel filling its entire 1536 x 256 row with NO outside margin and NO gaps between rows. Row 1 (y=0..255): rich dark walnut panel for toolbar, subtle horizontal flowing wood grain, dark brown central surface, thin bevel along all four outer edges. Row 2 (y=256..511): medium warm chestnut panel for ordinary buttons, softly detailed horizontal wood grain, gently raised beveled edges, quiet clean central area for later text. Row 3 (y=512..767): golden honey oak panel for primary buttons, refined visible warm grain and a warm brass-colored thin inlay along the border, clean empty center. Row 4 (y=768..1023): deeper warm brown recessed wood panel for pressed buttons, subtle bevel and wood grain. Materials: natural fine wood pores, restrained glossy edge highlights, softly worn handmade furniture, realistic detailed diffuse surface, straight-on orthographic view. Each rectangle has small rounded corners of about 16 pixels. Keep all bevel/inlay border detail within the outer 24 pixels of each rectangle, leaving centers nearly uniform in brightness with subtle wood grain. Absolutely no text, lettering, labels, icons, screws, ornaments, objects, mockup, perspective, watermark, or drop shadows outside the panels. Opaque image, entire atlas filled by the four panels, precise aligned rows."
+}

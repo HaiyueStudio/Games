@@ -1,0 +1,34 @@
+{
+  "generator": "node --experimental-strip-types scripts/generate-jigsaw-audio.mjs",
+  "version": 1,
+  "method": "Original deterministic offline synthesis, modal wood percussion and a four-note rising completion chime; no third-party samples.",
+  "sampleRate": 24000,
+  "channels": 1,
+  "bits": 16,
+  "effects": [
+    {
+      "id": "ui-click",
+      "seconds": 0.095,
+      "bytes": 4604,
+      "sha256": "a1dc9962bdd0b129d5d5e8665f6ebb6ba701a4ff983528e15af897930edc43cc"
+    },
+    {
+      "id": "piece-click",
+      "seconds": 0.14,
+      "bytes": 6764,
+      "sha256": "5a2018e589c320b07d2f41bda007af65321ed71f52bce9f0df0061a5b99d4f66"
+    },
+    {
+      "id": "snap",
+      "seconds": 0.24,
+      "bytes": 11564,
+      "sha256": "18853cf7b6395b18de6b70987b1cd430dd124f50bb7a1c1074b3136240d3d77c"
+    },
+    {
+      "id": "complete",
+      "seconds": 1.25,
+      "bytes": 60044,
+      "sha256": "d038ae3c9e3230251fc2ca5b61770ce628508cf9f6330f95a2e3ca15aea66daa"
+    }
+  ]
+}

@@ -1,25 +1,45 @@
 import { World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
+import { IndexedDbSaveBackend } from '@haiyue/engine/save';
 import { GameEngine } from '../../session/GameEngine';
 import { gameSession } from '../../session/SessionPause';
 import { guardQueuedPointerCapture } from '../../shared/input/pointerCapture';
-import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
+import { SingleSlotGameSave, type AutoSaveStatus } from '../../save/SingleSlotGameSave';
 import { isJigsawPreferences, type JigsawPreferences } from '../save/preferences';
-import { createPuzzle, groupCenter, pieceCenter, puzzleBounds, rotateGroup, snapGroup, type Group, type Point } from '../rules/model';
+import { captureJigsawSave, isJigsawSaveData, restoreJigsawPuzzle, type JigsawSaveData, type JigsawSavedImage } from '../save/saveState';
+import { arrangeGroups, createPuzzle, pieceCenter, puzzleBounds, rotateGroup, snapGroup, type Group, type Point } from '../rules/model';
 import { JigsawScene, project, unproject, type DeskView } from '../rendering/JigsawScene';
 import { createPieceTextures, loadImage } from '../rendering/images';
 import { JigsawHud, type Action } from '../ui/JigsawHud';
+import { loadWoodUi } from '../ui/woodSkin';
+import { JigsawAudio } from '../audio/JigsawAudio';
+import { JigsawBrowserAudio } from '../audio/browser';
+import { createWoodDeskTexture } from '../rendering/woodDesk';
 
 export class JigsawGame {
   private readonly engine: GameEngine;
   private hudWorld = new World('Jigsaw GUI');
   private readonly lifetime = new AbortController();
+  private readonly audioBackend = new JigsawBrowserAudio();
+  private readonly audio = new JigsawAudio(this.audioBackend);
+  private unregisterSession: (() => void) | null = null;
   private readonly preferences = new SingleSlotGameSave<JigsawPreferences>({ gameId: 'jigsaw-puzzle', name: '拾光拼图设置', validateData: isJigsawPreferences });
+  private readonly saveBackend = new IndexedDbSaveBackend();
+  private saveStatus: AutoSaveStatus = 'idle';
+  private readonly saves = new SingleSlotGameSave<JigsawSaveData>({ gameId: 'jigsaw-puzzle', name: '拾光拼图进度', backend: this.saveBackend,
+    validateData: isJigsawSaveData, onStatus: status => {
+      this.saveStatus = status;
+      if (!this.disposed) this.hud?.setSaveStatus(status);
+    } });
   private readonly observer: ResizeObserver;
   private readonly restorePointerCapture: () => void;
   private hud!: JigsawHud;
+  private wood!: HTMLImageElement;
+  private deskTexture!: HTMLCanvasElement;
   private scene: JigsawScene | null = null;
   private image!: HTMLCanvasElement;
+  private savedImage: JigsawSavedImage | null = null;
+  private seed = 0;
   private selected: Group | null = null;
   private view: DeskView = { x: 0, y: 0, width: 1, height: 1, center: { x: 0, y: 0 }, scale: 1 };
   private fitScale = 1;
@@ -29,45 +49,61 @@ export class JigsawGame {
   private drag: { id: number; group: Group | null; offset: Point; last: Point; before: Point & { angle?: number } } | null = null;
   constructor(private readonly canvas: HTMLCanvasElement, private readonly upload: HTMLInputElement) {
     this.restorePointerCapture = guardQueuedPointerCapture(canvas);
-    this.engine = new GameEngine({ canvas, msaaSamples: 4, clearColor: { r: .89, g: .89, b: .84, a: 1 }, devicePixelRatio: () => Math.min(devicePixelRatio || 1, 2) });
+    this.engine = new GameEngine({ canvas, msaaSamples: 4, clearColor: { r: .84, g: .76, b: .63, a: 1 }, devicePixelRatio: () => Math.min(devicePixelRatio || 1, 2) });
     this.observer = new ResizeObserver(() => this.resize());
   }
   async init(): Promise<void> {
-    await this.engine.init(); if (this.disposed) return;
+    const [, wood] = await Promise.all([this.engine.init(), loadWoodUi(), this.audioBackend.load(this.lifetime.signal)]);
+    if (this.disposed) return; this.wood = wood; this.deskTexture = createWoodDeskTexture(wood);
     this.createHud();
     this.busy = true; this.hud.setBusy(true);
     this.bindInput(); this.observer.observe(this.canvas); this.resize();
+    this.unregisterSession = gameSession.register({ pause: () => { this.cancelDrag(); this.audio.pause(); }, resume: () => { if (!document.hidden) this.audio.resume(); } });
     this.engine.on('update', e => {
+      this.audio.update(Math.min(.05, e.detail.delta / 1000));
       this.scene?.sync(this.view, this.selected); this.scene?.draw(e.detail.time, e.detail.delta);
       this.hudWorld.update(e.detail.time, e.detail.delta);
     });
     this.engine.run();
-    const preferences = await this.preferences.load();
+    const [preferences, saved] = await Promise.all([this.preferences.load(), this.saves.load()]);
     if (this.disposed) return;
     if (preferences) { this.hud.rows.setValue(preferences.rows); this.hud.cols.setValue(preferences.cols); this.hud.rotation.setChecked(preferences.allowRotation); }
     this.busy = false;
-    await this.restart('./assets/alpine-lake.svg');
+    if (saved) {
+      try { await this.restart(saved.image.dataUrl, saved); }
+      catch (error) {
+        console.warn('[jigsaw-puzzle save] 存档图片无法恢复，重新开始。', error);
+        await this.saves.clear().catch(() => {});
+        await this.restart('./assets/alpine-lake.svg');
+      }
+    } else await this.restart('./assets/alpine-lake.svg');
     if (new URLSearchParams(location.search).has('verify') || new URLSearchParams(location.search).has('gamepadVerify')) {
       Object.defineProperty(window, '__jigsaw', { configurable: true, get: () => this.snapshot() });
     }
   }
   private createHud(): void {
-    this.hud = new JigsawHud(this.engine, this.hudWorld, action => this.action(action));
+    this.hud = new JigsawHud(this.engine, this.hudWorld, this.wood, action => this.action(action), () => this.audio.emit('ui-click'));
+    this.hud.setSaveStatus(this.saveStatus);
     const integration = new RenderIntegration(this.engine, { label: 'Jigsaw.GUI' });
     this.hudWorld.addRuntimeIntegration(integration); integration.registerAll(this.hudWorld, () => ({ pass: 'shared' }));
   }
-  private async restart(source?: string | File): Promise<void> {
+  private async restart(source?: string | File, saved?: JigsawSaveData): Promise<void> {
     if (this.busy || this.disposed) return;
     const generation = ++this.generation; this.cancelDrag(); this.busy = true; this.hud.setBusy(true); this.hud.status.setText('正在准备拼图，请稍候');
     try {
       const image = source ? await loadImage(source) : this.image;
       if (this.disposed || generation !== this.generation) return;
-      const seed = Number(new URLSearchParams(location.search).get('seed') ?? Date.now());
-      const puzzle = createPuzzle(this.hud.rows.value ?? 4, this.hud.cols.value ?? 5, image.width / image.height, this.hud.rotation.checked, seed);
+      if (saved && (image.width !== saved.image.width || image.height !== saved.image.height)) throw new Error('存档图片尺寸不匹配');
+      const seed = saved?.seed ?? (Number(new URLSearchParams(location.search).get('seed') ?? Date.now()) >>> 0);
+      const puzzle = saved ? restoreJigsawPuzzle(saved) : createPuzzle(this.hud.rows.value ?? 4, this.hud.cols.value ?? 5, image.width / image.height, this.hud.rotation.checked, seed);
+      // Encode the decoded local image once per upload, never for individual moves.
+      const savedImage = saved?.image ?? (!source && this.savedImage ? this.savedImage : { dataUrl: image.toDataURL('image/png'), width: image.width, height: image.height });
       const textures = await createPieceTextures(puzzle, image, () => !this.disposed && generation === this.generation);
       if (this.disposed || generation !== this.generation) return;
-      const scene = new JigsawScene(this.engine, puzzle, textures, image);
+      const scene = new JigsawScene(this.engine, puzzle, textures, image, this.deskTexture);
       this.scene?.destroy(); this.scene = scene; this.image = image; this.selected = null;
+      this.seed = seed; this.savedImage = savedImage;
+      this.audio.reset(puzzle.groups.length === 1);
       // GUI renderers retain uploaded preview textures until their World is destroyed.
       // Recreate the GUI owner too, keeping repeated image uploads bounded.
       this.hudWorld.destroy(); this.hudWorld = new World('Jigsaw GUI'); this.createHud();
@@ -75,6 +111,7 @@ export class JigsawGame {
       this.hud.setBusy(true);
       this.hud.setImage(image); this.hud.preview.setVisible(false); this.resize(); this.refresh();
       this.preferences.save({ rows: puzzle.rows, cols: puzzle.cols, allowRotation: puzzle.allowRotation });
+      this.saveProgress();
       document.body.dataset.renderStatus = 'ready';
     } catch (error) {
       if (!this.scene) throw error;
@@ -104,6 +141,7 @@ export class JigsawGame {
   }
   private action(action: Action): void {
     if (this.busy || gameSession.paused) return;
+    this.audio.emit('ui-click');
     if (action === 'upload') { this.upload.click(); return; }
     if (action === 'restart') { void this.restart(); return; }
     if (action === 'preview') { this.cancelDrag(); this.hud.togglePreview(); return; }
@@ -112,21 +150,29 @@ export class JigsawGame {
     if (!this.scene) return;
     const puzzle = this.scene.puzzle;
     if (action === 'scatter') {
-      // Spread intact groups around their current centers; never undo an assembled group.
-      const centers = puzzle.groups.map(group => groupCenter(puzzle, group));
-      const mean = { x: centers.reduce((sum, p) => sum + p.x, 0) / centers.length, y: centers.reduce((sum, p) => sum + p.y, 0) / centers.length };
-      puzzle.groups.forEach((group, i) => { group.x += (centers[i]!.x - mean.x) * .35; group.y += (centers[i]!.y - mean.y) * .35; });
-      this.fit(); return;
+      this.cancelDrag(); arrangeGroups(puzzle, this.view.width / this.view.height);
+      this.fit(); this.saveProgress(); return;
     }
     if (this.selected && rotateGroup(puzzle, this.selected, action === 'left' ? -1 : 1)) {
       if (this.drag?.group) {
         const p = unproject(this.drag.last, this.view); this.drag.offset = { x: p.x - this.selected.x, y: p.y - this.selected.y };
       } else this.snap();
       this.refresh();
+      this.saveProgress();
     }
   }
   private snap(): void {
-    if (this.selected && this.scene) snapGroup(this.scene.puzzle, this.selected, Math.min(Math.min(this.scene.puzzle.cellWidth, this.scene.puzzle.cellHeight) * .28, Math.max(10, 14 / this.view.scale)));
+    if (!this.selected || !this.scene) return;
+    const puzzle = this.scene.puzzle;
+    const merged = snapGroup(puzzle, this.selected, Math.min(Math.min(puzzle.cellWidth, puzzle.cellHeight) * .28, Math.max(10, 14 / this.view.scale)));
+    if (merged > 0) {
+      this.audio.emit('snap');
+      if (puzzle.groups.length === 1) this.audio.emit('complete');
+    }
+  }
+  private saveProgress(): void {
+    if (this.disposed || this.drag || !this.scene || !this.savedImage) return;
+    this.saves.save(captureJigsawSave(this.scene.puzzle, this.seed, this.savedImage));
   }
   private refresh(): void {
     if (!this.scene) return;
@@ -139,6 +185,11 @@ export class JigsawGame {
   }
   private bindInput(): void {
     const options = { signal: this.lifetime.signal };
+    this.canvas.addEventListener('pointerdown', () => { if (!this.busy && !gameSession.paused && !document.hidden) this.audio.unlock(); }, { ...options, capture: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { this.cancelDrag(); this.audio.pause(); }
+      else if (!gameSession.paused) this.audio.resume();
+    }, options);
     this.upload.addEventListener('change', () => { const file = this.upload.files?.[0]; this.upload.value = ''; if (file) void this.restart(file); }, options);
     this.canvas.addEventListener('pointerdown', e => {
       if (this.busy || gameSession.paused || this.drag || e.button !== 0 || !this.scene) return;
@@ -146,7 +197,7 @@ export class JigsawGame {
       if (this.hud.blocks(point.x, point.y)) return;
       const local = unproject(point, this.view), group = this.scene.pick(local);
       this.selected = group;
-      if (group) group.order = Math.max(...this.scene.puzzle.groups.map(g => g.order)) + 1;
+      if (group) { group.order = Math.max(...this.scene.puzzle.groups.map(g => g.order)) + 1; this.audio.emit('piece-click'); }
       this.drag = { id: e.pointerId, group, last: point, offset: group ? { x: local.x - group.x, y: local.y - group.y } : point, before: group ? { x: group.x, y: group.y, angle: group.angle } : { ...this.view.center } };
       this.canvas.setPointerCapture(e.pointerId); this.refresh();
     }, options);
@@ -161,6 +212,7 @@ export class JigsawGame {
       if (!this.drag || this.drag.id !== e.pointerId) return;
       if (this.drag.group) { this.snap(); this.scene!.puzzle.moves++; }
       this.drag = null; if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId); this.refresh();
+      this.saveProgress();
     }, options);
     this.canvas.addEventListener('pointercancel', () => this.cancelDrag(), options);
     window.addEventListener('blur', () => this.cancelDrag(), options);
@@ -179,9 +231,15 @@ export class JigsawGame {
   }
   private snapshot() {
     const p = this.scene?.puzzle;
-    return { ready: !!p, busy: this.busy, rows: p?.rows, cols: p?.cols, allowRotation: p?.allowRotation, image: { width: this.image?.width, height: this.image?.height },
+    return { ready: !!p, busy: this.busy, saveStatus: this.saveStatus, moves: p?.moves, rows: p?.rows, cols: p?.cols, allowRotation: p?.allowRotation, image: { width: this.image?.width, height: this.image?.height },
+      audio: this.audio.snapshot(), art: { wood: this.wood?.naturalWidth > 0, woodDesk: !!this.deskTexture },
       view: structuredClone(this.view), selected: this.selected?.id ?? null, dragging: !!this.drag, complete: p?.groups.length === 1,
       groups: p?.groups.map(g => ({ ...g, pieces: [...g.pieces] })), pieces: p?.pieces.map(piece => { const g = p.groups.find(g => g.pieces.includes(piece.id))!; return { ...piece, screen: project(pieceCenter(piece, g), this.view) }; }) };
   }
-  destroy(): void { this.disposed = true; this.generation++; this.lifetime.abort(); this.observer.disconnect(); this.cancelDrag(); this.scene?.destroy(); this.hudWorld.destroy(); this.engine.destroy(); this.restorePointerCapture(); }
+  destroy(): void {
+    if (this.disposed) return;
+    this.cancelDrag(); this.saveProgress(); this.disposed = true; this.generation++;
+    this.lifetime.abort(); this.observer.disconnect(); this.unregisterSession?.(); this.audio.dispose(); this.scene?.destroy(); this.hudWorld.destroy(); this.engine.destroy(); this.restorePointerCapture();
+    void this.saves.flush().then(() => this.saveBackend.dispose()).catch(() => {});
+  }
 }

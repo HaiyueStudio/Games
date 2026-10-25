@@ -18,7 +18,14 @@ export class ControllerOverlay {
     const chars = Object.values(GAMEPAD_PROFILES).map(profile => profile.help).join('') + CONNECTION_NOTICE_CHARS + '指针模式摇杆移动点选拖拽右键滚动操作菜单返回首页切换指针切游戏 ·/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+';
     this.root.add(this.hint); this.root.add(this.cursor);
     this.notifications = new ConnectionNotifications(this.root, gamepadConnections);
-    if (new URLSearchParams(location.search).has('gamepadVerify')) Object.defineProperty(window, '__controllerNotifications', { configurable: true, get: () => this.notifications.snapshot() });
+    if (new URLSearchParams(location.search).has('gamepadVerify')) {
+      Object.defineProperty(window, '__controllerNotifications', { configurable: true, get: () => this.notifications.snapshot() });
+      Object.defineProperty(window, '__controllerPointer', { configurable: true, get: () => {
+        const area = engine.canvas!.getBoundingClientRect(), rect = this.cursor.rect;
+        return { visible: this.cursor.visible, center: { x: area.left + (rect.x + rect.width / 2) * area.width / engine.displayWidth,
+          y: area.top + (rect.y + rect.height / 2) * area.height / engine.displayHeight } };
+      } });
+    }
     this.world.addEntity(new Entity('Controller GUI').addComponent(this.root));
     this.world.addSystem(new GuiSystem(engine, { loadOp: 'load', font: { chars: [...new Set(chars)].join(''), fontFamily: 'Microsoft YaHei, sans-serif', atlasSize: 2048, fontSize: 24 } }));
     const integration = new RenderIntegration(engine, { label: 'Gamepad.feedback' });

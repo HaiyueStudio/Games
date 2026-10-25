@@ -1,10 +1,132 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { advance, createRound, slice, intersects, resizeRound, MAX_ITEMS, FRUIT_COUNT, comboBonus, endStroke } from '../fruit-ninja/rules/model.ts';
+import { registerHooks } from 'node:module';
+import { advance, createRound, slice, intersects, resizeRound, MAX_ITEMS, FRUIT_COUNT, ITEM_RADIUS, FLIGHT_SPEED, comboBonus, endStroke } from '../fruit-ninja/rules/model.ts';
 import { Swipe } from '../fruit-ninja/rules/swipe.ts';
 import { isBestScore } from '../fruit-ninja/save/best.ts';
+import { bombShake, SHAKE_SECONDS, BLAST_SECONDS, MAX_BLASTS } from '../fruit-ninja/rendering/bombFeedback.ts';
+import { createJuiceMark, sampleJuiceDrip, JUICE_VARIANTS, STAIN_SECONDS, DRIPS_PER_STAIN } from '../fruit-ninja/rendering/juice.ts';
+import { dojoSkin } from '../fruit-ninja/ui/dojoSkin.ts';
+const inputHook = registerHooks({ resolve(specifier, context, nextResolve) {
+  const local = context.parentURL?.endsWith('/BladeInput.ts') && specifier === '../rules/swipe'
+    || context.parentURL?.endsWith('/fruit-ninja/rendering/layout.ts') && specifier === '../rules/model';
+  return nextResolve(local ? `${specifier}.ts` : specifier, context);
+} });
+const { BladeInput } = await import('../fruit-ninja/input/BladeInput.ts');
+const { itemRadiusScale, SPRITE_SIZE } = await import('../fruit-ninja/rendering/layout.ts');
+inputHook.deregister();
 function playing() { const round = createRound(1042); round.phase = 'playing'; return round; }
 function item(id, kind = 'fruit', x = 100) { return { id, kind, fruit: 0, x, y: 100, radius: 30, vx: 0, vy: 0, angle: 0, spin: 0 }; }
+
+test('item sizing enlarges phone targets and caps desktop sprites without changing aspect', () => {
+  for (const [width, height] of [[320, 430], [390, 706], [844, 272], [1040, 482], [1440, 782], [1920, 962], [3440, 1322]]) {
+    const scale = itemRadiusScale(width, height), pixels = ITEM_RADIUS * scale * SPRITE_SIZE * width / 1000;
+    assert.ok(pixels >= 72 - 1e-8 && pixels <= 110 + 1e-8, `${width}x${height}: ${pixels}`);
+    if (width < 600) assert.ok(pixels > ITEM_RADIUS * SPRITE_SIZE * width / 1000 * 1.5, 'phone fruit is substantially larger');
+    if (width >= 1040) assert.ok(pixels < ITEM_RADIUS * SPRITE_SIZE * width / 1000 * .8, 'desktop fruit is substantially smaller');
+  }
+});
+
+test('resize updates current and future fruit/bomb hit radii with no repeated-resize drift', () => {
+  const round = playing(); advance(round, 3);
+  const initial = round.items.map(value => ({ ...value })), height = round.height;
+  for (let repeat = 0; repeat < 3; repeat++) {
+    resizeRound(round, 1800, itemRadiusScale(390, 706));
+    resizeRound(round, 540, itemRadiusScale(1440, 782));
+    resizeRound(round, height, 1);
+  }
+  round.items.forEach((value, i) => {
+    assert.ok(Math.abs(value.radius - initial[i].radius) < 1e-8);
+    assert.ok(Math.abs(value.y - initial[i].y) < 1e-8 && Math.abs(value.vy - initial[i].vy) < 1e-8);
+  });
+  const scale = itemRadiusScale(390, 706);
+  resizeRound(round, height, scale); advance(round, 3);
+  assert.ok(round.items.some(value => value.kind === 'bomb'));
+  for (const value of round.items) {
+    const expected = (value.kind === 'clock' ? 42 : ITEM_RADIUS) * scale;
+    assert.ok(Math.abs(value.radius - expected) < 1e-8, 'old and newly spawned items share the same scale');
+    const line = offset => [{ x: value.x - value.radius * 2, y: value.y + offset }, { x: value.x + value.radius * 2, y: value.y + offset }];
+    assert.equal(intersects(...line(value.radius * .99), value), true);
+    assert.equal(intersects(...line(value.radius * 1.01), value), false);
+  }
+});
+
+test('fruit and bombs follow the same arc at 75 percent speed while the timer stays real-time', () => {
+  assert.equal(FLIGHT_SPEED, .75);
+  const round = playing(); round.nextWave = round.nextClock = 1000;
+  round.items = ['fruit', 'bomb'].map((kind, i) => ({ ...item(i + 1, kind), y: 300, vx: 120, vy: -320, spin: 2 }));
+  advance(round, .6);
+  const flightTime = .45;
+  for (const value of round.items) {
+    assert.ok(Math.abs(value.x - (100 + 120 * flightTime)) < 1e-8);
+    assert.ok(Math.abs(value.y - (300 - 320 * flightTime + 600 * 1.4 * flightTime ** 2)) < 1e-8);
+    assert.ok(Math.abs(value.vy - (-320 + 600 * 2.8 * flightTime)) < 1e-8);
+    assert.ok(Math.abs(value.angle - 2 * flightTime) < 1e-8);
+  }
+  assert.ok(Math.abs(round.elapsed - .6) < 1e-8 && Math.abs(round.remaining - 59.4) < 1e-8);
+});
+
+test('display size cannot change seeded wave timing, item choices or flight paths', () => {
+  const small = createRound(1042, 600, .7), large = createRound(1042, 600, 1.7);
+  small.phase = large.phase = 'playing';
+  for (let i = 0; i < 600; i++) { advance(small, 1 / 60); advance(large, 1 / 60); }
+  const withoutScale = round => ({ ...round, itemScale: 1, items: round.items.map(value => ({ ...value, radius: 1 })) });
+  assert.deepEqual(withoutScale(small), withoutScale(large));
+});
+
+test('juice splashes vary across fruit hits and replay without consuming gameplay randomness', () => {
+  const marks = Array.from({ length: 120 }, (_, i) => createJuiceMark(item(i + 1)));
+  assert.equal(new Set(marks.map(mark => mark.variant)).size, JUICE_VARIANTS);
+  assert.ok(new Set(marks.map(mark => mark.stretch)).size > 100);
+  assert.deepEqual(createJuiceMark(item(1)), marks[0]);
+  assert.deepEqual(new Set(marks.map(mark => mark.mirror)), new Set([-1, 1]));
+  for (const mark of marks) {
+    assert.ok(mark.drips.length >= 2 && mark.drips.length <= DRIPS_PER_STAIN);
+    assert.ok(mark.stretch > .7 && mark.stretch < 1.3 && mark.squash > .6 && mark.squash < 1.2);
+    assert.ok(mark.drips.every(drip => drip.width > 0 && drip.length <= mark.radius * 4.8));
+  }
+});
+
+test('juice grows downward, releases falling drops and expires with its stain', () => {
+  const drip = createJuiceMark(item(7)).drips[0];
+  assert.equal(sampleJuiceDrip(drip, 0).visible, false);
+  let previous = 0;
+  for (let age = drip.delay; age < 10; age += 1 / 60) {
+    const flow = sampleJuiceDrip(drip, age);
+    assert.ok(flow.length >= previous && flow.length <= drip.length);
+    previous = flow.length;
+  }
+  const release = drip.delay + drip.duration;
+  assert.ok(sampleJuiceDrip(drip, release + .6).dropOffset > sampleJuiceDrip(drip, release + .3).dropOffset);
+  assert.equal(sampleJuiceDrip(drip, release + 1).dropVisible, false);
+  assert.equal(sampleJuiceDrip(drip, STAIN_SECONDS).opacity, 0);
+  assert.deepEqual(sampleJuiceDrip(drip, 2.5), sampleJuiceDrip(drip, 2.5), 'paused visual age keeps the same geometry');
+});
+
+test('dojo GUI atlas skins stay inside their cells and preserve scalable borders', () => {
+  const source = { naturalWidth: 1536, naturalHeight: 1024 };
+  for (const name of ['plaque', 'parchment', 'primary', 'secondary']) {
+    const skin = dojoSkin(source, name), [u, v, width, height] = skin.uv;
+    assert.equal(skin.source, source);
+    assert.ok(u >= 0 && v >= 0 && u + width <= 1 && v + height <= 1);
+    assert.ok(skin.cuts[0] + skin.cuts[2] < skin.sourceWidth && skin.cuts[1] + skin.cuts[3] < skin.sourceHeight);
+  }
+});
+
+test('bomb camera shake is seeded, decays to rest and stays inside background overscan', () => {
+  const blast = { x: 100, y: 100, radius: 46, age: 0, seed: 7 };
+  const initial = bombShake([blast], 1);
+  assert.ok(Math.hypot(initial.x, initial.y) > 10);
+  assert.deepEqual(bombShake([blast], 1), initial);
+  const tail = bombShake([{ ...blast, age: SHAKE_SECONDS * .9 }], 1);
+  assert.ok(Math.hypot(tail.x, tail.y) < 1);
+  for (const age of [SHAKE_SECONDS, BLAST_SECONDS, 2]) assert.deepEqual(bombShake([{ ...blast, age }], 1), { x: 0, y: 0 });
+  assert.deepEqual(bombShake([], 1), { x: 0, y: 0 });
+  for (const scale of [.39, .844, 1.44, 3]) for (let age = 0; age < BLAST_SECONDS; age += 1 / 120) {
+    const shaking = bombShake(Array.from({ length: MAX_BLASTS }, (_, seed) => ({ ...blast, seed, age })), scale);
+    assert.ok(Math.abs(shaking.x) <= 33 && Math.abs(shaking.y) <= 33);
+  }
+});
 test('timer starts at one minute, ready and paused states do not consume time', () => {
   const round = createRound(12); advance(round, 12); assert.equal(round.remaining, 60);
   round.phase = 'playing'; advance(round, 2); assert.ok(Math.abs(round.remaining - 58) < 1e-6);
@@ -83,4 +205,56 @@ test('idle gaps, reversal, maximum duration, pointer changes and explicit end se
   assert.equal(swipe.move(p(80), 960, 2), null, 'different pointer');
   swipe.clear(); assert.equal(swipe.move(p(90), 970, 2), null, 'release, UI, pause and blur use clear');
   swipe.move(p(90), 1100, 2); assert.equal(swipe.move(p(100), 1121, 2), null, 'stationary events do not extend a swipe');
+});
+
+function bladeFixture(context) {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const browser = new EventTarget(); Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
+  const canvas = Object.assign(new EventTarget(), { getBoundingClientRect: () => ({ left: 10, top: 20 }) });
+  const segments = [], actions = [];
+  let endings = 0;
+  const blade = new BladeInput(canvas, point => point.y >= 100, (start, end) => segments.push({ start, end }), action => actions.push(action), () => endings++);
+  const pointer = (type, x, options = {}) => {
+    const event = Object.assign(new Event(type), { clientX: x + 10, clientY: 220, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1, ...options });
+    (type === 'pointerup' ? browser : canvas).dispatchEvent(event);
+  };
+  context.after(() => { blade.destroy(); if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else delete globalThis.window; });
+  return { blade, browser, pointer, segments, actions, endings: () => endings };
+}
+
+test('blade cuts and emits trails only during a primary-button drag started on the playfield', context => {
+  const fixture = bladeFixture(context), { pointer, segments } = fixture;
+  pointer('pointermove', 20, { buttons: 0 }); pointer('pointermove', 100, { buttons: 0 });
+  pointer('pointerdown', 20, { button: 2, buttons: 2 }); pointer('pointermove', 100, { buttons: 2 });
+  pointer('pointerdown', 20, { clientY: 30 }); pointer('pointermove', 100);
+  assert.equal(segments.length, 0, 'hover, right button and a GUI press cannot start a cut');
+  pointer('pointerdown', 20); pointer('pointerdown', 70, { pointerId: 2 }); pointer('pointermove', 70, { pointerId: 2 }); pointer('pointermove', 100);
+  assert.equal(segments.length, 1);
+  assert.deepEqual({ x: segments[0].start.x, y: segments[0].start.y }, { x: 20, y: 200 });
+  assert.deepEqual(segments[0].end, { x: 100, y: 200 });
+  pointer('pointermove', 200, { buttons: 0 }); pointer('pointermove', 300);
+  assert.equal(segments.length, 1, 'a missed mouseup cannot bridge a new drag');
+  pointer('pointerdown', 300); pointer('pointermove', 350);
+  pointer('pointerup', 350, { buttons: 0 }); pointer('pointermove', 400);
+  assert.equal(segments.length, 2, 'release ends the drag');
+});
+
+test('blade interruptions require a fresh press and disposal removes pointer and keyboard listeners', context => {
+  const fixture = bladeFixture(context), { pointer, segments, browser, blade } = fixture;
+  for (const interruption of ['pointerleave', 'pointercancel', 'lostpointercapture', 'blur', 'gui']) {
+    pointer('pointerdown', 20); pointer('pointermove', 60);
+    const count = segments.length, endings = fixture.endings();
+    if (interruption === 'blur') browser.dispatchEvent(new Event('blur'));
+    else if (interruption === 'gui') pointer('pointermove', 80, { clientY: 30 });
+    else pointer(interruption, 80);
+    pointer('pointermove', 120);
+    assert.equal(segments.length, count, interruption);
+    assert.ok(fixture.endings() > endings, `${interruption} resets the combo`);
+  }
+  pointer('pointerdown', 20, { pointerType: 'touch' }); pointer('pointermove', 60, { pointerType: 'touch' });
+  assert.equal(segments.at(-1).end.x, 60, 'touch dragging still slices');
+  blade.destroy(); const count = segments.length;
+  pointer('pointerdown', 20); pointer('pointermove', 100);
+  browser.dispatchEvent(Object.assign(new Event('keydown'), { code: 'Space', repeat: false }));
+  assert.equal(segments.length, count); assert.deepEqual(fixture.actions, []);
 });

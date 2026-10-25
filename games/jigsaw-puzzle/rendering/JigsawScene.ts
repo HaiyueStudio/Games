@@ -22,16 +22,18 @@ export class JigsawScene {
   private readonly transforms: CartesianTransform3D[] = [];
   private readonly materials: BasicMaterial[] = [];
   private readonly board: CartesianTransform3D;
+  private readonly table: CartesianTransform3D;
   private readonly hitContext = document.createElement('canvas').getContext('2d')!;
-  constructor(private readonly engine: HaiyueEngine, readonly puzzle: Puzzle, private readonly textures: PieceTexture[], image: HTMLCanvasElement) {
+  constructor(private readonly engine: HaiyueEngine, readonly puzzle: Puzzle, private readonly textures: PieceTexture[], image: HTMLCanvasElement, private readonly deskTexture: HTMLCanvasElement) {
     const cameraEntity = new Entity('Jigsaw orthographic camera').addComponent(this.camera).addComponent(new CartesianTransform3D({ position: [0, 0, 1000] }));
     this.world.addEntity(cameraEntity);
     const render = new Render3DSystem(engine, cameraEntity, { loadOp: 'clear' }); render.transparentSort = true;
     this.world.addSystem(render);
+    this.table = this.mesh('Oak tabletop', 1, 1, deskTexture).transform;
     const guide = document.createElement('canvas'); guide.width = image.width; guide.height = image.height;
-    const ctx = guide.getContext('2d')!; ctx.fillStyle = '#fcfaf2'; ctx.fillRect(0, 0, guide.width, guide.height);
-    ctx.globalAlpha = .17; ctx.drawImage(image, 0, 0); ctx.globalAlpha = 1;
-    ctx.strokeStyle = '#9aa99b'; ctx.lineWidth = 5; ctx.strokeRect(2.5, 2.5, guide.width - 5, guide.height - 5);
+    const ctx = guide.getContext('2d')!; ctx.fillStyle = '#ffedc514'; ctx.fillRect(0, 0, guide.width, guide.height);
+    ctx.globalAlpha = .14; ctx.drawImage(image, 0, 0); ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#68462d99'; ctx.lineWidth = 3; ctx.strokeRect(1.5, 1.5, guide.width - 3, guide.height - 3);
     this.board = this.mesh('Image frame', puzzle.width, puzzle.height, guide).transform;
     for (const piece of puzzle.pieces) {
       const texture = textures[piece.id]!;
@@ -49,6 +51,9 @@ export class JigsawScene {
   sync(view: DeskView, selected: Group | null): void {
     const width = this.engine.displayWidth, height = this.engine.displayHeight;
     this.camera.orthoLeft = -width / 2; this.camera.orthoRight = width / 2; this.camera.orthoTop = height / 2; this.camera.orthoBottom = -height / 2;
+    // Cover the viewport without stretching the grain. The tabletop stays still while pieces pan/zoom.
+    const tableScale = Math.max(width / this.deskTexture.width, height / this.deskTexture.height);
+    this.table.setPosition(0, 0, -20); this.table.setScale(this.deskTexture.width * tableScale, this.deskTexture.height * tableScale, 1);
     const place = (transform: CartesianTransform3D, point: Point, angle: number, z: number) => {
       const p = project(point, view); transform.setPosition(p.x - width / 2, height / 2 - p.y, z);
       transform.setRotation(0, 0, -angle * Math.PI / 2); transform.setScale(view.scale, view.scale, 1);

@@ -26,6 +26,8 @@ export interface TetrisSaveData {
   nextKind: PieceKind;
   phase: TetrisPhase;
   score: number;
+  /** Optional for compatibility with saves created before the neon HUD. */
+  lines?: number;
 }
 
 export const TETRIS_SCORE_BY_LINES = [0, 1, 4, 12, 32] as const;
@@ -103,7 +105,8 @@ export function isTetrisSaveData(value: unknown): value is TetrisSaveData {
     && isPiece(value.current)
     && typeof value.nextKind === 'string' && TETRIS_KIND_SET.has(value.nextKind)
     && (value.phase === 'playing' || value.phase === 'paused' || value.phase === 'lost')
-    && isNonNegativeInteger(value.score);
+    && isNonNegativeInteger(value.score)
+    && (value.lines === undefined || isNonNegativeInteger(value.lines));
 }
 
 function isPiece(value: unknown): value is TetrisPiece {

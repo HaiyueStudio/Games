@@ -3,12 +3,14 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { publishGameModule } from './preview-layout.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = join(repositoryRoot, 'games', 'manifest.json');
@@ -56,6 +58,8 @@ for (const game of manifest.entries) {
 rmSync(outputRoot, { force: true, recursive: true });
 mkdirSync(outputRoot, { recursive: true });
 copyDirectory(siteSource, outputRoot, () => true);
+const indexPath = join(outputRoot, 'index.html');
+writeFileSync(indexPath, readFileSync(indexPath, 'utf8').replace('name="haiyue-games-root" content="../games/"', 'name="haiyue-games-root" content="./games/"'));
 
 const outputGames = join(outputRoot, 'games');
 mkdirSync(outputGames, { recursive: true });
@@ -82,7 +86,17 @@ for (const game of manifest.entries) {
     if (!entry) return true;
     return !omittedSourceFile.test(entry) && !sourceMap.test(entry);
   });
+  const published = join(outputGames, game.id);
+  for (const file of readdirSync(published, { recursive: true }).filter(file => file.endsWith('.js'))) {
+    const path = join(published, file), source = readFileSync(path, 'utf8'), result = publishGameModule(source);
+    if (result !== source) writeFileSync(path, result);
+  }
 }
 
 writeFileSync(join(outputRoot, '.nojekyll'), '');
+const simulatorSource = join(repositoryRoot, 'simulator');
+if (existsSync(simulatorSource)) {
+  const simulatorOutput = join(outputRoot, 'simulator'); copyDirectory(simulatorSource, simulatorOutput, () => true);
+  const entry = join(simulatorOutput, 'index.html'); writeFileSync(entry, readFileSync(entry, 'utf8').replace('href="../site/styles.css"', 'href="../styles.css"').replace('href="../site/assets/haiyue-logo.png"', 'href="../assets/haiyue-logo.png"').replace('src="../site/app.js"', 'src="../app.js"'));
+}
 console.log(`[preview] Published ${manifest.entries.length} games to ${outputRoot}`);

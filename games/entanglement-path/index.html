@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Entanglement Path</title>
+  <title>阡陌交通</title>
   <link rel="icon" type="image/png" sizes="128x128" href="./assets/icon-128.png" />
   <style>
     * { box-sizing: border-box; }
@@ -12,8 +12,8 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #101820;
-      font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      background: #1b2927;
+      font-family: "KaiTi", "STKaiti", "FangSong", serif;
     }
     body {
       display: flex;
@@ -22,9 +22,8 @@
     }
     canvas {
       display: block;
-      width: min(100vw, calc(100dvh * 1200 / 760));
-      height: min(100dvh, calc(100vw * 760 / 1200));
-      aspect-ratio: 1200 / 760;
+      width: 100vw;
+      height: 100dvh;
       flex: 0 0 auto;
       touch-action: none;
       cursor: pointer;
@@ -32,7 +31,7 @@
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="1200" height="760" aria-label="Entanglement Path"></canvas>
+  <canvas id="canvas" width="1200" height="760" aria-label="阡陌交通：中国水墨路径拼图"></canvas>
   <script type="module" src="./bundle.js"></script>
 </body>
 </html>

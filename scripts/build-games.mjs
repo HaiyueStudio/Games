@@ -18,7 +18,7 @@ if (missingGames.length > 0) {
   process.exit(1);
 }
 
-await runRollupOnce({ cwd: repositoryRoot, config: 'rollup.gamepad.config.js', expectedOutputs: ['site/gamepad.js'], label: 'gamepad lobby', timeoutMs: 120_000 });
+await runRollupOnce({ cwd: repositoryRoot, config: 'rollup.gamepad.config.js', expectedOutputs: ['site'], label: 'Game OS + shared engine + simulator', timeoutMs: 120_000 });
 for (const game of games) await buildGame(game);
 
 async function buildGame(game) {

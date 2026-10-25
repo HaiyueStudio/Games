@@ -1,0 +1,20 @@
+✔ the Pac-Man maze is rectangular and every pellet is reachable (2.1239ms)
+✔ only ghosts can cross the ghost-house gate (0.135ms)
+✔ the tunnel wraps deterministically in both directions (0.5292ms)
+✔ ghost routing approaches its target without reversing at a junction (0.1851ms)
+✔ frightened routing uses the same stable priority while moving away (0.1108ms)
+✔ each ghost personality produces its characteristic chase target (0.1585ms)
+✔ Pac-Man body connects every adjacent wall without filling paths or gates (3.8564ms)
+✔ Pac-Man isolated body keeps its original silhouette (0.0984ms)
+✔ Pac-Man straight body walls merge along both axes (0.0808ms)
+✔ Pac-Man cap connects every adjacent wall without filling paths or gates (2.0586ms)
+✔ Pac-Man isolated cap keeps its original silhouette (0.0644ms)
+✔ Pac-Man straight cap walls merge along both axes (0.051ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 149.3402

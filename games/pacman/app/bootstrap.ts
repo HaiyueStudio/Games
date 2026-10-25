@@ -39,6 +39,7 @@ import {
   type ParsedMaze,
 } from '../rules/PacmanRules';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
+import { buildWallSections } from '../rendering/wallLayout';
 
 type Rgba = readonly [number, number, number, number];
 type Phase = 'ready' | 'playing' | 'paused' | 'dying' | 'level-clear' | 'game-over';
@@ -334,23 +335,18 @@ class PacmanGame {
     this.addBox('MazeFloor', 0, -0.18, 0, floorWidth, 0.32, floorDepth, COLORS.floor, 12);
     this.addBox('MazeUnderGlow', 0, -0.37, 0, floorWidth + 0.45, 0.08, floorDepth + 0.45, COLORS.floorEdge, 22);
 
-    for (let row = 0; row < this.maze.rows; row += 1) {
-      let column = 0;
-      while (column < this.maze.columns) {
-        if (cellAt(this.maze, row, column) !== '#') {
-          column += 1;
-          continue;
-        }
-        const start = column;
-        while (column < this.maze.columns && cellAt(this.maze, row, column) === '#') column += 1;
-        const end = column;
-        const centerColumn = (start + end - 1) * 0.5;
-        const world = this.worldPosition(row, centerColumn, 0);
-        const width = (end - start) * TILE - 0.12;
-        this.addBox('MazeWall', world[0], 0.16, world[2], width, 0.54, 0.82, COLORS.wall, 26);
-        this.addBox('MazeWallCap', world[0], 0.455, world[2], width - 0.08, 0.08, 0.7, COLORS.wallTop, 82);
+    for (const layer of [
+      { name: 'MazeWall', insetX: 0.06, insetZ: 0.09, y: 0.16, height: 0.54, color: COLORS.wall, shininess: 26 },
+      { name: 'MazeWallCap', insetX: 0.1, insetZ: 0.15, y: 0.455, height: 0.08, color: COLORS.wallTop, shininess: 82 },
+    ]) {
+      for (const section of buildWallSections(this.maze.cells, layer.insetX, layer.insetZ)) {
+        const world = this.worldPosition(section.row, section.column, 0);
+        this.addBox(layer.name, world[0], layer.y, world[2], section.width * TILE, layer.height,
+          section.depth * TILE, layer.color, layer.shininess);
       }
+    }
 
+    for (let row = 0; row < this.maze.rows; row += 1) {
       let gateStart = -1;
       for (let gateColumn = 0; gateColumn <= this.maze.columns; gateColumn += 1) {
         const gate = gateColumn < this.maze.columns && cellAt(this.maze, row, gateColumn) === '-';
@@ -786,8 +782,9 @@ class PacmanGame {
     const pacmanWorld = this.worldPosition(pacmanPosition.row, pacmanPosition.column, 0.46);
     this.pacmanTransform.setPosition(pacmanWorld[0], pacmanWorld[1], pacmanWorld[2]);
     this.pacmanTransform.setRotation(0, DIRECTION_ANGLE[this.pacman.direction], 0);
-    const chompPhase = Math.floor(time / 58) % 12;
-    const chompIndex = chompPhase <= 6 ? chompPhase : 12 - chompPhase;
+    // One chomp per tile, keeping the mouth in step with pellet spacing and speed.
+    const mouthOpen = 1 - Math.abs(this.pacman.progress * 2 - 1);
+    const chompIndex = Math.round(mouthOpen * (this.pacmanFrames.length - 1));
     this.pacmanMesh.geometry = requiredItem(this.pacmanFrames, chompIndex, 'Pac-Man animation frames');
     if (this.phase === 'dying') {
       const scale = Math.max(0.04, this.phaseRemaining / DEATH_SECONDS);

@@ -11,9 +11,9 @@ test('2048 fills the viewport and renders its HUD with engine GUI and four-sampl
   assert.match(html, /#canvas\s*{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
   assert.doesNotMatch(html, /id="(?:overlay|hud|scores|tile-labels|status|btn-new)"/);
   assert.match(source, /msaaSamples:\s*4/);
-  assert.match(source, /engine\.displayWidth/);
   assert.match(source, /engine\.displayHeight/);
-  assert.match(source, /cameraProjection\.update/);
+  assert.match(source, /fitPerspectiveCamera/);
+  assert.doesNotMatch(source, /project3DToScreen|tileLabelRoot/);
   assert.match(source, /new TweenSystem\(/);
   assert.match(source, /Easing\.cubicOut/);
   assert.match(source, /tweenManager\.create/);
@@ -22,7 +22,7 @@ test('2048 fills the viewport and renders its HUD with engine GUI and four-sampl
   assert.match(source, /new GuiLabel\(/);
   assert.match(source, /new GuiModal\(/);
   assert.match(source, /new GuiButton\(/);
-  assert.equal(source.match(/new GuiButton\(/g)?.length, 1);
+  assert.equal(source.match(/new GuiButton\(/g)?.length, 2);
   assert.match(source, /autoWidth:\s*true/);
   assert.match(source, /hoverBackgroundColor:/);
   assert.doesNotMatch(source, /labelRoot|labelEntity|_textElement/);

@@ -1,0 +1,48 @@
+{
+  "generatedOn": "2026-10-24",
+  "tool": "built-in image_gen.imagegen",
+  "images": [
+    {
+      "file": "brushed-metal.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless PBR base-color texture for a metallic 2048 game and its industrial UI. Create one square tileable neutral gray brushed titanium metal surface texture, flat orthographic scan, fine horizontal machining grain, subtle sparse hairline scratches, very restrained medium gray tonal variation. Full bleed continuous material with absolutely no borders, panels, seams, bolts, text, symbols, numbers, objects, gradients, reflections, lighting, shadows or perspective. Neutral albedo only, meant to be tinted steel, copper and gold by a physically based renderer. Fine grain must remain readable at 512px. Seamlessly repeating across all edges."
+    },
+    {
+      "file": "metal-panel.png",
+      "prompt": "Use case: ui-mockup. Asset type: one square reusable metallic UI panel skin, full-bleed flat front-on 2D game interface asset. A dark graphite brushed titanium inset plate with a slim chamfered silver bevel around all four edges, tiny recessed screw heads in its four corners, subtle horizontal metal machining grain across its dark slate center. Elegant industrial premium finish, very restrained warm brass hairline along lower inside bevel. The center must remain empty clean dark metal for highly legible live game text. Square composition filling the image edge to edge, symmetric, no exterior background, no transparency, no perspective. No text, digits, logos, decorative symbols, extra panels, illustration, vignette or strong lighting. This actual texture will be stretched to form narrow score panels and metallic game buttons."
+    },
+    {
+      "file": "metal-title.png",
+      "prompt": "Use case: logo-brand. Asset type: transparent PNG game-title wordmark for the upper-left corner of a metallic 2048 game. Exact text, verbatim: \"2048\". Render only these four numerals as one cohesive premium metallic typographic artwork. Bold industrial geometric numerals with finely brushed titanium silver faces, precision chamfered edges, subtle dark steel extrusion and restrained warm brass edge reflections. Strong readable silhouettes at a displayed width of 180 pixels. Front-facing, very slight dimensional depth, elegant machined metal rather than distressed or rusty. Wide horizontal composition, approximately 3:1 aspect ratio, numerals fill most of the canvas with small consistent transparent margins, vertically centered. True transparent background. No panel, border, plate, screws, subtitle, tagline, additional letters, additional digits, decorations, scene, watermark, or ground shadow. The only visible content must be the metallic \"2048\" wordmark."
+    }
+  ],
+  "procedural": {
+    "script": "generate-assets.mjs",
+    "seed": 2048,
+    "textures": [
+      "metal-normal.png",
+      "metal-roughness.png"
+    ],
+    "audio": [
+      "slide.wav",
+      "fracture.wav",
+      "forge.wav",
+      "new-game.wav",
+      "blocked.wav"
+    ],
+    "method": "Periodic analytical machining grooves; original seeded inharmonic modal synthesis, mono 44100 Hz 16-bit PCM.",
+    "numberedTileTextures": {
+      "worker": "../rendering/TileTexture.worker.js",
+      "atlasSize": [
+        256,
+        512
+      ],
+      "channels": [
+        "sRGB albedo with numeral",
+        "linear tangent-space engraved normal",
+        "linear packed roughness and metallic"
+      ],
+      "generation": "Exact raster glyph mask, inside-distance bevel height and central-difference normals. Standard ranks prewarmed; higher ranks cached on demand.",
+      "normalScale": 1.7
+    }
+  }
+}

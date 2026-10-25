@@ -3,8 +3,9 @@ import { GuiButton, GuiElement, GuiLabel, type GuiRect } from '@haiyue/engine/gu
 import { GameHud } from '../../shared/ui/GameHud';
 import type { Round } from '../rules/model';
 import type { View } from '../rendering/FruitScene';
+import { dojoSkin } from './dojoSkin';
 export type Action = 'start' | 'pause';
-const CHARS = '水果忍者鲜切时间得分最佳炸弹暂停继续开始再来局游戏结束一分钟滑动鼠标或手指挥刀摇杆避开三次命中加秒准备好了倒计归零剩余返回首页已超越纪录分数本轮按空格爆炸累计漏接不扣生命触屏轻扫连额外奖励递增；，。·！';
+const CHARS = '水果忍者鲜切时间得分最佳炸弹暂停继续开始再来局游戏结束一分钟滑动鼠标或手指挥刀摇杆避开三次命中加秒准备好了倒计归零剩余返回首页已超越纪录分数本轮按空格爆炸累计漏接不扣生命触屏轻扫连额外奖励递增按住左键；，。·！';
 export class FruitHud extends GameHud {
   readonly view: View = { x: 20, y: 100, width: 1000, height: 500, scale: 1 };
   private readonly slots = new Map<GuiElement, GuiRect>();
@@ -26,22 +27,23 @@ export class FruitHud extends GameHud {
   private readonly notice: GuiLabel;
   private viewportWidth = 1000;
   private noticeAge = 0;
-  constructor(engine: HaiyueEngine, world: World, action: (action: Action) => void) {
+  constructor(engine: HaiyueEngine, world: World, action: (action: Action) => void, art: HTMLImageElement) {
     super(engine, world, CHARS, 1280, 800); this.root.theme.fontSize = 15;
-    this.header = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#0b2423' } }));
+    this.header = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#342017', nineSlice: dojoSkin(art, 'plaque') } }));
     this.title = this.text('水果忍者 / FRUIT NINJA', 23, '#f7dfaa');
     this.score = this.text('000', 26, '#ffffff'); this.time = this.text('60', 26, '#94f0c5'); this.bombs = this.text('炸弹 0 / 3', 17, '#ffb19e');
-    this.help = this.text('滑动鼠标 / 手指挥刀 · 连切奖励递增 · 避开炸弹', 13, '#a5c6b8');
-    this.pause = this.add(new GuiButton({ text: '暂停', onClick: () => action('pause'), style: { backgroundColor: '#254b43', color: '#d8f5de', radius: 9 } }));
-    this.rail = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#31554a' } }));
-    this.bar = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#9ee2a4' } }));
+    this.help = this.text('按住鼠标左键 / 手指滑动挥刀 · 连切奖励递增 · 避开炸弹', 13, '#efd8a6');
+    this.help.setStyle({ nineSlice: dojoSkin(art, 'plaque') });
+    this.pause = this.add(new GuiButton({ text: '暂停', onClick: () => action('pause'), style: { backgroundColor: '#254b43', color: '#fff0c1', nineSlice: dojoSkin(art, 'secondary') } }));
+    this.rail = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#4c3020' } }));
+    this.bar = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#e6b85f' } }));
     this.notice = this.text('', 28, '#ffdf89');
-    this.overlay = this.add(new GuiElement({ disabled: true, style: { backgroundColor: 'rgba(5,20,17,0.65)' } }));
-    this.card = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#133c32', borderColor: '#688b61', radius: 22 } }));
-    this.heading = this.text('鲜切一分钟', 36, '#ffe3a2');
-    this.detail = this.text('60 秒 / 3 次炸弹机会', 18, '#ebf6dc');
-    this.rules = this.text('连切额外加分 · 加时 +10 秒', 14, '#a8d5bc');
-    this.start = this.add(new GuiButton({ text: '开始游戏', onClick: () => action('start'), style: { backgroundColor: '#e4c17c', color: '#163e31', radius: 12 } }));
+    this.overlay = this.add(new GuiElement({ disabled: true, style: { backgroundColor: 'rgba(22,12,6,0.58)' } }));
+    this.card = this.add(new GuiElement({ disabled: true, style: { backgroundColor: '#d6b77b', nineSlice: dojoSkin(art, 'parchment') } }));
+    this.heading = this.text('鲜切一分钟', 36, '#4e2916');
+    this.detail = this.text('60 秒 / 3 次炸弹机会', 18, '#68442a');
+    this.rules = this.text('连切额外加分 · 加时 +10 秒', 14, '#765338');
+    this.start = this.add(new GuiButton({ text: '开始游戏', onClick: () => action('start'), style: { backgroundColor: '#e4c17c', color: '#41240f', nineSlice: dojoSkin(art, 'primary') } }));
   }
   private add<T extends GuiElement>(node: T): T {
     const rect = { x: 0, y: 0, width: 0, height: 0 }; this.slots.set(node, rect); node.layout = () => Object.assign(node.rect, rect); this.root.add(node); return node;
@@ -52,13 +54,13 @@ export class FruitHud extends GameHud {
     this.viewportWidth = width;
     const narrow = width < 600, header = narrow ? 106 : 86;
     this.rect(this.header, 0, 0, width, header); this.title.setFontSize(narrow ? 18 : 23);
-    this.rect(this.title, 12, 8, narrow ? width - 95 : Math.min(320, width * .32), 34);
+    this.rect(this.title, 22, 10, narrow ? width - 110 : Math.min(320, width * .32), 34);
     this.rect(this.pause, width - 78, 12, 64, 34);
     const x = narrow ? 8 : width * .34, y = narrow ? 48 : 12, available = narrow ? width - 16 : width * .66 - 90;
     this.score.setFontSize(narrow ? 19 : 23); this.time.setFontSize(narrow ? 19 : 23); this.bombs.setFontSize(narrow ? 15 : 17);
     this.rect(this.score, x, y, available * .34, 34); this.rect(this.time, x + available * .34, y, available * .32, 34); this.rect(this.bombs, x + available * .66, y, available * .34, 34);
     this.rect(this.rail, 18, header - 14, width - 36, 3); this.rect(this.bar, 18, header - 14, width - 36, 3);
-    this.rect(this.help, 10, height - 29, width - 20, 24); this.help.setFontSize(narrow ? 10 : 13);
+    this.rect(this.help, 8, height - 32, width - 16, 30); this.help.setFontSize(narrow ? 10 : 13);
     Object.assign(this.view, { x: 0, y: header, width, height: Math.max(40, height - header - 32), scale: width / 1000 });
     this.rect(this.notice, 0, header + 12, width, 40);
     this.rect(this.overlay, 0, header, width, height - header - 32);

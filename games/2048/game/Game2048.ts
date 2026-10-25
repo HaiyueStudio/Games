@@ -7,11 +7,13 @@ import { Camera3D } from '@haiyue/engine';
 import { CartesianTransform3D } from '@haiyue/engine';
 import { SphericalTransform3D } from '@haiyue/engine';
 import { Mesh3D } from '@haiyue/engine';
-import { System } from '@haiyue/engine';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { BasicMaterial } from '@haiyue/engine';
-import { ColorSRGB } from '@haiyue/engine';
+import { EnvironmentLight } from '@haiyue/engine';
+import { createRoundedBox3D } from '@haiyue/engine/geometry';
+import { MetalMaterials } from '../rendering/MetalMaterials';
+import { ForgeMergeEffect } from '../rendering/ForgeMergeEffect';
+import { MetalAudio } from '../audio/MetalAudio';
 import { AmbientLight } from '@haiyue/engine/lighting';
 import { DirectionalLight } from '@haiyue/engine';
 import { createBox3D } from '@haiyue/engine';
@@ -19,17 +21,16 @@ import { GameSaveError, GameSaveService, LocalStorageSaveBackend } from '@haiyue
 import { Easing, TweenManager, TweenSystem, type Tween } from '@haiyue/engine/tween';
 import {
   GuiButton,
-  GuiDirtyFlags,
   GuiLabel,
+  GuiImage,
   GuiModal,
   GuiRoot,
   GuiSystem,
   type GuiElement,
-  type GuiRect,
   type GuiTheme,
 } from '@haiyue/engine/gui';
-import { requiredItemAt, requiredNumberAt } from '../../shared/collections/arrayAccess';
-import { CameraViewProjectionCache } from '../../shared/rendering/CameraViewProjectionCache';
+import { requiredItemAt } from '../../shared/collections/arrayAccess';
+import { tileAtlasGeometry } from '../rendering/TileGeometry';
 import {
   loadGame2048Config,
   type Game2048Config,
@@ -54,13 +55,15 @@ import {
   type Game2048Phase as GamePhase,
   type MoveDirection as Direction,
   type TileMovement,
+  type TileMerge,
 } from '../rules/rules';
 
 interface TileVisual {
   entity: Entity;
-  material: BasicMaterial;
-  label: GuiLabel;
-  labelPosition: { x: number; y: number };
+  mesh: Mesh3D;
+  age: number;
+  revealAt: number;
+  pop: boolean;
   tween?: Tween<TileTweenPosition> | undefined;
 }
 
@@ -69,60 +72,23 @@ interface TileTweenPosition extends Record<string, unknown> {
   z: number;
 }
 
-function color(hex: string): ColorSRGB {
-  return ColorSRGB.fromHex(hex);
-}
-
 function guiTheme(fontSize: number, text: string): Partial<GuiTheme> {
   return {
     fontSize,
-    radius: 5,
+    radius: 3,
     colors: {
       text,
       textMuted: text,
-      primary: '#8f7a66',
+      primary: '#465466',
       danger: '#c94c4c',
       background: 'rgba(0,0,0,0)',
       surface: 'rgba(0,0,0,0)',
       border: 'rgba(0,0,0,0)',
-      hover: '#9f8b76',
-      active: '#776e65',
+      hover: '#657992',
+      active: '#b9854c',
       disabled: 'rgba(0,0,0,0)',
     },
   };
-}
-
-function project3DToScreen(
-  wx: number,
-  wy: number,
-  wz: number,
-  viewProj: Float32Array,
-  viewportWidth: number,
-  viewportHeight: number,
-): { x: number; y: number; behind: boolean } {
-  const cx = requiredNumberAt(viewProj, 0, '2048 view projection') * wx + requiredNumberAt(viewProj, 4, '2048 view projection') * wy + requiredNumberAt(viewProj, 8, '2048 view projection') * wz + requiredNumberAt(viewProj, 12, '2048 view projection');
-  const cy = requiredNumberAt(viewProj, 1, '2048 view projection') * wx + requiredNumberAt(viewProj, 5, '2048 view projection') * wy + requiredNumberAt(viewProj, 9, '2048 view projection') * wz + requiredNumberAt(viewProj, 13, '2048 view projection');
-  const cw = requiredNumberAt(viewProj, 3, '2048 view projection') * wx + requiredNumberAt(viewProj, 7, '2048 view projection') * wy + requiredNumberAt(viewProj, 11, '2048 view projection') * wz + requiredNumberAt(viewProj, 15, '2048 view projection');
-  const ndcX = cx / cw;
-  const ndcY = cy / cw;
-  return {
-    x: (ndcX + 1) / 2 * viewportWidth,
-    y: (1 - ndcY) / 2 * viewportHeight,
-    behind: cw < 0,
-  };
-}
-
-class Game2048GuiSyncSystem extends System {
-  constructor(private readonly sync: () => void) {
-    super(() => false);
-    this.name = 'Game2048GuiSyncSystem';
-    this.priority = -50;
-  }
-
-  override update(): this {
-    this.sync();
-    return this;
-  }
 }
 
 class Game2048 {
@@ -132,11 +98,26 @@ class Game2048 {
   private camEntity!: Entity;
   private cam3D!: Camera3D;
   private spherical!: SphericalTransform3D;
-  private viewProj = new Float32Array(16);
-  private readonly cameraProjection = new CameraViewProjectionCache(this.viewProj);
   private readonly tweenManager = new TweenManager();
   private readonly cellGeometry: ReturnType<typeof createBox3D>;
   private readonly tileGeometry: ReturnType<typeof createBox3D>;
+  private readonly materials: MetalMaterials;
+  private readonly audio = new MetalAudio();
+  private effects!: ForgeMergeEffect;
+  private readonly inputAbort = new AbortController();
+  private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private moveElapsed = Infinity;
+  private moveDuration = 0;
+  private queuedDirection: Direction | null = null;
+  private mergeRank = 0;
+  private impactPlayed = false;
+  private forgePlayed = false;
+  private guiSound!: GuiButton;
+  private guiRestart!: GuiButton;
+  private readonly metalControls: { element: GuiButton; images: GuiImage[] }[] = [];
+  private randomState = 2048;
+  private disposed = false;
+  private readonly verificationMode = new URLSearchParams(window.location.search).get('verify') === '1';
 
   private board: number[][];
   private score = 0;
@@ -145,7 +126,6 @@ class Game2048 {
   private cells: Entity[] = [];
   private tiles = new Map<string, TileVisual>();
 
-  private tileLabelRoot!: GuiRoot;
   private guiScore!: GuiLabel;
   private guiBest!: GuiLabel;
   private guiModal!: GuiModal;
@@ -158,16 +138,19 @@ class Game2048 {
   private mouseDown = false;
 
   constructor(private readonly config: Game2048Config) {
-    this.cellGeometry = createBox3D({
+    this.materials = new MetalMaterials(config);
+    this.cellGeometry = createRoundedBox3D({
+      radius: 0.045, segments: 2,
       width: config.geometry.cellWidth,
       height: config.geometry.cellHeight,
       depth: config.geometry.cellWidth,
     });
-    this.tileGeometry = createBox3D({
+    this.tileGeometry = tileAtlasGeometry(createRoundedBox3D({
+      radius: 0.065, segments: 1,
       width: config.geometry.tileWidth,
       height: config.geometry.tileHeight,
       depth: config.geometry.tileWidth,
-    });
+    }), config.geometry.tileWidth, config.geometry.tileWidth);
     this.board = makeEmptyBoard(this.config.rows, this.config.cols);
     this.saves = new GameSaveService<Game2048SaveData>({
       gameId: GAME_2048_ID,
@@ -181,20 +164,17 @@ class Game2048 {
   async init(canvas: HTMLCanvasElement) {
     this.engine = new GameEngine({
       canvas,
-      clearColor: { r: 0.98, g: 0.96, b: 0.90, a: 1 },
+      clearColor: { r: 0.018, g: 0.026, b: 0.042, a: 1 },
       msaaSamples: 4,
     });
     await this.engine.init();
     this.engine.resizeToDisplaySize(true);
 
+    await Promise.all([this.materials.load(), this.audio.load()]);
     this.world = new World('2048');
+    this.effects = new ForgeMergeEffect(this.world, this.config, this.materials);
+    this.world.addRuntimeIntegration({ onDetach: () => this.dispose() });
     this.world.addSystem(new TweenSystem({ manager: this.tweenManager, priority: -100 }));
-    this.world.addSystem(new Game2048GuiSyncSystem(() => {
-      this._updateLabels(
-        Math.max(1, this.engine.displayWidth),
-        Math.max(1, this.engine.displayHeight),
-      );
-    }));
     this._setupCamera();
     this._setupLights();
     this._setupGui();
@@ -202,11 +182,13 @@ class Game2048 {
     this._setupInput(canvas);
     this._buildCells();
     await this._loadOrCreateState();
+    await this.materials.prepare(this.board.flat());
     this._syncVisuals();
 
     this.engine.on('update', ({ detail: { time, delta } }) => {
       this._tick(time, delta);
     });
+    window.addEventListener('pagehide', () => this.dispose(), { once: true, signal: this.inputAbort.signal });
     this.engine.run();
   }
 
@@ -218,7 +200,7 @@ class Game2048 {
     this.spherical = new SphericalTransform3D({
       radius,
       theta: 0,
-      phi: Math.PI / 4.1,
+      phi: Math.PI / 4.8,
       target: [gridW / 2, 0, gridH / 2],
     });
 
@@ -233,7 +215,10 @@ class Game2048 {
     this.camEntity.addComponent(this.cam3D);
     this.camEntity.addComponent(this.spherical);
     this.world.addEntity(this.camEntity);
-    fitPerspectiveCamera(this.engine, this.world, this.cam3D);
+    fitPerspectiveCamera(this.engine, this.world, this.cam3D, 1.18);
+    const fitHeight = () => { this.spherical.radius = radius * (this.engine.displayHeight < 500 ? 1.3 : 1); };
+    this.engine.on('resize', fitHeight); fitHeight();
+    this.world.addRuntimeIntegration({ onDetach: () => this.engine.off('resize', fitHeight) });
 
     const render3DSystem = new Render3DSystem(this.engine, this.camEntity, {
       priority: 0,
@@ -244,28 +229,25 @@ class Game2048 {
   }
 
   private _setupLights() {
-    const ambient = new Entity('AmbientLight');
-    ambient.addComponent(new AmbientLight({ color: [1, 0.97, 0.9], intensity: 0.36 }));
-    this.world.addEntity(ambient);
-
-    const directional = new Entity('DirectionalLight');
-    directional.addComponent(new DirectionalLight({
-      color: [1, 0.95, 0.86],
-      intensity: 1.18,
-      direction: [-0.45, -1, -0.4],
-    }));
-    this.world.addEntity(directional);
+    this.world.addEntity(new Entity('Studio environment').addComponent(new EnvironmentLight({
+      intensity: 1.05, diffuseColor: [0.46, 0.55, 0.72], specularColor: [0.95, 0.97, 1],
+    })));
+    this.world.addEntity(new Entity('Warm key').addComponent(new DirectionalLight({
+      color: [1, 0.86, 0.65], intensity: 3.3, direction: [-0.5, -1, -0.65],
+    })));
+    this.world.addEntity(new Entity('Cool rim').addComponent(new DirectionalLight({
+      color: [0.4, 0.68, 1], intensity: 2.1, direction: [0.7, -0.4, 0.6],
+    })));
+    this.world.addEntity(new Entity('Soft fill').addComponent(new AmbientLight({ color: [0.65, 0.76, 1], intensity: 0.2 })));
   }
 
   private _setupGui(): void {
-    const title = this._createGuiRoot('2048TitleGui', 46, '#776e65');
-    title.root.add(this._labelElement({ x: 18, y: 12, width: 180, height: 54 }, '2048'));
-
-    const subtitle = this._createGuiRoot('2048SubtitleGui', 13, '#8f7a66');
-    subtitle.root.add(this._labelElement(
-      { x: 18, y: 62, width: 310, height: 30 },
-      'Arrow keys / WASD · Auto save',
-    ));
+    const title = this._createGuiRoot('2048TitleGui', 16, '#e2eaf3');
+    title.root.add(new GuiImage({
+      x: 18, y: 12, width: 192, height: 64,
+      source: this.materials.title ?? null, sourceKey: '2048-metal-title',
+      disabled: true, pointerFilter: 'ignore',
+    }));
 
     const scores = this._createGuiRoot('2048ScoresGui', 16, '#ffffff');
     this.guiBest = scores.root.add(new GuiLabel({
@@ -275,9 +257,10 @@ class Game2048 {
       text: 'BEST  0',
       textAlign: 'center',
       autoWidth: true,
-      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5, padding: 12 },
+      style: { backgroundColor: '#00000000', borderColor: '#00000000', radius: 3, padding: 20 },
     }));
-    this._anchorRight(this.guiBest, 16);
+    this._skin(this.guiBest);
+    this._anchorRight(this.guiBest, 18);
     this.guiScore = scores.root.add(new GuiLabel({
       x: 0,
       y: 18,
@@ -285,14 +268,14 @@ class Game2048 {
       text: 'SCORE  0',
       textAlign: 'center',
       autoWidth: true,
-      style: { backgroundColor: '#bbada0', borderColor: '#bbada0', radius: 5, padding: 12 },
+      style: { backgroundColor: '#00000000', borderColor: '#00000000', radius: 3, padding: 20 },
     }));
+    this._skin(this.guiScore);
     this._anchorBefore(this.guiScore, this.guiBest, 8);
 
-    this.tileLabelRoot = this._createGuiRoot('2048TileLabelsGui', 34, '#776e65').root;
 
     const modalConfig = this.config.hud.modal;
-    const status = this._createGuiRoot('2048ModalGui', 16, '#776e65');
+    const status = this._createGuiRoot('2048ModalGui', 16, '#e4edf5');
     this.guiModal = status.root.add(new GuiModal({
       width: '88%',
       height: 240,
@@ -305,12 +288,12 @@ class Game2048 {
       showCancelButton: true,
       closeOnBackdrop: false,
       style: {
-        backgroundColor: '#f5eee6',
-        borderColor: '#bbada0',
-        color: '#776e65',
+        backgroundColor: '#151e2b',
+        borderColor: '#748598',
+        color: '#e4edf5',
         radius: 10,
       },
-      backdropColor: 'rgba(238,228,218,0.72)',
+      backdropColor: 'rgba(4,9,17,0.82)',
       onConfirm: () => this._newGame(),
       onCancel: () => this._dismissModal(),
       onClose: reason => {
@@ -318,18 +301,18 @@ class Game2048 {
       },
     }));
     this.guiModal.confirmButton.setStyle({
-      backgroundColor: '#8f7a66',
-      hoverBackgroundColor: '#9f8b76',
-      borderColor: '#8f7a66',
+      backgroundColor: '#5c4631',
+      hoverBackgroundColor: '#836345',
+      borderColor: '#c19b65',
       color: '#f9f6f2',
       hoverColor: '#ffffff',
     });
     this.guiModal.cancelButton.setStyle({
-      backgroundColor: '#ded4ca',
-      hoverBackgroundColor: '#d2c5b8',
-      borderColor: '#bbada0',
-      color: '#776e65',
-      hoverColor: '#5f554b',
+      backgroundColor: '#2b3c50',
+      hoverBackgroundColor: '#3e536b',
+      borderColor: '#748598',
+      color: '#e4edf5',
+      hoverColor: '#ffffff',
     });
 
     const controls = this._createGuiRoot('2048ControlsGui', 15, '#f9f6f2');
@@ -340,12 +323,67 @@ class Game2048 {
       height: 42,
       text: 'New Game',
       variant: 'primary',
-      style: { radius: 5, hoverBackgroundColor: '#a18b75', hoverColor: '#ffffff' },
+      style: { backgroundColor: '#00000000', borderColor: '#00000000', radius: 3, hoverBackgroundColor: '#ffffff18', hoverColor: '#ffe4af' },
       onClick: () => this._newGame(),
     }));
+    this.guiRestart = newGame;
+    this._skin(newGame);
     this._anchorBottomRight(newGame, 18, 18);
-
+    this._skin(this.guiModal);
+    this._skin(this.guiModal.confirmButton);
+    this._skin(this.guiModal.cancelButton);
+    const modalLayout = this.guiModal.layout.bind(this.guiModal);
+    this.guiModal.layout = rect => {
+      modalLayout(rect);
+      for (const child of this.guiModal.children) if (child instanceof GuiImage) child.layout(this.guiModal.dialogRect);
+      for (const button of [this.guiModal.confirmButton, this.guiModal.cancelButton])
+        for (const child of button.children) child.layout(button.rect);
+    };
+    this.guiSound = controls.root.add(new GuiButton({
+      width: 108, height: 42, text: this.audio.muted ? 'Sound OFF' : 'Sound ON',
+      style: { backgroundColor: '#00000000', borderColor: '#00000000', hoverBackgroundColor: '#ffffff18', hoverColor: '#ffe4af' },
+      onClick: () => { this.audio.toggle(); this.guiSound.setText(this.audio.muted ? 'Sound OFF' : 'Sound ON'); },
+    }));
+    this._skin(this.guiSound);
+    this._anchorBottomRight(this.guiSound, 144, 18);
     this.world.addSystem(new GuiSystem(this.engine, { loadOp: 'load' }));
+  }
+
+  private _skin(element: GuiElement): void {
+    const panel = this.materials.panel;
+    if (!panel) return;
+    // Nine image patches preserve machined corners on both wide buttons and score plates.
+    const patches: GuiImage[] = [];
+    const cuts = [0, 88 / panel.width, 1 - 88 / panel.width, 1];
+    for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+      const image = element.add(new GuiImage({ source: panel, sourceKey: '2048-metal-panel',
+        uv: [cuts[col]!, cuts[row]!, cuts[col + 1]! - cuts[col]!, cuts[row + 1]! - cuts[row]!],
+        disabled: true, pointerFilter: 'ignore',
+      }));
+      patches.push(image);
+      image.layout = rect => {
+        const edge = Math.min(11, rect.width / 2, rect.height / 2);
+        const xs = [0, edge, rect.width - edge, rect.width], ys = [0, edge, rect.height - edge, rect.height];
+        image.rect = { x: rect.x + xs[col]!, y: rect.y + ys[row]!, width: xs[col + 1]! - xs[col]!, height: ys[row + 1]! - ys[row]! };
+      };
+    }
+    if (element instanceof GuiModal) {
+      element.children.splice(element.children.length - patches.length, patches.length);
+      element.children.unshift(...patches);
+    }
+    if (element instanceof GuiButton) this.metalControls.push({ element, images: patches });
+    // This Engine version paints children after their parent text. Keep the parent text
+    // for auto-width measurement and draw its live caption over the metal patches.
+    if (element instanceof GuiLabel || element instanceof GuiButton) {
+      const caption = element.add(new GuiLabel({ text: element.text, textAlign: 'center',
+        fontSize: element instanceof GuiLabel ? element.fontSize ?? 16 : 15,
+        disabled: true, pointerFilter: 'ignore', style: { color: '#f0f3f8' },
+      }));
+      caption.layout = rect => { caption.rect = { ...rect }; };
+      const setText = element.setText.bind(element);
+      element.setText = text => { setText(text); caption.setText(text); };
+      element.setStyle({ color: '#00000000', hoverColor: '#00000000' });
+    }
   }
 
   private _setupRenderIntegration(): void {
@@ -362,20 +400,13 @@ class Game2048 {
     return { root };
   }
 
-  private _labelElement(rect: GuiRect, text: string): GuiLabel {
-    return new GuiLabel({
-      ...rect,
-      text,
-      textAlign: 'center',
-    });
-  }
-
   private _anchorRight(element: GuiElement, right: number): void {
     const layout = element.layout.bind(element);
     element.layout = (parentRect) => {
       layout(parentRect);
       element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
       if (parentRect.width < 600) element.rect.y = parentRect.y + 100;
+      for (const child of element.children) child.layout(element.rect);
     };
   }
 
@@ -385,6 +416,7 @@ class Game2048 {
       layout(parentRect);
       element.rect.x = next.rect.x - gap - element.rect.width;
       element.rect.y = next.rect.y;
+      for (const child of element.children) child.layout(element.rect);
     };
   }
 
@@ -394,10 +426,13 @@ class Game2048 {
       layout(parentRect);
       element.rect.x = parentRect.x + parentRect.width - right - element.rect.width;
       element.rect.y = parentRect.y + parentRect.height - bottom - element.rect.height;
+      for (const child of element.children) child.layout(element.rect);
     };
   }
 
   private _setupInput(canvas: HTMLCanvasElement) {
+    const signal = this.inputAbort.signal;
+    canvas.addEventListener('pointerdown', () => this.audio.unlock(), { signal });
     window.addEventListener('keydown', (e) => {
       const keyMap: Record<string, Direction | undefined> = {
         ArrowLeft: 'left',
@@ -417,14 +452,14 @@ class Game2048 {
       if (!direction) return;
       e.preventDefault();
       this._move(direction);
-    });
+    }, { signal });
 
     canvas.addEventListener('touchstart', (e) => {
       const touch = e.changedTouches[0];
       if (!touch) return;
       this.touchStartX = touch.clientX;
       this.touchStartY = touch.clientY;
-    }, { passive: true });
+    }, { passive: true, signal });
 
     canvas.addEventListener('touchend', (e) => {
       const touch = e.changedTouches[0];
@@ -432,24 +467,34 @@ class Game2048 {
       const dx = touch.clientX - this.touchStartX;
       const dy = touch.clientY - this.touchStartY;
       this._moveBySwipe(dx, dy);
-    }, { passive: true });
+    }, { passive: true, signal });
 
     canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       this.mouseDown = true;
       this.mouseStartX = e.clientX;
       this.mouseStartY = e.clientY;
-    });
+    }, { signal });
 
     window.addEventListener('mouseup', (e) => {
       if (!this.mouseDown) return;
       this.mouseDown = false;
       this._moveBySwipe(e.clientX - this.mouseStartX, e.clientY - this.mouseStartY);
-    });
+    }, { signal });
   }
 
   private _buildCells() {
-    const mat = new BasicMaterial({ color: color(this._paletteForValue(0).bg) });
+    const mat = this.materials.surface(this._paletteForValue(0).bg, 0.7, 0.72);
+    const gridW = (this.config.cols - 1) * this.config.geometry.cellSize;
+    const gridH = (this.config.rows - 1) * this.config.geometry.cellSize;
+    const base = new Entity('Machined board chassis');
+    base.addComponent(new CartesianTransform3D({ position: [gridW / 2, -0.25, gridH / 2] }));
+    base.addComponent(new Mesh3D(createRoundedBox3D({ width: gridW + 1.58, height: 0.42, depth: gridH + 1.58, radius: 0.16, segments: 3 }), this.materials.surface('#536176', 0.38)));
+    this.world.addEntity(base);
+    const trim = new Entity('Brass chassis undercut');
+    trim.addComponent(new CartesianTransform3D({ position: [gridW / 2, -0.43, gridH / 2] }));
+    trim.addComponent(new Mesh3D(createRoundedBox3D({ width: gridW + 1.48, height: 0.12, depth: gridH + 1.48, radius: 0.055, segments: 2 }), this.materials.surface('#a78049', 0.33)));
+    this.world.addEntity(trim);
     for (let r = 0; r < this.config.rows; r++) {
       for (let c = 0; c < this.config.cols; c++) {
         const cell = new Entity(`cell_${r}_${c}`);
@@ -468,6 +513,7 @@ class Game2048 {
   }
 
   private async _loadOrCreateState(): Promise<void> {
+    if (this.verificationMode) { this.loadVerificationBoard(); return; }
     try {
       const saved = await this.saves.load(GAME_2048_SAVE_ID);
       if (saved !== null) {
@@ -500,6 +546,7 @@ class Game2048 {
   }
 
   private async _writeSaveState(): Promise<void> {
+    if (this.verificationMode) return;
     const data: Game2048SaveData = {
       rows: this.config.rows,
       cols: this.config.cols,
@@ -532,6 +579,10 @@ class Game2048 {
   }
 
   private _newGame(save = true) {
+    this.queuedDirection = null; this.moveElapsed = Infinity; this.moveDuration = 0;
+    this.effects?.clear(); this.audio.stop();
+    this.mergeRank = 0;
+    if (save) this.audio.play('new-game');
     this.board = makeEmptyBoard(this.config.rows, this.config.cols);
     this.score = 0;
     this.phase = 'playing';
@@ -545,6 +596,12 @@ class Game2048 {
     }
   }
 
+  private _random(): number {
+    if (!this.verificationMode) return Math.random();
+    this.randomState = (Math.imul(this.randomState, 1664525) + 1013904223) >>> 0;
+    return this.randomState / 4294967296;
+  }
+
   private _spawnRandomTile() {
     const empty: Array<[number, number]> = [];
     for (let r = 0; r < this.config.rows; r++) {
@@ -553,23 +610,31 @@ class Game2048 {
       }
     }
     if (!empty.length) return;
-    const [r, c] = requiredItemAt(empty, Math.floor(Math.random() * empty.length), 'empty 2048 cells');
-    setBoardValue(this.board, r, c, Math.random() < 0.9 ? 2 : 4);
+    const [r, c] = requiredItemAt(empty, Math.floor(this._random() * empty.length), 'empty 2048 cells');
+    setBoardValue(this.board, r, c, this._random() < 0.9 ? 2 : 4);
   }
 
   private _move(direction: Direction) {
-    if (this.phase === 'lost' || this.guiModal?.visible) return;
+    this.audio.unlock();
+    if (this.phase === 'lost' || this.guiModal?.visible || this.disposed) return;
+    if (this.moveElapsed < this.moveDuration) { this.queuedDirection = direction; return; }
 
     const before = cloneBoard(this.board);
     const result = calculateMove(this.board, direction);
-    if (boardsEqual(before, result.board)) return;
+    if (boardsEqual(before, result.board)) { this.audio.play('blocked'); return; }
 
     this.board = result.board;
     this.score += result.gained;
     this.best = Math.max(this.best, this.score);
     this._spawnRandomTile();
     this._updatePhase();
-    this._syncVisuals(result.movements);
+    this.moveElapsed = 0;
+    this.moveDuration = result.merges.length && !this.reducedMotion ? this.effects.durationMs : this.config.animation.moveDurationMs;
+    this.mergeRank = result.merges.reduce((rank, merge) => Math.max(rank, Math.log2(merge.value)), 0);
+    this.impactPlayed = false; this.forgePlayed = false;
+    this.audio.play('slide');
+    this.effects.start(this.reducedMotion ? [] : result.merges);
+    this._syncVisuals(result.movements, result.merges);
     this._saveState();
   }
 
@@ -589,7 +654,8 @@ class Game2048 {
     }
   }
 
-  private _syncVisuals(movements: TileMovement[] = []) {
+  private _syncVisuals(movements: TileMovement[] = [], merges: TileMerge[] = []) {
+    const merged = new Set(merges.map(merge => `${merge.toRow}_${merge.toCol}`));
     const used = new Set<string>();
     const movementMap = new Map(
       movements.map(move => [`${move.toRow}_${move.toCol}`, move]),
@@ -601,46 +667,31 @@ class Game2048 {
         const key = `${r}_${c}`;
         if (!value) continue;
         used.add(key);
-        const palette = this._paletteForValue(value);
 
         let visual = this.tiles.get(key);
         if (!visual) {
-          const material = new BasicMaterial({ color: color(palette.bg) });
+          const material = this.materials.tile(value);
           const entity = new Entity(`tile_${key}`);
           entity.addComponent(new CartesianTransform3D());
-          entity.addComponent(new Mesh3D(this.tileGeometry, material));
+          const mesh = new Mesh3D(this.tileGeometry, material);
+          entity.addComponent(mesh);
           this.world.addEntity(entity);
 
-          const labelPosition = { x: 0, y: 0 };
-          const label = this.tileLabelRoot.add(new GuiLabel({
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 48,
-            text: String(value),
-            fontSize: this._fontSizeForValue(value),
-            textAlign: 'center',
-            style: { color: palette.fg },
-          }));
-          const layout = label.layout.bind(label);
-          label.layout = (parentRect) => {
-            layout(parentRect);
-            label.rect.x = labelPosition.x - label.rect.width / 2;
-            label.rect.y = labelPosition.y - label.rect.height / 2;
-          };
-          visual = { entity, material, label, labelPosition };
+          visual = { entity, mesh, age: 0, revealAt: 0, pop: true };
           this.tiles.set(key, visual);
         }
 
-        const bg = color(palette.bg);
-        visual.material.color.setFromSRGB(bg.r, bg.g, bg.b, 1);
-        visual.label.setText(String(value));
-        visual.label.setFontSize(this._fontSizeForValue(value));
-        visual.label.setStyle({ color: palette.fg });
+        visual.mesh.material = this.materials.tile(value);
+        visual.age = 0;
+        visual.revealAt = merged.has(key) && !this.reducedMotion ? this.effects.durationMs : 0;
+        visual.mesh.disabled = visual.revealAt > 0;
+        visual.entity.disabled = visual.mesh.disabled;
+        visual.pop = merged.has(key) || !movementMap.has(key);
+        visual.entity.getComponent(CartesianTransform3D)!.setScale(1, 1, 1);
 
         const transform = visual.entity.getComponent(CartesianTransform3D)!;
         const movement = movementMap.get(key);
-        if (movement && (movement.fromRow !== r || movement.fromCol !== c)) {
+        if (!merged.has(key) && movement && (movement.fromRow !== r || movement.fromCol !== c)) {
           this._animateTile(
             visual,
             transform,
@@ -664,7 +715,6 @@ class Game2048 {
       if (used.has(key)) continue;
       this._stopTileTween(visual);
       this.world.removeEntity(visual.entity);
-      this.tileLabelRoot.remove(visual.label);
       this.tiles.delete(key);
     }
 
@@ -713,13 +763,8 @@ class Game2048 {
     visual.tween = undefined;
   }
 
-  private _fontSizeForValue(value: number): number {
-    if (value < 100) return 34;
-    if (value < 1000) return 28;
-    return 23;
-  }
-
   private _syncStatus() {
+    if (this.moveElapsed < this.moveDuration) { this.guiModal.hide(); return; }
     if (this.phase === 'playing') {
       this.dismissedModalPhase = null;
       this.guiModal.hide();
@@ -745,38 +790,84 @@ class Game2048 {
     this._saveState();
   }
 
-  private _updateLabels(viewportWidth: number, viewportHeight: number) {
-    for (const visual of this.tiles.values()) {
-      const transform = visual.entity.getComponent(CartesianTransform3D)!;
-      const x = requiredNumberAt(transform.position, 0, '2048 tile position');
-      const z = requiredNumberAt(transform.position, 2, '2048 tile position');
-      const sc = project3DToScreen(
-        x,
-        this.config.geometry.tileHeight + 0.18,
-        z,
-        this.viewProj,
-        viewportWidth,
-        viewportHeight,
-      );
-      visual.label.setVisible(!sc.behind);
-      if (sc.behind) continue;
-      if (Math.abs(visual.labelPosition.x - sc.x) < 0.05
-        && Math.abs(visual.labelPosition.y - sc.y) < 0.05) continue;
-      visual.labelPosition.x = sc.x;
-      visual.labelPosition.y = sc.y;
-      visual.label.markDirty(GuiDirtyFlags.Layout | GuiDirtyFlags.Visual);
-    }
-  }
-
   private _tick(time: number, delta: number) {
-    const viewportWidth = Math.max(1, this.engine.displayWidth);
-    const viewportHeight = Math.max(1, this.engine.displayHeight);
-    this.cameraProjection.update(this.spherical, this.cam3D, viewportWidth, viewportHeight);
+    if (this.disposed) return;
+    for (const control of this.metalControls) {
+      const tint = control.element.pressed ? '#bd9564' : control.element.hovered ? '#fff0ca' : '#ffffff';
+      for (const image of control.images) image.setTint(tint);
+    }
+    const wasBusy = this.moveElapsed < this.moveDuration;
+    this.moveElapsed += Math.max(0, delta);
+    this.effects.update(delta);
+    if (this.mergeRank > 0 && !this.impactPlayed && this.moveElapsed >= this.config.animation.moveDurationMs) {
+      this.impactPlayed = true; this.audio.play('fracture');
+    }
+    if (this.mergeRank > 0 && !this.forgePlayed && this.moveElapsed >= this.moveDuration) {
+      this.forgePlayed = true; this.audio.play('forge', this.mergeRank);
+    }
+    for (const visual of this.tiles.values()) {
+      visual.age += Math.max(0, delta);
+      visual.mesh.disabled = visual.age < visual.revealAt;
+      visual.entity.disabled = visual.mesh.disabled;
+      if (!visual.pop || visual.mesh.disabled) continue;
+      const t = Math.min(1, (visual.age - visual.revealAt) / 180);
+      const scale = this.reducedMotion ? 1 : (t < 0.3 ? 0.75 + t / 0.3 * 0.32 : 1 + Math.sin((t - 0.3) / 0.7 * Math.PI) * 0.07);
+      visual.entity.getComponent(CartesianTransform3D)!.setScale(scale, scale, scale);
+      if (t >= 1) visual.pop = false;
+    }
+    if (wasBusy && this.moveElapsed >= this.moveDuration) this._syncStatus();
+    if (this.moveElapsed >= this.moveDuration && this.queuedDirection) {
+      const direction = this.queuedDirection; this.queuedDirection = null; this._move(direction);
+    }
     this.world.update(time, delta);
   }
+  /** Available to the deterministic browser fixture only; never changes a player's save. */
+  verification() {
+    if (!this.verificationMode) throw new Error('2048 verification mode is disabled.');
+    return {
+      snapshot: () => ({ board: cloneBoard(this.board), score: this.score, best: this.best, phase: this.phase,
+        busy: this.moveElapsed < this.moveDuration, effects: this.effects.activeCount, pool: this.effects.poolSize,
+        numberedTextures: this.materials.diagnostics(), tileTextOverlays: 0,
+        trianglesPerMerge: this.effects.triangleCount, audio: this.audio.diagnostics(), tiles: this.tiles.size, muted: this.audio.muted,
+        hiddenTiles: [...this.tiles.values()].filter(v => v.mesh.disabled).length,
+        reducedMotion: this.reducedMotion,
+        buttons: { restart: { ...this.guiRestart.rect }, sound: { ...this.guiSound.rect }, keep: { ...this.guiModal.cancelButton.rect } },
+        viewport: { width: this.engine.displayWidth, height: this.engine.displayHeight },
+      }),
+      material: (value: number) => this.materials.tile(value),
+      radius: (value: number) => { this.spherical.radius = value; },
+      texture: (value: number) => this.materials.preview(value),
+      fixture: (mode: 'showcase' | 'play' | 'full' = 'showcase') => this.loadVerificationBoard(mode),
+    };
+  }
+
+  private loadVerificationBoard(mode: 'showcase' | 'play' | 'full' = 'showcase'): void {
+    this.effects.clear(); this.audio.stop(); this.queuedDirection = null; this.moveElapsed = Infinity;
+    this.board = makeEmptyBoard(this.config.rows, this.config.cols);
+    const values = [2, 2, 4, 4, 8, 8, 16, 16, 32, 32, 64, 64, 128, 128, 256, 256, 512, 512, 1024, 1024];
+    const fixture = mode === 'full' ? Array(this.config.rows * this.config.cols).fill(2) : mode === 'play' ? values.slice(0, 18) : values;
+    fixture.slice(0, this.config.rows * this.config.cols).forEach((value, i) => setBoardValue(this.board, Math.floor(i / this.config.cols), i % this.config.cols, value));
+    this.randomState = 2048;
+    this.score = 0; this.best = 0; this.phase = 'playing'; this.dismissedModalPhase = null; this.mergeRank = 0;
+    // During initial loading the caller performs visual synchronization.
+    if (this.guiScore) this._syncVisuals();
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.inputAbort.abort(); this.queuedDirection = null;
+    for (const visual of this.tiles.values()) this._stopTileTween(visual);
+    this.engine?.stop();
+    this.effects?.dispose(); this.audio.dispose();
+    this.world?.destroy(); this.tiles.clear(); this.metalControls.length = 0; this.materials.dispose();
+    this.engine?.destroy();
+  }
+
 }
 
-export async function start2048(canvas: HTMLCanvasElement): Promise<void> {
+export async function start2048(canvas: HTMLCanvasElement): Promise<Game2048> {
   const game = new Game2048(await loadGame2048Config());
-  await game.init(canvas);
+  try { await game.init(canvas); return game; }
+  catch (error) { game.dispose(); throw error; }
 }

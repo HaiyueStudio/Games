@@ -19,6 +19,7 @@ import { SingleSlotGameSave, isFiniteNumber, isNonNegativeInteger, isRecord } fr
 import { Billiards3DHud } from '../ui/Billiards3DHud';
 import { CueStick } from '../rendering/CueStick';
 import { projectToScreen } from '../input/input';
+import { createBilliardsAudio } from '../audio/browser';
 
 interface Billiards3DSaveData {
   potted: number;
@@ -42,6 +43,7 @@ interface Ball {
   t3d: CartesianTransform3D;
   kind: 'cue' | 'red';
   active: boolean;
+  velocity: { x: number; y: number };
 }
 
 type CameraMode = 'aim' | 'top' | 'transition';
@@ -53,8 +55,10 @@ const POCKET_R = 27;
 const MAX_DRAG = 190;
 const IMPULSE_SCALE = 0.020;
 const STOP_SPEED = 0.045;
-const BALL_Y = BALL_R + 8;
-const SHADOW_Y = 5.85;
+const FELT_HEIGHT = 10;
+const FELT_TOP_Y = FELT_HEIGHT / 2;
+const BALL_Y = FELT_TOP_Y + BALL_R;
+const SHADOW_Y = FELT_TOP_Y + 0.06;
 const AIM_RADIUS = 175;
 const AIM_PHI = Math.PI * 0.45;
 const AIM_THETA_TO_RACK = -Math.PI / 2;
@@ -84,6 +88,7 @@ function clamp01(v: number): number {
 }
 
 class Billiards3DGame {
+  private readonly audio = createBilliardsAudio();
   private readonly saves = new SingleSlotGameSave<Billiards3DSaveData>({
     gameId: 'billiards-3d',
     name: 'Billiards 3D 自动存档',
@@ -131,6 +136,7 @@ class Billiards3DGame {
     await this.engine.init();
     this.engine.resizeToDisplaySize(true);
     this.world = new World('Billiards3D');
+    this.world.addRuntimeIntegration({ onDetach: () => this.audio.dispose() });
 
     this.setupCamera(canvas);
     this.setupLights();
@@ -159,6 +165,9 @@ class Billiards3DGame {
 
     this.engine.on('update', ({ detail: { time, delta } }) => this.tick(time, delta));
     this.engine.run();
+    if (new URLSearchParams(location.search).has('verify')) {
+      (window as Window & { __billiards3d?: Billiards3DGame }).__billiards3d = this;
+    }
   }
 
   private setupCamera(canvas: HTMLCanvasElement): void {
@@ -195,6 +204,7 @@ class Billiards3DGame {
   }
 
   private newGame(save = true): void {
+    this.audio.reset();
     for (const ball of this.balls) this.removeBallEntities(ball);
     for (const entity of this.tableEntities) this.world.removeEntity(entity);
     this.balls = [];
@@ -227,6 +237,7 @@ class Billiards3DGame {
 
   private requestNewGame(): void {
     this.newGameRequested = true;
+    this.audio.unlock();
   }
 
   private async loadOrStart(): Promise<void> {
@@ -261,7 +272,7 @@ class Billiards3DGame {
 
   private buildTable(): void {
     this.addBox('TableBase', 0, -8, 0, TABLE_W + 92, 16, TABLE_H + 92, [0.18, 0.08, 0.035, 1]);
-    this.addBox('Felt', 0, 0, 0, TABLE_W, 10, TABLE_H, [0.04, 0.37, 0.22, 1]);
+    this.addBox('Felt', 0, FELT_TOP_Y - FELT_HEIGHT / 2, 0, TABLE_W, FELT_HEIGHT, TABLE_H, [0.04, 0.37, 0.22, 1]);
     this.addRail('TopRail', 0, TABLE_H / 2 + 24, TABLE_W + 80, 38);
     this.addRail('BottomRail', 0, -TABLE_H / 2 - 24, TABLE_W + 80, 38);
     this.addRail('LeftRail', -TABLE_W / 2 - 24, 0, 38, TABLE_H + 80);
@@ -326,7 +337,7 @@ class Billiards3DGame {
     ));
     entity.addComponent(physics);
     this.world.addEntity(entity);
-    const ball: Ball = { entity, shadow: this.createBallShadow(x, z), physics, t2d, t3d, kind, active: true };
+    const ball: Ball = { entity, shadow: this.createBallShadow(x, z), physics, t2d, t3d, kind, active: true, velocity: { x: 0, y: 0 } };
     this.balls.push(ball);
     return ball;
   }
@@ -334,12 +345,12 @@ class Billiards3DGame {
   private createBallShadow(x: number, z: number): Entity {
     const shadow = new Entity('BallShadow');
     shadow.addComponent(new CartesianTransform3D({
-      position: [x + 4, SHADOW_Y, z - 5],
-      scale: [BALL_R * 4.25, 1, BALL_R * 4.25],
+      position: [x, SHADOW_Y, z],
+      scale: [BALL_R * 2.8, 1, BALL_R * 2.8],
     }));
     shadow.addComponent(new Mesh3D(
       createPlane3D({ width: 1, height: 1, normal: 'y' }),
-      new RadialShadowMaterial({ opacity: 0.26, innerRadius: 0.10 }),
+      new RadialShadowMaterial({ opacity: 0.42, innerRadius: 0.16 }),
     ));
     this.world.addEntity(shadow);
     return shadow;
@@ -352,6 +363,7 @@ class Billiards3DGame {
 
   private setupInput(canvas: HTMLCanvasElement): void {
     canvas.addEventListener('pointerdown', (event) => {
+      this.audio.unlock();
       if (this.mode !== 'aim' || !this.canShoot() || !this.pointerNearCue(canvas, event)) return;
       this.charging = true;
       this.pointerId = event.pointerId;
@@ -409,6 +421,7 @@ class Billiards3DGame {
       direction[0] * power * MAX_DRAG * IMPULSE_SCALE,
       direction[1] * power * MAX_DRAG * IMPULSE_SCALE,
     )) return;
+    this.audio.cue(power);
     this.hud.setState('Rolling');
     this.transitionToTopView();
   }
@@ -428,7 +441,12 @@ class Billiards3DGame {
       this.newGame();
     }
     this.updateCameraTransition(time);
+    this.audio.update(Math.min(0.1, Math.max(0, delta / 1000)));
+    for (const ball of this.balls) {
+      if (ball.active) this.physics.getLinearVelocity(ball.physics, ball.velocity);
+    }
     this.world.update(time, delta);
+    this.playContactSounds();
     this.syncBallMeshes();
     this.checkPockets();
     this.settleSlowBalls();
@@ -447,7 +465,21 @@ class Billiards3DGame {
       if (!ball.active) continue;
       ball.t3d.setPosition(ball.t2d.x, BALL_Y, ball.t2d.y);
       const transform = ball.shadow.getComponent(CartesianTransform3D);
-      if (transform) transform.setPosition(ball.t2d.x + 4, SHADOW_Y, ball.t2d.y - 5);
+      if (transform) transform.setPosition(ball.t2d.x, SHADOW_Y, ball.t2d.y);
+    }
+  }
+
+  private playContactSounds(): void {
+    for (const event of this.physics.events()) {
+      if (event.kind !== 'collision' || event.phase !== 'enter') continue;
+      const first = this.balls.find(ball => ball.active && ball.entity === event.entityA);
+      const second = this.balls.find(ball => ball.active && ball.entity === event.entityB);
+      if (!first && !second) continue;
+      const speed = Math.hypot((first?.velocity.x ?? 0) - (second?.velocity.x ?? 0),
+        (first?.velocity.y ?? 0) - (second?.velocity.y ?? 0));
+      const key = [event.entityA.id, event.entityB.id].sort((a, b) => a - b).join(':');
+      const ball = first ?? second!;
+      this.audio.contact(key, !first || !second, speed, ball.t2d.x);
     }
   }
 
@@ -456,11 +488,13 @@ class Billiards3DGame {
       if (!ball.active) continue;
       const inPocket = POCKETS.some(([x, z]) => Math.hypot(ball.t2d.x - x, ball.t2d.y - z) <= POCKET_R - 3);
       if (!inPocket) continue;
+      this.audio.pocket(ball.t2d.x);
       if (ball.kind === 'cue') this.resetCueBall();
       else {
         ball.active = false;
         this.potted++;
         this.removeBallEntities(ball);
+        if (this.potted === 10) this.audio.victory();
       }
     }
   }

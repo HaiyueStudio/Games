@@ -1,11 +1,16 @@
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
-import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Geometry3D, Mesh3D, HaiyueEngine, World, createPlane3D } from '@haiyue/engine';
-import { FixedScreenTransform3D, MusicPlayerComponent, Transform3D } from '@haiyue/engine/components';
-import { FixedScreenTransform3DSystem, Render3DSystem } from '@haiyue/engine/systems';
+import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Mesh3D, HaiyueEngine, World, createPlane3D } from '@haiyue/engine';
+import { MusicPlayerComponent, Transform3D } from '@haiyue/engine/components';
+import { Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { requiredItemAt, requiredNumberAt } from '../../shared/collections/arrayAccess';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
+import { InkArt, INK_FONT, ScrollReveal } from '../art/InkArt';
+import { INK, PAPER, INTRO_DURATION_MS, cellPigment } from '../art/inkNoise';
+import { hexCenter, hexPlaneSize } from '../art/hexGeometry';
+import { drawRiverTile as drawHexPath, drawWetInkHalo } from '../art/RiverPainter';
+import { RiverFlow, type RiverRoute } from '../art/riverFlow';
 
 type AxialKey = string;
 type Phase = 'playing' | 'ended';
@@ -121,6 +126,7 @@ interface TextPlane {
 
 interface SwapOverlay {
   entity: Entity;
+  texture: GPUTexture;
   transform: CartesianTransform3D;
   fromPosition: [number, number, number];
   toPosition: [number, number, number];
@@ -128,11 +134,7 @@ interface SwapOverlay {
   toScale: [number, number, number];
 }
 
-interface FixedImageDecoration {
-  transform: FixedScreenTransform3D;
-  baseWidth: number;
-  baseHeight: number;
-}
+
 
 interface FloatingScoreLabel {
   entity: Entity;
@@ -199,39 +201,26 @@ const VIEW_H = CANVAS_H / CANVAS_W * VIEW_W;
 const DEFAULT_BOARD_RADIUS = 4;
 const DEFAULT_HEX_WORLD = 0.92;
 const DEFAULT_HEX_SCREEN = 40;
-const HEX_SCALE_X = 1;
-const HEX_SCALE_Y = 1.155;
-const HEX_LAYOUT_X_SPACING = 1.155;
-const HEX_HIT_SCALE = Math.max(HEX_SCALE_X, HEX_SCALE_Y);
-const HEX_DRAW_RADIUS = 120;
-const PATH_EDGE_EXTENSION = 12;
-const PATH_LEFT_RIGHT_EDGE_EXTRA_EXTENSION = 8;
-const PATH_DIAGONAL_EDGE_TANGENT_OFFSET = 6;
-const PATH_PORT_T0 = 0.28;
-const PATH_PORT_T1 = 0.72;
-const SOURCE_EXIT_INSET = 26;
+const HEX_HIT_SCALE = 2 / Math.sqrt(3);
 const DEFAULT_BOARD_OFFSET_X = 0;
 const DEFAULT_BOARD_OFFSET_Y = 0;
-const SWAP_PANEL_LEFT = 0;
-const SWAP_PANEL_BOTTOM = 0;
-const SWAP_PANEL_W = 250;
-const SWAP_PANEL_H = 174;
+const SWAP_PANEL_LEFT = 74;
+const SWAP_PANEL_BOTTOM = 285;
+const SWAP_PANEL_W = 216;
+const SWAP_PANEL_H = 190;
 const SWAP_PANEL_HEADER_H = 36;
 const SWAP_TILE_W = 108;
 const SWAP_TILE_H = 124;
 const SWAP_TILE_LEFT = SWAP_PANEL_LEFT + (SWAP_PANEL_W - SWAP_TILE_W) / 2;
 const SWAP_TILE_BOTTOM = SWAP_PANEL_BOTTOM + (SWAP_PANEL_H - SWAP_PANEL_HEADER_H - SWAP_TILE_H) / 2;
 const SWAP_PANEL_Z = 1.0;
-const SWAP_PANEL_HOVER_Z = 1.01;
 const SWAP_TILE_Z = 1.02;
 const SWAP_TEXT_Z = 1.03;
-const SCORE_PANEL_W = 243;
-const SCORE_PANEL_H = 131;
-const SCORE_PANEL_DESIGN_W = 486;
-const SCORE_PANEL_DESIGN_H = 262;
-const SCORE_PANEL_Z = 1.04;
-const SCORE_POPUP_DURATION = 3000;
-const SCORE_POPUP_FADE_START = 2000;
+const SCORE_PANEL_W = 200;
+const SCORE_PANEL_H = 170;
+
+const SCORE_POPUP_DURATION = 1500;
+const SCORE_POPUP_FADE_START = 650;
 const SCORE_POPUP_RISE = 0.88;
 const ROTATE_BUTTON_W = 32;
 const ROTATE_BUTTON_H = 35;
@@ -239,22 +228,8 @@ const ROTATE_BUTTON_OFFSET_X = 43.5;
 const ROTATE_BUTTON_OFFSET_Y = 46.5;
 const ROTATE_BUTTON_Z = 1.06;
 const ROTATE_BUTTON_PRESS_DURATION = 150;
-const CORNER_SHADOW_W = 409;
-const CORNER_SHADOW_H = 525;
-const GAMEBOARD_GLOW_W = 888;
-const GAMEBOARD_GLOW_H = 390;
-const MID_LEFT_W = 270;
-const MID_LEFT_H = 371;
-const MID_RIGHT_W = 397;
-const MID_RIGHT_H = 316;
-const MID_CENTER_LEFT_W = 218;
-const MID_CENTER_LEFT_H = 672;
-const TOP_CENTER_W = 579;
-const TOP_CENTER_H = 82;
-const TOP_LEFT_BOTTOM_W = 409;
-const TOP_LEFT_BOTTOM_H = 525;
-const TOP_RIGHT_W = 364;
-const TOP_RIGHT_H = 578;
+
+
 const DEFAULT_START_CELL: Axial = { q: 0, r: 0 };
 const DEFAULT_START_ENTRY: Port = 4;
 // Edge order follows drawHexPath's visual flat-top hexagon:
@@ -330,8 +305,8 @@ const DEFAULT_LEVEL: LevelConfig = {
   entry: DEFAULT_START_ENTRY,
   hexScreen: DEFAULT_HEX_SCREEN,
   hexWorld: DEFAULT_HEX_WORLD,
-  boardOffsetX: DEFAULT_BOARD_OFFSET_X,
-  boardOffsetY: DEFAULT_BOARD_OFFSET_Y,
+  boardOffsetX: 0,
+  boardOffsetY: 0,
   outerWalls: true,
   startWall: true,
   randomStartExit: true,
@@ -389,10 +364,8 @@ function axialDistance(q: number, r: number): number {
 }
 
 function axialToScreen(q: number, r: number, hexScreen: number, offsetX: number, offsetY: number): { x: number; y: number } {
-  return {
-    x: CANVAS_W / 2 + offsetX + hexScreen * HEX_SCALE_X * HEX_LAYOUT_X_SPACING * Math.sqrt(3) * (q + r / 2),
-    y: CANVAS_H / 2 + offsetY + hexScreen * HEX_SCALE_Y * 1.5 * r,
-  };
+  const center = hexCenter(q, r, hexScreen);
+  return { x: CANVAS_W / 2 + offsetX + center.x, y: CANVAS_H / 2 + offsetY + center.y };
 }
 
 function radiusCells(radius: number): Axial[] {
@@ -451,22 +424,32 @@ function resolveLevel(config: LevelConfig, index: number): ResolvedLevel {
   if (startWall) wallKeys.add(key(resolvedStart.q, resolvedStart.r));
   else wallKeys.delete(key(resolvedStart.q, resolvedStart.r));
   const tileLibrary = (Array.isArray(config.tileLibrary) ? config.tileLibrary.map(normalizePairing).filter(Boolean) : []) as Pairing[];
+  const boardCells = uniqueCells.length > 0 ? uniqueCells : radiusCells(DEFAULT_BOARD_RADIUS);
+  const hexScreen = (Number.isFinite(config.hexScreen) ? Math.max(20, Number(config.hexScreen)) : DEFAULT_HEX_SCREEN) * .95;
+  const centers = boardCells.map(cell => hexCenter(cell.q, cell.r, hexScreen));
+  const centerX = (Math.min(...centers.map(p => p.x)) + Math.max(...centers.map(p => p.x))) / 2;
+  const centerY = (Math.min(...centers.map(p => p.y)) + Math.max(...centers.map(p => p.y))) / 2;
 
   return {
     id: config.id || `level-${index + 1}`,
     name: config.name || `Level ${index + 1}`,
-    cells: uniqueCells.length > 0 ? uniqueCells : radiusCells(DEFAULT_BOARD_RADIUS),
+    cells: boardCells,
     start: resolvedStart,
     entry: Number.isInteger(config.entry) ? mod12(config.entry ?? DEFAULT_START_ENTRY) : DEFAULT_START_ENTRY,
-    hexScreen: Number.isFinite(config.hexScreen) ? Math.max(20, Number(config.hexScreen)) : DEFAULT_HEX_SCREEN,
+    hexScreen,
     hexWorld: Number.isFinite(config.hexWorld) ? Math.max(0.45, Number(config.hexWorld)) : DEFAULT_HEX_WORLD,
-    boardOffsetX: Number.isFinite(config.boardOffsetX) ? Number(config.boardOffsetX) : DEFAULT_BOARD_OFFSET_X,
-    boardOffsetY: Number.isFinite(config.boardOffsetY) ? Number(config.boardOffsetY) : DEFAULT_BOARD_OFFSET_Y,
+    boardOffsetX: Number(config.boardOffsetX ?? 0) + DEFAULT_BOARD_OFFSET_X - centerX,
+    boardOffsetY: Number(config.boardOffsetY ?? 0) + DEFAULT_BOARD_OFFSET_Y - centerY,
     wallKeys,
     startWall,
     randomStartExit: config.randomStartExit ?? startWall,
     tileLibrary: tileLibrary.length > 0 ? tileLibrary : TILE_LIBRARY,
   };
+}
+
+function tileScale(level: ResolvedLevel): { x: number; y: number } {
+  const size = hexPlaneSize(level.hexScreen);
+  return { x: size.width / CANVAS_W * VIEW_W, y: size.height / CANVAS_H * VIEW_H };
 }
 
 function screenToWorld(x: number, y: number, z = 0): [number, number, number] {
@@ -477,51 +460,7 @@ function screenToWorld(x: number, y: number, z = 0): [number, number, number] {
   ];
 }
 
-function createRepeatingPlane3D(uRepeat: number, vRepeat: number): Geometry3D {
-  return new Geometry3D({
-    positions: new Float32Array([
-      -0.5, -0.5, 0,
-       0.5, -0.5, 0,
-       0.5,  0.5, 0,
-      -0.5,  0.5, 0,
-    ]),
-    normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
-    textureCoordinates: [{ set: 0, data: new Float32Array([
-      0, vRepeat,
-      uRepeat, vRepeat,
-      uRepeat, 0,
-      0, 0,
-    ]) }],
-    indices: new Uint16Array([0, 1, 2, 0, 2, 3]),
-  });
-}
 
-function createUvPlane3D(u0: number, v0: number, u1: number, v1: number): Geometry3D {
-  return new Geometry3D({
-    positions: new Float32Array([
-      -0.5, -0.5, 0,
-       0.5, -0.5, 0,
-       0.5,  0.5, 0,
-      -0.5,  0.5, 0,
-    ]),
-    normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
-    textureCoordinates: [{ set: 0, data: new Float32Array([
-      u0, v1,
-      u1, v1,
-      u1, v0,
-      u0, v0,
-    ]) }],
-    indices: new Uint16Array([0, 1, 2, 0, 2, 3]),
-  });
-}
-
-function colorToRgba(hex: string, alpha = 1): string {
-  const value = hex.replace('#', '');
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 function makeCanvas(size = 256): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -530,80 +469,11 @@ function makeCanvas(size = 256): HTMLCanvasElement {
   return canvas;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    image.src = src;
-  });
-}
+
 
 function getAudioContextConstructor(): AudioContextConstructor | null {
   if (typeof window === 'undefined') return null;
   return window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioContextConstructor }).webkitAudioContext ?? null;
-}
-
-function hexPoint(index: number, radius: number, center = 128): { x: number; y: number } {
-  const angle = (-30 + index * 60) * Math.PI / 180;
-  return { x: center + Math.cos(angle) * radius, y: center + Math.sin(angle) * radius };
-}
-
-function edgePortPoint(port: Port, radius = 104): { x: number; y: number } {
-  const side = portSide(port);
-  const lane = mod12(port) % 2;
-  const a = hexPoint(side, radius);
-  const b = hexPoint((side + 1) % 6, radius);
-  const t = lane === 0 ? PATH_PORT_T0 : PATH_PORT_T1;
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-}
-
-function edgePortInwardNormal(port: Port, radius = HEX_DRAW_RADIUS): { x: number; y: number } {
-  const side = portSide(port);
-  const a = hexPoint(side, radius);
-  const b = hexPoint((side + 1) % 6, radius);
-  const edgeX = b.x - a.x;
-  const edgeY = b.y - a.y;
-  const length = Math.hypot(edgeX, edgeY) || 1;
-  const point = edgePortPoint(port, radius);
-  const centerX = 128 - point.x;
-  const centerY = 128 - point.y;
-  let normalX = -edgeY / length;
-  let normalY = edgeX / length;
-  if (normalX * centerX + normalY * centerY < 0) {
-    normalX = -normalX;
-    normalY = -normalY;
-  }
-  return { x: normalX, y: normalY };
-}
-
-function edgePortTangent(port: Port, radius = HEX_DRAW_RADIUS): { x: number; y: number } {
-  const side = portSide(port);
-  const a = hexPoint(side, radius);
-  const b = hexPoint((side + 1) % 6, radius);
-  const edgeX = b.x - a.x;
-  const edgeY = b.y - a.y;
-  const length = Math.hypot(edgeX, edgeY) || 1;
-  return { x: edgeX / length, y: edgeY / length };
-}
-
-function edgePathPoint(port: Port, extension = 0): { x: number; y: number } {
-  const side = portSide(port);
-  const point = edgePortPoint(port, HEX_DRAW_RADIUS);
-  const inward = edgePortInwardNormal(port, HEX_DRAW_RADIUS);
-  const tangent = edgePortTangent(port, HEX_DRAW_RADIUS);
-  const visualScale = Math.hypot(inward.x * HEX_SCALE_X, inward.y * HEX_SCALE_Y) || 1;
-  const sideExtension = side === 0 || side === 3 ? extension + PATH_LEFT_RIGHT_EDGE_EXTRA_EXTENSION : extension;
-  const textureExtension = sideExtension / visualScale;
-  const tangentOffset = side === 1 || side === 4
-    ? -PATH_DIAGONAL_EDGE_TANGENT_OFFSET
-    : side === 2 || side === 5
-      ? PATH_DIAGONAL_EDGE_TANGENT_OFFSET
-      : 0;
-  return {
-    x: point.x - inward.x * textureExtension + tangent.x * tangentOffset,
-    y: point.y - inward.y * textureExtension + tangent.y * tangentOffset,
-  };
 }
 
 function findConnectedPort(tile: TileDef, rotation: number, entry: Port): Port | null {
@@ -613,17 +483,6 @@ function findConnectedPort(tile: TileDef, rotation: number, entry: Port): Port |
     if (b === localEntry) return rotatePort(a, rotation);
   }
   return null;
-}
-
-function isActivePair(tile: TileDef, rotation: number, pair: [Port, Port], activeEntry: Port | null | undefined): boolean {
-  if (activeEntry == null) return false;
-  const a = rotatePort(pair[0], rotation);
-  const b = rotatePort(pair[1], rotation);
-  return a === activeEntry || b === activeEntry;
-}
-
-function hasActivePair(tile: TileDef, rotation: number, pair: [Port, Port], activeEntries: readonly Port[]): boolean {
-  return activeEntries.some((entry) => isActivePair(tile, rotation, pair, entry));
 }
 
 function activeSegmentKeys(tile: TileDef, rotation: number, activeEntries: readonly Port[]): Set<string> {
@@ -636,193 +495,6 @@ function activeSegmentKeys(tile: TileDef, rotation: number, activeEntries: reado
     segments.add(`${a}-${b}`);
   }
   return segments;
-}
-
-function strokePortPath(ctx: CanvasRenderingContext2D, startPort: Port, endPort: Port, extension: number): void {
-  const start = edgePathPoint(startPort, extension);
-  const end = edgePathPoint(endPort, extension);
-  const startNormal = edgePortInwardNormal(startPort);
-  const endNormal = edgePortInwardNormal(endPort);
-  const controlDistance = Math.min(82, Math.max(42, Math.hypot(end.x - start.x, end.y - start.y) * 0.34));
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.bezierCurveTo(
-    start.x + startNormal.x * controlDistance,
-    start.y + startNormal.y * controlDistance,
-    end.x + endNormal.x * controlDistance,
-    end.y + endNormal.y * controlDistance,
-    end.x,
-    end.y,
-  );
-  ctx.stroke();
-}
-
-function strokeStraightPath(ctx: CanvasRenderingContext2D, start: { x: number; y: number }, end: { x: number; y: number }): void {
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.stroke();
-}
-
-function drawHexPath(
-  tile: TileDef | null,
-  rotation: number,
-  options: {
-    fill: string;
-    stroke: string;
-    path: string;
-    glow?: boolean;
-    entry?: number | null;
-    exit?: number | null;
-    activeEntry?: number | null;
-    activeEntries?: Port[];
-    pulseEntries?: Port[];
-    pulse?: number;
-    sourceExit?: Port | null;
-    label?: string;
-    markers?: boolean;
-    baseImage?: HTMLCanvasElement | null;
-  },
-): HTMLCanvasElement {
-  const canvas = makeCanvas();
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const points = Array.from({ length: 6 }, (_, i) => hexPoint(i, 110));
-
-  ctx.save();
-  if (options.baseImage) {
-    ctx.drawImage(options.baseImage, 0, 0, canvas.width, canvas.height);
-  } else {
-    ctx.beginPath();
-    points.forEach((point, index) => {
-      if (index === 0) ctx.moveTo(point.x, point.y);
-      else ctx.lineTo(point.x, point.y);
-    });
-    ctx.closePath();
-    if (options.glow) {
-      ctx.shadowColor = colorToRgba(options.path, 0.55);
-      ctx.shadowBlur = 22;
-    }
-    ctx.fillStyle = options.fill;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = options.stroke;
-    ctx.stroke();
-  }
-
-  if (options.markers !== false) {
-    for (let port = 0; port < 12; port++) {
-      const dot = edgePortPoint(port, 103);
-      ctx.beginPath();
-      ctx.arc(dot.x, dot.y, 4.2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(216, 237, 242, 0.42)';
-      ctx.fill();
-    }
-  }
-
-  if (options.sourceExit != null) {
-    const end = edgePathPoint(options.sourceExit, PATH_EDGE_EXTENSION);
-    const start = edgePathPoint(options.sourceExit, -SOURCE_EXIT_INSET);
-    ctx.lineCap = 'butt';
-    ctx.lineWidth = 19;
-    ctx.strokeStyle = 'rgba(34, 22, 18, 0.92)';
-    strokeStraightPath(ctx, start, end);
-    ctx.lineWidth = 13;
-    ctx.strokeStyle = colorToRgba(options.path, 0.98);
-    strokeStraightPath(ctx, start, end);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = 'rgba(255, 205, 180, 0.36)';
-    strokeStraightPath(ctx, start, end);
-  }
-
-  if (tile) {
-    const activeEntries = options.activeEntries ?? (options.activeEntry == null ? [] : [options.activeEntry]);
-    const pulseEntries = options.pulseEntries ?? activeEntries;
-    const pulse = Math.max(0, Math.min(1, options.pulse ?? 0));
-    ctx.lineCap = 'butt';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = 'rgba(70, 66, 54, 0.72)';
-    for (const [a, b] of tile.pairs) {
-      const sideA = rotatePort(a, rotation);
-      const sideB = rotatePort(b, rotation);
-      strokePortPath(ctx, sideA, sideB, PATH_EDGE_EXTENSION);
-      ctx.lineWidth = 5.5;
-      ctx.strokeStyle = 'rgba(246, 241, 218, 0.96)';
-      strokePortPath(ctx, sideA, sideB, PATH_EDGE_EXTENSION);
-      ctx.lineWidth = 10;
-      ctx.strokeStyle = 'rgba(70, 66, 54, 0.72)';
-    }
-
-    for (const [a, b] of tile.pairs) {
-      if (!hasActivePair(tile, rotation, [a, b], activeEntries)) continue;
-      const segmentPulse = hasActivePair(tile, rotation, [a, b], pulseEntries) ? pulse : 0;
-      const sideA = rotatePort(a, rotation);
-      const sideB = rotatePort(b, rotation);
-      ctx.lineWidth = 18 + segmentPulse * 7;
-      ctx.strokeStyle = `rgba(34, 22, 18, ${0.9 + segmentPulse * 0.1})`;
-      strokePortPath(ctx, sideA, sideB, PATH_EDGE_EXTENSION);
-      ctx.lineWidth = 12 + segmentPulse * 2.5;
-      ctx.strokeStyle = colorToRgba(options.path, 0.98);
-      strokePortPath(ctx, sideA, sideB, PATH_EDGE_EXTENSION);
-      ctx.lineWidth = 3.5 + segmentPulse * 1.5;
-      ctx.strokeStyle = `rgba(255, 205, 180, ${0.28 + segmentPulse * 0.28})`;
-      strokePortPath(ctx, sideA, sideB, PATH_EDGE_EXTENSION);
-    }
-
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(58, 54, 46, 0.34)';
-    for (const [a, b] of tile.pairs) {
-      if (hasActivePair(tile, rotation, [a, b], activeEntries)) continue;
-      strokePortPath(ctx, rotatePort(a, rotation), rotatePort(b, rotation), PATH_EDGE_EXTENSION);
-    }
-
-    if (options.markers !== false) {
-      const activePorts = new Set<Port>();
-      for (const activeEntry of activeEntries) {
-        activePorts.add(activeEntry);
-        const activeExit = findConnectedPort(tile, rotation, activeEntry);
-        if (activeExit != null) activePorts.add(activeExit);
-      }
-      for (const port of activePorts) {
-        const portPulse = pulseEntries.some((entry) => entry === port || findConnectedPort(tile, rotation, entry) === port) ? pulse : 0;
-        const marker = edgePortPoint(port, 86);
-        ctx.beginPath();
-        ctx.arc(marker.x, marker.y, 7.5 + portPulse * 3, 0, Math.PI * 2);
-        ctx.fillStyle = activeEntries.includes(port) ? '#f6c85f' : '#80ed99';
-        ctx.fill();
-      }
-    }
-  }
-
-  if (options.markers !== false) {
-    for (const side of [options.entry, options.exit]) {
-      if (side == null) continue;
-      const marker = edgePortPoint(side, 98);
-      ctx.beginPath();
-      ctx.arc(marker.x, marker.y, 12, 0, Math.PI * 2);
-      ctx.fillStyle = side === options.entry ? '#f6c85f' : '#7dd3fc';
-      ctx.fill();
-      if (side === options.entry) {
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#fff7c2';
-        ctx.stroke();
-      }
-    }
-  }
-
-  if (options.label) {
-    ctx.font = '800 38px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#edf6f9';
-    ctx.fillText(options.label, 128, 128);
-  }
-  ctx.restore();
-  return canvas;
 }
 
 function drawTextTexture(
@@ -850,7 +522,7 @@ function drawTextTexture(
     ctx.roundRect(0, 0, width, height, 22);
     ctx.fill();
   }
-  ctx.font = `${options.weight ?? 800} ${options.fontSize ?? 42}px Inter, "Microsoft YaHei", sans-serif`;
+  ctx.font = `${options.weight ?? 500} ${options.fontSize ?? 42}px ${INK_FONT}`;
   ctx.textAlign = options.align ?? 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = options.color ?? '#f8fafc';
@@ -864,66 +536,12 @@ function drawTextTexture(
   return canvas;
 }
 
-function drawScorePanelTexture(
-  background: HTMLImageElement | null,
-  score: number,
-  pathLength: number,
-  tileCount: number,
-  best: number,
-): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = SCORE_PANEL_W;
-  canvas.height = SCORE_PANEL_H;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
-  ctx.scale(SCORE_PANEL_W / SCORE_PANEL_DESIGN_W, SCORE_PANEL_H / SCORE_PANEL_DESIGN_H);
 
-  if (background) {
-    const sourceY = background.naturalHeight * 0.6;
-    const sourceH = background.naturalHeight * 0.4;
-    ctx.drawImage(
-      background,
-      0,
-      sourceY,
-      background.naturalWidth,
-      sourceH,
-      0,
-      0,
-      SCORE_PANEL_DESIGN_W,
-      SCORE_PANEL_DESIGN_H,
-    );
-  } else {
-    ctx.fillStyle = 'rgba(5, 16, 15, 0.82)';
-    ctx.fillRect(0, 0, SCORE_PANEL_DESIGN_W, SCORE_PANEL_DESIGN_H);
-  }
-
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.52)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 2;
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = '900 56px Inter, "Microsoft YaHei", sans-serif';
-  ctx.fillText('得分 |', 18, 74);
-  ctx.font = '900 86px Inter, "Microsoft YaHei", sans-serif';
-  ctx.fillText(String(score), 166, 89);
-
-  ctx.shadowBlur = 5;
-  ctx.shadowOffsetY = 1;
-  ctx.font = '900 27px Inter, "Microsoft YaHei", sans-serif';
-  ctx.fillText(`记录 ${best}`, 18, 130);
-  ctx.fillText(`当前路线 ${pathLength}`, 18, 170);
-  ctx.fillText(`拼块数量 ${tileCount}`, 18, 210);
-  ctx.restore();
-  return canvas;
-}
 
 class EntanglementPathGame {
   private readonly saves = new SingleSlotGameSave<EntanglementSaveData>({
     gameId: 'entanglement-path',
-    name: 'Entanglement Path 自动存档',
+    name: '阡陌交通 自动存档',
     validateData: isEntanglementSaveData,
   });
   private engine!: HaiyueEngine;
@@ -952,11 +570,10 @@ class EntanglementPathGame {
   private previewTransform!: CartesianTransform3D;
   private previewMesh!: Mesh3D;
   private previewEntity: Entity | null = null;
-  private reserveTransform!: FixedScreenTransform3D;
+  private reserveTransform!: CartesianTransform3D;
   private reserveMesh!: Mesh3D;
   private reserveEntity: Entity | null = null;
-  private swapPanelTransform!: FixedScreenTransform3D;
-  private swapPanelHighlightMaterial!: BasicMaterial;
+  private swapPanelTransform!: CartesianTransform3D;
   private swapHoverTarget = 0;
   private swapHoverAmount = 0;
   private swapAnimationStart = 0;
@@ -964,16 +581,23 @@ class EntanglementPathGame {
   private readonly swapAnimationDuration = 260;
   private swapOverlays: SwapOverlay[] = [];
   private scoreText!: TextPlane;
+  private restartText!: TextPlane;
   private highlightedKey: AxialKey | null = null;
   private activeEntries = new Map<AxialKey, Port[]>();
   private previewTextureCache = new Map<string, GPUTexture>();
   private reserveTextureCache = new Map<string, GPUTexture>();
+  private readonly riverFlow = new RiverFlow();
+  private readonly riverCanvases = new Map<AxialKey, HTMLCanvasElement>();
+  private riverFrame = -1;
+  private riverSettledCursor = 0;
+  private readonly previousFlowCells = new Set<AxialKey>();
+  private haloTransform!: CartesianTransform3D;
+  private haloMaterial!: BasicMaterial;
+  private haloCell = '';
+  private haloStarted = 0;
   private pathPulse = 0;
   private lastPathPulseBucket = -1;
   private previousBreathingEntries = new Map<AxialKey, Port[]>();
-  private blockAtlas: HTMLImageElement | null = null;
-  private scoreBackground: HTMLImageElement | null = null;
-  private blockTileCache = new Map<string, HTMLCanvasElement>();
   private sfxContext: AudioContext | null = null;
   private sfxBuffer: AudioBuffer | null = null;
   private turnBuffers: AudioBuffer[] = [];
@@ -989,10 +613,27 @@ class EntanglementPathGame {
   private readonly previewSpinDuration = 160;
   private wheelAccumulator = 0;
   private readonly wheelRotateThreshold = 180;
-  private decorations: FixedImageDecoration[] = [];
   private scorePopups: FloatingScoreLabel[] = [];
   private rotateButtons: RotateButtonState[] = [];
   private pointerCanvasPoint: { x: number; y: number } | null = null;
+
+  private art!: InkArt;
+  private intro!: ScrollReveal;
+  private introTexture: GPUTexture | null = null;
+  private introEntity: Entity | null = null;
+  private introStarted = 0;
+  private introElapsed = 0;
+  private introLastFrame = -1;
+  private introActive = true;
+  private camera!: Camera3D;
+  private cameraTransform!: CartesianTransform3D;
+  private backgroundTransform!: CartesianTransform3D;
+  private introTransform: CartesianTransform3D | null = null;
+  private music!: MusicPlayerComponent;
+  private readonly uiPlanes = new Map<string, { transform: CartesianTransform3D; x: number; y: number; z: number }>();
+  private viewWidth = VIEW_W;
+  private viewHeight = VIEW_H;
+  private cameraX = 0;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new GameEngine({
@@ -1002,22 +643,22 @@ class EntanglementPathGame {
       devicePixelRatio: () => Math.min(window.devicePixelRatio || 1, 2),
     });
     await this.engine.init();
-    this.world = new World('Entanglement Path');
+    this.world = new World('阡陌交通');
     this.setupCamera();
+    this.art = await InkArt.load();
     this.buildBackground();
     this.setupMusic();
-    await this.loadBlockAtlas();
-    await this.loadScoreBackground();
     void this.loadSfxSound();
     void this.loadTurnSounds();
     void this.loadEndSound();
     this.levels = await this.loadLevels();
     await this.loadOrStart();
     this.buildDecorations();
-    this.updateDecorationScale();
     this.buildPanel();
     this.bindInput(canvas);
     this.syncAll();
+    this.updateViewport();
+    this.startIntro();
     this.engine.on('update', ({ detail: { time } }) => {
       this.updateSwapPanelHover();
       this.updateSwapAnimation();
@@ -1026,11 +667,13 @@ class EntanglementPathGame {
       this.updateRotateButtons();
       this.updatePreviewRotationAnimation();
       this.updatePathPulse();
+      this.updateRiverVisuals();
+      this.updateIntro();
       this.world.update(time, 16);
     });
     window.addEventListener('resize', () => {
-      this.updateDecorationScale();
       this.engine.resizeToDisplaySize();
+      this.updateViewport();
     });
     this.engine.resizeToDisplaySize();
     this.engine.run();
@@ -1049,24 +692,7 @@ class EntanglementPathGame {
     }
   }
 
-  private async loadBlockAtlas(): Promise<void> {
-    try {
-      this.blockAtlas = await loadImage('./assets/block.png');
-      this.blockTileCache.clear();
-    } catch (error) {
-      console.warn('Using procedural Entanglement block fallback.', error);
-      this.blockAtlas = null;
-    }
-  }
 
-  private async loadScoreBackground(): Promise<void> {
-    try {
-      this.scoreBackground = await loadImage('./assets/score_background.png');
-    } catch (error) {
-      console.warn('Using procedural score panel fallback.', error);
-      this.scoreBackground = null;
-    }
-  }
 
   private async loadSfxSound(): Promise<void> {
     if (this.sfxBuffer) return;
@@ -1176,92 +802,115 @@ class EntanglementPathGame {
       bottom: -VIEW_H / 2,
     });
     const transform = new CartesianTransform3D({ position: [0, 0, 10] });
+    this.camera = camera; this.cameraTransform = transform;
     const entity = new Entity('Camera');
     entity.addComponent(camera);
     entity.addComponent(transform);
     this.world.addEntity(entity);
     const renderIntegration = new RenderIntegration(this.engine, { label: 'EntanglementPath.render' });
     this.world.addRuntimeIntegration(renderIntegration);
-    this.world.addSystem(new FixedScreenTransform3DSystem(this.engine, { cameraEntity: entity }));
-    this.world.addSystem(new Render3DSystem(this.engine, entity, { loadOp: 'clear', transparentSort: false }));
+    // These are display-authored 2D sprites; HDR tone mapping dulls their colors.
+    this.world.addSystem(new Render3DSystem(this.engine, entity, { loadOp: 'clear', transparentSort: true, toneMapping: 'none' }));
     renderIntegration.registerAll(this.world, () => ({ pass: 'shared' }));
   }
 
   private buildBackground(): void {
-    const material = new BasicMaterial({
-      texture: './assets/bg.jpg',
-      color: [1, 1, 1, 1],
-      blending: 'none',
-      depthWrite: false,
-      sampler: {
-        addressModeU: 'repeat',
-        addressModeV: 'repeat',
-        magFilter: 'linear',
-        minFilter: 'linear',
-      },
-    });
-    const transform = new CartesianTransform3D({
-      position: [0, 0, -0.55],
-      scale: [VIEW_W, VIEW_H, 1],
-    });
-    const entity = new Entity('Background');
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createRepeatingPlane3D(4, 3), material));
-    this.world.addEntity(entity);
+    const material = new BasicMaterial({ texture: this.art.landscape, blending: 'none', depthWrite: false });
+    const entity = new Entity('Ink Landscape Scroll');
+    this.backgroundTransform = new CartesianTransform3D({ position: [0, 0, -.55], scale: [VIEW_W, VIEW_H, 1] });
+    entity.addComponent(this.backgroundTransform);
+    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material)); this.world.addEntity(entity);
+  }
+
+  private updateViewport(): void {
+    const rect = this.engine.canvas!.getBoundingClientRect();
+    const aspect = Math.max(1, rect.width) / Math.max(1, rect.height), portrait = aspect < .95;
+    this.viewWidth = portrait ? 10.2 : Math.max(VIEW_W, VIEW_H * aspect);
+    this.viewHeight = this.viewWidth / aspect;
+    this.cameraX = portrait ? screenToWorld(CANVAS_W / 2 + DEFAULT_BOARD_OFFSET_X, CANVAS_H / 2)[0] : 0;
+    this.camera.orthoLeft = -this.viewWidth / 2; this.camera.orthoRight = this.viewWidth / 2;
+    this.camera.orthoTop = this.viewHeight / 2; this.camera.orthoBottom = -this.viewHeight / 2;
+    this.cameraTransform.setPosition(this.cameraX, 0, 10);
+    this.backgroundTransform.setPosition(this.cameraX, 0, -.55).setScale(this.viewWidth, this.viewHeight, 1);
+    this.introTransform?.setPosition(this.cameraX, 0, 4).setScale(this.viewWidth, this.viewHeight, 1);
+    for (const item of this.uiPlanes.values()) item.transform.setPosition(...screenToWorld(item.x, item.y, item.z));
+    const place = (name: string, x: number, y: number) => {
+      const item = this.uiPlanes.get(name); item?.transform.setPosition(x, y, item.z);
+    };
+    const panelX = portrait ? this.cameraX - this.viewWidth / 2 + 1.9 : screenToWorld(SWAP_PANEL_LEFT + SWAP_PANEL_W / 2, 0)[0];
+    const panelY = portrait ? this.viewHeight / 2 - 5.5 : screenToWorld(0, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H / 2)[1];
+    this.swapPanelTransform.setPosition(panelX, panelY, SWAP_PANEL_Z);
+    this.reserveTransform.setPosition(panelX, panelY - .23, SWAP_TILE_Z);
+    if (portrait) {
+      const top = this.viewHeight / 2;
+      place('Ink Title', this.cameraX - 2.5, top - 3.1);
+      place('Ink Subtitle', this.cameraX - 2.5, top - 3.85);
+      place('Ink Seal', this.cameraX - .70, top - 3.1);
+      place('Swap Title', panelX, panelY + .76);
+      place('Ink Instructions', panelX, panelY - 1.22);
+      place('Restart Prompt', this.cameraX, -this.viewHeight * .25);
+    }
+    const score = this.uiPlanes.get('Score Panel');
+    if (score) {
+      const scale = portrait ? 1.2 : 1;
+      const width = SCORE_PANEL_W / CANVAS_W * VIEW_W * scale;
+      const height = SCORE_PANEL_H / CANVAS_H * VIEW_H * scale;
+      score.transform.setScale(width, height, 1);
+      place('Score Panel', this.cameraX + this.viewWidth * .432 - width / 2,
+        this.viewHeight * .425 - .35 - height / 2);
+    }
+  }
+
+  private startIntro(): void {
+    this.intro = new ScrollReveal(this.art); this.introStarted = gameTime();
+    this.introTexture = this.canvasToGpuTexture(this.intro.draw(0));
+    const entity = new Entity('Unrolling Ink Scroll');
+    this.introTransform = new CartesianTransform3D({ position: [this.cameraX, 0, 4], scale: [this.viewWidth, this.viewHeight, 1] });
+    entity.addComponent(this.introTransform);
+    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), new BasicMaterial({ texture: this.introTexture, blending: 'normal', depthWrite: false })));
+    this.world.addEntity(entity); this.introEntity = entity;
+  }
+
+  private updateIntro(): void {
+    if (!this.introActive) return;
+    this.introElapsed = gameTime() - this.introStarted;
+    if (this.introElapsed >= INTRO_DURATION_MS) {
+      this.introActive = false;
+      if (this.introEntity) this.world.removeEntity(this.introEntity);
+      this.introEntity = null; this.introTransform = null; this.introTexture?.destroy(); this.introTexture = null;
+      return;
+    }
+    const frame = Math.floor(this.introElapsed / 40);
+    if (frame === this.introLastFrame) return;
+    this.introLastFrame = frame;
+    if (this.introTexture) this.uploadCanvas(this.introTexture, this.intro.draw(this.introElapsed));
   }
 
   private setupMusic(): void {
     const music = new Entity('Music');
-    music.addComponent(new MusicPlayerComponent({
-      urls: [
-        './assets/Layer1_1.ogg',
-        './assets/Layer1_2.ogg',
-        './assets/Layer1_3.ogg',
-        './assets/Layer1_4.ogg',
-        './assets/Layer1_5.ogg',
-        './assets/Layer1_6.ogg',
-      ],
+    this.music = new MusicPlayerComponent({
+      urls: ['./assets/bgm.mp3'],
       volume: 0.5,
       autoplay: true,
       loop: true,
-    }));
+    });
+    music.addComponent(this.music);
     this.world.addEntity(music);
   }
 
-  private getBlockTile(row: number, variant: number): HTMLCanvasElement | null {
-    if (!this.blockAtlas) return null;
-    const col = ((variant % 5) + 5) % 5;
-    const keyValue = `${row}:${col}`;
-    const cached = this.blockTileCache.get(keyValue);
-    if (cached) return cached;
-    const canvas = makeCanvas();
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    const tileWidth = this.blockAtlas.naturalWidth / 5;
-    const tileHeight = this.blockAtlas.naturalHeight / 7;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(Math.PI / 2);
-    ctx.drawImage(
-      this.blockAtlas,
-      col * tileWidth,
-      row * tileHeight,
-      tileWidth,
-      tileHeight,
-      -canvas.height / 2,
-      -canvas.width / 2,
-      canvas.width,
-      canvas.height,
-    );
-    ctx.restore();
-    this.blockTileCache.set(keyValue, canvas);
-    return canvas;
+  private getBlockTile(row: number, variant: number): HTMLCanvasElement {
+    return this.art.tile(row === 1 ? 'wall' : row === 2 ? 'path' : 'pigment', variant);
+  }
+
+  private terrainSeed(tile: TileDef): number { return cellPigment(tile.id, tile.variant, 71); }
+
+  private pathTerrain(tile: TileDef, rotation: number): HTMLCanvasElement {
+    return this.art.tile('path', this.terrainSeed(tile), tile.pairs, rotation);
   }
 
   private drawBaseCell(cell: Pick<BoardCell, 'wall' | 'variant'> & Partial<Pick<BoardCell, 'source'>>): HTMLCanvasElement {
     const source = Boolean(cell.source);
-    const baseImage = source ? this.getBlockTile(2, 2) : this.getBlockTile(cell.wall ? 1 : 0, cell.variant);
+    const baseImage = source ? this.art.tile('source', cell.variant) : this.getBlockTile(cell.wall ? 1 : 0, cell.variant);
     const texture = drawHexPath(null, 0, {
       fill: cell.wall ? '#2d3340' : '#16252d',
       stroke: cell.wall ? '#5b6470' : '#314852',
@@ -1270,23 +919,7 @@ class EntanglementPathGame {
       baseImage,
       markers: false,
     });
-    if (source) this.drawSourcePathLength(texture);
     return texture;
-  }
-
-  private drawSourcePathLength(canvas: HTMLCanvasElement): void {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = '900 116px Inter, "Microsoft YaHei", sans-serif';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.72)';
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetY = 3;
-    ctx.fillStyle = '#ffffe1';
-    ctx.fillText(String(this.pathLength), 128, 128);
-    ctx.restore();
   }
 
   private buildBoard(): void {
@@ -1294,7 +927,7 @@ class EntanglementPathGame {
         const cellKey = key(q, r);
         const source = this.level.startWall && cellKey === key(this.level.start.q, this.level.start.r);
         const wall = this.level.wallKeys.has(cellKey) || source;
-        const variant = Math.floor(Math.random() * 5);
+        const variant = cellPigment(q, r, this.levelIndex);
         const screen = axialToScreen(q, r, this.level.hexScreen, this.level.boardOffsetX, this.level.boardOffsetY);
         const material = new BasicMaterial({
           texture: this.canvasToGpuTexture(this.drawBaseCell({ wall, source, variant })),
@@ -1303,7 +936,7 @@ class EntanglementPathGame {
         });
         const transform = new CartesianTransform3D({
           position: screenToWorld(screen.x, screen.y, 0),
-          scale: [this.level.hexWorld * HEX_SCALE_X, this.level.hexWorld * HEX_SCALE_Y, 1],
+          scale: [tileScale(this.level).x, tileScale(this.level).y, 1],
         });
         const entity = new Entity(`Cell ${q},${r}`);
         const mesh = new Mesh3D(createPlane3D({ width: 1, height: 1 }), material);
@@ -1315,19 +948,8 @@ class EntanglementPathGame {
   }
 
   private buildPanel(): void {
-    this.scoreText = this.createFixedTextBox({
-      name: 'Score Panel',
-      text: '',
-      left: 0,
-      top: 0,
-      width: SCORE_PANEL_W,
-      height: SCORE_PANEL_H,
-      fontSize: 28,
-      color: '#ffffff',
-      align: 'left',
-      weight: 900,
-      z: SCORE_PANEL_Z,
-    });
+    this.scoreText = this.createText('Score Panel', '', 958, 88, SCORE_PANEL_W, SCORE_PANEL_H, 24, INK);
+
     const previewMat = new BasicMaterial({
       texture: this.getPreviewTexture(),
       blending: 'normal',
@@ -1335,7 +957,7 @@ class EntanglementPathGame {
     });
     const previewTransform = new CartesianTransform3D({
       position: screenToWorld(CANVAS_W / 2, CANVAS_H / 2, 0.26),
-      scale: [this.level.hexWorld * HEX_SCALE_X * 1.02, this.level.hexWorld * HEX_SCALE_Y * 1.02, 1],
+      scale: [tileScale(this.level).x, tileScale(this.level).y, 1],
     });
     const preview = new Entity('Next Tile');
     const previewMesh = new Mesh3D(createPlane3D({ width: 1, height: 1 }), previewMat);
@@ -1347,6 +969,11 @@ class EntanglementPathGame {
     this.previewTransform = previewTransform;
     this.previewMesh = previewMesh;
 
+    const halo = new Entity('Wet Ink Current Halo');
+    this.haloMaterial = new BasicMaterial({ texture: this.canvasToGpuTexture(drawWetInkHalo()), blending: 'normal', depthWrite: false });
+    this.haloTransform = new CartesianTransform3D({ scale: [0, 0, 1] });
+    halo.addComponent(this.haloTransform); halo.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), this.haloMaterial));
+    this.world.addEntity(halo);
     this.buildRotateButtons();
     this.buildSwapPanel();
     const reserveMat = new BasicMaterial({
@@ -1354,13 +981,11 @@ class EntanglementPathGame {
       blending: 'normal',
       depthWrite: false,
     });
-    const reserveTransform = new FixedScreenTransform3D({
-      left: SWAP_TILE_LEFT,
-      bottom: SWAP_TILE_BOTTOM,
-      width: SWAP_TILE_W,
-      height: SWAP_TILE_H,
-      z: SWAP_TILE_Z,
+    const reserveTransform = new CartesianTransform3D({
+      position: screenToWorld(SWAP_TILE_LEFT + SWAP_TILE_W / 2, CANVAS_H - SWAP_TILE_BOTTOM - SWAP_TILE_H / 2, SWAP_TILE_Z),
+      scale: [SWAP_TILE_W / CANVAS_W * VIEW_W, SWAP_TILE_H / CANVAS_H * VIEW_H, 1],
     });
+
     const reserve = new Entity('Reserve Tile');
     const reserveMesh = new Mesh3D(createPlane3D({ width: 1, height: 1 }), reserveMat);
     reserve.addComponent(reserveTransform);
@@ -1369,6 +994,15 @@ class EntanglementPathGame {
     this.reserveEntity = reserve;
     this.reserveTransform = reserveTransform;
     this.reserveMesh = reserveMesh;
+    this.restartText = this.createText(
+      'Restart Prompt',
+      '路线已结束\n点击画面重新开始\n也可按空格或回车',
+      360, 580, 480, 120, 24, PAPER, 'center', 500, undefined, 2,
+    );
+    const restart = this.art.panel('dark', 480, 120), restartCtx = restart.getContext('2d')!;
+    restartCtx.drawImage(drawTextTexture('此局已尽\n点击画面重新落笔\n也可按空格或回车', { width: 480, height: 120, fontSize: 24, color: PAPER }), 0, 0);
+    this.uploadCanvas(this.restartText.material.texture as GPUTexture, restart);
+    this.restartText.material.color.a = 0;
   }
 
   private buildRotateButtons(): void {
@@ -1378,9 +1012,9 @@ class EntanglementPathGame {
     ];
   }
 
-  private createRotateButton(kind: RotateButtonKind, direction: -1 | 1, u0: number, u1: number): RotateButtonState {
+  private createRotateButton(kind: RotateButtonKind, direction: -1 | 1, _u0: number, _u1: number): RotateButtonState {
     const material = new BasicMaterial({
-      texture: './assets/rotate-buttons.png',
+      texture: this.canvasToGpuTexture(this.art.rotationArrow(direction === 1)),
       color: [1, 1, 1, 0],
       blending: 'normal',
       depthWrite: false,
@@ -1391,7 +1025,7 @@ class EntanglementPathGame {
     });
     const entity = new Entity(`Rotate Button ${kind}`);
     entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createUvPlane3D(u0, 0, u1, 1), material));
+    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
     this.world.addEntity(entity);
     return {
       kind,
@@ -1405,176 +1039,20 @@ class EntanglementPathGame {
   }
 
   private buildDecorations(): void {
-    this.createFixedImage({
-      name: 'Corner Shadow',
-      texture: './assets/corner_shadow.png',
-      right: 0,
-      bottom: 0,
-      width: CORNER_SHADOW_W,
-      height: CORNER_SHADOW_H,
-      z: 0.36,
-    });
-    this.createFixedImage({
-      name: 'Gameboard Glow',
-      texture: './assets/gameboard_glow.png',
-      top: 0,
-      width: GAMEBOARD_GLOW_W,
-      height: GAMEBOARD_GLOW_H,
-      z: 0.9,
-    });
-    this.createFixedImage({
-      name: 'Mid Left',
-      texture: './assets/mid_1.png',
-      left: 0,
-      top: 0,
-      width: MID_LEFT_W,
-      height: MID_LEFT_H,
-      z: 0.9,
-    });
-    this.createFixedImage({
-      name: 'Mid Right',
-      texture: './assets/mid_2.png',
-      right: 0,
-      top: 0,
-      width: MID_RIGHT_W,
-      height: MID_RIGHT_H,
-      z: 0.9,
-    });
-    this.createFixedImage({
-      name: 'Mid Center Left',
-      texture: './assets/mid_0.png',
-      left: 0,
-      top: 0,
-      width: MID_CENTER_LEFT_W,
-      height: MID_CENTER_LEFT_H,
-      z: 0.9,
-    });
-    this.createFixedImage({
-      name: 'Top Center',
-      texture: './assets/top_0.png',
-      top: 0,
-      width: TOP_CENTER_W,
-      height: TOP_CENTER_H,
-      z: 0.9,
-    });
-    this.createFixedImage({
-      name: 'Top Left Bottom',
-      texture: './assets/top_1.png',
-      left: 0,
-      bottom: 0,
-      width: TOP_LEFT_BOTTOM_W,
-      height: TOP_LEFT_BOTTOM_H,
-      z: 0.9,
-    });
-    this.createFixedImage({
-      name: 'Top Right',
-      texture: './assets/top_2.png',
-      right: 0,
-      top: 0,
-      width: TOP_RIGHT_W,
-      height: TOP_RIGHT_H,
-      z: 0.9,
-    });
-  }
-
-  private createFixedImage(options: {
-    name: string;
-    texture: string;
-    left?: number;
-    right?: number;
-    top?: number;
-    bottom?: number;
-    width: number;
-    height: number;
-    z: number;
-    scalable?: boolean;
-  }): Entity {
-    const material = new BasicMaterial({
-      texture: options.texture,
-      blending: 'normal',
-      depthWrite: false,
-    });
-    const transform = new FixedScreenTransform3D({
-      left: options.left,
-      right: options.right,
-      top: options.top,
-      bottom: options.bottom,
-      width: options.width,
-      height: options.height,
-      z: options.z,
-    });
-    const entity = new Entity(options.name);
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
-    this.world.addEntity(entity);
-    if (options.scalable !== false) {
-      this.decorations.push({ transform, baseWidth: options.width, baseHeight: options.height });
-    }
-    return entity;
-  }
-
-  private updateDecorationScale(): void {
-    const viewportWidth = typeof window === 'undefined' ? CANVAS_W : Math.max(1, window.innerWidth);
-    const viewportHeight = typeof window === 'undefined' ? CANVAS_H : Math.max(1, window.innerHeight);
-    const scale = Math.min(1, viewportWidth / CANVAS_W, viewportHeight / CANVAS_H);
-    for (const decoration of this.decorations) {
-      decoration.transform.setScreenSize(
-        Math.round(decoration.baseWidth * scale),
-        Math.round(decoration.baseHeight * scale),
-      );
-    }
+    const title = this.createText('Ink Title', '', 64, 96, 232, 100, 64, INK);
+    this.uploadCanvas(title.material.texture as GPUTexture, this.art.title(232, 100));
+    this.createText('Ink Subtitle', '一 笔 入 山 河', 76, 198, 204, 28, 16, '#645f4d', 'center', 400);
+    this.createText('Ink Instructions', 'X / LB 逆时针\nY / RB 顺时针 · A 落笔', 77, 477, 216, 36, 14, INK, 'center', 400);
+    this.createText('Ink Seal', '丹青', 296, 126, 26, 44, 16, PAPER, 'center', 500, '#a23d2d');
   }
 
   private buildSwapPanel(): void {
-    const idleMaterial = new BasicMaterial({
-      texture: './assets/swap.png',
-      blending: 'normal',
-      depthWrite: false,
+    const transform = new CartesianTransform3D({
+      position: screenToWorld(SWAP_PANEL_LEFT + SWAP_PANEL_W / 2, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H / 2, SWAP_PANEL_Z),
+      scale: [SWAP_PANEL_W / CANVAS_W * VIEW_W, SWAP_PANEL_H / CANVAS_H * VIEW_H, 1],
     });
-    const idleTransform = new FixedScreenTransform3D({
-      left: SWAP_PANEL_LEFT,
-      bottom: SWAP_PANEL_BOTTOM,
-      width: SWAP_PANEL_W,
-      height: SWAP_PANEL_H,
-      z: SWAP_PANEL_Z,
-    });
-    const idle = new Entity('Swap Panel Idle');
-    idle.addComponent(idleTransform);
-    idle.addComponent(new Mesh3D(createUvPlane3D(0, 0, 0.5, 1), idleMaterial));
-    this.world.addEntity(idle);
-    this.swapPanelTransform = idleTransform;
-
-    const highlightMaterial = new BasicMaterial({
-      texture: './assets/swap.png',
-      color: [1, 1, 1, 0],
-      blending: 'normal',
-      depthWrite: false,
-    });
-    const highlightTransform = new FixedScreenTransform3D({
-      left: SWAP_PANEL_LEFT,
-      bottom: SWAP_PANEL_BOTTOM,
-      width: SWAP_PANEL_W,
-      height: SWAP_PANEL_H,
-      z: SWAP_PANEL_HOVER_Z,
-    });
-    const highlight = new Entity('Swap Panel Hover');
-    highlight.addComponent(highlightTransform);
-    highlight.addComponent(new Mesh3D(createUvPlane3D(0.5, 0, 1, 1), highlightMaterial));
-    this.world.addEntity(highlight);
-    this.swapPanelHighlightMaterial = highlightMaterial;
-
-    this.createFixedText(
-      'Swap Title',
-      '切换',
-      SWAP_PANEL_LEFT,
-      SWAP_PANEL_BOTTOM + SWAP_PANEL_H - SWAP_PANEL_HEADER_H,
-      SWAP_PANEL_W,
-      SWAP_PANEL_HEADER_H,
-      22,
-      '#f8fafc',
-      'center',
-      900,
-    );
+    this.swapPanelTransform = transform;
+    this.createText('Swap Title', '换 一 笔', SWAP_PANEL_LEFT, CANVAS_H - SWAP_PANEL_BOTTOM - SWAP_PANEL_H + 15, SWAP_PANEL_W, 34, 22, INK, 'center', 500, undefined, SWAP_TEXT_Z);
   }
 
   private createText(
@@ -1589,6 +1067,7 @@ class EntanglementPathGame {
     align: CanvasTextAlign = 'center',
     weight = 800,
     background?: string,
+    z = 0.3,
   ): TextPlane {
     const material = new BasicMaterial({
       texture: this.canvasToGpuTexture(drawTextTexture(text, {
@@ -1604,112 +1083,32 @@ class EntanglementPathGame {
       depthWrite: false,
     });
     const transform = new CartesianTransform3D({
-      position: screenToWorld(x + width / 2, y + height / 2, 0.3),
-      scale: [width / 90, height / 90, 1],
+      position: screenToWorld(x + width / 2, y + height / 2, z),
+      scale: [width / CANVAS_W * VIEW_W, height / CANVAS_H * VIEW_H, 1],
     });
     const entity = new Entity(name);
     entity.addComponent(transform);
     entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
     this.world.addEntity(entity);
+    this.uiPlanes.set(name, { transform, x: x + width / 2, y: y + height / 2, z });
     return { material, transform };
   }
 
-  private createFixedText(
-    name: string,
-    text: string,
-    left: number,
-    bottom: number,
-    width: number,
-    height: number,
-    fontSize: number,
-    color: string,
-    align: CanvasTextAlign = 'center',
-    weight = 800,
-  ): TextPlane {
-    const material = new BasicMaterial({
-      texture: this.canvasToGpuTexture(drawTextTexture(text, { width, height, fontSize, color, align, weight })),
-      blending: 'normal',
-      depthWrite: false,
-    });
-    const transform = new FixedScreenTransform3D({
-      left,
-      bottom,
-      width,
-      height,
-      z: SWAP_TEXT_Z,
-    });
-    const entity = new Entity(name);
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
-    this.world.addEntity(entity);
-    return { material, transform };
+
+
+  private setCellTexture(cell: BoardCell, source: HTMLCanvasElement): void {
+    this.uploadCanvas(cell.material.texture as GPUTexture, source);
   }
 
-  private createFixedTextBox(options: {
-    name: string;
-    text: string;
-    left?: number;
-    right?: number;
-    top?: number;
-    bottom?: number;
-    width: number;
-    height: number;
-    fontSize: number;
-    color: string;
-    align?: CanvasTextAlign;
-    weight?: number;
-    z: number;
-  }): TextPlane {
-    const material = new BasicMaterial({
-      texture: this.canvasToGpuTexture(drawTextTexture(options.text, {
-        width: options.width,
-        height: options.height,
-        fontSize: options.fontSize,
-        color: options.color,
-        ...(options.align === undefined ? {} : { align: options.align }),
-        ...(options.weight === undefined ? {} : { weight: options.weight }),
-      })),
-      blending: 'normal',
-      depthWrite: false,
-    });
-    const transform = new FixedScreenTransform3D({
-      left: options.left,
-      right: options.right,
-      top: options.top,
-      bottom: options.bottom,
-      width: options.width,
-      height: options.height,
-      z: options.z,
-    });
-    const entity = new Entity(options.name);
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
-    this.world.addEntity(entity);
-    return { material, transform };
-  }
-
-  private setText(plane: TextPlane, text: string, options: Parameters<typeof drawTextTexture>[1]): void {
-    plane.material.texture = this.canvasToGpuTexture(drawTextTexture(text, options));
-  }
-
-  private createTileMaterial(texture: HTMLCanvasElement): BasicMaterial {
-    return new BasicMaterial({
-      texture: this.canvasToGpuTexture(texture),
-      blending: 'normal',
-      depthWrite: false,
-    });
-  }
-
-  private setCellTexture(cell: BoardCell, texture: HTMLCanvasElement): void {
-    const material = this.createTileMaterial(texture);
-    cell.material = material;
-    cell.mesh.material = material;
+  private uploadCanvas(texture: GPUTexture, source: HTMLCanvasElement): void {
+    this.engine.device.queue.copyExternalImageToTexture({ source }, { texture }, { width: source.width, height: source.height });
   }
 
   private canvasToGpuTexture(source: HTMLCanvasElement): GPUTexture {
     const texture = this.engine.device.createTexture({
       size: { width: source.width, height: source.height },
-      format: 'rgba8unorm',
+      // Canvas pixels are sRGB, like the image textures loaded by BasicMaterial.
+      format: 'rgba8unorm-srgb',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
     });
     this.engine.device.queue.copyExternalImageToTexture(
@@ -1720,9 +1119,8 @@ class EntanglementPathGame {
     return texture;
   }
 
-  private getPreviewTexture(rotation = this.rotation, pulse = 0): GPUTexture {
-    const pulseBucket = Math.round(pulse * 8);
-    const cacheKey = `${this.nextTile.id}:${rotation}:${this.incomingSide}:${pulseBucket}`;
+  private getPreviewTexture(rotation = this.rotation): GPUTexture {
+    const cacheKey = `${this.nextTile.id}:${rotation}:${this.incomingSide}`;
     const cached = this.previewTextureCache.get(cacheKey);
     if (cached) return cached;
     const texture = this.canvasToGpuTexture(drawHexPath(this.nextTile, rotation, {
@@ -1732,9 +1130,8 @@ class EntanglementPathGame {
       glow: true,
       entry: this.incomingSide,
       activeEntry: this.incomingSide,
-      pulse: pulseBucket / 8,
       markers: false,
-      baseImage: this.getBlockTile(2, 0),
+      baseImage: this.pathTerrain(this.nextTile, rotation),
     }));
     this.previewTextureCache.set(cacheKey, texture);
     return texture;
@@ -1749,7 +1146,7 @@ class EntanglementPathGame {
       stroke: '#7dd3fc',
       path: '#d93a2f',
       markers: false,
-      baseImage: this.getBlockTile(2, 0),
+      baseImage: this.pathTerrain(this.reserveTile, this.reserveRotation),
     }));
     this.reserveTextureCache.set(cacheKey, texture);
     return texture;
@@ -1765,7 +1162,7 @@ class EntanglementPathGame {
       activeEntry: this.incomingSide,
       pulse: this.pathPulse,
       markers: false,
-      baseImage: this.getBlockTile(2, 0),
+      baseImage: this.pathTerrain(tile, rotation),
     }));
   }
 
@@ -1775,7 +1172,7 @@ class EntanglementPathGame {
       stroke: '#7dd3fc',
       path: '#d93a2f',
       markers: false,
-      baseImage: this.getBlockTile(2, 0),
+      baseImage: this.pathTerrain(tile, rotation),
     }));
   }
 
@@ -1800,7 +1197,7 @@ class EntanglementPathGame {
     entity.addComponent(transform);
     entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
     this.world.addEntity(entity);
-    return { entity, transform, fromPosition, toPosition, fromScale, toScale };
+    return { entity, texture, transform, fromPosition, toPosition, fromScale, toScale };
   }
 
   private randomTile(): TileDef {
@@ -1811,7 +1208,11 @@ class EntanglementPathGame {
 
   private bindInput(canvas: HTMLCanvasElement): void {
     canvas.addEventListener('click', (event) => {
-      if (this.phase !== 'playing') return;
+      if (this.introActive) return;
+      if (this.phase === 'ended') {
+        this.reset();
+        return;
+      }
       const point = this.pointerToCanvas(canvas, event.clientX, event.clientY);
       this.pointerCanvasPoint = point;
       const rotateButton = this.hitRotateButton(point);
@@ -1849,12 +1250,14 @@ class EntanglementPathGame {
       this.swapHoverTarget = 0;
     });
     window.addEventListener('keydown', (event) => {
+      if (this.introActive) return;
       if (event.key === 'r' || event.key === 'R' || event.key === 'ArrowRight') this.rotate(1);
       if (event.key === 'ArrowLeft') this.rotate(-1);
       if (event.key === ']' || event.code === 'BracketRight' || event.key === '/' || event.code === 'Slash') this.changeLevel(1);
       if (event.key === '[' || event.code === 'BracketLeft') this.changeLevel(-1);
       if (event.key === ' ' || event.key === 'Enter') {
         event.preventDefault();
+        if (event.repeat) return;
         if (this.phase === 'ended') this.reset();
         else this.placeCurrentTile();
       }
@@ -1864,13 +1267,16 @@ class EntanglementPathGame {
   private pointerToCanvas(canvas: HTMLCanvasElement, clientX: number, clientY: number): { x: number; y: number } {
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (clientX - rect.left) / rect.width * CANVAS_W,
-      y: (clientY - rect.top) / rect.height * CANVAS_H,
+      x: (((clientX - rect.left) / rect.width - .5) * this.viewWidth + this.cameraX) / VIEW_W * CANVAS_W + CANVAS_W / 2,
+      y: ((clientY - rect.top) / rect.height - .5) * this.viewHeight / VIEW_H * CANVAS_H + CANVAS_H / 2,
     };
   }
 
   private hitReserveTile(clientX: number, clientY: number): boolean {
-    return this.swapPanelTransform?.containsClientPoint(clientX, clientY) ?? false;
+    const point = this.pointerToCanvas(this.engine.canvas!, clientX, clientY);
+    const world = screenToWorld(point.x, point.y);
+    return Math.abs(world[0] - this.swapPanelTransform.position[0]!) <= this.swapPanelTransform.scale[0]! / 2
+      && Math.abs(world[1] - this.swapPanelTransform.position[1]!) <= this.swapPanelTransform.scale[1]! / 2;
   }
 
   private rotateButtonCenter(kind: RotateButtonKind): { x: number; y: number } | null {
@@ -1964,11 +1370,11 @@ class EntanglementPathGame {
     this.swapAnimationStart = gameTime();
     this.swapAnimationActive = true;
     this.previewTransform.setScale(0, 0, 1);
-    this.reserveTransform.setLocalScale(0, 0, 1);
+    this.reserveTransform.setScale(0, 0, 1);
   }
 
   private rotate(delta: number): void {
-    if (this.phase !== 'playing') return;
+    if (this.phase !== 'playing' || this.introActive) return;
     void this.playTurnSound();
     this.finishPreviewRotationAnimation();
     const previousRotation = this.previewRenderedRotation;
@@ -2054,6 +1460,7 @@ class EntanglementPathGame {
   }
 
   private placeCurrentTile(): void {
+    if (this.phase !== 'playing' || this.introActive) return;
     const cellKey = key(this.current.q, this.current.r);
     if (this.placed.has(cellKey)) return;
     const cell = this.cells.get(cellKey);
@@ -2070,6 +1477,7 @@ class EntanglementPathGame {
       order: this.placed.size + 1,
     });
     const trace = this.rebuildActivePath();
+    this.riverFlow.connect(this.activeRiverRoutes(), gameTime());
     this.redrawPlacedTiles();
     this.pathLength = this.calculatePathLength();
     this.redrawSourceCell();
@@ -2100,6 +1508,8 @@ class EntanglementPathGame {
   }
 
   private reset(): void {
+    this.clearRiverVisuals();
+    this.clearTileTextureCaches();
     for (const cellKey of this.placed.keys()) {
       const cell = this.cells.get(cellKey);
       if (!cell) continue;
@@ -2126,6 +1536,7 @@ class EntanglementPathGame {
     this.rotation = 0;
     this.reserveRotation = 0;
     this.swapAnimationActive = false;
+    this.wheelAccumulator = 0;
     this.clearSwapOverlays();
     this.clearScorePopups();
     this.previewRenderedRotation = this.rotation;
@@ -2135,10 +1546,12 @@ class EntanglementPathGame {
   }
 
   private syncAll(): void {
+    this.restartText.material.color.a = this.phase === 'ended' ? 1 : 0;
     this.syncPreview();
     this.syncReserve();
     this.syncScore();
     this.updateCurrentCell();
+    this.pruneTileTextureCaches();
   }
 
   private changeLevel(delta: number): void {
@@ -2146,6 +1559,8 @@ class EntanglementPathGame {
   }
 
   private loadLevel(index: number, sync: boolean): void {
+    this.clearRiverVisuals();
+    this.clearTileTextureCaches();
     this.clearBoard();
     this.levelIndex = (index + this.levels.length) % this.levels.length;
     this.level = requiredItemAt(this.levels, this.levelIndex, 'entanglement levels');
@@ -2208,6 +1623,7 @@ class EntanglementPathGame {
     this.tileSerial = saved.tileSerial;
     this.previewRenderedRotation = this.rotation;
     this.rebuildActivePath();
+    this.riverFlow.connect(this.activeRiverRoutes(), gameTime(), true);
     this.redrawPlacedTiles();
     this.redrawSourceCell();
   }
@@ -2250,8 +1666,23 @@ class EntanglementPathGame {
   private clearBoard(): void {
     for (const cell of this.cells.values()) {
       this.world.removeEntity(cell.entity);
+      (cell.material.texture as GPUTexture).destroy();
     }
     this.cells.clear();
+  }
+
+  private clearTileTextureCaches(): void {
+    for (const texture of this.previewTextureCache.values()) texture.destroy();
+    for (const texture of this.reserveTextureCache.values()) texture.destroy();
+    this.previewTextureCache.clear(); this.reserveTextureCache.clear();
+  }
+
+  private pruneTileTextureCaches(): void {
+    // Rebind the two live materials first, then release textures from preceding moves.
+    const live = new Set([this.previewMaterial.texture, (this.reserveMesh.material as BasicMaterial).texture]);
+    for (const cache of [this.previewTextureCache, this.reserveTextureCache]) {
+      for (const [id, texture] of cache) if (!live.has(texture)) { texture.destroy(); cache.delete(id); }
+    }
   }
 
   private addActiveEntry(cellKey: AxialKey, entry: Port): void {
@@ -2270,23 +1701,63 @@ class EntanglementPathGame {
   }
 
   private redrawPlacedTile(cellKey: AxialKey, breathingEntries: Map<AxialKey, Port[]>, pulse: number): void {
-    const placed = this.placed.get(cellKey);
-    const cell = this.cells.get(cellKey);
+    const placed = this.placed.get(cellKey), cell = this.cells.get(cellKey);
     if (!placed || !cell) return;
-    const activeEntries = this.mergeEntries(this.activeEntries.get(cellKey), breathingEntries.get(cellKey), [placed.entry]);
-    const pulseEntries = breathingEntries.get(cellKey) ?? [];
-      this.setCellTexture(cell, drawHexPath(placed.tile, placed.rotation, {
-        fill: '#263241',
-        stroke: '#f6c85f',
-      path: '#d93a2f',
-      entry: placed.entry,
-      exit: placed.exit,
-      activeEntries,
-        pulseEntries,
-        pulse: breathingEntries.has(cellKey) ? pulse : 0,
-        markers: false,
-      baseImage: this.getBlockTile(2, 0),
-      }));
+    let target = this.riverCanvases.get(cellKey);
+    if (!target) { target = makeCanvas(); this.riverCanvases.set(cellKey, target); }
+    const wetness = this.riverFlow.wetness(cellKey, gameTime());
+    drawHexPath(placed.tile, placed.rotation, {
+      pulseEntries: breathingEntries.get(cellKey) ?? [], pulse,
+      wetness, time: gameTime(), baseImage: this.pathTerrain(placed.tile, placed.rotation), target,
+    });
+    this.art.growBank(target.getContext('2d')!, this.terrainSeed(placed.tile), wetness);
+    this.setCellTexture(cell, target);
+  }
+
+  private clearRiverVisuals(): void {
+    this.riverFlow.clear(); this.riverCanvases.clear(); this.previousFlowCells.clear();
+    this.riverFrame = -1; this.riverSettledCursor = 0;
+    this.haloCell = '';
+  }
+
+  private activeRiverRoutes(): RiverRoute[] {
+    const routes: RiverRoute[] = [], visited = new Set<string>();
+    let current = { ...this.pathStart }, entry = this.pathEntry;
+    for (let step = 0; step < this.placed.size * 12 + 1; step++) {
+      const cellKey = key(current.q, current.r), placed = this.placed.get(cellKey);
+      if (!placed || visited.has(`${cellKey}:${entry}`)) break;
+      visited.add(`${cellKey}:${entry}`);
+      const exit = this.findExitSide(placed.tile, placed.rotation, entry);
+      routes.push({ cell: cellKey, entry, exit });
+      const dir = requiredItemAt(DIRECTIONS, portSide(exit), 'hex directions');
+      current = { q: current.q + dir.q, r: current.r + dir.r }; entry = oppositePort(exit);
+    }
+    return routes;
+  }
+
+  private updateRiverVisuals(): void {
+    const now = gameTime(), frame = Math.floor(now / 40);
+    // The halo reuses one texture, following only position, scale and opacity.
+    if (this.haloTransform) {
+      const cell = this.cells.get(key(this.current.q, this.current.r));
+      if (this.phase === 'playing' && cell && !this.introActive && !this.swapAnimationActive) {
+        const currentKey = key(this.current.q, this.current.r);
+        if (currentKey !== this.haloCell) { this.haloCell = currentKey; this.haloStarted = now; }
+        const spread = Math.min(1, (now - this.haloStarted) / 900);
+        const scale = 1.32 + spread * .16 + Math.sin(now * .0018) * .025;
+        this.haloTransform.setPosition(...screenToWorld(cell.screenX, cell.screenY, .20));
+        this.haloTransform.setScale(tileScale(this.level).x * scale, tileScale(this.level).y * scale, 1);
+        this.haloMaterial.color.a = .64 + Math.sin(now * .0018) * .13;
+      } else this.haloTransform.setScale(0, 0, 1);
+    }
+    if (frame === this.riverFrame) return;
+    this.riverFrame = frame;
+    const moving = this.riverFlow.movingCells(now), dirty = new Set([...moving, ...this.previousFlowCells]);
+    this.previousFlowCells.clear(); for (const cell of moving) this.previousFlowCells.add(cell);
+    // Two settled cells per tick keep tiny highlights drifting without redrawing the full board.
+    const settled = [...this.placed.keys()];
+    for (let i = 0; i < Math.min(2, settled.length); i++) dirty.add(settled[this.riverSettledCursor++ % settled.length]!);
+    for (const cell of dirty) this.redrawPlacedTile(cell, this.previousBreathingEntries, this.pathPulse);
   }
 
   private mergeEntries(primary?: readonly Port[], secondary?: readonly Port[], baseEntries: readonly Port[] = []): Port[] {
@@ -2345,13 +1816,12 @@ class EntanglementPathGame {
   }
 
   private updatePathPulse(): void {
-    const pulse = (Math.sin(gameTime() * 0.0045) + 1) / 2;
+    const pulse = (Math.sin(gameTime() * 0.0018) + 1) / 2;
     const bucket = Math.round(pulse * 8);
     if (bucket === this.lastPathPulseBucket) return;
     this.lastPathPulseBucket = bucket;
     this.pathPulse = bucket / 8;
     this.refreshBreathingContinuation();
-    if (this.phase === 'playing') this.applyPreviewMaterial(this.pathPulse);
   }
 
   private refreshBreathingContinuation(): void {
@@ -2413,14 +1883,9 @@ class EntanglementPathGame {
   }
 
   private createScorePopup(value: number, cell: BoardCell, index: number): void {
-    const texture = drawTextTexture(`+${value}`, {
-      width: 128,
-      height: 72,
-      fontSize: 42,
-      color: '#fef692',
-      align: 'center',
-      weight: 900,
-    });
+    const texture = document.createElement('canvas'); texture.width = 128; texture.height = 72;
+    this.art.drawNumber(texture.getContext('2d')!, '+' + value, 64, 7, 48, INK, 'center');
+
     const material = new BasicMaterial({
       texture: this.canvasToGpuTexture(texture),
       color: [1, 1, 1, 1],
@@ -2436,7 +1901,7 @@ class EntanglementPathGame {
     ] as [number, number, number];
     const transform = new CartesianTransform3D({
       position: startPosition,
-      scale: [0.86, 0.48, 1],
+      scale: [0.58, 0.33, 1],
     });
     const entity = new Entity(`Score Popup +${value}`);
     entity.addComponent(transform);
@@ -2459,6 +1924,7 @@ class EntanglementPathGame {
       const elapsed = now - popup.startTime;
       if (elapsed >= SCORE_POPUP_DURATION) {
         if (this.world.hasEntity(popup.entity)) this.world.removeEntity(popup.entity);
+        (popup.material.texture as GPUTexture).destroy();
         this.scorePopups.splice(index, 1);
         continue;
       }
@@ -2478,6 +1944,7 @@ class EntanglementPathGame {
   private clearScorePopups(): void {
     for (const popup of this.scorePopups) {
       if (this.world.hasEntity(popup.entity)) this.world.removeEntity(popup.entity);
+      (popup.material.texture as GPUTexture).destroy();
     }
     this.scorePopups = [];
   }
@@ -2493,7 +1960,7 @@ class EntanglementPathGame {
     const cell = this.cells.get(key(this.current.q, this.current.r));
     if (cell) {
       this.previewTransform.setPosition(...screenToWorld(cell.screenX, cell.screenY, 0.28));
-      this.previewTransform.setScale(this.level.hexWorld * HEX_SCALE_X * 1.02, this.level.hexWorld * HEX_SCALE_Y * 1.02, 1);
+      this.previewTransform.setScale(tileScale(this.level).x, tileScale(this.level).y, 1);
     }
     this.applyPreviewMaterial();
     this.refreshBreathingContinuation();
@@ -2503,24 +1970,18 @@ class EntanglementPathGame {
   private syncReserve(): void {
     if (!this.reserveTransform || !this.reserveMesh) return;
     if (!this.swapAnimationActive) {
-      this.reserveTransform.setLocalScale(1, 1, 1);
+      this.reserveTransform.setScale(SWAP_TILE_W / CANVAS_W * VIEW_W, SWAP_TILE_H / CANVAS_H * VIEW_H, 1);
       this.reserveTransform.setRotation(0, 0, 0);
     }
-    const material = new BasicMaterial({
-      texture: this.getReserveTexture(),
-      blending: 'normal',
-      depthWrite: false,
-    });
-    this.reserveMesh.material = material;
+    (this.reserveMesh.material as BasicMaterial).texture = this.getReserveTexture();
   }
 
   private updateSwapPanelHover(): void {
-    if (!this.swapPanelHighlightMaterial) return;
+    if (!this.reserveMesh) return;
     this.swapHoverAmount += (this.swapHoverTarget - this.swapHoverAmount) * 0.16;
-    const alpha = this.swapHoverAmount;
-    if (Math.abs(this.swapPanelHighlightMaterial.color.a - alpha) > 0.002) {
-      this.swapPanelHighlightMaterial.color.a = alpha;
-    }
+    if (this.swapAnimationActive) return;
+    const scale = 1 + this.swapHoverAmount * .05;
+    this.reserveTransform.setScale(SWAP_TILE_W / CANVAS_W * VIEW_W * scale, SWAP_TILE_H / CANVAS_H * VIEW_H * scale, 1);
   }
 
   private updateRotateButtons(): void {
@@ -2591,18 +2052,13 @@ class EntanglementPathGame {
   private clearSwapOverlays(): void {
     for (const overlay of this.swapOverlays) {
       if (this.world.hasEntity(overlay.entity)) this.world.removeEntity(overlay.entity);
+      overlay.texture.destroy();
     }
     this.swapOverlays = [];
   }
 
-  private applyPreviewMaterial(pulse = this.pathPulse): void {
-    const material = new BasicMaterial({
-      texture: this.getPreviewTexture(this.previewRenderedRotation, pulse),
-      blending: 'normal',
-      depthWrite: false,
-    });
-    this.previewMaterial = material;
-    this.previewMesh.material = material;
+  private applyPreviewMaterial(): void {
+    this.previewMaterial.texture = this.getPreviewTexture(this.previewRenderedRotation);
   }
 
   private updatePreviewRotationAnimation(): void {
@@ -2623,20 +2079,14 @@ class EntanglementPathGame {
   }
 
   private syncScore(): void {
-    this.scoreText.material.texture = this.canvasToGpuTexture(drawScorePanelTexture(
-      this.scoreBackground,
-      this.score,
-      this.pathLength,
-      this.placed.size,
-      this.best,
-    ));
+    this.uploadCanvas(this.scoreText.material.texture as GPUTexture, this.art.score(this.score, this.pathLength, this.placed.size, this.best));
   }
 
   private updateCurrentCell(): void {
     if (this.phase !== 'playing') {
       if (this.highlightedKey) {
         const previous = this.cells.get(this.highlightedKey);
-        previous?.transform.setScale(this.level.hexWorld * HEX_SCALE_X, this.level.hexWorld * HEX_SCALE_Y, 1);
+        previous?.transform.setScale(tileScale(this.level).x, tileScale(this.level).y, 1);
         this.highlightedKey = null;
       }
       return;
@@ -2647,7 +2097,7 @@ class EntanglementPathGame {
         const previous = this.cells.get(this.highlightedKey);
         if (previous && !this.placed.has(this.highlightedKey)) {
           this.setCellTexture(previous, this.drawBaseCell(previous));
-          previous.transform.setScale(this.level.hexWorld * HEX_SCALE_X, this.level.hexWorld * HEX_SCALE_Y, 1);
+          previous.transform.setScale(tileScale(this.level).x, tileScale(this.level).y, 1);
         }
       }
       const current = this.cells.get(nextHighlight);
@@ -2658,11 +2108,11 @@ class EntanglementPathGame {
     }
     for (const cell of this.cells.values()) {
       if (cell.wall) {
-        cell.transform.setScale(this.level.hexWorld * HEX_SCALE_X, this.level.hexWorld * HEX_SCALE_Y, 1);
+        cell.transform.setScale(tileScale(this.level).x, tileScale(this.level).y, 1);
         continue;
       }
       if (this.placed.has(key(cell.q, cell.r))) continue;
-      cell.transform.setScale(this.level.hexWorld * HEX_SCALE_X, this.level.hexWorld * HEX_SCALE_Y, 1);
+      cell.transform.setScale(tileScale(this.level).x, tileScale(this.level).y, 1);
     }
   }
 }
@@ -2670,4 +2120,7 @@ class EntanglementPathGame {
 export async function startEntanglementPath(canvas: HTMLCanvasElement): Promise<void> {
   const game = new EntanglementPathGame();
   await game.init(canvas);
+  if (new URLSearchParams(window.location.search).has('verify')) {
+    (window as Window & { __entanglementPath?: EntanglementPathGame }).__entanglementPath = game;
+  }
 }

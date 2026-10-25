@@ -28,7 +28,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 | Match 3 | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=match-3) |
 | Minesweeper | 2D puzzle | [Play](https://haiyuestudio.github.io/Games/?game=minesweeper) |
 | Minecraft Lite | 3D sandbox | [Play](https://haiyuestudio.github.io/Games/?game=minecraft-lite) |
-| Pad Simulator | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=pad-simulator) |
+| Device Simulator | Phone / tablet icon desktop and game RTT | [Open](simulator/index.html) |
 | Pac-Man | 2D arcade | [Play](https://haiyuestudio.github.io/Games/?game=pacman) |
 | Piano | Audio and input | [Play](https://haiyuestudio.github.io/Games/?game=piano) |
 | 墨游 · 龙鲤 / Ink Pinball | 2D physics · 水墨山水 / WGSL 墨迹扩散 / WASD | [Local build](games/ink-pinball/README.md) |
@@ -46,9 +46,97 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 The lobby is generated from `games/manifest.json`, so the manifest remains the source of truth for the published
 game list. Direct links use `?game=<id>` and open the selected game automatically.
 
+## Game OS and device simulator
+
+The launcher UI (including loading and cards) uses Haiyue Engine GUI; device chassis use real 3D meshes.
+Native buttons share rounded dark-glass, mint-primary and selected-chip styles, with 160 ms hover
+color transitions, visible keyboard focus, pressed feedback and muted disabled states. Reduced motion
+makes hover immediate. Mouse hover also maps into in-device loading/retry controls in either orientation.
+Top-bar buttons use centered icons with transparent backgrounds and borders; tint distinguishes
+normal, hover, selected, keyboard-focus and pressed states.
+Button theme states are immutable cached values, including nested insets, so unchanged controls do not
+invalidate the entire GUI. Catalog selection retains existing card visibility, and the clock updates once per minute.
+For local CPU/frame diagnostics, run `node scripts/profile-game-os.mjs` (`GAME_OS_PROFILE` names the artifact folder).
+Cards use vivid genre tags and controller/touch/keyboard icons. Games mount in the current
+document through a route component, not an iframe. Browser back/forward and direct links
+select the same route; `?game=2048&device=phone` and `?game=2048&device=pad` open a device screen.
+
+Choose **设备模拟器** for a swipeable icon desktop, or open `simulator/index.html` independently.
+Phone and tablet screens render a live game texture with mapped touch/drag, keyboard and gamepad
+input. Drag outside the screen to orbit the camera, scroll to zoom, and use **相机复位** to reset.
+The thin tablet Home key and the phone's on-screen Home bar return to the device desktop and cancel pending launches.
+Both chassis are 25% thinner. The phone uses edge-to-edge rounded glass with a small camera cutout.
+Rounded-rectangle icons form a 5-row, 4-column portrait grid on tablet and a 7-row, 4-column grid on phone.
+Landscape transposes those grids without changing page capacity (20 and 28 games respectively).
+Orbit the camera around the chassis to switch orientation automatically; there is no rotation button.
+Projected screen direction selects all four quarter-turns with hysteresis and a short stability delay.
+The screen rotates with an eased, fitted transition while the same game retains its progress.
+The icon desktop, loading and perspective touch mapping reflow together; the phone Home bar follows the screen rotation.
+An independent liquid-prism shader animates the device wallpaper; the launcher uses the selected game's image.
+Reduced-motion preferences freeze the wallpaper and skip the rotation tween.
+Click the upper/lower side volume keys to raise/lower game output by 10%. A transient Engine GUI
+volume bar appears at the top of the device screen, including during loading and in landscape.
+Device volume persists across Home, game changes and device changes, independently of each game's mute setting.
+The Game OS includes an original 32-second calm ambient loop and ethereal glass click, selection,
+launch, return and volume cues. Audio loads only after a user gesture, fades out during gameplay,
+and suspends while hidden. The top-right gear opens a native settings modal with independent,
+persisted sound-effect and background-music switches. The simulator retains its combined sound toggle.
+Regenerate PCM assets with `node --experimental-strip-types scripts/generate-launcher-audio.mjs`;
+run `node scripts/verify-launcher-audio.mjs` and `node scripts/verify-simulator-volume.mjs` for real output-sample checks.
+Games retain their original `games/<id>/index.html` standalone entrypoints.
+
+Game code is imported only when selected; MUGEN and Gravity Maze also retain their internal lazy
+chunks. A shared Engine loading screen covers code, resource bytes and initialization, with
+cancel/retry. Returning or switching aborts pending work and disposes game listeners, timers,
+workers, audio and graphics resources. In device mode, loading, progress, errors and retry are
+drawn inside the device screen; the chassis and camera persist across game/home transitions.
+The simulator itself is a separate lazy module.
+
+Every built game exports the same API:
+
+```js
+const { mountGame } = await import('./games/2048/bundle.js');
+const controller = new AbortController();
+const game = await mountGame({
+  root: document.querySelector('#game'),
+  signal: controller.signal,
+  mode: 'screen',
+  onProgress: progress => console.log(progress.phase, progress.loaded, progress.bytes),
+  onHome: () => controller.abort(),
+});
+game.pause();
+game.resume();
+game.setVolume(0.5);
+game.dispose();
+```
+
+Give the host element an explicit size. Dispose with `game.dispose()` or `controller.abort()`.
+Texture mode accepts `width`/`height` in CSS pixels and uses DPR 1. `game.engine` owns
+`game.texture`; sample it on the same GPU device. `game.layers` exposes auxiliary canvases
+for older multi-canvas games, composited behind the main texture by the device presenter.
+Legacy image/SVG/background decorations are included as a separate layer. Multi-pass RTTs retain
+MSAA scene samples so later HUD passes do not erase the scene. For a separate GPU device,
+`game.presentFrame()` copies the RTT to its browser canvas; copy that canvas with
+`copyExternalImageToTexture` rather than sharing a GPUTexture across devices. The device presenter
+uses this GPU-backed bridge without per-frame CPU readback and preserves screen color space.
+`game.resize(width, height)` updates the mounted viewport and render target while retaining game state.
+`game.pointer(type, x, y, id)` accepts normalized screen coordinates; `game.key(code, down)`
+and `game.wheel(x, y, deltaX, deltaY)` forward other input. Do not destroy borrowed GPU resources.
+The mount promise resolves after asynchronous bootstrap, initial resources and the first frame.
+
+Build selected modules with `npm run build:target -- game:2048` (the host and simulator are
+included). Run `node scripts/verify-game-host.mjs` for screen/RTT lifecycle verification and
+`node scripts/verify-game-os.mjs --simulator` for native device navigation and touch coverage.
+Run `node scripts/verify-simulator.mjs` for all manifest games in both real device screens,
+including in-screen loading/cancel, camera orbit, physical Home and final-composite pixel checks.
+Each game rotates in place between portrait and landscape in both device modes; browser checks
+also cover preserved game state, perspective touch input and rotated mobile viewport fitting.
+Camera checks use real pointer drags, verify intermediate animation frames and compare wallpaper
+pixels over time. Separate game/auxiliary-layer pixel checks prevent wallpaper colors from hiding blank games.
+
 ## Gamepad controls
 
-All manifest games and the lobby support standard browser gamepads. Use the D-pad/stick to
+Manifest games and the lobby support standard browser gamepads. Use the D-pad/stick to
 select a game, A to enter, and LB/RB to change categories. In games, Back toggles the
 return confirmation dialog and pauses gameplay. R3 switches the virtual pointer;
 R3+LB/RB switches games.
@@ -57,8 +145,18 @@ See [controller mappings and verification](games/gamepad/README.md) and
 
 ## Local development
 
-Use Node.js 22 or newer. Until the `0.1.x` packages are published, keep the `Engine`, `UI`, and `Games`
-repositories in the same parent directory and install local package candidates:
+Use Node.js 22 or newer. Local Haiyue dependencies are packed from source and included
+in `vendor/`, so installing Games does not require sibling repositories:
+
+```bash
+npm install
+npm run typecheck
+npm test
+npm run build
+```
+
+To build and temporarily install fresh candidates from sibling `Engine` and `UI`
+repositories during development:
 
 ```bash
 cd ../Engine
@@ -151,8 +249,8 @@ that already use `OwnerSafeAudioMixer` retain their public API boundary.
 ## Game launcher
 
 The launcher in `site/` provides a focused game preview, searchable catalog, favorites,
-and recent launches. `catalog/` owns presentation metadata and filtering, `state/` owns
-local launcher preferences, and `ui/` owns cards and the embedded player presentation.
+and recent launches. `catalog/` owns presentation metadata, URL resolution and filtering;
+`state/` owns local launcher preferences, and `games/launcher/` owns native Engine GUI controls.
 Game entries and screenshots still come from `games/manifest.json`.
 
 Use arrow keys to select a cover, Enter to launch, F to favorite, and `/` to search.
@@ -162,18 +260,40 @@ and asks whether to return home; R3+LB/RB switches games and R3+Start opens the 
 local to this browser and do not replace gameplay saves. The launcher adapts to phone
 portrait/landscape screens and respects reduced-motion preferences.
 
-The Game OS desktop is rendered through Haiyue Engine: a WGSL aurora/grid wallpaper
-and three GUI layers for panels, covers, and foreground controls. The DOM supplies
-responsive layout, accessible controls, native search/IME, and keyboard/gamepad focus.
+Open `index.html` or `site/index.html` with Live Server after `npm run build`.
+Both source entrypoints resolve game URLs independently of the server's root folder;
+`npm run preview:build` also configures the published entrypoint for its own `games/` folder.
+
+The Game OS desktop uses one Haiyue Engine canvas. A pale-blue crescent logo and glass
+wordmark sit beside three top-bar icons for the library, favorites and simulator. The logo and
+browser favicon share the user-supplied `site/assets/haiyue-logo.png`. Search lives in the top-right
+bar; compact screens expand it from a search icon. Settings remain modal for keyboard and controller input.
+The selected or mouse-hovered game's image covers the viewport behind native GUI panels, images,
+buttons, search, scroll view and connection notifications. Images crossfade over 650 ms
+after loading; rapid selection keeps the latest requested picture, and idle backgrounds
+remain still. No hidden DOM interface
+supplies layout or interaction. Engine's invisible browser text responder provides IME
+only while the native GUI search field is focused. The selected game's module mounts
+in the current document; its own Engine owns all gameplay UI.
 `games/launcher/` owns the renderer and its activity lifecycle; its public entry is
 exported by the existing lobby bundle. Opening or switching embedded games stops the
 desktop Engine loop; returning resumes it. Hidden tabs and back/forward cache suspension
 also stop rendering. Direct game links initialize without rendering desktop frames.
-Without WebGPU, the semantic HTML remains usable. Reduced motion freezes the wallpaper.
+Reduced motion switches background images immediately.
+The smaller single-row carousel sits near the bottom edge, without a list heading, count or category
+filter chips. It supports mouse/trackpad wheels, horizontal dragging, touch inertia and previous/next
+buttons. Direction keys and LB/RB reveal the selected card; search starts at the first result.
+Mouse hover previews a game's wallpaper through the same crossfade, and leaving restores the
+selected game's wallpaper without changing selection or launching a game. Cards show only their
+covers until hovered or selected, then reveal their title and genre/2D-or-3D/controller
+tags over the image. Keyboard and controller selection adds a soft mint bloom border.
+Mouse hover gently enlarges cards by 4.5%, tilts them by 1.2 degrees and lifts them
+by two pixels, easing back on exit without moving their native hit regions.
+Reduced motion makes scrolling and card information transitions immediate and disables card movement.
 
-Run `node scripts/verify-game-os.mjs` (`--portrait` or `--direct`) for browser checks
+Run `node scripts/verify-game-os.mjs` (`--cards`, `--portrait`, `--direct`, `--root` or `--published`) for browser checks
 covering native pointer launch, search/favorites, paused frame counts, and repeated
-launch/return. Screenshots and WebGPU diagnostics are written to `.artifacts/game-os/`.
+launch/return. Screenshots and WebGPU diagnostics are written to `artifacts/gamepad/`.
 
 ## Publishing
 

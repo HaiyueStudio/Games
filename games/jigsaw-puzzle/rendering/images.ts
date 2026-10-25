@@ -38,10 +38,31 @@ export async function createPieceTextures(puzzle: Puzzle, image: HTMLCanvasEleme
     canvas.width = Math.ceil((w + 2 * padding) * scale); canvas.height = Math.ceil((h + 2 * padding) * scale);
     const ctx = canvas.getContext('2d')!;
     ctx.scale(canvas.width / (w + 2 * padding), canvas.height / (h + 2 * padding)); ctx.translate(padding, padding);
-    ctx.shadowColor = '#253c4555'; ctx.shadowBlur = 4 * scale; ctx.shadowOffsetY = 2 * scale;
+    const bevel = Math.max(.65, Math.min(1.8, Math.min(w, h) * .022));
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = '#172a3466'; ctx.shadowBlur = 3.5 * scale;
+    ctx.shadowOffsetX = .6 * scale; ctx.shadowOffsetY = 1.8 * scale;
     ctx.fillStyle = '#faf6e9'; ctx.fill(path); ctx.shadowColor = 'transparent';
-    ctx.save(); ctx.clip(path); ctx.drawImage(image, -piece.col * w, -piece.row * h, puzzle.width, puzzle.height); ctx.restore();
-    ctx.strokeStyle = '#f5ead3b0'; ctx.lineWidth = .9; ctx.stroke(path);
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    ctx.save(); ctx.clip(path);
+    ctx.drawImage(image, -piece.col * w, -piece.row * h, puzzle.width, puzzle.height);
+    // Blend light into the local image pixels: soft light keeps colored shoulders
+    // saturated, while multiply darkens the picture without a blue/gray outline.
+    // Bake once, so dragging needs no extra passes.
+    const rim = (offset: number, color: string, width: number, blend: GlobalCompositeOperation) => {
+      ctx.save(); ctx.translate(offset, offset); ctx.strokeStyle = color;
+      ctx.globalCompositeOperation = blend;
+      ctx.lineWidth = width; ctx.stroke(path); ctx.restore();
+    };
+    rim(bevel * .8, '#ffffffa6', bevel * 1.5, 'soft-light');
+    rim(-bevel * .8, '#00000073', bevel * 1.5, 'multiply');
+    rim(bevel * .35, '#ffffff26', bevel * .55, 'screen');
+    rim(-bevel * .35, '#00000038', bevel * .55, 'multiply');
+    // Keep the fine cut inside the image too; an outer stroke would tint the
+    // transparent silhouette independently of the source picture.
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = '#00000038'; ctx.lineWidth = .45; ctx.stroke(path);
+    ctx.restore();
     textures.push({ canvas, path, padding });
     // Bound image preparation per frame; textures are prepared once, never during dragging.
     if (piece.id % 8 === 7) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));

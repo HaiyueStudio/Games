@@ -1,5 +1,7 @@
 export interface GamepadProfile {
   cursor?: boolean;
+  /** Pointer-driven games have no alternate left-stick gameplay mode. Host chords remain available. */
+  pointerOnly?: boolean;
   engineHud?: boolean;
   directions?: readonly [string, string, string, string]; // up, right, down, left
   buttons: Readonly<Record<number, string>>;
@@ -21,10 +23,10 @@ export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
   'billiards-3d':{...puzzle,help:'左摇杆瞄准指针 · 按住 A 拖动球杆，松开发球'},
   billiards:{...puzzle,help:'左摇杆瞄准指针 · 按住 A 拖动，松开发球'},
   'jigsaw-puzzle':{cursor:true,buttons:{2:'KeyR',3:'KeyV'},help:'左摇杆移动指针 · A 拖动拼块/组合 · X 旋转 · Y 原图'},
-  'fruit-ninja':{cursor:true,buttons:{2:'KeyP',9:'Space'},help:'左摇杆挥刀 · A 点选界面 · X 暂停/继续 · Start 开始/暂停'},
+  'fruit-ninja':{cursor:true,buttons:{2:'KeyP',9:'Space'},help:'按住 A + 左摇杆挥刀 · A 点选界面 · X 暂停/继续 · Start 开始/暂停'},
   'triangle-calendar-puzzle':{...puzzle,buttons:{2:'KeyR',3:'KeyF'},help:'左摇杆移动指针 · A 拾取/拖动拼块 · X 旋转 · Y 翻转'},
-  'entanglement-path':{directions:arrows,buttons:{0:'Enter',2:'KeyR',4:'BracketLeft',5:'BracketRight'},help:'左右旋转 · A 放置 · LB/RB 切关'},
-  'icosahedron-minesweeper':puzzle,
+  'entanglement-path':{directions:arrows,buttons:{0:'Enter',2:'ArrowLeft',3:'ArrowRight',4:'ArrowLeft',5:'ArrowRight'},help:'X/LB 逆时针旋转 · Y/RB 顺时针旋转 · A 放置/重开'},
+  'icosahedron-minesweeper':{...puzzle,pointerOnly:true,help:'左摇杆/方向键移动准星 · A 揭开/拖拽旋转 · B 插旗 · LB/RB 缩放 · Y 重开'},
   'gravity-maze':{directions:arrows,buttons:{0:'Enter',3:'KeyR'},help:'左摇杆/方向键倾斜迷宫 · A 下一关 · Y 重开'},
   'match-3':puzzle,
   'neon-circuit':{directions:wasd,buttons:{0:'Enter',2:'KeyR',6:'KeyS',7:'KeyW',9:'KeyP'},help:'左摇杆转向 · RT 油门 · LT 刹车 · A 确认 · Start 暂停'},

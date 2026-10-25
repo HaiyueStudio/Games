@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "generator": "node scripts/generate-glass-rush-audio.mjs",
+  "method": "Original deterministic stereo PCM synthesis; no third-party samples. Eight-bar C minor / Ab / Eb / Bb electronic score with kick, snare, sixteenth hats, bass, FM arpeggios and sidechain pads. Two glass fracture cues with noise transients and inharmonic resonances.",
+  "sampleRate": 24000,
+  "channels": 2,
+  "bpm": 128,
+  "assets": [
+    {
+      "id": "music",
+      "seconds": 15,
+      "bytes": 1440044,
+      "peak": 0.8799999952316284,
+      "rms": 0.12715925451590848,
+      "sha256": "a4309bd2f2a30f72d4bf88ad0b04def8decf05f51e657deee44bbe0e017c4956"
+    },
+    {
+      "id": "impact",
+      "seconds": 0.85,
+      "bytes": 81644,
+      "peak": 0.8799999952316284,
+      "rms": 0.08219150771517494,
+      "sha256": "03cd6afbd79715401e571fc003ba0c024faf81cbc57e24ed6bd31d83edafc949"
+    },
+    {
+      "id": "shatter",
+      "seconds": 1.45,
+      "bytes": 139244,
+      "peak": 0.8799999952316284,
+      "rms": 0.08464795338351588,
+      "sha256": "5527e1496e1680eec90941acd9fbacecb10d03154f6a1212b0b98c4388e96a16"
+    }
+  ]
+}

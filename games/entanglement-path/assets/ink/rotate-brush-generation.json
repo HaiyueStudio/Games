@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tool": "built-in image_gen",
+  "mode": "generate",
+  "output": "rotate-brush.png",
+  "transparent": true,
+  "layout": "left counterclockwise; right clockwise",
+  "prompt": "Use case: stylized-concept. Production game UI sprite atlas for a traditional Chinese ink painting puzzle. Wide horizontal transparent PNG, two equally sized square cells side by side with generous transparent padding. LEFT cell: a counterclockwise rotation arrow. RIGHT cell: a clockwise rotation arrow, the exact visual mirror counterpart. Each icon is one near-complete circular curved arrow, about 285 degrees of a circle, with a clear broad tapered brush-painted arrowhead at the open end. The left arrow's tip at upper left points down-left (counterclockwise); the right arrow's tip at upper right points down-right (clockwise). All strokes hand-painted with an actual soft Chinese calligraphy brush and deep charcoal sumi ink: expressive varied thickness, pressure and ink density, natural bristle splitting, fei bai dry-brush gaps, slightly feathered irregular edges, confident elegant organic circular gesture. Both arrows same scale and visual weight, centered separately within their cells; each icon fills about 75 percent of its square cell. Clear silhouettes, legible at 32 pixels. No additional full circles, no enso decoration, no seals, no text, no numbers, no border, no button disc, no paper backdrop, no shadow, no checkerboard. Real transparent alpha throughout the background and inside the arrows. This is a two-sprite asset sheet, not a UI mockup.",
+  "sha256": "581efd1f824503881b75e3a5692f6747fba6665cac57ce947e17ac7a79186975"
+}

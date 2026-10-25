@@ -9,7 +9,7 @@ const entries = [
   ['billiards', '经典台球', 'physics', '从俯视视角观察球桌，用精准的击球逐个清空目标。', '8'],
   ['jigsaw-puzzle', '拾光拼图', 'puzzle', '上传喜欢的图片，选择行列与旋转模式。让曲线拼块相遇，拼出属于你的风景。', '拼'],
   ['triangle-calendar-puzzle', '三角日历', 'puzzle', '旋转几何拼片，在三角形棋盘上拼出属于今天的答案。', '△'],
-  ['entanglement-path', '交织之路', 'puzzle', '转动一块拼片，让路线继续延伸。每次选择，都可能走得更远。', '∞'],
+  ['entanglement-path', '阡陌交通', 'puzzle', '俯瞰山川，转山引水，让随机山体与河流在画卷中拼成独一无二的舆图。', '∞'],
   ['icosahedron-minesweeper', '多面体扫雷', 'puzzle', '让熟悉的数字线索绕上二十面体，换个角度挑战你的推理。', '◆'],
   ['gravity-maze', '重力迷宫', 'physics', '轻轻倾斜迷宫，带小球穿过弯道，避开陷阱，抵达终点。', '●'],
   ['match-3', '缤纷消除', 'puzzle', '交换彩色方块，寻找连锁反应。下一次消除，也许会点亮整个棋盘。', '✦'],
@@ -38,8 +38,8 @@ export const filterOptions = [['all', '全部'], ['puzzle', '益智'], ['3d', '�
 const details = new Map(entries.map(([id, title, genre, description, mark]) => [id, { title, genre, description, mark }]));
 export const detailFor = game => details.get(game.id) ?? { title: game.title, genre: 'game', description: '选择游戏，开启新的体验。', mark: game.title.slice(0, 2) };
 export const is3d = game => game.capabilities.some(value => value.toLowerCase().includes('3d'));
-export const gameUrl = game => `./games/${encodeURIComponent(game.id)}/index.html`;
-export const thumbnailUrl = game => `./${game.thumbnail}`;
+export const gameUrl = (game, gamesRoot = './games/') => `${gamesRoot}${encodeURIComponent(game.id)}/index.html`;
+export const thumbnailUrl = (game, siteRoot = './') => `${siteRoot}${game.thumbnail}`;
 
 export function filterGames(games, { category = 'all', term = '', view = 'all', favorites = [], recent = [] } = {}) {
   const query = term.trim().toLocaleLowerCase();

@@ -2,6 +2,7 @@ import { gameSession } from './SessionPause';
 import { sessionEngine, sessionFrames } from './GameEngine';
 import { ReturnDialog } from './ReturnDialog';
 import type { PadFrame } from '../gamepad/sampler';
+import type { GameBridge } from '../host/types';
 export class GameReturnController {
     private dialog: ReturnDialog | null = null;
     private readonly lifetime = new AbortController();
@@ -130,6 +131,8 @@ export class GameReturnController {
         delete document.body.dataset.gameReturnOpen;
         this.release();
         if (home) {
+            const host = (window as Window & { __haiyueGameHost?: GameBridge }).__haiyueGameHost;
+            if (host) { gameSession.resume(); host.home(); return; }
             // The parent validates source and origin; direct pages use the same relative lobby route.
             if (parent !== window)
                 parent.postMessage({ type: 'haiyue-gamepad-home' }, location.origin);

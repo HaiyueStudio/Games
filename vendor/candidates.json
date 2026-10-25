@@ -2,15 +2,28 @@
   "scope": "Local development candidates; not published",
   "packages": {
     "haiyue-engine-0.2.1.tgz": {
-      "sha256": "572fad1c7538621e9409361026e1cb25ca5dee36e2babe1c4b3b3d6536d593db",
+      "sha256": "72e8d9e244764389465d8c2d43edcfa875dfe4d609502f55eb3fa8d950e18a12",
       "source": "Engine/engine public npm pack",
-      "revision": "5c0c55bdd8a792f740dbc737e9400e429873c07a",
-      "dirty": true
+      "revision": "da6d2f9f6a6b21781625d26895a2fd99b36cfa07",
+      "dirty": false
     },
-    "haiyue-extensions-controls-0.1.0.tgz": {
-      "sha256": "62fb49e1a0ffe0dbaed447d5c8b1d47fa723fb624371d6096b0d6720cb343f97",
-      "source": "Native/examples/ak47-range/vendor/haiyue-extensions-0.1.0.tgz",
-      "revision": "c8554c313b4ffcf43756db0cc0a8b1c526b72dc7"
+    "haiyue-animation-spec-0.2.1.tgz": {
+      "sha256": "69d7e82ee170337f3e32e5bd2712a9c1aa7a7d9bc7f586cde191d574926ca9e7",
+      "source": "Engine/animation-spec public npm pack",
+      "revision": "da6d2f9f6a6b21781625d26895a2fd99b36cfa07",
+      "dirty": false
+    },
+    "haiyue-extensions-0.2.1.tgz": {
+      "sha256": "cb84b754bedc25f24e370f1b5409aca5a5ddd55fb8dcd0cebf816bdff1b56d6d",
+      "source": "Engine/extensions public npm pack",
+      "revision": "da6d2f9f6a6b21781625d26895a2fd99b36cfa07",
+      "dirty": false
+    },
+    "haiyue-ui-0.2.2.tgz": {
+      "sha256": "09a7251bb51012435b50e5993fb8e5c731a960b020ea9af2296a6907984aaa9d",
+      "source": "UI public npm pack",
+      "revision": "1a28338721f9f870c23c92356c554585321d5d00",
+      "dirty": false
     }
   }
 }

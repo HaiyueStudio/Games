@@ -9,14 +9,17 @@ const read = (...parts) => readFileSync(join(repositoryRoot, ...parts), 'utf8');
 
 test('Pages lobby is driven by the game manifest', () => {
   const manifest = JSON.parse(read('games', 'manifest.json'));
-  const app = [read('site', 'app.js'), read('site', 'catalog', 'details.js'), read('site', 'ui', 'library.js')].join('\n');
+  const app = read('site', 'app.js');
 
   assert.ok(manifest.entries.length > 0);
   assert.match(app, /fetch\(catalogUrl\)/);
-  assert.match(app, /\.\/games\/\$\{encodeURIComponent\(game\.id\)\}\/index\.html/);
-  assert.match(app, /document\.createElement\('img'\)/);
-  assert.match(app, /screenshot\.loading = index < 3 \? 'eager' : 'lazy'/);
-  assert.match(app, /screenshot\.decoding = 'async'/);
+  assert.match(app, /gameUrl\(game, paths\.gamesRoot\)/);
+  for (const path of ['index.html', 'site/index.html', 'simulator/index.html']) {
+    const html = read(path), body = /<body>([\s\S]*?)<\/body>/.exec(html)[1];
+    assert.match(body, /<canvas id="os-desktop"/);
+    assert.equal(body.replace(/<canvas[\s\S]*?<\/canvas>/, '').trim(), '', `${path} has no DOM interface behind the Engine canvas`);
+    assert.match(html, /name="haiyue-games-root"/);
+  }
 
   const thumbnailPaths = new Set();
   for (const game of manifest.entries) {

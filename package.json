@@ -25,20 +25,23 @@
   },
   "dependencies": {
     "@haiyue/engine-gamepad": "file:vendor/haiyue-engine-0.2.1.tgz",
-    "@haiyue/engine": ">=0.1.0 <0.2.0",
-    "@haiyue/extensions": ">=0.1.0 <0.2.0",
-    "@haiyue/ui": "0.2.2",
+    "@haiyue/animation-spec": "file:vendor/haiyue-animation-spec-0.2.1.tgz",
+    "@haiyue/engine": "file:vendor/haiyue-engine-0.2.1.tgz",
+    "@haiyue/extensions": "file:vendor/haiyue-extensions-0.2.1.tgz",
+    "@haiyue/ui": "file:vendor/haiyue-ui-0.2.2.tgz",
     "wgpu-matrix": "^3.0.0",
-    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-controls-0.1.0.tgz"
+    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-0.2.1.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/pluginutils": "^5.4.0",
     "@rollup/plugin-typescript": "^11.0.0",
     "@webgpu/types": "^0.1.40",
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
+    "magic-string": "^0.30.21",
     "rollup": "^4.0.0",
     "tslib": "^2.6.0",
     "typescript": "^5.2.0",

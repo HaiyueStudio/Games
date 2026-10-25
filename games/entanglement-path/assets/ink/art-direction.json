@@ -1,0 +1,44 @@
+{
+  "version": 3,
+  "tool": "built-in image_gen",
+  "style": "Chinese shui mo ink wash, mineral danqing pigments, warm xuan paper, cinnabar seals",
+  "prompts": {
+    "scroll-landscape.png": "Production game background asset for a Chinese ink painting hexagonal puzzle. Flat overhead traditional Chinese horizontal handscroll on a deep desaturated charcoal-green scholar's table. Ivory xuan paper filling 90 percent, narrow antique silk border, two vertical dark wooden scroll rods at the extreme left and right. Center 65 percent clean warm ivory paper, almost no marks, reserved for the game board. Authentic shan shui ink wash only along far left, right and bottom margins: mist mountains in pale stone blue and malachite, sparse bamboo, dry-brush rocks. Organic watery pigment blooms, feathering, visible subtle fibers. Luminous paper. No text, symbols, numbers, pieces, interface, perspective or 3D.",
+    "ui-atlas.png": "Production transparent Chinese ink painting UI sprite atlas. Xuan paper, expressive ink edges, tiny cinnabar seal accents. Four independent sprites in a strict two by two grid: upper left empty ivory score plaque with ink edge and subtle gold mineral specks; upper right matching empty ivory reserve plaque with pale blue-green mountains; lower left empty dark charcoal ink-wash panel with rough brushstroke edges; lower right isolated vertical wooden handscroll roller with silk caps. No text, numerals, labels or visible grid. Real transparent alpha outside sprites.",
+    "digits.png": "Production transparent bitmap font atlas. Four columns and three rows of equally sized cells. Exact glyph order: row one 0 1 2 3; row two 4 5 6 7; row three 8 9 + /. Legible Arabic digits, same cap height, adapted Chinese brush calligraphy, tapered strokes, ink pooling, subtle bristle gaps, rich near-black sumi ink. Each glyph centered and isolated with large clear spacing. No duplicates, missing glyphs, Chinese numerals, labels, paper, borders or watermark. Real transparent alpha."
+  },
+  "runtimeArt": {
+    "tiles": "Orthographic overhead cartography: seeded peak, ridge, basin and island combinations from terrain-topdown-atlas.png. Mountain anchors avoid actual Bezier riverbeds; three soft destination-out passes carve valleys and radial fading clears shared edge ports. Terrain is attached to the piece seed derived from its saved ID/variant and rotates rigidly in 60-degree steps with the rivers, unchanged through reserve swap and placement. CPU caches are bounded.",
+    "intro": "1350 ms horizontal scroll opening; board appears from 1150 to 2900 ms through soft noise threshold multiplied by crossfade. One bounded raster surface and one persistent upload texture, released after the intro.",
+    "font": "Atlas pixels remain unchanged. Dominant-component glyph bounds exclude neighboring brush flecks. digits.json is used by the game; digits.fnt is BMFont text metadata.",
+    "paths": "Exact shared ports and normal Bezier handles retain C1 seams. Pale dry riverbeds become deep blue-green water in traversal order, driven by sampled arc length over 650-1200 ms. Delayed bank wetness, small traveling highlights, and tiny bridges at crossings preserve independent channels. Rapid moves remain playable; old pours settle. Saved routes restore fully wet.",
+    "viewport": "Full viewport, aspect-preserving camera and centered board. scroll-topdown-map.png uses overhead map ridges, woodland, shoals and waterways around blank scroll paper; title, score and reserve stay bare on the paper.",
+    "title": "阡陌交通: transparent brush-ink adaptation of the user-provided seal-script glyphs, preserving their structure and horizontal order. See title-qianmo-generation.json for the exact edit prompt and reference/output fingerprints.",
+    "rotationButtons": "Two transparent Chinese brush-painted arrows from rotate-brush.png: left counterclockwise, right clockwise, presented over a soft paper wash. Exact generation prompt is saved in rotate-brush-generation.json.",
+    "score": "Bare ink labels and bitmap numerals on the upper-right scroll: primary score, best score, and secondary wetted-river count. Smaller, shorter-lived score sparks keep the board clear.",
+    "board": "The full hex board is centered on the scroll using its projected cell bounds, including asymmetric levels.",
+    "reserve": "The exact same overhead landform and river layout as the placed candidate, using a stable per-piece seed and orientation; no panel background.",
+    "music": {
+      "file": "../bgm.mp3",
+      "source": "user-provided desktop bgm.mp3",
+      "loop": true,
+      "sha256": "a3885094be6361cd20c29381a396269c9b21c8544bfcf12112818f242e0d4586"
+    },
+    "selection": "One persistent transparent, noise-warped wet-ink halo follows the active tile with a slow opacity/scale breath. Cinnabar dashed thread previews the active route without committing water.",
+    "source": "Overhead blue-green spring and ripples. Seeded overhead canopy patches and tiny shoals emerge beside wetted rivers.",
+    "generation": "Current overhead asset prompts and output fingerprints are in topdown-generation.json; original side-view art remains archived beside these assets and is not fetched at runtime."
+  },
+  "generatedOn": "2026-10-25",
+  "sha256": {
+    "scroll-landscape.png": "961459b4710b7e26335675dc499ada1a41623eb96d9a81da6e89cd20dcc36ee6",
+    "ui-atlas.png": "43183719b6f71a23e7ab2ac03a8983186194594996a822b6d0e5a7ac703746f6",
+    "digits.png": "ba4c8eb58a920997406824aa3a7165b975787a1cb1d238b9be9626b548422c8b",
+    "digits.json": "a5eae50821034686e2f38b4643ddfc59f5b175ca06f5a5488eb17a0049aef6cb",
+    "digits.fnt": "96c8933cfdd6fc6897e98ca332eb34a26d4f7938497873149944c0b6762bbe6c",
+    "title-qianmo.png": "c1d1660a8aac7e413f2aca3bc3ecec3ad7d7b1b42a93e5ce450a51accf7501e0",
+    "rotate-brush.png": "581efd1f824503881b75e3a5692f6747fba6665cac57ce947e17ac7a79186975",
+    "mountain-atlas.png": "6f8c6b79377b1f4612649c88ef5ef584fe161e5916312f5c0f437a8283d167a6",
+    "terrain-topdown-atlas.png": "969352a67780fdcca395d681b5a924544238479ed2f66f6bc26f5f82f9ec6757",
+    "scroll-topdown-map.png": "37cf24f47d8ad3e7f4ef3076556d9f1eb9750489bcfe572574ee3732db1e38e5"
+  }
+}

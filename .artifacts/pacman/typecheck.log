@@ -1,0 +1,7 @@
+
+> @haiyue/games-repository@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+games/simulator/DeviceWallpaper.ts(1,15): error TS2305: Module '"@haiyue/engine"' has no exported member 'IEngine'.
+games/simulator/DeviceWallpaper.ts(36,72): error TS7006: Parameter 'message' implicitly has an 'any' type.
+games/simulator/DeviceWallpaper.ts(36,156): error TS7006: Parameter 'message' implicitly has an 'any' type.

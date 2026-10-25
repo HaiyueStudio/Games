@@ -7,8 +7,8 @@
       "thumbnail": "screenshots/glass-rush.png",
       "title": "玻璃疾驰 / Glass Rush",
       "entry": "glass-rush/main.ts",
-      "capabilities": ["3d", "input", "gui", "shader", "save", "gamepad"],
-      "assets": [],
+      "capabilities": ["3d", "input", "gui", "shader", "geometry", "animation", "audio", "save", "gamepad"],
+      "assets": ["glass-rush/assets/audio/music.wav", "glass-rush/assets/audio/impact.wav", "glass-rush/assets/audio/shatter.wav", "glass-rush/assets/audio/generation.json", "glass-rush/assets/ui/music.svg", "glass-rush/assets/ui/music-off.svg", "glass-rush/assets/ui/pause.svg", "glass-rush/assets/ui/play.svg", "glass-rush/assets/ui/life.svg", "glass-rush/assets/ui/life-empty.svg", "glass-rush/assets/ui/button-icon.svg", "glass-rush/assets/ui/button-primary.svg", "glass-rush/assets/ui/hud-chip.svg", "glass-rush/assets/ui/leaderboard.svg"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"
@@ -60,14 +60,14 @@
     },
     {
       "id": "2048",
-      "thumbnail": "screenshots/2048.webp",
+      "thumbnail": "screenshots/2048-forge.png",
       "title": "2048",
       "entry": "2048/main.ts",
       "capabilities": [
-        "2d",
+        "3d", "pbr-workflow", "gui", "input", "audio", "generated-assets", "worker",
         "game-workflow", "gamepad"
       ],
-      "assets": [],
+      "assets": ["2048/config.json", "2048/rendering/TileTexture.worker.js", "2048/assets/brushed-metal.png", "2048/assets/metal-normal.png", "2048/assets/metal-roughness.png", "2048/assets/metal-panel.png", "2048/assets/metal-title.png", "2048/assets/slide.wav", "2048/assets/fracture.wav", "2048/assets/forge.wav", "2048/assets/new-game.wav", "2048/assets/blocked.wav"],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -84,7 +84,7 @@
         "3d",
         "3d-physics",
         "pbr-workflow",
-        "input", "gamepad"
+        "input", "gamepad", "audio"
       ],
       "assets": [],
       "screenshot": {
@@ -136,14 +136,29 @@
     },
     {
       "id": "entanglement-path",
-      "thumbnail": "screenshots/entanglement-path.webp",
-      "title": "entanglement path",
+      "thumbnail": "screenshots/entanglement-path-ink.png",
+      "title": "阡陌交通",
       "entry": "entanglement-path/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow", "gamepad", "audio"
       ],
-      "assets": [],
+      "assets": [
+        "entanglement-path/assets/bgm.mp3",
+        "entanglement-path/assets/ink/scroll-topdown-map.png",
+        "entanglement-path/assets/ink/ui-atlas.png",
+        "entanglement-path/assets/ink/title-qianmo.png",
+        "entanglement-path/assets/ink/title-qianmo-reference.png",
+        "entanglement-path/assets/ink/title-qianmo-generation.json",
+        "entanglement-path/assets/ink/rotate-brush.png",
+        "entanglement-path/assets/ink/rotate-brush-generation.json",
+        "entanglement-path/assets/ink/terrain-topdown-atlas.png",
+        "entanglement-path/assets/ink/topdown-generation.json",
+        "entanglement-path/assets/ink/digits.png",
+        "entanglement-path/assets/ink/digits.json",
+        "entanglement-path/assets/ink/digits.fnt",
+        "entanglement-path/assets/ink/art-direction.json"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -153,15 +168,17 @@
     },
     {
       "id": "icosahedron-minesweeper",
-      "thumbnail": "screenshots/icosahedron-minesweeper.webp",
+      "thumbnail": "screenshots/icosahedron-minesweeper-titanium-preview.webp",
       "title": "icosahedron minesweeper",
       "entry": "icosahedron-minesweeper/main.ts",
       "capabilities": [
-        "2d",
+        "3d",
+        "input",
+        "procedural-geometry",
         "game-workflow", "gamepad",
-        "gui"
+        "gui", "audio"
       ],
-      "assets": [],
+      "assets": ["icosahedron-minesweeper/assets/titanium-albedo.png", "icosahedron-minesweeper/assets/orbit-gui.png", "icosahedron-minesweeper/assets/audio/click.wav", "icosahedron-minesweeper/assets/audio/flag.wav", "icosahedron-minesweeper/assets/audio/explosion.wav", "icosahedron-minesweeper/assets/audio/button.wav", "icosahedron-minesweeper/assets/audio/generation.json"],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -294,15 +311,17 @@
     },
     {
       "id": "minesweeper",
-      "thumbnail": "screenshots/minesweeper.webp",
+      "thumbnail": "screenshots/minesweeper-titanium-preview.webp",
       "title": "minesweeper",
       "entry": "minesweeper/main.ts",
       "capabilities": [
-        "2d",
+        "3d",
+        "input",
+        "procedural-geometry",
         "game-workflow", "gamepad",
-        "gui"
+        "gui", "audio"
       ],
-      "assets": [],
+      "assets": ["minesweeper/config.json", "minesweeper/assets/titanium-albedo.png", "minesweeper/assets/orbit-gui.png", "minesweeper/assets/audio/click.wav", "minesweeper/assets/audio/flag.wav", "minesweeper/assets/audio/explosion.wav", "minesweeper/assets/audio/button.wav", "minesweeper/assets/audio/generation.json"],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -336,7 +355,7 @@
     },
     {
       "id": "mugen",
-      "thumbnail": "screenshots/mugen-viewer.svg",
+      "thumbnail": "screenshots/mugen.webp",
       "title": "Haiyue MUGEN Fight",
       "entry": "mugen/main.ts",
       "capabilities": [
@@ -358,6 +377,7 @@
     },
     {
       "id": "pad-simulator",
+      "launcher": false,
       "thumbnail": "screenshots/pad-simulator.webp",
       "title": "pad simulator",
       "entry": "pad-simulator/main.ts",
@@ -623,11 +643,11 @@
     },
     {
       "id": "tetris",
-      "thumbnail": "screenshots/tetris.webp",
+      "thumbnail": "screenshots/tetris-neon.png",
       "title": "tetris",
       "entry": "tetris/main.ts",
       "capabilities": [
-        "2d",
+        "3d", "shader", "geometry", "audio",
         "game-workflow", "gamepad",
         "gui"
       ],
@@ -818,8 +838,9 @@
       "thumbnail": "screenshots/jigsaw-puzzle.png",
       "title": "拾光拼图 · Jigsaw Studio",
       "entry": "jigsaw-puzzle/main.ts",
-      "capabilities": ["2d", "gui", "input", "game-workflow", "gamepad"],
-      "assets": ["jigsaw-puzzle/assets/alpine-lake.svg"],
+      "capabilities": ["2d", "gui", "input", "save", "audio", "generated-assets", "game-workflow", "gamepad"],
+      "assets": ["jigsaw-puzzle/assets/alpine-lake.svg", "jigsaw-puzzle/assets/wood-ui.png", "jigsaw-puzzle/assets/wood-ui.provenance.json",
+        "jigsaw-puzzle/assets/audio/ui-click.wav", "jigsaw-puzzle/assets/audio/piece-click.wav", "jigsaw-puzzle/assets/audio/snap.wav", "jigsaw-puzzle/assets/audio/complete.wav", "jigsaw-puzzle/assets/audio/generation.json"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"
@@ -829,8 +850,8 @@
       "thumbnail": "screenshots/fruit-ninja.png",
       "title": "水果忍者 · Fruit Ninja",
       "entry": "fruit-ninja/main.ts",
-      "capabilities": ["2d", "gui", "input", "particles", "generated-assets", "game-workflow", "gamepad"],
-      "assets": ["fruit-ninja/assets/fruits.png", "fruit-ninja/assets/fruits-extra.png", "fruit-ninja/assets/items.png", "fruit-ninja/assets/provenance.json", "fruit-ninja/assets/fruits-extra.provenance.json"],
+      "capabilities": ["2d", "gui", "input", "particles", "audio", "generated-assets", "game-workflow", "gamepad"],
+      "assets": ["fruit-ninja/assets/fruits.png", "fruit-ninja/assets/fruits-extra.png", "fruit-ninja/assets/items.png", "fruit-ninja/assets/dojo-backdrop.png", "fruit-ninja/assets/dojo-gui.png", "fruit-ninja/assets/provenance.json", "fruit-ninja/assets/fruits-extra.provenance.json", "fruit-ninja/assets/dojo.provenance.json", "fruit-ninja/assets/audio/ui-click.wav", "fruit-ninja/assets/audio/bomb-explosion.wav", "fruit-ninja/assets/audio/fruit-throw-a.wav", "fruit-ninja/assets/audio/fruit-throw-b.wav", "fruit-ninja/assets/audio/fruit-throw-c.wav", "fruit-ninja/assets/audio/fruit-splash-a.wav", "fruit-ninja/assets/audio/fruit-splash-b.wav", "fruit-ninja/assets/audio/fruit-splash-c.wav", "fruit-ninja/assets/audio/game-over.wav", "fruit-ninja/assets/audio/generation.json"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"

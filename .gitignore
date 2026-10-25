@@ -56,3 +56,12 @@ desktop.ini
 .artifacts/glass-rush/
 
 .artifacts/game-os/
+
+.artifacts/icosahedron-minesweeper/
+
+.artifacts/minesweeper/
+site/game-host.js
+site/game-host.js.map
+site/simulator.js
+site/simulator.js.map
+site/core/
