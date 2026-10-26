@@ -572,6 +572,7 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
     if(name)writeFileSync(resolve(output,name+'.png'),bytes);return bytes;
   };
   const initial=await snapshot(), first=initial.games[0], second=initial.games[1];
+  check(initial.nodes.filter(node=>node.id.startsWith('game-')).length<=initial.artwork.capacity+1,'only the artwork window and keyboard selection belong to the live GUI tree');
   const details=state=>state.nodes.filter(node=>state.games.some(game=>['caption','title','genre','dimension','input','glow'].some(prefix=>node.id===`${prefix}-${game}`)));
   check(!initial.selectionActive&&details(initial).length===0,'initial cards contain preview images without metadata or glow');
   await until('!!__gameOS.backdrop.current&&!__gameOS.backdrop.transitioning','initial card wallpaper');
@@ -701,6 +702,18 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',x:reducedShelf.x+reducedShelf.width/2,y:reducedShelf.y+reducedShelf.height/2,deltaX:0,deltaY:120});await delay(100);
   check(Math.abs((await snapshot()).shelf.scrollX-120)<1&&!(await snapshot()).shelf.animating,'reduced motion keeps horizontal wheel scrolling immediate');
   await cdp.call('Emulation.setEmulatedMedia',{features:[]});
+  await desktopKey(cdp,'End','End',35);
+  await until('__gameOS.selected===__gameOS.games.at(-1)&&__gameOS.focused==="game-"+__gameOS.selected&&!__gameOS.shelf.animating','keyboard jumps to a previously unmounted card');
+  await until('__gameOS.artwork.pending===0&&__gameOS.artwork.cards.filter(card=>card.visible).every(card=>card.ready)','distant carousel artwork');
+  state=await snapshot();
+  const lastCard=state.nodes.find(node=>node.id==='game-'+state.selected).rect;
+  check(lastCard.x>=state.shelf.x&&lastCard.x+lastCard.width<=state.shelf.x+state.shelf.width+1,'the last selected card is laid out inside the viewport after remount');
+  check(state.nodes.filter(node=>node.id.startsWith('game-')).length<=state.artwork.capacity+1,'scrolling through the catalog keeps the GUI card budget bounded');
+  await desktopKey(cdp,'Home','Home',36);
+  await until('__gameOS.selected===__gameOS.games[0]&&__gameOS.focused==="game-"+__gameOS.selected&&!__gameOS.shelf.animating','keyboard remounts the first card');
+  await clickDesktop(context,'view-all');
+  await until('__gameOS.nodes.every(node=>!node.id.startsWith("title-"))','recycled selection caption finishes fading');
+  check((await snapshot()).nodes.every(node=>!node.id.startsWith('title-')),'recycled cards do not retain a previous selection caption');
 });
 
 for(const [name,fixture,expected]of[['lobby-root','index.html','/games/2048/index.html'],['lobby-published','artifacts/pages/index.html','/artifacts/pages/games/2048/index.html']]){

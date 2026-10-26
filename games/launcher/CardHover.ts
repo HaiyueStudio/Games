@@ -16,6 +16,9 @@ struct Hover { size:vec2f, count:u32, fadeWidth:f32, shelf:vec4f, cards:array<Ca
 @group(1) @binding(1) var wallpaper:texture_2d<f32>;
 @fragment fn fs_main(input:VertexOutput)->@location(0) vec4f {
  let point=input.uv*hover.size;
+ if(any(point<hover.shelf.xy)||any(point>=hover.shelf.xy+hover.shelf.zw)) {
+  return textureSampleLevel(srcTex,srcSampler,input.uv,0);
+ }
  var sample=point;
  var fade=1.0;
  var overlay=false;
@@ -36,8 +39,8 @@ struct Hover { size:vec2f, count:u32, fadeWidth:f32, shelf:vec4f, cards:array<Ca
   sample=clamp(sample,hover.shelf.xy+vec2f(.5),hover.shelf.xy+hover.shelf.zw-vec2f(.5));
  }
  let foreground=textureSampleLevel(srcTex,srcSampler,sample/hover.size,0);
- let background=textureSampleLevel(wallpaper,srcSampler,input.uv,0);
- return mix(background,foreground,fade);
+ if(fade>=1.0) { return foreground; }
+ return mix(textureSampleLevel(wallpaper,srcSampler,input.uv,0),foreground,fade);
 }`;
 
 export class CardHover extends System {
