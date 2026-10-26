@@ -33,7 +33,10 @@
     {
       "name": "Medium Relay I",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 0 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 0
+      },
       "map": [
         "##########",
         "##########",
@@ -50,7 +53,10 @@
     {
       "name": "Medium Relay II",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 1 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 1
+      },
       "map": [
         "##########",
         "#.    ## #",
@@ -67,7 +73,10 @@
     {
       "name": "Medium Relay III",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 2 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 2
+      },
       "map": [
         "##########",
         "###.     #",
@@ -84,7 +93,10 @@
     {
       "name": "Medium Relay IV",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 3 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 3
+      },
       "map": [
         "##########",
         "#   ######",
@@ -101,7 +113,10 @@
     {
       "name": "Medium Relay V",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 4 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 4
+      },
       "map": [
         "##########",
         "#  .     #",
@@ -118,7 +133,10 @@
     {
       "name": "Medium Relay VI",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 5 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 5
+      },
       "map": [
         "##########",
         "##########",
@@ -135,7 +153,10 @@
     {
       "name": "Medium Relay VII",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 6 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 6
+      },
       "map": [
         "##########",
         "# .  #####",
@@ -152,7 +173,10 @@
     {
       "name": "Medium Relay VIII",
       "difficulty": "medium",
-      "source": { "file": "medium/valid/003.txt", "level": 7 },
+      "source": {
+        "file": "medium/valid/003.txt",
+        "level": 7
+      },
       "map": [
         "##########",
         "#   @   ##",
@@ -169,7 +193,10 @@
     {
       "name": "Hard Lock I",
       "difficulty": "hard",
-      "source": { "file": "hard/000.txt", "level": 0 },
+      "source": {
+        "file": "hard/000.txt",
+        "level": 0
+      },
       "map": [
         "##########",
         "######## #",
@@ -186,7 +213,10 @@
     {
       "name": "Hard Lock II",
       "difficulty": "hard",
-      "source": { "file": "hard/000.txt", "level": 1 },
+      "source": {
+        "file": "hard/000.txt",
+        "level": 1
+      },
       "map": [
         "##########",
         "##########",
@@ -203,7 +233,10 @@
     {
       "name": "Hard Lock III",
       "difficulty": "hard",
-      "source": { "file": "hard/000.txt", "level": 2 },
+      "source": {
+        "file": "hard/000.txt",
+        "level": 2
+      },
       "map": [
         "##########",
         "########@#",
@@ -220,7 +253,10 @@
     {
       "name": "Hard Lock IV",
       "difficulty": "hard",
-      "source": { "file": "hard/000.txt", "level": 3 },
+      "source": {
+        "file": "hard/000.txt",
+        "level": 3
+      },
       "map": [
         "##########",
         "##########",
@@ -237,7 +273,10 @@
     {
       "name": "Hard Lock V",
       "difficulty": "hard",
-      "source": { "file": "hard/000.txt", "level": 4 },
+      "source": {
+        "file": "hard/000.txt",
+        "level": 4
+      },
       "map": [
         "##########",
         "#@ . #####",
@@ -254,7 +293,10 @@
     {
       "name": "Hard Lock VI",
       "difficulty": "hard",
-      "source": { "file": "hard/000.txt", "level": 5 },
+      "source": {
+        "file": "hard/000.txt",
+        "level": 5
+      },
       "map": [
         "##########",
         "####  . ##",
@@ -267,6 +309,1369 @@
         "#       ##",
         "##########"
       ]
+    },
+    {
+      "name": "Sasquatch III 01",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 1,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " #######",
+        " #  *  #",
+        " #  @  #",
+        " ##$#.##",
+        " #  #  #",
+        " # $#. #",
+        " #  #  #",
+        "## ## ##",
+        "#  * * #",
+        "#   *  #",
+        "###   ##",
+        "  #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 02",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 2,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "      ####",
+        "#######  #",
+        "#     * .##",
+        "# $$#  *  ##",
+        "# $@ #* *  ##",
+        "## $ # * *  #",
+        " ### #. * * #",
+        " #   .  #  .#",
+        " #   #  #####",
+        " ########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 03",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 3,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "        ####",
+        "#########  #",
+        "#          #",
+        "# #*### #  #",
+        "#  $   # # #",
+        "#*#*##  #  #",
+        "#  $  #  # #",
+        "#  *#  # # #",
+        "#  $ # # # ##",
+        "###$. . . . #",
+        "  #@####### #",
+        "  #         #",
+        "  ###########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 04",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 4,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "   #############",
+        "  ##           #",
+        " ##  #########@###",
+        "##  #         *  #",
+        "#  ## ########*# #",
+        "# #  $ $ $ $   # #",
+        "# #$.. . . ..$#  #",
+        "# # .#######. # ##",
+        "#  $.#######.$# #",
+        "### . . . . . # #",
+        "  # $ $ $ $ $ # #",
+        "  ######### ##  #",
+        "          # $ $ #",
+        "          #     #",
+        "          #######"
+      ]
+    },
+    {
+      "name": "Sasquatch III 05",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 5,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " ###########",
+        "##         #",
+        "#  #######$##",
+        "# #       $ ###",
+        "# #...***.*.@ #",
+        "# #       $ # #",
+        "#  #######$#  #",
+        "##        $  ##",
+        " ########   ##",
+        "        #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 06",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 6,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "             ####",
+        "     #########  ###",
+        "     #  . .   . . #",
+        "     # $$.$# #$.$ #",
+        "     ## . .# #. . #",
+        "      # $ $#  $ $ #",
+        "      # $  #* #####",
+        "     ##### # ##",
+        "     #   @   #",
+        "    ## # #####",
+        "##### *#  $ #",
+        "# $ $  #$ $ #",
+        "# . .# #. . ##",
+        "# $.$# #$.$$ #",
+        "# . .   . .  #",
+        "###  #########",
+        "  ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 07",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 7,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "  #####",
+        "  #   #####",
+        "### #     ##",
+        "#  * ####  #",
+        "#  * ##  # #",
+        "#  *  ** # #",
+        "#   #    # #",
+        "#@#** * ## #",
+        "###  #$  # #",
+        " # .$ .* # #",
+        " #   #  #  #",
+        " ##  #    ##",
+        "  #########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 08",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 8,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "       ####",
+        "########@ #",
+        "#   ...#$ #",
+        "# $ $ $ * #",
+        "#####   . #",
+        "   ##$#$. #",
+        " ###. # .##",
+        " #  .$#$ #",
+        " #  .$   #",
+        " ###.$#  #",
+        "   #  ####",
+        "   ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 09",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 9,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "        #",
+        " ###########",
+        " #   #  #  #",
+        " # $ #$ $  #",
+        " #$.*.*.#* #",
+        " # .    $. #",
+        " #$.$#.  .$#",
+        "## .$   #* ##",
+        "#  .#.*##.  #",
+        "# $ $   $   #",
+        "### # # #####",
+        "  ##@   #",
+        "   ######"
+      ]
+    },
+    {
+      "name": "Sasquatch III 10",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 10,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "           #",
+        "    #     # #",
+        "   # #  ##   ##",
+        "  # . # # .$. #",
+        " # $.$ # .$ $. #",
+        "#   *  @ $ * $  #",
+        " # $.$ # .$ $. #",
+        "  # . # # .$. #",
+        "   # #  ##   ##",
+        "    #     # #",
+        "           #"
+      ]
+    },
+    {
+      "name": "Sasquatch III 11",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 11,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "       #",
+        "      # #",
+        "    ##   ##",
+        "    #  .  #     #",
+        "  ## $.$.$ ##  # #",
+        "  # $.$.$.$ # # . #",
+        " #  .$.$.$.  # $.$ #",
+        "#  .$.$@$.$.    *   #",
+        " #  .$.$.$.  # $.$ #",
+        "  # $.$.$.$ # # . #",
+        "  ## $.$.$ ##  # #",
+        "    #  .  #     #",
+        "    ##   ##",
+        "      # #",
+        "       #"
+      ]
+    },
+    {
+      "name": "Sasquatch III 12",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 12,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "########",
+        "#  . . #",
+        "# $.$. #",
+        "##$#$# ##",
+        " # . .  #",
+        " #$#$# @#",
+        " # . .  #",
+        "##$#$# ##",
+        "#  . . #",
+        "# $#$# ###",
+        "##   . . #",
+        " ###$#$# #",
+        "   # .   #",
+        "   #$# ###",
+        "   #   #",
+        "   #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 13",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 13,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "       ####",
+        "########  #",
+        "#@ $ $ $$ ###",
+        "#  ....*.*  #",
+        "## ### ..*# #",
+        " #$$  # .*  #",
+        " # # $ #.*# #",
+        " #   $ #..  #",
+        " ##  $    ###",
+        "  ### #$#.#",
+        "   # $ $  #",
+        "   #     ##",
+        "   #######"
+      ]
+    },
+    {
+      "name": "Sasquatch III 14",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 14,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "          #####",
+        "  #########   #",
+        "### $ $ $ $.  #",
+        "#  .$.$ $.$.# #",
+        "# #.*..@..*.# #",
+        "# #.$.$ $.$.  #",
+        "#  .$ $ $ $ ###",
+        "#   #########",
+        "#####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 15",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 15,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "           #####",
+        "############   #######",
+        "#     # # ## # # #   #",
+        "# # #$  $  # .$  $ # ##",
+        "#  ..*.** *@* **.*..  #",
+        "## # $  $. #  $  $# # #",
+        " #   # # # ## # #     #",
+        " #######   ############",
+        "       #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 16",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 16,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " #########",
+        "##   *   ##",
+        "#  # # #  #",
+        "# #.$.$.# #",
+        "#  $.$.$  #",
+        "#*#.$@$.#*#",
+        "#  $.$.$  #",
+        "# #.$.$.# #",
+        "#  # # #  #",
+        "##   *   ##",
+        " #########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 17",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 17,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "         #",
+        "    #  #####",
+        "  #####    ####",
+        "  #   ..$$ #  #",
+        "  # $ $ .#@#$ ##",
+        " #### # *##   #",
+        " #   #  *  #$.#",
+        "## $##  .    . #",
+        " # $.**.#.**.$ #",
+        " # .    .  ##$ ##",
+        "  #.$#  *  #   #",
+        "  #   ##* # ####",
+        " ## $# #. $ $ #",
+        "  #  # $$..   #",
+        "  ####    #####",
+        "     #####  #",
+        "       #"
+      ]
+    },
+    {
+      "name": "Sasquatch III 18",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 18,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " #############",
+        "##    #   #  ##",
+        "# .##$$  $  . #",
+        "#  ...#.#.#.# #",
+        "## # $ $   .# #",
+        "# $. # # #$.$ #",
+        "#  #  $ $  #$##",
+        "#  .$# @ #$.  #",
+        "##$#  $ $  #  #",
+        "# $.$# # # .$ #",
+        "# #.   $ $ # ##",
+        "# #.#.#.#...  #",
+        "# .  $  $$##. #",
+        "##  #   #    ##",
+        " #############"
+      ]
+    },
+    {
+      "name": "Sasquatch III 19",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 19,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " #############",
+        "##     *     ##",
+        "#  ##.# ##.#  #",
+        "# # $ $ $ $ # #",
+        "# .$. ##  .$# #",
+        "# #  # . #  . #",
+        "# #$  $.$ #$# #",
+        "#*  #..@..#  *#",
+        "# #$# $.$  $# #",
+        "# .  # . #  # #",
+        "# #$.  ## .$. #",
+        "# # $ $ $ $ # #",
+        "#  #.## #.##  #",
+        "##     *     ##",
+        " #############"
+      ]
+    },
+    {
+      "name": "Sasquatch III 20",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 20,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " ### ### ###",
+        "##  # @ #  ##",
+        "#  $#$ $#$  #",
+        "# . . . . . #",
+        " ##$#$ $#$##",
+        "# . . . . . #",
+        "#  $ $#$ $  #",
+        "# . . . . . #",
+        " ##$#$ $#$##",
+        "# . . . . . #",
+        "#  $#$ $#$  #",
+        "##  #   #  ##",
+        " ### ### ###"
+      ]
+    },
+    {
+      "name": "Sasquatch III 21",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 21,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "   ###   ###",
+        "   #  ###  #",
+        "  #    #    #",
+        "##  $$$.$$$  ##",
+        "#  .# . . #.  #",
+        "#  . # $ # .  #",
+        " # .$ #.# $. #",
+        " ##$ .$@$. $##",
+        " # .$ #.# $. #",
+        "#  . # $ # .  #",
+        "#  .# . . #.  #",
+        "##  $$$.$$$  ##",
+        "  #    #    #",
+        "   #  ###  #",
+        "   ###   ###"
+      ]
+    },
+    {
+      "name": "Sasquatch III 22",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 22,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "   ###########",
+        "  #           #",
+        " ##$####.####$##",
+        "# $. $ $.$ $ .$ #",
+        "# # ...   ... # #",
+        "# #$.$ $.$ $.$# #",
+        "# # . *#.#* . # #",
+        "# #$ $# $ #$ $# #",
+        "# .. ..$@$.. .. #",
+        "# #$ $# $ #$ $# #",
+        "# # . *#.#* . # #",
+        "# #$.$ $.$ $.$# #",
+        "# # ...   ... # #",
+        "# $. $ $.$ $ .$ #",
+        " ##$####.####$##",
+        "  #           #",
+        "   ###########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 23",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 23,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " #### ### ####",
+        "#    #   #    #",
+        "# #  #   #  # #",
+        "#  **$***$**  #",
+        "#  * .   . *  #",
+        " ##$.## ##.$##",
+        "#  * #   # *  #",
+        "#  *   @   *  #",
+        "#  * #   # *  #",
+        " ##$.## ##.$##",
+        "#  * .   . *  #",
+        "#  **$***$**  #",
+        "# #  #   #  # #",
+        "#    #   #    #",
+        " #### ### ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 24",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 24,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " ###############",
+        " #.  $  .  $  .#",
+        " # ##$# # #$## #",
+        " #  .* .#. *.  #",
+        " # #   *$*   # #",
+        "##$$*   #   *$$##",
+        "#  #. $. .$ .#  #",
+        "#@   #* * *#    #",
+        "#  #. $. .$ .#  #",
+        "##$$*   #   *$$##",
+        " # #   *$*   # #",
+        " #  .* .#. *.  #",
+        " # ##$# # #$## #",
+        " #.  $  .  $  .#",
+        " ###############"
+      ]
+    },
+    {
+      "name": "Sasquatch III 25",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 25,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "# ####  #  #### #",
+        " #    #   #    #",
+        "# *.   ###   .* #",
+        "# $# $ $ $ $ #$ #",
+        "#   # .* *. #   #",
+        "#  . #  $  # .  #",
+        " #  $ ##$## $  #",
+        "  #.* # . # *.#",
+        "# #  ..$@$..  # #",
+        "  #.* # . # *.#",
+        " #  $ ##$## $  #",
+        "#  . #  $  # .  #",
+        "#   # .* *. #   #",
+        "# $# $ $ $ $ #$ #",
+        "# *.   ###   .* #",
+        " #    #   #    #",
+        "# ####  #  #### #"
+      ]
+    },
+    {
+      "name": "Sasquatch III 26",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 26,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " ###############",
+        "##      #      ##",
+        "# *$ $*$$$*$ $* #",
+        "# $...$...$...$ #",
+        "#  .$.$.$.$.$.  #",
+        "# $...$...$...$ #",
+        "# *$$$*$$$*$$$* #",
+        "# $...$...$...$ #",
+        "##$.$.$.@.$.$.$##",
+        "# $...$...$...$ #",
+        "# *$$$*$$$*$$$* #",
+        "# $...$...$...$ #",
+        "#  .$.$.$.$.$.  #",
+        "# $...$...$...$ #",
+        "# *$ $*$$$*$ $* #",
+        "##      #      ##",
+        " ###############"
+      ]
+    },
+    {
+      "name": "Sasquatch III 27",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 27,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "  #############",
+        " ## .   .   . ##",
+        "## $.$ $.$ $.$ ##",
+        "# $ * $ * $ * $ #",
+        "#..*.*.*.*.*.*..#",
+        "# $ * $ * $ * $ #",
+        "#  $.$.$.$.$.$  #",
+        "# $ * $ * $ * $ #",
+        "#..*.*.*@*.*.*..#",
+        "# $ * $ * $ * $ #",
+        "#  $.$.$.$.$.$  #",
+        "# $ * $ * $ * $ #",
+        "#..*.*.*.*.*.*..#",
+        "# $ * $ * $ * $ #",
+        "## $.$ $.$ $.$ ##",
+        " ## .   .   . ##",
+        "  #############"
+      ]
+    },
+    {
+      "name": "Sasquatch III 28",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 28,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "      #####",
+        "   #### . ####",
+        "   # ##$.$## #",
+        " ####   .   ####",
+        " # ## $$.$$ ## #",
+        " ##  ## . ##  ##",
+        "### $##$.$##$ ###",
+        "# $ $ $...$ $ $ #",
+        "#.......@.......#",
+        "# $ $ $...$ $ $ #",
+        "### $##$.$##$ ###",
+        " ##  ## . ##  ##",
+        " # ## $$.$$ ## #",
+        " ####   .   ####",
+        "   # ##$.$## #",
+        "   #### . ####",
+        "      #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 29",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 29,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "#################",
+        "#  .    .    .  #",
+        "# ##$###$###$## #############",
+        "#.##  ##  ## ##.#  .     .  #",
+        "# $   *   *   $ # ##$###$## #",
+        "# ##  #   #   # #.##  ## ##.#",
+        "# ##*###*###*## # $   *   $ #",
+        "# #   #   #  ## # ##  #   # #",
+        "#.$   *   *   $.@ ##*###*## #",
+        "# ##  #   #   # # #   #  ## #",
+        "# ##*###*###*## # $   *   $ #",
+        "# #   #   #  ## #.## ##  ##.#",
+        "# $   *   *   $ # ##$###$## #",
+        "#.## ##  ##  ##.#  .     .  #",
+        "# ##$###$###$## #############",
+        "#  .    .    .  #",
+        "#################"
+      ]
+    },
+    {
+      "name": "Sasquatch III 30",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 30,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " ###############",
+        "##             ##",
+        "#  ##### #####  # ###########",
+        "# # . . . . . # ###         ##",
+        "# #$ $ $ $ $ $#     ### ###  #",
+        "# # .#.#.#.#. # ## # . . . # #",
+        "# #$ $ $ $ $ $# ## #$ $ $ $# #",
+        "# # .#.#.#.#. # ## # .#.#. # #",
+        "#  $ $ $@$ $ $  ##  $ $ $ $  #",
+        "# # .#.#.#.#. # ## # .#.#. # #",
+        "# #$ $ $ $ $ $# ## #$ $ $ $# #",
+        "# # .#.#.#.#. # ## # . . . # #",
+        "# #$ $ $ $ $ $#     ### ###  #",
+        "# # . . . . . # ###         ##",
+        "#  ##### #####  # ###########",
+        "##             ##",
+        " ###############"
+      ]
+    },
+    {
+      "name": "Sasquatch III 31",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 31,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "   ##### #####",
+        " ###    #  @ ####",
+        "##    # $  #    ##",
+        "#   #..*.#*...#  #",
+        "# # . $# $ $# .  #",
+        "#   .#    #  $.#  #",
+        "#  #.$  #$   #*   #",
+        " #. * #  $ #  .$# #",
+        "# $ #$ $$#$$ $# $ #",
+        "# #$.  # $  # * .#",
+        "#   *#   $#  $.#  #",
+        "#  #.$  #    #.   #",
+        " #  . #$ $ #$ . # #",
+        " #  #...*#.*..#   #",
+        " ##    #  $ #    ##",
+        "  ####    #    ###",
+        "     ##### #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 32",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 32,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "   ######  #####",
+        "  ##    ####   #",
+        "  #  ##  $   # #",
+        "  # # .# $# $  #",
+        "  # #$.$  #   #######",
+        "  #  $. # ### #     #",
+        "  ### .$. . # #.$.$ #",
+        "   # $. ###$#$# ## ##",
+        "####  #$        #   #",
+        "#   # $ ###@###.    #",
+        "# $     #  #..  #..##",
+        "###### #    ..# .  #",
+        "    #   $$ #..## ..#",
+        "    #  $ $##     # #",
+        "    # $$       #   #",
+        "    #  #############",
+        "    ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 33",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 33,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "         ####",
+        "   #######  ####",
+        "   #         $ ##",
+        "####$  ###.###  ##",
+        "#   $ #  #.#  #  #",
+        "# # $ #   .  @ # #",
+        "# #   #..###   # #",
+        "# # $#....  #  # #",
+        "# #  #...#$  # # #",
+        "# #$ # ## $$ $ # #",
+        "# #  # .*    ##  #",
+        "# #$$## #  ##   ##",
+        "# #     ###   ###",
+        "#  ####$    ###",
+        "##      #####",
+        " ########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 34",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 34,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "            ####",
+        "    #####   #  #####",
+        "   ##   #   #      #",
+        "   #  # ##### # #  #",
+        "   # # $ $ $ $ #  ##",
+        "   # #       #  # #",
+        "   #  ######$## # #",
+        "####  # *  #  # # #",
+        "#   $ # .. $  # # #",
+        "# # # #*...# #  # #",
+        "# .***#. ..#   ## ##",
+        "##*....*.*  $ #    #",
+        " ##* ##.##### # $  #",
+        "  ##  #     $  # # #",
+        "   ##@ #.#$ $ $ $# #",
+        "    ##    $ $  #   #",
+        "     ##  ###########",
+        "      ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 35",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 35,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "              ####",
+        " ####       ###  #",
+        " #  #########  ..#",
+        " #  $ @ $   $ #..#",
+        " # $# $   # # #..#",
+        " #  ##*##$#$#$#..#",
+        " # $ #..#.      ##",
+        " #   #*. .##$## #",
+        "##$ $#..#.      #",
+        "#    ##$#########",
+        "#   $$ $ #",
+        "##       #",
+        " #########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 36",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 36,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "           #####",
+        "          ## . ##",
+        "         ##.$ $.##",
+        "         # $ * $ #",
+        "         #. * * .#",
+        "         # $ * $ #",
+        "         ##.$ $.##",
+        " #######  ## . ##  #######",
+        "##     ##  ## ##  ##     ##",
+        "# .$.$. #   # #   # $.$.$ #",
+        "# $.$.$ ##### ##### .$.$. #",
+        "# .$ $.             $.@.$ #",
+        "# $.$.$ ########### .$.$. #",
+        "# .$.$. #         # $.$.$ #",
+        "##     ##  #####  ##     ##",
+        " #######   #***#   #######",
+        "           #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 37",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 37,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "#########     #######",
+        "#   #   #######  #  #",
+        "# .$. $       # . . #",
+        "## ### # # # $ $ #$ #",
+        "# . #  #.$ $.## ##.##",
+        "#  $ .$ .# #. #. #  #",
+        "### ## #.$ $.  $  $ #",
+        "##  #  ##$$ .## ##  #",
+        "#  ## ##. $$##  #  ##",
+        "# $  $  .$ $.# ## ###",
+        "#  # .# .# #. $. $  #",
+        "##.## ##.$ $.#  # . #",
+        "# $# $ $ # # # ### ##",
+        "# . . #   @   $ .$. #",
+        "#  #  #######   #   #",
+        "#######     #########"
+      ]
+    },
+    {
+      "name": "Sasquatch III 38",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 38,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "#####       ###",
+        "#  ###############",
+        "# $   * @ *  #   #",
+        "#  # * * * *     #",
+        "## #  * . *  # ###",
+        " # # * * * * # #",
+        " # #  * . *  # #",
+        " # # * * * * # #",
+        "## #  * . *  # ##",
+        "## ###########  #",
+        "# $           $ #",
+        "#   ##########  #",
+        "#####       #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 39",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 39,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "   ####   ####",
+        "   #  #####  ####",
+        "#### $ $        ##",
+        "#   $   ###  ##  ##",
+        "#@### # ###.#..#  #",
+        "#  $  # #      .# #",
+        "# $ # # #   #  .  #",
+        "## #  # ###########",
+        " #   ## $ $ $ #",
+        " ###### #.#.#.###",
+        "    #     # #   #",
+        "    # # #.#.#.# #",
+        "    # # $ $ $ # #",
+        "    #  #  # # # #",
+        "    ##  ###   # #",
+        "     ##    ###  #",
+        "      ####     ##",
+        "         #######"
+      ]
+    },
+    {
+      "name": "Sasquatch III 40",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 40,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "  ####### ## #######",
+        "  #     ######     ##",
+        "  #.###  ##  .  ##  ##",
+        "  # .  #  $*# .#  #  #",
+        "  # #.  ###.#  *$  # #######",
+        "  # $ *    ###  .  #       ##",
+        " ###$# * $$  ##$ .########  #",
+        "##  $ # *  #  # # .   #   # #",
+        "#  $$  $#. .# @ #. .#$  $$  #",
+        "# #   #   . # #  #  * # $  ##",
+        "#  ########. $##  $$ * #$###",
+        "##       #  .  ###    * $ #",
+        " ####### #  $*  #.###  .# #",
+        "       #  #  #. #*$  #  . #",
+        "       ##  ##  .  ##  ###.#",
+        "        ##     ######     #",
+        "         ####### ## #######"
+      ]
+    },
+    {
+      "name": "Sasquatch III 41",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 41,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "##############################",
+        "#        .........           #",
+        "# $      ###### ##         @ #",
+        "#######   # $    #############",
+        "      ##  #   $  #",
+        "       ##$## ###$#",
+        "     ####    ..# ##### #####",
+        "     #  ..*.**.# #   # #   ##",
+        "     # ######.. $  # ###$  ##",
+        "     # #    #*. # $        #",
+        "     # # #  #  # $$ # ## ###",
+        "     #  $ # ##    #####   #",
+        "     ##  $   ###### #     #",
+        "      # ### ###       $#  #",
+        "      #   $   #$ $ ##  ####",
+        "      #### $ $    ######",
+        "         #  ####  #",
+        "         ####  ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 42",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 42,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "#########################",
+        "#   #   #   #   #   #   #",
+        "# $ # # # # # # # # # $ #",
+        "#  * * $ $ * * $ $ * *  #",
+        "### # # # # # # # # # ###",
+        "#  * *...... ......* *  #",
+        "# # # ###### ###### # # #",
+        "#  $ .#     $     #. $  #",
+        "### #$ $$$$ @ $$$$ $# ###",
+        "#  $ .#     $     #. $  #",
+        "# # # ###### ###### # # #",
+        "#  * *...... ......* *  #",
+        "### # # # # # # # # # ###",
+        "#  * * $ $ * * $ $ * *  #",
+        "# $ # # # # # # # # # $ #",
+        "#   #   #   #   #   #   #",
+        "#########################"
+      ]
+    },
+    {
+      "name": "Sasquatch III 43",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 43,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "    ####",
+        "   ##  ####",
+        "   # $   .########",
+        "   # $ # .   $ $ #",
+        "#### ### .#### # #",
+        "#  ....#$.#  # # #",
+        "# #. $ # .#$ # # #",
+        "#  ##  $$$@$ # # #",
+        "##   ##  #   # # #",
+        " ###   #  ## # # #",
+        "   ### # ...     #",
+        "     # #$* *$#  ##",
+        "     # # ...$ ###",
+        "     # $$ #   #",
+        "     #   ######",
+        "     #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 44",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 44,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "      #####",
+        "     ##   ##",
+        "     #  $  #",
+        "    ## $.$ ##",
+        "   ## $.*.$ ##",
+        " ### $.*.*.$ ###",
+        "##  $.*.$.*.$  ##",
+        "#  $.*.$ $.*.$  #",
+        "# $.*.$   $.*.$ #",
+        "#  $.*.$ $.*.$  #",
+        "##  $.*.$.*.$  ##",
+        " ### $.*.*.$ ###",
+        "   ## $.*.$ ##",
+        "    ## $.$ ##",
+        "     #  $  #",
+        "     ## @ ##",
+        "      #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 45",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 45,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "      #####",
+        "      #   #",
+        "     ## $ ##",
+        "   ### $.$ ###",
+        "   #  $.*.$  #",
+        "  ## $.*.*.$ ##",
+        "### $.*.$.*.$ ###",
+        "#  $.*.$ $.*.$  #",
+        "# $.*.$   $.*.$ #",
+        "#  $.*.$ $.*.$  #",
+        "### $.*.$.*.$ ###",
+        "  ## $.*.*.$ ##",
+        "   #  $.*.$  #",
+        "   ### $.$ ###",
+        "     ## $ ##",
+        "      # @ #",
+        "      #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 46",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 46,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "           #####",
+        " ########### @ ###########",
+        " #   .   .   #     .     #",
+        " # $$*$$$*$$ # .$ $$$.$. #",
+        " #.....*.....#*$.$...*.$*#",
+        "## $$*$$$*$$ # .$.$$$ $. ##",
+        "#    .   .   #     .      #",
+        "# ####################### #",
+        "#   .  .  .  #  . . . .   #",
+        "## $$* $$* $ # $.$.$.$.$ ##",
+        " #.*.* * *.*.#*$$$ * $$$*#",
+        " # $ *$$ *$$ # $.$.$.$.$ #",
+        " #  .  .  .  #  . . . .  #",
+        " ########### * ###########",
+        "           #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 47",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 47,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "           #####",
+        " ########### @ ###########",
+        " #  .     .  #    .$.    #",
+        " # .$.$$$.$. #.$  $.$  $.#",
+        " #.$$$.*.$$$.#$.*** ***.$#",
+        "## .$.$$$.$. #.$  $.$  $.##",
+        "#   .     .  #    .$.     #",
+        "# ####################### #",
+        "#   $.   .$  # $       .  #",
+        "##  * .$. *  # .**   **$ ##",
+        " #  $.$*$.$  # *  ***  * #",
+        " #  * .$. *  # $**   **. #",
+        " #  $.   .$  # .       $ #",
+        " ########### * ###########",
+        "           #####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 48",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 48,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " #########################",
+        " #  #  #  #  #  #  #  #  #",
+        " # $#$ # $#$ # $#$ # $#$ #",
+        " #  #  #  #  #  #  #  #  #",
+        " # $#$ # $#$ # $#$ # $#$ #",
+        " #  #  #  #  #  #  #  #  #",
+        " ## # ### # ### # ### # ##",
+        " #  #  #  #  #  #  #  #  #",
+        " #  $  #  $  #  $  #  $  #",
+        "## ### # ### # ### # ### ##",
+        "#   #  #  #  #  #  #  #   #",
+        "#   #  $  #  $  #  $  #   #",
+        "##  # ### # ### # ### #  ##",
+        " #...........+...........#",
+        " #########   #   #########",
+        "         #  ###  #",
+        "         #### ####"
+      ]
+    },
+    {
+      "name": "Sasquatch III 49",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 49,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        "  #########################",
+        "  #           #           #",
+        "###$$ $$ $$ $$.$$ $$ $$ $$###",
+        "# $+.$..$..$..$..$..$..$..$ #",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "#  $$.$$.$$.$$.$$.$$.$$.$$  #",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "##.$$.$$.$$.$$ $$.$$.$$.$$.##",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "#  $$.$$.$$.$$.$$.$$.$$.$$  #",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "# $..$..$..$..$..$..$..$..$ #",
+        "###$$ $$ $$ $$.$$ $$ $$ $$###",
+        "  #           #           #",
+        "  #########################"
+      ]
+    },
+    {
+      "name": "Sasquatch III 50",
+      "difficulty": "hard",
+      "source": {
+        "file": "assets/levels/sasquatch-iii.txt",
+        "level": 50,
+        "collection": "Sasquatch III",
+        "author": "David W. Skinner"
+      },
+      "map": [
+        " ####                   ####",
+        " #  #####################  #",
+        " #    ....... @ .......    #",
+        " #  # .###############. #  #",
+        "###  #.    #  #   #   .#  ###",
+        " #     #   $  #   $  #     #",
+        " #     ##$##  ##$##  #     #",
+        " ###   #  ##$##  #####   ###",
+        " #  #  #  $   $  $   #  #  #",
+        " #     #  #   #  #   #     #",
+        " #  #  #####$######$##  #  #",
+        " ##   ##   #  #   #  ##   ##",
+        " #######   $  #   $  #######",
+        "       ##$##  ##$##  #",
+        "###### #  #####  ##$## ######",
+        "#    # #  $   $  $   # #    #",
+        "###### #  #   #  #   # ######",
+        "       ###############"
+      ]
     }
-  ]
+  ],
+  "expansion": {
+    "name": "Sasquatch III",
+    "author": "David W. Skinner",
+    "email": "sasquatch@bentonrea.com",
+    "url": "https://www.onlinespiele-sammlung.de/sokoban/sokobangames/skinner/",
+    "sourceUrl": "https://www.onlinespiele-sammlung.de/sokoban/sokobangames/skinner/s3.txt",
+    "sourceFile": "assets/levels/sasquatch-iii.txt",
+    "sha256": "f975a40b00ba1fdf355f81521c7447ef40cf9395fa0f6858e00060c44d24e96f",
+    "license": "Author permits free distribution with proper credit. Original maps are unchanged.",
+    "notice": "Levels 17–66 reproduce the complete 50-level Sasquatch III collection, released June 2000. The source file and map rows are preserved unchanged, including exterior spaces and original order."
+  }
 }

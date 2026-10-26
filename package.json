@@ -24,13 +24,13 @@
     "test:all": "node scripts/test-games.mjs all"
   },
   "dependencies": {
-    "@haiyue/engine-gamepad": "file:vendor/haiyue-engine-0.2.1.tgz",
-    "@haiyue/animation-spec": "file:vendor/haiyue-animation-spec-0.2.1.tgz",
-    "@haiyue/engine": "file:vendor/haiyue-engine-0.2.1.tgz",
-    "@haiyue/extensions": "file:vendor/haiyue-extensions-0.2.1.tgz",
+    "@haiyue/engine-gamepad": "file:vendor/haiyue-engine-0.2.2.tgz",
+    "@haiyue/animation-spec": "file:vendor/haiyue-animation-spec-0.2.2.tgz",
+    "@haiyue/engine": "file:vendor/haiyue-engine-0.2.2.tgz",
+    "@haiyue/extensions": "file:vendor/haiyue-extensions-0.2.2.tgz",
     "@haiyue/ui": "file:vendor/haiyue-ui-0.2.2.tgz",
     "wgpu-matrix": "^3.0.0",
-    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-0.2.1.tgz"
+    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-0.2.2.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

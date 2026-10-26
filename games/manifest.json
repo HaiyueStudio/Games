@@ -457,7 +457,7 @@
     },
     {
       "id": "sokoban-3d",
-      "thumbnail": "screenshots/sokoban-3d.webp",
+      "thumbnail": "screenshots/sokoban-warehouse.png",
       "title": "sokoban 3d",
       "entry": "sokoban-3d/main.ts",
       "capabilities": [
@@ -465,9 +465,17 @@
         "scene-workflow",
         "input",
         "device-recovery", "gamepad",
-        "gui"
+        "gui",
+        "audio",
+        "generated-assets"
       ],
-      "assets": [],
+      "assets": [
+        "sokoban-3d/levels.json",
+        "sokoban-3d/assets/levels/sasquatch-iii.txt",
+        "sokoban-3d/assets/textures/limestone-floor.jpg",
+        "sokoban-3d/assets/textures/sandstone-wall.jpg",
+        "sokoban-3d/assets/textures/oak-crate.jpg"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
