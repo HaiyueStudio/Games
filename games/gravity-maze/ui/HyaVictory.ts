@@ -27,10 +27,10 @@ export class HyaVictory {
    }});
    if(lifetime.signal.aborted){player.dispose();return;}
    this.player=player;this.sequence=0;if(!player.data)throw Error('Completion data model is absent');player.data.run(write=>write.set({part:'data',id:'root'},['label'],'LEVEL '+level+' COMPLETE'));
-   player.pause();this.engine.on('after-update',this.update);this.update();
+   player.pause();this.engine.on('update',this.update);this.update();
   }catch(error){if(!lifetime.signal.aborted){this.hide();console.error('HYA completion artwork failed',error);}}
  }
- hide():void{this.lifetime?.abort();this.lifetime=undefined;this.engine.off('after-update',this.update);this.player?.dispose();this.player=undefined;}
+ hide():void{this.lifetime?.abort();this.lifetime=undefined;this.engine.off('update',this.update);this.player?.dispose();this.player=undefined;}
  dispose():void{if(this.disposed)return;this.disposed=true;this.hide();}
  private viewport():readonly[number,number]{return [this.engine.displayWidth,this.engine.displayHeight];}
  private dpr():number{const value=this.engine.devicePixelRatio;return typeof value==='function'?value():value;}
