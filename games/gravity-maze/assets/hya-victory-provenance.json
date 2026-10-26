@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "license": "OFL-1.1",
+  "font": {
+    "family": "Haiyue G11 Scene Sans",
+    "original": {
+      "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+      "sha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b"
+    },
+    "license": "FONT-LICENSE.txt",
+    "characters": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~世乐你保停入切取口图好始存局屏布幕开态换放文暂月本横测海消片状界确窗竖继续缩置认试输重音",
+    "method": "Real CFF contours and advances copied into a renamed finite-glyph subset. Source shaping tables are not copied; this scene uses simple Latin/CJK text. All original copyright/license text retained."
+  },
+  "bytes": 34264,
+  "sha256": "f62a4977e30d92bc8f9da3eff2707756d3d76bc00be0e549e76c43ca3efa404f",
+  "compositionSha256": "752e6c6425bc53b8a1402ae64f8e57269fc54b53b851e4ec68958327e38ac2bb",
+  "scope": "Authored level-completion ribbon; no imported motion or replacement of gameplay controls."
+}

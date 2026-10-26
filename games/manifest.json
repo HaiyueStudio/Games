@@ -199,9 +199,9 @@
         "game-workflow",
         "experimental-ray-tracing",
         "ray-tracing-product-evidence", "gamepad",
-        "gui"
+        "gui", "hya-production"
       ],
-      "assets": [],
+      "assets": ["gravity-maze/assets/hya-victory.json","gravity-maze/assets/hya-victory.otf","gravity-maze/assets/HYA-FONT-LICENSE.txt","gravity-maze/assets/hya-victory-provenance.json"],
       "screenshot": {
         "required": false,
         "baseline": null
