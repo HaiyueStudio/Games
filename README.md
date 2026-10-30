@@ -86,7 +86,7 @@ Regenerate PCM assets with `node --experimental-strip-types scripts/generate-lau
 run `node scripts/verify-launcher-audio.mjs` and `node scripts/verify-simulator-volume.mjs` for real output-sample checks.
 Games retain their original `games/<id>/index.html` standalone entrypoints.
 
-Game code is imported only when selected; MUGEN and Gravity Maze also retain their internal lazy
+Game code is imported only when selected; Gravity Maze also retains its internal lazy
 chunks. A shared Engine loading screen covers code, resource bytes and initialization, with
 cancel/retry. Returning or switching aborts pending work and disposes game listeners, timers,
 workers, audio and graphics resources. In device mode, loading, progress, errors and retry are
@@ -146,15 +146,34 @@ See [controller mappings and verification](games/gamepad/README.md) and
 
 ## Local development
 
-Use Node.js 22 or newer. Local Haiyue dependencies are packed from source and included
+Use Node.js 22.22.2, a compatible Node 24 (24.15+), or Node 26. Local Haiyue dependencies are packed from source and included
 in `vendor/`, so installing Games does not require sibling repositories:
 
 ```bash
-npm install
+npm ci
+npm run workspaces:check
 npm run typecheck
 npm test
 npm run build
 ```
+
+The repository uses **npm workspaces + Lerna 10 / Nx task caching**. Each of the 31
+manifest games is a private package; the lobby, host and shared runtime form the
+platform package. Source and published URLs remain under `games/<id>`.
+
+```bash
+# Build one game and its shared platform dependency:
+npm run build:target -- game:2048
+# Work on only the two migration pilot games:
+node scripts/run-workspaces.mjs build 2048 whale-maker
+node scripts/run-workspaces.mjs test 2048 whale-maker
+node scripts/run-workspaces.mjs typecheck 2048 whale-maker
+# Standard Lerna and npm workspace commands also work:
+npx lerna run build --scope @haiyue/game-whale-maker
+npm test --workspace @haiyue/game-2048
+```
+
+See [workspace layout, cache rules and migration verification](MONOREPO.md).
 
 To build and temporarily install fresh candidates from sibling `Engine` and `UI`
 repositories during development:
@@ -175,10 +194,10 @@ npm test
 npm run build
 ```
 
-`npm test` temporarily excludes the unfinished MUGEN tests. Use `npm run test:mugen`
-to run only MUGEN, or `npm run test:all` to include it. Other tests retain their normal
-failure behavior. The browser controller runner also skips MUGEN by default; select
-its cases explicitly through `GAMEPAD_CASE` when needed.
+MUGEN is maintained separately in the sibling `../mugen` repository. Its source, local characters,
+viewer, tests and verification commands no longer participate in Games builds or deployment.
+Run `npm ci`, `npm run build` and `npm run dev` in `../mugen`; see its README for standalone usage.
+`npm test` and `npm run test:all` run all remaining Games suites.
 
 Watch all games and the lobby while iterating:
 
@@ -229,7 +248,7 @@ large browser bootstraps live in `app/`, controllers in `game/`, deterministic s
 and rules in `rules/`, input adapters in `input/`, and presentation in `rendering/`,
 `effects/`, `textures/` and `ui/`. Audio, saves, generation and navigation use their
 own folders where needed. Shared collection/rendering helpers live in `games/shared/`.
-MUGEN retains its existing import/runtime/game/viewer boundaries and public preview entry.
+MUGEN retains its import/runtime/game/viewer boundaries in the independent sibling repository.
 
 Use Engine's public `FixedStepClock` for fixed-rate scheduling and `GameSaveService`
 for persistence/integrity/write ordering. Tank desktop/mobile share one game-specific

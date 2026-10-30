@@ -42,6 +42,7 @@ jobs:
           node-version-file: Games/.node-version
           cache: npm
           cache-dependency-path: |
+            Games/package-lock.json
             Engine/package-lock.json
             UI/package-lock.json
 
@@ -63,11 +64,14 @@ jobs:
 
       - name: Install Games dependencies
         working-directory: Games
-        run: npm run deps:local
+        run: |
+          npm ci
+          npm run deps:local
 
       - name: Validate and build games
         working-directory: Games
         run: |
+          npm run workspaces:check
           npm run typecheck
           npm test
           npm run build

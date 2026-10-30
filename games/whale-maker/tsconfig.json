@@ -1,4 +1,18 @@
 {
-  "extends": "../../tsconfig.json",
-  "include": ["**/*.ts"]
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "types": [
+      "@webgpu/types"
+    ]
+  },
+  "include": [
+    "./**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "assets/masters"
+  ]
 }

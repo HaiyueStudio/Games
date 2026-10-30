@@ -1,0 +1,58 @@
+{
+  "name": "@haiyue/game-valley-of-light",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build valley-of-light",
+    "test": "node ../../scripts/workspace-task.mjs test valley-of-light",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck valley-of-light"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/bundle.js",
+          "{projectRoot}/bundle.js.map"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "{workspaceRoot}/games/test/valley-checkpoint-save.test.mjs",
+          "{workspaceRoot}/games/test/valley-checkpoints.test.mjs",
+          "{workspaceRoot}/games/test/valley-decorations.test.mjs",
+          "{workspaceRoot}/games/test/valley-journey.test.mjs",
+          "{workspaceRoot}/games/test/valley-logic.test.mjs",
+          "{workspaceRoot}/games/test/valley-map.test.mjs",
+          "{workspaceRoot}/games/test/valley-markers-gates.test.mjs",
+          "{workspaceRoot}/games/test/valley-of-light.test.mjs",
+          "{workspaceRoot}/games/test/valley-pointer-capture.test.mjs",
+          "{workspaceRoot}/games/test/valley-portals-flow.test.mjs",
+          "{workspaceRoot}/games/test/valley-retarget.test.mjs",
+          "{workspaceRoot}/games/test/valley-static.test.mjs",
+          "{workspaceRoot}/games/test/valley-story.test.mjs",
+          "{workspaceRoot}/games/test/valley-surfaces.test.mjs",
+          "{workspaceRoot}/games/test/valley-twist-stops.test.mjs",
+          "{workspaceRoot}/games/test/valley-water-ladder.test.mjs",
+          "{workspaceRoot}/games/test/valley-wheel-drag.test.mjs",
+          "{workspaceRoot}/games/test/valley-wheel-state.test.mjs"
+        ]
+      }
+    }
+  }
+}

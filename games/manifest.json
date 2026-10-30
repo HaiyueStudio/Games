@@ -498,28 +498,6 @@
       "ci": "smoke"
     },
     {
-      "id": "mugen",
-      "thumbnail": "screenshots/mugen.webp",
-      "title": "Haiyue MUGEN Fight",
-      "entry": "mugen/main.ts",
-      "capabilities": [
-        "2d",
-        "gui",
-        "game-workflow",
-        "input",
-        "asset-lifecycle",
-        "worker",
-        "experimental-indexed-sprite", "gamepad"
-      ],
-      "assets": [],
-      "screenshot": {
-        "required": false,
-        "baseline": null
-      },
-      "performance": null,
-      "ci": "smoke"
-    },
-    {
       "id": "pad-simulator",
       "launcher": false,
       "thumbnail": "screenshots/pad-simulator.webp",

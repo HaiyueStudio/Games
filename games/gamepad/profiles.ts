@@ -33,7 +33,6 @@ export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
   'neon-circuit':{directions:wasd,buttons:{0:'Enter',2:'KeyR',6:'KeyS',7:'KeyW',9:'KeyP'},help:'左摇杆转向 · RT 油门 · LT 刹车 · A 确认 · Start 暂停'},
   minesweeper:puzzle,
   'minecraft-lite':{directions:wasd,buttons:{0:'Space',2:'ShiftLeft',4:'Digit1',5:'Digit2'},direct:true,help:'左摇杆移动 · 右摇杆视角 · A 跳跃 · X 疾跑 · RT 挖掘 · LT 放置'},
-  mugen:{native:true,buttons:{},help:'左摇杆移动 · A/B/X/Y/LB/RB 攻击 · Start 开始 · 支持双手柄'},
   'pad-simulator':puzzle,
   pacman:{directions:arrows,buttons:{0:'Enter',3:'KeyR',9:'KeyP'},help:'左摇杆/方向键移动 · A 开始 · Start 暂停'},
   piano:{...puzzle,buttons:{},help:'左摇杆移动指针 · A 弹奏琴键 · RT 按住琴键'},

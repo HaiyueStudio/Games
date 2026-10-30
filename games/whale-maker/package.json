@@ -1,0 +1,68 @@
+{
+  "name": "@haiyue/game-whale-maker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build whale-maker",
+    "test": "node ../../scripts/workspace-task.mjs test whale-maker",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck whale-maker"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/bundle.js",
+          "{projectRoot}/bundle.js.map"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "{workspaceRoot}/games/test/whale-maker-advanced.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-adventure.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-audio.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-basin-plant.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-brick-reactions.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-classic.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-collisions.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-desert.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-enemy-contacts.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-expansion.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-flow.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-frost.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-glass.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-movement.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-objects.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-p-switch.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-p0.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-p1.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-p2.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-pearl.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-pow.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-shared-rules.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-shell-equipment.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-spring-helmet.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-squid-pow-ice.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-terrain.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker-workshop.test.mjs",
+          "{workspaceRoot}/games/test/whale-maker.test.mjs"
+        ]
+      }
+    }
+  }
+}

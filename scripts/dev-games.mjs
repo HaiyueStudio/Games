@@ -18,7 +18,7 @@ const queue = new SerialBuildQueue(async id => {
   const result = await runRollupOnce({
     cwd: root, label: id, signal: abort.signal,
     config: id === 'lobby' ? 'rollup.gamepad.config.js' : 'rollup.config.js',
-    expectedOutputs: id === 'lobby' ? ['site'] : [id === 'mugen' || id === 'gravity-maze' ? `games/${id}/dist` : `games/${id}/bundle.js`],
+    expectedOutputs: id === 'lobby' ? ['site'] : [id === 'gravity-maze' ? `games/${id}/dist` : `games/${id}/bundle.js`],
     timeoutMs: Number(process.env.GAME_BUILD_TIMEOUT_MS ?? 180_000),
     environment: { GAME_FILTER: id === 'lobby' ? '' : id, GAME_DEV_DEPENDENCIES_FILE: file },
   });

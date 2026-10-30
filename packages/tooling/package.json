@@ -1,0 +1,49 @@
+{
+  "name": "@haiyue/games-tooling",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node ../../scripts/workspace-task.mjs test tooling",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck tooling"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "allGameSources",
+          "{workspaceRoot}/games/test/dev-build-policy.test.mjs",
+          "{workspaceRoot}/games/test/dev-rollup-runner.test.mjs",
+          "{workspaceRoot}/games/test/game-layout.test.mjs",
+          "{workspaceRoot}/games/test/game-module-build.test.mjs",
+          "{workspaceRoot}/games/test/games-rendering-defaults.test.mjs",
+          "{workspaceRoot}/games/test/pages-preview.test.mjs",
+          "{workspaceRoot}/games/test/render3d-system-policy.test.mjs",
+          "{workspaceRoot}/games/test/test-selection.test.mjs",
+          "{workspaceRoot}/games/test/workspaces-policy.test.mjs"
+        ]
+      },
+      "typecheck": {
+        "inputs": [
+          "production",
+          "allGameSources"
+        ]
+      }
+    }
+  }
+}

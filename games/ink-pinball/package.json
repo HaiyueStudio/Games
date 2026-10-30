@@ -1,0 +1,46 @@
+{
+  "name": "@haiyue/game-ink-pinball",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build ink-pinball",
+    "test": "node ../../scripts/workspace-task.mjs test ink-pinball",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck ink-pinball"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0",
+    "@haiyue/game-pinball": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/bundle.js",
+          "{projectRoot}/bundle.js.map"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "{workspaceRoot}/games/test/ink-pinball-garden.test.mjs",
+          "{workspaceRoot}/games/test/ink-pinball-gui.test.mjs",
+          "{workspaceRoot}/games/test/ink-pinball-scene.test.mjs",
+          "{workspaceRoot}/games/test/ink-pinball-toad.test.mjs",
+          "{workspaceRoot}/games/test/ink-pinball-water.test.mjs"
+        ]
+      }
+    }
+  }
+}
