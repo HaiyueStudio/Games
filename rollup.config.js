@@ -43,4 +43,10 @@ const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
     plugins: [...haiyuePlugins({ declaration: false, tsconfig: './tsconfig.rollup.json' }), gameModulePlugin(entry.id)],
   }));
 
-export default process.env.GAME_FILTER ? configs : [...lobby, ...configs];
+// Build the terrain worker first so the game's bundle is published only after its worker exists.
+const terrainWorkers = games.filter(entry => entry.id === 'entanglement-path').map(() => ({
+  input: 'games/entanglement-path/art/terrainRaster.worker.ts',
+  output: { file: 'games/entanglement-path/terrain-raster.worker.js', format: 'iife', sourcemap: true, inlineDynamicImports: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './tsconfig.rollup.json' }),
+}));
+export default process.env.GAME_FILTER ? [...terrainWorkers, ...configs] : [...lobby, ...terrainWorkers, ...configs];

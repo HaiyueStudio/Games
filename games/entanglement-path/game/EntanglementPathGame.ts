@@ -11,9 +11,10 @@ import { INK, PAPER, INTRO_DURATION_MS, cellPigment } from '../art/inkNoise';
 import { hexCenter, hexPlaneSize } from '../art/hexGeometry';
 import { drawRiverTile as drawHexPath, drawWetInkHalo } from '../art/RiverPainter';
 import { RiverFlow, type RiverRoute } from '../art/riverFlow';
+import { collapseTerrain, extendTerrainSites, terrainKey, type TerrainWorld, type TerrainSite } from '../art/terrainWfc';
 
 type AxialKey = string;
-type Phase = 'playing' | 'ended';
+type Phase = 'playing' | 'ended' | 'loading';
 type Port = number;
 type Pairing = [Port, Port][];
 type AudioContextConstructor = new () => AudioContext;
@@ -73,6 +74,7 @@ interface EntanglementSaveData {
   rotation: number;
   reserveRotation: number;
   tileSerial: number;
+  terrainMapSeed?: number;
 }
 
 function isAxial(value: unknown): value is Axial {
@@ -110,7 +112,8 @@ function isEntanglementSaveData(value: unknown): value is EntanglementSaveData {
     && isNonNegativeInteger(value.score) && isNonNegativeInteger(value.pathLength)
     && isTileDef(value.nextTile) && isTileDef(value.reserveTile)
     && isNonNegativeInteger(value.rotation) && isNonNegativeInteger(value.reserveRotation)
-    && isNonNegativeInteger(value.tileSerial);
+    && isNonNegativeInteger(value.tileSerial)
+    && (value.terrainMapSeed === undefined || isNonNegativeInteger(value.terrainMapSeed));
 }
 
 interface TraceResult {
@@ -586,6 +589,14 @@ class EntanglementPathGame {
   private activeEntries = new Map<AxialKey, Port[]>();
   private previewTextureCache = new Map<string, GPUTexture>();
   private reserveTextureCache = new Map<string, GPUTexture>();
+  private terrainWorld!: TerrainWorld;
+  private terrainMapSeed = 0;
+  private terrainMapEntity: Entity | null = null;
+  private terrainMapTexture: GPUTexture | null = null;
+  private terrainBuildMs = 0;
+  private terrainDrawMs = 0;
+  private terrainGeneration = 0;
+  private readonly fogReveals = new Map<AxialKey, number>();
   private readonly riverFlow = new RiverFlow();
   private readonly riverCanvases = new Map<AxialKey, HTMLCanvasElement>();
   private riverFrame = -1;
@@ -646,6 +657,9 @@ class EntanglementPathGame {
     this.world = new World('阡陌交通');
     this.setupCamera();
     this.art = await InkArt.load();
+    this.engine.on('state-change', ({ detail: { state } }) => {
+      if (state === 'destroyed') { this.terrainGeneration++; this.art.connected.dispose(); }
+    });
     this.buildBackground();
     this.setupMusic();
     void this.loadSfxSound();
@@ -653,6 +667,7 @@ class EntanglementPathGame {
     void this.loadEndSound();
     this.levels = await this.loadLevels();
     await this.loadOrStart();
+    if (this.engine.state === 'destroyed') return;
     this.buildDecorations();
     this.buildPanel();
     this.bindInput(canvas);
@@ -904,22 +919,42 @@ class EntanglementPathGame {
 
   private terrainSeed(tile: TileDef): number { return cellPigment(tile.id, tile.variant, 71); }
 
-  private pathTerrain(tile: TileDef, rotation: number): HTMLCanvasElement {
-    return this.art.tile('path', this.terrainSeed(tile), tile.pairs, rotation);
+  private pathTerrain(tile: TileDef, rotation: number, cellKey = key(this.current.q, this.current.r)): HTMLCanvasElement {
+    const node = this.terrainWorld.nodes.get(cellKey);
+    if (!node) throw new Error(`Missing connected terrain cell ${cellKey}`);
+    return this.art.connected.fitted(node, this.terrainSeed(tile), tile.pairs, rotation);
   }
 
-  private drawBaseCell(cell: Pick<BoardCell, 'wall' | 'variant'> & Partial<Pick<BoardCell, 'source'>>): HTMLCanvasElement {
-    const source = Boolean(cell.source);
-    const baseImage = source ? this.art.tile('source', cell.variant) : this.getBlockTile(cell.wall ? 1 : 0, cell.variant);
-    const texture = drawHexPath(null, 0, {
-      fill: cell.wall ? '#2d3340' : '#16252d',
-      stroke: cell.wall ? '#5b6470' : '#314852',
-      path: '#80ed99',
-      sourceExit: source ? this.sourceExit : null,
-      baseImage,
-      markers: false,
-    });
-    return texture;
+  private drawBaseCell(cell: Pick<BoardCell, 'wall' | 'variant' | 'q' | 'r'> & Partial<Pick<BoardCell, 'source'>>, active = false): HTMLCanvasElement {
+    const source = Boolean(cell.source), node = this.terrainWorld.nodes.get(key(cell.q, cell.r))!;
+    // Mountain walls are already painted as one continuous map layer underneath the board.
+    if (cell.wall && !source) { const empty = makeCanvas(); empty.getContext('2d'); return empty; }
+    const baseImage = !cell.wall && !source ? (active ? this.pathTerrain(this.nextTile, this.rotation, key(cell.q, cell.r)) : this.art.connected.unexplored(node)) : this.art.connected.base(node);
+    return drawHexPath(null, 0, { sourceExit: source ? this.sourceExit : null, baseImage });
+  }
+
+  private async buildTerrainWorld(seed: number): Promise<boolean> {
+    const started = performance.now(), generation = ++this.terrainGeneration; this.terrainMapSeed = seed;
+    const board: TerrainSite[] = this.level.cells.map(({ q, r }) => ({ q, r,
+      kind: this.level.wallKeys.has(key(q, r)) && !(this.level.startWall && q === this.level.start.q && r === this.level.start.r) ? 'wall' : 'play' }));
+    this.terrainWorld = collapseTerrain(extendTerrainSites(board), seed);
+    const ready = await this.art.connected.configure(this.terrainWorld);
+    if (!ready || generation !== this.terrainGeneration) return false;
+    const drawingStarted = performance.now();
+    if (this.terrainMapEntity) this.world.removeEntity(this.terrainMapEntity);
+    this.terrainMapTexture?.destroy();
+    const size = hexPlaneSize(this.level.hexScreen);
+    const backdrop = this.art.connected.backdrop([...this.terrainWorld.nodes.values()].map(node => ({ node,
+      ...axialToScreen(node.q, node.r, this.level.hexScreen, this.level.boardOffsetX, this.level.boardOffsetY) })), size.width, size.height);
+    const entity = new Entity('Connected Mountain Sea');
+    const texture = this.canvasToGpuTexture(backdrop.canvas);
+    entity.addComponent(new CartesianTransform3D({ position: screenToWorld(backdrop.x, backdrop.y, -.12),
+      scale: [backdrop.width / CANVAS_W * VIEW_W, backdrop.height / CANVAS_H * VIEW_H, 1] }));
+    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), new BasicMaterial({ texture, blending: 'normal', depthWrite: false })));
+    this.world.addEntity(entity); this.terrainMapEntity = entity; this.terrainMapTexture = texture;
+    this.terrainDrawMs = performance.now() - drawingStarted;
+    this.terrainBuildMs = performance.now() - started;
+    return true;
   }
 
   private buildBoard(): void {
@@ -930,7 +965,7 @@ class EntanglementPathGame {
         const variant = cellPigment(q, r, this.levelIndex);
         const screen = axialToScreen(q, r, this.level.hexScreen, this.level.boardOffsetX, this.level.boardOffsetY);
         const material = new BasicMaterial({
-          texture: this.canvasToGpuTexture(this.drawBaseCell({ wall, source, variant })),
+          texture: this.canvasToGpuTexture(this.drawBaseCell({ q, r, wall, source, variant })),
           blending: 'normal',
           depthWrite: false,
         });
@@ -1131,14 +1166,14 @@ class EntanglementPathGame {
       entry: this.incomingSide,
       activeEntry: this.incomingSide,
       markers: false,
-      baseImage: this.pathTerrain(this.nextTile, rotation),
+      baseImage: null,
     }));
     this.previewTextureCache.set(cacheKey, texture);
     return texture;
   }
 
   private getReserveTexture(): GPUTexture {
-    const cacheKey = `${this.reserveTile.id}:${this.reserveRotation}`;
+    const cacheKey = `${this.reserveTile.id}:${this.reserveRotation}:${this.terrainMapSeed}:${this.current.q},${this.current.r}`;
     const cached = this.reserveTextureCache.get(cacheKey);
     if (cached) return cached;
     const texture = this.canvasToGpuTexture(drawHexPath(this.reserveTile, this.reserveRotation, {
@@ -1208,7 +1243,7 @@ class EntanglementPathGame {
 
   private bindInput(canvas: HTMLCanvasElement): void {
     canvas.addEventListener('click', (event) => {
-      if (this.introActive) return;
+      if (this.introActive || this.phase === 'loading') return;
       if (this.phase === 'ended') {
         this.reset();
         return;
@@ -1250,7 +1285,7 @@ class EntanglementPathGame {
       this.swapHoverTarget = 0;
     });
     window.addEventListener('keydown', (event) => {
-      if (this.introActive) return;
+      if (this.introActive || this.phase === 'loading') return;
       if (event.key === 'r' || event.key === 'R' || event.key === 'ArrowRight') this.rotate(1);
       if (event.key === 'ArrowLeft') this.rotate(-1);
       if (event.key === ']' || event.code === 'BracketRight' || event.key === '/' || event.code === 'Slash') this.changeLevel(1);
@@ -1316,6 +1351,7 @@ class EntanglementPathGame {
   }
 
   private swapReserveTile(): void {
+    if (this.phase !== 'playing' || this.introActive) return;
     this.finishSwapAnimation();
     const previewPosition = Array.from(this.previewTransform.position) as [number, number, number];
     const reservePosition = Array.from(this.reserveTransform.position) as [number, number, number];
@@ -1466,6 +1502,7 @@ class EntanglementPathGame {
     const cell = this.cells.get(cellKey);
     if (!cell || cell.wall) return;
 
+    this.fogReveals.set(cellKey, gameTime());
     const previousPathLength = this.pathLength;
     const exit = this.findExitSide(this.nextTile, this.rotation, this.incomingSide);
     const entry = this.incomingSide;
@@ -1507,28 +1544,19 @@ class EntanglementPathGame {
     this.saveState();
   }
 
-  private reset(): void {
+  private async reset(): Promise<void> {
+    this.phase = 'loading'; this.previewTransform.setScale(0, 0, 1);
     this.clearRiverVisuals();
-    this.clearTileTextureCaches();
-    for (const cellKey of this.placed.keys()) {
-      const cell = this.cells.get(cellKey);
-      if (!cell) continue;
-      this.setCellTexture(cell, drawHexPath(null, 0, {
-        fill: '#16252d',
-        stroke: '#314852',
-        path: '#80ed99',
-        baseImage: this.getBlockTile(0, cell.variant),
-        markers: false,
-      }));
-    }
     this.placed.clear();
     this.activeEntries.clear();
     this.previousBreathingEntries.clear();
     this.lastPathPulseBucket = -1;
-    this.phase = 'playing';
     this.score = 0;
     this.pathLength = 0;
     this.resetPathStart();
+    if (!await this.buildTerrainWorld(cellPigment(this.tileSerial, this.levelIndex, 947))) return;
+    this.clearTileTextureCaches();
+    for (const cell of this.cells.values()) this.setCellTexture(cell, this.drawBaseCell(cell));
     this.redrawSourceCell();
     this.highlightedKey = null;
     this.nextTile = this.randomTile();
@@ -1541,6 +1569,7 @@ class EntanglementPathGame {
     this.clearScorePopups();
     this.previewRenderedRotation = this.rotation;
     this.previewSpinActive = false;
+    this.phase = 'playing';
     this.syncAll();
     this.saveState();
   }
@@ -1558,9 +1587,10 @@ class EntanglementPathGame {
     this.loadLevel(this.levelIndex + delta, true);
   }
 
-  private loadLevel(index: number, sync: boolean): void {
+  private async loadLevel(index: number, sync: boolean, mapSeed?: number): Promise<void> {
+    this.phase = 'loading';
+    this.previewTransform?.setScale(0, 0, 1);
     this.clearRiverVisuals();
-    this.clearTileTextureCaches();
     this.clearBoard();
     this.levelIndex = (index + this.levels.length) % this.levels.length;
     this.level = requiredItemAt(this.levels, this.levelIndex, 'entanglement levels');
@@ -1569,7 +1599,6 @@ class EntanglementPathGame {
     this.activeEntries.clear();
     this.previousBreathingEntries.clear();
     this.lastPathPulseBucket = -1;
-    this.phase = 'playing';
     this.score = 0;
     this.pathLength = 0;
     this.highlightedKey = null;
@@ -1582,10 +1611,13 @@ class EntanglementPathGame {
     this.clearScorePopups();
     this.previewRenderedRotation = this.rotation;
     this.previewSpinActive = false;
+    if (!await this.buildTerrainWorld(mapSeed ?? cellPigment(this.tileSerial, this.levelIndex, 947))) return;
+    this.clearTileTextureCaches();
     this.buildBoard();
     this.resetPathStart();
     this.redrawSourceCell();
     this.raisePreviewEntity();
+    this.phase = 'playing';
     if (sync) {
       this.syncAll();
       this.saveState();
@@ -1595,12 +1627,14 @@ class EntanglementPathGame {
   private async loadOrStart(): Promise<void> {
     const saved = await this.saves.load();
     if (!saved || saved.levelIndex >= this.levels.length) {
-      this.loadLevel(0, false);
+      await this.loadLevel(0, false);
+      if (this.engine.state === 'destroyed') return;
       this.saveState();
       return;
     }
     this.bestByLevel = [...saved.bestByLevel];
-    this.loadLevel(saved.levelIndex, false);
+    await this.loadLevel(saved.levelIndex, false, saved.terrainMapSeed ?? cellPigment(saved.tileSerial, saved.levelIndex, 947));
+    if (this.engine.state === 'destroyed') return;
     this.placed = new Map(saved.placed.filter(([cellKey]) => {
       const cell = this.cells.get(cellKey);
       return !!cell && !cell.wall;
@@ -1650,6 +1684,7 @@ class EntanglementPathGame {
       rotation: this.rotation,
       reserveRotation: this.reserveRotation,
       tileSerial: this.tileSerial,
+      terrainMapSeed: this.terrainMapSeed,
     });
   }
 
@@ -1708,13 +1743,21 @@ class EntanglementPathGame {
     const wetness = this.riverFlow.wetness(cellKey, gameTime());
     drawHexPath(placed.tile, placed.rotation, {
       pulseEntries: breathingEntries.get(cellKey) ?? [], pulse,
-      wetness, time: gameTime(), baseImage: this.pathTerrain(placed.tile, placed.rotation), target,
+      wetness, time: gameTime(), baseImage: this.pathTerrain(placed.tile, placed.rotation, cellKey), target,
     });
     this.art.growBank(target.getContext('2d')!, this.terrainSeed(placed.tile), wetness);
+    const revealStart = this.fogReveals.get(cellKey);
+    if (revealStart !== undefined) {
+      const progress = Math.min(1, Math.max(0, (gameTime() - revealStart) / 760));
+      const ctx = target.getContext('2d')!;
+      ctx.globalAlpha = (1 - progress) ** 1.8; ctx.drawImage(this.art.connected.fog(this.terrainWorld.nodes.get(cellKey)!), 0, 0); ctx.globalAlpha = 1;
+      if (progress === 1) this.fogReveals.delete(cellKey);
+    }
     this.setCellTexture(cell, target);
   }
 
   private clearRiverVisuals(): void {
+    this.fogReveals.clear();
     this.riverFlow.clear(); this.riverCanvases.clear(); this.previousFlowCells.clear();
     this.riverFrame = -1; this.riverSettledCursor = 0;
     this.haloCell = '';
@@ -1752,7 +1795,7 @@ class EntanglementPathGame {
     }
     if (frame === this.riverFrame) return;
     this.riverFrame = frame;
-    const moving = this.riverFlow.movingCells(now), dirty = new Set([...moving, ...this.previousFlowCells]);
+    const moving = this.riverFlow.movingCells(now), dirty = new Set([...moving, ...this.previousFlowCells, ...this.fogReveals.keys()]);
     this.previousFlowCells.clear(); for (const cell of moving) this.previousFlowCells.add(cell);
     // Two settled cells per tick keep tiny highlights drifting without redrawing the full board.
     const settled = [...this.placed.keys()];
@@ -2059,6 +2102,8 @@ class EntanglementPathGame {
 
   private applyPreviewMaterial(): void {
     this.previewMaterial.texture = this.getPreviewTexture(this.previewRenderedRotation);
+    const current = this.cells.get(key(this.current.q, this.current.r));
+    if (this.phase === 'playing' && current && !this.placed.has(key(current.q, current.r))) this.setCellTexture(current, this.drawBaseCell(current, true));
   }
 
   private updatePreviewRotationAnimation(): void {
@@ -2102,7 +2147,7 @@ class EntanglementPathGame {
       }
       const current = this.cells.get(nextHighlight);
       if (current && !current.wall && !this.placed.has(nextHighlight)) {
-        this.setCellTexture(current, this.drawBaseCell(current));
+        this.setCellTexture(current, this.drawBaseCell(current, true));
       }
       this.highlightedKey = nextHighlight;
     }

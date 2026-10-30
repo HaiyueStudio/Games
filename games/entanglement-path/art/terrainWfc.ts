@@ -8,6 +8,8 @@ export interface TerrainWorld { seed: number; nodes: Map<string, TerrainNode>; c
 export const terrainKey = (q: number, r: number): string => `${q},${r}`;
 export const cornerLand = (mask: number, corner: number): number => (mask >> (corner % 6)) & 1;
 export const edgeSocket = (mask: number, side: number): number => cornerLand(mask, side) * 2 + cornerLand(mask, side + 1);
+export const TERRAIN_CATALOG = Array.from({ length: 64 }, (_, corners) => ({ id: `shore-${corners}`, corners,
+  sockets: Array.from({ length: 6 }, (_, side) => edgeSocket(corners, side)) }));
 const reversedSocket = (socket: number): number => ((socket & 1) << 1) | (socket >> 1);
 const bitCount = (mask: number): number => { let n = 0; for (let i = 0; i < 6; i++) n += (mask >> i) & 1; return n; };
 
@@ -96,6 +98,8 @@ export function terrainHeight(node: TerrainNode, x: number, y: number, seed: num
   let edge = cornerLand(node.corners, side) * (1 - along) + cornerLand(node.corners, side + 1) * along;
   if (node.ridges & (1 << side)) edge = Math.max(edge, Math.max(0, 1 - Math.abs(along - .5) * 3.8));
   const center = node.ridges ? 1 : node.corners === 0 ? (node.variant % 17 === 0 ? .94 : 0) : node.kind === 'play' ? .92 : .64;
+  const wx = x - 128 + (node.q + node.r / 2) * 117 * Math.sqrt(3), wy = y - 128 + node.r * 117 * 1.5;
+  // World-space coastal waviness is shared by both neighbors, including at the socket itself.
   return center * (1 - radial) + edge * radial
-    + (inkNoise(x / 34, y / 34, seed + node.variant) - .5) * .24 * Math.sin(Math.PI * radial);
+    + (inkNoise(wx / 39, wy / 39, seed + 131) - .5) * (.11 + .3 * Math.sin(Math.PI * radial));
 }

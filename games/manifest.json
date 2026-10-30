@@ -145,6 +145,7 @@
       ],
       "assets": [
         "entanglement-path/assets/bgm.mp3",
+        "entanglement-path/terrain-raster.worker.js",
         "entanglement-path/assets/ink/scroll-topdown-map.png",
         "entanglement-path/assets/ink/ui-atlas.png",
         "entanglement-path/assets/ink/title-qianmo.png",
@@ -153,6 +154,9 @@
         "entanglement-path/assets/ink/rotate-brush.png",
         "entanglement-path/assets/ink/rotate-brush-generation.json",
         "entanglement-path/assets/ink/terrain-topdown-atlas.png",
+        "entanglement-path/assets/ink/terrain-connectors.png",
+        "entanglement-path/assets/ink/terrain-tiles.json",
+        "entanglement-path/assets/ink/terrain-connectors-generation.json",
         "entanglement-path/assets/ink/topdown-generation.json",
         "entanglement-path/assets/ink/digits.png",
         "entanglement-path/assets/ink/digits.json",

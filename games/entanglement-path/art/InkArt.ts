@@ -1,3 +1,4 @@
+import { ConnectedTerrainArt } from './ConnectedTerrainArt';
 import { INK, boardPigmentAt, inkHash, paperEdgeFade, pigmentAt, revealProgress, scrollProgress, veilAlpha } from './inkNoise';
 import { brushEdgePoint, HEX_RADIUS, HEX_TEXTURE_STRETCH, pathCurve } from './hexGeometry';
 import { makeTerrainPlan, terrainPairKey, type TerrainPairs } from './topdownTerrain';
@@ -18,7 +19,8 @@ async function imageAt(url: string): Promise<HTMLImageElement> {
 export class InkArt {
   private constructor(readonly landscape: HTMLImageElement, readonly ui: HTMLImageElement,
     readonly digits: HTMLImageElement, readonly metrics: FontMetrics, readonly titleImage: HTMLImageElement,
-    readonly arrowImage: HTMLImageElement, readonly mountainImage: HTMLImageElement) {}
+    readonly arrowImage: HTMLImageElement, readonly mountainImage: HTMLImageElement, connectorImage: HTMLImageElement) { this.connected = new ConnectedTerrainArt(connectorImage); }
+  readonly connected: ConnectedTerrainArt;
   private readonly tiles = new Map<string, HTMLCanvasElement>();
   private readonly washLayers = new Map<string, HTMLCanvasElement>();
   private readonly terrainLayers = new Map<string, HTMLCanvasElement>();
@@ -26,14 +28,15 @@ export class InkArt {
   readonly bitmapDraws = { count: 0 };
 
   static async load(): Promise<InkArt> {
-    const [landscape, ui, digits, metrics, titleImage, arrowImage, mountainImage] = await Promise.all([
+    const [landscape, ui, digits, metrics, titleImage, arrowImage, mountainImage, connectorImage] = await Promise.all([
       imageAt('./assets/ink/scroll-topdown-map.png'), imageAt('./assets/ink/ui-atlas.png'), imageAt('./assets/ink/digits.png'),
       fetch('./assets/ink/digits.json').then(response => { if (!response.ok) throw new Error('Missing ink bitmap font metrics'); return response.json() as Promise<FontMetrics>; }),
       imageAt('./assets/ink/title-qianmo.png'),
       imageAt('./assets/ink/rotate-brush.png'),
       imageAt('./assets/ink/terrain-topdown-atlas.png'),
+      imageAt('./assets/ink/terrain-connectors.png'),
     ]);
-    return new InkArt(landscape, ui, digits, metrics, titleImage, arrowImage, mountainImage);
+    return new InkArt(landscape, ui, digits, metrics, titleImage, arrowImage, mountainImage, connectorImage);
   }
 
   title(width: number, height: number): HTMLCanvasElement {
@@ -148,7 +151,7 @@ export class InkArt {
       const p = riverPointAt(curve, at), next = riverPointAt(curve, at + 2);
       const angle = Math.atan2(next.y - p.y, next.x - p.x), side = seed % 2 ? 1 : -1;
       const x = p.x + Math.sin(angle) * 19 * side, y = p.y - Math.cos(angle) * 19 * side;
-      if (Math.hypot(x - 128, y - 128) > 84) continue;
+      if (Math.hypot(x - 128, y - 128) > 68) continue;
       ctx.globalAlpha = Math.min(.66, (wet.bank - .8) * 3.3);
       this.drawTerrainStamp(ctx, 10 + seed % 2, x - 16, y - 16, 32, 32);
       if (seed % 3 === 0) {
