@@ -1,20 +1,20 @@
+import {absorbVehicleHit,absorbWearableHit} from './player-equipment';
+import {overlaps as overlap} from './geometry';
 import type { Body, Input, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import type { WearableKind } from './p2-schema';
 import { emit } from './events';
 import { makeItem } from './body-factory';
 import { redPow } from './p1-mechanisms';
 import { damageBoss } from './fortress';
 import { attackResult } from './interactions';
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export const disguised=(s:State)=>s.wearable?.kind==='goomba-mask'&&s.wearable.exposed===0&&!s.held;
 export function equipWearable(s:State,kind:WearableKind,uses=3):void {
     s.wearable={kind,age:0,charge:0,uses,capacity:uses,flight:0,boost:0,cooldown:0,exposed:0,active:false};s.pendingShot=false;emit(s,'power',s.player.x);s.notice=kind==='cannon-box'?'鲸炮箱：J 蓄力，松开发射':kind==='propeller-box'?'旋桨箱：K 上升三次，落地恢复；下键俯冲':kind==='goomba-mask'?'咕嘎面具：安静行走可伪装，跳跃或攻击会暴露':kind==='bullet-mask'?'鲸弹面具：K 推进／结束，方向键转向与升降':'红脉冲箱：从下方撞击可发动三次';
 }
-export function wearableDamage(s:State):boolean {
-    if(s.vehicle){const car=s.vehicle;car.health=(car.health??3)-1;s.invincible=.8;car.vx=-s.facing*3;if(car.health<=0){car.alive=false;s.vehicle=null;}emit(s,'metal',car.x);return true;}
-    if(!s.wearable)return false;s.wearable=null;s.invincible=.9;s.pendingShot=false;emit(s,'break',s.player.x);s.notice='穿戴装备挡住了伤害';return true;
-}
+/** Compatibility for callers that only handle vehicle and wearable layers. */
+export const wearableDamage=(s:State):boolean=>absorbVehicleHit(s)||absorbWearableHit(s);
 export function wearCeiling(s:State,svc:Services):void {
     const w=s.wearable;if(w?.kind!=='pow-box'||w.cooldown>0||w.uses<=0)return;
     w.cooldown=.25;w.uses--;const pulse=makeItem('red-pow',s.player.x,s.player.y);pulse.x=s.player.x;pulse.y=s.player.y;redPow(s,pulse,svc);if(w.uses===0)s.wearable=null;

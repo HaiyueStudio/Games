@@ -9,7 +9,7 @@ export function switchObstacles(s:State,body:Body,player=false,minX=-Infinity,ma
     // Collect in the same stable item/stone/turret/enemy order. All eligibility
     // flags and positions are live, including changes earlier in this very step.
     for(const item of s.items)if(item!==body&&item.x<maxX&&item.x+item.w>minX&&
-        (!(player&&s.vehicle===item))&&(solidPSwitch(item)||(item.kind==='basin'||item.kind==='pow'||item.kind==='red-pow'||item.kind==='wood-crate'||item.kind==='snowball'||item.kind==='snowball-large'||item.kind==='koopa-car')&&item.alive&&!item.held)&&
+        (!(player&&s.vehicle===item))&&(solidPSwitch(item)||(item.kind==='basin'||item.kind==='bone-shell'||item.kind==='pow'||item.kind==='red-pow'||item.kind==='wood-crate'||item.kind==='snowball'||item.kind==='snowball-large'||item.kind==='koopa-car')&&item.alive&&!item.held)&&
         !(player&&item.thrown&&item.cooldown>0))obstacles.push(item);
     for(const route of s.snakes)for(const block of route.blocks)if(block!==body&&block.x<maxX&&block.x+block.w>minX)obstacles.push(block);
     for(const stone of s.stones)if(stone!==body&&stone.x<maxX&&stone.x+stone.w>minX)obstacles.push(stone);

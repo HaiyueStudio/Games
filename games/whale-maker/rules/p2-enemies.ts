@@ -1,11 +1,12 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { isP2Enemy } from './p2-schema';
 import { disguised } from './p2-wearables';
 import { emit } from './events';
 import { spawnContent } from './containers';
 import { setCell } from './terrain';
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export function beforeP2Defeat(s:State,e:Enemy,cause:string):boolean {
     if(e.frozen)return false;
     if(e.kind==='bully'&&!['lava','sand','block'].includes(cause)){e.vx=(Math.sign(e.x-s.player.x)||s.facing)*7;e.ai!.wait=.8;e.cooldown=.2;emit(s,'bump',e.x);return true;}

@@ -1,11 +1,12 @@
+import {overlaps as overlap} from './geometry';
 import {specialHit} from './p1-abilities';
 import {attackResult} from './interactions';
 import type { Body, Enemy, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { glassRouteGeometry, roundedGlassPath, sampleGlassPath, glassIntersects, type Point } from './glass';
 import { switchObstacles } from './switches';
 export interface ObjectTransit {path:Point[];core:Point[];travel:number;angle:number;from:{point:Point;normal:Point};to:{point:Point;normal:Point};vx:number;vy:number;returns:number;elapsed:number;freezeAtExit?:boolean;exiting?:boolean}
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 const alive=(b:Body):boolean=>!('alive'in b)||!!b.alive;
 export function allPipeBodies(s:State):Body[]{return [...s.enemies.filter(e=>e.alive&&!e.held&&!e.frozen&&!['ghost','fire-jumper','creeper-plant'].includes(e.kind)),...s.items.filter(i=>i.alive&&!i.held),...s.rewards.filter(r=>r.w>0),...s.shots,...s.boomerangs,...s.enemyProjectiles,...s.cannonShots,...s.magicShots];}
 function clear(s:State,b:Body,m:{point:Point;normal:Point},svc:Services):boolean {

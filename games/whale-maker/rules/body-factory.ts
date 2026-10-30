@@ -2,6 +2,7 @@ import type { Item, Enemy, Level } from './model';
 import type { ItemKind, ElementProperties } from './catalog';
 import { HORIZONTAL_SPRING_HEIGHT } from './springs';
 export function makeItem(kind:ItemKind,x:number,y:number):Item {
+    if(kind==='bone-shell')return {kind,x,y:y+.55,w:1.1,h:.45,vx:0,vy:0,alive:true,held:false,cooldown:.15,age:0,thrown:false,spent:false};
     if(kind==='koopa-car')return {kind,x,y:y-.1,w:1.8,h:1.1,vx:0,vy:0,alive:true,held:false,cooldown:.2,age:0,thrown:false,spent:false,health:3};
     const h=kind==='giant-pearl'?2:kind==='snowball-large'?2:kind==='pow'||kind==='red-pow'||kind==='wood-crate'||kind==='snowball'?1:kind==='basin'?.45:kind==='p-switch'?.5:kind==='spring-h'?HORIZONTAL_SPRING_HEIGHT:.7;
     return {kind,x:x+(['pow','wood-crate','snowball','giant-pearl'].includes(kind)?0:.1),y:y+1-h,w:kind==='giant-pearl'||kind==='snowball-large'?2:kind==='pow'||kind==='red-pow'||kind==='wood-crate'||kind==='snowball'?1:.8,h,vx:kind==='star'?2.5:0,vy:kind==='star'?-6:0,alive:true,held:false,cooldown:.15,age:0,thrown:false,spent:false};

@@ -1,3 +1,4 @@
+import {isPlayerPower} from './player-body';
 import {P2_PATHS,P2_ENEMIES} from './p2-schema';
 import type { Level, Tile, State } from './model';
 import { rulesFor } from './profile';
@@ -27,7 +28,7 @@ export function levelIssues(l:Level):{message:string;cell?:number}[] {
     const errors:{message:string;cell?:number}[]=[];
     if(l.theme!==undefined&&!['coast','underground','forest','snow','desert','castle'].includes(l.theme))errors.push({message:'未知玩法主题'});
     const c=l.condition;
-    if(c){if(c.kind==='coins'||c.kind==='defeats'){if(!Number.isInteger(c.amount)||c.amount<1||c.amount>999)errors.push({message:'通关数量必须为 1–999'});if(c.kind==='defeats'&&!['duck','turtle','shell','plant','fish','squid','spiky','cannonball','iron-turtle','ghost','fire-jumper','bomb','hammer-otter','cactus',...P1_ENEMIES,...P2_ENEMIES].includes(c.enemy))errors.push({message:'未知通关目标敌人'});}else if(c.kind==='power'){if(![0,1,2,3,4,5,6,7].includes(c.power))errors.push({message:'未知目标形态'});}else errors.push({message:'未知通关条件'});
+    if(c){if(c.kind==='coins'||c.kind==='defeats'){if(!Number.isInteger(c.amount)||c.amount<1||c.amount>999)errors.push({message:'通关数量必须为 1–999'});if(c.kind==='defeats'&&!['duck','turtle','shell','plant','fish','squid','spiky','cannonball','iron-turtle','ghost','fire-jumper','bomb','hammer-otter','cactus',...P1_ENEMIES,...P2_ENEMIES].includes(c.enemy))errors.push({message:'未知通关目标敌人'});}else if(c.kind==='power'){if(!isPlayerPower(c.power))errors.push({message:'未知目标形态'});}else errors.push({message:'未知通关条件'});
         if(rulesFor(l).rewards==='score')l.cells.forEach((t,cell)=>{if(t==='C')errors.push({message:`通关条件不能与检查点组合（${cell%l.width},${Math.floor(cell/l.width)}）`,cell});});
     }
     for(const [id,p]of Object.entries(l.properties??{}))if((p.large||p.winged||p.parachute)&&!['J','T','plant','spiky','iron-turtle','bomb','hammer-otter','fire-brother','jump-mouse','spike-mouse','dry-turtle','ant','spike-ant','fish','fishbone','ball-thrower',...P2_ENEMIES].includes(l.cells[+id]!))errors.push({message:`该敌人不支持尺寸／飞行修饰（${+id%l.width},${Math.floor(+id/l.width)}）`,cell:+id});

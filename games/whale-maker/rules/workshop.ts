@@ -1,8 +1,9 @@
+import {overlaps as overlap} from './geometry';
 import {pathBlocked} from './p1-mechanisms';
 import { rulesFor } from './profile';
 import { releaseContent } from './containers';
 import type { State, Level, Body, Enemy, Item, Input, Tile } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { emit } from './events';
 import { bounceHorizontalSpring, bounceVerticalSpring } from './springs';
 import { setCell } from './terrain';
@@ -10,8 +11,8 @@ import { snakePath, pathPoint, pathLength, initialSnake, type SnakePoint } from 
 export interface SnakeRoute {kind?:string;active?:boolean;done?:boolean;speed?:number;loop?:boolean;anchor:number;path:SnakePoint[];length:number;travel:number;direction:number;blocks:Body[]}
 export interface Hammer extends Body {age:number;angle:number}
 export interface WorkshopState {snakes:SnakeRoute[];hammers:Hammer[]}
-const cell=(l:Level,x:number,y:number):Tile=>x<0||y<0||x>=l.width||y>=l.height?'.':l.cells[Math.floor(y)*l.width+Math.floor(x)]!;
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+import {cellAt as cell} from './terrain';
+
 export const isBrick=(t:Tile)=>['B','?','U','='].includes(t);
 export function surface(s:State,b:Body):{boost:number;grip:number;brake:number}{
     const x=b.x+b.w/2,y=b.y+b.h+.025,t=cell(s.level,x,y),p=s.level.properties?.[Math.floor(y)*s.level.width+Math.floor(x)];

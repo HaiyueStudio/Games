@@ -1,5 +1,5 @@
 import type { Body, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { pathLength,pathPoint } from './snake-path';
 export function advanceP2Camera(s:State,dt:number):void {if(s.level.cameraRules?.mode==='auto'&&s.phase==='playing')s.cameraTravel+=dt*(s.level.properties?.[s.cameraRail]?.pace??s.level.cameraRules.speed??1);}
 export function cameraFor(s:State,follow:{x:number;y:number},w:number,h:number):{x:number;y:number} {

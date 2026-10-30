@@ -11,6 +11,7 @@ import { drawSnowball } from './desert';
 const ADVENTURE_ART:Record<string,number>={key:0,'locked-door':1,stone:3,vine:6,'spike-all':7};
 const MECHANISM_ART:Record<string,number>={'toggle-switch':0,'red-block':2,'blue-block':3};
 export function extraArt(t:string,time=0):{atlas:string;frame:number}|null {
+    if(t==='shell-helmet'||t==='spike-shell-helmet'||t==='bone-shell')return {atlas:'shell-equipment',frame:t==='shell-helmet'?0:t==='spike-shell-helmet'?1:2};
     const p2=p2Art(t,time);if(p2)return p2;const p1=p1Art(t,time);if(p1)return p1;
     if(t==='coin')return {atlas:'tokens',frame:coinFrame(time)};
     if(t==='ice-solid')return {atlas:'devices',frame:11};
@@ -116,5 +117,5 @@ export function drawItem(scene:WhaleScene2D,s:State,item:Item,x:number,feet:numb
     const opacity=item.kind==='p-switch'&&item.spent?Math.max(0,Math.min(1,(P_SWITCH_VANISH_TIME-(item.pressedAge??0))/.18)):1;
     if(item.kind==='red-pow'){scene.sprite('p1-icons',4,x-z/2,feet-z,z,z);return;}
     if(item.kind==='pow'||item.kind==='wood-crate')scene.sprite(art.atlas,frame,x-z/2,feet-z,z,z);
-    else scene.actor(art.atlas,frame,x,feet,item.kind==='giant-pearl'?2*z:(item.kind==='spring-v'?44:item.kind==='basin'?44:40)*z/48,item.vx<0,art.frame,(item.rotation??0)*Math.PI/180,opacity);
+    else scene.actor(art.atlas,frame,x,feet,item.kind==='giant-pearl'?2*z:(item.kind==='spring-v'?44:item.kind==='basin'?44:item.kind==='bone-shell'?58:40)*z/48,item.vx<0,art.frame,(item.rotation??0)*Math.PI/180,opacity);
 }

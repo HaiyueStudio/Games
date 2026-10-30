@@ -1,5 +1,6 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, Input, State, Tile } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { makeItem } from './body-factory';
 import { setCell } from './terrain';
 import { emit } from './events';
@@ -7,7 +8,7 @@ import { damageBoss } from './fortress';
 import { toggleColor } from './advanced';
 import { triggerExtension } from './p1-mechanisms';
 import { attackResult } from './interactions';
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export function specialHit(s:State,e:Enemy,kind:'claw'|'boomerang'|'hammer',svc:Services,throughPipe=false):void {
     if(!e.alive||e.held||e.transit&&!throughPipe)return;
     if(attackResult(e,kind)==='ignore')return;

@@ -1,7 +1,12 @@
+import {effect,type Effect} from './effects';
+export {effect} from './effects';
+import {overlaps as overlap} from './geometry';
+import {hasHelmet,ridingBoneShell} from './player-equipment';
+import {mountBoneShell} from './shell-equipment';
 import { resolveActivation, activateTrampolines } from './p1-mechanisms';
 import { spawnContent as payload } from './containers';
 import type { Body, State, Level, Enemy, Item, Input, BlockContent, Tile } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { ITEM_KINDS, EXTRA_ENEMIES, type ElementProperties } from './catalog';
 import { crushPlayer, defeatEnemy } from './combat';
 import {launchBomb} from './workshop';
@@ -9,13 +14,14 @@ import { emit } from './events';
 import { setCell } from './terrain';
 
 export interface Turret extends Body { kind:'cannon';content:BlockContent;wait:number;id?:number;props?:ElementProperties }
-export interface Effect extends Body { kind:'fire'|'ice'|'frost'|'helmet'|'stone'|'wood'|'blast'|'snow'|'cactus';age:number }
+export type {Effect} from './effects';
 export interface AdvancedState {
+    shellHelmet:import('./player-equipment').ShellHelmet|null;boneTime:number;bonePound:boolean;
     turrets:Turret[];effects:Effect[];redOn:boolean;score:number;
     riding:Item|null;swimKickAge:number;pound:'none'|'flip'|'fall';poundAge:number;
     jumpChain:number;chainWindow:number;springWindow:number;springBoosted:boolean;
 }
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export function cannonCells(l:Level,id:number):number[]{
     if(l.cells[id]==='cannon-body'){for(let y=Math.floor(id/l.width)+1;y<l.height;y++){const n=y*l.width+id%l.width;if(l.cells[n]==='cannon')return cannonCells(l,n);if(l.cells[n]!=='cannon-body')break;}return [];}
     if(l.cells[id]!=='cannon')return [];
@@ -32,20 +38,15 @@ export function placeCannon(l:Level,x:number,y:number,height=2):boolean {
 export function initAdvanced(l:Level):AdvancedState {
     const turrets:Turret[]=[];
     l.cells.forEach((t,id)=>{if(t!=='cannon')return;const h=l.properties?.[id]?.height??2;turrets.push({kind:'cannon',id,props:structuredClone(l.properties?.[id]??{}),x:id%l.width,y:Math.floor(id/l.width)-h+1,w:1,h,vx:0,vy:0,content:l.contents?.[id]??'cannonball',wait:1});for(const n of cannonCells(l,id))l.cells[n]='.';});
-    return {turrets,effects:[],redOn:true,score:0,riding:null,swimKickAge:1,pound:'none',poundAge:0,jumpChain:0,chainWindow:0,springWindow:0,springBoosted:false};
-}
-export function effect(s:State,kind:Effect['kind'],x:number,y:number,vx=0,vy=0):void {
-    emit(s,kind==='fire'?'hit':kind==='ice'?'ice':kind==='helmet'?'metal':'break',x);
-    s.effects.push({kind,x,y,w:kind==='ice'?1:.4,h:kind==='ice'?1:.4,vx,vy,age:0});s.effects=s.effects.slice(-64);
+    return {shellHelmet:null,boneTime:0,bonePound:false,turrets,effects:[],redOn:true,score:0,riding:null,swimKickAge:1,pound:'none',poundAge:0,jumpChain:0,chainWindow:0,springWindow:0,springBoosted:false};
 }
 export function advancedTimers(s:State,dt:number):void {
+    s.boneTime=Math.max(0,s.boneTime-dt);if(s.boneTime<1e-8)s.boneTime=0;
     s.swimKickAge=Math.min(1,s.swimKickAge+dt);s.chainWindow=Math.max(0,s.chainWindow-dt);s.springWindow=Math.max(0,s.springWindow-dt);
     for(const fx of s.effects){fx.age+=dt;if(fx.kind==='helmet'||fx.kind==='stone'){fx.vy+=18*dt;fx.x+=fx.vx*dt;fx.y+=fx.vy*dt;}}
     s.effects=s.effects.filter(fx=>fx.age<(fx.kind==='stone'?.8:fx.kind==='helmet'?.65:.4));
 }
-export function dropHelmet(s:State):void {
-    if(!s.helmet)return;s.helmet=false;effect(s,'helmet',s.player.x,s.player.y-.35,-s.facing*3,-5);
-}
+export {dropHelmet} from './player-equipment';
 export function toggleColor(s:State):void {
     emit(s,'switch');
     s.redOn=!s.redOn;
@@ -78,12 +79,13 @@ export function meltIce(s:State,x:number,y:number):void {
     if(content==='coin')s.level.cells[id]='o';else payload(s,content,x+.1,y+.1);
     effect(s,'ice',x,y);
 }
+export function bonkTurret(s:State,cannon:Turret):void {if(!hasHelmet(s))return;cannon.vy=-7;emit(s,'metal',cannon.x);s.notice='顶起了炮台！';}
 export function updateTurrets(s:State,dt:number,svc:Services):void {
     for(const cannon of s.turrets){
         const old={...cannon};cannon.vy=Math.min(18,cannon.vy+26*dt);svc.move(s,cannon,dt);
         if(cannon.y>old.y+.0001){
             for(const e of s.enemies)if(e.alive&&!e.held&&overlap(e,cannon)&&old.y+old.h<=e.y+.2)svc.defeat(s,e,'block');
-            if(!s.pipe&&overlap(s.player,cannon)&&old.y+old.h<=s.player.y+.2)svc.crush(s);
+            if(!s.pipe&&overlap(s.player,cannon)&&old.y+old.h<=s.player.y+.2){if(hasHelmet(s)){cannon.y=old.y;bonkTurret(s,cannon);}else svc.crush(s);}
         }
         cannon.wait-=dt;const props=cannon.props??{},radius=props.radius??28,source=cannon.id??Math.floor(cannon.y)*s.level.width+Math.floor(cannon.x),count=[...s.enemies.filter(e=>e.alive),...s.items.filter(e=>e.alive),...s.rewards].filter(e=>e.generatorId===source&&Math.hypot(e.x-cannon.x,e.y-cannon.y)<radius).length;
         if(cannon.wait<=0&&Math.abs(cannon.x-s.player.x)<radius&&count<(props.count??8)){emit(s,'cannon',cannon.x);cannon.wait=props.period??2.4;const dir=s.player.x+s.player.w/2<cannon.x+cannon.w/2?-1:1,created=payload(s,cannon.content,cannon.x+(dir<0?-.9:1.1),cannon.y+.1,dir);if(created){created.generatorId=source;if(props.ammoSpeed!==undefined)created.vx=dir*props.ammoSpeed;}}
@@ -102,19 +104,21 @@ export function heldAction(s:State,i:Input):boolean {
     const e=s.held;if(!e)return false;
     if(e.kind==='bomb'&&e.bombFuse!==undefined&&!e.frozen){const throwing=i.fire&&!s.previous.fire;if(!throwing&&i.grab)return false;emit(s,throwing?'throw':'grab',e.x);e.held=false;if(throwing)launchBomb(e,s.facing,'throw');else{e.bombThrown=false;e.vx=e.vy=0;}e.cooldown=.3;e.x=s.facing>0?s.player.x+s.player.w+.02:s.player.x-e.w-.02;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);s.held=null;return throwing;}
     if('frozen'in e&&e.frozen){const throwing=i.fire&&!s.previous.fire;if(!throwing&&i.grab)return false;emit(s,throwing?'throw':'grab',e.x);e.held=false;e.frozen.thrown=throwing;e.frozen.detached=true;e.frozen.hang=0;e.attackChain=0;e.vx=throwing?s.facing*12:0;e.vy=0;e.cooldown=.3;e.x=s.facing>0?s.player.x+s.player.w+.02:s.player.x-e.w-.02;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);s.held=null;return throwing;}
+    if(e.kind==='bone-shell'&&i.down&&!s.previous.down){e.y=s.player.y+s.player.h;e.held=false;s.held=null;mountBoneShell(s,e);placeRiding(s);return true;}
     if(e.kind==='basin'&&i.down&&!s.previous.down){emit(s,'metal');e.held=true;s.riding=e;s.held=null;s.pound='none';s.crouching=false;s.notice='坐进铁盆！Shift加跳跃可以跳出';return true;}
     const throwing=i.fire&&!s.previous.fire;
     if(!throwing&&i.grab)return false;
     emit(s,throwing?'throw':'grab');
     e.held=false;e.attackChain=0;e.vx=throwing?s.facing*12:0;e.vy=0;e.cooldown=throwing?.3:.4;
-    if(e.kind==='basin'||e.kind==='pow'||e.kind==='red-pow'||e.kind==='wood-crate'||(e.kind==='snowball'||e.kind==='snowball-large')){e.x=s.facing>0?s.player.x+s.player.w+.03:s.player.x-e.w-.03;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);}
+    if(e.kind==='basin'||e.kind==='bone-shell'||e.kind==='shell-helmet'||e.kind==='spike-shell-helmet'||e.kind==='pow'||e.kind==='red-pow'||e.kind==='wood-crate'||(e.kind==='snowball'||e.kind==='snowball-large')){e.x=s.facing>0?s.player.x+s.player.w+.03:s.player.x-e.w-.03;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);}
     if('thrown'in e){e.thrown=throwing;if((e.kind==='snowball'||e.kind==='snowball-large')){e.vx=throwing?s.facing*8.5:0;e.vy=throwing?-3:0;}else if(e.kind==='spring-v'){e.vx=throwing?s.facing*8:0;e.vy=throwing?-4:0;e.springBounces=0;e.compression=0;}else if((e.kind==='pow'||e.kind==='red-pow'||e.kind==='wood-crate')&&throwing)e.vy=-3;}
     s.held=null;return throwing;
 }
 export function ridingStep(s:State,i:Input,jump:boolean):boolean {
     if(!s.riding)return false;
     const p=s.player,basin=s.riding;
-    if(jump&&i.grab){emit(s,'jump');basin.held=false;basin.vx=basin.vy=0;basin.cooldown=.4;s.riding=null;p.vy=-13.5;s.grounded=false;s.coyote=0;s.buffer=0;s.jumpSustain=true;s.jumpCut=false;return false;}
+    if(jump&&i.grab){s.boneTime=0;s.bonePound=false;emit(s,'jump');basin.held=false;basin.vx=basin.vy=0;basin.cooldown=.4;s.riding=null;p.vy=-13.5;s.grounded=false;s.coyote=0;s.buffer=0;s.jumpSustain=true;s.jumpCut=false;return false;}
+    if(ridingBoneShell(s)){if(jump&&s.grounded){emit(s,'jump');p.vy=-13.5;s.grounded=false;s.coyote=0;s.buffer=0;s.jumpSustain=true;s.jumpCut=false;}return true;}
     if(s.grounded&&(i.axis||jump)){if(jump)emit(s,'jump');p.vy=jump?-13.5:-2.5;s.grounded=false;s.coyote=0;s.buffer=0;s.jumpSustain=jump;s.jumpCut=false;}
     return true;
 }

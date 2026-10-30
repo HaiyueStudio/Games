@@ -16,7 +16,7 @@ const put=(l,x,y,t)=>l.cells[y*l.width+x]=t;
 const body=(s,p)=>{Object.assign(s.player,p);s.grounded=false;s.coyote=0;};
 
 test('a helmet drops only a fading visual effect and never becomes a recoverable item',()=>{
- const s=flat();s.helmet=true;s.power=1;s.enemies=[{...makeEnemy('duck',2,14),vx:0}];tick(s);assert.equal(s.helmet,false);assert.equal(s.power,0);assert.ok(s.effects.some(e=>e.kind==='helmet'));assert.equal(s.items.some(e=>e.kind==='basin'),false);tick(s,{},90);assert.equal(s.effects.length,0);
+ const s=flat();s.helmet=true;s.power=1;s.enemies=[{...makeEnemy('duck',2,14),vx:0}];tick(s);assert.equal(s.helmet,false);assert.equal(s.power,1);assert.ok(s.effects.some(e=>e.kind==='helmet'));assert.equal(s.items.some(e=>e.kind==='basin'),false);tick(s,{},90);assert.equal(s.effects.length,0);
 });
 test('a stationary basin blocks monsters from either side without drifting',()=>{
  for(const direction of [-1,1]){const s=flat(),basin=makeItem('basin',10,14);s.items=[basin];const e=makeEnemy('duck',direction>0?8:12,14);e.vx=direction*1.5;s.enemies=[e];tick(s,{},140);assert.ok(e.vx*direction<0);assert.equal(basin.x,10.1);assert.equal(basin.vx,0);assert.equal(e.alive,true);}

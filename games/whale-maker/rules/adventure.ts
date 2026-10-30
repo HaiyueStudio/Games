@@ -1,7 +1,9 @@
+import {overlaps as overlap} from './geometry';
+import {hasHelmet} from './player-equipment';
 import type { Body, Input, Level, State } from './model';
-import type { Services } from './expansion';
-import { detonatePow } from './expansion';
-import { effect } from './advanced';
+import type { Services } from './services';
+import { detonatePow } from './pow';
+import { effect } from './effects';
 import { touchingSwitch } from './switches';
 import { emit } from './events';
 import { setCell } from './terrain';
@@ -11,7 +13,7 @@ export interface Stone extends Body {
     origin:[number,number];direction:'left'|'right'|'down';
     phase:'idle'|'alert'|'charge'|'pause'|'return'|'knocked';timer:number;
 }
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 
 export function stoneCells(l:Level,id:number):number[]{
     if(l.cells[id]==='stone')return [id,id+1,id+l.width,id+l.width+1];
@@ -59,9 +61,9 @@ export function vineStep(s:State,i:Input,jump:boolean,dt:number):boolean {
     return true;
 }
 export function bonkStone(s:State,stone:Stone):void {
-    if(!s.helmet)return;
+    if(!hasHelmet(s))return;
     stone.phase='knocked';stone.vx=0;stone.vy=-7;stone.timer=0;
-    s.notice='铁盆顶起了石头！';
+    s.notice='顶起了石头怪，落定后改变起点！';
 }
 function approach(stone:Stone,p:Body):number|null {
     const dx=p.x+p.w/2-stone.x-stone.w/2,dy=p.y+p.h/2-stone.y-stone.h/2;
@@ -84,7 +86,7 @@ export function updateStones(s:State,dt:number,svc:Services):void {
             if(d<=dt*speed){stone.x=stone.origin[0];stone.y=stone.origin[1];stone.vx=stone.vy=0;stone.phase='idle';}
             else{stone.vx=dx/d*speed;stone.vy=dy/d*speed;}
         }
-        if(stone.phase==='knocked'){stone.vy+=22*dt;if(stone.vy>=0){stone.phase='return';stone.vx=stone.vy=0;}}
+        if(stone.phase==='knocked'){stone.vy+=22*dt;if(stone.vy>=0){stone.origin=[stone.x,stone.y];stone.phase='pause';stone.timer=.45;stone.vx=stone.vy=0;}}
         if(stone.vx||stone.vy){
             const hit=svc.move(s,stone,dt);
             if(stone.phase==='charge'&&(hit.wall||hit.floor)){
@@ -93,7 +95,7 @@ export function updateStones(s:State,dt:number,svc:Services):void {
                 if(pow){detonatePow(s,pow,svc);effect(s,'stone',stone.x+1,stone.y+2,stone.direction==='left'?-2:2,-7);s.stones=s.stones.filter(other=>other!==stone);s.notice='POW震碎了石头怪！';continue;}
             }
             if(stone.phase==='charge'&&(hit.wall||hit.floor||stone.x===0||stone.x+stone.w===s.level.width)){emit(s,'stone',stone.x+1);stone.phase='pause';stone.timer=.45;stone.vx=stone.vy=0;}
-            if(stone.phase==='knocked'&&stone.vy===0)stone.phase='return';
+            if(stone.phase==='knocked'&&stone.vy===0){stone.origin=[stone.x,stone.y];stone.phase='pause';stone.timer=.45;}
         }
         const dx=stone.x-old.x,dy=stone.y-old.y;
         if(dy>0)for(const enemy of s.enemies)if(enemy.alive&&!enemy.held&&Math.min(enemy.w,enemy.h)>.08&&
@@ -103,7 +105,7 @@ export function updateStones(s:State,dt:number,svc:Services):void {
             const carried={...p,vx:dx/dt,vy:dy/dt},hit=svc.move(s,carried,dt,true);p.x=carried.x;p.y=carried.y;if(hit.wall||hit.floor&&dy>0)s.climbing=false;
         }
         if(!overlap(p,stone))continue;
-        if(s.helmet){
+        if(hasHelmet(s)){
             stone.x=old.x;stone.y=old.y;
             if(old.y+old.h<=p.y+.12||p.y>=stone.y+stone.h-.25)bonkStone(s,stone);
             else{stone.phase='pause';stone.timer=.45;stone.vx=stone.vy=0;}

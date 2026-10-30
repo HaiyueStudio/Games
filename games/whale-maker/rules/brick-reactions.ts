@@ -1,6 +1,7 @@
 import type { Body, State } from './model';
 import { emit } from './events';
-import { detonatePow, type Services } from './expansion';
+import {detonatePow} from './pow';
+import type {Services} from './services';
 import { collectToken } from './scoring';
 
 export interface BrickBump { x:number;y:number;age:number;down?:boolean;strikerX?:number }

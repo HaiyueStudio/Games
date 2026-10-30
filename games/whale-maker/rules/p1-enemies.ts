@@ -1,13 +1,14 @@
+import {overlaps as overlap} from './geometry';
 import {disguised} from './p2-wearables';
 import type { Body, Enemy, Level, State } from './model';
 import type { ElementProperties } from './catalog';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { p1Enemy } from './p1-schema';
 import { pathPoint, pathLength } from './snake-path';
 import { spawnContent } from './containers';
 import { emit } from './events';
 import { actionScore } from './scoring';
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export {modifyEnemy} from './body-factory';
 export function beforeDefeat(s:State,e:Enemy,cause:string):boolean {
     if(e.frozen)return false;

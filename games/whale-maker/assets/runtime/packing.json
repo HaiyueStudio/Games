@@ -791,8 +791,24 @@
     "removed": []
   },
   "totals": {
-    "sourceBytes": 53485835,
-    "runtimeBytes": 8208912,
-    "reduction": 0.8465
+    "sourceBytes": 54463229,
+    "runtimeBytes": 8264848,
+    "reduction": 0.8482
+  },
+  "shell-equipment": {
+    "source": "shell-equipment.png",
+    "sourceBytes": 977394,
+    "runtimeBytes": 55936,
+    "size": [
+      416,
+      104
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "removed": []
   }
 }

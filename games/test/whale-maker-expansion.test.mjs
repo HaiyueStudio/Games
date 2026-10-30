@@ -26,7 +26,7 @@ test('basin can be kicked, carried, worn, and dropped by head or side damage',()
  const kicked=flat(),pan=makeItem('basin',3,14);pan.cooldown=0;kicked.items=[pan];kicked.player.x=pan.x-kicked.player.w-.01;tick(kicked,{axis:1},8);assert.ok(pan.vx>5);
  const s=flat(),held=makeItem('basin',3,14);held.cooldown=0;s.items=[held];s.player.x=3;tick(s,{grab:true});assert.equal(s.held,held);tick(s,{grab:true,interact:true});assert.equal(s.helmet,true);assert.equal(s.held,null);
  s.power=1;s.invincible=0;Object.assign(s.player,{x:6,y:12,h:2,w:1,vy:-2});s.enemies=[enemy('duck',6,11.4)];tick(s);assert.equal(s.helmet,false);assert.equal(s.power,1,'top hit is blocked');assert.ok(s.effects.some(i=>i.kind==='helmet'));
- const side=flat();side.power=1;side.helmet=true;side.enemies=[enemy('duck',side.player.x)];tick(side);assert.equal(side.helmet,false);assert.equal(side.power,0,'side hit still hurts');assert.ok(side.effects.some(i=>i.kind==='helmet'));
+ const side=flat();side.power=1;side.helmet=true;side.enemies=[enemy('duck',side.player.x)];tick(side);assert.equal(side.helmet,false);assert.equal(side.power,1,'the helmet absorbs a side hit before body damage');assert.ok(side.effects.some(i=>i.kind==='helmet'));
 });
 
 function thrownSpring(direction=1,power=0){

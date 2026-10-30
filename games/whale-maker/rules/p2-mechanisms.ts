@@ -1,10 +1,11 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Level, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import type { P2Mechanism } from './p2';
 import { resolveActivation } from './p1-mechanisms';
 import { damageBoss } from './fortress';
 import { emit } from './events';
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 const stands=(a:Body,b:Body)=>a.vy>=0&&Math.abs(a.y+a.h-b.y)<.06&&a.x+a.w>b.x&&a.x<b.x+b.w;
 export function initP2Mechanisms(l:Level):P2Mechanism[]{const out:P2Mechanism[]=[];l.cells.forEach((kind,id)=>{if(!['beat-block','fall-block','icicle','tornado'].includes(kind))return;const x=id%l.width,y=Math.floor(id/l.width),props=l.properties?.[id]??{};out.push({kind:kind as P2Mechanism['kind'],id,home:[x,y],x:x+(kind==='icicle'?.15:0),y,w:kind==='tornado'?props.width??2:kind==='icicle'?.7:props.width??1,h:kind==='tornado'?props.height??5:kind==='icicle'?props.height??2:kind==='fall-block'?.3:1,vx:0,vy:0,age:0,phase:'idle',wait:0,props,active:kind!=='beat-block'});l.cells[id]='.';});return out;}
 export function advanceP2Mechanisms(s:State,dt:number,svc:Services):void {

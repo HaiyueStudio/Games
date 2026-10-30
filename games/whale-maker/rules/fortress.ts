@@ -1,10 +1,11 @@
+import {overlaps} from './geometry';
 import {hitP2Boss} from './p2-bosses';
 import type { Body, Level, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { emit } from './events';
 import { setCell } from './terrain';
-const tile=(l:Level,x:number,y:number)=>x<0||y<0||x>=l.width||y>=l.height?'.':l.cells[Math.floor(y)*l.width+Math.floor(x)]!;
-const overlaps=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+import {cellAt as tile} from './terrain';
+
 
 export interface TurtleBoss extends Body { home:number;health:number;age:number;cycle:number;fireAt:number;fired:boolean;jumpAt:number;hurt:number;facing:number;phase:'walk'|'breath'|'fall'|'gone';link:number;brain?:import('./p2').P2BossBrain }
 export interface MovingPlatform extends Body { axis:'x'|'y';start:number;end:number;direction:number;speed:number;loop:boolean }

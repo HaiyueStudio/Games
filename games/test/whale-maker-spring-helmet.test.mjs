@@ -65,8 +65,8 @@ test('a frozen enemy can be head-bonked at its solid underside without requiring
  assert.equal(e.alive,false);assert.equal(s.helmet,true);assert.equal(s.power,1);assert.equal(s.phase,'playing');assert.equal(s.defeated[0].cause,'block');
 });
 
-test('side contact and falling head contact keep their damage rules; a bare head cannot attack',()=>{
- const side=underneath(1);side.s.player.y=side.e.y+.3;tick(side.s);assert.ok(side.e.alive);assert.equal(side.s.helmet,false);assert.equal(side.s.power,0);
+test('side contact and falling head contact consume the helmet before body power; a bare head cannot attack',()=>{
+ const side=underneath(1);side.s.player.y=side.e.y+.3;tick(side.s);assert.ok(side.e.alive);assert.equal(side.s.helmet,false);assert.equal(side.s.power,1);
  const falling=underneath(1);Object.assign(falling.s.player,{y:falling.e.y+falling.e.h-.01,vy:1});tick(falling.s);assert.ok(falling.e.alive);assert.equal(falling.s.helmet,false);assert.equal(falling.s.power,1);
  const bare=underneath();bare.s.helmet=false;tick(bare.s,{},2);assert.ok(bare.e.alive);assert.equal(bare.s.phase,'dead');
 });

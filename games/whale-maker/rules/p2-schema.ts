@@ -1,3 +1,4 @@
+import {isPlayerPower} from './player-body';
 import type { Level, Tile } from './model';
 export const WEARABLES=['cannon-box','propeller-box','goomba-mask','bullet-mask','pow-box'] as const;
 export type WearableKind=typeof WEARABLES[number];
@@ -20,7 +21,8 @@ export const isP2Boss=(v:string):v is P2BossKind=>(P2_BOSSES as readonly string[
 export function validP2Property(key:string,v:unknown):boolean {
     if(key==='area')return typeof v==='string'&&/^[a-zA-Z0-9_-]{1,24}$/.test(v);
     if(key==='goalBonus')return v==='score'||v==='life';
-    const max=key==='checkpointPower'?7:key==='goalHeight'?24:key==='charges'?9:key==='durability'?20:key==='targetY'?255:key==='targetX'?239:key==='period'||key==='recovery'?60:32;
+    if(key==='checkpointPower')return isPlayerPower(v);
+    const max=key==='goalHeight'?24:key==='charges'?9:key==='durability'?20:key==='targetY'?255:key==='targetX'?239:key==='period'||key==='recovery'?60:32;
     return typeof v==='number'&&Number.isFinite(v)&&v>=(['checkpointPower','delay','targetX','targetY'].includes(key)?0:.1)&&v<=max&&(!['charges','durability','checkpointPower','goalHeight','targetX','targetY'].includes(key)||Number.isInteger(v));
 }
 export function p2Issues(l:Level,main:Level=l):{message:string;cell?:number}[]{

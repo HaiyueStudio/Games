@@ -1,12 +1,13 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, Input, Item, Level, State, Tile } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { setCell } from './terrain';
 import { emit } from './events';
 import { bounceHorizontalSpring, bounceVerticalSpring } from './springs';
 
 export const SAND_SINK_SPEED=.25;
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
-const cell=(l:Level,x:number,y:number):Tile=>x<0||y<0||x>=l.width||y>=l.height?'.':l.cells[Math.floor(y)*l.width+Math.floor(x)]!;
+
+import {cellAt as cell} from './terrain';
 
 export function cactusCells(l:Level,id:number):number[]{
     if(l.cells[id]==='cactus-body'){

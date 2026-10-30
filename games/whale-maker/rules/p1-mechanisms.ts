@@ -1,6 +1,7 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, Input, Item, Level, State, Tile, BlockContent } from './model';
 import type { ElementProperties } from './catalog';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { pathPoint, pathLength } from './snake-path';
 import { releaseContent, spawnContent } from './containers';
 import { damageBoss } from './fortress';
@@ -13,7 +14,7 @@ export {deviceSolids} from './device-solids';
 
 export interface Device extends Body {id:number;kind:Tile;home:[number,number];props:ElementProperties;content?:BlockContent|undefined;released?:boolean;path:[number,number][];travel:number;age:number;active:boolean;phase:'idle'|'moving'|'return'|'done';blocks:Body[];wait:number;used?:boolean}
 export const DEVICE_TILES=new Set(['semi-platform','tree','extend-block','path-red','path-blue','trampoline','trampoline-on','trampoline-moving','cannon-basic','bill-blaster']);
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 const feetOn=(a:Body,b:Body)=>a.vy>=0&&Math.abs(a.y+a.h-b.y)<.06&&a.x<b.x+b.w-.005&&a.x+a.w>b.x+.005;
 export function pathBlocked(s:State,b:Body,svc:Pick<Services,'solid'>):boolean {
     if(glassIntersects(s.level,b))return true;

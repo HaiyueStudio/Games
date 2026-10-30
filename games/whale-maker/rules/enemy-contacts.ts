@@ -1,8 +1,9 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 
 const exposed=(e:Enemy)=>e.alive&&!e.held&&!e.transit&&e.downAge===undefined&&(!['ghost','ring-ghost','lava-dragon'].includes(e.kind)||!!e.frozen)&&e.kind!=='fire-jumper'&&(e.kind!=='plant'||Math.min(e.w,e.h)>=.08);
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 const weapon=(e:Enemy)=>(e.kind==='shell'||e.frozen?.thrown||e.kind==='bomb'&&e.bombThrown)&&Math.abs(e.vx)>5;
 const movable=(e:Enemy,axis:'x'|'y')=>(e.frozen?(axis==='x'?Math.abs(e.vx)>.01:!e.grounded):e.kind!=='plant'||axis==='y'&&e.mode!=='pipe'&&!e.plantMouth)&&(axis==='x'?e.kind!=='shell'||Math.abs(e.vx)>.01:!e.grounded);
 

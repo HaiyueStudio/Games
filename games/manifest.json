@@ -80,6 +80,8 @@
         "whale-maker/assets/runtime/expansion.png",
         "whale-maker/assets/runtime/frames.json",
         "whale-maker/assets/runtime/gadgets.png",
+        "whale-maker/assets/runtime/shell-equipment.png",
+        "whale-maker/assets/shell-equipment.provenance.json",
         "whale-maker/assets/runtime/goal-flags.png",
         "whale-maker/assets/runtime/iron-parts.png",
         "whale-maker/assets/runtime/mechanics.png",

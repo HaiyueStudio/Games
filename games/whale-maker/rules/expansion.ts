@@ -1,10 +1,12 @@
+import {detonatePow} from './pow';
+import {equipHelmet} from './player-equipment';
+import {overlaps as overlap} from './geometry';
+import {equipShellHelmet,mountBoneShell,floatShell} from './shell-equipment';
 import {disguised} from './p2-wearables';
 import {updateP2Enemy} from './p2-enemies';
-import {damageBoss} from './fortress';
-import {rulesFor} from './profile';
 import {makeItem,makeEnemy} from './body-factory';
 import { modifyEnemy, updateP1Enemy } from './p1-enemies';
-import { resolveActivation, redPow } from './p1-mechanisms';
+import { resolveActivation } from './p1-mechanisms';
 import type { State, Level, Body, Enemy, Item, Input, Tile, Defeated } from './model';
 import { ITEM_KINDS, EXTRA_ENEMIES, type ItemKind, type ElementProperties } from './catalog';
 import { worldGlassPath, glassMouths } from './glass';
@@ -19,18 +21,10 @@ import { emit } from './events';
 import { pipeShape } from './pipes';
 import { updateSnowball } from './desert';
 
-const cell=(l:Level,x:number,y:number):Tile=>x<0||y<0||x>=l.width||y>=l.height?'.':l.cells[Math.floor(y)*l.width+Math.floor(x)]!;
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
-export interface Services {
-    activatePow?(s:State,item:Item):void;
-    move(s:State,b:Body,dt:number,player?:boolean,breakBricks?:boolean):{floor:boolean;wall:number;slope:number};
-    hurt(s:State,direction?:'top'|'side'|'bottom'):void;
-    defeat(s:State,e:Enemy,cause:Defeated['cause'],source?:Body):void;
-    solid(t:Tile,pTime?:number,redOn?:boolean):boolean;
-    crush(s:State):void;
-    hitBlock(s:State,x:number,y:number,t:Tile,down?:boolean):void;
-    coin(s:State,x:number,y:number,count?:number):void;
-}
+import {cellAt as cell} from './terrain';
+
+import type {Services} from './services';
+export type {Services} from './services';
 export {makeItem,makeEnemy} from './body-factory';
 export function initExpansion(l:Level):Pick<State,'items'|'starTime'|'helmet'|'pTime'|'pConversions'|'springEffects'|'swimming'|'swimAge'|'sliding'|'slope'|'slideTime'|'shake'|'powFlash'|'door'|'doorWait'|'view'> & {extraEnemies:Enemy[]} {
     const items:Item[]=[],extraEnemies:Enemy[]=[];
@@ -49,11 +43,8 @@ export function initExpansion(l:Level):Pick<State,'items'|'starTime'|'helmet'|'p
 export function inWater(l:Level,b:Body):boolean {
     return [b.y+b.h*.3,b.y+b.h*.75].some(y=>{const x=b.x+b.w/2;if(l.liquid?.kind==='water'&&l.liquidSurface!==undefined&&x>=(l.liquid.x??0)&&x<(l.liquid.x??0)+(l.liquid.width??l.width))return y>=l.liquidSurface;return cell(l,x,y)==='water';});
 }
-export function slopeAt(l:Level,x:number,y:number):{height:number;grade:number}|null {
-    const t=cell(l,x,y),row=Math.floor(y),u=x-Math.floor(x);
-    if(String(t).startsWith('gentle-')){const second=String(t).endsWith('-body'),up=String(t).startsWith('gentle-up'),v=(u+(second?1:0))/2;return {height:row+(up?1-v:v),grade:up?-.5:.5};}
-    return t==='slope-up'?{height:row+1-u,grade:-1}:t==='slope-down'?{height:row+u,grade:1}:null;
-}
+import {slopeAt} from './terrain';
+export {slopeAt} from './terrain';
 /** Test only the filled triangle, leaving the air above the diagonal traversable. */
 export function slopeIntersects(t:Tile,x:number,y:number,b:Body):boolean {
     if(t!=='slope-up'&&t!=='slope-down'&&!String(t).startsWith('gentle-'))return false;
@@ -120,7 +111,8 @@ export function pairedExit(l:Level,id:number,pTime:number,pipes=false):number|un
 export function doorStep(s:State,i:Input,dt:number):boolean {
     if(s.door){const d=s.door;d.age+=dt;s.player.vx=s.player.vy=0;if(d.age>=.35){s.player.x=d.to[0];s.player.y=d.to[1];}if(d.age>=.7){s.door=null;s.doorWait=.5;s.invincible=Math.max(s.invincible,.8);}return true;}
     if(!i.interact||s.previous.interact||s.doorWait>0)return false;
-    if(s.held?.kind==='basin'){if(s.helmet){s.notice='已经戴着铁盆';return false;}emit(s,'metal');s.helmet=true;s.held.alive=false;s.held.held=false;s.held=null;s.notice='铁盆戴好了！可抵挡来自头顶的一次伤害';return false;}
+    if(s.held?.kind==='shell-helmet'||s.held?.kind==='spike-shell-helmet'){const kind=s.held.kind,item=s.held;equipShellHelmet(s,kind);item.alive=false;item.held=false;s.held=null;return false;}
+    if(s.held?.kind==='basin'){if(s.helmet){s.notice='已经戴着铁盆';return false;}equipHelmet(s,'basin');s.held.alive=false;s.held.held=false;s.held=null;s.notice='铁盆戴好了！可抵挡一次伤害并保留形态';return false;}
     const p=s.player;
     for(let y=Math.max(0,Math.floor(p.y));y<=Math.min(s.level.height-1,Math.floor(p.y+p.h));y++)for(let x=Math.floor(p.x);x<=Math.floor(p.x+p.w);x++){
         const id=y*s.level.width+x,t=s.level.cells[id];if(t!=='door'&&t!=='p-door'&&t!=='locked-door')continue;const exit=pairedExit(s.level,id,s.pTime);if(exit===undefined){s.notice=t==='p-door'&&s.pTime===0?'P门需要先踩下P开关':'请给两扇门设置相同的连接编号';continue;}
@@ -132,19 +124,7 @@ export function firebarPoints(l:Level,x:number,y:number,time:number):{x:number;y
     const props=l.properties?.[y*l.width+x]??{},n=props.length??4,angle=(props.phase??0)+time*(props.speed??1.5);
     return Array.from({length:n},(_,j)=>({x:x+.5+Math.cos(angle)*(j+1)*.55,y:y+.5+Math.sin(angle)*(j+1)*.55}));
 }
-export function triggerPow(s:State,svc:Services):void {
-    emit(s,'pow');
-    for(const e of s.enemies){if(!e.alive||e.held||!overlap(e,{...s.view,vx:0,vy:0}))continue;const feet=e.y+e.h,t=cell(s.level,e.x+e.w/2,feet+.04),ground=svc.solid(t,s.pTime,s.redOn)||t==='='||slopeAt(s.level,e.x+e.w/2,feet+.04);if(ground)svc.defeat(s,e,'pow');}
-    if(rulesFor(s.level).rewards==='score')for(const b of s.bosses)if(b.health>0&&overlap(b,{...s.view,vx:0,vy:0})&&svc.solid(cell(s.level,b.x+b.w/2,b.y+b.h+.04),s.pTime,s.redOn))damageBoss(s,b,'pow');
-    s.shake=.45;s.powFlash=.22;s.notice='POW！地面敌人被震飞';
-}
-/** Consume once. Ordinary standing, walking and head contact never activate POW. */
-export function detonatePow(s:State,item:Item,svc:Services):void {
-    if(!item.alive||item.kind!=='pow'&&item.kind!=='red-pow')return;
-    if(item.kind==='red-pow'){redPow(s,item,svc);return;}
-    item.alive=false;item.held=false;if(s.held===item)s.held=null;
-    triggerPow(s,svc);
-}
+export {triggerPow,detonatePow} from './pow';
 /** Swept AABB picks the first enemy along the actual throw, independent of list order. */
 function throwContact(from:Body,to:Body,target:Body):number|null {
     let enter=0,exit=1;
@@ -174,6 +154,7 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
         item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);
         const old={...item},vx=item.vx;item.vy=Math.min(18,item.vy+26*dt);const impactVy=item.vy;
         const r=svc.move(s,item,dt,false,item.kind==='basin'&&Math.abs(vx)>5);if(!item.alive||item.transit)continue;
+        if(item.kind==='bone-shell'&&floatShell(s,item,old.y+old.h)){r.floor=true;item.vx*=Math.exp(-3*dt);}
         if(r.wall)item.vx=item.kind==='p-switch'||item.kind==='pow'?0:-vx;
         const sprung=bounceVerticalSpring(s,item,old);bounceHorizontalSpring(s,item,old);
         if(sprung)r.floor=false;
@@ -205,13 +186,15 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
         }
         if(item.kind==='basin'&&Math.abs(item.vx)>5)for(const e of s.enemies)if(e.alive&&!e.held&&overlap(item,e))svc.defeat(s,e,'shell',item);
         if(item.kind==='spring-h'){if(r.floor)item.vx=0;continue;}
-        if(item.cooldown>0||!(['p-switch','basin','pow','red-pow'].includes(item.kind)?touchingSwitch(p,item):overlap(p,item)))continue;
+        if(item.cooldown>0||!(['p-switch','basin','pow','red-pow','bone-shell'].includes(item.kind)?touchingSwitch(p,item):overlap(p,item)))continue;
+        if((item.kind==='shell-helmet'||item.kind==='spike-shell-helmet')&&!i.grab){equipShellHelmet(s,item.kind);item.alive=false;continue;}
+        if(item.kind==='bone-shell'&&!i.grab&&(i.down||p.vy>=0&&before<=item.y+.2)){mountBoneShell(s,item);continue;}
         if(item.kind==='star'){emit(s,'star');item.alive=false;s.starTime=10;s.notice='无敌星！10秒无敌';continue;}
         if(item.kind==='giant-pearl'){item.alive=false;grantPower(s,3);s.notice='巨型珍珠！落下两格可踩碎一层砖';continue;}
         const stomp=p.vy>=0&&before<=item.y+.2;
         if(item.kind==='p-switch'&&stomp&&!item.spent){pressSwitch(s,item);p.y=item.y-p.h;p.vy=-4;s.grounded=false;s.coyote=0;continue;}
         if(item.kind==='spring-v'&&stomp&&!i.grab){p.y=item.y-p.h;p.vy=i.jump||i.spin?-Math.sqrt(40*(13.5**2/40+(16**2/60-2))):-Math.sqrt(60*(16**2/60-2));s.springWindow=.22;s.springBoosted=!!(i.jump||i.spin);s.grounded=false;s.spinning=i.spin;s.jumpSustain=!!(i.jump||i.spin);s.jumpCut=false;s.coyote=0;s.buffer=0;springEffect(s,item.x,item.y,'spring-v');item.cooldown=.18;continue;}
-        if(i.grab&&!s.held&&!item.spent&&(item.kind!=='basin'||r.floor&&Math.abs(item.vx)<.1&&Math.abs(item.vy)<.1)){emit(s,'grab',item.x);item.held=true;item.vx=item.vy=0;if(item.kind==='p-switch')item.thrown=false;if(item.kind==='spring-v'){item.thrown=false;item.springBounces=0;item.compression=0;}s.held=item;continue;}
+        if(i.grab&&!s.held&&!s.riding&&!item.spent&&(item.kind!=='basin'||r.floor&&Math.abs(item.vx)<.1&&Math.abs(item.vy)<.1)){emit(s,'grab',item.x);item.held=true;item.vx=item.vy=0;if(item.kind==='p-switch')item.thrown=false;if(item.kind==='spring-v'){item.thrown=false;item.springBounces=0;item.compression=0;}s.held=item;continue;}
         if(item.kind==='basin'){
             if(stomp){emit(s,'metal',item.x);p.y=item.y-p.h;p.vy=-7;item.vx=Math.abs(item.vx)>5?0:s.facing*12;}
             else if(Math.abs(item.vx)<1){

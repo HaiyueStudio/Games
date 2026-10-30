@@ -1,3 +1,4 @@
+import {hasHelmet} from './player-equipment';
 import {beforeP2Defeat} from './p2-enemies';
 import { beforeDefeat } from './p1-enemies';
 import { spawnContent } from './containers';
@@ -6,20 +7,12 @@ import { emit } from './events';
 import { attackResult } from './interactions';
 import { defeatReward } from './scoring';
 
-/** Crushing is terminal even with a star or helmet; shared by all solidifiers. */
-export function crushPlayer(s:State):void {
-    if(s.phase!=='playing')return;
-    s.starTime=s.invincible=0;s.power=0;s.motion='none';s.charge=s.runCharge=s.stun=0;s.boomerangs=[];s.wearable=null;s.cannonShots=[];s.vehicle=null;
-    if(s.helmet){s.helmet=false;s.effects.push({kind:'helmet',x:s.player.x,y:s.player.y-.35,w:.4,h:.4,vx:-s.facing*3,vy:-5,age:0});s.effects=s.effects.slice(-64);emit(s,'metal');}
-    s.pound='none';s.climbing=false;s.pendingShot=false;s.shootAge=.24;s.bites=[];s.eatAge=.56;s.flagWaves=[];s.cheerAge=.8;s.running=s.skidding=s.turning=false;s.springDrift=false;s.dust=[];s.dustWait=0;
-    s.phase='dead';s.deaths++;s.deathAge=0;s.player.vx=0;s.player.vy=-9;s.notice='被压住了 · 按 R 从检查点重试';
-    if(s.held){s.held.held=false;s.held=null;}emit(s,'death');
-}
+export {crushPlayer} from './player-damage';
 
 /** An ascending helmet strikes the underside, before ordinary contact damage. */
 export function bonkWithHelmet(s:State,e:Enemy,previousPlayer:Body,previousEnemy:Body):boolean {
     const p=s.player;
-    if(!s.helmet||!e.alive||e.held||previousPlayer.vy>=0||
+    if(!hasHelmet(s)||!e.alive||e.held||previousPlayer.vy>=0||
         previousPlayer.y<previousEnemy.y+previousEnemy.h-.025||
         p.x+p.w<=e.x+.001||p.x>=e.x+e.w-.001||
         p.y>e.y+e.h+.025||p.y+p.h<=e.y+.001)return false;

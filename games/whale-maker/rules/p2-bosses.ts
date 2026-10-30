@@ -1,9 +1,10 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Level, State } from './model';
 import type { TurtleBoss } from './fortress';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { isP2Boss } from './p2-schema';
 import { emit } from './events';
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export function initP2Bosses(l:Level):TurtleBoss[]{const out:TurtleBoss[]=[];l.cells.forEach((t,id)=>{if(!isP2Boss(t))return;const size=t==='cat-boss'?3:2,x=id%l.width,y=Math.floor(id/l.width);out.push({x,y,w:size,h:size,vx:0,vy:0,home:x,health:l.properties?.[id]?.durability??(t==='cat-boss'?6:3),age:0,cycle:0,fireAt:2,fired:false,jumpAt:2,hurt:0,facing:-1,phase:'walk',link:l.properties?.[id]?.link??1,brain:{kind:t,mode:'walk',timer:1.4,hits:0,cycle:0,target:[x,y],mirages:[],maxHealth:l.properties?.[id]?.durability??(t==='cat-boss'?6:3)}});l.cells[id]='.';});return out;}
 export function defeatP2Boss(s:State,b:TurtleBoss):void {if(b.phase==='fall'||b.phase==='gone')return;b.health=0;b.phase='fall';b.age=0;b.vy=-5;b.vx=0;b.brain!.mirages=[];s.score+=1500;emit(s,'defeat',b.x);}
 /** Each boss has a different armor window and resistance, not a shared HP hit. */

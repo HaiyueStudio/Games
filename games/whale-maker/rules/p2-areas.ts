@@ -1,8 +1,10 @@
+import {settlePlayerDeath} from './p2-progress';
+import {playerDimensions} from './player-body';
 import type { Input, Level, State } from './model';
 import { emit } from './events';
 import { pipeShape } from './pipes';
 type Factory=(l:Level)=>State;
-const GLOBAL=['power','score','coins','deaths','time','keys','helmet','starTime','invincible','wearable','held','riding','lives','gameOver','lifeCharged','nextLifeCoin','timeRemaining','timeBonus','defeatCounts','checkpoint','checkpointArea','checkpointMemory'] as const;
+const GLOBAL=['power','score','coins','deaths','time','keys','helmet','shellHelmet','boneTime','bonePound','starTime','invincible','wearable','held','riding','lives','gameOver','lifeCharged','nextLifeCoin','timeRemaining','timeBonus','defeatCounts','checkpoint','checkpointArea','checkpointMemory'] as const;
 export function rootLevel(s:State):Level{return s.rootLevel??s.startLevel;}
 export function inheritArea(root:Level,id:string):Level{return id==='main'?root:{...root.areas![id]!,...(root.areas?{areas:root.areas}:{}),...(root.rules?{rules:root.rules}:{}),...(root.condition?{condition:root.condition}:{}),...(root.progress?{progress:root.progress}:{})};}
 export function areaBlueprint(s:State,id=s.currentArea):Level{return inheritArea(rootLevel(s),id);}
@@ -13,7 +15,7 @@ export function changeArea(s:State,id:string,create:Factory,position?:[number,nu
     const cache=s.areaMemory,old=s.currentArea;s.items=s.items.filter(i=>!carry.includes(i));s.enemies=s.enemies.filter(e=>!carry.includes(e));s.vehicle=null;s.shots=[];s.boomerangs=[];s.cannonShots=[];s.pendingShot=false;
     cache[old]={...s,areaMemory:{}};const next=cache[id]??create(inheritArea(root,id));delete cache[id];Object.assign(s,next,global);
     s.rootLevel=root;s.startLevel=root;s.currentArea=id;s.areaMemory=cache;s.phase='playing';s.areaCooldown=.8;s.areaFade=.5;if(s.wearable){s.wearable.active=false;s.wearable.charge=0;s.wearable.boost=0;}s.pipe=s.door=null;s.motion='none';s.grounded=false;s.climbing=false;s.cameraHold=null;
-    const at=position??(id==='main'?root.spawn:root.areas![id]!.spawn);const width=s.power===3?1.9:.9,height=s.riding?.55:s.power?2:.8;s.player={x:Math.max(0,Math.min(s.level.width-width,at[0])),y:Math.max(0,Math.min(s.level.height-height,at[1])),w:width,h:height,vx:0,vy:0};
+    const at=position??(id==='main'?root.spawn:root.areas![id]!.spawn);const {w:width,h:height}=playerDimensions(s,false);s.player={x:Math.max(0,Math.min(s.level.width-width,at[0])),y:Math.max(0,Math.min(s.level.height-height,at[1])),w:width,h:height,vx:0,vy:0};
     for(const b of carry){if(!b)continue;if(enemies.has(b as never)){if(!s.enemies.includes(b as never))s.enemies.push(b as never);}else if(!s.items.includes(b as never))s.items.push(b as never);b.x=s.player.x+s.facing*.7;b.y=s.player.y+.5;b.vx=b.vy=0;}
     s.litCheckpoints={...(s.checkpointMemory[id]??s.litCheckpoints)};s.invincible=Math.max(.7,s.invincible);emit(s,'door',s.player.x);s.notice='抵达'+(id==='main'?'主区域':s.level.name);return true;
 }
@@ -32,7 +34,7 @@ export function areaTravel(s:State,i:Input,dt:number,create:Factory):boolean {
 export function respawnP2(s:State,create:Factory):boolean {
     if(!s.rootLevel&&!s.level.areas&&!s.level.progress?.lives)return false;
     // R can arrive before the next simulation tick after a lethal contact.
-    if(s.phase==='dead'&&s.level.progress?.lives&&!s.lifeCharged){s.lifeCharged=true;s.lives=Math.max(0,s.lives-1);s.gameOver=s.lives===0;}
+    settlePlayerDeath(s);
     const root=rootLevel(s),dead=s.deaths,area=s.checkpointArea,point:[number,number]=[...s.checkpoint],lit=structuredClone(s.checkpointMemory),lives=s.lives,score=s.score,over=s.gameOver;
     Object.assign(s,create(root));if(over){s.notice='新的冒险开始！';return true;}if(area!=='main')changeArea(s,area,create,point);s.checkpointArea=area;s.checkpoint=point;s.checkpointMemory=lit;s.litCheckpoints={...(lit[area]??{})};s.player.x=point[0];s.player.y=point[1];s.deaths=dead;s.lives=lives;s.score=s.level.progress?.lives?score:0;s.lifeCharged=false;s.invincible=2;s.notice='重新出发！';return true;
 }

@@ -1,3 +1,4 @@
+import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, State, Item } from './model';
 import { emit } from './events';
 
@@ -7,7 +8,7 @@ export const HORIZONTAL_SPRING_HEIGHT=.4;
 // Includes braking distance: on flat ground a neutral-input rebound travels
 // 60% of the former 16 tiles/s, 0.35 second launch.
 export const HORIZONTAL_SPRING_HOLD=.3814444444444445;
-const overlap=(a:Body,b:Body)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
 export const VERTICAL_SPRING_SPEED=Math.sqrt(60*(16**2/60-2));
 
 export function compressSpring(s:State,item:Item):void {

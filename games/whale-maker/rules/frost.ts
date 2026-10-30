@@ -1,6 +1,7 @@
+import {cellAt} from './terrain';
 import {WEARABLES} from './p2-schema';
 import type { Enemy, Input, Level, Reward, State } from './model';
-import type { Services } from './expansion';
+import type { Services } from './services';
 import { emit } from './events';
 import { touchingSwitch } from './switches';
 import { switchObstacles } from './switches';
@@ -12,7 +13,7 @@ export interface FrozenState {
     original?:Omit<Enemy,'frozen'>;
 }
 export const FREEZE_DURATION=6,FREEZE_WARNING=1.2,FREEZE_AIR_HANG=.6;
-const cell=(s:State,x:number,y:number)=>x<0||y<0||x>=s.level.width||y>=s.level.height?'.':s.level.cells[Math.floor(y)*s.level.width+Math.floor(x)];
+const cell=(s:State,x:number,y:number)=>cellAt(s.level,x,y);
 export function frozenWaterSurface(s:State,e:Enemy):number|undefined {
     for(const y of [e.y+.01,e.y+e.h*.5,e.y+e.h-.01,e.y+e.h+.015]){
         const x=e.x+e.w/2;let row=Math.floor(y);if(cell(s,x,row)!=='water')continue;

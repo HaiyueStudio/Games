@@ -1,3 +1,4 @@
+import {PLAYER_FORMS} from './player-body';
 import type { Body, Enemy, Input, Level, State } from './model';
 import { initDevices, type Device } from './p1-mechanisms';
 export interface Boomerang extends Body {kind:'boomerang';age:number;returning:boolean;distance:number;leg:number;hits:string[];targets?:Enemy[]}
@@ -11,7 +12,7 @@ export function initP1(l:Level):P1State{return {goalCells:l.cells.flatMap((t,id)
 export function conditionProgress(s:State):{current:number;target:number;done:boolean;text:string}{
     const c=s.level.condition;if(!c)return {current:0,target:0,done:true,text:''};
     const current=c.kind==='coins'?s.coins:c.kind==='defeats'?s.defeatCounts[c.enemy]??0:Number(s.power===c.power),target=c.kind==='power'?1:c.amount;
-    const powerName=c.kind==='power'?['初始','长高','火焰','巨型','寒冰','猫','回旋镖','建造锤'][c.power]:'';
+    const powerName=c.kind==='power'?PLAYER_FORMS[c.power].label:'';
     return {current,target,done:current>=target,text:c.kind==='power'?`目标${powerName}形态 ${current}/1`:`${c.kind==='coins'?'金币':'击败'} ${Math.min(current,target)}/${target}`};
 }
 export function p1Timers(s:State,dt:number):void {s.stun=Math.max(0,s.stun-dt);s.abilityWait=Math.max(0,s.abilityWait-dt);s.dashTime=Math.max(0,s.dashTime-dt);s.motionAge+=dt;if(s.motionAge>.45&&['claw','hammer','boomerang'].includes(s.motion))s.motion='none';
