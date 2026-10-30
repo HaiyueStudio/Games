@@ -1,23 +1,9 @@
 # Local package candidates
 
-These archives are local development inputs, not published releases. `candidates.json`
-records their provenance and SHA-256 hashes. Install with `npm ci`.
+These archives are local development inputs, not published releases. Install the exact locked versions with `npm ci`. Provenance and SHA-256 values are recorded in `candidates.json`.
 
-The Engine archive was refreshed in Games commit `654107a69dc0f4d48fa8cd444501d6ef5d177638`.
-Its SHA-256 record follows that checked-in archive; the archive also matches the
-integrity values for both Engine dependency aliases in `package-lock.json`.
+The active Engine, animation-spec and Extensions packages are the qualified 0.2.2 candidate. Engine SHA-256 is `580bc3b5c0510d1c662116fa577e4a0e34ab4758691ae7a47498611bd8e061bd`; the repaired buffer lifetime replaces the prior Engine candidate. Windows global qualification was captured at `95ffbb4`. The complete release and Apple-device status remains in Engine/review/engine-0.2.2/README.md.
 
-- Engine, Extensions, and animation-spec use the current 0.2.1 source packages;
-  UI uses the current 0.2.2 source package.
-- `@haiyue/engine-gamepad` uses the same Engine archive as `@haiyue/engine`.
-  Games import its public **experimental** `experimental/simulation` export for
-  `BrowserMultiplayerInput`.
-- `@haiyue/extensions-controls` uses the same Extensions archive as
-  `@haiyue/extensions` for AK47's public `controls` export.
+`@haiyue/engine-gamepad` shares the exact Engine archive; `@haiyue/extensions-controls` shares the exact Extensions archive. UI remains on its independent 0.2.2 candidate. Historical 0.2.1 archives and their provenance are retained.
 
-To refresh candidates, build the source packages, run `npm pack` in their package
-directories with `--pack-destination` pointing here, update the dependency/lockfile and hashes,
-then run the controller tests and browser checks. Do not replace these archives
-silently when the version number stays the same. All package paths in the Games
-manifest and lockfile must resolve inside this directory, without sibling checkout
-or absolute filesystem paths.
+Refresh from a qualified public package report, verify each archive hash, update every affected dependency alias and lock integrity, then validate the installed packages and product builds. Keep package paths relative to this vendor directory. A local candidate version is not evidence of npm publication or Native-device acceptance.

@@ -24,6 +24,27 @@
       "source": "UI public npm pack",
       "revision": "1a28338721f9f870c23c92356c554585321d5d00",
       "dirty": false
+    },
+    "haiyue-engine-0.2.2.tgz": {
+      "sha256": "580bc3b5c0510d1c662116fa577e4a0e34ab4758691ae7a47498611bd8e061bd",
+      "source": "Engine public npm pack",
+      "revision": "d58835a9d14c711f26374c5eed00851f4e4649c2",
+      "dirty": false,
+      "windowsQualificationRevision": "95ffbb4b1cacdfdde21e8be6be50961619bcc3df"
+    },
+    "haiyue-animation-spec-0.2.2.tgz": {
+      "sha256": "71eb24b81b1a07f081138610869c11b759def56aa5853a3030e7a714ad385876",
+      "source": "Engine public npm pack",
+      "revision": "d58835a9d14c711f26374c5eed00851f4e4649c2",
+      "dirty": false,
+      "windowsQualificationRevision": "95ffbb4b1cacdfdde21e8be6be50961619bcc3df"
+    },
+    "haiyue-extensions-0.2.2.tgz": {
+      "sha256": "cc29b1238a57911db251eaa01888cc5eecaeaeb6c7be62c430b58597a21c99ad",
+      "source": "Engine public npm pack",
+      "revision": "d58835a9d14c711f26374c5eed00851f4e4649c2",
+      "dirty": false,
+      "windowsQualificationRevision": "95ffbb4b1cacdfdde21e8be6be50961619bcc3df"
     }
   }
 }
