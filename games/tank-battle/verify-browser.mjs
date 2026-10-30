@@ -89,6 +89,13 @@ try {
   assert.equal(await evaluate('window.__tankBattle.hud().battlefieldRenderer'), 'engine-gui');
   await capture('title.png');
   await click('#solo'); let state = await snapshot(); assert.equal(state.mode, 1); assert.equal(state.phase, 'playing');
+  for (let row = 16; row <= 19; row++) for (let col = 10; col <= 15; col++) {
+    assert.equal(state.tiles[row * 26 + col], 'brick', 'stage one central barricade is four cells deep');
+  }
+  for (const row of [22, 23]) for (let col = 11; col <= 14; col++) {
+    assert.equal(state.tiles[row * 26 + col], 'brick', 'base roof has two layers');
+  }
+  await capture('first-stage-defenses.png');
   await key('keyDown', 'w', 'KeyW', 87); await key('keyDown', 'j', 'KeyJ', 74); await delay(400);
   await key('keyUp', 'w', 'KeyW', 87); await key('keyUp', 'j', 'KeyJ', 74);
   state = await snapshot(); assert.ok(state.tanks.find(t => t.player === 1).y < 385); assert.ok(state.bullets.some(b => b.player === 1));
@@ -96,7 +103,16 @@ try {
   await click('#resume'); assert.equal((await snapshot()).phase, 'playing');
   await click('#menu'); await click('#duo');
   await key('keyDown', 'w', 'KeyW', 87); await key('keyDown', 'j', 'KeyJ', 74);
-  await key('keyDown', 'ArrowUp', 'ArrowUp', 38); await key('keyDown', 'Enter', 'Enter', 13); await delay(400);
+  await key('keyDown', 'ArrowUp', 'ArrowUp', 38); await key('keyDown', 'Enter', 'Enter', 13);
+  try { await until(async () => {
+    const current = await snapshot();
+    assert.equal(current.phase, 'playing', 'P2 arrows/Enter must not activate HUD buttons');
+    return [1, 2].every(p => current.tanks.find(t => t.player === p)?.y < 385 && current.bullets.some(b => b.player === p));
+  }, 'simultaneous co-op movement and fire'); } catch (error) {
+    const { tick, phase, tanks, bullets } = await snapshot();
+    console.error('Co-op diagnostic:', JSON.stringify({ tick, phase, tanks, bullets }));
+    await capture('co-op-failure.png'); throw error;
+  }
   await key('keyUp', 'w', 'KeyW', 87); await key('keyUp', 'j', 'KeyJ', 74);
   await key('keyUp', 'ArrowUp', 'ArrowUp', 38); await key('keyUp', 'Enter', 'Enter', 13);
   state = await snapshot(); assert.equal(state.mode, 2);

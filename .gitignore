@@ -67,3 +67,6 @@ site/game-host.js.map
 site/simulator.js
 site/simulator.js.map
 site/core/
+
+# Lerna / Nx local task state and restored outputs
+.nx/

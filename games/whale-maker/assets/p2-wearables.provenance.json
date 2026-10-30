@@ -1,0 +1,18 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-29",
+  "prompt": "Use case: illustration-story. Asset type: transparent 2D game wearable animation atlas. Create a NEW original ocean fantasy cartoon sprite sheet, exactly 8 columns by 5 rows of equal cells, 40 sprites total. Generous transparent gutters inside every cell, no labels, no background, no floor, no watermark. Only the wearable headgear/box, no human character or limbs. Cute blue whale maid game, navy rounded outlines, teal blue white coral and gold, polished hand-painted highlights, clear at 64px. All side view facing RIGHT, identical size and anchor within each row, complete silhouettes. Row 1: teal wooden CANNON BOX with whale fin ornament and small right-pointing brass cannon barrel; 8 consecutive idle/charge glow/charged flare/firing recoil/recovery animation frames. Row 2: pale aqua PROPELLER BOX with whale motif, small top rotor, three little round indicator lamps; eight rotating propeller phases, same solid box silhouette. Row 3: cute round brown coral DUCK DISGUISE MASK, a sleepy cartoon duck-like sea creature helmet with tiny beak facing RIGHT, big friendly eyebrows, underside opening for wearer's head; 4 subtle walking/bobbing phases then 4 startled/exposed phases. Row 4: blue WHALE BULLET FLIGHT MASK, rounded torpedo helmet with whale tail/fin, navy face visor opening beneath, tiny gold goggles, not a gun; four propulsion/fin-flutter phases then four impact/deflating phases. Row 5: red PULSE POW BOX with white concentric pulse emblem and three round gold indicator lamps, 4 calm/blinking phases then 4 activation/compression/warm burst phases. No letters required. Every cell contains one entire separated wearable, not worn by a character. Actual transparent alpha background.",
+  "grid": [
+    8,
+    5
+  ],
+  "runtime": "runtime/p2-wearables.png",
+  "runtimeSize": [
+    768,
+    480
+  ],
+  "runtimeCell": 96,
+  "packing": "Uniform family scale, measured alpha bounds, transparent padding and shared feet baseline; original generated pixels preserved.",
+  "sourceId": "exec-910f974e-9787-4177-925e-fa967195dd0c.png",
+  "localSource": "p2-wearables.png"
+}

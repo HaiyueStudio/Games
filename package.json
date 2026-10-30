@@ -6,7 +6,7 @@
   "repository": "https://github.com/HaiyueStudio/Games.git",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "^22.22.2 || ^24.15.0 || ^26.0.0"
   },
   "scripts": {
     "deps:local": "node scripts/install-local-dependencies.mjs",
@@ -18,27 +18,33 @@
     "dev": "node scripts/dev-games.mjs",
     "lint": "eslint games",
     "lint:fix": "eslint games --fix",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test \"games/test/**/*.test.mjs\""
+    "typecheck": "node scripts/run-workspaces.mjs typecheck",
+    "test": "node scripts/test-games.mjs",
+    "test:all": "node scripts/test-games.mjs all",
+    "workspaces:sync": "node scripts/sync-workspaces.mjs",
+    "workspaces:check": "node scripts/sync-workspaces.mjs --check",
+    "workspaces:verify-cache": "node scripts/verify-workspaces-cache.mjs",
+    "workspaces:verify-browser": "node scripts/verify-workspaces-browser.mjs"
   },
   "dependencies": {
-    "@haiyue/engine-gamepad": "file:vendor/haiyue-engine-0.2.1.tgz",
-    "@haiyue/animation-spec": "file:vendor/haiyue-animation-spec-0.2.1.tgz",
-    "@haiyue/engine": "file:vendor/haiyue-engine-0.2.1.tgz",
-    "@haiyue/extensions": "file:vendor/haiyue-extensions-0.2.1.tgz",
+    "@haiyue/animation-spec": "file:vendor/haiyue-animation-spec-0.2.2.tgz",
+    "@haiyue/engine": "file:vendor/haiyue-engine-0.2.2.tgz",
+    "@haiyue/engine-gamepad": "file:vendor/haiyue-engine-0.2.2.tgz",
+    "@haiyue/extensions": "file:vendor/haiyue-extensions-0.2.2.tgz",
+    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-0.2.2.tgz",
     "@haiyue/ui": "file:vendor/haiyue-ui-0.2.2.tgz",
-    "wgpu-matrix": "^3.0.0",
-    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-0.2.1.tgz"
+    "wgpu-matrix": "^3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^15.0.0",
-    "@rollup/pluginutils": "^5.4.0",
     "@rollup/plugin-typescript": "^11.0.0",
+    "@rollup/pluginutils": "^5.4.0",
     "@webgpu/types": "^0.1.40",
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
+    "lerna": "10.1.1",
     "magic-string": "^0.30.21",
     "rollup": "^4.0.0",
     "tslib": "^2.6.0",
@@ -47,5 +53,9 @@
   },
   "optionalDependencies": {
     "@rollup/rollup-win32-x64-msvc": "4.60.4"
-  }
+  },
+  "workspaces": [
+    "games/*",
+    "packages/*"
+  ]
 }

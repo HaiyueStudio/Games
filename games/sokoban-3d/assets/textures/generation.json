@@ -1,0 +1,45 @@
+{
+  "generator": "built-in image_gen",
+  "generatedAt": "2026-10-26",
+  "style": "Cozy hand-painted warehouse diorama",
+  "prompts": [
+    {
+      "key": "floor",
+      "prompt": "Use case: stylized-concept. Asset type: a single production-ready 1024x1024 square seamless base-color texture for the floor material of a charming 3D Sokoban warehouse diorama. Orthographic flat top-down material scan, fills entire image edge to edge. Muted desaturated teal-grey limestone flagstones, subtle hand-painted wear, very fine warm sand grout, softly chipped edges, gentle grain and tiny mineral flecks. Cozy premium indie game, refined painterly stylization, medium-sized irregular rectangular stone blocks, readable at small size. Even diffuse albedo lighting, no cast shadows, no directional light baked in. Tile perfectly on all edges. No perspective, no 3D scene, no objects, no plants, no border, no text, no logos, no watermarks. Restrained contrast so the orange wooden crates and player stand out."
+    },
+    {
+      "key": "wall",
+      "prompt": "Use case: stylized-concept. Asset type: a single production-ready 1024x1024 square seamless base-color texture for block walls in a charming 3D Sokoban warehouse diorama. Orthographic flat front-on material scan, fills entire image edge to edge. Warm ivory / pale sandstone blocks with mellow sandy mortar, hand-painted stylized surface, rounded slightly chipped edges, restrained speckles, subtle honey-colored variations. Cozy premium indie puzzle game, clean crafted miniature feeling. Several wide rectangular blocks in a staggered running-bond arrangement. Even diffuse albedo lighting, no directional or cast shadows baked in. Tile perfectly on all edges. No perspective, no 3D room, no objects, no plants, no border, no text, no logos, no watermarks. Harmonizes with desaturated teal-grey stone floors and warm oak crates."
+    },
+    {
+      "key": "crate",
+      "prompt": "Use case: stylized-concept. Asset type: one production-ready square 1024x1024 base-color texture depicting exactly ONE wooden shipping crate FACE, to map onto each face of a 3D box in a cozy Sokoban game. Perfectly flat front-on orthographic view with absolutely no side faces or perspective. Entire image filled edge-to-edge by the crate face. Warm golden oak planks behind a sturdy square timber frame, two diagonal wooden braces making a clear X, dark iron nails at the joints, tasteful hand-painted wood grain and softly worn edges. Premium stylized miniature / cozy game material, crafted and attractive, clear bold readable shapes at small size, rich amber highlights and warm brown crevices but evenly diffuse albedo lighting. No cast shadow outside the surface, no environment, no ground, no surrounding border, no lettering, no symbols, no logos, no watermark. Not a sprite and not a rendered 3D cube: a flat square texture only."
+    }
+  ],
+  "runtimeEncoding": {
+    "size": [
+      512,
+      512
+    ],
+    "format": "JPEG",
+    "quality": 90,
+    "method": "Bicubic downsampling and JPEG encoding; no semantic edits"
+  },
+  "assets": [
+    {
+      "file": "limestone-floor.jpg",
+      "bytes": 74575,
+      "sha256": "a6496a1a1332f91d82f9102eedde6033145a0d7d46c9137ed2b7fac8f981168b"
+    },
+    {
+      "file": "sandstone-wall.jpg",
+      "bytes": 61822,
+      "sha256": "339613c50e7eefef5d7a6d3b015a2cf22cf9827a652ae2f25f3a33a280bb25c2"
+    },
+    {
+      "file": "oak-crate.jpg",
+      "bytes": 89172,
+      "sha256": "08cac5526e4a1f33a84fc4dc5735eec1da28489aadfb8511f615a219bb8fbf84"
+    }
+  ]
+}

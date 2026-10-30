@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 1,
+  "phase": "full",
+  "games": [
+    "whale-maker",
+    "glass-rush",
+    "valley-of-light",
+    "tank-battle",
+    "2048",
+    "billiards-3d",
+    "billiards",
+    "triangle-calendar-puzzle",
+    "entanglement-path",
+    "icosahedron-minesweeper",
+    "gravity-maze",
+    "match-3",
+    "neon-circuit",
+    "minesweeper",
+    "minecraft-lite",
+    "pad-simulator",
+    "pacman",
+    "piano",
+    "pong",
+    "sokoban-3d",
+    "sky-strike",
+    "spider-solitaire",
+    "sudoku",
+    "tetris",
+    "wfc-map",
+    "rubiks-cube",
+    "ak47-range",
+    "pinball",
+    "ink-pinball",
+    "jigsaw-puzzle",
+    "fruit-ninja"
+  ],
+  "testOwners": {
+    "2048": [
+      "games/test/2048-config.test.mjs",
+      "games/test/2048-forge.test.mjs",
+      "games/test/2048-rendering.test.mjs",
+      "games/test/2048-rules.test.mjs",
+      "games/test/2048-save.test.mjs",
+      "games/test/2048-tile-textures.test.mjs"
+    ],
+    "whale-maker": [
+      "games/test/whale-maker-advanced.test.mjs",
+      "games/test/whale-maker-adventure.test.mjs",
+      "games/test/whale-maker-audio.test.mjs",
+      "games/test/whale-maker-basin-plant.test.mjs",
+      "games/test/whale-maker-brick-reactions.test.mjs",
+      "games/test/whale-maker-classic.test.mjs",
+      "games/test/whale-maker-collisions.test.mjs",
+      "games/test/whale-maker-desert.test.mjs",
+      "games/test/whale-maker-enemy-contacts.test.mjs",
+      "games/test/whale-maker-expansion.test.mjs",
+      "games/test/whale-maker-flow.test.mjs",
+      "games/test/whale-maker-frost.test.mjs",
+      "games/test/whale-maker-glass.test.mjs",
+      "games/test/whale-maker-movement.test.mjs",
+      "games/test/whale-maker-objects.test.mjs",
+      "games/test/whale-maker-p-switch.test.mjs",
+      "games/test/whale-maker-p0.test.mjs",
+      "games/test/whale-maker-p1.test.mjs",
+      "games/test/whale-maker-p2.test.mjs",
+      "games/test/whale-maker-pearl.test.mjs",
+      "games/test/whale-maker-pow.test.mjs",
+      "games/test/whale-maker-shared-rules.test.mjs",
+      "games/test/whale-maker-shell-equipment.test.mjs",
+      "games/test/whale-maker-spring-helmet.test.mjs",
+      "games/test/whale-maker-squid-pow-ice.test.mjs",
+      "games/test/whale-maker-terrain.test.mjs",
+      "games/test/whale-maker-workshop.test.mjs",
+      "games/test/whale-maker.test.mjs"
+    ],
+    "glass-rush": [
+      "games/test/glass-rush-audio.test.mjs",
+      "games/test/glass-rush-ui.test.mjs",
+      "games/test/glass-rush-visual.test.mjs",
+      "games/test/glass-rush.test.mjs"
+    ],
+    "valley-of-light": [
+      "games/test/valley-checkpoint-save.test.mjs",
+      "games/test/valley-checkpoints.test.mjs",
+      "games/test/valley-decorations.test.mjs",
+      "games/test/valley-journey.test.mjs",
+      "games/test/valley-logic.test.mjs",
+      "games/test/valley-map.test.mjs",
+      "games/test/valley-markers-gates.test.mjs",
+      "games/test/valley-of-light.test.mjs",
+      "games/test/valley-pointer-capture.test.mjs",
+      "games/test/valley-portals-flow.test.mjs",
+      "games/test/valley-retarget.test.mjs",
+      "games/test/valley-static.test.mjs",
+      "games/test/valley-story.test.mjs",
+      "games/test/valley-surfaces.test.mjs",
+      "games/test/valley-twist-stops.test.mjs",
+      "games/test/valley-water-ladder.test.mjs",
+      "games/test/valley-wheel-drag.test.mjs",
+      "games/test/valley-wheel-state.test.mjs"
+    ],
+    "tank-battle": [
+      "games/test/tank-battle-gui.test.mjs",
+      "games/test/tank-battle-mobile.test.mjs",
+      "games/test/tank-battle.test.mjs",
+      "games/test/tank-desktop-controls.test.mjs",
+      "games/test/tank-simulation.test.mjs"
+    ],
+    "billiards-3d": [
+      "games/test/billiards-3d-audio.test.mjs",
+      "games/test/billiards-3d-input.test.mjs",
+      "games/test/billiards-3d-rendering.test.mjs"
+    ],
+    "billiards": [
+      "games/test/billiards-rendering.test.mjs"
+    ],
+    "triangle-calendar-puzzle": [
+      "games/test/triangle-calendar-puzzle.test.mjs"
+    ],
+    "entanglement-path": [
+      "games/test/entanglement-ink.test.mjs",
+      "games/test/entanglement-river.test.mjs",
+      "games/test/entanglement-terrain.test.mjs",
+      "games/test/entanglement-wfc.test.mjs"
+    ],
+    "icosahedron-minesweeper": [
+      "games/test/icosahedron-input.test.mjs"
+    ],
+    "gravity-maze": [
+      "games/test/gravity-maze-ray-evidence-policy.test.mjs",
+      "games/test/gravity-maze-rules.test.mjs"
+    ],
+    "match-3": [
+      "games/test/match3-special-rules.test.mjs"
+    ],
+    "neon-circuit": [
+      "games/test/neon-circuit-audio.test.mjs",
+      "games/test/neon-circuit-carousel.test.mjs",
+      "games/test/neon-circuit-coaster.test.mjs",
+      "games/test/neon-circuit-effects.test.mjs",
+      "games/test/neon-circuit-glass.test.mjs",
+      "games/test/neon-circuit-locale.test.mjs",
+      "games/test/neon-circuit-map.test.mjs",
+      "games/test/neon-circuit-mobius.test.mjs",
+      "games/test/neon-circuit-opponent.test.mjs",
+      "games/test/neon-circuit-raster.test.mjs",
+      "games/test/neon-circuit-rules.test.mjs",
+      "games/test/neon-circuit-surface.test.mjs",
+      "games/test/neon-circuit-texture-batch.test.mjs",
+      "games/test/neon-circuit-verifier.test.mjs",
+      "games/test/neon-circuit-volcanic.test.mjs"
+    ],
+    "minesweeper": [
+      "games/test/minesweeper-audio.test.mjs"
+    ],
+    "minecraft-lite": [
+      "games/test/minecraft-lite-rules.test.mjs"
+    ],
+    "pad-simulator": [
+      "games/test/private-app-boundary.test.mjs"
+    ],
+    "pacman": [
+      "games/test/pacman-rules.test.mjs",
+      "games/test/pacman-walls.test.mjs"
+    ],
+    "piano": [
+      "games/test/piano-audio.test.mjs",
+      "games/test/piano-midi.test.mjs"
+    ],
+    "pong": [
+      "games/test/pong-rules.test.mjs"
+    ],
+    "sokoban-3d": [
+      "games/test/sokoban-3d-levels.test.mjs",
+      "games/test/sokoban-presentation.test.mjs"
+    ],
+    "sky-strike": [
+      "games/test/sky-strike-assets.test.mjs",
+      "games/test/sky-strike-asteroids.test.mjs",
+      "games/test/sky-strike-audio.test.mjs",
+      "games/test/sky-strike-black-hole.test.mjs",
+      "games/test/sky-strike-bomb-crates.test.mjs",
+      "games/test/sky-strike-fighter-aim.test.mjs",
+      "games/test/sky-strike-flames.test.mjs",
+      "games/test/sky-strike-i18n-effects.test.mjs",
+      "games/test/sky-strike-mirror.test.mjs",
+      "games/test/sky-strike-music.test.mjs",
+      "games/test/sky-strike-quantum.test.mjs",
+      "games/test/sky-strike-rules.test.mjs",
+      "games/test/sky-strike-space.test.mjs",
+      "games/test/sky-strike-viewport.test.mjs"
+    ],
+    "spider-solitaire": [
+      "games/test/spider-solitaire-model.test.mjs",
+      "games/test/spider-solitaire-rendering.test.mjs"
+    ],
+    "sudoku": [
+      "games/test/sudoku-rules.test.mjs"
+    ],
+    "tetris": [
+      "games/test/tetris-rules.test.mjs"
+    ],
+    "wfc-map": [
+      "games/test/wfc-infinite-map.test.mjs",
+      "games/test/wfc-map-data.test.mjs"
+    ],
+    "rubiks-cube": [
+      "games/test/rubiks-cube.test.mjs"
+    ],
+    "ak47-range": [
+      "games/test/ak47-range.test.mjs"
+    ],
+    "pinball": [
+      "games/test/pinball-rules.test.mjs",
+      "games/test/pinball-springs.test.mjs"
+    ],
+    "ink-pinball": [
+      "games/test/ink-pinball-garden.test.mjs",
+      "games/test/ink-pinball-gui.test.mjs",
+      "games/test/ink-pinball-scene.test.mjs",
+      "games/test/ink-pinball-toad.test.mjs",
+      "games/test/ink-pinball-water.test.mjs"
+    ],
+    "jigsaw-puzzle": [
+      "games/test/jigsaw-audio.test.mjs",
+      "games/test/jigsaw-puzzle.test.mjs",
+      "games/test/jigsaw-save.test.mjs"
+    ],
+    "fruit-ninja": [
+      "games/test/fruit-ninja-audio.test.mjs",
+      "games/test/fruit-ninja.test.mjs"
+    ],
+    "platform": [
+      "games/test/camera-view-projection-cache.test.mjs",
+      "games/test/game-host-router.test.mjs",
+      "games/test/game-session.test.mjs",
+      "games/test/gamepad-connections.test.mjs",
+      "games/test/gamepad.test.mjs",
+      "games/test/launcher-activity.test.mjs",
+      "games/test/launcher-artwork.test.mjs",
+      "games/test/launcher-audio.test.mjs",
+      "games/test/launcher-hover.test.mjs",
+      "games/test/launcher-paths-layout.test.mjs",
+      "games/test/launcher-scroll.test.mjs",
+      "games/test/lobby-library.test.mjs",
+      "games/test/os-button-style.test.mjs",
+      "games/test/simulator-device.test.mjs",
+      "games/test/simulator-volume.test.mjs",
+      "games/test/single-slot-save.test.mjs"
+    ],
+    "tooling": [
+      "games/test/dev-build-policy.test.mjs",
+      "games/test/dev-rollup-runner.test.mjs",
+      "games/test/game-layout.test.mjs",
+      "games/test/game-module-build.test.mjs",
+      "games/test/games-rendering-defaults.test.mjs",
+      "games/test/pages-preview.test.mjs",
+      "games/test/render3d-system-policy.test.mjs",
+      "games/test/test-selection.test.mjs",
+      "games/test/workspaces-policy.test.mjs"
+    ]
+  }
+}

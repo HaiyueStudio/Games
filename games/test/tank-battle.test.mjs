@@ -136,3 +136,74 @@ test('next stage preserves firepower and score, clearing transient effects', () 
   const s = createGame(); s.players[0].level = 3; s.players[0].score = 2400; s.freeze = 100; s.fortify = 100; nextStage(s);
   assert.equal(s.tanks[0].level, 3); assert.equal(s.players[0].score, 2400); assert.equal(s.freeze, 0); assert.equal(s.fortify, 0); assert.ok(isGameState(s));
 });
+
+test('stage one central barricade and double roof absorb six shots before the base is exposed', () => {
+  const s = createGame(2); s.spawnTimer = 10000;
+  // Both players can still leave along the sides of the thicker central wall.
+  for (const tank of s.tanks) for (let y = 400; y >= 240; y--) assert.ok(canMove(s, tank, tank.x, y));
+  for (let shot = 0; shot < 6; shot++) {
+    bullet(s, 208, 240, 2, 0); run(s, 60);
+    assert.equal(s.baseAlive, true, `layer ${shot + 1} absorbs a shot`);
+    assert.equal(s.bullets.length, 0);
+  }
+  bullet(s, 208, 240, 2, 0); run(s, 60);
+  assert.equal(s.baseAlive, false, 'protection remains destructible');
+});
+
+test('enemy turn probes use the same lane alignment as actual movement', () => {
+  const s = arena(); s.spawnTimer = 10000;
+  // A vertical 32px lane starts just below a horizontal intersection.
+  for (let row = 6; row < 20; row++) for (let col = 0; col < 26; col++) {
+    if (col !== 4 && col !== 5) s.tiles[row * 26 + col] = 'steel';
+  }
+  const e = createTank(s, 'scout', 86, 80); e.direction = 1; e.ai = 0; e.cooldown = 10000; s.tanks.push(e);
+  run(s);
+  assert.equal(e.direction, 2); assert.equal(e.x, 80); assert.ok(e.y > 80);
+  run(s, 30); assert.ok(e.y > 100, 'turn enters the corridor instead of sticking to its corner');
+});
+
+test('a surrounded enemy holds its heading and can leave when traffic clears', () => {
+  const s = arena(); s.spawnTimer = 10000;
+  const e = createTank(s, 'scout', 160, 160); e.direction = 1; e.ai = 0; e.cooldown = 10000; s.tanks.push(e);
+  const blockers = [[135,160],[185,160],[160,135],[160,185]].map(([x,y]) => createTank(s, 'player', x, y, 1));
+  s.tanks.push(...blockers);
+  for (let i = 0; i < 180; i++) {
+    run(s); assert.equal(e.direction, 1); assert.equal(e.x, 160); assert.equal(e.y, 160);
+  }
+  s.tanks = s.tanks.filter(t => !blockers.includes(t));
+  run(s, 30); assert.ok(e.x !== 160 || e.y !== 160, 'bounded retry recovers after blockers leave');
+});
+
+test('blocked enemies keep at least 24 ticks between turns across every stage', () => {
+  let turns = 0;
+  for (let stage = 1; stage <= 5; stage++) {
+    const s = createGame(2, stage * 123); s.stage = stage; s.tiles = createMap(stage); s.spawnTimer = 10000;
+    for (const [x, kind] of [[16, 'scout'], [208, 'runner'], [400, 'heavy']]) {
+      const e = createTank(s, kind, x, 16); e.cooldown = 10000; s.tanks.push(e);
+    }
+    const lastTurn = new Map();
+    for (let tick = 0; tick < 1800; tick++) {
+      const previous = new Map(s.tanks.map(t => [t.id, t.direction])); run(s);
+      for (const e of s.tanks.filter(t => !t.player)) {
+        assert.ok(canMove(s, e, e.x, e.y), 'movement never enters terrain or another tank');
+        if (previous.get(e.id) === e.direction) continue;
+        if (lastTurn.has(e.id)) assert.ok(tick - lastTurn.get(e.id) >= 24, `stage ${stage}: consecutive turns must not jitter`);
+        lastTurn.set(e.id, tick); turns++;
+      }
+    }
+  }
+  assert.ok(turns > 30, 'exercise repeated navigation decisions, not stationary enemies');
+});
+
+test('enemy reverses out of a dead end but keeps a forward route when it is clear', () => {
+  for (const blocked of [false, true]) {
+    const s = arena(); s.spawnTimer = 10000;
+    // Put the player behind the enemy; a clear forward lane must still win over a U-turn.
+    s.tanks[0].x = 80; s.tanks[0].y = 32;
+    for (let row = 2; row <= 8; row++) for (const col of [3, 6]) s.tiles[row * 26 + col] = 'steel';
+    if (blocked) for (const col of [4, 5]) s.tiles[6 * 26 + col] = 'steel';
+    const e = createTank(s, 'scout', 80, 84); e.direction = 2; e.ai = 0; e.cooldown = 10000; s.tanks.push(e);
+    run(s); assert.equal(e.direction, blocked ? 0 : 2);
+    assert.ok(blocked ? e.y < 84 : e.y > 84);
+  }
+});

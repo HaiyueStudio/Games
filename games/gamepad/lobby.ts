@@ -27,6 +27,7 @@ export function installLobbyGamepad(options: LobbyOptions): () => void {
     if (options.playing() || document.hidden || !options.ready()) { gate.reset(); direction = ''; return; }
     options.notices(connectionState.visible(time), connectionState.connected);
     const devices = navigator.getGamepads?.() ?? [];
+    if (!Array.from(devices).some(pad => pad?.connected)) { gate.reset(); direction = ''; return; }
     const pad = gate.filter(sampler.sample().filter(sample => devices[sample.index]?.connected))[0];
     if (!pad) { direction = ''; return; }
     if (pad.pressed.has('b4') || pad.pressed.has('b5')) options.category(pad.pressed.has('b5') ? 1 : -1);

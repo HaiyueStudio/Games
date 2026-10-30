@@ -1,0 +1,34 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "actions.png",
+  "reference": "characters.png",
+  "prompt": "Use case: stylized-concept. Production transparent 2D platform-game animation atlas, EXACTLY 4 columns x 4 rows, 16 isolated full-body sprites on real transparent alpha, no labels/grid/ground/shadows. Reference image defines the exact two character identities and painted cartoon style ONLY; omit all other characters and items. Blue chibi whale-hood girl: blue hair, white-blue dress, whale hood, blue boots. Pink chibi round cat mascot: pink round body and cat ears, tiny limbs. Every sprite wholly inside its equal cell, same drawing scale within each character, shared planted-foot baseline, generous transparent gutters. Row 1 BLUE GIRL SPIN JUMP, four DIFFERENT turntable views about VERTICAL axis with arms spread, knees bent: column1 right side facing right, column2 full front view, column3 left side facing left, column4 FULL BACK view with back of whale hood and hair visible, no visible face. Row 2 PINK MASCOT SPIN JUMP, same four distinct vertical-axis turntable views right/front/left/BACK; back view no face. Maintain upright head/body, do not rotate the entire drawing upside down. Row 3 BLUE GIRL SHOOTING facing right: col1 pulls hands back preparing shot, col2 extends leading arm right casting, col3 arm recovering, col4 deep ground crouch, knees bent and body tucked, feet planted. Row 4 PINK MASCOT shooting/crouch facing right, same poses: preparation, arm/paw thrust, recovery, deep compact crouch. No projectiles or floating effects baked in. Clear readable silhouette changes between spin views and shooting poses. Clean thick colored outlines, soft vivid blue/white/pink shading matching the reference; no text, no watermark. Preserve anatomical proportions, never squash or stretch a sprite to create a pose.",
+  "frames": {
+    "spin_blue": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "spin_pink": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "shoot_blue": [
+      8,
+      9,
+      10
+    ],
+    "crouch_blue": 11,
+    "shoot_pink": [
+      12,
+      13,
+      14
+    ],
+    "crouch_pink": 15
+  },
+  "notes": "Original generated alpha PNG preserved. Row boundaries are measured for the generated unequal-height rows; only frame sampling metadata is derived."
+}

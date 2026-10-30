@@ -1,0 +1,24 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "cheer.png",
+  "reference": "characters.png",
+  "prompt": "Use case: stylized-concept. Production transparent 2D game CHECKPOINT HAPPY animation atlas, EXACTLY FOUR columns and TWO rows, EIGHT separate full-body sprites. Reference image role: CHARACTER IDENTITY and ART STYLE ONLY. TOP ROW: the same blue-haired chibi whale-hood girl, blue-white dress, blue boots, long blue hair and flower accessory. BOTTOM ROW: same round pink cat-eared chibi mascot, pink rose and blue ribbon. Both face RIGHT in three-quarter view. FOUR distinct happy checkpoint celebration poses per character, in reading order: 1 delighted surprise with hands near chest and bright eyes; 2 cheering with both arms lifted and joyful open smile; 3 happy peak pose, arms stretched up, eyes smiling closed; 4 content proud smile, arms lowering, returning toward idle. The feet stay on the SAME baseline and body/head size stays IDENTICAL within each row; no actual jumping in the artwork because the game adds a small happy bounce. Keep the whale girl and pink character identities exactly like reference, polished cartoon linework. No squash/stretch. No floating hearts or stars, no coins, no flags, no extra props or effects. All eight sprites completely separated, centered in equal cells with large fully transparent gutters. True transparent alpha background, no floor, no cast shadows, no text, no watermark.",
+  "frames": {
+    "blue": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "pink": [
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "notes": [
+    "Original generated transparent PNG preserved; only sampling coordinates are measured."
+  ]
+}

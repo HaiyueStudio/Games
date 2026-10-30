@@ -1,0 +1,32 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "checkpoint.png",
+  "reference": "world.png checkpoint",
+  "prompt": "Use case: stylized-concept. Production transparent animation sprite sheet for a pastel ocean chibi 2D platform game. Reference image role: exact art style and checkpoint identity ONLY, specifically the shell-topped flag in the SECOND ROW SECOND COLUMN. Create EXACTLY FOUR columns and FOUR rows, SIXTEEN full checkpoint flag sprites in equally sized isolated cells. Each sprite is the same slender vertical pole with a seashell finial, a swallowtail fabric banner pointing RIGHT with a simple scallop-shell emblem, and a compact coral/rock foot at the bottom. First TWO rows (frames 1-8): entirely MONOCHROME GRAY inactive checkpoint, no colored pixels, with eight successive fabric flutter phases. Last TWO rows (frames 9-16): the exact SAME checkpoint and eight matching fabric flutter phases in activated colors, deep aqua/sky-blue cloth, ivory shell emblem, warm pale gold pole, pastel coral foot. Eight distinct cloth wave shapes per loop, a traveling soft S ripple from pole to free banner tip; fabric must visibly change outline in every frame. The POLE stays perfectly straight upright, same thickness, same exact position, the foot always aligned to an identical baseline in every cell. Do NOT tilt or bend poles: the game adds pole wobble separately. Identical object scale and camera in every cell. Entire object fits safely inside each cell with generous transparent gutters and no touching neighbors. Polished painted cartoon with dark teal outlines, match reference. No characters, no arrows, no numbers, no labels, no text, no ground plane, no shadows, no loose effects, no watermark. Real fully transparent alpha background.",
+  "frames": {
+    "inactive": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "active": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "notes": [
+    "Original generated transparent PNG preserved; only sampling coordinates are measured."
+  ]
+}

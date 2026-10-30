@@ -1,0 +1,9 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "clear.png",
+  "prompt": "Use case: production modular 2D game environment atlas. Generate a NEW transparent TWO columns x TWO rows atlas with EXACTLY FOUR clean separated square sprites in equal cells. Match the reference's bright cyan crystal-clear glass pipes with blue rims and small white reflective highlights. Strict SIDE VIEW, flat 2D silhouettes, see-through pale aqua interiors (no black or opaque fill), no perspective. Sprite 0 top-left: VERTICAL straight glass tube segment, open FLAT cut along top and bottom, parallel left/right glass walls, no collars or end rims, designed to repeat or stretch vertically. Sprite 1 top-right: smooth 90 degree curved GLASS ELBOW connecting the midpoint of the TOP edge to the midpoint of the RIGHT edge. The lumen curves continuously from downward flow to rightward flow as a quarter-circle, same tube diameter as straight segment. Both cuts are FLAT and seamless, no collars at cuts, NOT a U, NOT a complete ring, no third branch. Sprite 2 bottom-left: thick oval OPEN UPWARD glass mouth collar only, hollow center, no attached shaft, same diameter and blue glass style. Sprite 3 bottom-right: HORIZONTAL straight glass tube segment with flat open cut along LEFT and RIGHT, parallel top/bottom walls, no collars. Equal tube diameter in all modules, crisp thin cyan outlines, generous transparent gutters separating the four objects, no black outlines at the joining edges. Nothing else, no labels, no grid, no characters. Real transparent alpha background.",
+  "notes": [
+    "Raw generated transparent PNG copied unchanged. Frame UVs and runtime joining-edge samples do not modify source pixels."
+  ]
+}

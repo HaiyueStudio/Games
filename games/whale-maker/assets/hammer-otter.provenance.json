@@ -1,0 +1,12 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-29",
+  "source": "hammer-otter-grid.png",
+  "prompt": "Transparent side-view 2D cartoon game sprite atlas, exactly 4 columns and 2 rows with 8 isolated full-body sprites of the SAME cute teal SEA OTTER HAMMER THROWER, cream muzzle and belly, big navy eyes, coral bandanna, navy vest, tan boots. Facing left, uniform scale and ground baseline, generous clear gutters. Top row: idle hammer on shoulder; walk left foot forward; walk right foot forward; jumping knees bent. Bottom row: hammer arm pulled back; throwing hammer up-left at sixty degrees; followthrough empty hand extended up-left; falling feet spread. Clean thick teal outlines, soft cel shading, cute ocean fantasy platform game style, readable at 48 pixels, not pixel art. No text, labels, grid, scenery, floors, shadows or extra characters. Genuinely transparent background.",
+  "edits": [
+    "Use case: background-extraction. Edit target: this exact 4 by 2 sea-otter game sprite atlas. Remove the ENTIRE dark teal/gray gradient background and all blurry glows. Replace every background pixel between and around all eight characters and their hammers with genuinely transparent alpha. Keep the existing eight characters and held/airborne hammers pixel-artwork identity, colors, faces, poses, layout, alignment and sizes unchanged. Clean cutout edges with no dark halos. No added scenery or objects. Deliver transparent sprite sheet, not an image of transparency on a checkerboard.",
+    "Use case: precise-object-edit. Production sprite atlas layout repair. Keep these same eight teal sea otter hammer-thrower poses and costumes, but REDUCE EVERY SPRITE by 25 percent uniformly and reposition each complete character to the centre of its own cell in an EXACT four-column by two-row equal-cell sheet. Keep 15 percent transparent gutters on every side of every cell. No character, tail, hammer or arm can cross a cell border or overlap another cell. Remove the extra detached airborne hammer from row2 cell2 (projectiles are drawn separately in game). Keep identical character scale in all eight poses and aligned foot baselines per row. Truly transparent background, with NO gradient, no blurry glows, no floor, no text or grid. Clean dark outlines and cute cartoon identity unchanged."
+  ],
+  "processing": "Transparent silhouettes cropped per measured cell, original RGBA preserved, uniformly scaled and shelf-packed at no more than 96 pixels per frame.",
+  "frames": 8
+}

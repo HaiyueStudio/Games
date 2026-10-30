@@ -1,0 +1,22 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "eating.png",
+  "reference": "actions.png",
+  "prompt": "Use case: stylized-concept. Production transparent 2D platform-game EATING animation atlas, EXACTLY FOUR columns and TWO rows, EIGHT separate full-body sprites. Reference image is CHARACTER IDENTITY and ART STYLE reference only. Top row: SAME blue-haired chibi whale-hood girl in blue/white dress and boots. Bottom row: SAME round pink cat-eared chibi mascot with pink rose and blue ribbon. Both face RIGHT in three-quarter side view. Four phases per row: column1 reaching forward with hands ready, mouth open and expectant; column2 hands brought up to the open mouth to put a tiny treat inside; column3 chewing, cheeks softly puffed, hands near mouth, closed mouth; column4 swallowing happily, eyes closed with satisfied smile, hands lowering. Important: draw EMPTY HANDS and NO COINS or FOOD in any frame; the game draws the moving Token coin separately. Do not bake any floating object or effects into the sprites. Same character head size and scale in all four poses, exactly aligned foot baseline across each row, no jumping or locomotion. Preserve the reference outfits, whale hood, long blue hair, round pink body, cute polished cartoon outlines and colors. Anatomical pose changes only, never squash or stretch the character. All eight sprites completely separated inside equal cells with generous fully transparent margins. Real transparent alpha background, no floor, no cast shadows, no text, no grid, no watermark.",
+  "frames": {
+    "blue": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "pink": [
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "notes": "Original transparent generated PNG preserved. Full connected silhouettes are measured across nominal cell boundaries; shared frame canvases align the center and bottom without resizing image pixels."
+}

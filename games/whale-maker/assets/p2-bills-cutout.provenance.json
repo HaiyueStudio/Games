@@ -1,0 +1,13 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-29",
+  "prompt": "Use case: background-extraction. Edit this 4-column by 4-row sprite sheet. Remove ALL of the brown/gray/green gradient background and broad colored glows between sprites. Replace the entire background with real transparent alpha, including every gap between cells. Keep each of the sixteen actual illustrated whales and green pearls exactly unchanged in design, position, scale and grid layout. Preserve dark navy outlines, all fins, tails, cat ears and goggles, and small sparkles close to each pearl. Keep the same canvas dimensions. No new artwork, no scene, no solid color or checkerboard background. The corners and all empty space between sprites MUST be fully transparent alpha zero. Four separate whale torpedo sprites in each of the first three rows, four pearl sprites in the last row.",
+  "grid": [
+    4,
+    4
+  ],
+  "reference": "exec-15e63030-b324-4534-855e-0238df722509.png",
+  "sourceId": "exec-2eedbe36-daa0-4053-8bdf-892af06423eb.png",
+  "localSource": "p2-bills-cutout.png",
+  "localReference": "p2-bills.png"
+}

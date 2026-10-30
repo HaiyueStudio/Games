@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-29",
+  "purpose": "Small wall-slide frame region repair",
+  "selected": {
+    "source": "whale-small.png",
+    "pose": "Complete left-hand gripping/climbing silhouette, existing logical pose 20 reused at logical wall pose 23.",
+    "processing": "Existing measured source UV; alpha-preserving runtime downscale and transparent full-standing-width padding. Source PNG unchanged.",
+    "runtime": "runtime/whale-small.png",
+    "direction": "Mirror for a wall on the right; original for a wall on the left."
+  },
+  "image_generation_attempts": [
+    {
+      "tool": "built-in imagegen",
+      "status": "HTTP 429, no image produced",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent full-body sprite replacing the SMALL character's wall-grip frame in a 2D platformer. Reference image role: identity, exact navy/white maid costume, chibi body proportions, hair and drawing style only. Draw ONE complete compact chibi blue whale girl maid, facing RIGHT in a clear three-quarter SIDE VIEW, gently sliding down an invisible wall on her right. Both arms lifted diagonally forward/up, two open palms pressing the invisible vertical wall at the RIGHT, knees slightly bent with both shoes fully visible. Her FACE with one bright blue eye and cheek MUST be visible; show the whole wide head, navy dress, white frilled whale-emblem apron, legs, shoes, flowing navy-to-cyan long hair and whale tail. Do NOT use a narrow back view or hide half the torso behind hair. Match reference idle/walk poses: approximately 2.5 heads tall, large round head, curled antenna hair, white frilled maid headband, blue bow and whale-fin ears, black neck bow, Mary Jane shoes. Clean polished cartoon outlines and soft cel shading. Whole silhouette entirely inside the square with 12 percent transparent margin on every side. Crisp readable at 48 pixels. Actual transparent RGBA background. No wall, floor, props, particles, text, watermark, glow, motion streaks or other figures."
+    },
+    {
+      "tool": "built-in imagegen",
+      "status": "HTTP 429, no image produced",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent full-body sprite replacing the SMALL character's wall-grip frame in a 2D platformer. Identity: original chibi blue whale girl maid, preserve the navy-white costume and compact game sprite proportions. Draw ONE complete compact chibi blue whale girl maid, facing RIGHT in a clear three-quarter SIDE VIEW, gently sliding down an invisible wall on her right. Both arms lifted diagonally forward/up, two open palms pressing the invisible vertical wall at the RIGHT, knees slightly bent with both shoes fully visible. Her FACE with one bright blue eye and cheek MUST be visible; show the whole wide head, navy dress, white frilled whale-emblem apron, legs, shoes, flowing navy-to-cyan long hair and whale tail. Do NOT use a narrow back view or hide half the torso behind hair. Character design: approximately 2.5 heads tall, large round head, curled antenna hair, white frilled maid headband, blue bow and whale-fin ears, black neck bow, Mary Jane shoes. Clean polished cartoon outlines and soft cel shading. Whole silhouette entirely inside the square with 12 percent transparent margin on every side. Crisp readable at 48 pixels. Actual transparent RGBA background. No wall, floor, props, particles, text, watermark, glow, motion streaks or other figures."
+    }
+  ]
+}

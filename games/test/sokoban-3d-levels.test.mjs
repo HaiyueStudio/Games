@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { parseSasquatch, prepareLevelMap } from '../sokoban-3d/rules/levels.ts';
+import { LEVEL_SET_VERSION, isCompatibleLevel, validSavedBoard } from '../sokoban-3d/rules/save.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (...parts) => readFileSync(join(repositoryRoot, ...parts), 'utf8');
@@ -92,10 +95,10 @@ function isSolvable(level, stateLimit = 1_000_000) {
   return false;
 }
 
-test('Sokoban 3D ships a validated sixteen-level progression', () => {
+test('Sokoban 3D preserves sixteen starter levels and imports all fifty original Sasquatch III maps', () => {
   assert.equal(levelsFile.designReference.license, 'Apache-2.0');
   assert.match(levelsFile.designReference.url, /google-deepmind\/boxoban-levels/);
-  assert.equal(levelsFile.levels.length, 16);
+  assert.equal(levelsFile.levels.length, 66);
   assert.equal(new Set(levelsFile.levels.map(level => level.name)).size, levelsFile.levels.length);
   assert.deepEqual(levelsFile.levels.slice(0, 2).map(level => level.difficulty), ['beginner', 'beginner']);
   assert.ok(levelsFile.levels.slice(2, 10).every(level => level.difficulty === 'medium'));
@@ -104,14 +107,30 @@ test('Sokoban 3D ships a validated sixteen-level progression', () => {
   assert.ok(levelsFile.levels.slice(2, 10).every(level => level.source.file === 'medium/valid/003.txt'));
   assert.deepEqual(levelsFile.levels.slice(10, 16).map(level => level.source.level), [0, 1, 2, 3, 4, 5]);
   assert.ok(levelsFile.levels.slice(10, 16).every(level => level.source.file === 'hard/000.txt'));
+  assert.equal(levelsFile.expansion.author, 'David W. Skinner');
+  assert.equal(levelsFile.expansion.email, 'sasquatch@bentonrea.com');
+  const raw = read('games', 'sokoban-3d', levelsFile.expansion.sourceFile);
+  const hash = createHash('sha256').update(raw).digest('hex');
+  assert.equal(hash, 'f975a40b00ba1fdf355f81521c7447ef40cf9395fa0f6858e00060c44d24e96f');
+  assert.equal(hash, levelsFile.expansion.sha256);
+  const source = parseSasquatch(raw);
+  assert.equal(source.length, 50);
+  levelsFile.levels.slice(16).forEach((level, index) => {
+    assert.deepEqual(level.map, source[index].map, 'author map rows and exterior spaces remain unchanged');
+    assert.equal(level.source.level, index + 1);
+    assert.equal(level.source.collection, 'Sasquatch III');
+    assert.equal(level.source.file, levelsFile.expansion.sourceFile);
+    assert.equal(level.difficulty, 'hard');
+  });
+  assert.equal(new Set(levelsFile.levels.map(level => level.map.join('\n'))).size, 66, 'every layout is distinct');
 
   for (const level of levelsFile.levels) {
-    const width = level.map[0].length;
+    const map = prepareLevelMap(level.map), width = map[0].length;
     assert.ok(width >= 6, `${level.name} should have a playable width`);
-    assert.ok(level.map.every(row => row.length === width), `${level.name} should be rectangular`);
-    assert.ok(level.map[0].split('').every(cell => cell === '#'), `${level.name} should have a closed top edge`);
-    assert.ok(level.map.at(-1).split('').every(cell => cell === '#'), `${level.name} should have a closed bottom edge`);
-    assert.ok(level.map.every(row => row[0] === '#' && row.at(-1) === '#'), `${level.name} should have closed side edges`);
+    assert.ok(map.every(row => row.length === width), `${level.name} runtime grid should be rectangular`);
+    assert.ok(map[0].split('').every(cell => cell === '#' || cell === '_'), `${level.name} should have a closed top edge`);
+    assert.ok(map.at(-1).split('').every(cell => cell === '#' || cell === '_'), `${level.name} should have a closed bottom edge`);
+    assert.ok(map.every(row => '#_'.includes(row[0]) && '#_'.includes(row.at(-1))), `${level.name} should have closed side edges`);
     assert.ok(level.map.every(row => /^[# .$@*+]+$/.test(row)), `${level.name} should use standard Sokoban symbols`);
 
     const joined = level.map.join('');
@@ -121,7 +140,9 @@ test('Sokoban 3D ships a validated sixteen-level progression', () => {
     assert.equal(players, 1, `${level.name} should contain one player`);
     assert.ok(boxes > 0, `${level.name} should contain boxes`);
     assert.equal(boxes, targets, `${level.name} should balance boxes and targets`);
-    assert.ok(isSolvable(level), `${level.name} should have a solution within the search budget`);
+    // Imported expert puzzles have up to 152 crates. Verify exact source fidelity above,
+    // rather than treating a bounded toy solver's search limit as proof of impossibility.
+    if (!level.source?.collection) assert.ok(isSolvable(level), `${level.name} should have a solution within the search budget`);
   }
 });
 
@@ -134,8 +155,35 @@ test('Sokoban 3D level GUI persists completion and uses green completed buttons'
   assert.match(read('games','shared','ui/GameHud.ts'), /new GuiSystem/);
   assert.match(source, /completedLevels: \[\.\.\.this\.completedLevels\]\.sort/);
   assert.match(source, /this\.completedLevels\.add\(this\.levelIndex\)/);
-  assert.match(source, /const LEVEL_SET_VERSION = 2/);
+  assert.equal(LEVEL_SET_VERSION, 3);
   assert.match(source, /levelSetVersion: LEVEL_SET_VERSION/);
   assert.match(source, /completed \? '#15803d'/, 'completed level buttons should use a green background');
   assert.match(page, /src="\.\/bundle\.js"/);
+});
+
+test('ragged XSB exterior spaces never become floor and invalid open boards are rejected', () => {
+  const raw = [' ####', ' #@ #', ' #$.#', ' ####'];
+  assert.deepEqual(prepareLevelMap(raw), ['_####', '_#@ #', '_#$.#', '_####']);
+  assert.deepEqual(raw, [' ####', ' #@ #', ' #$.#', ' ####']);
+  assert.throws(() => prepareLevelMap(['#####', '#@$. ', '#####']), /open boundary/);
+  assert.throws(() => prepareLevelMap(['#####', '#@@.#', '#####']), /count/);
+  assert.throws(() => prepareLevelMap(['#####', '#@x.#', '#####']), /symbols/);
+  const last = prepareLevelMap(levelsFile.levels.at(-1).map);
+  assert.equal(last[0].length, 29);
+  assert.ok(last.some(row => row.includes('_')));
+});
+
+test('version-three migration preserves old core progress and discards replaced workshop board states', () => {
+  assert.equal(isCompatibleLevel(15, 2), true);
+  assert.equal(isCompatibleLevel(16, 2), false);
+  assert.equal(isCompatibleLevel(31, 2), false);
+  assert.equal(isCompatibleLevel(65, 3), true);
+  assert.equal(isCompatibleLevel(1, undefined), true);
+  assert.equal(isCompatibleLevel(2, undefined), false);
+  assert.deepEqual([0, 1, 8, 15, 16, 31].filter(index => isCompatibleLevel(index, 2)), [0, 1, 8, 15]);
+  const floor = new Set(['1,1', '2,1', '3,1']);
+  assert.equal(validSavedBoard({ x: 1, y: 1 }, [{ x: 2, y: 1 }], 1, floor), true);
+  assert.equal(validSavedBoard({ x: 0, y: 0 }, [{ x: 2, y: 1 }], 1, floor), false);
+  assert.equal(validSavedBoard({ x: 1, y: 1 }, [{ x: 1, y: 1 }], 1, floor), false);
+  assert.equal(validSavedBoard({ x: 1, y: 1 }, [{ x: 2, y: 1 }, { x: 2, y: 1 }], 2, floor), false);
 });

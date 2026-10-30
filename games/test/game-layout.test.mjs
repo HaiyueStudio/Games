@@ -10,7 +10,7 @@ test('manifest entries stay stable and game implementation lives in feature fold
     assert.ok(existsSync(new URL(`games/${game.entry}`,root)),game.id);
     const files=readdirSync(directory,{withFileTypes:true});
     const rootSources=files.filter(file=>file.isFile()&&file.name.endsWith('.ts')).map(file=>file.name);
-    assert.deepEqual(rootSources.sort(),game.id==='mugen'?['charactorPreview.ts','main.ts']:['main.ts'],`${game.id}: root is reserved for public entry points`);
+    assert.deepEqual(rootSources.sort(),['main.ts'],`${game.id}: root is reserved for public entry points`);
     assert.ok(files.some(file=>file.isDirectory()&&!['assets','dist','audio','_unity_ref'].includes(file.name)),`${game.id}: expected implementation folders`);
   }
 });

@@ -1,0 +1,8 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-28",
+  "source": "lava.png",
+  "prompt": "Use case: stylized-concept. Asset type: seamless tile texture animation atlas for a 2D cute ocean fantasy cartoon platform game. Exactly 8 square tile images in a precise 4 column by 2 row equal-cell grid, no gutters, no text, no grid borders. The top row is FOUR successive animation frames of lava SURFACE tiles: glowing hot amber-orange wavy liquid line at about 10 percent from top, small bubbling crests above it against transparency, opaque coral-red molten liquid filling all the rest below. Flat side-view surface, no perspective. The bottom row is FOUR successive frames of fully opaque lava INTERIOR tiles: gently swirling coral-red molten flow, fine orange glowing veins, no bubbles above a surface, no black cracks or rocks. All tile edges should join naturally into a continuous wide pool; interior tiles should also repeat vertically. Palette warm coral red, orange, amber, small pale yellow hot highlights. Painterly clean cartoon, readable at 48 pixels per tile, compatible with cute whale-girl platformer. No characters or faces. Background transparent only above each surface tile; interior squares fully filled.",
+  "processing": "Inner 92% of each tile cropped to remove generated seams; mirrored neighboring tiles; uniform runtime downsample.",
+  "frames": 8
+}

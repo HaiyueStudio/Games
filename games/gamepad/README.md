@@ -2,7 +2,7 @@
 
 29 个 manifest 游戏通过 `installGamepad(id)` 接入。采样使用本地未发布 Engine
 候选包的公共 `BrowserMultiplayerInput` API，按帧产生按下、保持和释放状态。
-普通游戏复用现有键盘/指针处理器；MUGEN 保留自己的固定步长输入和回放。
+普通游戏复用现有键盘/指针处理器。MUGEN 已迁往同级独立仓库。
 
 首页：左摇杆或方向键选游戏，A 进入，LB/RB 切分类。搜索结果和分类过滤同时生效。
 游戏内：Back 立即暂停并询问是否返回首页，默认选中“继续游戏”。
@@ -29,11 +29,10 @@ R3+Start、R3+LB/RB 的返回/切游戏组合键仍有效。鼠标与手柄共�
 
 统一返回流程位于 `games/session/`：复用游戏的 Engine 和 canvas 绘制 `GuiModal`；
 调用引擎公开 stop/run 暂停，保留各实例原有运行状态，暂停期间隔离输入与游戏计时。
-MUGEN 独立帧循环、钢琴 MIDI 播放、游戏延迟任务与现有音频上下文也接入该会话。
+钢琴 MIDI 播放、游戏延迟任务与现有音频上下文也接入该会话。
 不新增 canvas，不改写浏览器全局计时器，网络请求与工作线程超时继续使用真实时间。
 
-坦克大战和 Pong 的第二个已连接手柄控制 2P；MUGEN 使用固定 0/1 手柄槽位，
-支持方向键和六攻击键。坦克手机版保持 1P，A 开始/继续/开火，Start 暂停；
+坦克大战和 Pong 的第二个已连接手柄控制 2P。坦克手机版保持 1P，A 开始/继续/开火，Start 暂停；
 横屏显示战场、左侧摇杆和右侧开火按钮，竖屏暂停提示旋转。
 
 使用浏览器标准 Gamepad 映射（Xbox/兼容手柄）。先在页面激活一次手柄使浏览器
@@ -43,7 +42,7 @@ MUGEN 独立帧循环、钢琴 MIDI 播放、游戏延迟任务与现有音频�
 
 ```sh
 npm run build
-node --experimental-strip-types --test games/test/gamepad.test.mjs games/test/mugen-input-g07.test.mjs
+node --experimental-strip-types --test games/test/gamepad.test.mjs
 node --experimental-strip-types --test games/test/gamepad-connections.test.mjs
 node scripts/verify-gamepad.mjs
 ```
@@ -55,6 +54,6 @@ node scripts/verify-gamepad.mjs
 模拟设备验证不等于实体蓝牙/USB 手柄实测。
 `GAMEPAD_CASE=icosahedron-pointer,icosahedron-pointer-mobile,icosahedron-pointer-host` 覆盖球面扫雷
 独立页、双倍 DPI 竖屏和首页挂载，验证准星坐标、缩放重选、R3、插旗、揭开及返回恢复。
-`notifications-sudoku`、`notifications-tank-battle`、`notifications-mugen` 和 `notifications-lobby`
+`notifications-sudoku`、`notifications-tank-battle` 和 `notifications-lobby`
 覆盖连接去重、断开、重连、5 秒关闭、手机布局，以及暂停期间通知关闭但游戏帧仍冻结。
 `notifications-startup` 延迟真实 GPU 初始化，验证启动加载超过 5 秒也不会提前耗尽通知时间。

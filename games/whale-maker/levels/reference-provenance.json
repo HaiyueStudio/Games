@@ -1,0 +1,39 @@
+{
+  "coordinateSources": [
+    {
+      "map": "1-1",
+      "sha256": "72fe351ee37d381be7d3e720b34833fa14654fda6a06c332e8542c5dd561c32c",
+      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-1.js"
+    },
+    {
+      "map": "1-2",
+      "sha256": "b7355fa28881b028cdff220bd4419cb364920434b3292bbd049965f55ec5201f",
+      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-2.js"
+    },
+    {
+      "map": "1-3",
+      "sha256": "e1b07a76659a129ead253fd966c3099124f4866bb3489b2d2a3d3686aad45b57",
+      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-3.js"
+    },
+    {
+      "map": "1-4",
+      "sha256": "344a6bdf54630a4b07d2ebab0b5b8943a7ffaf28b29ec46cd16903b722f067ab",
+      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-4.js"
+    }
+  ],
+  "mapReference": "https://www.nesmaps.com/maps/SuperMarioBrothers/SuperMarioBrothers.html",
+  "macroSource": {
+    "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/PlayMarioJas.js",
+    "sha256": "0d0bb92b0e20caf3e5d422e62e583055893770202a8d8fb2dd92554677688562"
+  },
+  "mapUnitsPerTile": 8,
+  "retrieved": "2026-10-28",
+  "goalDimensions": {
+    "flagPoleMapUnits": 72,
+    "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/objects.js#L887",
+    "firstCourseEmptyColumns": 8,
+    "nesPixels": 144,
+    "sha256": "b74f8019b493cc5605ab1c42e046f6a65c6ec078a50d79c1e6398125859e4326",
+    "tiles": 9
+  }
+}

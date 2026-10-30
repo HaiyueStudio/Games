@@ -13,7 +13,7 @@ test('game routes round-trip browser prefixes, query state and independent lazy 
   assert.deepEqual(readGameRoute(next),route);assert.equal(new URL(next).searchParams.get('seed'),'42');
   assert.deepEqual(readGameRoute(routeUrl(next,{game:null,device:null})),{game:null,device:null});
   assert.equal(gameModuleUrl('2048','http://test/prefix/games/'),'http://test/prefix/games/2048/bundle.js');
-  assert.equal(gameModuleUrl('mugen','http://test/prefix/games/'),'http://test/prefix/games/mugen/dist/bundle.js');
+  assert.equal(gameModuleUrl('gravity-maze','http://test/prefix/games/'),'http://test/prefix/games/gravity-maze/dist/bundle.js');
   assert.throws(()=>gameModuleUrl('../private','http://test/games/'),/Invalid/);
 });
 

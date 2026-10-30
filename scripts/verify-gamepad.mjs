@@ -54,7 +54,7 @@ async function run(name, fixture, query, exercise) {
   if(process.env.GAMEPAD_CASE && !process.env.GAMEPAD_CASE.split(',').includes(name))return;
   const checks = [];
   const gameId = /^games\/([^/]+)\/index\.html$/.exec(fixture)?.[1];
-  const entry = gameId ? `games/${gameId}/${['mugen','gravity-maze'].includes(gameId)?'dist/':''}bundle.js` : null;
+  const entry = gameId ? `games/${gameId}/${gameId==='gravity-maze'?'dist/':''}bundle.js` : null;
   const sourceInputs = gameId ? readdirSync(resolve(root, 'games', gameId), { recursive: true }).filter(file => /\.(ts|html|css|svg)$/.test(file)).map(file => `games/${gameId}/${file}`) : [];
   sourceInputs.push('games/shared/input/pointerCapture.ts', 'games/shared/ui/GameHud.ts', 'games/shared/ui/ProjectedLabel.ts', 'games/shared/rendering/fitPerspectiveCamera.ts', 'games/gamepad/ui/ControllerOverlay.ts');
   sourceInputs.push('games/manifest.json');
@@ -70,7 +70,7 @@ async function run(name, fixture, query, exercise) {
   if (gameId === 'fruit-ninja') sourceInputs.push(...readdirSync(resolve(root, 'games/fruit-ninja/assets/audio')).map(file => `games/fruit-ninja/assets/audio/${file}`), 'games/session/audio.ts', 'scripts/generate-fruit-audio.mjs');
   if (gameId === 'icosahedron-minesweeper') sourceInputs.push(...readdirSync(resolve(root, 'games/shared/minesweeper'), { recursive: true }).filter(file => file.endsWith('.ts')).map(file => `games/shared/minesweeper/${file}`));
   if (!gameId) sourceInputs.push('site/gamepad.js', 'site/game-host.js', 'site/simulator.js', 'scripts/simulator-camera.mjs', 'site/catalog/paths.js', ...['launcher','host','simulator'].flatMap(folder=>readdirSync(resolve(root,'games',folder)).filter(file=>file.endsWith('.ts')).map(file=>`games/${folder}/${file}`)),...readdirSync(resolve(root,'site/core')).filter(file=>file.endsWith('.js')).map(file=>'site/core/'+file));
-  if (!gameId) for (const id of ['2048','fruit-ninja','mugen']) sourceInputs.push(...readdirSync(resolve(root,'games',id),{recursive:true}).filter(file=>/\.(?:ts|html|css|js)$/.test(file)).map(file=>'games/'+id+'/'+file));
+  if (!gameId) for (const id of ['2048','fruit-ninja']) sourceInputs.push(...readdirSync(resolve(root,'games',id),{recursive:true}).filter(file=>/\.(?:ts|html|css|js)$/.test(file)).map(file=>'games/'+id+'/'+file));
   const inputs = Object.fromEntries([fixture,entry,...sourceInputs].filter(file=>file&&existsSync(resolve(root,file))).map(file=>[file,createHash('sha256').update(readFileSync(resolve(root,file))).digest('hex')]));
   const result = await runChromeWebGpuFixture({root, fixture, query, timeoutMs:90000, disableDx12InfoCollection:true,
     visualCapture:{viewportWidth:1040,viewportHeight:600},
@@ -203,11 +203,20 @@ await run('icosahedron-pointer-host','site/index.html',{gamepadVerify:1,game:'ic
 
 async function clickDesktop(context, id) {
   if (id.startsWith('game-')) await context.until('!__gameOS.shelf.animating','carousel card stops moving before clicking');
+  if (id.startsWith('game-')) for (let attempt=0;attempt<8;attempt++) {
+    const view=await context.evaluate(`({node:__gameOS.nodes.find(node=>node.id===${JSON.stringify(id)}),shelf:__gameOS.shelf})`);
+    assert.ok(view.node, 'native GUI control '+id);
+    const center=view.node.rect.x+view.node.rect.width/2;
+    if(center>view.shelf.x+12&&center<view.shelf.x+view.shelf.width-12)break;
+    await context.cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',x:view.shelf.x+view.shelf.width/2,y:view.shelf.y+view.shelf.height/2,deltaX:center-(view.shelf.x+view.shelf.width/2),deltaY:0});
+    await delay(300);await context.until('!__gameOS.shelf.animating','requested card scrolls into view');
+  }
   const node = await context.evaluate(`__gameOS.nodes.find(node=>node.id===${JSON.stringify(id)})`);
   assert.ok(node, 'native GUI control '+id);
   const point={x:node.rect.x+node.rect.width/2,y:node.rect.y+node.rect.height/2};
   await context.cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',...point,button:'none',buttons:0});
   await context.cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
+  await delay(80);
   await context.cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});
   await delay(150);
 }
@@ -571,6 +580,7 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
     if(name)writeFileSync(resolve(output,name+'.png'),bytes);return bytes;
   };
   const initial=await snapshot(), first=initial.games[0], second=initial.games[1];
+  check(initial.nodes.filter(node=>node.id.startsWith('game-')).length<=initial.artwork.capacity+1,'only the artwork window and keyboard selection belong to the live GUI tree');
   const details=state=>state.nodes.filter(node=>state.games.some(game=>['caption','title','genre','dimension','input','glow'].some(prefix=>node.id===`${prefix}-${game}`)));
   check(!initial.selectionActive&&details(initial).length===0,'initial cards contain preview images without metadata or glow');
   await until('!!__gameOS.backdrop.current&&!__gameOS.backdrop.transitioning','initial card wallpaper');
@@ -700,6 +710,18 @@ await run('lobby-cards','site/index.html',{verify:1},async(context)=>{
   await cdp.call('Input.dispatchMouseEvent',{type:'mouseWheel',x:reducedShelf.x+reducedShelf.width/2,y:reducedShelf.y+reducedShelf.height/2,deltaX:0,deltaY:120});await delay(100);
   check(Math.abs((await snapshot()).shelf.scrollX-120)<1&&!(await snapshot()).shelf.animating,'reduced motion keeps horizontal wheel scrolling immediate');
   await cdp.call('Emulation.setEmulatedMedia',{features:[]});
+  await desktopKey(cdp,'End','End',35);
+  await until('__gameOS.selected===__gameOS.games.at(-1)&&__gameOS.focused==="game-"+__gameOS.selected&&!__gameOS.shelf.animating','keyboard jumps to a previously unmounted card');
+  await until('__gameOS.artwork.pending===0&&__gameOS.artwork.cards.filter(card=>card.visible).every(card=>card.ready)','distant carousel artwork');
+  state=await snapshot();
+  const lastCard=state.nodes.find(node=>node.id==='game-'+state.selected).rect;
+  check(lastCard.x>=state.shelf.x&&lastCard.x+lastCard.width<=state.shelf.x+state.shelf.width+1,'the last selected card is laid out inside the viewport after remount');
+  check(state.nodes.filter(node=>node.id.startsWith('game-')).length<=state.artwork.capacity+1,'scrolling through the catalog keeps the GUI card budget bounded');
+  await desktopKey(cdp,'Home','Home',36);
+  await until('__gameOS.selected===__gameOS.games[0]&&__gameOS.focused==="game-"+__gameOS.selected&&!__gameOS.shelf.animating','keyboard remounts the first card');
+  await clickDesktop(context,'view-all');
+  await until('__gameOS.nodes.every(node=>!node.id.startsWith("title-"))','recycled selection caption finishes fading');
+  check((await snapshot()).nodes.every(node=>!node.id.startsWith('title-')),'recycled cards do not retain a previous selection caption');
 });
 
 for(const [name,fixture,expected]of[['lobby-root','index.html','/games/2048/index.html'],['lobby-published','artifacts/pages/index.html','/artifacts/pages/games/2048/index.html']]){
@@ -809,27 +831,6 @@ await run('lobby-devices','site/index.html',{verify:1},async(context)=>{
   check(await evaluate('!document.querySelector("#device-simulator,#game-host,iframe")'),'return disposes the simulator canvas and mounted game container');
 });
 
-await run('lobby-mugen-rtt','site/index.html',{verify:1,game:'mugen',device:'pad'},async({evaluate,until,check,cdp})=>{
-  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-  await until('__gameHost?.id==="mugen"&&__gameHost.simulator?.frames>4','multi-canvas game module and device presenter');
-  check(await evaluate('__gameHost.simulator.layers===2'),'multi-canvas sprite world and debug overlay are composited behind the native game HUD');
-  await evaluate('window.__mugenRotationInstance=haiyueGameOS.game;true');
-  await rotateSimulatorCamera({evaluate,cdp,until},'landscape');
-  check(await evaluate('haiyueGameOS.game===__mugenRotationInstance&&__gameHost.simulator.texture.width===1080'),'multi-canvas rotation preserves the mounted game and resizes its device RTT');
-  const tap=async text=>{
-    const node=await evaluate(`haiyueGameOS.game.debug.__mugenGui.nodes.find(node=>node.text===${JSON.stringify(text)}&&node.visible&&!node.disabled)`);assert.ok(node,'MUGEN control '+text);
-    const size=await evaluate('({width:haiyueGameOS.game.canvas.getBoundingClientRect().width,height:haiyueGameOS.game.canvas.getBoundingClientRect().height})'),point=await evaluate(`haiyueGameOS.simulator.projectGame(${(node.rect.x+node.rect.width/2)/size.width},${(node.rect.y+node.rect.height/2)/size.height})`);
-    await cdp.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...point,id:0}]});await cdp.call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(200);
-  };
-  await tap('AI 对战');await until('haiyueGameOS.game.debug.__mugenGui.screen==="select"','touch opens fighter selection');
-  await tap('确认阵容');await until('haiyueGameOS.game.debug.__mugenGui.screen==="stage"','touch confirms fighters');
-  await tap('进入战斗');await until('document.querySelector("#game-host .game-mount").shadowRoot.querySelector("#game-document").dataset.gameStatus==="running"','real sprites and combat runtime start');await delay(500);
-  check(await evaluate('haiyueGameOS.game.debug.__mugenGui.screen==="fight"&&__gameHost.simulator.frames>10&&__gameHost.simulator.status==="playing"'),'device touch launches the actual multi-canvas fight, not a menu preview or a stale loading screen');
-  const fightPixels=await evaluate('haiyueGameOS.simulator.pixels()');
-  check(fightPixels.colors>1000&&fightPixels.layerColors.some(colors=>colors>1000),'late fighter resource loads preserve the mounted game and its actual composited sprites, not just the wallpaper');
-  const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,'simulator-mugen-fight.png'),Buffer.from(shot.result.data,'base64'));
-  await desktopKey(cdp,'Escape','Escape',27);await until('__gameOS.simulatorHome&&!__gameHost.mounted','multi-canvas game cleanup');
-});
 for(const [name,fixture] of [['simulator-external','simulator/index.html'],['simulator-published','artifacts/pages/simulator/index.html']]){
   await run(name,fixture,{verify:1},async(context)=>{
     const {evaluate,until,check,cdp}=context;
@@ -959,11 +960,12 @@ await run('tank-return','games/tank-battle/index.html',{verify:1},async({evaluat
   await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW'});
 });
 
-await run('tank-coop','games/tank-battle/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
+await run('tank-coop','games/tank-battle/index.html',{verify:1,gamepadVerify:1},async({evaluate,until,pads,press,check,cdp})=>{
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
   await until('!!window.__tankBattle','desktop tank scene');await pads();await press(11);
+  await until('window.__controllerPointer?.visible','Engine GUI controller pointer');
   for(let i=0;i<30;i++){
-    const delta=await evaluate(`(()=>{const b=__tankBattle.hud().buttons.duo,r=document.querySelector('#gui').getBoundingClientRect(),c=document.querySelector('[data-gamepad-cursor]');return [b.x+b.width/2-parseFloat(c.style.left),b.y+b.height/2-parseFloat(c.style.top)]})()`);
+    const delta=await evaluate(`(()=>{const b=__tankBattle.hud().buttons.duo,c=__controllerPointer.center;return [b.x+b.width/2-c.x,b.y+b.height/2-c.y]})()`);
     if(delta.every(d=>Math.abs(d)<8))break;
     await pads([{axes:[...delta.map(d=>Math.abs(d)<8?0:Math.sign(d)*(.2+.8*Math.min(1,Math.abs(d)/105))),0,0]}]);
   }
@@ -973,7 +975,7 @@ await run('tank-coop','games/tank-battle/index.html',{verify:1},async({evaluate,
   const before=await evaluate('__tankBattle.snapshot()');
   await pads([{axes:[0,-1,0,0],buttons:[0]},{axes:[0,-1,0,0],buttons:[0]}]);await delay(300);await pads([{},{}]);
   const after=await evaluate('__tankBattle.snapshot()');
-  writeFileSync(resolve(output,'tank-coop-state.json'),JSON.stringify({before,after,input:await evaluate('({keys:__keys,hint:document.querySelector("[data-gamepad-hint]").textContent,active:document.body.dataset.gamepadActive})')},null,2));
+  writeFileSync(resolve(output,'tank-coop-state.json'),JSON.stringify({before,after,input:await evaluate('({keys:__keys,pointer:__controllerPointer,active:document.body.dataset.gamepadActive})')},null,2));
   for(const player of [1,2])check(after.tanks.find(t=>t.player===player).y<before.tanks.find(t=>t.player===player).y,'tank '+player+' responds independently');
   check(after.bullets.some(b=>b.player===1)&&after.bullets.some(b=>b.player===2),'both controllers fire simultaneously');
 });
@@ -1107,33 +1109,6 @@ for (const id of migratedHudGames) await run('gui-'+id, `games/${id}/index.html`
   check(await evaluate('!document.querySelector("[data-gamepad-hint],[data-gamepad-cursor]")'), id+' controller feedback creates no DOM overlay');
 });
 
-await run('gui-mugen', 'games/mugen/index.html', {gamepadVerify:1}, async({evaluate,until,check,cdp}) => {
-  await until('window.__mugenGui?.nodes.some(n=>n.text==="设置"&&!n.disabled)', 'MUGEN menu');
-  const click = async text => {
-    await until(`__mugenGui.nodes.some(n=>n.type==='GuiButton'&&n.text===${JSON.stringify(text)}&&!n.disabled)`, 'GUI '+text);
-    const point=await evaluate(`(()=>{const g=__mugenGui,n=g.nodes.find(n=>n.type==='GuiButton'&&n.text===${JSON.stringify(text)}),c=document.querySelector('#flow-canvas').getBoundingClientRect();return {x:c.x+(n.rect.x+n.rect.width/2)*c.width/g.width,y:c.y+(n.rect.y+n.rect.height/2)*c.height/g.height}})()`);
-    await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
-    await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});await delay(250);
-  };
-  await click('设置'); await click('详细按键设置');
-  check(await evaluate('__mugenGui.keySettings'),'Engine GUI opens key bindings');
-  await click('W');
-  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'q',code:'KeyQ',windowsVirtualKeyCode:81});
-  await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'q',code:'KeyQ',windowsVirtualKeyCode:81});await delay(250);
-  await click('保存并应用');
-  check(await evaluate('document.body.dataset.p1KeyBindings.split(",")[0]==="KeyQ" && !__mugenGui.keySettings'),'GUI saves a real key binding');
-  await click('详细按键设置');await click('恢复默认');await click('取消');
-  check(await evaluate('document.body.dataset.p1KeyBindings.split(",")[0]==="KeyQ"'),'cancel discards draft bindings');
-  await click('恢复默认按键');
-  check(await evaluate('document.body.dataset.p1KeyBindings.split(",")[0]==="KeyW"'),'restore defaults applies through GUI');
-  for (const [width,height] of [[1440,900],[390,844],[844,390]]) {
-    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await delay(500);
-    check(await evaluate('!document.querySelector("button,select,dialog")'),'MUGEN has no duplicate DOM controls '+width);
-    check(await evaluate('__mugenGui.nodes.filter(n=>n.type==="GuiButton").every(n=>n.rect.x>=0&&n.rect.y>=0&&n.rect.x+n.rect.width<=__mugenGui.width+1&&n.rect.y+n.rect.height<=__mugenGui.height+1)'),'MUGEN settings fit '+width);
-    const shot=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,`gui-mugen-${width}.png`),Buffer.from(shot.result.data,'base64'));
-  }
-});
-
 await run('pinball-physics', 'games/pinball/index.html', {verify:1}, async({evaluate,until,check}) => {
   await until('document.querySelector("#result")?.dataset.status==="passed"', 'pinball physics verification');
   const result=await evaluate('JSON.parse(document.querySelector("#result").textContent)');
@@ -1153,7 +1128,7 @@ await run('pinball-touch', 'games/pinball/index.html', {gamepadVerify:1}, async(
   check(await evaluate('__pinball.snapshot().phase==="ready"&&!__pinball.snapshot().paused'),'Engine restart resets the game');
 });
 
-for (const game of ['sudoku', 'tank-battle', 'mugen']) await run('notifications-'+game, `games/${game}/index.html`, {gamepadVerify:1}, async({evaluate,until,pads,press,check,cdp}) => {
+for (const game of ['sudoku', 'tank-battle']) await run('notifications-'+game, `games/${game}/index.html`, {gamepadVerify:1}, async({evaluate,until,pads,press,check,cdp}) => {
   await until('__gameReturn.snapshot().ready && __gameReturn.snapshot().gameFrames>3', 'notification renderer ready');
   const canvasCount=await evaluate('document.querySelectorAll("canvas").length');
   await pads([{buttons:[0]}]);

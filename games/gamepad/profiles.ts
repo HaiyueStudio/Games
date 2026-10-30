@@ -16,6 +16,7 @@ const wasd = ['KeyW','KeyD','KeyS','KeyA'] as const;
 const puzzle = { cursor:true, buttons:{3:'KeyR'}, help:'左摇杆/方向键移动指针 · A 点选/拖拽 · B 右键 · X/Y 调整选项' };
 /** Explicit, reviewed mappings for every manifest entry. No guessed fallback bindings. */
 export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
+  'whale-maker':{engineHud:true,directions:wasd,buttons:{0:'Space',1:'KeyX',2:'KeyJ',3:'KeyE',4:'ShiftLeft',5:'KeyR',6:'KeyK',7:'KeyL',9:'KeyP'},help:'左摇杆移动 · A 跳 · B 旋转跳 · X 火球/投掷 · LB 快跑/抱物/松开轻放 · LT 特技 · RT 建造箱 · Y 编辑器 · Start 暂停'},
   'glass-rush':{engineHud:true,directions:arrows,buttons:{0:'Enter',9:'KeyP'},help:'方向键旋转 · A 开始 / 继续 · Start 暂停'},
   'valley-of-light':{directions:['KeyQ','KeyD','KeyE','KeyA'],buttons:{0:'Space',1:'Escape',2:'KeyH',3:'KeyJ',4:'KeyQ',5:'KeyE',9:'KeyR'},help:'左摇杆平移/旋转桥 · A 行走 · X 提示 · Y 日志 · LB/RB 转桥'},
   'tank-battle':{engineHud:true,directions:wasd,buttons:{0:'KeyJ',2:'KeyJ',9:'KeyP'},secondDirections:arrows,second:{0:'Enter',2:'Enter',9:'KeyP'},help:'左摇杆/方向键移动 · A/X 开火 · Start 暂停 · 第二手柄控制 2P'},
@@ -32,7 +33,6 @@ export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
   'neon-circuit':{directions:wasd,buttons:{0:'Enter',2:'KeyR',6:'KeyS',7:'KeyW',9:'KeyP'},help:'左摇杆转向 · RT 油门 · LT 刹车 · A 确认 · Start 暂停'},
   minesweeper:puzzle,
   'minecraft-lite':{directions:wasd,buttons:{0:'Space',2:'ShiftLeft',4:'Digit1',5:'Digit2'},direct:true,help:'左摇杆移动 · 右摇杆视角 · A 跳跃 · X 疾跑 · RT 挖掘 · LT 放置'},
-  mugen:{native:true,buttons:{},help:'左摇杆移动 · A/B/X/Y/LB/RB 攻击 · Start 开始 · 支持双手柄'},
   'pad-simulator':puzzle,
   pacman:{directions:arrows,buttons:{0:'Enter',3:'KeyR',9:'KeyP'},help:'左摇杆/方向键移动 · A 开始 · Start 暂停'},
   piano:{...puzzle,buttons:{},help:'左摇杆移动指针 · A 弹奏琴键 · RT 按住琴键'},

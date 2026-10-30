@@ -1,0 +1,106 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "useDaemonProcess": false,
+  "cacheDirectory": ".nx/cache",
+  "neverConnectToCloud": true,
+  "namedInputs": {
+    "default": [
+      "{projectRoot}/**/*",
+      "!{projectRoot}/bundle.js",
+      "!{projectRoot}/bundle.js.map",
+      "!{projectRoot}/bundle.meta.json",
+      "!{projectRoot}/terrain-raster.worker.js",
+      "!{projectRoot}/terrain-raster.worker.js.map",
+      "!{projectRoot}/dist/**/*",
+      "!{projectRoot}/node_modules/**/*",
+      "!{projectRoot}/artifacts/**/*"
+    ],
+    "production": [
+      "default",
+      "sharedGlobals"
+    ],
+    "sharedGlobals": [
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/package-lock.json",
+      "{workspaceRoot}/lerna.json",
+      "{workspaceRoot}/nx.json",
+      "{workspaceRoot}/.node-version",
+      "{workspaceRoot}/config/**/*",
+      "{workspaceRoot}/scripts/**/*",
+      "{workspaceRoot}/rollup*.js",
+      "{workspaceRoot}/tsconfig*.json",
+      "{workspaceRoot}/.github/**/*",
+      "{workspaceRoot}/eslint.config.js",
+      "{workspaceRoot}/index.html",
+      "{workspaceRoot}/simulator/**/*",
+      "{workspaceRoot}/vendor/**/*",
+      "{workspaceRoot}/games/shared/**/*",
+      "{workspaceRoot}/games/session/**/*",
+      "{workspaceRoot}/games/gamepad/**/*.ts",
+      "{workspaceRoot}/games/host/**/*",
+      "{workspaceRoot}/games/save/**/*",
+      "{workspaceRoot}/games/simulator/**/*",
+      "{workspaceRoot}/site/**/*",
+      "!{workspaceRoot}/site/core/**/*",
+      "!{workspaceRoot}/site/game-host.js",
+      "!{workspaceRoot}/site/game-host.js.map",
+      "!{workspaceRoot}/site/gamepad.js",
+      "!{workspaceRoot}/site/gamepad.js.map",
+      "!{workspaceRoot}/site/simulator.js",
+      "!{workspaceRoot}/site/simulator.js.map",
+      {
+        "runtime": "node --version"
+      },
+      {
+        "runtime": "node -p \"process.platform + '-' + process.arch\""
+      },
+      {
+        "runtime": "node scripts/workspace-dependencies.mjs"
+      },
+      "{workspaceRoot}/games/manifest.json"
+    ],
+    "testGlobals": [
+      "{workspaceRoot}/games/test/fixtures/**/*"
+    ],
+    "allGameSources": [
+      "{workspaceRoot}/games/**/*.ts",
+      "{workspaceRoot}/games/**/package.json",
+      "{workspaceRoot}/games/**/index.html",
+      "{workspaceRoot}/games/manifest.json",
+      "!{workspaceRoot}/games/**/dist/**/*",
+      "!{workspaceRoot}/games/**/node_modules/**/*"
+    ]
+  },
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ]
+    },
+    "test": {
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        "testGlobals"
+      ],
+      "outputs": []
+    },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": [
+        "^typecheck"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "outputs": []
+    }
+  }
+}

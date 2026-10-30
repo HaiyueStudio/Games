@@ -10,7 +10,7 @@ export function routeUrl(href: string, route: GameRoute): string {
 }
 export function gameModuleUrl(id: string, gamesRoot: string): string {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new Error('Invalid game module id.');
-  return new URL(`${id}/${id === 'mugen' || id === 'gravity-maze' ? 'dist/' : ''}bundle.js`, gamesRoot).href;
+  return new URL(`${id}/${id === 'gravity-maze' ? 'dist/' : ''}bundle.js`, gamesRoot).href;
 }
 export class GameRouter {
   instance: MountedGame | null = null;

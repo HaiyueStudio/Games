@@ -121,11 +121,11 @@ export class DesktopGui {
     this.showLoading(null);
     this.notifications = new ConnectionNotifications(this.root, undefined, 'notice-');
   }
-  private add<T extends GuiElement>(node: T, parent = this.root.root): T {
+  private add<T extends GuiElement>(node: T, parent: GuiElement | null = this.root.root): T {
     const rectangle = { x: 0, y: 0, width: 0, height: 0 }, layout = node.layout.bind(node);
     this.rectangles.set(node, rectangle); this.nodes.set(node.id, node);
     node.layout = area => layout({ x: area.x + rectangle.x, y: area.y + rectangle.y, width: rectangle.width, height: rectangle.height });
-    parent.add(node); return node;
+    parent?.add(node); return node;
   }
   private panel(id: string, color: string, radius = 0, parent = this.root.root) {
     return this.add(new GuiElement({ ...fill, id, pointerFilter: 'ignore', style: { backgroundColor: color, borderColor: 'transparent', radius, padding: 0 } }), parent);
@@ -134,7 +134,7 @@ export class DesktopGui {
     return this.add(new GuiLabel({ ...fill, id, text, fontSize, pointerFilter: 'ignore', style: { color, backgroundColor, padding: 0 } }), parent);
   }
   private image(id: string, parent = this.root.root) { return this.add(new GuiImage({ ...fill, id, pointerFilter: 'ignore' }), parent); }
-  private button(id: string, text: string, onClick: () => void, primary = false, parent = this.root.root) {
+  private button(id: string, text: string, onClick: () => void, primary = false, parent: GuiElement | null = this.root.root) {
     const card = id.startsWith('game-'), variant = id.startsWith('carousel-') ? 'carousel' : TOPBAR_BUTTONS.has(id) ? 'topbar' : primary ? 'primary' : ['favorite', 'external', 'settings-close'].includes(id) ? 'icon' : 'secondary';
     return this.add(new GuiButton({ ...fill, id, text, onClick: () => { if (id !== 'audio-toggle') this.actions.sound?.('click', id); onClick(); }, hoverTransition: true, hoverTransitionMs: OS_BUTTON_HOVER_MS,
       ...(card ? { style: { padding: 0, radius: CARD_CORNER_RADIUS, backgroundColor: 'rgba(18,42,63,.65)', color: '#d7eaf5', borderColor: '#426478' } } : { themeResource: osButtonTheme(variant) }) }), parent);
@@ -188,7 +188,8 @@ export class DesktopGui {
     for (const game of state.games) {
       let card = this.cards.get(game.id);
       if (!card) {
-        card = this.button(`game-${game.id}`, '', () => this.actions.launch(game.id), false, this.shelf);
+        // Build detached cards so offscreen metadata never expands the live GUI tree.
+        card = this.button(`game-${game.id}`, '', () => this.actions.launch(game.id), false, null);
         this.cards.set(game.id, card);
         const animation = { info: 0, glow: 0, hover: 0, hoverable: false }; this.cardMotion.set(game.id, animation);
         card.on('pointerenter', event => {
@@ -208,6 +209,7 @@ export class DesktopGui {
         this.label(`heart-${game.id}`, '', 17, '#d8f7b5', 'transparent', card);
         this.add(new GuiImage({ ...fill, id: `glow-${game.id}`, source: this.textures.glow, visible: false, pointerFilter: 'ignore' }), card);
         for (const prefix of ['title', 'genre', 'dimension', 'input', 'mobile', 'keyboard', 'heart']) this.visible(`${prefix}-${game.id}`, false);
+        for (const child of [...card.children]) if (child.id !== `cover-${game.id}`) card.remove(child);
       }
       card.setVisible(true); card.setStyle({ borderColor: '#426476', backgroundColor: '#102c3c' });
       this.text(`heart-${game.id}`, game.favorite ? '♥' : '');
@@ -285,6 +287,7 @@ export class DesktopGui {
       this.place(`glow-${game.id}`, { x: -paddingX, y: -paddingY, width: layout.cardWidth + paddingX * 2, height: layout.cardHeight + paddingY * 2 });
     });
     this.shelf.setContentWidth(SHELF_INSET * 2 + Math.max(0, this.state.games.length * (layout.cardWidth + CARD_GAP) - CARD_GAP));
+    this.syncCardWindow(this.artworkWindow().indices);
     const shortShelf = shelf.height < 140;
     this.place('empty-title', { x: shelf.x, y: shelf.y + (shortShelf ? 0 : 14), width: shelf.width, height: 32 });
     (this.nodes.get('empty-title') as GuiLabel).setFontSize(shortShelf ? 16 : 20);
@@ -387,6 +390,7 @@ export class DesktopGui {
     }
     for (const game of this.state.games) {
       const card = this.cards.get(game.id)!, state = this.cardMotion.get(game.id)!;
+      if (card.parent !== this.shelf) continue;
       const selected = this.state.selectionActive && game.id === this.state.selected?.id;
       const hovered = card.hovered && state.hoverable && !this.shelf.animating && !this.settingsOpen && !this.loading;
       state.hover = advanceCardHover(state.hover, hovered, delta, motion);
@@ -396,17 +400,24 @@ export class DesktopGui {
       if (Math.abs(state.glow - glowTarget) < .002) state.glow = glowTarget;
       for (const prefix of ['caption', 'title', 'genre', 'dimension', 'input', 'mobile', 'keyboard', 'heart']) {
         const node = this.nodes.get(`${prefix}-${game.id}`)!;
-        node.setVisible(state.info > 0 && (prefix !== 'heart' || game.favorite) && (prefix !== 'input' || game.gamepad) && (prefix !== 'mobile' || game.mobile) && (prefix !== 'keyboard' || card.rect.width >= 150)); node.setStyle({ opacity: Math.round(state.info * 255) / 255 });
+        this.decorateCard(card, node, state.info > 0 && (prefix !== 'heart' || game.favorite) && (prefix !== 'input' || game.gamepad) && (prefix !== 'mobile' || game.mobile) && (prefix !== 'keyboard' || card.rect.width >= 150), state.info);
       }
       const glow = this.nodes.get(`glow-${game.id}`)!;
-      glow.setVisible(state.glow > 0); glow.setStyle({ opacity: Math.round(state.glow * 255) / 255 });
+      this.decorateCard(card, glow, state.glow > 0, state.glow);
     }
+  }
+  private decorateCard(card: GuiButton, node: GuiElement, visible: boolean, opacity: number): void {
+    node.setVisible(visible);
+    if (visible) {
+      if (node.parent !== card) card.add(node);
+      node.setStyle({ opacity: Math.round(opacity * 255) / 255 });
+    } else if (node.parent === card) card.remove(node);
   }
   hoverCards(): HoverCard[] {
     if (!this.root.root.visible || this.loading || this.settingsOpen) return [];
     return this.state.games.flatMap(game => {
       const amount = this.cardMotion.get(game.id)!.hover, rect = this.cards.get(game.id)!.rect;
-      return amount > 0 && rect.x + rect.width > this.shelf.rect.x && rect.x < this.shelf.rect.x + this.shelf.rect.width && rect.y + rect.height > this.shelf.rect.y && rect.y < this.shelf.rect.y + this.shelf.rect.height ? [{ id: game.id, rect: { ...rect }, amount }] : [];
+      return this.cards.get(game.id)!.parent === this.shelf && amount > 0 && rect.x + rect.width > this.shelf.rect.x && rect.x < this.shelf.rect.x + this.shelf.rect.width && rect.y + rect.height > this.shelf.rect.y && rect.y < this.shelf.rect.y + this.shelf.rect.height ? [{ id: game.id, rect: { ...rect }, amount }] : [];
     });
   }
   card(id: string) { return this.cards.get(id); }
@@ -414,9 +425,27 @@ export class DesktopGui {
   get backdropTexture(): GPUTexture | null { return this.backdrop.compositedTexture; }
   get carouselVisible(): boolean { return this.root.root.visible && !this.loading && !this.settingsOpen && !!this.state.games.length; }
   async initializeBackdrop(engine: HaiyueEngine): Promise<GameBackdrop> { this.artwork.initialize(engine.device); await this.backdrop.initialize(engine); return this.backdrop; }
-  private syncArtwork(): void {
+  private artworkWindow() {
     const { cardWidth, shelf } = this.layout;
-    const window = artworkWindow(this.root.root.visible ? this.state.games.length : 0, this.shelf.scrollX, shelf.width, cardWidth, CARD_GAP, SHELF_INSET);
+    return artworkWindow(this.root.root.visible ? this.state.games.length : 0, this.shelf.scrollX, shelf.width, cardWidth, CARD_GAP, SHELF_INSET);
+  }
+  private syncCardWindow(indices: readonly number[]): void {
+    const wanted = new Set(indices.map(index => this.state.games[index]!.id));
+    // Keep keyboard/gamepad focus valid while a distant selection scrolls into view.
+    if (this.state.selectionActive && this.state.selected && this.state.games.some(game => game.id === this.state.selected!.id)) wanted.add(this.state.selected.id);
+    for (const card of [...this.shelf.children]) if (!wanted.has(card.id.slice(5))) {
+      this.shelf.remove(card);
+      const state = this.cardMotion.get(card.id.slice(5))!;
+      state.hover = state.info = state.glow = 0;
+    }
+    for (const id of wanted) {
+      const card = this.cards.get(id)!;
+      if (card.parent !== this.shelf) this.shelf.add(card);
+    }
+  }
+  private syncArtwork(): void {
+    const window = this.artworkWindow();
+    this.syncCardWindow(window.indices);
     const visible = new Set(window.visible);
     this.artwork.sync(window.indices.map(index => {
       const game = this.state.games[index]!;
@@ -473,7 +502,7 @@ export class DesktopGui {
     return [...output, line].join('\n');
   }
   snapshot() {
-    const visible = (node: GuiElement): boolean => node.visible && (!node.parent || visible(node.parent));
+    const visible = (node: GuiElement): boolean => node.visible && (node === this.root.root || !!node.parent && visible(node.parent));
     return { renderer: 'engine-gui', settingsOpen: this.settingsOpen, searchExpanded: this.searchExpanded, searchReveal: this.searchReveal, notifications: this.notifications.snapshot(), nodes: [...this.nodes.values(), ...this.notifications.elements].filter(visible).map(node => ({ id: node.id, type: node.constructor.name, text: node instanceof GuiLabel || node instanceof GuiButton ? node.text : '', rect: { ...node.rect }, ...(node.id.startsWith('glow-') || node.id.startsWith('nav-tooltip') || node === this.search ? { opacity: node.style.opacity ?? 1, backgroundColor: node.style.backgroundColor, borderColor: node.style.borderColor } : {}), ...(node instanceof GuiButton ? { button: osButtonSnapshot(node) } : {}), ...(node instanceof GuiSwitch ? { checked: node.checked } : {}) })),
       logo: { url: this.imageUrls.get(this.nodes.get('brand-logo') as GuiImage) ?? '', loaded: !!(this.nodes.get('brand-logo') as GuiImage).source },
       previewGame: this.previewId ?? '', backdrop: this.backdrop.snapshot(), artwork: this.artwork.snapshot(), columns: this.layout.columns, hoverCards: this.hoverCards().map(card => ({ ...card, ...cardHoverPose(card.amount) })), shelf: { ...this.shelf.rect, axis: this.shelf.axis, scrollX: this.shelf.scrollX, scrollY: this.shelf.scrollY, contentWidth: this.shelf.contentWidth, contentHeight: this.shelf.contentHeight, animating: this.shelf.animating }, hero: { ...this.layout.hero }, images: this.images.size + this.artwork.snapshot().sourceCount, notices: this.notices.map(notice => ({ ...notice })) };

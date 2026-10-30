@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {runChromeWebGpuFixture} from '../../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
+const root=resolve(import.meta.dirname,'../..'),output=resolve(root,'artifacts/whale-maker-frost');mkdirSync(output,{recursive:true});
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const result=await runChromeWebGpuFixture({root,fixture:'games/whale-maker/index.html',query:{verify:1},timeoutMs:90000,disableDx12InfoCollection:true,visualCapture:{viewportWidth:1280,viewportHeight:860},interact:async cdp=>{
+ const evaluate=async expression=>{const r=await cdp.call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.result?.exceptionDetails)throw Error(r.result.exceptionDetails.exception?.description??r.result.exceptionDetails.text);return r.result?.result?.value;};
+ const capture=async name=>{await delay(100);const r=await cdp.call('Page.captureScreenshot',{format:'png'});writeFileSync(resolve(output,name),Buffer.from(r.result.data,'base64'));};
+ const click=async(x,y)=>{await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',x,y:y+30,button:'left',clickCount:1});await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',x,y:y+30,button:'left',clickCount:1});await delay(80);};
+ const advance=async(n,keys=[])=>evaluate(`(()=>{const g=window.__whaleMaker;g.clearControls();${keys.map(k=>`g.keys.add('${k}');`).join('')}g.paused=false;for(let n=0;n<${n};n++)g.tick(1/120);g.paused=true;g.draw();return {power:g.state.power,phase:g.state.phase};})()`);
+ for(let n=0;n<180;n++){if(await evaluate('document.body?.dataset.renderStatus==="passed"'))break;await delay(200);}assert.equal(await evaluate('document.body?.dataset.renderStatus'),'passed');
+ const reset=()=>evaluate(`(()=>{const g=window.__whaleMaker;g.editing=false;g.campaignActive=false;const width=100,height=24,cells=Array(width*height).fill('.');for(let y=15;y<height;y++)for(let x=0;x<width;x++)cells[y*width+x]='#';cells[14*width+95]='E';g.level={version:1,name:'寒冰火焰与角色校验',width,height,cells,spawn:[2,14.2],properties:{},contents:{}};g.state.phase='playing';g.restart();g.paused=true;g.camera=0;g.cameraY=4;g.clearControls();g.draw();})()`);
+ await reset();
+ const measurements=[];
+ for(const [power,atlas]of [[0,'whale-small'],[1,'whale-tall'],[2,'whale-fire'],[4,'whale-ice'],[3,'whale-small']]){
+  await evaluate(`(()=>{const g=window.__whaleMaker,s=g.state;s.power=${power};Object.assign(s.player,{x:5,y:${power?13:14.2},h:${power?2:.8},w:${power===3?1.9:.9},vx:0,vy:0});s.grounded=true;s.invincible=0;s.cheerAge=10;s.eatAge=10;g.draw();})()`);
+  await capture(`form-${power}-standing.png`);
+  const before=await evaluate(`(()=>{const g=window.__whaleMaker,c=g.scene.commands.find(c=>c.spriteId==='${atlas}:0');return {id:c?.spriteId,x:c?.scaleX,y:c?.scaleY,w:g.state.player.w,h:g.state.player.h};})()`);assert.equal(before.id,`${atlas}:0`);assert.ok(Math.abs(before.x-before.y)<1e-8);assert.equal(before.w,power===3?1.9:.9);
+  await advance(18,['ArrowDown']);await capture(`form-${power}-crouching.png`);assert.ok(await evaluate(`window.__whaleMaker.scene.draws.some(c=>c.id==='${atlas}:8')`));
+  const headScale=await evaluate(`window.__whaleMaker.scene.commands.find(c=>c.spriteId==='${atlas}:8').scaleX`);assert.equal(headScale,before.x,'crouching keeps the identical painted body scale');measurements.push({power,...before,crouchScale:headScale});
+  await advance(20,['ArrowRight']);assert.ok(await evaluate(`window.__whaleMaker.scene.draws.some(c=>c.id.startsWith('${atlas}:'))`));
+ }
+ await reset();await evaluate(`(()=>{const g=window.__whaleMaker;g.level.cells[8*100+5]='F';g.level.cells[9*100+9]='ice-flower';g.restart();g.paused=true;g.draw();})()`);await capture('flowers-airborne.png');await advance(200);assert.ok(await evaluate('window.__whaleMaker.state.rewards.every(r=>Math.abs(r.y+r.h-15)<.001)'));await capture('flowers-grounded.png');
+ await evaluate(`(()=>{const g=window.__whaleMaker;Object.assign(g.state.player,{x:9,y:14.2,w:.9,h:.8});})()`);await advance(1);assert.equal(await evaluate('window.__whaleMaker.state.power'),4);
+ await evaluate(`(()=>{const g=window.__whaleMaker,s=g.state;s.enemies=[{kind:'duck',x:12,y:14.2,w:.8,h:.8,vx:0,vy:0,alive:true,held:false,cooldown:0}];s.facing=1;})()`);await advance(30,['KeyJ']);assert.ok(await evaluate('!!window.__whaleMaker.state.enemies[0].frozen'));await capture('ice-shot-frozen-enemy.png');
+ await evaluate('window.__whaleMaker.state.player.x=window.__whaleMaker.state.enemies[0].x-.91');await advance(20,['ShiftLeft']);assert.ok(await evaluate('!!window.__whaleMaker.state.held'));await capture('carrying-frozen-enemy.png');
+ await evaluate('window.__whaleMaker.state.level.cells[14*100+16]="B"');await advance(45,['ShiftLeft','KeyJ']);assert.equal(await evaluate('window.__whaleMaker.state.enemies[0].alive'),false);assert.equal(await evaluate('window.__whaleMaker.state.level.cells[14*100+16]'),'.');await capture('frozen-enemy-brick-shatter.png');
+ await evaluate(`(()=>{const g=window.__whaleMaker,s=g.state;const basin={kind:'basin',x:s.player.x,y:14.8,w:.8,h:.45,vx:0,vy:0,alive:true,held:true,cooldown:0,age:0,thrown:false,spent:false};s.items=[basin];s.riding=basin;s.player.h=.55;s.player.y=14.45;s.grounded=true;g.draw();})()`);await capture('ice-form-basin-seat.png');assert.ok(await evaluate('window.__whaleMaker.scene.draws.some(d=>d.id==="gadgets:6")'));
+ // Button opens a usable deterministic demonstration, with lava and editable fire.
+ await click(510,87);await evaluate('window.__whaleMaker.paused=true');assert.equal(await evaluate('window.__whaleMaker.state.level.name'),'冰火试验海岸');await evaluate('window.__whaleMaker.camera=17;window.__whaleMaker.cameraY=4;window.__whaleMaker.state.player.x=24');await advance(65);await capture('lava-fire-falling.png');assert.ok(await evaluate('window.__whaleMaker.scene.draws.some(d=>d.id.startsWith("lava:"))'));assert.ok(await evaluate('window.__whaleMaker.state.enemies.find(e=>e.kind==="fire-jumper").vy>0'));
+ await advance(120);assert.equal(await evaluate('window.__whaleMaker.state.enemies.find(e=>e.kind==="fire-jumper").flamePhase'),'wait');await advance(360);assert.equal(await evaluate('window.__whaleMaker.state.enemies.find(e=>e.kind==="fire-jumper").flamePhase'),'flight');await advance(25);await capture('lava-fire-rising.png');assert.ok(await evaluate('window.__whaleMaker.state.enemies.find(e=>e.kind==="fire-jumper").vy<0'));
+ await click(88,87);await evaluate(`(()=>{const g=window.__whaleMaker;g.editCamera=20;g.editY=4;g.paletteCategory=0;g.palettePage=1;g.selection=new Set([9*100+29]);g.draw();})()`);await delay(150);await capture('editor-fire-properties.png');
+ await click(1205,355);await click(1205,445);assert.deepEqual(await evaluate('window.__whaleMaker.level.properties[929]'),{jumpHeight:5.5,period:3.25});
+ await evaluate('window.__whaleMaker.paletteCategory=2;window.__whaleMaker.palettePage=0;window.__whaleMaker.selection.clear();window.__whaleMaker.draw()');await capture('editor-ice-flower-palette.png');
+ await evaluate('window.__whaleMaker.paletteCategory=3;window.__whaleMaker.draw()');await capture('editor-lava-palette.png');
+ writeFileSync(resolve(output,'measurements.json'),JSON.stringify(measurements,null,2));
+ await evaluate('window.__whaleMaker.destroy()');await evaluate(`(()=>{const n=document.createElement('pre');n.id='result';n.dataset.status='passed';n.textContent=JSON.stringify({status:'passed',checks:['five-power-colliders','four-unified-costumes','crouch-body-scale','falling-flowers','ice-shot-freeze','carrying-ice-body','ice-brick-shatter','lava-tiles','fire-jump-cycle','native-editor-properties','new-tool-palettes']});n.hidden=true;document.body.append(n);})()`);
+}});
+writeFileSync(resolve(output,'browser.json'),JSON.stringify(result,null,2));assert.equal(result.status,'passed',JSON.stringify(result));console.log(JSON.stringify({status:result.status,checks:result.checks,diagnostics:result.browserDiagnostics}));
