@@ -973,11 +973,12 @@ await run('tank-return','games/tank-battle/index.html',{verify:1},async({evaluat
   await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'w',code:'KeyW'});
 });
 
-await run('tank-coop','games/tank-battle/index.html',{verify:1},async({evaluate,until,pads,press,check,cdp})=>{
+await run('tank-coop','games/tank-battle/index.html',{verify:1,gamepadVerify:1},async({evaluate,until,pads,press,check,cdp})=>{
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
   await until('!!window.__tankBattle','desktop tank scene');await pads();await press(11);
+  await until('window.__controllerPointer?.visible','Engine GUI controller pointer');
   for(let i=0;i<30;i++){
-    const delta=await evaluate(`(()=>{const b=__tankBattle.hud().buttons.duo,r=document.querySelector('#gui').getBoundingClientRect(),c=document.querySelector('[data-gamepad-cursor]');return [b.x+b.width/2-parseFloat(c.style.left),b.y+b.height/2-parseFloat(c.style.top)]})()`);
+    const delta=await evaluate(`(()=>{const b=__tankBattle.hud().buttons.duo,c=__controllerPointer.center;return [b.x+b.width/2-c.x,b.y+b.height/2-c.y]})()`);
     if(delta.every(d=>Math.abs(d)<8))break;
     await pads([{axes:[...delta.map(d=>Math.abs(d)<8?0:Math.sign(d)*(.2+.8*Math.min(1,Math.abs(d)/105))),0,0]}]);
   }
@@ -987,7 +988,7 @@ await run('tank-coop','games/tank-battle/index.html',{verify:1},async({evaluate,
   const before=await evaluate('__tankBattle.snapshot()');
   await pads([{axes:[0,-1,0,0],buttons:[0]},{axes:[0,-1,0,0],buttons:[0]}]);await delay(300);await pads([{},{}]);
   const after=await evaluate('__tankBattle.snapshot()');
-  writeFileSync(resolve(output,'tank-coop-state.json'),JSON.stringify({before,after,input:await evaluate('({keys:__keys,hint:document.querySelector("[data-gamepad-hint]").textContent,active:document.body.dataset.gamepadActive})')},null,2));
+  writeFileSync(resolve(output,'tank-coop-state.json'),JSON.stringify({before,after,input:await evaluate('({keys:__keys,pointer:__controllerPointer,active:document.body.dataset.gamepadActive})')},null,2));
   for(const player of [1,2])check(after.tanks.find(t=>t.player===player).y<before.tanks.find(t=>t.player===player).y,'tank '+player+' responds independently');
   check(after.bullets.some(b=>b.player===1)&&after.bullets.some(b=>b.player===2),'both controllers fire simultaneously');
 });

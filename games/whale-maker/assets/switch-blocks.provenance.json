@@ -1,0 +1,7 @@
+{
+  "generator": "image_gen",
+  "date": "2026-10-27",
+  "file": "switch-blocks.png",
+  "runtime": "runtime/mechanics.png frames 0,1",
+  "prompt": "Production transparent PNG sprite sheet, exactly TWO sprites arranged side by side in a strict 2 columns 1 row grid. Two small SQUARE ON/OFF switch blocks for a cute pastel sea-themed 2D platform game, front view, almost flat, identical size, constant center and straight aligned bottom. LEFT: a coral-red rounded square block with large perfectly readable cream white uppercase text 'ON'. RIGHT: a blue rounded square block with large perfectly readable cream white uppercase text 'OFF'. The letters fill most of the face and must remain readable at 40 pixels. Both blocks have a thin warm gold beveled rim and a tiny pearl rivet in each corner, soft cute hand-painted shading. Square silhouette, no pedestal, no clamshell, no stalk, no large ornaments, no floor, no shadows outside block, no extra text, no UI preview. Generous clear padding, sprites entirely contained in their own cells. True transparent background."
+}

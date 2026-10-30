@@ -1,5 +1,6 @@
 // Presentation metadata only; playable entries and assets come from the manifest.
 const entries = [
+  ['whale-maker', '鲸屿制造', 'sandbox', '鲸鱼娘与粉团的 1-1～1-4 连续冒险：珍珠海岸、地窟、月夜云台和喷火尖刺龟吊桥。支持成长、火球、抱壳与关卡编辑器。', '鲸'],
   ['glass-rush', '玻璃疾驰', 'arcade', '驾驭易碎玻璃球，穿越蜿蜒霓虹隧道。躲开障碍，在不断加速中挑战生存纪录。', '◇'],
   ['fruit-ninja', '水果忍者', 'arcade', '划出刀光，切开鲜果。避开炸弹，抓住加时道具，在一分钟内挑战最高分。', '果'],
   ['valley-of-light', '谷外之光', 'puzzle', '转动金桥，连接看似不可能的道路。跟随旅行者微，在光影与错觉之间寻找山谷的出口。', '光'],

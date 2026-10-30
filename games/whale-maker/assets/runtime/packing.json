@@ -1,0 +1,798 @@
+{
+  "characters": {
+    "source": "characters.png",
+    "sourceBytes": 1905317,
+    "runtimeBytes": 50565,
+    "size": [
+      208,
+      163
+    ],
+    "used": [
+      8,
+      9,
+      13,
+      15
+    ],
+    "removed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      10,
+      11,
+      12,
+      14
+    ]
+  },
+  "world": {
+    "source": "world.png",
+    "sourceBytes": 1798660,
+    "runtimeBytes": 429536,
+    "size": [
+      692,
+      608
+    ],
+    "used": [
+      0,
+      1,
+      3,
+      4,
+      10,
+      14
+    ],
+    "removed": [
+      2,
+      5,
+      6,
+      7,
+      8,
+      9,
+      11,
+      12,
+      13,
+      15
+    ]
+  },
+  "expansion": {
+    "source": "expansion.png",
+    "sourceBytes": 1582742,
+    "runtimeBytes": 317083,
+    "size": [
+      580,
+      466
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      14,
+      15
+    ],
+    "removed": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
+  },
+  "coins": {
+    "source": "coins.png",
+    "sourceBytes": 1305183,
+    "runtimeBytes": 20270,
+    "size": [
+      132,
+      100
+    ],
+    "used": [
+      8
+    ],
+    "removed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "tokens": {
+    "source": "tokens-half.png",
+    "sourceBytes": 1005396,
+    "runtimeBytes": 154643,
+    "size": [
+      456,
+      304
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "removed": []
+  },
+  "shell": {
+    "source": "shell.png",
+    "sourceBytes": 1427535,
+    "runtimeBytes": 12158,
+    "size": [
+      108,
+      65
+    ],
+    "used": [
+      0
+    ],
+    "removed": []
+  },
+  "checkpoint": {
+    "source": "checkpoint.png",
+    "sourceBytes": 1460297,
+    "runtimeBytes": 771243,
+    "size": [
+      1020,
+      753
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "removed": []
+  },
+  "gadgets": {
+    "source": "gadgets.png",
+    "sourceBytes": 1619693,
+    "runtimeBytes": 340758,
+    "size": [
+      560,
+      453
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "removed": []
+  },
+  "creatures": {
+    "source": "creatures.png",
+    "sourceBytes": 1602747,
+    "runtimeBytes": 163299,
+    "size": [
+      412,
+      247
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      12,
+      13,
+      14,
+      15
+    ],
+    "removed": [
+      8,
+      9,
+      10,
+      11
+    ]
+  },
+  "environment": {
+    "source": "environment.png",
+    "sourceBytes": 1660154,
+    "runtimeBytes": 190470,
+    "size": [
+      444,
+      351
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "removed": [
+      8,
+      9
+    ]
+  },
+  "clear": {
+    "source": "clear.png",
+    "sourceBytes": 882718,
+    "runtimeBytes": 49650,
+    "size": [
+      260,
+      135
+    ],
+    "used": [
+      2
+    ],
+    "removed": [
+      0,
+      1,
+      3
+    ]
+  },
+  "adventure": {
+    "source": "adventure.png",
+    "sourceBytes": 1808109,
+    "runtimeBytes": 263163,
+    "size": [
+      508,
+      419
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "removed": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "mechanics": {
+    "source": "mechanics.png",
+    "sourceBytes": 2298207,
+    "runtimeBytes": 251152,
+    "size": [
+      516,
+      371
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      15
+    ],
+    "removed": [
+      14
+    ],
+    "overrides": {
+      "0": "switch-blocks.png",
+      "1": "switch-blocks.png"
+    }
+  },
+  "squid2": {
+    "source": "squid2.png",
+    "sourceBytes": 1069088,
+    "runtimeBytes": 33447,
+    "size": [
+      184,
+      204
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "removed": []
+  },
+  "devices": {
+    "source": "devices.png",
+    "sourceBytes": 1538820,
+    "runtimeBytes": 241555,
+    "size": [
+      492,
+      341
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "removed": []
+  },
+  "backdrops": {
+    "source": "distant-landscapes-clean.png",
+    "sourceBytes": 1776931,
+    "runtimeBytes": 1218708,
+    "size": [
+      1372,
+      838
+    ],
+    "used": [
+      0,
+      1,
+      2
+    ],
+    "removed": []
+  },
+  "iron-parts": {
+    "source": "devices.png",
+    "sourceBytes": 1538820,
+    "runtimeBytes": 21585,
+    "size": [
+      132,
+      110
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "removed": []
+  },
+  "pearls": {
+    "source": "pearls.png",
+    "sourceBytes": 1067653,
+    "runtimeBytes": 24077,
+    "size": [
+      152,
+      156
+    ],
+    "used": [
+      0,
+      1
+    ],
+    "removed": []
+  },
+  "goal-flags": {
+    "source": "goal-flags.png",
+    "sourceBytes": 972345,
+    "runtimeBytes": 59874,
+    "size": [
+      272,
+      204
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "removed": []
+  },
+  "reef-boss": {
+    "source": "reef-boss.png",
+    "sourceBytes": 2579928,
+    "runtimeBytes": 294806,
+    "size": [
+      560,
+      328
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "removed": []
+  },
+  "reef-bridge": {
+    "source": "reef-bridge.png",
+    "sourceBytes": 1251592,
+    "runtimeBytes": 56976,
+    "size": [
+      224,
+      230
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "removed": []
+  },
+  "night-coast": {
+    "source": "night-coast.png",
+    "sourceBytes": 1876126,
+    "runtimeBytes": 1045187,
+    "size": [
+      1236,
+      636
+    ],
+    "used": [
+      0
+    ],
+    "removed": []
+  },
+  "firebar-anchor": {
+    "source": "firebar-anchor.png",
+    "sourceBytes": 2531452,
+    "runtimeBytes": 25295,
+    "size": [
+      132,
+      101
+    ],
+    "used": [
+      0
+    ],
+    "removed": []
+  },
+  "whale-small": {
+    "source": "whale-small.png",
+    "sourceBytes": 2600178,
+    "runtimeBytes": 341330,
+    "size": [
+      548,
+      383
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ],
+    "removed": []
+  },
+  "whale-tall": {
+    "source": "whale-tall.png",
+    "sourceBytes": 2640466,
+    "runtimeBytes": 424792,
+    "size": [
+      600,
+      433
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ],
+    "removed": []
+  },
+  "whale-fire": {
+    "source": "whale-fire.png",
+    "sourceBytes": 2380378,
+    "runtimeBytes": 415467,
+    "size": [
+      604,
+      434
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ],
+    "removed": []
+  },
+  "whale-ice": {
+    "source": "whale-ice.png",
+    "sourceBytes": 2469226,
+    "runtimeBytes": 420946,
+    "size": [
+      612,
+      439
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
+    ],
+    "removed": []
+  },
+  "frost": {
+    "source": "frost.png",
+    "sourceBytes": 1785347,
+    "runtimeBytes": 169122,
+    "size": [
+      404,
+      290
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "removed": []
+  },
+  "lava": {
+    "source": "lava.png",
+    "sourceBytes": 1885083,
+    "runtimeBytes": 97697,
+    "size": [
+      372,
+      300
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "removed": []
+  },
+  "workshop": {
+    "source": "workshop.png",
+    "sourceBytes": 1650967,
+    "runtimeBytes": 204792,
+    "size": [
+      436,
+      339
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "removed": []
+  },
+  "hammer-otter": {
+    "source": "hammer-otter-grid.png",
+    "sourceBytes": 1909514,
+    "runtimeBytes": 99266,
+    "size": [
+      320,
+      273
+    ],
+    "used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "removed": []
+  },
+  "totals": {
+    "sourceBytes": 53485835,
+    "runtimeBytes": 8208912,
+    "reduction": 0.8465
+  }
+}

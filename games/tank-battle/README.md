@@ -30,6 +30,10 @@ The manifest also adds the game to the generated Pages lobby.
 - Pickups: star, 10-second shield, enemy-clearing bomb, 10-second freeze, 20-second steel base
   fortification, or one extra life. All pickups award 500 points and expire after 15 seconds.
 - Water blocks tanks but not shots. Forest hides tanks and shots. Snow retains momentum briefly.
+- The first sector has a 64-pixel-deep central brick barricade and a double-layer base roof;
+  both player exit lanes remain open. Start a new game to use the revised map; saved terrain is preserved.
+- Enemies probe aligned routes before turning, avoid immediate reversals when a clear route exists,
+  and wait briefly when blocked instead of changing direction every frame.
 - One Engine-backed autosave preserves the complete simulation, seed, players, timers and high
   score every five seconds, on pause, and at stage transitions. Continue explicitly after reload.
 
@@ -47,8 +51,8 @@ terrain/supply legends and touch controls are engine GUI elements, not DOM widge
 `game/TankBattle.ts` runs the fixed simulation from the Engine update event and owns removable input,
 audio and autosave. The GUI now requires a WebGPU-capable browser. The GUI world,
 engine and expanded bitmap are destroyed on teardown; resize changes the existing elements rather than recreating them.
-Menu selection uses Engine `GuiFocusManager`; the installed 0.1.0 GUI has no directional
-navigation API, so the game maps its visible mode buttons to the existing controller key adapter.
+Menu selection uses Engine `GuiFocusManager`. The HUD disables automatic GUI keyboard navigation
+with an explicit `InputMap`, routing shared movement/fire keys to menu controls only while the menu is open.
 `RenderIntegration` remains an intentional experimental dependency.
 `input/pointerCapture.ts` guards stale native capture calls from the installed GUI's deferred touch
 dispatch, preserving concurrent live touches and restoring the canvas methods on teardown.

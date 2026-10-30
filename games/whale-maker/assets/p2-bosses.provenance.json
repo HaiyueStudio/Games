@@ -1,0 +1,22 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-29",
+  "prompt": "Use case: illustration-story. Asset type: production 2D cartoon boss animation atlas. Generate exactly EIGHT columns by SIX rows of equal cells, 48 complete full-body sprites. Transparent alpha background, generous invisible margins, no labels, no scenery, no floors, no watermark. Original cute but fierce ocean fantasy game matching a blue whale maid cartoon, crisp navy outlines, soft teal coral pink gold palette, clean readable silhouettes. Each boss occupies TWO rows (16 frames), uniform scale and feet baseline per boss, side view facing RIGHT. Boss 1 rows 1-2: adorable large round teal CORAL TURTLE BRAWLER, white belly, coral red shell, tiny fin ears, big round fists. Frames idle,walk1,walk2,walk3,punch windup,punch release,leap,land,curled shell1,curled shell2,rolling shell1,rolling shell2,dizzy1,dizzy2,hurt,defeated upside-down. Boss 2 rows 3-4: cute pink PEARL NINJA TURTLE GIRL with lavender shell, navy eye mask, little white pearl ribbons and a silver pearl shuriken, no human face. Frames idle,walk1,walk2,walk3,throw windup,throw release,leap,land,teleport fade1,teleport fade2,mirage pose1,mirage pose2,dizzy1,dizzy2,hurt,defeated. Boss 3 rows 5-6: fierce but adorable royal CAT WHALE DRAGON, navy-blue lion mane and cat ears, teal scales, gold crown and red cape, rounded claws, big whale tail, original design. Frames idle,walk1,walk2,walk3,claw windup,claw swipe,leap,pounce,wall climb1,wall climb2,fire breath windup,fire breath release,tired1,tired2,hurt,defeated. Whole character in every cell, no standalone weapons or effect-only cells. Avoid large particle trails that touch neighbouring cells. No existing Mario character designs.",
+  "grid": [
+    8,
+    6
+  ],
+  "runtime": "runtime/p2-bosses.png",
+  "runtimeSize": [
+    1024,
+    768
+  ],
+  "runtimeCell": 128,
+  "packing": "Uniform family scale, measured alpha bounds, transparent padding and shared feet baseline; original generated pixels preserved.",
+  "sourceId": "exec-58b0478f-e0cd-4807-bafb-d57819cdb1ce.png",
+  "localSource": "p2-bosses.png",
+  "discardedRuntimeFrames": [
+    43
+  ],
+  "discardReason": "Generated isolated flame effect instead of complete actor; not sampled by runtime."
+}

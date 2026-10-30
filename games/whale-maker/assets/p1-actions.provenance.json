@@ -1,0 +1,20 @@
+{
+  "generator": "built-in image_gen",
+  "generated": "2026-10-29",
+  "source": "exec-03e73502-65cd-48da-9d25-ab1705e51fac.png",
+  "grid": [
+    8,
+    8
+  ],
+  "runtimeGrid": [
+    8,
+    8
+  ],
+  "runtimeCell": [
+    168,
+    128
+  ],
+  "referenceSize": 112,
+  "processing": "Only deterministic atlas slicing, connected alpha-bound measurement, transparent padding and downscaling; no painted replacements. Unused supplemental rows removed from costumes.",
+  "promptDocument": "P1_ASSETS.md"
+}
