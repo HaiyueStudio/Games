@@ -280,13 +280,13 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       const riverBest = await evaluate('({best: __entanglementPath.best, level: __entanglementPath.levelIndex})');
       await evaluate('__entanglementPath.reset()'); await checkRestart(riverBest);
       const levelCount = await evaluate('__entanglementPath.levels.length');
-      assert.equal(levelCount, 5, 'three original boards and two reference boards are selectable');
+      assert.equal(levelCount, 4, 'classic, compact and two reference boards are selectable');
       for (let level = 0; level < levelCount; level++) {
         await evaluate(`__entanglementPath.loadLevel(${level}, true)`);
         await untilReady();
-        if (level >= 3) {
+        if (level >= 2) {
           assert.equal(await evaluate('Number(__entanglementPath.versus.levelSelect.value)'), level, 'solo shape selector follows the board');
-          await capture(level === 3 ? 'board-trident' : 'board-blossom');
+          await capture(level === 2 ? 'board-trident' : 'board-blossom');
         }
         let before = await finish();
         if (level === 0) {
@@ -400,7 +400,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
         await frame(); await untilReady();
       }
       await evaluate(`(async () => { const node = document.createElement('pre'); node.id = 'result'; node.hidden = true;
-        node.dataset.status = 'passed'; node.textContent = JSON.stringify({ status: 'passed', checks: ['terrain worker reuse and cancellation', 'WFC shore sockets', 'continuous mountain chains', 'unplayed fog', 'rotation preserves terrain seams', 'persistent piece terrain', 'seeded map restore', 'ordered river filling', 'nonblocking flow', 'wet ink halo', 'mountain terrain', 'river reset cleanup', 'centered board', 'bare score and reserve', 'desktop MP3 playback and loop', 'fullscreen canvas and resize', 'single-hue pigment', 'scroll unrolling', 'noise and crossfade', 'bitmap font', 'seeded pigment hexes', 'intro resource cleanup', 'X/Y and LB/RB rotations', 'reserve swap and cleanup', 'sRGB pixels', 'five board shapes', 'mouse restart', 'keyboard restart', 'touch restart', 'ended save restart', 'key repeat', 'play after restart'] }); document.body.append(node); })()`);
+        node.dataset.status = 'passed'; node.textContent = JSON.stringify({ status: 'passed', checks: ['terrain worker reuse and cancellation', 'WFC shore sockets', 'continuous mountain chains', 'unplayed fog', 'rotation preserves terrain seams', 'persistent piece terrain', 'seeded map restore', 'ordered river filling', 'nonblocking flow', 'wet ink halo', 'mountain terrain', 'river reset cleanup', 'centered board', 'bare score and reserve', 'desktop MP3 playback and loop', 'fullscreen canvas and resize', 'single-hue pigment', 'scroll unrolling', 'noise and crossfade', 'bitmap font', 'seeded pigment hexes', 'intro resource cleanup', 'X/Y and LB/RB rotations', 'reserve swap and cleanup', 'sRGB pixels', 'four board shapes', 'mouse restart', 'keyboard restart', 'touch restart', 'ended save restart', 'key repeat', 'play after restart'] }); document.body.append(node); })()`);
     },
   });
   assert.equal(result.status, 'passed');

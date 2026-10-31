@@ -3,18 +3,20 @@ import { InkArt } from '../art/InkArt';
 import { collapseTerrain, extendTerrainSites } from '../art/terrainWfc';
 import { VersusMatch, greedyChoice, isMatchRecord, cellKey, type VersusMode, type MatchRecord, type Choice } from './VersusRules';
 import { VersusView, type DrawingLevel } from './VersusView';
+import { savedBoardIndex } from './boardCatalog';
 
 type Mode = 'solo' | VersusMode;
-interface VersusSave { mode: Mode; levelIndex: number; seed: number; match: MatchRecord | null; swapped: boolean; rotations: number[] }
+interface VersusSave { mode: Mode; levelIndex: number; levelId?: string; seed: number; match: MatchRecord | null; swapped: boolean; rotations: number[] }
 function isVersusSave(value: unknown): value is VersusSave {
   return isRecord(value) && (value.mode === 'solo' || value.mode === 'shared' || value.mode === 'race')
     && isNonNegativeInteger(value.levelIndex) && isNonNegativeInteger(value.seed) && value.seed <= 0xffffffff
+    && (value.levelId === undefined || typeof value.levelId === 'string')
     && (value.match === null || isMatchRecord(value.match)) && typeof value.swapped === 'boolean'
     && Array.isArray(value.rotations) && value.rotations.length === 2 && value.rotations.every(n => isNonNegativeInteger(n) && n < 6);
 }
 interface Options {
   canvas: HTMLCanvasElement; levels: DrawingLevel[]; ready: () => boolean;
-  now: () => number; sound: (kind: 'turn' | 'place' | 'end') => void;
+  now: () => number; sound: (kind: 'turn' | 'swap' | 'place' | 'end', gain?: number) => void;
   present: (canvas: HTMLCanvasElement | null) => void;
   soloLevel: () => number;
   selectSoloLevel: (index: number) => Promise<void>;
@@ -58,7 +60,7 @@ export class VersusController {
     const seedLabel = document.createElement('label'); seedLabel.textContent = '种子 ';
     this.seedInput.type = 'text'; this.seedInput.inputMode = 'numeric'; this.seedInput.maxLength = 10;
     this.seedInput.ariaLabel = '对战随机种子（0至4294967295）'; seedLabel.append(this.seedInput);
-    for (const [i, level] of options.levels.entries()) { const option = document.createElement('option'); option.value = String(i); option.textContent = ['山河', '环山', '曲径'][i] ?? level.name; this.levelSelect.append(option); }
+    for (const [i, level] of options.levels.entries()) { const option = document.createElement('option'); option.value = String(i); option.textContent = level.name; this.levelSelect.append(option); }
     this.levelSelect.ariaLabel = '棋盘形状';
     this.levelSelect.addEventListener('change', () => { this.selectLevel(Number(this.levelSelect.value)); });
     this.toolbar.append(this.levelSelect);
@@ -76,12 +78,13 @@ export class VersusController {
   }
   async init(): Promise<void> {
     const generation = this.generation;
-    const saved = await this.saves.load(); if (this.disposed || generation !== this.generation || !saved || saved.levelIndex >= this.options.levels.length) return;
-    this.seed = saved.seed; this.levelIndex = saved.levelIndex;
+    const saved = await this.saves.load(); if (this.disposed || generation !== this.generation || !saved) return;
+    const index = savedBoardIndex(saved, this.options.levels.map(level => level.id));
+    this.seed = saved.seed; this.levelIndex = index ?? 0;
     if (saved.mode === 'solo') { this.refreshToolbar(); return; }
     let match: VersusMatch | undefined;
     try {
-      if (saved.match && saved.match.mode === saved.mode && saved.match.seed === saved.seed) match = VersusMatch.restore(this.options.levels[saved.levelIndex]!, saved.match);
+      if (index !== null && saved.match && saved.match.mode === saved.mode && saved.match.seed === saved.seed) match = VersusMatch.restore(this.options.levels[index]!, saved.match);
     } catch { /* A structurally valid but impossible move history starts a clean match. */ }
     await this.setMode(saved.mode, match);
     if (match && this.match === match) { this.swapped = saved.swapped; this.rotations = saved.rotations; this.view?.invalidate(); this.save(); }
@@ -138,36 +141,50 @@ export class VersusController {
     }
     if (!this.active) return false;
     if (!this.view || this.loading) return true;
+    if (this.match?.winner) { void this.newMatch(this.seed); return true; }
     const hit = this.view.hit(x, y);
+    this.view.move({ x, y });
     if (hit === 'restart') void this.newMatch(this.seed);
     else if (hit === 'swap') this.swap();
-    else if (hit === 'ccw') this.rotate(-1);
-    else if (hit === 'cw') this.rotate(1);
-    else if (hit === 'place' || this.match && this.view.hitCurrent(x, y, this.match)) this.place();
+    else if (hit === 'ccw') { this.view.press(hit, this.options.now()); this.rotate(-1); }
+    else if (hit === 'cw') { this.view.press(hit, this.options.now()); this.rotate(1); }
+    else if (this.match && this.view.hitCurrent(x, y, this.match)) this.place();
     return true;
   }
+  movePointer(clientX: number, clientY: number): void {
+    const rect = this.options.canvas.getBoundingClientRect(); this.view?.move({ x: clientX - rect.left, y: clientY - rect.top });
+  }
+  leavePointer(): void { this.view?.move(null); }
   cycleMode(): void { const modes: Mode[] = ['solo', 'shared', 'race']; void this.setMode(modes[(modes.indexOf(this.mode) + 1) % modes.length]!); }
   private canPlay(): boolean { return this.active && !this.loading && !!this.match && !this.match.winner && this.match.turn === 'human' && !this.match.human.ended; }
   rotate(delta: number): void {
     if (!this.canPlay()) return;
-    const i = Number(this.swapped); this.rotations[i] = (this.rotations[i]! + delta + 6) % 6;
+    const i = Number(this.swapped), before = this.rotations[i]!; this.rotations[i] = (before + delta + 6) % 6;
+    this.view?.rotate(before, this.rotations[i]!, this.options.now());
     this.options.sound('turn'); this.view?.invalidate(); this.save();
   }
-  swap(): void { if (!this.canPlay()) return; this.swapped = !this.swapped; this.options.sound('turn'); this.view?.invalidate(); this.save(); }
+  swap(): void {
+    if (!this.canPlay()) return;
+    this.view?.swap(this.match!.human, this.selection, this.rotations[Number(!this.swapped)]!, this.options.now());
+    this.swapped = !this.swapped; this.options.sound('swap'); this.save();
+  }
   place(): void {
     if (!this.active || this.loading) return;
     if (this.match?.winner) { void this.newMatch(this.seed); return; }
     if (!this.canPlay()) return;
-    this.match!.play('human', this.selection); this.afterMove();
+    const score = this.match!.human.score, reserveRotation = this.rotations[Number(!this.swapped)]!;
+    this.match!.play('human', this.selection); this.afterMove(reserveRotation, this.match!.human.score - score);
   }
-  private afterMove(): void {
-    this.swapped = false; this.rotations = [0, 0]; this.options.sound(this.match!.winner ? 'end' : 'place');
+  private afterMove(reserveRotation: number, gain: number): void {
+    this.swapped = false; this.rotations = [0, reserveRotation]; this.view?.cancelMotion();
+    this.options.sound('place', gain); if (this.match!.winner) this.options.sound('end');
     this.scheduleMachine(); this.view?.invalidate(); this.save();
   }
   private scheduleMachine(): void {
     this.machineChoice = null; this.machineAt = Infinity;
     if (this.match && !this.match.winner && this.match.turn === 'machine') {
       this.machineChoice = greedyChoice(this.match.level, this.seed, this.match.machine); this.machineAt = this.options.now() + 650;
+      this.view?.rotate(0, this.machineChoice.rotation, this.options.now(), 'machine');
     }
   }
   update(): void {
@@ -189,9 +206,10 @@ export class VersusController {
     if (this.loading || !this.match || !this.view) return;
     const now = this.options.now();
     if (this.machineChoice && now >= this.machineAt && !this.match.winner && this.match.turn === 'machine') {
-      this.match.play('machine', this.machineChoice); this.afterMove();
+      const score = this.match.machine.score, reserveRotation = this.match.mode === 'shared' && this.machineChoice.swap ? 0 : this.rotations[1]!;
+      this.match.play('machine', this.machineChoice); this.afterMove(reserveRotation, this.match.machine.score - score);
     }
-    if (this.view.render(this.match, this.selection, this.machineChoice, now, rect)) { this.paintToolbar(); this.options.present(this.canvas); }
+    if (this.view.render(this.match, this.selection, this.machineChoice, this.rotations[Number(!this.swapped)]!, now, rect)) { this.paintToolbar(); this.options.present(this.canvas); }
     const text = this.match.winner ? this.match.winner === 'draw' ? '平局' : this.match.winner === 'human' ? '你赢了' : '机器获胜'
       : this.match.turn === 'human' ? '轮到你' : '机器落笔中';
     if (text !== this.lastAnnouncement) { this.lastAnnouncement = text; this.announcement.textContent = text; }
@@ -223,7 +241,7 @@ export class VersusController {
   }
   private save(): void {
     if (this.loading) return;
-    this.saves.save({ mode: this.mode, levelIndex: this.levelIndex, seed: this.seed, match: this.match?.record() ?? null,
+    this.saves.save({ mode: this.mode, levelIndex: this.levelIndex, levelId: this.options.levels[this.levelIndex]!.id, seed: this.seed, match: this.match?.record() ?? null,
       swapped: this.swapped, rotations: [...this.rotations] });
   }
   dispose(): void {

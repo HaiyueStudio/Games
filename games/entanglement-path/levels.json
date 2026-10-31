@@ -2,9 +2,12 @@
   "levels": [
     {
       "id": "classic",
-      "name": "Classic Hex",
+      "name": "山河",
       "radius": 4,
-      "start": { "q": 0, "r": 0 },
+      "start": {
+        "q": 0,
+        "r": 0
+      },
       "entry": 4,
       "hexScreen": 40,
       "hexWorld": 0.92,
@@ -16,9 +19,12 @@
     },
     {
       "id": "compact",
-      "name": "Compact Ring",
+      "name": "环山",
       "radius": 3,
-      "start": { "q": -3, "r": 0 },
+      "start": {
+        "q": -3,
+        "r": 0
+      },
       "entry": 4,
       "hexScreen": 46,
       "hexWorld": 1.05,
@@ -29,47 +35,14 @@
       "randomStartExit": false
     },
     {
-      "id": "broken-spiral",
-      "name": "Broken Spiral",
-      "cells": [
-        { "q": 0, "r": 0 },
-        { "q": 1, "r": 0 },
-        { "q": 2, "r": 0 },
-        { "q": 2, "r": -1 },
-        { "q": 2, "r": -2 },
-        { "q": 1, "r": -2 },
-        { "q": 0, "r": -2 },
-        { "q": -1, "r": -1 },
-        { "q": -2, "r": 0 },
-        { "q": -2, "r": 1 },
-        { "q": -1, "r": 1 },
-        { "q": 0, "r": 1 },
-        { "q": 1, "r": 1 },
-        { "q": 2, "r": 1 },
-        { "q": 3, "r": 0 },
-        { "q": 3, "r": -1 },
-        { "q": 1, "r": -1 },
-        { "q": 0, "r": -1 },
-        { "q": -1, "r": 0 }
-      ],
-      "start": { "q": 0, "r": 0 },
-      "entry": 4,
-      "hexScreen": 46,
-      "hexWorld": 1.05,
-      "boardOffsetX": 0,
-      "boardOffsetY": 0,
-      "walls": [
-        { "q": 3, "r": 0 },
-        { "q": 3, "r": -1 },
-        { "q": -2, "r": 1 }
-      ]
-    },
-    {
       "id": "trident",
       "name": "三岔",
       "shape": "trident",
       "orientation": "flat",
-      "start": { "q": 0, "r": 0 },
+      "start": {
+        "q": 0,
+        "r": 0
+      },
       "entry": 4,
       "hexScreen": 34,
       "startWall": true,
@@ -80,7 +53,10 @@
       "name": "六瓣",
       "shape": "blossom",
       "orientation": "flat",
-      "start": { "q": 0, "r": 0 },
+      "start": {
+        "q": 0,
+        "r": 0
+      },
       "entry": 4,
       "hexScreen": 26,
       "startWall": true,

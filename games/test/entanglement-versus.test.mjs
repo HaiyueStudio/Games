@@ -1,10 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
+import { readFileSync } from 'node:fs';
 const hook = registerHooks({ resolve(s, c, n) { return n(/^\.{1,2}\//.test(s) && !/\.[a-z0-9]+$/i.test(s) ? `${s}.ts` : s, c); } });
 const { VersusMatch, seededTile, evaluateChoices, greedyChoice, isMatchRecord, cellKey, connectedPort, opposite } = await import('../entanglement-path/game/VersusRules.ts');
 const { createBoardShape } = await import('../entanglement-path/game/boardShapes.ts');
+const { savedBoardIndex, savedBestScores } = await import('../entanglement-path/game/boardCatalog.ts');
+const { shortestRotationAngle, turnProgress, swapFrame, hitCurrentTile, hitRect, rotationButtonCenter } = await import('../entanglement-path/game/BoardInteraction.ts');
 hook.deregister();
+
+test('removing the spiral keeps legacy scores and saved reference boards attached to their identities', () => {
+  const ids = JSON.parse(readFileSync(new URL('../entanglement-path/levels.json', import.meta.url))).levels.map(l => l.id);
+  assert.deepEqual(ids, ['classic', 'compact', 'trident', 'blossom']);
+  assert.equal(savedBoardIndex({ levelIndex: 2 }, ids), null);
+  assert.equal(savedBoardIndex({ levelIndex: 3 }, ids), 2);
+  assert.equal(savedBoardIndex({ levelIndex: 4 }, ids), 3);
+  assert.equal(savedBoardIndex({ levelIndex: 3, levelId: 'trident' }, ids), 2);
+  assert.deepEqual(savedBestScores([10,20,999,30,40], undefined, ids), [10,20,30,40]);
+  assert.deepEqual(savedBestScores([40,30,20,10], [...ids].reverse(), ids), [10,20,30,40]);
+});
+
+test('shared interaction math handles turn wrapping, swap endpoints and exact pointer targets', () => {
+  assert.ok(Math.abs(shortestRotationAngle(5, 0) + Math.PI / 3) < 1e-10);
+  assert.ok(Math.abs(shortestRotationAngle(0, 5) - Math.PI / 3) < 1e-10);
+  assert.equal(turnProgress(80), .875); assert.equal(turnProgress(160), 1);
+  assert.deepEqual(swapFrame(0), { progress: 0, eased: 0, arc: 0 });
+  assert.equal(swapFrame(260).eased, 1); assert.equal(swapFrame(130).arc, 1);
+  const center = { x: 200, y: 100 }, button = rotationButtonCenter(center, 1);
+  assert.deepEqual(button, { x: 243.5, y: 146.5 });
+  assert.ok(hitCurrentTile(center, center, 38)); assert.ok(!hitCurrentTile(button, center, 38));
+  assert.ok(hitRect(button, { x: 227.5, y: 129, w: 32, h: 35 }));
+});
 const library = [
   [[0, 7], [1, 10], [2, 5], [3, 8], [4, 11], [6, 9]],
   [[0, 4], [1, 9], [2, 7], [3, 11], [5, 8], [6, 10]],

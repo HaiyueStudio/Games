@@ -37,6 +37,11 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await ready();
       await clickSelector('[data-mode="shared"]'); await ready();
       await evaluate('(async () => { await __entanglementPath.versus.newMatch(177); })()');
+      const enlargedShared = await evaluate(`(() => { const v=__entanglementPath.versus, r=v.view.boardRegions.get('human'), e=v.view.extent;
+        const current=Math.min(r.w/e.w,r.h/e.h), old=Math.min(innerWidth*.68/e.w,innerHeight*.49/e.h);
+        return { ratio: current/old, modes: [...v.levelSelect.options].map(o=>o.textContent) }; })()`);
+      assert.ok(enlargedShared.ratio >= (width < 500 ? 1.3 : 1.5), 'shared board grows substantially');
+      assert.deepEqual(enlargedShared.modes, ['山河','环山','三岔','六瓣']);
       assert.equal(await evaluate('__entanglementPath.versus.mode'), 'shared');
       assert.ok(await evaluate('__entanglementPath.versus.match.human === __entanglementPath.versus.match.machine'));
       const before = await evaluate('JSON.stringify(__entanglementPath.versus.match.record())');
@@ -44,7 +49,9 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       assert.deepEqual(await evaluate('({ swap: __entanglementPath.versus.selection.swap, rotation: __entanglementPath.versus.rotations[0] })'), { swap: true, rotation: 5 });
       assert.equal(await evaluate('JSON.stringify(__entanglementPath.versus.match.record())'), before, 'selection does not prematurely commit a tile');
       await key('b'); await key('ArrowRight');
-      await key('Enter');
+      const active = await evaluate('({x:__entanglementPath.versus.view.active.x,y:__entanglementPath.versus.view.active.y})');
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...active, button: 'left', clickCount: 1 });
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...active, button: 'left', clickCount: 1 });
       const locked = await evaluate(`(() => { const v = __entanglementPath.versus, m = v.match; v.rotate(1); v.swap(); v.place(); return { count: m.moves.length, turn: m.turn, choice: v.selection }; })()`);
       if (await evaluate('!__entanglementPath.versus.match.winner')) {
         assert.equal(locked.count, 1); assert.equal(locked.turn, 'machine');
@@ -72,11 +79,26 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       }; })()`);
       assert.deepEqual(pair, { equal: true, source: true, independent: true, outside: 66 });
       await capture('race-start');
+      const enlargedRace = await evaluate(`(() => { const v=__entanglementPath.versus, r=v.view.boardRegions.get('human'), e=v.view.extent;
+        return Math.min(r.w/e.w,r.h/e.h)/Math.min(innerWidth*${width < 500 ? '.74' : '.39'}/e.w,innerHeight*${width < 500 ? '.205' : '.415'}/e.h); })()`);
+      assert.ok(enlargedRace >= 1.4, 'both race boards grow substantially');
+      assert.ok(await evaluate(`(() => { const g=__entanglementPath, v=g.versus, b=v.match.human;
+        const a=g.painter.preview(b.next,3,b.incoming).getContext('2d').getImageData(0,0,256,256).data;
+        const c=v.view.painter.preview(b.next,3,b.incoming).getContext('2d').getImageData(0,0,256,256).data;
+        return g.painter.constructor===v.view.painter.constructor && a.every((n,i)=>n===c[i]); })()`), 'solo and versus share identical river preview composition');
       // Exercise an actual canvas button (including small touch-screen geometry).
       const point = await evaluate(`(() => { const v = __entanglementPath.versus, b = v.view.hits.get('cw'), r = v.canvas.getBoundingClientRect(); return { x: r.x + b.x + b.w / 2, y: r.y + b.y + b.h / 2 }; })()`);
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, button: 'none' });
       await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 });
       await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
       assert.equal(await evaluate('__entanglementPath.versus.selection.rotation'), 1);
+      assert.ok(await evaluate('!!__entanglementPath.versus.view.turn'), 'rotate starts the same 160ms turn animation');
+      const reserve = await evaluate(`(() => { const b=__entanglementPath.versus.view.hits.get('swap'); return {x:b.x+b.w/2,y:b.y+b.h/2}; })()`);
+      for (let n=0;n<2;n++) {
+        await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...reserve, button: 'left', clickCount: 1 });
+        await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...reserve, button: 'left', clickCount: 1 });
+        assert.ok(await evaluate('!!__entanglementPath.versus.view.flight'), 'reserve uses the shared 260ms swap animation');
+      }
       await key('Enter');
       await wait('__entanglementPath.versus.match.turn === "human" || !!__entanglementPath.versus.match.winner', 'race AI replies');
       assert.equal(await evaluate('__entanglementPath.versus.match.machine.placed.size'), 1);
@@ -89,13 +111,15 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       })()`);
       assert.ok(final.ends && final.moves > 2); assert.equal(final.winner, final.human === final.machine ? 'draw' : final.human > final.machine ? 'human' : 'machine');
       await capture('race-result');
-      await key('Enter'); await ready();
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x:width/2, y:height/2, button: 'left', clickCount: 1 });
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', x:width/2, y:height/2, button: 'left', clickCount: 1 });
+      await ready();
       assert.equal(await evaluate('__entanglementPath.versus.match.moves.length'), 0);
       assert.equal(await evaluate('__entanglementPath.versus.seed'), 177, 'rematch keeps the same seed');
-      for (const index of [1, 2, 3, 4, 0]) {
+      for (const index of [1, 2, 3, 0]) {
         await evaluate(`(async () => { await __entanglementPath.versus.newMatch(177, ${index}); })()`);
         assert.ok(await evaluate('__entanglementPath.versus.match.human.next.id === 1 && __entanglementPath.versus.match.machine.next.id === 1'));
-        if (index >= 3) await capture(index === 3 ? 'trident-race' : 'blossom-race');
+        if (index >= 2) await capture(index === 2 ? 'trident-race' : 'blossom-race');
       }
       // Hide the DOM controls, then click their engine-rendered copies through the original canvas.
       await evaluate('__entanglementPath.versus.toolbar.style.visibility = "hidden"');
@@ -106,9 +130,24 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await evaluate(`(async () => { const v = __entanglementPath.versus; await Promise.all([v.newMatch(1), v.newMatch(2), v.newMatch(3)]); })()`);
       assert.equal(await evaluate('__entanglementPath.versus.match.seed'), 3, 'latest async terrain job wins');
       await key('m'); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'solo');
-      await evaluate(`(() => { const s = __entanglementPath.versus.levelSelect; s.focus(); s.value = '3'; s.dispatchEvent(new Event('change')); })()`); await ready();
-      await wait('__entanglementPath.levelIndex === 3 && __entanglementPath.phase === "playing"', 'solo selector loads the reference board');
+      await evaluate(`(() => { const s = __entanglementPath.versus.levelSelect; s.focus(); s.value = '2'; s.dispatchEvent(new Event('change')); })()`); await ready();
+      await wait('__entanglementPath.levelIndex === 2 && __entanglementPath.phase === "playing"', 'solo selector loads the reference board');
       assert.ok(await evaluate('document.activeElement === __entanglementPath.engine.canvas'), 'selection returns focus to gameplay');
+      await evaluate(`(async () => {
+        const g=__entanglementPath; g.placeCurrentTile(); await g.saves.flush();
+        const old=await g.saves.load(); delete old.levelId; delete old.levelIds;
+        old.levelIndex=3; old.bestByLevel=[11,22,999,33,44]; await g.saves.saveNow(old);
+      })()`);
+      await evaluate('window.__entanglementPath=undefined'); await cdp.call('Page.reload'); await ready();
+      assert.deepEqual(await evaluate('({index:__entanglementPath.levelIndex,placed:__entanglementPath.placed.size,best:__entanglementPath.best})'),
+        { index:2, placed:1, best:33 }, 'legacy trident save follows the removed-map index shift');
+      await evaluate(`(async () => {
+        const g=__entanglementPath, old=await g.saves.load(); delete old.levelId; delete old.levelIds;
+        old.levelIndex=2; old.bestByLevel=[11,22,999,33,44]; await g.saves.saveNow(old);
+      })()`);
+      await evaluate('window.__entanglementPath=undefined'); await cdp.call('Page.reload'); await ready();
+      assert.deepEqual(await evaluate('({index:__entanglementPath.levelIndex,placed:__entanglementPath.placed.size,best:__entanglementPath.best})'),
+        { index:0, placed:0, best:11 }, 'removed spiral starts a clean classic board without applying its pieces to trident');
       await evaluate(`(() => { const s = __entanglementPath.versus.levelSelect; s.value = '0'; s.dispatchEvent(new Event('change')); })()`); await ready();
       await wait('__entanglementPath.levelIndex === 0 && __entanglementPath.phase === "playing"', 'solo selector returns to classic');
       assert.ok(await evaluate('!__entanglementPath.versus.active && document.querySelector("#canvas").style.visibility !== "hidden"'));
@@ -133,7 +172,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await pad(9); await ready(); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'solo');
       await evaluate('__vsPad.connected = false');
       const payload = { status: 'passed', checks: ['real-mode-buttons', 'shared-board', 'rotation-and-reserve', 'machine-turn-input-lock', 'automatic-greedy-reply',
-        'pending-turn-save-restore', 'seeded-independent-race', 'canvas-controls', 'two-board-results', 'seeded-rematch', 'five-board-shapes', 'engine-toolbar-hit-forwarding',
+        'pending-turn-save-restore', 'seeded-independent-race', 'canvas-controls', 'two-board-results', 'seeded-rematch', 'four-board-shapes', 'engine-toolbar-hit-forwarding',
         'cancelled-map-jobs', 'return-to-solo', 'gamepad-mode-reserve-rotation'], final };
       await evaluate(`(() => { const node = document.createElement('pre'); node.id = 'result'; node.hidden = true; node.dataset.status = 'passed'; node.textContent = ${JSON.stringify(JSON.stringify(payload))}; document.body.append(node); })()`);
     },
