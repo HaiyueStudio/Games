@@ -121,6 +121,7 @@
       "games/test/entanglement-ink.test.mjs",
       "games/test/entanglement-river.test.mjs",
       "games/test/entanglement-terrain.test.mjs",
+      "games/test/entanglement-versus.test.mjs",
       "games/test/entanglement-wfc.test.mjs"
     ],
     "icosahedron-minesweeper": [

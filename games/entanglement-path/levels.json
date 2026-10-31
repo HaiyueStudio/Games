@@ -63,6 +63,28 @@
         { "q": 3, "r": -1 },
         { "q": -2, "r": 1 }
       ]
+    },
+    {
+      "id": "trident",
+      "name": "三岔",
+      "shape": "trident",
+      "orientation": "flat",
+      "start": { "q": 0, "r": 0 },
+      "entry": 4,
+      "hexScreen": 34,
+      "startWall": true,
+      "randomStartExit": true
+    },
+    {
+      "id": "blossom",
+      "name": "六瓣",
+      "shape": "blossom",
+      "orientation": "flat",
+      "start": { "q": 0, "r": 0 },
+      "entry": 4,
+      "hexScreen": 26,
+      "startWall": true,
+      "randomStartExit": true
     }
   ]
 }

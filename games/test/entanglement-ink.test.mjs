@@ -7,7 +7,7 @@ import { decodePng } from '../../../Engine/scripts/visual-regression/png.mjs';
 const hook = registerHooks({ resolve(specifier, context, next) {
   return next(/^\.{1,2}\//.test(specifier) && !/\.[a-z0-9]+$/i.test(specifier) ? `${specifier}.ts` : specifier, context);
 } });
-const { brushEdgePoint, hexCenter, hexPlaneSize, pathCurve, HEX_TEXTURE_STRETCH } = await import('../entanglement-path/art/hexGeometry.ts');
+const { brushEdgePoint, hexCenter, hexPlaneSize, boardCenter, boardPlaneSize, pathCurve, HEX_TEXTURE_STRETCH } = await import('../entanglement-path/art/hexGeometry.ts');
 hook.deregister();
 
 test('ink variation is deterministic, spatially continuous and independent per board cell', () => {
@@ -97,6 +97,23 @@ test('scroll opens before ink dissolves, with bounded monotone crossfade and exa
     assert.equal(veilAlpha(noise, 0), 1); assert.equal(veilAlpha(noise, 1), 0);
   }
   assert.notEqual(veilAlpha(.25, .5), veilAlpha(.75, .5));
+});
+
+test('flat-top reference boards rotate centers, dimensions and river seam tangents together', () => {
+  const directions = [[1,0], [0,1], [-1,1], [-1,0], [0,-1], [1,-1]];
+  for (const screen of [24.7, 32.3]) {
+    const plane = hexPlaneSize(screen), flat = boardPlaneSize(screen, 'flat');
+    assert.deepEqual(flat, { width: plane.height, height: plane.width });
+    const map = p => ({ x: -(p.y - 128) * plane.height / 256, y: (p.x - 128) * HEX_TEXTURE_STRETCH * plane.width / 256 });
+    for (let port = 0; port < 12; port++) {
+      const side = Math.floor(port / 2), opposite = ((side + 3) % 6) * 2 + 1 - port % 2;
+      const center = boardCenter(...directions[side], screen, 'flat');
+      const a = pathCurve((port + 5) % 12, port), b = pathCurve(opposite, (opposite + 5) % 12);
+      const end = map(a.end), start = map(b.start), ca = map(a.control2), cb = map(b.control1);
+      assert.ok(Math.hypot(end.x - start.x - center.x, end.y - start.y - center.y) < 1e-9);
+      assert.ok(Math.hypot(end.x - ca.x - cb.x + start.x, end.y - ca.y - cb.y + start.y) < 1e-9);
+    }
+  }
 });
 
 test('ink bitmap atlas contains ten Arabic digits and two symbols with usable alpha and BMFont metadata', () => {

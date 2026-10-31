@@ -154,11 +154,15 @@ export class ConnectedTerrainArt {
     const c = makeCanvas(), ctx = c.getContext('2d')!; ctx.drawImage(this.base(node), 0, 0); ctx.drawImage(this.fog(node), 0, 0); return c;
   }
 
-  backdrop(cells: { node: TerrainNode; x: number; y: number }[], width: number, height: number): { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number } {
+  backdrop(cells: { node: TerrainNode; x: number; y: number }[], width: number, height: number, angle = 0): { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number } {
     const left = Math.min(...cells.map(c => c.x)) - width / 2, top = Math.min(...cells.map(c => c.y)) - height / 2;
     const right = Math.max(...cells.map(c => c.x)) + width / 2, bottom = Math.max(...cells.map(c => c.y)) + height / 2;
     const scale = 1024 / (right - left), c = makeCanvas(1024, Math.ceil((bottom - top) * scale)), ctx = c.getContext('2d')!;
-    for (const cell of cells) ctx.drawImage(this.base(cell.node), (cell.x - width / 2 - left) * scale, (cell.y - height / 2 - top) * scale, width * scale, height * scale);
+    for (const cell of cells) {
+      ctx.save(); ctx.translate((cell.x - left) * scale, (cell.y - top) * scale); ctx.rotate(angle);
+      const w = (angle ? height : width) * scale, h = (angle ? width : height) * scale;
+      ctx.drawImage(this.base(cell.node), -w / 2, -h / 2, w, h); ctx.restore();
+    }
     // Keep the painted sea within the scroll paper and softly dissolve its outer map boundary.
     ctx.globalCompositeOperation = 'destination-in';
     ctx.save(); ctx.translate(c.width / 2, c.height / 2); ctx.scale(1, c.height / c.width);

@@ -1,6 +1,8 @@
 import { inkHash, inkNoise } from './inkNoise';
 
 export interface InkPoint { x: number; y: number }
+export type HexOrientation = 'pointy' | 'flat';
+export const boardAngle = (orientation: HexOrientation = 'pointy'): number => orientation === 'flat' ? Math.PI / 2 : 0;
 export const HEX_RADIUS = 117;
 export const HEX_TEXTURE_STRETCH = 1.15;
 export const HEX_TEXTURE_SIZE = 256;
@@ -14,6 +16,16 @@ export function hexPoint(index: number, radius = HEX_RADIUS, center = 128): InkP
 
 export function hexCenter(q: number, r: number, screenRadius: number): InkPoint {
   return { x: 2 * screenRadius * (q + r / 2), y: Math.sqrt(3) * screenRadius * r };
+}
+
+export function boardCenter(q: number, r: number, screenRadius: number, orientation: HexOrientation = 'pointy'): InkPoint {
+  const p = hexCenter(q, r, screenRadius);
+  return orientation === 'flat' ? { x: -p.y, y: p.x } : p;
+}
+
+export function boardPlaneSize(screenRadius: number, orientation: HexOrientation = 'pointy'): { width: number; height: number } {
+  const size = hexPlaneSize(screenRadius);
+  return orientation === 'flat' ? { width: size.height, height: size.width } : size;
 }
 
 /** The canvas stretch cancels the plane aspect, so both axes share one physical scale. */

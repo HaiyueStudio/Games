@@ -38,6 +38,7 @@
           "{workspaceRoot}/games/test/entanglement-ink.test.mjs",
           "{workspaceRoot}/games/test/entanglement-river.test.mjs",
           "{workspaceRoot}/games/test/entanglement-terrain.test.mjs",
+          "{workspaceRoot}/games/test/entanglement-versus.test.mjs",
           "{workspaceRoot}/games/test/entanglement-wfc.test.mjs"
         ]
       }

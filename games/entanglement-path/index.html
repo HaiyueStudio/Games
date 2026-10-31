@@ -28,6 +28,29 @@
       touch-action: none;
       cursor: pointer;
     }
+    [hidden] { display: none !important; }
+    .versus-toolbar {
+      position: fixed; top: max(14px, 8.5dvh); left: 50%; transform: translateX(-50%);
+      z-index: 6; display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+      gap: 6px; max-width: 86vw; width: max-content; color: #263e36; font-size: 15px;
+    }
+    .versus-toolbar button, .versus-toolbar input, .versus-toolbar select {
+      font: inherit; color: inherit; border: 1px solid #74765e; border-radius: 2px;
+      background: rgba(243, 235, 214, .92); min-height: 34px; padding: 4px 10px;
+    }
+    .versus-toolbar button { cursor: pointer; }
+    .versus-toolbar button[aria-pressed="true"] { color: #faf0d8; border-color: #863e30; background: #914b39; }
+    .versus-toolbar input { width: 108px; padding: 4px; }
+    .versus-settings { display: flex; align-items: center; gap: 6px; }
+    .versus-toolbar[data-mode="solo"] .versus-settings, .versus-toolbar[data-mode="solo"] .versus-announcement { display: none; }
+    .versus-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .versus-toolbar :focus-visible { outline: 2px solid #934332; outline-offset: 2px; }
+    @media (max-width: 650px) {
+      .versus-toolbar { font-size: 13px; gap: 3px; max-width: 89vw; }
+      .versus-toolbar button, .versus-toolbar select { padding: 4px 7px; }
+      .versus-settings { gap: 3px; width: 100%; justify-content: center; }
+      .versus-toolbar input { width: 84px; }
+    }
   </style>
 </head>
 <body>
