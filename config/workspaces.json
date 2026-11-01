@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "phase": "full",
   "games": [
+    "ink-twin",
     "whale-maker",
     "glass-rush",
     "valley-of-light",
@@ -119,6 +120,7 @@
     ],
     "entanglement-path": [
       "games/test/entanglement-ink.test.mjs",
+      "games/test/entanglement-life.test.mjs",
       "games/test/entanglement-river.test.mjs",
       "games/test/entanglement-terrain.test.mjs",
       "games/test/entanglement-versus.test.mjs",
@@ -259,6 +261,9 @@
       "games/test/render3d-system-policy.test.mjs",
       "games/test/test-selection.test.mjs",
       "games/test/workspaces-policy.test.mjs"
+    ],
+    "ink-twin": [
+      "games/test/ink-twin.test.mjs"
     ]
   }
 }

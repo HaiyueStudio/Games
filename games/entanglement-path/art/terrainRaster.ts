@@ -1,7 +1,7 @@
 import { HEX_RADIUS } from './hexGeometry';
 import { inkNoise } from './inkNoise';
-import { terrainHeight, type TerrainNode } from './terrainWfc';
-export interface TerrainRaster { key: string; pixels: Uint8ClampedArray; waves: Float32Array }
+import { terrainHeight, mountainCover, type TerrainNode } from './terrainWfc';
+export interface TerrainRaster { key: string; pixels: Uint8ClampedArray; mountains: Uint8ClampedArray; waves: Float32Array }
 export interface TerrainRasterRequest { id: number; seed: number; nodes: TerrainNode[] }
 export interface TerrainRasterResponse { id: number; tiles?: TerrainRaster[]; error?: string; elapsedMs: number }
 export const TERRAIN_RASTER_SIZE = 48;
@@ -9,7 +9,7 @@ export const TERRAIN_RASTER_SIZE = 48;
 /** Pure CPU terrain field calculation, shared with Node tests and run in the dedicated terrain worker. */
 export function rasterizeTerrain(node: TerrainNode, seed: number): TerrainRaster {
   const origin = { x: (node.q + node.r / 2) * HEX_RADIUS * Math.sqrt(3), y: node.r * HEX_RADIUS * 1.5 };
-  const size = TERRAIN_RASTER_SIZE, pixels = new Uint8ClampedArray(size * size * 4), waves: number[] = [];
+  const size = TERRAIN_RASTER_SIZE, pixels = new Uint8ClampedArray(size * size * 4), mountains = new Uint8ClampedArray(size * size * 4), waves: number[] = [];
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const px = (x + .5) * 256 / size, py = (y + .5) * 256 / size, wx = px - 128 + origin.x, wy = py - 128 + origin.y;
     const height = terrainHeight(node, px, py, seed), t = Math.max(0, Math.min(1, (height - .37) / .21)), land = t * t * (3 - 2 * t);
@@ -17,6 +17,8 @@ export function rasterizeTerrain(node: TerrainNode, seed: number): TerrainRaster
     const sea = [175, 201, 194], soil = [219, 222, 197], paper = [244, 239, 219], i = (y * size + x) * 4;
     for (let c = 0; c < 3; c++) pixels[i + c] = (sea[c]! * (1 - land) + soil[c]! * land) * (1 - shore) + paper[c]! * shore + grain;
     pixels[i + 3] = 255;
+    const cover=mountainCover(node,px,py,seed,height);
+    mountains[i]=71+grain;mountains[i+1]=96+grain;mountains[i+2]=83+grain;mountains[i+3]=cover*255;
   }
   for (let row = Math.floor((origin.y - 128) / 24); row < (origin.y + 128) / 24; row++) {
     waves.push(NaN, NaN);
@@ -25,5 +27,5 @@ export function rasterizeTerrain(node: TerrainNode, seed: number): TerrainRaster
       if (terrainHeight(node, x, y, seed) < .33) waves.push(x, y); else waves.push(NaN, NaN);
     }
   }
-  return { key: `${node.q},${node.r}`, pixels, waves: new Float32Array(waves) };
+  return { key: `${node.q},${node.r}`, pixels, mountains, waves: new Float32Array(waves) };
 }

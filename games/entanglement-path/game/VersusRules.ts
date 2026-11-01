@@ -7,6 +7,7 @@ export type Pairing = [number, number][];
 export interface VersusLevel {
   cells: Axial[]; wallKeys: Set<string>; start: Axial; entry: number;
   startWall: boolean; randomStartExit: boolean; tileLibrary: Pairing[];
+  unbounded?: boolean;
 }
 export interface VersusTile { id: number; pairs: Pairing; variant: number }
 export interface Choice { swap: boolean; rotation: number }
@@ -45,9 +46,9 @@ export function connectedPort(tile: VersusTile, rotation: number, entry: number)
   throw new Error('Tile does not pair every port');
 }
 function playable(level: VersusLevel, point: Axial): boolean {
-  return !level.wallKeys.has(cellKey(point)) && level.cells.some(c => c.q === point.q && c.r === point.r);
+  return !level.wallKeys.has(cellKey(point)) && (level.unbounded === true || level.cells.some(c => c.q === point.q && c.r === point.r));
 }
-function createBoard(level: VersusLevel, seed: number): VersusBoard {
+export function createSeededBoard(level: VersusLevel, seed: number): VersusBoard {
   let current = { ...level.start }, entry = level.entry, sourceExit: number | null = null;
   if (level.startWall) {
     const candidates: { point: Axial; port: number }[] = [];
@@ -64,7 +65,7 @@ function createBoard(level: VersusLevel, seed: number): VersusBoard {
     next: seededTile(level, seed, 1), reserve: seededTile(level, seed, 2), serial: 2,
     score: 0, length: 0, ended: false, routes: [] };
 }
-function trace(level: VersusLevel, board: VersusBoard): void {
+export function traceBoard(level: VersusLevel, board: VersusBoard): void {
   let point = { ...board.start }, entry = board.entry;
   const visited = new Set<string>(), segments = new Set<string>();
   board.routes = []; board.ended = true;
@@ -88,14 +89,14 @@ function trace(level: VersusLevel, board: VersusBoard): void {
 function validChoice(choice: Choice): boolean {
   return typeof choice.swap === 'boolean' && Number.isInteger(choice.rotation) && choice.rotation >= 0 && choice.rotation < 6;
 }
-function apply(level: VersusLevel, seed: number, board: VersusBoard, choice: Choice): void {
+export function applyBoardChoice(level: VersusLevel, seed: number, board: VersusBoard, choice: Choice): void {
   if (board.ended || !validChoice(choice) || !playable(level, board.current) || board.placed.has(cellKey(board.current))) {
     throw new Error('Invalid versus placement');
   }
   if (choice.swap) [board.next, board.reserve] = [board.reserve, board.next];
   board.placed.set(cellKey(board.current), { tile: board.next, rotation: choice.rotation,
     entry: board.incoming, exit: connectedPort(board.next, choice.rotation, board.incoming), order: board.placed.size + 1 });
-  trace(level, board);
+  traceBoard(level, board);
   if (!board.ended) board.next = seededTile(level, seed, ++board.serial);
 }
 export interface Evaluation extends Choice { ended: boolean; gain: number; score: number }
@@ -104,7 +105,7 @@ export function evaluateChoices(level: VersusLevel, seed: number, board: VersusB
   const choices: Evaluation[] = [];
   for (const swap of [false, true]) for (let rotation = 0; rotation < 6; rotation++) {
     const copy = { ...board, placed: new Map(board.placed) };
-    apply(level, seed, copy, { swap, rotation });
+    applyBoardChoice(level, seed, copy, { swap, rotation });
     choices.push({ swap, rotation, ended: copy.ended, gain: copy.score - board.score, score: copy.score });
   }
   return choices;
@@ -129,13 +130,13 @@ export class VersusMatch {
     this.level = level; this.seed = seed; this.mode = mode;
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error('Seed must be uint32');
     if (!level.cells.length || level.cells.length > 512) throw new Error('Versus board must contain 1–512 cells');
-    this.human = createBoard(level, seed);
-    this.machine = mode === 'shared' ? this.human : createBoard(level, seed);
+    this.human = createSeededBoard(level, seed);
+    this.machine = mode === 'shared' ? this.human : createSeededBoard(level, seed);
   }
   board(player: Player): VersusBoard { return player === 'human' ? this.human : this.machine; }
   play(player: Player, choice: Choice): void {
     if (this.winner || player !== this.turn) throw new Error('It is not this player’s turn');
-    apply(this.level, this.seed, this.board(player), choice);
+    applyBoardChoice(this.level, this.seed, this.board(player), choice);
     this.moves.push({ player, swap: choice.swap, rotation: choice.rotation });
     if (this.mode === 'shared') {
       if (this.human.ended) this.winner = player === 'human' ? 'machine' : 'human';

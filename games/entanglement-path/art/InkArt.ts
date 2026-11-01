@@ -19,7 +19,7 @@ async function imageAt(url: string): Promise<HTMLImageElement> {
 export class InkArt {
   private constructor(readonly landscape: HTMLImageElement, readonly ui: HTMLImageElement,
     readonly digits: HTMLImageElement, readonly metrics: FontMetrics, readonly titleImage: HTMLImageElement,
-    readonly arrowImage: HTMLImageElement, readonly mountainImage: HTMLImageElement, connectorImage: HTMLImageElement) { this.connected = new ConnectedTerrainArt(connectorImage); }
+    readonly arrowImage: HTMLImageElement, readonly mountainImage: HTMLImageElement, connectorImage: HTMLImageElement) { this.connected = new ConnectedTerrainArt(connectorImage,mountainImage); }
   readonly connected: ConnectedTerrainArt;
   private readonly tiles = new Map<string, HTMLCanvasElement>();
   private readonly washLayers = new Map<string, HTMLCanvasElement>();

@@ -7,7 +7,7 @@ scope.onmessage = ({ data }) => {
   const start = performance.now();
   try {
     const tiles = data.nodes.map(node => rasterizeTerrain(node, data.seed));
-    scope.postMessage({ id: data.id, tiles, elapsedMs: performance.now() - start }, tiles.flatMap(tile => [tile.pixels.buffer, tile.waves.buffer]));
+    scope.postMessage({ id: data.id, tiles, elapsedMs: performance.now() - start }, tiles.flatMap(tile => [tile.pixels.buffer, tile.mountains.buffer, tile.waves.buffer]));
   } catch (error) {
     scope.postMessage({ id: data.id, error: String(error), elapsedMs: performance.now() - start }, []);
   }

@@ -10,7 +10,7 @@ import { InkArt, INK_FONT, ScrollReveal } from '../art/InkArt';
 import { INK, PAPER, INTRO_DURATION_MS, cellPigment } from '../art/inkNoise';
 import { boardCenter, boardAngle, boardPlaneSize, hexPlaneSize, type HexOrientation } from '../art/hexGeometry';
 import { drawRiverTile as drawHexPath, drawWetInkHalo } from '../art/RiverPainter';
-import { RiverFlow, type RiverRoute } from '../art/riverFlow';
+import { RiverFlow, type RiverRoute, type RiverScoreStep } from '../art/riverFlow';
 import { collapseTerrain, extendTerrainSites, type TerrainWorld, type TerrainSite } from '../art/terrainWfc';
 import { VersusController } from './VersusController';
 import { createBoardShape, type BoardShape } from './boardShapes';
@@ -149,14 +149,6 @@ interface SwapOverlay {
 
 
 
-interface FloatingScoreLabel {
-  entity: Entity;
-  transform: CartesianTransform3D;
-  material: BasicMaterial;
-  startTime: number;
-  startPosition: [number, number, number];
-}
-
 type RotateButtonKind = 'ccw' | 'cw';
 
 interface RotateButtonState {
@@ -234,9 +226,6 @@ const SWAP_TEXT_Z = 1.03;
 const SCORE_PANEL_W = 200;
 const SCORE_PANEL_H = 170;
 
-const SCORE_POPUP_DURATION = 1500;
-const SCORE_POPUP_FADE_START = 650;
-const SCORE_POPUP_RISE = 0.88;
 const ROTATE_BUTTON_W = 32;
 const ROTATE_BUTTON_H = 35;
 const ROTATE_BUTTON_Z = 1.06;
@@ -563,6 +552,7 @@ class EntanglementPathGame {
   private phase: Phase = 'playing';
   private score = 0;
   private pathLength = 0;
+  private displayedScore = -1;
   private best = 0;
   private bestByLevel: number[] = [];
   private tileSerial = 0;
@@ -622,7 +612,6 @@ class EntanglementPathGame {
   private previewSpinFrom = 0;
   private previewSpinTo = 0;
   private readonly previewSpinDuration = TURN_DURATION;
-  private scorePopups: FloatingScoreLabel[] = [];
   private rotateButtons: RotateButtonState[] = [];
   private pointerCanvasPoint: { x: number; y: number } | null = null;
 
@@ -678,17 +667,17 @@ class EntanglementPathGame {
     this.syncAll();
     this.updateViewport();
     this.startIntro();
-    this.versus = new VersusController({ canvas, levels: this.levels, ready: () => !this.introActive && this.phase !== 'loading',
+    this.versus = new VersusController({ canvas, art: this.art, levels: this.levels, ready: () => !this.introActive && this.phase !== 'loading',
       soloLevel: () => this.levelIndex, selectSoloLevel: index => this.loadLevel(index, true),
       now: gameTime, present: source => this.presentVersus(source), sound: (kind, gain = 1) => {
         void (kind === 'turn' ? this.playTurnSound() : kind === 'end' ? this.playEndSound() : kind === 'place' ? this.playLineSound(gain) : this.playSfxClip('swap-tile'));
       } });
     this.engine.on('update', ({ detail: { time } }) => {
       this.versus?.update();
-      if (this.versus?.active) { this.world.update(time, 16); return; }
+      if (this.versus && this.versus.mode!=='solo') { this.world.update(time, 16); return; }
+      if ((this.versus?.soloDisplayScore(this.score)??this.score)!==this.displayedScore) this.syncScore();
       this.updateSwapPanelHover();
       this.updateSwapAnimation();
-      this.updateScorePopups();
       this.updateCurrentCell();
       this.updateRotateButtons();
       this.updatePreviewRotationAnimation();
@@ -873,6 +862,7 @@ class EntanglementPathGame {
     this.cameraTransform.setPosition(this.cameraX, 0, 10);
     this.backgroundTransform.setPosition(this.cameraX, 0, -.55).setScale(this.viewWidth, this.viewHeight, 1);
     this.introTransform?.setPosition(this.cameraX, 0, 4).setScale(this.viewWidth, this.viewHeight, 1);
+    if(this.versusOverlay?.transform.scale[0])this.versusOverlay.transform.setPosition(this.cameraX,0,3).setScale(this.viewWidth,this.viewHeight,1);
     for (const item of this.uiPlanes.values()) item.transform.setPosition(...screenToWorld(item.x, item.y, item.z));
     const place = (name: string, x: number, y: number) => {
       const item = this.uiPlanes.get(name); item?.transform.setPosition(x, y, item.z);
@@ -1241,7 +1231,9 @@ class EntanglementPathGame {
   private bindInput(canvas: HTMLCanvasElement): void {
     this.removeInput = bindBoardInput(canvas, {
       ready: () => !this.introActive && this.phase !== 'loading',
-      token: () => `${this.versus?.mode}:${this.levelIndex}`,
+      token: () => `${this.versus?.active}:${this.versus?.mode}:${this.levelIndex}`,
+      routeKey: event=>this.versus?.selectorKey(event)??false,
+      swipe: (from,to)=>this.versus?.selectorSwipe(from,to)??false,
       click: event => {
         if (this.versus?.pointer(event.clientX, event.clientY)) return;
         if (this.phase === 'ended') { void this.reset(); return; }
@@ -1484,13 +1476,13 @@ class EntanglementPathGame {
       order: this.placed.size + 1,
     });
     const trace = this.rebuildActivePath();
-    this.riverFlow.connect(this.activeRiverRoutes(), gameTime());
+    const scoreSteps=this.riverFlow.connect(this.activeRiverRoutes(), gameTime());
     this.redrawPlacedTiles();
     this.pathLength = this.calculatePathLength();
     this.redrawSourceCell();
     const addedLength = Math.max(0, this.pathLength - previousPathLength);
     this.score += triangularScore(addedLength);
-    this.spawnScorePopups(addedLength);
+    this.spawnScorePopups(scoreSteps);
     void this.playLineSound(addedLength);
     if (this.score > this.best) {
       this.best = this.score;
@@ -1859,109 +1851,22 @@ class EntanglementPathGame {
     return length;
   }
 
-  private activePathCellKeysInOrder(): AxialKey[] {
-    const result: AxialKey[] = [];
-    let current = { ...this.pathStart };
-    let incoming = this.pathEntry;
-    const visited = new Set<string>();
-
-    for (let step = 0; step < this.placed.size * 12 + 1; step++) {
-      const currentKey = key(current.q, current.r);
-      const occupied = this.placed.get(currentKey);
-      const cell = this.cells.get(currentKey);
-      if (!cell || cell.wall || !occupied) return result;
-
-      const traceKey = `${currentKey}:${incoming}`;
-      if (visited.has(traceKey)) return result;
-      visited.add(traceKey);
-      result.push(currentKey);
-
-      const outgoing = this.findExitSide(occupied.tile, occupied.rotation, incoming);
-      const dir = requiredItemAt(DIRECTIONS, portSide(outgoing), 'hex directions');
-      current = { q: current.q + dir.q, r: current.r + dir.r };
-      incoming = oppositePort(outgoing);
-    }
-
-    return result;
-  }
-
-  private spawnScorePopups(addedLength: number): void {
-    if (addedLength <= 0) return;
-    const pathKeys = this.activePathCellKeysInOrder();
-    const popupKeys = pathKeys.slice(Math.max(0, pathKeys.length - addedLength));
-    popupKeys.forEach((cellKey, index) => {
-      const cell = this.cells.get(cellKey);
-      if (!cell) return;
-      this.createScorePopup(index + 1, cell, index);
-    });
-  }
-
-  private createScorePopup(value: number, cell: BoardCell, index: number): void {
-    const texture = document.createElement('canvas'); texture.width = 128; texture.height = 72;
-    this.art.drawNumber(texture.getContext('2d')!, '+' + value, 64, 7, 48, INK, 'center');
-
-    const material = new BasicMaterial({
-      texture: this.canvasToGpuTexture(texture),
-      color: [1, 1, 1, 1],
-      blending: 'normal',
-      depthWrite: false,
-    });
-    const jitterX = ((index % 3) - 1) * 0.16;
-    const jitterY = Math.floor(index / 3) * 0.1;
-    const startPosition = [
-      requiredNumberAt(cell.transform.position, 0, 'score popup cell position') + jitterX,
-      requiredNumberAt(cell.transform.position, 1, 'score popup cell position') + 0.34 + jitterY,
-      1.08,
-    ] as [number, number, number];
-    const transform = new CartesianTransform3D({
-      position: startPosition,
-      scale: [0.58, 0.33, 1],
-    });
-    const entity = new Entity(`Score Popup +${value}`);
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
-    this.world.addEntity(entity);
-    this.scorePopups.push({
-      entity,
-      transform,
-      material,
-      startTime: gameTime(),
-      startPosition,
-    });
-  }
-
-  private updateScorePopups(): void {
-    if (this.scorePopups.length === 0) return;
-    const now = gameTime();
-    for (let index = this.scorePopups.length - 1; index >= 0; index--) {
-      const popup = requiredItemAt(this.scorePopups, index, 'score popups');
-      const elapsed = now - popup.startTime;
-      if (elapsed >= SCORE_POPUP_DURATION) {
-        if (this.world.hasEntity(popup.entity)) this.world.removeEntity(popup.entity);
-        (popup.material.texture as GPUTexture).destroy();
-        this.scorePopups.splice(index, 1);
-        continue;
-      }
-      const progress = elapsed / SCORE_POPUP_DURATION;
-      popup.transform.setPosition(
-        popup.startPosition[0],
-        popup.startPosition[1] + SCORE_POPUP_RISE * progress,
-        popup.startPosition[2],
-      );
-      if (elapsed >= SCORE_POPUP_FADE_START) {
-        const fadeProgress = (elapsed - SCORE_POPUP_FADE_START) / (SCORE_POPUP_DURATION - SCORE_POPUP_FADE_START);
-        popup.material.color.a = Math.max(0, 1 - fadeProgress);
-      }
+  private spawnScorePopups(steps: readonly RiverScoreStep[]): void {
+    const canvas=this.engine.canvas;if(!this.versus||!canvas)return;
+    for(const step of steps) {
+      const cell=this.cells.get(step.cell);if(!cell)continue;
+      this.versus.soloScore(step,()=>{
+        const rect=canvas.getBoundingClientRect(),panel=this.uiPlanes.get('Score Panel')!.transform;
+        const project=(x:number,y:number)=>({x:(.5+(x-this.cameraX)/this.viewWidth)*rect.width,y:(.5-y/this.viewHeight)*rect.height});
+        const width=String(this.versus?.soloDisplayScore(this.score)??this.score).length*48*.63-48*.08;
+        return {from:project(cell.transform.position[0]!,cell.transform.position[1]!),
+          to:project(panel.position[0]!+((6+width/2)/200-.5)*panel.scale[0]!,panel.position[1]!+(.5-56/170)*panel.scale[1]!),
+          height:rect.width/rect.height<.95?27:38};
+      });
     }
   }
 
-  private clearScorePopups(): void {
-    for (const popup of this.scorePopups) {
-      if (this.world.hasEntity(popup.entity)) this.world.removeEntity(popup.entity);
-      (popup.material.texture as GPUTexture).destroy();
-    }
-    this.scorePopups = [];
-  }
+  private clearScorePopups(): void { this.versus?.clearSoloScores(); }
 
   private syncPreview(): void {
     if (this.phase !== 'playing') {
@@ -2083,7 +1988,8 @@ class EntanglementPathGame {
   }
 
   private syncScore(): void {
-    this.uploadCanvas(this.scoreText.material.texture as GPUTexture, this.art.score(this.score, this.pathLength, this.placed.size, this.best));
+    this.displayedScore=this.versus?.soloDisplayScore(this.score)??this.score;
+    this.uploadCanvas(this.scoreText.material.texture as GPUTexture, this.art.score(this.displayedScore, this.pathLength, this.placed.size, this.best));
   }
 
   private updateCurrentCell(): void {

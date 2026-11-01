@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 const hook = registerHooks({ resolve(s, c, n) { return n(/^\.{1,2}\//.test(s) && !/\.[a-z0-9]+$/i.test(s) ? `${s}.ts` : s, c); } });
-const { collapseTerrain, extendTerrainSites, TERRAIN_DIRECTIONS, TERRAIN_CATALOG, terrainKey, edgeSocket, ridgePort, terrainHeight } = await import('../entanglement-path/art/terrainWfc.ts');
+const { collapseTerrain, extendTerrainSites, openTerrain, mountainCover, TERRAIN_DIRECTIONS, TERRAIN_CATALOG, terrainKey, edgeSocket, ridgePort, terrainHeight } = await import('../entanglement-path/art/terrainWfc.ts');
 const { hexPoint, hexCenter, HEX_RADIUS } = await import('../entanglement-path/art/hexGeometry.ts');
 const { rasterizeTerrain, TERRAIN_RASTER_SIZE } = await import('../entanglement-path/art/terrainRaster.ts');
 hook.deregister();
@@ -15,6 +15,26 @@ function board(radius = 4) {
   }
   return result;
 }
+
+test('open terrain has exact shore seams, no mountain rim, and stable tiles when its extent grows', () => {
+  const initial=board(3), expanded=[...board(5),{q:200,r:-250}];
+  for(const seed of [0,7,177]) {
+    const small=openTerrain(initial,seed), large=openTerrain(expanded.reverse(),seed);
+    for(const [key,node] of small.nodes) assert.deepEqual(large.nodes.get(key),node);
+    for(const node of large.nodes.values()) {
+      assert.equal(node.kind,'play'); assert.equal(node.ridges,0);
+      for(let side=0;side<6;side++) {
+        const [dq,dr]=TERRAIN_DIRECTIONS[side], other=large.nodes.get(terrainKey(node.q+dq,node.r+dr));
+        if(!other)continue;
+        const a=edgeSocket(node.corners,side),b=edgeSocket(other.corners,(side+3)%6);
+        assert.equal(a,((b&1)<<1)|(b>>1));
+        const center=hexCenter(dq,dr,HEX_RADIUS*Math.sqrt(3)/2),aPoint=hexPoint(side),bPoint=hexPoint(side+1);
+        const x=(aPoint.x+bPoint.x)/2,y=(aPoint.y+bPoint.y)/2;
+        assert.ok(Math.abs(terrainHeight(node,x,y,seed)-terrainHeight(other,x-center.x,y-center.y,seed))<1e-8);
+      }
+    }
+  }
+});
 
 test('terrain catalog declares all 64 shoreline cases, with exact reversed sockets on every neighbor', () => {
   assert.equal(TERRAIN_CATALOG.length, 64); assert.equal(new Set(TERRAIN_CATALOG.map(t => t.id)).size, 64);
@@ -38,6 +58,7 @@ test('dedicated terrain worker payloads contain deterministic transferable pixel
   for (const node of [...world.nodes.values()].filter((_, i) => i % 11 === 0)) {
     const a = rasterizeTerrain(node, world.seed), b = rasterizeTerrain(node, world.seed);
     assert.deepEqual(a, b); assert.equal(a.pixels.length, TERRAIN_RASTER_SIZE ** 2 * 4);
+    assert.equal(a.mountains.length,TERRAIN_RASTER_SIZE**2*4);assert.ok(a.mountains.buffer instanceof ArrayBuffer);
     assert.equal(a.waves.length % 2, 0);
     assert.ok(a.waves.every(value => Number.isNaN(value) || Number.isFinite(value)));
     for (let i = 3; i < a.pixels.length; i += 4) assert.equal(a.pixels[i], 255);
@@ -53,6 +74,7 @@ test('coast height and mountain spine positions remain continuous across actual 
     for (let i = 0; i <= 12; i++) {
       const x = a.x + (b.x - a.x) * i / 12, y = a.y + (b.y - a.y) * i / 12;
       assert.ok(Math.abs(terrainHeight(node, x, y, world.seed) - terrainHeight(other, x - center.x, y - center.y, world.seed)) < 1e-8);
+      assert.ok(Math.abs(mountainCover(node,x,y,world.seed)-mountainCover(other,x-center.x,y-center.y,world.seed))<1e-8,'mountain ink also matches at the shared seam');
     }
     if (node.ridges & (1 << side)) {
       const p = ridgePort(side), q = ridgePort((side + 3) % 6);

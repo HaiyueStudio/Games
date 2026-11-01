@@ -1,5 +1,6 @@
 // Presentation metadata only; playable entries and assets come from the manifest.
 const entries = [
+  ['ink-twin', '墨白双生', 'puzzle', '在灰色宣纸上连起黑白数字，两笔绕中心相随而行。依序经过数字，让水墨双线铺满整张纸。', '双'],
   ['whale-maker', '鲸屿制造', 'sandbox', '鲸鱼娘与粉团的 1-1～1-4 连续冒险：珍珠海岸、地窟、月夜云台和喷火尖刺龟吊桥。支持成长、火球、抱壳与关卡编辑器。', '鲸'],
   ['glass-rush', '玻璃疾驰', 'arcade', '驾驭易碎玻璃球，穿越蜿蜒霓虹隧道。躲开障碍，在不断加速中挑战生存纪录。', '◇'],
   ['fruit-ninja', '水果忍者', 'arcade', '划出刀光，切开鲜果。避开炸弹，抓住加时道具，在一分钟内挑战最高分。', '果'],

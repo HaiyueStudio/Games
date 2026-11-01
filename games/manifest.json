@@ -3,6 +3,17 @@
   "kind": "games",
   "entries": [
     {
+      "id": "ink-twin",
+      "title": "墨白双生 · Ink Twin",
+      "entry": "ink-twin/main.ts",
+      "thumbnail": "screenshots/ink-twin.png",
+      "capabilities": ["2d", "gui", "input", "gamepad", "save", "generated-assets", "bitmap-font", "seeded-puzzles", "experimental-render-integration"],
+      "assets": ["ink-twin/style.css", "ink-twin/assets/xuan-paper.png", "ink-twin/assets/brush-digits.png", "ink-twin/assets/brush-digits.fnt.json", "ink-twin/assets/provenance.json"],
+      "screenshot": { "required": false, "baseline": null },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "whale-maker",
       "title": "鲸屿制造 / Whale Maker",
       "entry": "whale-maker/main.ts",

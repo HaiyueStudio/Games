@@ -7,7 +7,24 @@ const { VersusMatch, seededTile, evaluateChoices, greedyChoice, isMatchRecord, c
 const { createBoardShape } = await import('../entanglement-path/game/boardShapes.ts');
 const { savedBoardIndex, savedBestScores } = await import('../entanglement-path/game/boardCatalog.ts');
 const { shortestRotationAngle, turnProgress, swapFrame, hitCurrentTile, hitRect, rotationButtonCenter } = await import('../entanglement-path/game/BoardInteraction.ts');
+const { MODE_CHOICES, wrappedIndex, scrollAmount, previewAlpha, SCROLL_CLOSE_MS, SCROLL_OPEN_MS } = await import('../entanglement-path/game/SelectionRules.ts');
 hook.deregister();
+
+test('selection carousels wrap maps/modes, scrolls close/open fully, and noise swaps complement exactly', () => {
+  assert.deepEqual(MODE_CHOICES.map(m=>m.id),['solo','shared','race','life']);
+  assert.equal(wrappedIndex(-1,4),3);assert.equal(wrappedIndex(4,4),0);assert.equal(wrappedIndex(12,1),0);
+  assert.equal(scrollAmount(0,false),1);assert.equal(scrollAmount(SCROLL_CLOSE_MS,false),0);
+  assert.equal(scrollAmount(0,true),0);assert.equal(scrollAmount(SCROLL_OPEN_MS,true),1);
+  let previous=0;
+  for(let elapsed=0;elapsed<=SCROLL_OPEN_MS;elapsed+=5){const amount=scrollAmount(elapsed,true);assert.ok(amount>=previous&&amount<=1);previous=amount;}
+  const partial=[];
+  for(let n=0;n<=1;n+=.02) {
+    assert.equal(previewAlpha(n,0,true),0);assert.equal(previewAlpha(n,1,true),1);
+    for(let t=0;t<=1;t+=.1)assert.ok(Math.abs(previewAlpha(n,t,true)+previewAlpha(n,t,false)-1)<1e-10);
+    partial.push(previewAlpha(n,.5,true));
+  }
+  assert.ok(Math.max(...partial)-Math.min(...partial)>.5,'noise reveals different parts of the board at different times');
+});
 
 test('removing the spiral keeps legacy scores and saved reference boards attached to their identities', () => {
   const ids = JSON.parse(readFileSync(new URL('../entanglement-path/levels.json', import.meta.url))).levels.map(l => l.id);

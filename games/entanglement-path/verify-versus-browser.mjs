@@ -102,6 +102,8 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await key('Enter');
       await wait('__entanglementPath.versus.match.turn === "human" || !!__entanglementPath.versus.match.winner', 'race AI replies');
       assert.equal(await evaluate('__entanglementPath.versus.match.machine.placed.size'), 1);
+      assert.ok(await evaluate('(()=>{const v=__entanglementPath.versus,keys=v.view.scores.flights.map(f=>f.key);return keys.includes("human")&&keys.includes("machine")&&v.view.scoreTargets.get("human").x!==v.view.scoreTargets.get("machine").x;})()'),
+        'human and machine earned scores fly to their own HUD counters');
       await capture('race-playing');
       const final = await evaluate(`(() => {
         const v = __entanglementPath.versus, m = v.match;
@@ -129,6 +131,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await evaluate('__entanglementPath.versus.toolbar.style.visibility = ""');
       await evaluate(`(async () => { const v = __entanglementPath.versus; await Promise.all([v.newMatch(1), v.newMatch(2), v.newMatch(3)]); })()`);
       assert.equal(await evaluate('__entanglementPath.versus.match.seed'), 3, 'latest async terrain job wins');
+      await key('m'); await ready(); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'life');
       await key('m'); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'solo');
       await evaluate(`(() => { const s = __entanglementPath.versus.levelSelect; s.focus(); s.value = '2'; s.dispatchEvent(new Event('change')); })()`); await ready();
       await wait('__entanglementPath.levelIndex === 2 && __entanglementPath.phase === "playing"', 'solo selector loads the reference board');
@@ -169,6 +172,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       await pad(1); assert.ok(await evaluate('__entanglementPath.versus.selection.swap'), 'B selects reserve');
       await pad(4); assert.equal(await evaluate('__entanglementPath.versus.selection.rotation'), 5, 'LB rotates the selected reserve');
       await pad(9); await ready(); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'race');
+      await pad(9); await ready(); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'life');
       await pad(9); await ready(); assert.equal(await evaluate('__entanglementPath.versus.mode'), 'solo');
       await evaluate('__vsPad.connected = false');
       const payload = { status: 'passed', checks: ['real-mode-buttons', 'shared-board', 'rotation-and-reserve', 'machine-turn-input-lock', 'automatic-greedy-reply',

@@ -76,7 +76,7 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
           const g = __entanglementPath;
           return { phase: g.phase, placed: g.placed.size, score: g.score, length: g.pathLength,
             best: g.best, level: g.levelIndex, prompt: g.restartText.material.color.a,
-            preview: g.previewTransform.scale[0], popups: g.scorePopups.length, overlays: g.swapOverlays.length, rivers: g.riverFlow.size, riverCanvases: g.riverCanvases.size, fogReveals: g.fogReveals.size };
+            preview: g.previewTransform.scale[0], popups: g.versus?.soloScores.size ?? 0, overlays: g.swapOverlays.length, rivers: g.riverFlow.size, riverCanvases: g.riverCanvases.size, fogReveals: g.fogReveals.size };
         })()`);
         assert.deepEqual({ ...state, preview: state.preview > 0 }, {
           phase: 'playing', placed: 0, score: 0, length: 0, best: before.best, level: before.level,
@@ -118,6 +118,16 @@ for (const [name, width, height] of [['desktop', 1200, 760], ['portrait', 390, 8
       assert.ok(scoreInk.clear > .8 && scoreInk.clear < .99 && scoreInk.corners.every(alpha => alpha === 0), 'score texture contains ink readouts on a transparent background');
       await untilReady();
       assert.ok(await evaluate('__entanglementPath.introTexture === null && __entanglementPath.introEntity === null'), 'intro GPU texture and overlay are released');
+      await evaluate('(async()=>{window.__soloScoreSave=await __entanglementPath.saves.load();})()');
+      assert.ok(await evaluate(`(() => { const g=__entanglementPath,c=g.cells.get(g.current.q+','+g.current.r),before=g.score;g.placeCurrentTile();
+        const f=g.versus.soloScores.flights[0],layout=f.layout(),r=g.engine.canvas.getBoundingClientRect(),p=__inkWorld(c.transform.position[0],c.transform.position[1]);
+        return f.gain===g.score-before && g.displayedScore===before && Math.hypot(layout.from.x-p.x,layout.from.y-p.y)<.01 && layout.to.x>r.width*.65 && layout.to.y<r.height*.4;
+      })()`),'solo uses the same score flight from the placed cell to the actual score digits');
+      await evaluate('(()=>{const g=__entanglementPath,f=g.versus.soloScores.flights[0];f.reach=undefined;f.start=performance.now()-1040;g.versus.update();})()');
+      await capture('solo-score-stream');
+      await evaluate('__entanglementPath.clearScorePopups()');
+      assert.equal(await evaluate('__entanglementPath.versus.soloScores.size'),0,'solo score effects clear before reset/restore');
+      await evaluate('(async()=>{const g=__entanglementPath;await g.saves.flush();await g.saves.saveNow(__soloScoreSave);})()');
       await cdp.call('Page.addScriptToEvaluateOnNewDocument', { source: `
         window.__testPad = { index: 0, connected: true, mapping: 'standard', id: 'Entanglement test controller',
           axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ value: 0, pressed: false, touched: false })) };

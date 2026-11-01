@@ -33,14 +33,18 @@ interface BoardInput {
   ready(): boolean; token(): string;
   click(event: MouseEvent): void; move(event: PointerEvent): void; leave(): void;
   rotate(delta: number): void; swap(): void; confirm(): void; mode(): void; level(delta: number): void;
+  routeKey?(event:KeyboardEvent): boolean; swipe?(from:Point,to:Point): boolean;
 }
 export function bindBoardInput(canvas: HTMLCanvasElement, input: BoardInput): () => void {
   const removers: (() => void)[] = [];
   const listen = (target: EventTarget, type: string, callback: EventListener, options?: AddEventListenerOptions) => {
     target.addEventListener(type, callback, options); removers.push(() => target.removeEventListener(type, callback, options));
   };
-  let wheel = 0, token = input.token();
-  listen(canvas, 'click', event => { if (input.ready()) input.click(event as MouseEvent); });
+  let wheel = 0, token = input.token(),gesture:Point|null=null,suppressClickUntil=-Infinity;
+  listen(canvas, 'click', event => { if (input.ready()&&performance.now()>=suppressClickUntil) input.click(event as MouseEvent); });
+  listen(canvas,'pointerdown',event=>{const e=event as PointerEvent;gesture={x:e.clientX,y:e.clientY};});
+  listen(canvas,'pointerup',event=>{const e=event as PointerEvent;if(gesture&&input.swipe?.(gesture,{x:e.clientX,y:e.clientY}))suppressClickUntil=performance.now()+450;gesture=null;});
+  listen(canvas,'pointercancel',()=>{gesture=null;});
   listen(canvas, 'pointermove', event => input.move(event as PointerEvent));
   listen(canvas, 'pointerleave', () => input.leave());
   listen(window, 'blur', () => input.leave());
@@ -54,6 +58,7 @@ export function bindBoardInput(canvas: HTMLCanvasElement, input: BoardInput): ()
   listen(window, 'keydown', event => {
     const e = event as KeyboardEvent;
     if (e.target instanceof HTMLElement && (e.target.closest('input, select, textarea') || e.isTrusted && e.target.closest('button'))) return;
+    if(input.routeKey?.(e))return;
     if (!input.ready()) return;
     const key = e.key.toLowerCase();
     if ([' ', 'enter', 'arrowleft', 'arrowright'].includes(key)) e.preventDefault();

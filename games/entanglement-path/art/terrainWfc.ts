@@ -13,6 +13,23 @@ export const TERRAIN_CATALOG = Array.from({ length: 64 }, (_, corners) => ({ id:
 const reversedSocket = (socket: number): number => ((socket & 1) << 1) | (socket >> 1);
 const bitCount = (mask: number): number => { let n = 0; for (let i = 0; i < 6; i++) n += (mask >> i) & 1; return n; };
 
+/** The same shore catalog on an open plane. Shared vertex coordinates keep existing tiles
+ * unchanged when new cells are revealed, independent of request order or allocated extent. */
+export function openTerrain(sites: readonly {q:number;r:number}[], seed: number): TerrainWorld {
+  if (sites.length > 512) throw new Error('Open terrain exceeds the bounded visible-cell budget');
+  const vertices = [[1,-1],[1,1],[0,2],[-1,1],[-1,-1],[0,-2]] as const;
+  const nodes = new Map<string,TerrainNode>();
+  for (const {q,r} of sites) {
+    let corners=0;
+    for (let c=0;c<6;c++) {
+      const [dx,dy]=vertices[c]!, x=2*q+r+dx, y=3*r+dy;
+      if (inkNoise(x/7,y/7,seed+23)>.38) corners|=1<<c;
+    }
+    nodes.set(terrainKey(q,r),{q,r,kind:'play',corners,ridges:0,variant:Math.floor(inkHash(q,r,seed+61)*65535)});
+  }
+  return {seed,nodes,collapses:0,propagations:0};
+}
+
 /** All 64 shoreline corner cases, with rotated equivalents and independently matched ridge sockets.
  * Lowest-entropy collapse + arc-consistency propagation. Domains factor into shared corner bits,
  * so every remaining choice extends to a solution without random retries or unbounded backtracking.
@@ -102,4 +119,13 @@ export function terrainHeight(node: TerrainNode, x: number, y: number, seed: num
   // World-space coastal waviness is shared by both neighbors, including at the socket itself.
   return center * (1 - radial) + edge * radial
     + (inkNoise(wx / 39, wy / 39, seed + 131) - .5) * (.11 + .3 * Math.sin(Math.PI * radial));
+}
+
+/** World-space mountain ink uses the same coast field at shared edges. Path-specific
+ * valleys are cut into its interior by the painter, leaving these shared foothills intact. */
+export function mountainCover(node: TerrainNode, x: number, y: number, seed: number, height = terrainHeight(node,x,y,seed)): number {
+  const wx=x-128+(node.q+node.r/2)*117*Math.sqrt(3),wy=y-128+node.r*117*1.5;
+  const t=Math.max(0,Math.min(1,(height-.40)/.30)),land=t*t*(3-2*t);
+  const fold=1-Math.abs(inkNoise(wx/112,wy/112,seed+217)*2-1),grain=inkNoise(wx/34,wy/34,seed+229);
+  return land*(.42+fold*.38+grain*.18);
 }
