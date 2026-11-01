@@ -1,4 +1,4 @@
-import { twin, type GameState } from '../rules/model';
+import { INKS, type GameState, type Ink, type InkPair } from '../rules/model';
 
 interface FontMetrics { common: { scaleW: number; scaleH: number }; chars: { id: number; x: number; y: number; width: number; height: number }[] }
 export interface Point { x: number; y: number }
@@ -27,28 +27,42 @@ export class InkBoardArt {
   }
   point(cell: number, size: number, width: number): Point { const step = width / size; return { x: (cell % size + .5) * step, y: (Math.floor(cell / size) + .5) * step }; }
 
-  draw(canvas: HTMLCanvasElement, state: GameState, active: 'black' | 'white'): void {
+  draw(canvas: HTMLCanvasElement, state: GameState, active: Ink, distances: InkPair<number>): void {
     const context = canvas.getContext('2d')!, width = canvas.width, size = state.puzzle.size, step = width / size;
     context.clearRect(0, 0, width, width); context.drawImage(this.paper, 0, 0, width, width);
     context.fillStyle = '#424a3d13'; context.fillRect(0, 0, width, width);
     this.grid(context, size, width);
-    const black = state.path.map(cell => this.point(cell, size, width)), white = state.path.map(cell => this.point(twin(cell, size), size, width));
-    this.stroke(context, black, step, false); this.stroke(context, white, step, true);
-    for (const clue of state.puzzle.clues) for (const isWhite of [false, true]) {
-      const cell = isWhite ? twin(clue.cell, size) : clue.cell, point = this.point(cell, size, width);
-      const visited = state.path.includes(clue.cell);
+    const visible = (ink: Ink): Point[] => {
+      const path = state.paths[ink], distance = distances[ink], full = Math.floor(distance), fraction = distance - full;
+      const points = path.slice(0, full + 1).map(cell => this.point(cell, size, width));
+      if (fraction > 0 && path[full + 1] !== undefined) {
+        const a = points.at(-1)!, b = this.point(path[full + 1]!, size, width);
+        points.push({ x: a.x + (b.x - a.x) * fraction, y: a.y + (b.y - a.y) * fraction });
+      }
+      return points;
+    };
+    const strokes = { black: visible('black'), white: visible('white') };
+    this.stroke(context, strokes.black, step, false); this.stroke(context, strokes.white, step, true);
+    for (const ink of INKS) for (const clue of state.puzzle.clues[ink]) {
+      const isWhite = ink === 'white', point = this.point(clue.cell, size, width), index = state.paths[ink].indexOf(clue.cell);
+      const visited = index >= 0 && index <= distances[ink];
       if (visited) {
         context.save(); context.beginPath(); context.arc(point.x, point.y, step * .27, 0, Math.PI * 2); context.clip();
         context.globalAlpha = .97; context.drawImage(this.paper, 0, 0, width, width); context.fillStyle = '#424a3d13'; context.fillRect(0, 0, width, width); context.restore();
       }
       this.digit(context, clue.number, point.x, point.y, step * .57, isWhite);
-      if (clue.number === 1 && state.path.length === 1) {
+      if (clue.number === 1 && state.paths[ink].length === 1) {
         context.save(); context.strokeStyle = isWhite ? '#fffdf483' : '#292e2883'; context.lineWidth = step * .012;
         context.setLineDash([step * .035, step * .07]); context.beginPath(); context.arc(point.x, point.y, step * .35, 0, Math.PI * 2); context.stroke(); context.restore();
       }
     }
-    if (state.path.length > 1 && !state.won) {
-      const tip = (active === 'white' ? white : black).at(-1)!;
+    for (const ink of INKS) if (distances[ink] < state.paths[ink].length - 1) {
+      const tip = strokes[ink].at(-1)!, wet = context.createRadialGradient(tip.x, tip.y, step * .025, tip.x, tip.y, step * .2);
+      wet.addColorStop(0, ink === 'white' ? '#fffdf44d' : '#1722194d'); wet.addColorStop(1, '#00000000');
+      context.fillStyle = wet; context.beginPath(); context.arc(tip.x, tip.y, step * .2, 0, Math.PI * 2); context.fill();
+    }
+    if (state.paths[active].length > 1 && !state.won) {
+      const tip = strokes[active].at(-1)!;
       context.strokeStyle = active === 'white' ? '#fffdf4a0' : '#232c22a0'; context.lineWidth = step * .014;
       context.beginPath(); context.arc(tip.x, tip.y, step * .23, 0, Math.PI * 2); context.stroke();
     }
@@ -80,7 +94,9 @@ export class InkBoardArt {
       context.beginPath(); points.forEach((p, i) => i ? context.lineTo(p.x, p.y) : context.moveTo(p.x, p.y)); context.stroke();
     }
     for (let segment = 1; segment < points.length; segment++) {
-      const a = points[segment - 1]!, b = points[segment]!, dx = b.x - a.x, dy = b.y - a.y, nx = -dy / step, ny = dx / step;
+      const a = points[segment - 1]!, b = points[segment]!, dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
+      if (length < .001) continue;
+      const nx = -dy / length, ny = dx / length;
       context.fillStyle = `rgba(${color},.9)`; context.beginPath();
       for (const side of [-1, 1]) for (let sample = 0; sample <= 20; sample++) {
         const t = side === -1 ? sample / 20 : 1 - sample / 20;

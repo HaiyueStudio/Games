@@ -3,7 +3,7 @@ import { gameSession, gameTime } from '../../session/SessionPause';
 import { InkBoardArt } from '../art/InkBoardArt';
 import { InkBoardView } from '../rendering/BoardView';
 import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
-import { createPuzzle, dailySeed, DIFFICULTIES, hint, isInkTwinSave, move, newGame, nextNumber, restoreGame, twin, undo, type Difficulty, type GameState, type InkTwinSave } from '../rules/model';
+import { coveredCells, createPuzzle, dailySeed, DIFFICULTIES, hint, inkName, INKS, isInkTwinSave, lineComplete, move, newGame, nextNumber, otherInk, restoreGame, trimPath, undo, type Difficulty, type GameState, type Ink, type InkTwinSave } from '../rules/model';
 
 function element<T extends HTMLElement>(id: string): T { const result = document.getElementById(id); if (!result) throw Error(`Missing ${id}`); return result as T; }
 const dateKey = (): string => {
@@ -16,7 +16,7 @@ const clock = (seconds: number): string => `${String(Math.floor(seconds / 60)).p
 export class InkTwinGame {
   readonly canvas = element<HTMLCanvasElement>('board');
   state: GameState;
-  active: 'black' | 'white' = 'black';
+  active: Ink = 'black';
   mode: 'daily' | 'practice' = 'daily';
   difficulty: Difficulty = 'easy';
   private readonly cleanup: (() => void)[] = [];
@@ -41,8 +41,8 @@ export class InkTwinGame {
     if (saved && (saved.mode === 'practice' || saved.date === dateKey())) {
       this.difficulty = saved.difficulty; this.mode = saved.mode; this.practiceIndex = saved.practiceIndex;
       this.reset(false); this.puzzleDate = saved.date; this.state = restoreGame(saved); this.active = saved.active; this.hintCount = saved.hints;
-      this.started = saved.path.length > 1 ? gameTime() - saved.seconds * 1000 : null;
-      this.message('旧卷已续，从两端接着行笔。'); this.update(false);
+      this.started = coveredCells(this.state) > 2 ? gameTime() - saved.seconds * 1000 : null;
+      this.message('旧卷已续，黑白两笔分别续写。'); this.update(false);
     } else this.reset(false);
     this.bind(); this.view.run(); this.tick();
   }
@@ -59,6 +59,7 @@ export class InkTwinGame {
     click('undo', () => this.undo()); click('hint', () => this.hint()); click('restart', () => this.reset());
     click('practice', () => this.practice()); click('next-puzzle', () => this.practice());
     click('daily', () => { this.mode = 'daily'; this.reset(); });
+    click('select-black', () => this.selectInk('black')); click('select-white', () => this.selectInk('white'));
     click('rules-toggle', () => { const help = element('mobile-help'), button = element('rules-toggle'); help.hidden = !help.hidden; button.setAttribute('aria-expanded', String(!help.hidden)); });
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-difficulty]')) this.on(button, 'click', () => {
       if (gameSession.paused) return;
@@ -79,6 +80,10 @@ export class InkTwinGame {
     this.message('从黑色或白色的 1 起笔。'); this.resize(); this.update(persist);
   }
   practice(): void { this.mode = 'practice'; this.practiceIndex++; this.reset(); }
+  private selectInk(ink: Ink): void {
+    this.endDrag(); this.active = ink;
+    this.message(`${inkName(ink)} · ${lineComplete(this.state, ink) ? '已到终点，可回退调整路线。' : `下一数字 ${nextNumber(this.state, ink)}`}`); this.update();
+  }
   private message(text: string): void { element('status').textContent = text; }
   private resize(): void {
     if (this.destroyed) return;
@@ -90,43 +95,49 @@ export class InkTwinGame {
   private tick = (): void => {
     if (this.destroyed) return;
     const seconds = this.elapsed(); if (seconds !== this.shownSeconds) { element('timer').textContent = clock(seconds); this.shownSeconds = seconds; }
+    if (this.state.won && !this.view.animating && element('complete').hidden) this.showComplete();
     this.frame = requestAnimationFrame(this.tick);
   };
   private save(): void {
-    this.saves.save({ date: this.puzzleDate, difficulty: this.difficulty, mode: this.mode, seed: this.state.puzzle.seed, path: [...this.state.path], active: this.active, seconds: this.elapsed(), hints: this.hintCount, practiceIndex: this.practiceIndex });
+    this.saves.save({ schemaVersion: 2, date: this.puzzleDate, difficulty: this.difficulty, mode: this.mode, seed: this.state.puzzle.seed, paths: { black: [...this.state.paths.black], white: [...this.state.paths.white] }, active: this.active, seconds: this.elapsed(), hints: this.hintCount, practiceIndex: this.practiceIndex });
   }
   private update(persist = true): void {
-    const { puzzle, path } = this.state;
-    element('progress').textContent = `已落笔 ${path.length * 2} / ${puzzle.size * puzzle.size}`;
-    element('active-ink').textContent = this.active === 'black' ? '执墨笔' : '执白笔';
-    element<HTMLButtonElement>('undo').disabled = path.length === 1;
+    const { puzzle, paths } = this.state;
+    element('progress').textContent = `已落笔 ${coveredCells(this.state)} / ${puzzle.size * puzzle.size}`;
+    for (const ink of INKS) element(`select-${ink}`).setAttribute('aria-pressed', String(this.active === ink));
+    element<HTMLButtonElement>('undo').disabled = paths[this.active].length === 1;
     element<HTMLButtonElement>('hint').disabled = this.state.won;
-    this.canvas.setAttribute('aria-label', `${DIFFICULTIES[this.difficulty].label}，${puzzle.size}乘${puzzle.size}棋盘。已落笔${path.length * 2}格，下一数字${Math.min(nextNumber(this.state), puzzle.clues.length)}。方向键移动，空格切换墨白，Z撤销，H提示。`);
+    this.canvas.setAttribute('aria-label', `${DIFFICULTIES[this.difficulty].label}，${puzzle.size}乘${puzzle.size}棋盘。已落笔${coveredCells(this.state)}格。${inkName(this.active)}，${lineComplete(this.state, this.active) ? '已到终点' : `下一数字${nextNumber(this.state, this.active)}`}。方向键移动当前线，空格切换墨白，Z撤销当前线，H提示。`);
     this.paint();
     if (this.state.won) {
       this.ended ??= gameTime(); this.endDrag();
-      element('complete-detail').textContent = `${clock(this.elapsed())} · ${this.hintCount ? `借墨 ${this.hintCount} 次` : '独立成卷'} · ${puzzle.size} × ${puzzle.size}`;
-      element('complete').hidden = false; this.message('每一格都恰到好处。'); element('next-puzzle').focus();
+      this.message('墨白已合，正在收笔……');
+      if (!this.view.animating) this.showComplete();
     }
     if (persist) this.save();
   }
+  private showComplete(): void {
+    const size = this.state.puzzle.size;
+    element('complete-detail').textContent = `${clock(this.elapsed())} · ${this.hintCount ? `借墨 ${this.hintCount} 次` : '独立成卷'} · ${size} × ${size}`;
+    element('complete').hidden = false; this.message('每一格都恰到好处。'); element('next-puzzle').focus();
+  }
   private apply(cell: number): boolean {
-    const result = move(this.state, cell);
+    const result = move(this.state, this.active, cell);
     if (result.kind === 'blocked') { this.message(result.reason!); return false; }
     if (this.started === null) this.started = gameTime();
     this.state = result.state;
-    this.message(result.kind === 'backtracked' ? '收笔一步，墨白同退。' : `双笔同行 · 下一数字 ${Math.min(nextNumber(this.state), this.state.puzzle.clues.length)}`);
+    this.message(result.kind === 'backtracked' ? `${inkName(this.active)}收笔，另一条线保留。` : lineComplete(this.state, this.active) ? `${inkName(this.active)}已连完，请续${inkName(otherInk(this.active))}。` : `${inkName(this.active)} · 下一数字 ${nextNumber(this.state, this.active)}`);
     this.update(); return true;
   }
   undo(): void {
-    this.endDrag(); const updated = undo(this.state); if (updated === this.state) return;
+    this.endDrag(); const updated = undo(this.state, this.active); if (updated === this.state) return;
     if (this.started !== null && this.ended !== null) this.started += gameTime() - this.ended;
-    this.state = updated; this.ended = null; element('complete').hidden = true; this.message('收笔一步，墨白同退。'); this.update();
+    this.state = updated; this.ended = null; element('complete').hidden = true; this.message(`${inkName(this.active)}收笔一步，另一条线保留。`); this.update();
   }
   hint(): void {
-    this.endDrag(); const result = hint(this.state); if (result.state === this.state) return;
-    if (this.started === null) this.started = gameTime(); this.state = result.state; this.hintCount++;
-    this.message(result.rewound ? '已收回岔路，回到可行路线并续上一格。' : '借一笔墨，续上一格。'); this.update();
+    this.endDrag(); const result = hint(this.state, this.active); if (result.state === this.state) return;
+    if (this.started === null) this.started = gameTime(); this.state = result.state; this.active = result.ink; this.hintCount++;
+    this.message(result.rewound ? `已收回岔路，保留两笔的可行部分，${inkName(this.active)}续上一格。` : `${inkName(this.active)}借一笔墨，续上一格。`); this.update();
   }
   private cellAt(event: PointerEvent): number | null {
     const rect = this.canvas.getBoundingClientRect(), size = this.state.puzzle.size;
@@ -137,25 +148,24 @@ export class InkTwinGame {
   private pointerDown(event: PointerEvent): void {
     if (gameSession.paused || this.state.won || event.button !== 0 || this.drag !== null) return;
     const cell = this.cellAt(event); if (cell === null) return;
-    const path = this.state.path, index = path.indexOf(cell), other = path.indexOf(twin(cell, this.state.puzzle.size));
-    if (index < 0 && other < 0) { this.message('请从 1 或已有线条上接着行笔。'); return; }
+    const ink = INKS.find(color => this.state.paths[color].includes(cell));
+    if (!ink) { this.message('请从黑白的 1 或已有线条上接着行笔。'); return; }
     event.preventDefault(); this.canvas.focus({ preventScroll: true });
-    this.active = index >= 0 ? 'black' : 'white';
-    const at = index >= 0 ? index : other;
-    if (at < path.length - 1) this.state = { ...this.state, path: path.slice(0, at + 1) };
+    this.active = ink;
+    this.state = trimPath(this.state, ink, this.state.paths[ink].indexOf(cell) + 1);
     this.drag = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.update();
-    this.message(this.active === 'black' ? '执墨而行，白笔相随。' : '执白而行，墨笔相随。');
+    this.message(`${inkName(this.active)}独立行笔，依次连接同色数字。`);
   }
   private pointerMove(event: PointerEvent): void {
     if (this.drag !== event.pointerId || gameSession.paused) return;
     event.preventDefault(); const target = this.cellAt(event); if (target === null) return;
-    const size = this.state.puzzle.size, canonical = this.active === 'white' ? twin(target, size) : target;
-    let tip = this.state.path.at(-1)!;
+    const size = this.state.puzzle.size;
+    let tip = this.state.paths[this.active].at(-1)!;
     // Fill skipped cells for fast pointer moves only along one row or column.
-    if (tip === canonical) return;
-    if (Math.floor(tip / size) !== Math.floor(canonical / size) && tip % size !== canonical % size) return;
-    const delta = tip % size === canonical % size ? Math.sign(canonical - tip) * size : Math.sign(canonical - tip);
-    for (let n = 0; n < size && tip !== canonical; n++) { const next = tip + delta; if (!this.apply(next)) break; tip = next; }
+    if (tip === target) return;
+    if (Math.floor(tip / size) !== Math.floor(target / size) && tip % size !== target % size) return;
+    const delta = tip % size === target % size ? Math.sign(target - tip) * size : Math.sign(target - tip);
+    for (let n = 0; n < size && tip !== target; n++) { const next = tip + delta; if (!this.apply(next)) break; tip = next; }
   }
   private endDrag(): void {
     const pointer = this.drag; this.drag = null;
@@ -168,10 +178,10 @@ export class InkTwinGame {
     if (key === 'z' || event.key === 'Backspace') { event.preventDefault(); this.undo(); return; }
     if (key === 'h') { event.preventDefault(); this.hint(); return; }
     if (key === 'r') { event.preventDefault(); this.reset(); return; }
-    if (code === 'Space' || event.key === ' ') { event.preventDefault(); this.active = this.active === 'black' ? 'white' : 'black'; this.update(); return; }
+    if (code === 'Space' || event.key === ' ') { event.preventDefault(); this.selectInk(otherInk(this.active)); return; }
     const size = this.state.puzzle.size, delta = ({ ArrowUp: -size, ArrowRight: 1, ArrowDown: size, ArrowLeft: -1 } as Record<string, number>)[event.key];
     if (delta === undefined || this.state.won) return;
-    event.preventDefault(); this.apply(this.state.path.at(-1)! + delta * (this.active === 'white' ? -1 : 1));
+    event.preventDefault(); this.apply(this.state.paths[this.active].at(-1)! + delta);
   }
   destroy(): void {
     if (this.destroyed) return; this.save(); this.destroyed = true; this.endDrag(); cancelAnimationFrame(this.frame);
