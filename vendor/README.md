@@ -7,8 +7,8 @@ The Engine archive was refreshed in Games commit `654107a69dc0f4d48fa8cd444501d6
 Its SHA-256 record follows that checked-in archive; the archive also matches the
 integrity values for both Engine dependency aliases in `package-lock.json`.
 
-- Engine, Extensions, and animation-spec use the current 0.2.1 source packages;
-  UI uses the current 0.2.2 source package.
+- Engine uses the 0.2.3 source package to match the GUI and simulation APIs already consumed by Games;
+  Extensions and animation-spec retain 0.2.1, and UI retains 0.2.2.
 - `@haiyue/engine-gamepad` uses the same Engine archive as `@haiyue/engine`.
   Games import its public **experimental** `experimental/simulation` export for
   `BrowserMultiplayerInput`.

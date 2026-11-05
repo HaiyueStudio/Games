@@ -65,3 +65,5 @@ site/game-host.js.map
 site/simulator.js
 site/simulator.js.map
 site/core/
+/games/guobiao-mahjong/ai/mahjong.worker.js
+/games/guobiao-mahjong/ai/mahjong.worker.js.map

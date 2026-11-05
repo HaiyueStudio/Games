@@ -14,6 +14,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 
 | Game | Type | Online preview |
 | --- | --- | --- |
+| 国标雀局 / Mahjong AI Arena | 144 张国标麻将 · 8 番起胡 / 四圈 / 原生 GUI / AI 与大模型接口 | [Local build](games/guobiao-mahjong/README.md) |
 | 玻璃疾驰 / Glass Rush | 霓虹弯曲隧道生存 · 玻璃球 / Engine GUI / 本机 TOP 5 | [Local build](games/glass-rush/README.md) |
 | 谷外之光 · Beyond the Valley | 3D orthographic illusion puzzle | [Play](https://haiyuestudio.github.io/Games/?game=valley-of-light) |
 | 铁甲前线 · Tank Battle | 2D pixel arcade, 1–2 players | [Play](https://haiyuestudio.github.io/Games/?game=tank-battle) |

@@ -40,7 +40,13 @@ const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
       sourcemap: true,
       inlineDynamicImports: true,
     },
-    plugins: [...haiyuePlugins({ declaration: false, tsconfig: './tsconfig.rollup.json' }), gameModulePlugin(entry.id)],
+    plugins: [...haiyuePlugins({ declaration: false, tsconfig: entry.id === 'guobiao-mahjong' ? './games/guobiao-mahjong/tsconfig.rollup.json' : './tsconfig.rollup.json' }), gameModulePlugin(entry.id)],
   }));
 
-export default process.env.GAME_FILTER ? configs : [...lobby, ...configs];
+const mahjongWorkers = games.some(entry => entry.id === 'guobiao-mahjong') ? [{
+  input: 'games/guobiao-mahjong/ai/mahjong.worker.ts',
+  output: { file: 'games/guobiao-mahjong/ai/mahjong.worker.js', format: 'es', sourcemap: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/tsconfig.worker.json' }),
+}] : [];
+
+export default process.env.GAME_FILTER ? [...mahjongWorkers, ...configs] : [...lobby, ...mahjongWorkers, ...configs];

@@ -1,0 +1,11 @@
+{
+  "seeds": [20261105],
+  "rotateSeats": true,
+  "timeoutMs": 60000,
+  "agents": [
+    { "name": "内置深搜", "depth": 2 },
+    { "name": "内置快速", "depth": 1 },
+    { "name": "模型 A", "endpoint": "http://127.0.0.1:8765/agent/model-a" },
+    { "name": "模型 B", "endpoint": "http://127.0.0.1:8765/agent/model-b" }
+  ]
+}

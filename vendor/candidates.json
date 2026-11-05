@@ -24,6 +24,12 @@
       "source": "UI public npm pack",
       "revision": "1a28338721f9f870c23c92356c554585321d5d00",
       "dirty": false
+    },
+    "haiyue-engine-0.2.3.tgz": {
+      "sha256": "28700e200183f769bd9d7d87b38c6535f8d11d9a10d0a5d46cd6100c642d68e1",
+      "source": "Engine/engine public npm pack",
+      "revision": "829d3ca2624649172e659b21d990355ee2cf063d",
+      "dirty": false
     }
   }
 }

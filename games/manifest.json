@@ -3,6 +3,31 @@
   "kind": "games",
   "entries": [
     {
+      "id": "guobiao-mahjong",
+      "thumbnail": "screenshots/guobiao-mahjong.png",
+      "title": "国标雀局 / Mahjong AI Arena",
+      "entry": "guobiao-mahjong/main.ts",
+      "capabilities": [
+        "2d",
+        "gui",
+        "input",
+        "worker",
+        "wasm",
+        "game-workflow",
+        "gamepad"
+      ],
+      "assets": [
+        "guobiao-mahjong/assets/mcr.wasm",
+        "guobiao-mahjong/ai/mahjong.worker.js"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "glass-rush",
       "thumbnail": "screenshots/glass-rush.png",
       "title": "玻璃疾驰 / Glass Rush",

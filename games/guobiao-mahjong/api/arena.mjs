@@ -1,0 +1,17 @@
+import { registerHooks } from 'node:module';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+registerHooks({ resolve(s, c, next) { return next(/^\.{1,2}\//.test(s) && !/\.[a-z0-9]+$/i.test(s) ? s + '.ts' : s, c); } });
+const { createScorer } = await import('../rules/scorer.ts');
+const { decide } = await import('../ai/strategy.ts');
+const { httpAgent } = await import('./agents.ts');
+const { runTournament } = await import('./tournament.ts');
+const path = process.argv[2];
+if (!path) throw new Error('Usage: node --experimental-strip-types games/guobiao-mahjong/api/arena.mjs <config.json> [results.json]');
+const config = JSON.parse(readFileSync(resolve(path), 'utf8'));
+const scorer = await createScorer(readFileSync(new URL('../assets/mcr.wasm', import.meta.url)));
+const agents = config.agents.map(a => a.endpoint ? httpAgent(a.name, a.endpoint) : { name: a.name, decide: observation => decide(observation, scorer, a.depth ?? 2).action });
+const result = await runTournament(scorer, agents, config.seeds ?? [20261105], { rotateSeats: config.rotateSeats !== false, timeoutMs: config.timeoutMs ?? 30000 });
+const output = resolve(process.argv[3] ?? 'mahjong-arena-results.json');
+writeFileSync(output, JSON.stringify(result, null, 2) + '\n');
+console.table(result.ranking); console.log(`Saved ${result.matches.length} matches to ${output}`);
