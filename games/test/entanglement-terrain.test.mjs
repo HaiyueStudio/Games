@@ -4,11 +4,24 @@ import { registerHooks } from 'node:module';
 const hook = registerHooks({ resolve(specifier, context, next) {
   return next(/^\.{1,2}\//.test(specifier) && !/\.[a-z0-9]+$/i.test(specifier) ? `${specifier}.ts` : specifier, context);
 } });
-const { makeTerrainPlan, rotateTerrainPoint, terrainPairKey } = await import('../entanglement-path/art/topdownTerrain.ts');
+const { makeTerrainPlan, mountainWorldPatches, rotateTerrainPoint, terrainPairKey } = await import('../entanglement-path/art/topdownTerrain.ts');
 const { riverCurve } = await import('../entanglement-path/art/riverFlow.ts');
 const { portPoint } = await import('../entanglement-path/art/hexGeometry.ts');
 hook.deregister();
 const pairs = [[0, 7], [1, 9], [2, 6], [3, 11], [4, 8], [5, 10]];
+
+test('adjacent pieces sample the same mountain paintings across their shared edge', () => {
+  const dirs=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+  for(const seed of [0,17,177])for(const [q,r] of [[0,0],[8,-17],[-11,3]]) {
+    const source=mountainWorldPatches(q,r,seed);
+    assert.ok(source.length>3&&source.length<24);assert.deepEqual(source,mountainWorldPatches(q,r,seed));
+    for(const [dq,dr] of dirs) {
+      const next=mountainWorldPatches(q+dq,r+dr,seed),shared=source.filter(p=>next.some(n=>n.id===p.id));
+      assert.ok(shared.length>=2,'mountain masses straddle every edge');
+      for(const patch of shared)assert.deepEqual(patch,next.find(n=>n.id===patch.id),'position, rotation and texture stay identical across hexes');
+    }
+  }
+});
 
 test('top-down landforms use stable per-piece seeds, independent of orientation and gameplay randomness', () => {
   const original = Math.random, plans = [];

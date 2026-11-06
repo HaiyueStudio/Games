@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#aaa9a3" />
+  <title>墨白双生 · Ink Twin</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="studio">
+    <aside class="preface">
+      <div class="eyebrow"><span class="seal" aria-hidden="true">双<br>生</span><span>纸上游 · 壹<br><small>A STUDY IN BALANCE</small></span></div>
+      <h1>墨白<span>双生</span></h1>
+      <p class="subtitle">一笔入墨，一笔留白。</p>
+      <div class="hairline"></div>
+      <p class="rules">分别从黑白的 <b>1</b> 起笔，<br>依次连起同色数字，各走各路。<br>墨白不相交，双线铺满整张纸。</p>
+      <p class="legend"><span class="ink-dot"></span>墨线 <span class="white-dot"></span>白线 <span class="rotation">·</span>各自成线</p>
+      <div class="desktop-note">按住任意起点或线端拖动，或用方向键行笔。<br>沿原路回退可收笔；空格切换墨白。</div>
+      <footer>黑白相生，曲直成章。<span>INK TWIN / 01</span></footer>
+    </aside>
+    <section class="play-area" aria-label="墨白双生游戏">
+      <header class="play-header"><div><span id="puzzle-mode">今日一卷</span><span class="edition" id="edition"></span></div><button id="rules-toggle" class="text-button" aria-expanded="false" aria-controls="mobile-help">玩法 <span aria-hidden="true">?</span></button></header>
+      <p id="mobile-help" hidden>黑白两条线分别从同色的 1 起笔，各自依次经过同色数字。两线不能相交，也不能经过另一色的数字，合起来须铺满所有格子。按住起点或已有线条拖动，沿线回退可收笔。方向键移动当前线，空格或墨白按钮切换执笔，撤销只收回当前线。</p>
+      <nav class="difficulties" aria-label="游戏难度"><button data-difficulty="easy" aria-pressed="true">入墨 <small>6 × 6</small></button><button data-difficulty="medium" aria-pressed="false">行笔 <small>8 × 8</small></button><button data-difficulty="hard" aria-pressed="false">化境 <small>10 × 10</small></button></nav>
+      <div class="board-frame"><canvas id="board" tabindex="0" role="application" aria-label="墨白双生棋盘。按住起点拖动连线，方向键移动，空格切换墨白，Z 撤销，H 提示，R 重开。"></canvas><div id="complete" hidden role="status"><span class="complete-seal">成</span><h2>墨白相合</h2><p id="complete-detail"></p><button id="next-puzzle">再展一卷 →</button></div></div>
+      <div class="board-meta"><span id="progress">已落笔 2 / 36</span><span class="meta-right"><span class="brush-switch" role="group" aria-label="选择执笔颜色"><button id="select-black" aria-pressed="true"><i class="ink-dot" aria-hidden="true"></i>墨笔</button><button id="select-white" aria-pressed="false"><i class="white-dot" aria-hidden="true"></i>白笔</button></span><span id="timer">00:00</span></span></div>
+      <p id="status" role="status" aria-live="polite">从黑色或白色的 1 起笔。</p>
+      <div class="tools"><button id="undo" disabled><span aria-hidden="true">↶</span> 撤销 <kbd>Z</kbd></button><button id="hint"><span aria-hidden="true">✧</span> 提示 <kbd>H</kbd></button><button id="restart"><span aria-hidden="true">↻</span> 重开 <kbd>R</kbd></button></div>
+      <div class="new-puzzle"><button id="practice">随心练习 <span aria-hidden="true">↗</span></button><button id="daily">回到今日</button></div>
+    </section>
+  </main>
+  <p id="loading" role="status">研墨，展纸……</p>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "tokens.png",
+  "reference": "coins.png",
+  "prompt": "Use case: stylized-concept. Production transparent game animation sprite sheet EXACTLY 4 columns x 4 rows, SIXTEEN frames of ONE identical gold TOKEN coin rotating around its vertical axis. Reference image is coin IDENTITY and STYLE reference only: reproduce the exact warm gold round disk, turquoise enamel ring, large raised T inside rounded hexagonal mint stamp, neat TOKEN word under the T, thick reeded gold edge. DO NOT draw the square reward block from reference. Angles in reading order, 22.5 degrees apart: 0,22.5,45,67.5 / 90,112.5,135,157.5 / 180,202.5,225,247.5 / 270,292.5,315,337.5. Frames 5 and 13 must be THIN EDGE-ON views. Frames 1 and 9 are full circular faces. Both coin faces carry identical T emblems, never blank. Each coin identical height and vertical center, fixed camera, same light source, no camera tilt. Natural changing apparent width, not changing object height or overall scale. Every sprite centered in its own equal cell with generous transparent gutters, totally separated. Fully transparent alpha background, crisp cartoon game outlines and polished soft highlights, readable at 40 pixels. No extra props, no stars, no sparkles, no shadows, no floor, no labels, no grid, no watermark.",
+  "frames": {
+    "turn": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "notes": "Original transparent generated PNG preserved. Full connected silhouettes are measured across nominal cell boundaries; shared frame canvases align the center and bottom without resizing image pixels."
+}

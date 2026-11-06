@@ -1,0 +1,12 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "shell.png",
+  "reference": "expansion.png (second row turtle)",
+  "prompt": "Use case: stylized-concept. Create ONE production-ready transparent 2D game sprite: the EMPTY RETRACTED SHELL of the aqua sea turtle in the SECOND ROW of the reference sprite sheet. Reference role: exact creature identity, shell shape, blue palette, painted cartoon linework and highlights. Reproduce that same smooth rounded cobalt-blue and turquoise domed shell with large irregular rounded polygon scutes and narrow pale aqua seams, thick warm ivory lower rim, cream underside and a dark teal hollow front opening on the RIGHT where its head has retracted. Same side-on three-quarter viewing angle as the walking turtle facing RIGHT. The shell is broad and low, oval dome roughly 1.6 times as wide as tall, empty with ALL head, flippers, feet and tail fully retracted. Preserve the recognizable blue rounded mosaic shell identity from reference. NO spikes, NO horns, NO sharp protrusions, NO studs, NO coral, NO bubbles, NO sparkles, NO additional props, NO turtle face, NO eyes. Only ONE large isolated shell centered on real fully transparent alpha background with generous clear gutters. Crisp dark teal cartoon outline, polished soft painted shading, readable at 44 pixels wide. No ground, no cast shadow, no text, no watermark.",
+  "notes": [
+    "Smooth rounded blue turtle shell with all limbs retracted; no spikes.",
+    "Raw transparent PNG copied without pixel edits; UV measurement only.",
+    "Shared 44px render size for resting, carried, flying, and defeated shells, matched to the 58px turtle shell silhouette."
+  ]
+}

@@ -1,2 +1,0 @@
-export { MugenOutputAuthority, mugenAfterImageColorMatrix, mugenPaletteColorMatrix, mugenShakeOffset } from './MugenOutputAuthority';
-export type { MugenAfterImageEffect, MugenAssertSpecialFlag, MugenCameraShake, MugenEntityOutputState, MugenForceFeedbackWaveform, MugenOutputAuthoritySnapshot, MugenOutputEvent, MugenPaletteEffect, MugenRgbAffineColorMatrix, MugenTransparencyMode } from './MugenOutputAuthority';

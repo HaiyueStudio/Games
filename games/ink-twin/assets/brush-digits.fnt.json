@@ -1,0 +1,128 @@
+{
+  "chars": [
+    {
+      "xadvance": 300,
+      "y": 126,
+      "x": 26,
+      "width": 258,
+      "id": 48,
+      "height": 342,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 110,
+      "x": 369,
+      "width": 168,
+      "id": 49,
+      "height": 360,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 114,
+      "x": 628,
+      "width": 292,
+      "id": 50,
+      "height": 348,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 110,
+      "x": 963,
+      "width": 238,
+      "id": 51,
+      "height": 364,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 104,
+      "x": 1254,
+      "width": 276,
+      "id": 52,
+      "height": 394,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 572,
+      "x": 24,
+      "width": 283,
+      "id": 53,
+      "height": 356,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 574,
+      "x": 307,
+      "width": 294,
+      "id": 54,
+      "height": 352,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 570,
+      "x": 652,
+      "width": 246,
+      "id": 55,
+      "height": 364,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 570,
+      "x": 951,
+      "width": 240,
+      "id": 56,
+      "height": 360,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    },
+    {
+      "xadvance": 300,
+      "y": 576,
+      "x": 1262,
+      "width": 240,
+      "id": 57,
+      "height": 350,
+      "page": 0,
+      "xoffset": 0,
+      "yoffset": 0
+    }
+  ],
+  "common": {
+    "scaleH": 1024,
+    "lineHeight": 400,
+    "scaleW": 1536,
+    "pages": 1,
+    "base": 360
+  },
+  "pages": [
+    "brush-digits.png"
+  ],
+  "info": {
+    "face": "Ink Twin Brush",
+    "size": 400
+  }
+}

@@ -1,0 +1,41 @@
+[
+  {
+    "file": "p1-creatures.png",
+    "generator": "built-in image_gen",
+    "source": "exec-551c6c6b-002b-445d-90ea-a7a3d8a50cbf.png",
+    "prompt": "Create a transparent cartoon 2D platformer sprite sheet, 8 columns by 8 rows, exactly 64 equal cells. Cute original undersea cartoon style, navy outlines, pastel coral and teal, clean complete silhouettes and consistent baselines, transparent padding. No labels, no text, no Mario characters. Each row contains 8 animation frames, facing right. Row 1: adorable sea-ant soldier walks and turns with six moving legs, tiny shell helmet. Row 2: spiky sea-ant soldier with a coral spike helmet, eight walk frames. Row 3: cute round whale-mouse, navy and white, four walk then four jump frames. Row 4: cute coral-spiked whale-mouse four walk and four jump frames. Row 5: adorable skeletal sea turtle, four walk and four collapsed bone-pile/reviving frames. Row 6: cute fish skeleton, eight fast swimming/attack frames. Row 7: cute sea plant with toothed flower mouth and flexible green stem, four extension and four fire-spitting frames. Row 8: cute stocky teal fire brother sailor monster with white belly, four walking and four throwing frames. Intended render size 48–96px. Exact grid alignment and complete sprites, no cropped edges."
+  },
+  {
+    "file": "p1-costumes.png",
+    "generator": "built-in image_gen",
+    "source": "exec-297a8894-6f1b-41fb-9147-4f44d66c8f9d.png",
+    "prompt": "Create a production sprite atlas for an original 2D anime cartoon whale-maid platformer. Exactly 8 columns and 8 rows of equally spaced cells, transparent background, no grid lines, no labels, no text, no watermarks. Each sprite must fit completely within its own cell with transparent space, feet aligned at same cell baseline. Consistent navy-haired blue-eyed whale girl: long dark blue hair fading aqua at ends, whale-shaped ears, curved whale tail, white frilly maid hairband, navy and white dress, white apron with a little blue whale emblem, black shoes. Match a cute tall chibi/anime maid, with consistent head and body proportions. Facing RIGHT in side/three-quarter view. Rows 1-2: CAT costume: cream furry paws, cat ears on maid hairband, navy and cream cat suit over the whale maid dress, whale tail retained. Sixteen frames: idle,walk1,walk2,walk3,run1,run2,jump,fall,crouch,claw-windup,claw-swipe,dive,wall-cling,climb1,climb2,cheer. Rows 3-4: BOOMERANG costume: teal and white sailor maid outfit with a silver boomerang charm. Sixteen frames: idle,walk1,walk2,walk3,run1,run2,jump,fall,crouch,throw-windup,throw-release,catch,carry-idle,carry-walk1,carry-walk2,cheer. Rows 5-6: BUILDER HAMMER costume: warm gold yellow and navy maid outfit, white apron, little gold hard hat, cute toy hammer. Sixteen frames: idle,walk1,walk2,walk3,run1,run2,jump,fall,crouch,hammer-windup,hammer-swing,build-box,carry-idle,carry-walk1,carry-walk2,cheer. Rows 7-8: ORIGINAL NAVY MAID costume as described at top, supplementary sixteen poses: rolling1,rolling2,rolling3,rolling4,long-jump,charged-crouch,high-spin1,high-spin2,high-spin3,high-spin4,tree-climb1,tree-climb2,wall-cling,holding-box,holding-box-walk,cheer. Hand-painted clean anime cartoon, rounded navy outlines, soft highlights, clear eyes and small costume details readable at 96px. Keep the same maid identity in every cell."
+  },
+  {
+    "file": "p1-costumes-v2.png",
+    "generator": "built-in image_gen",
+    "source": "exec-127e6ab4-6cba-45a1-8d12-1402df79085d.png",
+    "prompt": "Edit this production 8-column by 8-row sprite atlas. Preserve exactly the same grid, canvas dimensions, every character identity, clothing, colors, pose positions and sprite scales. Remove ONLY these props, making the removed regions transparent and completing any small obscured hands: remove wooden planks/tree trunks/walls from the climbing poses in row 2 columns 5,6,7 and row 8 columns 3,4,5. Remove the wooden crates being held in row 6 columns 4,5,6,7 and row 8 columns 6,7, leaving the same empty cupped hands and bent arms ready to hold an item drawn separately by the game. Keep the actual hammer and boomerang weapons in attack poses. Do not add anything. Do not move, enlarge, shrink or rearrange any sprite. Keep the transparent background. No labels or grid lines.",
+    "references": [
+      "p1-costumes.png"
+    ]
+  },
+  {
+    "file": "p1-special.png",
+    "generator": "built-in image_gen",
+    "source": "exec-af7c4b30-700a-4bb1-8b81-f86de18b63e0.png",
+    "prompt": "A transparent sprite sheet for an original cute cartoon 2D sea platformer. Exactly 8 columns and 2 rows of equal cells, generous clear padding around every complete figure, no labels, no borders. ROW ONE: eight frames of a cute round green and teal sea monster sailor with cream belly and yellow scarf, two walking poses, two lifting a coral spiked ball overhead poses, two throwing the spiked ball rightwards poses, two recovery poses. ROW TWO: eight frames of a cute white snow cactus made of three vertically stacked snow spheres, navy eyes, little whale fin hat: four waddling poses with three spheres, two poses with two spheres, two poses with only the head sphere. Consistent scale and feet baseline across each row. Rounded navy outlines, soft watercolor highlights, charming expressive faces. Original creatures, no Mario characters. All sprites face RIGHT. Transparent background. Complete heads, hands and feet, no scenery."
+  },
+  {
+    "file": "p1-actions.png",
+    "generator": "built-in image_gen",
+    "source": "exec-03e73502-65cd-48da-9d25-ab1705e51fac.png",
+    "prompt": "Use case: illustration-story. Asset type: production transparent 2D game animation atlas. Generate a NEW square 8 columns by 8 rows sprite sheet, exactly 64 evenly spaced full-body sprites, true alpha background. Input images are character identity, costume and visual-style references ONLY. Preserve blue-haired blue-eyed whale maid girl's recognizable whale tail, hair, white frilled headband and face, polished cute anime outlines. The first reference provides cat suit, cyan boomerang maid uniform, orange builder uniform. Other references provide tiny chibi navy maid, red flame maid and pale ice maid costumes. Every cell MUST contain the complete girl, never a standalone projectile or prop. No text, no walls, no ground, no scenery, no construction boxes. Leave empty cupped hands where appropriate. Eight rows: row 1 tiny chibi navy maid (short childlike chibi proportions); row 2 taller navy-and-white maid with long skirt (same outfit but taller teen chibi proportions); row 3 taller red/gold flame maid; row 4 taller pale-blue/white ice maid; row 5 cat-eared cream and navy whale suit; row 6 cyan/white boomerang maid; row 7 orange/white builder maid and yellow hardhat; row 8 boomerang maid again. For rows 1-7, eight columns left to right: 1-4 successive forward somersault/rolling ball poses with FOUR genuinely different body orientations, compact tucked legs, head rotating clockwise across frames, all hair/limbs intact; 5 long jump, a horizontal stretched leaping pose toward RIGHT, arms forward and legs trailing; 6 crouched charged jump anticipation; 7-8 two subtle horizontal tube-flight poses, head pointing RIGHT and feet/tail trailing LEFT, hands forward and EMPTY, no blue pipe or motion trail. Row 8 all eight cells are full-body boomerang maid attack/catch poses: preparation, arm forward releasing, recovery, catch, preparation, arm forward releasing, recovery, catch. She may hold a SMALL hand-sized boomerang but is always the dominant complete subject. Uniform same CHARACTER SCALE within each row regardless of compact pose; generous transparent gutters, no touching adjacent cells, no clipped hair/tail. Never draw only a boomerang. Crisp at 96-pixel game sprite size. No labels, no watermark.",
+    "references": [
+      "p1-costumes-v2.png",
+      "runtime/whale-small.png",
+      "runtime/whale-fire.png",
+      "runtime/whale-ice.png"
+    ]
+  }
+]

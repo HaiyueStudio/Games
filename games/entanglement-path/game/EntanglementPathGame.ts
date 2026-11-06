@@ -8,12 +8,19 @@ import { requiredItemAt, requiredNumberAt } from '../../shared/collections/array
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
 import { InkArt, INK_FONT, ScrollReveal } from '../art/InkArt';
 import { INK, PAPER, INTRO_DURATION_MS, cellPigment } from '../art/inkNoise';
-import { hexCenter, hexPlaneSize } from '../art/hexGeometry';
+import { boardCenter, boardAngle, boardPlaneSize, hexPlaneSize, type HexOrientation } from '../art/hexGeometry';
 import { drawRiverTile as drawHexPath, drawWetInkHalo } from '../art/RiverPainter';
-import { RiverFlow, type RiverRoute } from '../art/riverFlow';
+import { RiverFlow, type RiverRoute, type RiverScoreStep } from '../art/riverFlow';
+import { collapseTerrain, extendTerrainSites, type TerrainWorld, type TerrainSite } from '../art/terrainWfc';
+import { VersusController } from './VersusController';
+import { createBoardShape, type BoardShape } from './boardShapes';
+import { BoardPainter } from '../art/BoardPainter';
+import { bindBoardInput, hitRect, hitCurrentTile, rotationButtonCenter, arrowFeedback,
+  shortestRotationAngle, turnProgress, swapFrame, TURN_DURATION } from './BoardInteraction';
+import { savedBoardIndex, savedBestScores } from './boardCatalog';
 
 type AxialKey = string;
-type Phase = 'playing' | 'ended';
+type Phase = 'playing' | 'ended' | 'loading';
 type Port = number;
 type Pairing = [Port, Port][];
 type AudioContextConstructor = new () => AudioContext;
@@ -58,6 +65,8 @@ interface PlacedTile {
 
 interface EntanglementSaveData {
   levelIndex: number;
+  levelId?: string;
+  levelIds?: string[];
   bestByLevel: number[];
   placed: Array<[AxialKey, PlacedTile]>;
   current: Axial;
@@ -73,6 +82,7 @@ interface EntanglementSaveData {
   rotation: number;
   reserveRotation: number;
   tileSerial: number;
+  terrainMapSeed?: number;
 }
 
 function isAxial(value: unknown): value is Axial {
@@ -100,6 +110,8 @@ function isPlacedTile(value: unknown): value is PlacedTile {
 function isEntanglementSaveData(value: unknown): value is EntanglementSaveData {
   return isRecord(value)
     && isNonNegativeInteger(value.levelIndex)
+    && (value.levelId === undefined || typeof value.levelId === 'string')
+    && (value.levelIds === undefined || Array.isArray(value.levelIds) && value.levelIds.every(id => typeof id === 'string'))
     && Array.isArray(value.bestByLevel) && value.bestByLevel.every(isNonNegativeInteger)
     && Array.isArray(value.placed) && value.placed.every(item => Array.isArray(item) && item.length === 2
       && typeof item[0] === 'string' && isPlacedTile(item[1]))
@@ -110,7 +122,8 @@ function isEntanglementSaveData(value: unknown): value is EntanglementSaveData {
     && isNonNegativeInteger(value.score) && isNonNegativeInteger(value.pathLength)
     && isTileDef(value.nextTile) && isTileDef(value.reserveTile)
     && isNonNegativeInteger(value.rotation) && isNonNegativeInteger(value.reserveRotation)
-    && isNonNegativeInteger(value.tileSerial);
+    && isNonNegativeInteger(value.tileSerial)
+    && (value.terrainMapSeed === undefined || isNonNegativeInteger(value.terrainMapSeed));
 }
 
 interface TraceResult {
@@ -136,14 +149,6 @@ interface SwapOverlay {
 
 
 
-interface FloatingScoreLabel {
-  entity: Entity;
-  transform: CartesianTransform3D;
-  material: BasicMaterial;
-  startTime: number;
-  startPosition: [number, number, number];
-}
-
 type RotateButtonKind = 'ccw' | 'cw';
 
 interface RotateButtonState {
@@ -161,6 +166,8 @@ interface LevelFile {
 }
 
 interface LevelConfig {
+  shape?: BoardShape;
+  orientation?: HexOrientation;
   id?: string;
   name?: string;
   radius?: number;
@@ -179,6 +186,7 @@ interface LevelConfig {
 }
 
 interface ResolvedLevel {
+  orientation: HexOrientation;
   id: string;
   name: string;
   cells: Axial[];
@@ -201,7 +209,6 @@ const VIEW_H = CANVAS_H / CANVAS_W * VIEW_W;
 const DEFAULT_BOARD_RADIUS = 4;
 const DEFAULT_HEX_WORLD = 0.92;
 const DEFAULT_HEX_SCREEN = 40;
-const HEX_HIT_SCALE = 2 / Math.sqrt(3);
 const DEFAULT_BOARD_OFFSET_X = 0;
 const DEFAULT_BOARD_OFFSET_Y = 0;
 const SWAP_PANEL_LEFT = 74;
@@ -219,15 +226,9 @@ const SWAP_TEXT_Z = 1.03;
 const SCORE_PANEL_W = 200;
 const SCORE_PANEL_H = 170;
 
-const SCORE_POPUP_DURATION = 1500;
-const SCORE_POPUP_FADE_START = 650;
-const SCORE_POPUP_RISE = 0.88;
 const ROTATE_BUTTON_W = 32;
 const ROTATE_BUTTON_H = 35;
-const ROTATE_BUTTON_OFFSET_X = 43.5;
-const ROTATE_BUTTON_OFFSET_Y = 46.5;
 const ROTATE_BUTTON_Z = 1.06;
-const ROTATE_BUTTON_PRESS_DURATION = 150;
 
 
 const DEFAULT_START_CELL: Axial = { q: 0, r: 0 };
@@ -335,17 +336,6 @@ function mod6(value: number): number {
   return ((value % 6) + 6) % 6;
 }
 
-function easeOutCubic(value: number): number {
-  const t = Math.max(0, Math.min(1, value));
-  return 1 - Math.pow(1 - t, 3);
-}
-
-function shortestRotationAngle(from: number, to: number): number {
-  let delta = mod6(to - from);
-  if (delta > 3) delta -= 6;
-  return -delta * Math.PI / 3;
-}
-
 function triangularScore(length: number): number {
   const value = Math.max(0, Math.floor(length));
   return value * (value + 1) / 2;
@@ -363,8 +353,8 @@ function axialDistance(q: number, r: number): number {
   return Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r));
 }
 
-function axialToScreen(q: number, r: number, hexScreen: number, offsetX: number, offsetY: number): { x: number; y: number } {
-  const center = hexCenter(q, r, hexScreen);
+function axialToScreen(q: number, r: number, hexScreen: number, offsetX: number, offsetY: number, orientation: HexOrientation = 'pointy'): { x: number; y: number } {
+  const center = boardCenter(q, r, hexScreen, orientation);
   return { x: CANVAS_W / 2 + offsetX + center.x, y: CANVAS_H / 2 + offsetY + center.y };
 }
 
@@ -396,6 +386,8 @@ function normalizePairing(source: unknown): Pairing | null {
 }
 
 function resolveLevel(config: LevelConfig, index: number): ResolvedLevel {
+  if (config.shape === 'trident' || config.shape === 'blossom') config = { ...config, ...createBoardShape(config.shape), outerWalls: false };
+  const orientation = config.orientation === 'flat' ? 'flat' : 'pointy';
   const radius = Number.isFinite(config.radius) ? Math.max(1, Math.floor(config.radius ?? DEFAULT_BOARD_RADIUS)) : DEFAULT_BOARD_RADIUS;
   const usesRadiusCells = !(Array.isArray(config.cells) && config.cells.length > 0);
   const cells = Array.isArray(config.cells) && config.cells.length > 0
@@ -426,11 +418,12 @@ function resolveLevel(config: LevelConfig, index: number): ResolvedLevel {
   const tileLibrary = (Array.isArray(config.tileLibrary) ? config.tileLibrary.map(normalizePairing).filter(Boolean) : []) as Pairing[];
   const boardCells = uniqueCells.length > 0 ? uniqueCells : radiusCells(DEFAULT_BOARD_RADIUS);
   const hexScreen = (Number.isFinite(config.hexScreen) ? Math.max(20, Number(config.hexScreen)) : DEFAULT_HEX_SCREEN) * .95;
-  const centers = boardCells.map(cell => hexCenter(cell.q, cell.r, hexScreen));
+  const centers = boardCells.map(cell => boardCenter(cell.q, cell.r, hexScreen, orientation));
   const centerX = (Math.min(...centers.map(p => p.x)) + Math.max(...centers.map(p => p.x))) / 2;
   const centerY = (Math.min(...centers.map(p => p.y)) + Math.max(...centers.map(p => p.y))) / 2;
 
   return {
+    orientation,
     id: config.id || `level-${index + 1}`,
     name: config.name || `Level ${index + 1}`,
     cells: boardCells,
@@ -559,6 +552,7 @@ class EntanglementPathGame {
   private phase: Phase = 'playing';
   private score = 0;
   private pathLength = 0;
+  private displayedScore = -1;
   private best = 0;
   private bestByLevel: number[] = [];
   private tileSerial = 0;
@@ -578,7 +572,6 @@ class EntanglementPathGame {
   private swapHoverAmount = 0;
   private swapAnimationStart = 0;
   private swapAnimationActive = false;
-  private readonly swapAnimationDuration = 260;
   private swapOverlays: SwapOverlay[] = [];
   private scoreText!: TextPlane;
   private restartText!: TextPlane;
@@ -586,6 +579,14 @@ class EntanglementPathGame {
   private activeEntries = new Map<AxialKey, Port[]>();
   private previewTextureCache = new Map<string, GPUTexture>();
   private reserveTextureCache = new Map<string, GPUTexture>();
+  private terrainWorld!: TerrainWorld;
+  private terrainMapSeed = 0;
+  private terrainMapEntity: Entity | null = null;
+  private terrainMapTexture: GPUTexture | null = null;
+  private terrainBuildMs = 0;
+  private terrainDrawMs = 0;
+  private terrainGeneration = 0;
+  private readonly fogReveals = new Map<AxialKey, number>();
   private readonly riverFlow = new RiverFlow();
   private readonly riverCanvases = new Map<AxialKey, HTMLCanvasElement>();
   private riverFrame = -1;
@@ -610,14 +611,13 @@ class EntanglementPathGame {
   private previewSpinStart = 0;
   private previewSpinFrom = 0;
   private previewSpinTo = 0;
-  private readonly previewSpinDuration = 160;
-  private wheelAccumulator = 0;
-  private readonly wheelRotateThreshold = 180;
-  private scorePopups: FloatingScoreLabel[] = [];
+  private readonly previewSpinDuration = TURN_DURATION;
   private rotateButtons: RotateButtonState[] = [];
   private pointerCanvasPoint: { x: number; y: number } | null = null;
 
   private art!: InkArt;
+  private painter!: BoardPainter;
+  private removeInput: (() => void) | null = null;
   private intro!: ScrollReveal;
   private introTexture: GPUTexture | null = null;
   private introEntity: Entity | null = null;
@@ -634,6 +634,9 @@ class EntanglementPathGame {
   private viewWidth = VIEW_W;
   private viewHeight = VIEW_H;
   private cameraX = 0;
+  private versus: VersusController | null = null;
+  private versusInitialized = false;
+  private versusOverlay: { transform: CartesianTransform3D; material: BasicMaterial; texture: GPUTexture } | null = null;
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.engine = new GameEngine({
@@ -646,6 +649,10 @@ class EntanglementPathGame {
     this.world = new World('阡陌交通');
     this.setupCamera();
     this.art = await InkArt.load();
+    this.painter = new BoardPainter(this.art);
+    this.engine.on('state-change', ({ detail: { state } }) => {
+      if (state === 'destroyed') { this.terrainGeneration++; this.removeInput?.(); this.art.connected.dispose(); this.versus?.dispose(); this.versusOverlay?.texture.destroy(); }
+    });
     this.buildBackground();
     this.setupMusic();
     void this.loadSfxSound();
@@ -653,22 +660,31 @@ class EntanglementPathGame {
     void this.loadEndSound();
     this.levels = await this.loadLevels();
     await this.loadOrStart();
+    if (this.engine.state === 'destroyed') return;
     this.buildDecorations();
     this.buildPanel();
     this.bindInput(canvas);
     this.syncAll();
     this.updateViewport();
     this.startIntro();
+    this.versus = new VersusController({ canvas, art: this.art, levels: this.levels, ready: () => !this.introActive && this.phase !== 'loading',
+      soloLevel: () => this.levelIndex, selectSoloLevel: index => this.loadLevel(index, true),
+      now: gameTime, present: source => this.presentVersus(source), sound: (kind, gain = 1) => {
+        void (kind === 'turn' ? this.playTurnSound() : kind === 'end' ? this.playEndSound() : kind === 'place' ? this.playLineSound(gain) : this.playSfxClip('swap-tile'));
+      } });
     this.engine.on('update', ({ detail: { time } }) => {
+      this.versus?.update();
+      if (this.versus && this.versus.mode!=='solo') { this.world.update(time, 16); return; }
+      if ((this.versus?.soloDisplayScore(this.score)??this.score)!==this.displayedScore) this.syncScore();
       this.updateSwapPanelHover();
       this.updateSwapAnimation();
-      this.updateScorePopups();
       this.updateCurrentCell();
       this.updateRotateButtons();
       this.updatePreviewRotationAnimation();
       this.updatePathPulse();
       this.updateRiverVisuals();
       this.updateIntro();
+      if (!this.introActive && !this.versusInitialized) { this.versusInitialized = true; void this.versus?.init(); }
       this.world.update(time, 16);
     });
     window.addEventListener('resize', () => {
@@ -690,6 +706,19 @@ class EntanglementPathGame {
       console.warn('Using built-in Entanglement level fallback.', error);
       return [resolveLevel(DEFAULT_LEVEL, 0)];
     }
+  }
+
+  private presentVersus(source: HTMLCanvasElement | null): void {
+    if (!source) { this.versusOverlay?.transform.setScale(0, 0, 1); return; }
+    if (!this.versusOverlay) {
+      const texture = this.canvasToGpuTexture(source), entity = new Entity('Versus Scroll');
+      const transform = new CartesianTransform3D(), material = new BasicMaterial({ texture, blending: 'normal', depthWrite: false });
+      entity.addComponent(transform); entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
+      this.world.addEntity(entity); this.versusOverlay = { transform, material, texture };
+    } else if (this.versusOverlay.texture.width !== source.width || this.versusOverlay.texture.height !== source.height) {
+      this.versusOverlay.texture.destroy(); this.versusOverlay.texture = this.canvasToGpuTexture(source); this.versusOverlay.material.texture = this.versusOverlay.texture;
+    } else this.uploadCanvas(this.versusOverlay.texture, source);
+    this.versusOverlay.transform.setPosition(this.cameraX, 0, 3).setScale(this.viewWidth, this.viewHeight, 1);
   }
 
 
@@ -833,6 +862,7 @@ class EntanglementPathGame {
     this.cameraTransform.setPosition(this.cameraX, 0, 10);
     this.backgroundTransform.setPosition(this.cameraX, 0, -.55).setScale(this.viewWidth, this.viewHeight, 1);
     this.introTransform?.setPosition(this.cameraX, 0, 4).setScale(this.viewWidth, this.viewHeight, 1);
+    if(this.versusOverlay?.transform.scale[0])this.versusOverlay.transform.setPosition(this.cameraX,0,3).setScale(this.viewWidth,this.viewHeight,1);
     for (const item of this.uiPlanes.values()) item.transform.setPosition(...screenToWorld(item.x, item.y, item.z));
     const place = (name: string, x: number, y: number) => {
       const item = this.uiPlanes.get(name); item?.transform.setPosition(x, y, item.z);
@@ -843,9 +873,9 @@ class EntanglementPathGame {
     this.reserveTransform.setPosition(panelX, panelY - .23, SWAP_TILE_Z);
     if (portrait) {
       const top = this.viewHeight / 2;
-      place('Ink Title', this.cameraX - 2.5, top - 3.1);
-      place('Ink Subtitle', this.cameraX - 2.5, top - 3.85);
-      place('Ink Seal', this.cameraX - .70, top - 3.1);
+      place('Ink Title', this.cameraX - 2.5, top - 3.6);
+      place('Ink Subtitle', this.cameraX - 2.5, top - 4.35);
+      place('Ink Seal', this.cameraX - .70, top - 3.6);
       place('Swap Title', panelX, panelY + .76);
       place('Ink Instructions', panelX, panelY - 1.22);
       place('Restart Prompt', this.cameraX, -this.viewHeight * .25);
@@ -857,7 +887,7 @@ class EntanglementPathGame {
       const height = SCORE_PANEL_H / CANVAS_H * VIEW_H * scale;
       score.transform.setScale(width, height, 1);
       place('Score Panel', this.cameraX + this.viewWidth * .432 - width / 2,
-        this.viewHeight * .425 - .35 - height / 2);
+        this.viewHeight * .425 - .35 - height / 2 - (portrait ? .75 : 0));
     }
   }
 
@@ -904,22 +934,43 @@ class EntanglementPathGame {
 
   private terrainSeed(tile: TileDef): number { return cellPigment(tile.id, tile.variant, 71); }
 
-  private pathTerrain(tile: TileDef, rotation: number): HTMLCanvasElement {
-    return this.art.tile('path', this.terrainSeed(tile), tile.pairs, rotation);
+  private pathTerrain(tile: TileDef, rotation: number, cellKey = key(this.current.q, this.current.r)): HTMLCanvasElement {
+    const node = this.terrainWorld.nodes.get(cellKey);
+    if (!node) throw new Error(`Missing connected terrain cell ${cellKey}`);
+    return this.painter.terrain(node, tile, rotation);
   }
 
-  private drawBaseCell(cell: Pick<BoardCell, 'wall' | 'variant'> & Partial<Pick<BoardCell, 'source'>>): HTMLCanvasElement {
-    const source = Boolean(cell.source);
-    const baseImage = source ? this.art.tile('source', cell.variant) : this.getBlockTile(cell.wall ? 1 : 0, cell.variant);
-    const texture = drawHexPath(null, 0, {
-      fill: cell.wall ? '#2d3340' : '#16252d',
-      stroke: cell.wall ? '#5b6470' : '#314852',
-      path: '#80ed99',
-      sourceExit: source ? this.sourceExit : null,
-      baseImage,
-      markers: false,
-    });
-    return texture;
+  private drawBaseCell(cell: Pick<BoardCell, 'wall' | 'variant' | 'q' | 'r'> & Partial<Pick<BoardCell, 'source'>>, active = false): HTMLCanvasElement {
+    const source = Boolean(cell.source), node = this.terrainWorld.nodes.get(key(cell.q, cell.r))!;
+    // Mountain walls are already painted as one continuous map layer underneath the board.
+    if (cell.wall && !source) { const empty = makeCanvas(); empty.getContext('2d'); return empty; }
+    if (source) return this.painter.source(node, this.sourceExit);
+    const baseImage = !cell.wall && !source ? (active ? this.pathTerrain(this.nextTile, this.rotation, key(cell.q, cell.r)) : this.art.connected.unexplored(node)) : this.art.connected.base(node);
+    return drawHexPath(null, 0, { sourceExit: source ? this.sourceExit : null, baseImage });
+  }
+
+  private async buildTerrainWorld(seed: number): Promise<boolean> {
+    const started = performance.now(), generation = ++this.terrainGeneration; this.terrainMapSeed = seed;
+    const board: TerrainSite[] = this.level.cells.map(({ q, r }) => ({ q, r,
+      kind: this.level.wallKeys.has(key(q, r)) && !(this.level.startWall && q === this.level.start.q && r === this.level.start.r) ? 'wall' : 'play' }));
+    this.terrainWorld = collapseTerrain(extendTerrainSites(board), seed);
+    const ready = await this.art.connected.configure(this.terrainWorld);
+    if (!ready || generation !== this.terrainGeneration) return false;
+    const drawingStarted = performance.now();
+    if (this.terrainMapEntity) this.world.removeEntity(this.terrainMapEntity);
+    this.terrainMapTexture?.destroy();
+    const size = boardPlaneSize(this.level.hexScreen, this.level.orientation);
+    const backdrop = this.art.connected.backdrop([...this.terrainWorld.nodes.values()].map(node => ({ node,
+      ...axialToScreen(node.q, node.r, this.level.hexScreen, this.level.boardOffsetX, this.level.boardOffsetY, this.level.orientation) })), size.width, size.height, boardAngle(this.level.orientation));
+    const entity = new Entity('Connected Mountain Sea');
+    const texture = this.canvasToGpuTexture(backdrop.canvas);
+    entity.addComponent(new CartesianTransform3D({ position: screenToWorld(backdrop.x, backdrop.y, -.12),
+      scale: [backdrop.width / CANVAS_W * VIEW_W, backdrop.height / CANVAS_H * VIEW_H, 1] }));
+    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), new BasicMaterial({ texture, blending: 'normal', depthWrite: false })));
+    this.world.addEntity(entity); this.terrainMapEntity = entity; this.terrainMapTexture = texture;
+    this.terrainDrawMs = performance.now() - drawingStarted;
+    this.terrainBuildMs = performance.now() - started;
+    return true;
   }
 
   private buildBoard(): void {
@@ -928,9 +979,9 @@ class EntanglementPathGame {
         const source = this.level.startWall && cellKey === key(this.level.start.q, this.level.start.r);
         const wall = this.level.wallKeys.has(cellKey) || source;
         const variant = cellPigment(q, r, this.levelIndex);
-        const screen = axialToScreen(q, r, this.level.hexScreen, this.level.boardOffsetX, this.level.boardOffsetY);
+        const screen = axialToScreen(q, r, this.level.hexScreen, this.level.boardOffsetX, this.level.boardOffsetY, this.level.orientation);
         const material = new BasicMaterial({
-          texture: this.canvasToGpuTexture(this.drawBaseCell({ wall, source, variant })),
+          texture: this.canvasToGpuTexture(this.drawBaseCell({ q, r, wall, source, variant })),
           blending: 'normal',
           depthWrite: false,
         });
@@ -938,6 +989,7 @@ class EntanglementPathGame {
           position: screenToWorld(screen.x, screen.y, 0),
           scale: [tileScale(this.level).x, tileScale(this.level).y, 1],
         });
+        transform.setRotation(0, 0, -boardAngle(this.level.orientation));
         const entity = new Entity(`Cell ${q},${r}`);
         const mesh = new Mesh3D(createPlane3D({ width: 1, height: 1 }), material);
         entity.addComponent(transform);
@@ -1123,57 +1175,26 @@ class EntanglementPathGame {
     const cacheKey = `${this.nextTile.id}:${rotation}:${this.incomingSide}`;
     const cached = this.previewTextureCache.get(cacheKey);
     if (cached) return cached;
-    const texture = this.canvasToGpuTexture(drawHexPath(this.nextTile, rotation, {
-      fill: '#243b4a',
-      stroke: '#7dd3fc',
-      path: '#d93a2f',
-      glow: true,
-      entry: this.incomingSide,
-      activeEntry: this.incomingSide,
-      markers: false,
-      baseImage: this.pathTerrain(this.nextTile, rotation),
-    }));
+    const texture = this.canvasToGpuTexture(this.painter.preview(this.nextTile, rotation, this.incomingSide));
     this.previewTextureCache.set(cacheKey, texture);
     return texture;
   }
 
   private getReserveTexture(): GPUTexture {
-    const cacheKey = `${this.reserveTile.id}:${this.reserveRotation}`;
+    const cacheKey = `${this.reserveTile.id}:${this.reserveRotation}:${this.terrainMapSeed}:${this.current.q},${this.current.r}`;
     const cached = this.reserveTextureCache.get(cacheKey);
     if (cached) return cached;
-    const texture = this.canvasToGpuTexture(drawHexPath(this.reserveTile, this.reserveRotation, {
-      fill: '#243b4a',
-      stroke: '#7dd3fc',
-      path: '#d93a2f',
-      markers: false,
-      baseImage: this.pathTerrain(this.reserveTile, this.reserveRotation),
-    }));
+    const texture = this.canvasToGpuTexture(this.painter.preview(this.reserveTile, this.reserveRotation, null, this.terrainWorld.nodes.get(key(this.current.q, this.current.r))!));
     this.reserveTextureCache.set(cacheKey, texture);
     return texture;
   }
 
   private createPreviewLikeTexture(tile: TileDef, rotation: number): GPUTexture {
-    return this.canvasToGpuTexture(drawHexPath(tile, rotation, {
-      fill: '#243b4a',
-      stroke: '#7dd3fc',
-      path: '#d93a2f',
-      glow: true,
-      entry: this.incomingSide,
-      activeEntry: this.incomingSide,
-      pulse: this.pathPulse,
-      markers: false,
-      baseImage: this.pathTerrain(tile, rotation),
-    }));
+    return this.canvasToGpuTexture(this.painter.preview(tile, rotation, this.incomingSide, this.terrainWorld.nodes.get(key(this.current.q, this.current.r))!));
   }
 
   private createReserveLikeTexture(tile: TileDef, rotation: number): GPUTexture {
-    return this.canvasToGpuTexture(drawHexPath(tile, rotation, {
-      fill: '#243b4a',
-      stroke: '#7dd3fc',
-      path: '#d93a2f',
-      markers: false,
-      baseImage: this.pathTerrain(tile, rotation),
-    }));
+    return this.canvasToGpuTexture(this.painter.preview(tile, rotation, null, this.terrainWorld.nodes.get(key(this.current.q, this.current.r))!));
   }
 
   private createSwapOverlay(
@@ -1188,6 +1209,7 @@ class EntanglementPathGame {
       position: fromPosition,
       scale: fromScale,
     });
+    transform.setRotation(0, 0, -boardAngle(this.level.orientation));
     const material = new BasicMaterial({
       texture,
       blending: 'normal',
@@ -1207,60 +1229,37 @@ class EntanglementPathGame {
   }
 
   private bindInput(canvas: HTMLCanvasElement): void {
-    canvas.addEventListener('click', (event) => {
-      if (this.introActive) return;
-      if (this.phase === 'ended') {
-        this.reset();
-        return;
-      }
-      const point = this.pointerToCanvas(canvas, event.clientX, event.clientY);
-      this.pointerCanvasPoint = point;
-      const rotateButton = this.hitRotateButton(point);
-      if (rotateButton) {
-        this.pressRotateButton(rotateButton);
-        return;
-      }
-      if (this.hitReserveTile(event.clientX, event.clientY)) {
-        this.swapReserveTile();
-        return;
-      }
-      const current = this.cells.get(key(this.current.q, this.current.r));
-      if (!current || current.wall) return;
-      const dx = point.x - current.screenX;
-      const dy = point.y - current.screenY;
-      if (Math.hypot(dx, dy) < this.level.hexScreen * HEX_HIT_SCALE * 1.18) this.placeCurrentTile();
-    });
-    canvas.addEventListener('contextmenu', (event) => {
-      event.preventDefault();
-      this.rotate(1);
-    });
-    canvas.addEventListener('wheel', (event) => {
-      event.preventDefault();
-      this.wheelAccumulator += event.deltaY;
-      if (Math.abs(this.wheelAccumulator) < this.wheelRotateThreshold) return;
-      this.rotate(this.wheelAccumulator > 0 ? 1 : -1);
-      this.wheelAccumulator = 0;
-    }, { passive: false });
-    canvas.addEventListener('pointermove', (event) => {
-      this.pointerCanvasPoint = this.pointerToCanvas(canvas, event.clientX, event.clientY);
-      this.swapHoverTarget = this.hitReserveTile(event.clientX, event.clientY) ? 1 : 0;
-    });
-    canvas.addEventListener('pointerleave', () => {
-      this.pointerCanvasPoint = null;
-      this.swapHoverTarget = 0;
-    });
-    window.addEventListener('keydown', (event) => {
-      if (this.introActive) return;
-      if (event.key === 'r' || event.key === 'R' || event.key === 'ArrowRight') this.rotate(1);
-      if (event.key === 'ArrowLeft') this.rotate(-1);
-      if (event.key === ']' || event.code === 'BracketRight' || event.key === '/' || event.code === 'Slash') this.changeLevel(1);
-      if (event.key === '[' || event.code === 'BracketLeft') this.changeLevel(-1);
-      if (event.key === ' ' || event.key === 'Enter') {
-        event.preventDefault();
-        if (event.repeat) return;
-        if (this.phase === 'ended') this.reset();
+    this.removeInput = bindBoardInput(canvas, {
+      ready: () => !this.introActive && this.phase !== 'loading',
+      token: () => `${this.versus?.active}:${this.versus?.mode}:${this.levelIndex}`,
+      routeKey: event=>this.versus?.selectorKey(event)??false,
+      swipe: (from,to)=>this.versus?.selectorSwipe(from,to)??false,
+      click: event => {
+        if (this.versus?.pointer(event.clientX, event.clientY)) return;
+        if (this.phase === 'ended') { void this.reset(); return; }
+        const point = this.pointerToCanvas(canvas, event.clientX, event.clientY);
+        this.pointerCanvasPoint = point;
+        const button = this.hitRotateButton(point);
+        if (button) { this.pressRotateButton(button); return; }
+        if (this.hitReserveTile(event.clientX, event.clientY)) { this.swapReserveTile(); return; }
+        if (this.isPointerOverCurrentTile(point)) this.placeCurrentTile();
+      },
+      move: event => {
+        if (this.versus?.active) this.versus.movePointer(event.clientX, event.clientY);
+        else {
+          this.pointerCanvasPoint = this.pointerToCanvas(canvas, event.clientX, event.clientY);
+          this.swapHoverTarget = this.hitReserveTile(event.clientX, event.clientY) ? 1 : 0;
+        }
+      },
+      leave: () => { this.pointerCanvasPoint = null; this.swapHoverTarget = 0; this.versus?.leavePointer(); },
+      rotate: delta => this.rotate(delta), swap: () => this.swapReserveTile(),
+      confirm: () => {
+        if (this.versus?.active) this.versus.place();
+        else if (this.phase === 'ended') void this.reset();
         else this.placeCurrentTile();
-      }
+      },
+      mode: () => this.versus?.cycleMode(),
+      level: delta => { if (this.versus?.active) this.versus.changeLevel(delta); else this.changeLevel(delta); },
     });
   }
 
@@ -1282,10 +1281,7 @@ class EntanglementPathGame {
   private rotateButtonCenter(kind: RotateButtonKind): { x: number; y: number } | null {
     const cell = this.cells.get(key(this.current.q, this.current.r));
     if (!cell) return null;
-    return {
-      x: cell.screenX + (kind === 'ccw' ? -ROTATE_BUTTON_OFFSET_X : ROTATE_BUTTON_OFFSET_X),
-      y: cell.screenY + ROTATE_BUTTON_OFFSET_Y,
-    };
+    return rotationButtonCenter({ x: cell.screenX, y: cell.screenY }, kind === 'ccw' ? -1 : 1);
   }
 
   private hitRotateButton(point: { x: number; y: number } | null): RotateButtonState | null {
@@ -1293,10 +1289,7 @@ class EntanglementPathGame {
     for (const button of this.rotateButtons) {
       const center = this.rotateButtonCenter(button.kind);
       if (!center) continue;
-      if (
-        Math.abs(point.x - center.x) <= ROTATE_BUTTON_W * 0.5
-        && Math.abs(point.y - center.y) <= ROTATE_BUTTON_H * 0.5
-      ) {
+      if (hitRect(point, { x: center.x - ROTATE_BUTTON_W / 2, y: center.y - ROTATE_BUTTON_H / 2, w: ROTATE_BUTTON_W, h: ROTATE_BUTTON_H })) {
         return button;
       }
     }
@@ -1307,7 +1300,7 @@ class EntanglementPathGame {
     if (!point || this.phase !== 'playing') return false;
     const cell = this.cells.get(key(this.current.q, this.current.r));
     if (!cell || cell.wall) return false;
-    return Math.hypot(point.x - cell.screenX, point.y - cell.screenY) < this.level.hexScreen * HEX_HIT_SCALE * 1.18;
+    return hitCurrentTile(point, { x: cell.screenX, y: cell.screenY }, this.level.hexScreen);
   }
 
   private pressRotateButton(button: RotateButtonState): void {
@@ -1316,6 +1309,8 @@ class EntanglementPathGame {
   }
 
   private swapReserveTile(): void {
+    if (this.versus?.active) { this.versus.swap(); return; }
+    if (this.phase !== 'playing' || this.introActive) return;
     this.finishSwapAnimation();
     const previewPosition = Array.from(this.previewTransform.position) as [number, number, number];
     const reservePosition = Array.from(this.reserveTransform.position) as [number, number, number];
@@ -1374,8 +1369,10 @@ class EntanglementPathGame {
   }
 
   private rotate(delta: number): void {
+    if (this.versus?.active) { this.versus.rotate(delta); return; }
     if (this.phase !== 'playing' || this.introActive) return;
     void this.playTurnSound();
+    this.finishSwapAnimation();
     this.finishPreviewRotationAnimation();
     const previousRotation = this.previewRenderedRotation;
     this.rotation = mod6(this.rotation + delta);
@@ -1461,11 +1458,13 @@ class EntanglementPathGame {
 
   private placeCurrentTile(): void {
     if (this.phase !== 'playing' || this.introActive) return;
+    this.finishSwapAnimation(); this.finishPreviewRotationAnimation();
     const cellKey = key(this.current.q, this.current.r);
     if (this.placed.has(cellKey)) return;
     const cell = this.cells.get(cellKey);
     if (!cell || cell.wall) return;
 
+    this.fogReveals.set(cellKey, gameTime());
     const previousPathLength = this.pathLength;
     const exit = this.findExitSide(this.nextTile, this.rotation, this.incomingSide);
     const entry = this.incomingSide;
@@ -1477,13 +1476,13 @@ class EntanglementPathGame {
       order: this.placed.size + 1,
     });
     const trace = this.rebuildActivePath();
-    this.riverFlow.connect(this.activeRiverRoutes(), gameTime());
+    const scoreSteps=this.riverFlow.connect(this.activeRiverRoutes(), gameTime());
     this.redrawPlacedTiles();
     this.pathLength = this.calculatePathLength();
     this.redrawSourceCell();
     const addedLength = Math.max(0, this.pathLength - previousPathLength);
     this.score += triangularScore(addedLength);
-    this.spawnScorePopups(addedLength);
+    this.spawnScorePopups(scoreSteps);
     void this.playLineSound(addedLength);
     if (this.score > this.best) {
       this.best = this.score;
@@ -1507,28 +1506,19 @@ class EntanglementPathGame {
     this.saveState();
   }
 
-  private reset(): void {
+  private async reset(): Promise<void> {
+    this.phase = 'loading'; this.previewTransform.setScale(0, 0, 1);
     this.clearRiverVisuals();
-    this.clearTileTextureCaches();
-    for (const cellKey of this.placed.keys()) {
-      const cell = this.cells.get(cellKey);
-      if (!cell) continue;
-      this.setCellTexture(cell, drawHexPath(null, 0, {
-        fill: '#16252d',
-        stroke: '#314852',
-        path: '#80ed99',
-        baseImage: this.getBlockTile(0, cell.variant),
-        markers: false,
-      }));
-    }
     this.placed.clear();
     this.activeEntries.clear();
     this.previousBreathingEntries.clear();
     this.lastPathPulseBucket = -1;
-    this.phase = 'playing';
     this.score = 0;
     this.pathLength = 0;
     this.resetPathStart();
+    if (!await this.buildTerrainWorld(cellPigment(this.tileSerial, this.levelIndex, 947))) return;
+    this.clearTileTextureCaches();
+    for (const cell of this.cells.values()) this.setCellTexture(cell, this.drawBaseCell(cell));
     this.redrawSourceCell();
     this.highlightedKey = null;
     this.nextTile = this.randomTile();
@@ -1536,11 +1526,11 @@ class EntanglementPathGame {
     this.rotation = 0;
     this.reserveRotation = 0;
     this.swapAnimationActive = false;
-    this.wheelAccumulator = 0;
     this.clearSwapOverlays();
     this.clearScorePopups();
     this.previewRenderedRotation = this.rotation;
     this.previewSpinActive = false;
+    this.phase = 'playing';
     this.syncAll();
     this.saveState();
   }
@@ -1558,9 +1548,10 @@ class EntanglementPathGame {
     this.loadLevel(this.levelIndex + delta, true);
   }
 
-  private loadLevel(index: number, sync: boolean): void {
+  private async loadLevel(index: number, sync: boolean, mapSeed?: number): Promise<void> {
+    this.phase = 'loading';
+    this.previewTransform?.setScale(0, 0, 1);
     this.clearRiverVisuals();
-    this.clearTileTextureCaches();
     this.clearBoard();
     this.levelIndex = (index + this.levels.length) % this.levels.length;
     this.level = requiredItemAt(this.levels, this.levelIndex, 'entanglement levels');
@@ -1569,7 +1560,6 @@ class EntanglementPathGame {
     this.activeEntries.clear();
     this.previousBreathingEntries.clear();
     this.lastPathPulseBucket = -1;
-    this.phase = 'playing';
     this.score = 0;
     this.pathLength = 0;
     this.highlightedKey = null;
@@ -1582,10 +1572,13 @@ class EntanglementPathGame {
     this.clearScorePopups();
     this.previewRenderedRotation = this.rotation;
     this.previewSpinActive = false;
+    if (!await this.buildTerrainWorld(mapSeed ?? cellPigment(this.tileSerial, this.levelIndex, 947))) return;
+    this.clearTileTextureCaches();
     this.buildBoard();
     this.resetPathStart();
     this.redrawSourceCell();
     this.raisePreviewEntity();
+    this.phase = 'playing';
     if (sync) {
       this.syncAll();
       this.saveState();
@@ -1594,13 +1587,18 @@ class EntanglementPathGame {
 
   private async loadOrStart(): Promise<void> {
     const saved = await this.saves.load();
-    if (!saved || saved.levelIndex >= this.levels.length) {
-      this.loadLevel(0, false);
+    if (!saved) {
+      await this.loadLevel(0, false);
+      if (this.engine.state === 'destroyed') return;
       this.saveState();
       return;
     }
-    this.bestByLevel = [...saved.bestByLevel];
-    this.loadLevel(saved.levelIndex, false);
+    const ids = this.levels.map(level => level.id);
+    this.bestByLevel = savedBestScores(saved.bestByLevel, saved.levelIds, ids);
+    const restoredIndex = savedBoardIndex(saved, ids);
+    if (restoredIndex === null) { await this.loadLevel(0, false); if (this.engine.state !== 'destroyed') this.saveState(); return; }
+    await this.loadLevel(restoredIndex, false, saved.terrainMapSeed ?? cellPigment(saved.tileSerial, restoredIndex, 947));
+    if (this.engine.state === 'destroyed') return;
     this.placed = new Map(saved.placed.filter(([cellKey]) => {
       const cell = this.cells.get(cellKey);
       return !!cell && !cell.wall;
@@ -1632,6 +1630,8 @@ class EntanglementPathGame {
     this.bestByLevel[this.levelIndex] = this.best;
     this.saves.save({
       levelIndex: this.levelIndex,
+      levelId: this.level.id,
+      levelIds: this.levels.map(level => level.id),
       bestByLevel: [...this.bestByLevel],
       placed: [...this.placed.entries()].map(([cellKey, placed]): [AxialKey, PlacedTile] => [cellKey, {
         ...placed,
@@ -1650,6 +1650,7 @@ class EntanglementPathGame {
       rotation: this.rotation,
       reserveRotation: this.reserveRotation,
       tileSerial: this.tileSerial,
+      terrainMapSeed: this.terrainMapSeed,
     });
   }
 
@@ -1706,15 +1707,20 @@ class EntanglementPathGame {
     let target = this.riverCanvases.get(cellKey);
     if (!target) { target = makeCanvas(); this.riverCanvases.set(cellKey, target); }
     const wetness = this.riverFlow.wetness(cellKey, gameTime());
-    drawHexPath(placed.tile, placed.rotation, {
-      pulseEntries: breathingEntries.get(cellKey) ?? [], pulse,
-      wetness, time: gameTime(), baseImage: this.pathTerrain(placed.tile, placed.rotation), target,
-    });
-    this.art.growBank(target.getContext('2d')!, this.terrainSeed(placed.tile), wetness);
+    const revealStart = this.fogReveals.get(cellKey);
+    let fog = 0;
+    if (revealStart !== undefined) {
+      const progress = Math.min(1, Math.max(0, (gameTime() - revealStart) / 760));
+      fog = (1 - progress) ** 1.8;
+      if (progress === 1) this.fogReveals.delete(cellKey);
+    }
+    this.painter.placed(this.terrainWorld.nodes.get(cellKey)!, placed.tile, placed.rotation, wetness, gameTime(), fog, target,
+      { pulseEntries: breathingEntries.get(cellKey) ?? [], pulse });
     this.setCellTexture(cell, target);
   }
 
   private clearRiverVisuals(): void {
+    this.fogReveals.clear();
     this.riverFlow.clear(); this.riverCanvases.clear(); this.previousFlowCells.clear();
     this.riverFrame = -1; this.riverSettledCursor = 0;
     this.haloCell = '';
@@ -1752,7 +1758,7 @@ class EntanglementPathGame {
     }
     if (frame === this.riverFrame) return;
     this.riverFrame = frame;
-    const moving = this.riverFlow.movingCells(now), dirty = new Set([...moving, ...this.previousFlowCells]);
+    const moving = this.riverFlow.movingCells(now), dirty = new Set([...moving, ...this.previousFlowCells, ...this.fogReveals.keys()]);
     this.previousFlowCells.clear(); for (const cell of moving) this.previousFlowCells.add(cell);
     // Two settled cells per tick keep tiny highlights drifting without redrawing the full board.
     const settled = [...this.placed.keys()];
@@ -1845,109 +1851,22 @@ class EntanglementPathGame {
     return length;
   }
 
-  private activePathCellKeysInOrder(): AxialKey[] {
-    const result: AxialKey[] = [];
-    let current = { ...this.pathStart };
-    let incoming = this.pathEntry;
-    const visited = new Set<string>();
-
-    for (let step = 0; step < this.placed.size * 12 + 1; step++) {
-      const currentKey = key(current.q, current.r);
-      const occupied = this.placed.get(currentKey);
-      const cell = this.cells.get(currentKey);
-      if (!cell || cell.wall || !occupied) return result;
-
-      const traceKey = `${currentKey}:${incoming}`;
-      if (visited.has(traceKey)) return result;
-      visited.add(traceKey);
-      result.push(currentKey);
-
-      const outgoing = this.findExitSide(occupied.tile, occupied.rotation, incoming);
-      const dir = requiredItemAt(DIRECTIONS, portSide(outgoing), 'hex directions');
-      current = { q: current.q + dir.q, r: current.r + dir.r };
-      incoming = oppositePort(outgoing);
-    }
-
-    return result;
-  }
-
-  private spawnScorePopups(addedLength: number): void {
-    if (addedLength <= 0) return;
-    const pathKeys = this.activePathCellKeysInOrder();
-    const popupKeys = pathKeys.slice(Math.max(0, pathKeys.length - addedLength));
-    popupKeys.forEach((cellKey, index) => {
-      const cell = this.cells.get(cellKey);
-      if (!cell) return;
-      this.createScorePopup(index + 1, cell, index);
-    });
-  }
-
-  private createScorePopup(value: number, cell: BoardCell, index: number): void {
-    const texture = document.createElement('canvas'); texture.width = 128; texture.height = 72;
-    this.art.drawNumber(texture.getContext('2d')!, '+' + value, 64, 7, 48, INK, 'center');
-
-    const material = new BasicMaterial({
-      texture: this.canvasToGpuTexture(texture),
-      color: [1, 1, 1, 1],
-      blending: 'normal',
-      depthWrite: false,
-    });
-    const jitterX = ((index % 3) - 1) * 0.16;
-    const jitterY = Math.floor(index / 3) * 0.1;
-    const startPosition = [
-      requiredNumberAt(cell.transform.position, 0, 'score popup cell position') + jitterX,
-      requiredNumberAt(cell.transform.position, 1, 'score popup cell position') + 0.34 + jitterY,
-      1.08,
-    ] as [number, number, number];
-    const transform = new CartesianTransform3D({
-      position: startPosition,
-      scale: [0.58, 0.33, 1],
-    });
-    const entity = new Entity(`Score Popup +${value}`);
-    entity.addComponent(transform);
-    entity.addComponent(new Mesh3D(createPlane3D({ width: 1, height: 1 }), material));
-    this.world.addEntity(entity);
-    this.scorePopups.push({
-      entity,
-      transform,
-      material,
-      startTime: gameTime(),
-      startPosition,
-    });
-  }
-
-  private updateScorePopups(): void {
-    if (this.scorePopups.length === 0) return;
-    const now = gameTime();
-    for (let index = this.scorePopups.length - 1; index >= 0; index--) {
-      const popup = requiredItemAt(this.scorePopups, index, 'score popups');
-      const elapsed = now - popup.startTime;
-      if (elapsed >= SCORE_POPUP_DURATION) {
-        if (this.world.hasEntity(popup.entity)) this.world.removeEntity(popup.entity);
-        (popup.material.texture as GPUTexture).destroy();
-        this.scorePopups.splice(index, 1);
-        continue;
-      }
-      const progress = elapsed / SCORE_POPUP_DURATION;
-      popup.transform.setPosition(
-        popup.startPosition[0],
-        popup.startPosition[1] + SCORE_POPUP_RISE * progress,
-        popup.startPosition[2],
-      );
-      if (elapsed >= SCORE_POPUP_FADE_START) {
-        const fadeProgress = (elapsed - SCORE_POPUP_FADE_START) / (SCORE_POPUP_DURATION - SCORE_POPUP_FADE_START);
-        popup.material.color.a = Math.max(0, 1 - fadeProgress);
-      }
+  private spawnScorePopups(steps: readonly RiverScoreStep[]): void {
+    const canvas=this.engine.canvas;if(!this.versus||!canvas)return;
+    for(const step of steps) {
+      const cell=this.cells.get(step.cell);if(!cell)continue;
+      this.versus.soloScore(step,()=>{
+        const rect=canvas.getBoundingClientRect(),panel=this.uiPlanes.get('Score Panel')!.transform;
+        const project=(x:number,y:number)=>({x:(.5+(x-this.cameraX)/this.viewWidth)*rect.width,y:(.5-y/this.viewHeight)*rect.height});
+        const width=String(this.versus?.soloDisplayScore(this.score)??this.score).length*48*.63-48*.08;
+        return {from:project(cell.transform.position[0]!,cell.transform.position[1]!),
+          to:project(panel.position[0]!+((6+width/2)/200-.5)*panel.scale[0]!,panel.position[1]!+(.5-56/170)*panel.scale[1]!),
+          height:rect.width/rect.height<.95?27:38};
+      });
     }
   }
 
-  private clearScorePopups(): void {
-    for (const popup of this.scorePopups) {
-      if (this.world.hasEntity(popup.entity)) this.world.removeEntity(popup.entity);
-      (popup.material.texture as GPUTexture).destroy();
-    }
-    this.scorePopups = [];
-  }
+  private clearScorePopups(): void { this.versus?.clearSoloScores(); }
 
   private syncPreview(): void {
     if (this.phase !== 'playing') {
@@ -1964,14 +1883,14 @@ class EntanglementPathGame {
     }
     this.applyPreviewMaterial();
     this.refreshBreathingContinuation();
-    this.previewTransform.setRotation(0, 0, 0);
+    this.previewTransform.setRotation(0, 0, -boardAngle(this.level.orientation));
   }
 
   private syncReserve(): void {
     if (!this.reserveTransform || !this.reserveMesh) return;
     if (!this.swapAnimationActive) {
       this.reserveTransform.setScale(SWAP_TILE_W / CANVAS_W * VIEW_W, SWAP_TILE_H / CANVAS_H * VIEW_H, 1);
-      this.reserveTransform.setRotation(0, 0, 0);
+      this.reserveTransform.setRotation(0, 0, -boardAngle(this.level.orientation));
     }
     (this.reserveMesh.material as BasicMaterial).texture = this.getReserveTexture();
   }
@@ -1989,14 +1908,12 @@ class EntanglementPathGame {
     const now = gameTime();
     const pointerOverTile = this.isPointerOverCurrentTile(this.pointerCanvasPoint);
     const hoveredButton = this.hitRotateButton(this.pointerCanvasPoint);
-    const visibleTarget = pointerOverTile || Boolean(hoveredButton) ? 1 : 0;
+    const visibleTarget = pointerOverTile || Boolean(hoveredButton) || !!document.body.dataset.gamepadActive || this.engine.canvas!.getBoundingClientRect().width < 600 ? 1 : 0;
 
     for (const button of this.rotateButtons) {
       const center = this.rotateButtonCenter(button.kind);
-      const isHovered = hoveredButton === button;
-      button.hoverAmount += ((isHovered ? 1 : 0) - button.hoverAmount) * 0.2;
-      const alpha = button.material.color.a + (visibleTarget - button.material.color.a) * 0.22;
-      button.material.color.a = Math.abs(alpha) < 0.01 ? 0 : alpha;
+      const feedback = arrowFeedback(button.material.color.a, button.hoverAmount, !!visibleTarget, hoveredButton === button, button.direction, now, button.pressStart);
+      button.hoverAmount = feedback.hover; button.material.color.a = feedback.alpha;
 
       if (!center || button.material.color.a <= 0.002) {
         button.transform.setScale(0, 0, 1);
@@ -2004,28 +1921,18 @@ class EntanglementPathGame {
       }
 
       const position = screenToWorld(center.x, center.y, ROTATE_BUTTON_Z);
-      const showScale = button.material.color.a;
-      const hoverScale = 1 + button.hoverAmount * 0.14;
-      const pressElapsed = now - button.pressStart;
-      const pressProgress = pressElapsed >= 0 && pressElapsed < ROTATE_BUTTON_PRESS_DURATION
-        ? pressElapsed / ROTATE_BUTTON_PRESS_DURATION
-        : 1;
-      const pressScale = pressProgress < 1 ? 1 + Math.sin(pressProgress * Math.PI) * 0.06 : 1;
-      const widthScale = ROTATE_BUTTON_W / 90 * showScale * hoverScale * pressScale;
-      const heightScale = ROTATE_BUTTON_H / 90 * showScale * hoverScale * pressScale;
-      const hoverRotation = -button.direction * (0.055 + Math.sin(now * 0.008) * 0.018) * button.hoverAmount;
-      const pressRotation = pressProgress < 1 ? -button.direction * Math.sin(pressProgress * Math.PI) * 0.18 : 0;
+      const widthScale = ROTATE_BUTTON_W / 90 * feedback.scale;
+      const heightScale = ROTATE_BUTTON_H / 90 * feedback.scale;
       button.transform.setPosition(position[0], position[1], ROTATE_BUTTON_Z);
       button.transform.setScale(widthScale, heightScale, 1);
-      button.transform.setRotation(0, 0, hoverRotation + pressRotation);
+      button.transform.setRotation(0, 0, feedback.angle);
     }
   }
 
   private updateSwapAnimation(): void {
     if (!this.swapAnimationActive) return;
-    const progress = Math.min(1, (gameTime() - this.swapAnimationStart) / this.swapAnimationDuration);
-    const eased = easeOutCubic(progress);
-    const arc = Math.sin(progress * Math.PI) * 0.36;
+    const { progress, eased, arc: wave } = swapFrame(gameTime() - this.swapAnimationStart);
+    const arc = wave * .36;
     for (const overlay of this.swapOverlays) {
       const x = overlay.fromPosition[0] + (overlay.toPosition[0] - overlay.fromPosition[0]) * eased;
       const y = overlay.fromPosition[1] + (overlay.toPosition[1] - overlay.fromPosition[1]) * eased + arc;
@@ -2059,13 +1966,15 @@ class EntanglementPathGame {
 
   private applyPreviewMaterial(): void {
     this.previewMaterial.texture = this.getPreviewTexture(this.previewRenderedRotation);
+    const current = this.cells.get(key(this.current.q, this.current.r));
+    if (this.phase === 'playing' && current && !this.placed.has(key(current.q, current.r))) this.setCellTexture(current, this.drawBaseCell(current, true));
   }
 
   private updatePreviewRotationAnimation(): void {
     if (!this.previewSpinActive) return;
     const progress = (gameTime() - this.previewSpinStart) / this.previewSpinDuration;
-    const eased = easeOutCubic(progress);
-    this.previewTransform.setRotation(0, 0, this.previewSpinFrom + (this.previewSpinTo - this.previewSpinFrom) * eased);
+    const eased = turnProgress(gameTime() - this.previewSpinStart);
+    this.previewTransform.setRotation(0, 0, -boardAngle(this.level.orientation) + this.previewSpinFrom + (this.previewSpinTo - this.previewSpinFrom) * eased);
     if (progress >= 1) this.finishPreviewRotationAnimation();
   }
 
@@ -2073,13 +1982,14 @@ class EntanglementPathGame {
     if (!this.previewSpinActive) return;
     this.previewSpinActive = false;
     this.previewRenderedRotation = this.rotation;
-    this.previewTransform.setRotation(0, 0, 0);
+    this.previewTransform.setRotation(0, 0, -boardAngle(this.level.orientation));
     this.applyPreviewMaterial();
     this.refreshBreathingContinuation();
   }
 
   private syncScore(): void {
-    this.uploadCanvas(this.scoreText.material.texture as GPUTexture, this.art.score(this.score, this.pathLength, this.placed.size, this.best));
+    this.displayedScore=this.versus?.soloDisplayScore(this.score)??this.score;
+    this.uploadCanvas(this.scoreText.material.texture as GPUTexture, this.art.score(this.displayedScore, this.pathLength, this.placed.size, this.best));
   }
 
   private updateCurrentCell(): void {
@@ -2102,7 +2012,7 @@ class EntanglementPathGame {
       }
       const current = this.cells.get(nextHighlight);
       if (current && !current.wall && !this.placed.has(nextHighlight)) {
-        this.setCellTexture(current, this.drawBaseCell(current));
+        this.setCellTexture(current, this.drawBaseCell(current, true));
       }
       this.highlightedKey = nextHighlight;
     }

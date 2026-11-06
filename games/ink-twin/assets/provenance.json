@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "generator": "built-in image_gen.imagegen",
+  "createdOn": "2026-11-01",
+  "assets": [
+    {
+      "file": "brush-digits.png",
+      "prompt": "Use case: stylized-concept. Asset type: production bitmap font atlas for an ink-wash puzzle game. Create exactly ten large handwritten Arabic numerals in authentic East Asian black sumi ink brush calligraphy, with confident expressive wet and dry strokes, organic feathered edges, subtle bristle streaks, and very clear legibility. Transparent background (true alpha). Arrange as an exact five-column by two-row evenly spaced sprite grid. Top row exactly 0 1 2 3 4; bottom row exactly 5 6 7 8 9. Each numeral completely inside its own equal-size cell, generously padded, horizontally and vertically centered, each roughly the same visual size. All digits upright. Black ink only. No grid lines, labels, shadows, paper, extra marks or decorations. Digits must be isolated from one another. Output landscape aspect 3:2 or wider. This image is the bitmap font source and will be cut into ten glyphs.",
+      "transparentBackground": true,
+      "original": "exec-5fa02fd6-6f3d-42b9-b57a-582dfb9f3927.png",
+      "sha256": "842ae2ef9feaa5680823207744d45bc8f4421f29619d0f916d71813d10ec37d7"
+    },
+    {
+      "file": "xuan-paper.png",
+      "prompt": "Use case: stylized-concept. Asset type: square full-bleed gray Chinese xuan rice paper texture for the background of a minimalist ink-wash puzzle game. Top-down flat scan of handmade gray rice paper, cool neutral medium-light gray around #aaa9a3, fine softly visible paper fibers, subtle irregular cloudy pulp mottling, a few barely visible natural fibers. Understated, tactile, elegant, quiet. Entire image is blank gray paper edge to edge, consistent material across the whole surface. No writing, digits, calligraphy, objects, border, folds, vignette, lighting gradients, decorative painting or any color accents. Low contrast texture so both pure white and black ink remain highly legible on top. Physically believable scanned paper.",
+      "transparentBackground": false,
+      "original": "exec-48bd2a60-86be-48a0-925d-15e3bcc8a03a.png",
+      "sha256": "27a36a2433a7284512c30c96195cd9745c9c0a9c4716ab1419ae47057e7f0f6d"
+    }
+  ],
+  "font": {
+    "file": "brush-digits.fnt.json",
+    "source": "brush-digits.png",
+    "layout": "5 columns × 2 rows, 0–4 / 5–9",
+    "metrics": "Alpha > 100 bounds measured within each sprite cell, padded and clamped to cell bounds. Original generated atlas is preserved.",
+    "runtime": "Canvas source-in tints the identical generated glyph alpha black or white; no system font is used for board numbers."
+  }
+}

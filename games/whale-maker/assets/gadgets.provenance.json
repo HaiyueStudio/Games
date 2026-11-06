@@ -1,0 +1,9 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "gadgets.png",
+  "prompt": "Use case: stylized-concept. Production transparent sprite atlas for a pastel ocean chibi 2D platform game. Reference role: ocean cartoon palette, outlines and style ONLY. EXACTLY FOUR columns x FOUR rows, SIXTEEN isolated sprites, row-major. Row1: 0 a front-view wide transparent GLASS PIPE RIM, 1 matching open-ended seamless transparent GLASS PIPE STRAIGHT SHAFT segment (blue glass edge highlights, see-through interior), 2 vertical coil spring with cute ivory caps at rest, 3 SAME vertical spring COMPRESSED. Row2: 4 horizontal coil spring at rest, 5 same horizontal spring compressed, 6 cute rounded IRON WASHBASIN right-side up, smooth silver-blue metal and two tiny handles, 7 same basin upside-down as a wearable helmet. Row3: 8 blue P push switch raised, exactly a large white P, 9 same P switch stomped down, 10 blue POW carry block with readable white POW letters, 11 closed ornate shell-themed wooden door. Row4: 12 same normal door OPEN with dark aqua opening, 13 blue P door closed with a white P badge, 14 same P door open, 15 one round orange fireball with a cute bright curling flame silhouette, NO face. Each whole sprite entirely inside its equal cell with large transparent gutters, no touching. Flat front view on pipe/doors/blocks, three-quarter side view on basin. Gold and aqua trim matching reference. NO spikes on basin, no characters, no floor, no background, no cast shadows, no labels or grid. Preserve real transparent alpha. Crisp readable game icons at 48px.",
+  "notes": [
+    "Raw generated transparent PNG copied without pixel edits; sampling rectangles and animation group canvases are measured."
+  ]
+}

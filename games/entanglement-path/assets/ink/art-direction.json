@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "tool": "built-in image_gen",
   "style": "Chinese shui mo ink wash, mineral danqing pigments, warm xuan paper, cinnabar seals",
   "prompts": {
@@ -8,7 +8,7 @@
     "digits.png": "Production transparent bitmap font atlas. Four columns and three rows of equally sized cells. Exact glyph order: row one 0 1 2 3; row two 4 5 6 7; row three 8 9 + /. Legible Arabic digits, same cap height, adapted Chinese brush calligraphy, tapered strokes, ink pooling, subtle bristle gaps, rich near-black sumi ink. Each glyph centered and isolated with large clear spacing. No duplicates, missing glyphs, Chinese numerals, labels, paper, borders or watermark. Real transparent alpha."
   },
   "runtimeArt": {
-    "tiles": "Orthographic overhead cartography: seeded peak, ridge, basin and island combinations from terrain-topdown-atlas.png. Mountain anchors avoid actual Bezier riverbeds; three soft destination-out passes carve valleys and radial fading clears shared edge ports. Terrain is attached to the piece seed derived from its saved ID/variant and rotates rigidly in 60-degree steps with the rivers, unchanged through reserve swap and placement. CPU caches are bounded.",
+    "tiles": "One continuous seeded WFC mountain-sea map: 64 shoreline corner cases with exact opposing-edge socket matching and symmetric ridge outlets. Neighboring wall cells form C1 mountain chains, including branches. Native brush detail is inset from shared sockets. Water ripples use world coordinates. Sea, island and harbor props use terrain-connectors.png. The map seed is saved and new rounds re-collapse the map.",
     "intro": "1350 ms horizontal scroll opening; board appears from 1150 to 2900 ms through soft noise threshold multiplied by crossfade. One bounded raster surface and one persistent upload texture, released after the intro.",
     "font": "Atlas pixels remain unchanged. Dominant-component glyph bounds exclude neighboring brush flecks. digits.json is used by the game; digits.fnt is BMFont text metadata.",
     "paths": "Exact shared ports and normal Bezier handles retain C1 seams. Pale dry riverbeds become deep blue-green water in traversal order, driven by sampled arc length over 650-1200 ms. Delayed bank wetness, small traveling highlights, and tiny bridges at crossings preserve independent channels. Rapid moves remain playable; old pours settle. Saved routes restore fully wet.",
@@ -17,7 +17,7 @@
     "rotationButtons": "Two transparent Chinese brush-painted arrows from rotate-brush.png: left counterclockwise, right clockwise, presented over a soft paper wash. Exact generation prompt is saved in rotate-brush-generation.json.",
     "score": "Bare ink labels and bitmap numerals on the upper-right scroll: primary score, best score, and secondary wetted-river count. Smaller, shorter-lived score sparks keep the board clear.",
     "board": "The full hex board is centered on the scroll using its projected cell bounds, including asymmetric levels.",
-    "reserve": "The exact same overhead landform and river layout as the placed candidate, using a stable per-piece seed and orientation; no panel background.",
+    "reserve": "Candidate and reserve rivers rotate; exterior coastline sockets stay locked to the board. Small interior groves and shoals are re-fitted around the candidate riverbeds and reproduce exactly on placement.",
     "music": {
       "file": "../bgm.mp3",
       "source": "user-provided desktop bgm.mp3",
@@ -26,7 +26,9 @@
     },
     "selection": "One persistent transparent, noise-warped wet-ink halo follows the active tile with a slow opacity/scale breath. Cinnabar dashed thread previews the active route without committing water.",
     "source": "Overhead blue-green spring and ripples. Seeded overhead canopy patches and tiny shoals emerge beside wetted rivers.",
-    "generation": "Current overhead asset prompts and output fingerprints are in topdown-generation.json; original side-view art remains archived beside these assets and is not fetched at runtime."
+    "generation": "WFC atlas prompt and fingerprint: terrain-connectors-generation.json. Socket catalog and motif indices: terrain-tiles.json. Earlier source atlases and their prompts are retained.",
+    "fog": "Unplaced playable regions are covered by one world-aligned noise cloud texture per cell. Current candidate is clear. Placement dissolves its fog over 760ms while water spreads. Reset and level changes clear fog reveal state.",
+    "worker": "Terrain height/color fields and world-aligned ripple paths are calculated by the dedicated transferable-buffer terrain raster worker. One worker per game, reused on reset and level changes; revision IDs discard superseded map jobs. Rendering waits in a brief loading phase; engine disposal cancels and terminates the worker. Only native Canvas compositing and sprite stamps remain on the main thread."
   },
   "generatedOn": "2026-10-25",
   "sha256": {
@@ -39,6 +41,8 @@
     "rotate-brush.png": "581efd1f824503881b75e3a5692f6747fba6665cac57ce947e17ac7a79186975",
     "mountain-atlas.png": "6f8c6b79377b1f4612649c88ef5ef584fe161e5916312f5c0f437a8283d167a6",
     "terrain-topdown-atlas.png": "969352a67780fdcca395d681b5a924544238479ed2f66f6bc26f5f82f9ec6757",
-    "scroll-topdown-map.png": "37cf24f47d8ad3e7f4ef3076556d9f1eb9750489bcfe572574ee3732db1e38e5"
-  }
+    "scroll-topdown-map.png": "37cf24f47d8ad3e7f4ef3076556d9f1eb9750489bcfe572574ee3732db1e38e5",
+    "terrain-connectors.png": "6d606c51ab4647a05d6b0646e2684ca315e2e95c7954391829cd5417c7db6d6c"
+  },
+  "updatedOn": "2026-10-30"
 }

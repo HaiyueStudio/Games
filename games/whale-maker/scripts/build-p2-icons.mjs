@@ -1,0 +1,14 @@
+import {writeFileSync} from 'node:fs';import {resolve} from 'node:path';
+const icons=[],base='stroke="#173f55" stroke-width="5" stroke-linejoin="round"';
+const box=(fill,inside='')=>`<rect x="10" y="10" width="76" height="76" rx="12" fill="${fill}" ${base}/>${inside}`;
+icons.push(box('#8e95ef','<path d="M20 48h15l7-19 12 39 8-20h15" fill="none" stroke="#fff9c9" stroke-width="7"/>'));
+icons.push(box('#5a617d','<path d="M20 48h15l7-19 12 39 8-20h15" fill="none" stroke="#a7acc4" stroke-width="5"/>'));
+icons.push('<ellipse cx="48" cy="45" rx="39" ry="21" fill="#e9af73" '+base+'/><ellipse cx="48" cy="44" rx="16" ry="9" fill="#e2f6ee" '+base+'/><path d="M18 52v17q30 16 60 0V52" fill="#c78857" '+base+'/>');
+icons.push('<path d="M48 86 20 10h56Z" fill="#a5edfb" '+base+'/><path d="m39 18 9 42 7-42" stroke="#eaffff" stroke-width="6" fill="none"/>');
+for(let n=0;n<4;n++)icons.push(`<g fill="none" stroke="#b9f7f3" stroke-width="7" stroke-linecap="round">${[0,1,2,3].map(k=>`<path d="M${30+k*3} ${79-k*19}c${-32+k*4} -13 ${55-k*4} -21 ${17+k*2} -29" transform="translate(${Math.sin(n*Math.PI/2+k)*4} 8)"/>`).join('')}</g>`);
+icons.push(box('#3f98a3','<path d="m22 48 18-18v12h30v12H40v12Z" fill="#fff4aa"/>'));
+icons.push('<rect x="9" y="9" width="78" height="78" rx="12" fill="#153b54" fill-opacity=".3" stroke="#ffdc78" stroke-width="5" stroke-dasharray="9 6"/><path d="M30 26v44m36-44v44" stroke="#ffdc78" stroke-width="8"/>');
+for(const value of [10,30,50])icons.push(`<circle cx="48" cy="48" r="38" fill="#ffe18c" ${base}/><circle cx="48" cy="48" r="29" fill="#f8b644" stroke="#fff4bb" stroke-width="4"/><text x="48" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="bold" fill="#885021">${value}</text>`);
+icons.push('<circle cx="48" cy="48" r="33" fill="#dce9f2" '+base+'/><path d="m32 62 32-28M30 32l34 31" stroke="#61a9db" stroke-width="7"/>');
+icons.push('<path d="m48 10 10 27 28 11-28 10-10 28-10-28-28-10 28-11Z" fill="#e5b5fc" '+base+'/>');
+const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="768" height="192" viewBox="0 0 768 192">${icons.map((v,i)=>`<g transform="translate(${i%8*96} ${Math.floor(i/8)*96})">${v}</g>`).join('')}</svg>`;writeFileSync(resolve(import.meta.dirname,'../assets/p2-icons.svg'),svg);console.log(icons.length+' P2 native mechanical icons');

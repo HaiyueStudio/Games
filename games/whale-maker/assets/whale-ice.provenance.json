@@ -1,0 +1,11 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-28",
+  "source": "whale-ice.png",
+  "prompt": "Use case: identity-preserve. Edit target: the provided 6 by 6 whale-maid action sprite atlas. Keep all EXACT 36 poses, positions, proportions, face, blue hair, whale tail, alignment, art style and transparent background unchanged. Change ONLY the maid uniform into a pale blue ice-themed costume: pale icy blue dress, slightly darker azure bodice, pearl-white apron with snowflake emblem, silver-white ruffled trim, cyan collar bow, white socks, icy blue shoes. Gentle crystal details embroidered on hem, not external effects. No background or added objects. Preserve complete figures and all transparent gutters, exactly 6 columns and 6 rows.",
+  "references": [
+    "whale-tall.png"
+  ],
+  "processing": "Measured complete alpha silhouettes, cropped and uniformly downsampled to runtime atlas; source pixels preserved.",
+  "frames": 36
+}

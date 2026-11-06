@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "types": [
+      "@webgpu/types"
+    ]
+  },
+  "include": [
+    "./**/*.ts",
+    "../gamepad/**/*.ts",
+    "../host/**/*.ts",
+    "../session/**/*.ts",
+    "../save/**/*.ts",
+    "../shared/**/*.ts",
+    "../simulator/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "assets/masters"
+  ]
+}

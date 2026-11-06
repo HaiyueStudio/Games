@@ -1,0 +1,19 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-29",
+  "prompt": "Use case: illustration-story. Asset type: transparent 2D platform game sprite atlas. Exactly FOUR columns by FOUR rows, sixteen complete isolated sprites, very generous transparent gutters. Original cute ocean fantasy whale-girl game, rounded navy outlines, polished hand-painted teal/coral/gold shading, side view facing RIGHT. No existing Mario characters, no text, no watermark, no scene, true transparent alpha. Row 1: four animation frames of a cute red-and-teal HOMING WHALE TORPEDO enemy, round whale-shaped body, tiny fins, determined expressive eyes, red goggles, subtle fin and tail flutter; keep the entire body in each cell. Row 2: four animation frames of a GIANT armored coral-orange WHALE TORPEDO, wide round body, tiny eyes and big fins, fierce cute expression, small white puffs trailing behind but no huge flame trails. Row 3: four animation frames of a navy CAT WHALE TORPEDO with clearly visible cat ears, small cute paw-like fins, blue eyes, whale tail and mischievous cat mouth; a single whole creature not a separate wearable. Row 4: four sparkling animation frames of a bright emerald green LIFE PEARL power-up, round luminous pearl with a tiny white whale-heart emblem, soft glow, no shell underneath. Same size and alignment within each row, nothing cropped or touching neighbouring cells.",
+  "grid": [
+    4,
+    4
+  ],
+  "runtime": "runtime/p2-bills.png",
+  "runtimeSize": [
+    448,
+    448
+  ],
+  "runtimeCell": 112,
+  "packing": "Uniform family scale, measured alpha bounds, transparent padding and shared feet baseline; original generated pixels preserved.",
+  "sourceId": "exec-15e63030-b324-4534-855e-0238df722509.png",
+  "localSource": "p2-bills.png",
+  "runtimeSource": "p2-bills-cutout.png"
+}

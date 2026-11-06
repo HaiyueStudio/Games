@@ -1,0 +1,41 @@
+{
+  "name": "@haiyue/game-gravity-maze",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build gravity-maze",
+    "test": "node ../../scripts/workspace-task.mjs test gravity-maze",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck gravity-maze"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "{workspaceRoot}/games/test/gravity-maze-ray-evidence-policy.test.mjs",
+          "{workspaceRoot}/games/test/gravity-maze-rules.test.mjs"
+        ]
+      }
+    }
+  }
+}

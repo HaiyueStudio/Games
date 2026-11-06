@@ -1,6 +1,8 @@
-import { HEX_RADIUS, HEX_TEXTURE_STRETCH, hexPoint } from './hexGeometry';
+import { HEX_RADIUS, HEX_TEXTURE_STRETCH, hexPoint, portPoint, portNormal, pathCurve } from './hexGeometry';
 import { inkHash, inkNoise } from './inkNoise';
 import { ridgePort, terrainHeight, type TerrainNode, type TerrainWorld } from './terrainWfc';
+import { makeTerrainPlan, mountainWorldPatches, terrainPairKey, type TerrainPairs } from './topdownTerrain';
+import { TERRAIN_RASTER_SIZE, type TerrainRaster, type TerrainRasterResponse } from './terrainRaster';
 
 const makeCanvas = (w = 256, h = w): HTMLCanvasElement => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 function hexClip(ctx: CanvasRenderingContext2D): void {
@@ -12,42 +14,103 @@ export class ConnectedTerrainArt {
   private world: TerrainWorld | null = null;
   private readonly bases = new Map<string, HTMLCanvasElement>();
   private readonly fogs = new Map<string, HTMLCanvasElement>();
-  constructor(readonly atlas: HTMLImageElement) {}
-  configure(world: TerrainWorld): void { this.world = world; this.bases.clear(); this.fogs.clear(); }
+  private readonly fittedTiles = new Map<string, HTMLCanvasElement>();
+  private readonly worker = new Worker(new URL('./terrain-raster.worker.js', import.meta.url), { type: 'module', name: 'qianmo-terrain-raster' });
+  private readonly rasters = new Map<string, TerrainRaster>();
+  private readonly interior=makeCanvas();
+  private requestId = 0;
+  private pending: { resolve: (ready: boolean) => void; reject: (error: Error) => void } | null = null;
+  private readonly onPageHide = () => this.dispose();
+  private disposed = false;
+  workerElapsedMs = 0;
+  constructor(readonly atlas: HTMLImageElement, private readonly mountainAtlas: HTMLImageElement) {
+    const mask=this.interior.getContext('2d')!,fade=mask.createRadialGradient(128,128,70,128,128,92);
+    fade.addColorStop(0,'#fff');fade.addColorStop(1,'rgba(255,255,255,0)');mask.fillStyle=fade;mask.fillRect(0,0,256,256);
+    this.worker.onmessage = ({ data }: MessageEvent<TerrainRasterResponse>) => {
+      if (data.id !== this.requestId || !this.pending) return;
+      const pending = this.pending; this.pending = null;
+      if (data.error || !data.tiles) { pending.reject(new Error(data.error ?? 'Missing terrain raster response')); return; }
+      this.workerElapsedMs = data.elapsedMs;
+      for (const tile of data.tiles) this.rasters.set(tile.key, tile);
+      pending.resolve(true);
+    };
+    this.worker.onerror = event => { this.pending?.reject(new Error(event.message)); this.pending = null; };
+    window.addEventListener('pagehide', this.onPageHide, { once: true });
+  }
+  configure(world: TerrainWorld): Promise<boolean> {
+    if (this.disposed) return Promise.resolve(false);
+    this.pending?.resolve(false); this.pending = null; this.world = world;
+    this.bases.clear(); this.fogs.clear(); this.fittedTiles.clear(); this.rasters.clear();
+    const id = ++this.requestId;
+    return new Promise((resolve, reject) => { this.pending = { resolve, reject }; this.worker.postMessage({ id, seed: world.seed, nodes: [...world.nodes.values()] }); });
+  }
+  /** Rasterize newly revealed open-map cells without discarding old surfaces or flow state. */
+  extend(world: TerrainWorld): Promise<boolean> {
+    if (this.disposed) return Promise.resolve(false);
+    if (this.world?.seed !== world.seed) throw new Error('Cannot extend a different terrain seed');
+    this.pending?.resolve(false); this.pending = null; this.world = world;
+    const nodes=[...world.nodes.values()].filter(n=>!this.rasters.has(`${n.q},${n.r}`)), id=++this.requestId;
+    if (!nodes.length) return Promise.resolve(true);
+    return new Promise((resolve,reject)=>{this.pending={resolve,reject};this.worker.postMessage({id,seed:world.seed,nodes});});
+  }
+  dispose(): void {
+    if (this.disposed) return; this.disposed = true;
+    this.pending?.resolve(false); this.pending = null; this.worker.terminate();
+    window.removeEventListener('pagehide', this.onPageHide);
+    this.bases.clear(); this.fogs.clear(); this.fittedTiles.clear(); this.rasters.clear();
+  }
 
   private stamp(ctx: CanvasRenderingContext2D, motif: number, x: number, y: number, w: number, h = w, angle = 0): void {
     const sw = this.atlas.width / 4, sh = this.atlas.height / 4;
     ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
     ctx.drawImage(this.atlas, motif % 4 * sw, Math.floor(motif / 4) * sh, sw, sh, -w / 2, -h / 2, w, h); ctx.restore();
   }
+  private mountainStamp(ctx: CanvasRenderingContext2D, motif: number, x: number, y: number, w: number, h: number, angle: number): void {
+    const sw=this.mountainAtlas.width/4,sh=this.mountainAtlas.height/4;
+    ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+    ctx.drawImage(this.mountainAtlas,motif%4*sw,Math.floor(motif/4)*sh,sw,sh,-w/2,-h/2,w,h);ctx.restore();
+  }
+  /** Identical world anchors are clipped into both neighboring hexes, so a mountain
+   * crossing an edge is a single painted form rather than two independent stamps. */
+  private drawMountains(ctx: CanvasRenderingContext2D, node: TerrainNode, raster: TerrainRaster): void {
+    const layer=makeCanvas(),ink=layer.getContext('2d')!,origin=logicalOrigin(node),seed=this.world!.seed;
+    for(const patch of mountainWorldPatches(node.q,node.r,seed))this.mountainStamp(ink,patch.motif,patch.x-origin.x+128,patch.y-origin.y+128,patch.width,patch.height,patch.angle);
+    const mask=makeCanvas(TERRAIN_RASTER_SIZE),m=mask.getContext('2d')!,pixels=m.createImageData(TERRAIN_RASTER_SIZE,TERRAIN_RASTER_SIZE);
+    pixels.data.set(raster.mountains);m.putImageData(pixels,0,0);
+    ink.globalCompositeOperation='destination-in';ink.drawImage(mask,0,0,256,256);
+    ctx.save();ctx.globalAlpha=.24;ctx.drawImage(mask,0,0,256,256);ctx.globalAlpha=.90;ctx.drawImage(layer,0,0);ctx.restore();
+    if(node.kind==='play') {
+      ctx.save();ctx.lineCap='round';
+      for(let port=0;port<12;port++) {
+        const p=portPoint(port),n=portNormal(port);
+        for(const [width,alpha] of [[24,.08],[16,.18],[8,.70]]) {
+          ctx.strokeStyle=`rgba(237,237,216,${alpha})`;ctx.lineWidth=width!;ctx.beginPath();ctx.moveTo(p.x-n.x*2,p.y-n.y*2);ctx.lineTo(p.x+n.x*40,p.y+n.y*40);ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+  }
 
   base(node: TerrainNode): HTMLCanvasElement {
     const id = `${node.q},${node.r}`, cached = this.bases.get(id); if (cached) return cached;
     const target = makeCanvas(), ctx = target.getContext('2d')!, origin = logicalOrigin(node), seed = this.world!.seed;
     ctx.translate(128, 0); ctx.scale(HEX_TEXTURE_STRETCH, 1); ctx.translate(-128, 0); hexClip(ctx);
-    const small = makeCanvas(48), sctx = small.getContext('2d')!, pixels = sctx.createImageData(48, 48);
-    for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
-      const px = (x + .5) * 256 / 48, py = (y + .5) * 256 / 48, wx = px - 128 + origin.x, wy = py - 128 + origin.y;
-      const height = terrainHeight(node, px, py, seed), t = Math.max(0, Math.min(1, (height - .37) / .21)), land = t * t * (3 - 2 * t);
-      const grain = (inkNoise(wx / 19, wy / 19, seed) - .5) * 8, shore = Math.exp(-(((height - .46) / .07) ** 2)) * .45;
-      const sea = [175, 201, 194], soil = [219, 222, 197], paper = [244, 239, 219], i = (y * 48 + x) * 4;
-      for (let c = 0; c < 3; c++) pixels.data[i + c] = (sea[c]! * (1 - land) + soil[c]! * land) * (1 - shore) + paper[c]! * shore + grain;
-      pixels.data[i + 3] = 255;
+    const raster = this.rasters.get(id); if (!raster) throw new Error(`Terrain raster not ready for ${id}`);
+    const size = TERRAIN_RASTER_SIZE, small = makeCanvas(size), sctx = small.getContext('2d')!;
+    const pixels = sctx.createImageData(size, size); pixels.data.set(raster.pixels); sctx.putImageData(pixels, 0, 0);
+    ctx.drawImage(small, 0, 0, 256, 256);
+    this.drawMountains(ctx,node,raster);
+    ctx.strokeStyle = 'rgba(71,112,110,.14)'; ctx.lineWidth = 1.1; ctx.beginPath();
+    let pen = false;
+    for (let i = 0; i < raster.waves.length; i += 2) {
+      const x = raster.waves[i]!, y = raster.waves[i + 1]!;
+      if (Number.isNaN(x)) { pen = false; continue; }
+      if (pen) ctx.lineTo(x, y); else ctx.moveTo(x, y); pen = true;
     }
-    sctx.putImageData(pixels, 0, 0); ctx.drawImage(small, 0, 0, 256, 256);
-    ctx.strokeStyle = 'rgba(71,112,110,.14)'; ctx.lineWidth = 1.1;
-    // World-aligned water ripples continue across tile boundaries.
-    for (let row = Math.floor((origin.y - 128) / 24); row < (origin.y + 128) / 24; row++) {
-      ctx.beginPath(); let pen = false;
-      for (let x = -8; x <= 264; x += 8) {
-        const y = row * 24 - origin.y + 128 + Math.sin((origin.x + x - 128) / 32 + seed) * 2.5;
-        if (terrainHeight(node, x, y, seed) < .33) { if (pen) ctx.lineTo(x, y); else ctx.moveTo(x, y); pen = true; } else pen = false;
-      }
-      ctx.stroke();
-    }
+    ctx.stroke();
     if (node.kind === 'wall') this.drawRidges(ctx, node);
-    else if (node.kind === 'sea' && node.corners === 0 && node.variant % 7 === 0) {
-      ctx.globalAlpha = .82; this.stamp(ctx, 8 + node.variant % 2, 128, 128, 48, 65, inkHash(node.q, node.r, seed) * 1.7); ctx.globalAlpha = 1;
+    else if (node.kind === 'sea' && node.corners === 0 && node.variant % 7 === 0 && terrainHeight(node, 128, 128, seed) < .2) {
+      ctx.globalAlpha = .9; this.stamp(ctx, 8 + node.variant % 2, 128, 128, 64, 85, inkHash(node.q, node.r, seed) * 1.7); ctx.globalAlpha = 1;
     } else if (node.corners !== 0 && node.corners !== 63 && node.variant % 6 === 0) {
       // A harbor sits on dry ground near an actual coast, with its jetty pointing toward the sea.
       let place: { x: number; y: number; angle: number } | null = null;
@@ -71,9 +134,9 @@ export class ConnectedTerrainArt {
       const c1 = { x: a.x - Math.cos(angleA) * 62, y: a.y - Math.sin(angleA) * 62 };
       const c2 = other! < 0 ? b : { x: b.x - Math.cos(angleB) * 62, y: b.y - Math.sin(angleB) * 62 };
       const stroke = () => { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y); ctx.stroke(); };
-      ctx.strokeStyle = 'rgba(90,115,99,.34)'; ctx.lineWidth = 53; stroke();
-      ctx.strokeStyle = '#5d7566'; ctx.lineWidth = 36; stroke();
-      ctx.strokeStyle = '#c5c7a8'; ctx.lineWidth = 14; stroke();
+      ctx.strokeStyle = 'rgba(90,115,99,.18)'; ctx.lineWidth = 75; stroke();
+      ctx.strokeStyle = 'rgba(58,82,69,.48)'; ctx.lineWidth = 47; stroke();
+      ctx.strokeStyle = 'rgba(40,62,49,.32)'; ctx.lineWidth = 25; stroke();
       // The same C1 spine reaches every socket; brush detail is inset, keeping seam endpoints exact.
       for (let i = 1; i < 6; i++) {
         const t = i / 6, u = 1 - t;
@@ -81,10 +144,37 @@ export class ConnectedTerrainArt {
         const y = u ** 3 * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t ** 3 * b.y;
         const dx = 3 * u * u * (c1.x - a.x) + 6 * u * t * (c2.x - c1.x) + 3 * t * t * (b.x - c2.x);
         const dy = 3 * u * u * (c1.y - a.y) + 6 * u * t * (c2.y - c1.y) + 3 * t * t * (b.y - c2.y);
-        this.stamp(ctx, (node.variant + i) % 4, x, y, 82, 50, Math.atan2(dy, dx));
+        ctx.save(); ctx.beginPath(); ctx.arc(128, 128, 84, 0, Math.PI * 2); ctx.clip();
+        this.stamp(ctx, (node.variant + i) % 4, x, y, 131, 100, Math.atan2(dy, dx)); ctx.restore();
       }
     }
     if (ports.length > 2) this.stamp(ctx, 5, 128, 128, 70, 70);
+  }
+
+  fitted(node: TerrainNode, seed: number, pairs: TerrainPairs, rotation: number): HTMLCanvasElement {
+    const turned = pairs.map(([a, b]) => [(a + rotation * 2) % 12, (b + rotation * 2) % 12] as const);
+    const id = `${node.q},${node.r}:${seed}:${terrainPairKey(turned)}`, cached = this.fittedTiles.get(id);
+    if (cached) return cached;
+    const target = makeCanvas(), ctx = target.getContext('2d')!; ctx.drawImage(this.base(node), 0, 0);
+    ctx.save(); ctx.translate(128, 0); ctx.scale(HEX_TEXTURE_STRETCH, 1); ctx.translate(-128, 0);
+    const local=makeCanvas(),land=local.getContext('2d')!,plan=makeTerrainPlan(seed,turned);
+    for(const spot of plan.stamps) {
+      land.globalAlpha=.62;
+      this.mountainStamp(land,spot.motif,spot.x,spot.y,spot.width*1.18,spot.height*1.18,spot.angle);
+    }
+    land.globalAlpha=1;land.globalCompositeOperation='destination-in';land.drawImage(this.interior,0,0);land.globalCompositeOperation='source-over';
+    ctx.drawImage(local,0,0);
+    const valleys=makeCanvas(),v=valleys.getContext('2d')!;v.lineCap='round';v.lineJoin='round';
+    for(const [a,b] of turned) {
+      const c=pathCurve(a,b);
+      for(const [width,alpha] of [[26,.08],[17,.20],[9,.72]]) {
+        v.strokeStyle=`rgba(237,237,216,${alpha})`;v.lineWidth=width!;v.beginPath();v.moveTo(c.start.x,c.start.y);v.bezierCurveTo(c.control1.x,c.control1.y,c.control2.x,c.control2.y,c.end.x,c.end.y);v.stroke();
+      }
+    }
+    v.globalCompositeOperation='destination-in';v.drawImage(this.interior,0,0);ctx.drawImage(valleys,0,0);
+    ctx.restore();
+    if (this.fittedTiles.size >= 96) this.fittedTiles.delete(this.fittedTiles.keys().next().value!);
+    this.fittedTiles.set(id, target); return target;
   }
 
   fog(node: TerrainNode): HTMLCanvasElement {
@@ -93,24 +183,37 @@ export class ConnectedTerrainArt {
     const origin = logicalOrigin(node), seed = this.world!.seed;
     for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
       const n = inkNoise((origin.x + x * 256 / 48) / 57, (origin.y + y * 256 / 48) / 57, seed + 73), i = (y * 48 + x) * 4;
-      pixels.data[i] = 233 + n * 9; pixels.data[i + 1] = 235 + n * 8; pixels.data[i + 2] = 222 + n * 10; pixels.data[i + 3] = 236 + n * 17;
+      pixels.data[i] = 222 + n * 23; pixels.data[i + 1] = 230 + n * 15; pixels.data[i + 2] = 217 + n * 22; pixels.data[i + 3] = 226 + n * 28;
     }
     sctx.putImageData(pixels, 0, 0);
     ctx.translate(128, 0); ctx.scale(HEX_TEXTURE_STRETCH, 1); ctx.translate(-128, 0); hexClip(ctx); ctx.drawImage(small, 0, 0, 256, 256);
     this.fogs.set(id, target); return target;
   }
 
-  unexplored(node: TerrainNode): HTMLCanvasElement {
-    const c = makeCanvas(), ctx = c.getContext('2d')!; ctx.drawImage(this.base(node), 0, 0); ctx.drawImage(this.fog(node), 0, 0); return c;
+  unexplored(node: TerrainNode, soft = false): HTMLCanvasElement {
+    const c = makeCanvas(), ctx = c.getContext('2d')!; ctx.drawImage(this.base(node), 0, 0); ctx.drawImage(this.fog(node), 0, 0);
+    if (soft) {
+      const fade=ctx.createRadialGradient(128,128,35,128,128,126);fade.addColorStop(0,'rgba(255,255,255,.7)');fade.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.globalCompositeOperation='destination-in';ctx.fillStyle=fade;ctx.fillRect(0,0,256,256);
+    }
+    return c;
   }
 
-  backdrop(cells: { node: TerrainNode; x: number; y: number }[], width: number, height: number): { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number } {
+  backdrop(cells: { node: TerrainNode; x: number; y: number }[], width: number, height: number, angle = 0): { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number } {
     const left = Math.min(...cells.map(c => c.x)) - width / 2, top = Math.min(...cells.map(c => c.y)) - height / 2;
     const right = Math.max(...cells.map(c => c.x)) + width / 2, bottom = Math.max(...cells.map(c => c.y)) + height / 2;
     const scale = 1024 / (right - left), c = makeCanvas(1024, Math.ceil((bottom - top) * scale)), ctx = c.getContext('2d')!;
-    for (const cell of cells) ctx.drawImage(this.base(cell.node), (cell.x - width / 2 - left) * scale, (cell.y - height / 2 - top) * scale, width * scale, height * scale);
+    for (const cell of cells) {
+      ctx.save(); ctx.translate((cell.x - left) * scale, (cell.y - top) * scale); ctx.rotate(angle);
+      const w = (angle ? height : width) * scale, h = (angle ? width : height) * scale;
+      ctx.drawImage(this.base(cell.node), -w / 2, -h / 2, w, h); ctx.restore();
+    }
     // Keep the painted sea within the scroll paper and softly dissolve its outer map boundary.
     ctx.globalCompositeOperation = 'destination-in';
+    ctx.save(); ctx.translate(c.width / 2, c.height / 2); ctx.scale(1, c.height / c.width);
+    const fade = ctx.createRadialGradient(0, 0, c.width * .31, 0, 0, c.width * .49);
+    fade.addColorStop(0, '#fff'); fade.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = fade; ctx.fillRect(-c.width / 2, -c.width / 2, c.width, c.width); ctx.restore();
     const mask = makeCanvas(c.width, c.height), m = mask.getContext('2d')!;
     m.fillStyle = '#fff'; m.filter = 'blur(18px)';
     m.fillRect((65 - left) * scale, (81 - top) * scale, 1070 * scale, 598 * scale);

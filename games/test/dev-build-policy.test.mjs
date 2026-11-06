@@ -18,7 +18,7 @@ test('dev selection follows manifest order, accepts CLI/env filters, and rejects
 });
 
 test('generated outputs, test files and artifacts never cause rebuild loops', () => {
-  for (const path of ['games/2048/bundle.js', 'games/2048/bundle.js.map', 'games/2048/bundle.meta.json', 'games/mugen/dist/chunks/abc.js', 'games/gravity-maze/dist/bundle.js', 'site/gamepad.js', 'site/gamepad.js.map', 'artifacts/dev/2048.json', 'games/test/example.test.mjs']) {
+  for (const path of ['games/2048/bundle.js', 'games/2048/bundle.js.map', 'games/2048/bundle.meta.json', 'games/gravity-maze/dist/chunks/abc.js', 'games/gravity-maze/dist/bundle.js', 'site/gamepad.js', 'site/gamepad.js.map', 'artifacts/dev/2048.json', 'games/test/example.test.mjs']) {
     assert.equal(isDevSource(path), false, path);
   }
   for (const path of ['games/2048/main.ts', 'games\\tank-battle\\main.ts', 'games/gamepad/lobby.ts', 'config/rollup.shared.js', 'games/pinball/fluid.wgsl']) assert.equal(isDevSource(path), true, path);

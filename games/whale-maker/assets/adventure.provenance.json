@@ -1,0 +1,29 @@
+{
+  "tool": "built-in image_gen",
+  "transparent_background": true,
+  "reference": "motion.png (style and character identity only)",
+  "prompt": "Use case: illustration-story. Create a transparent PNG 4 by 4 evenly spaced sprite atlas, 1280x1280, for cute ocean cartoon 2D platform game Whale Maker. Match polished chibi blue whale girl and pink round cat creature from reference motion atlas D:/HaiyueStudio/Games/games/whale-maker/assets/motion.png (reference image only). Exact row layout, each cell generous transparent padding, no overlap, no grid lines, no text: Row1 cells: ornate golden seashell key; closed blue coral door with large golden keyhole lock; open matching door (base exactly same vertical level as closed); square pale blue stone enemy with rounded chiseled corners and closed sleepy eyes. Row2: SAME stone enemy alert angry face; SAME stone enemy attacking enraged face; seamless vertical green climbing vine stem with alternating leaves touching top and bottom; square sea urchin hazard with sharp spikes protruding equally on all four sides. Row3: blue-haired girl in blue whale hood white frill dress, climbing a vertical vine, back/three-quarter view, FOUR frame cyclic climbing sequence alternating raised hands and feet; same character proportions, same foot baseline, no vine drawn in these character cells. Row4: pink round cute cat girl blob with cat ears rose and bow, FOUR alternating climbing poses with paws stretched above or gripping below, back/three-quarter view, no vine in character cells. Bold readable silhouettes, hand-painted glossy cel shading, crisp outlines, soft pastel blue/coral palette, true transparent alpha background. Each object fully within its own cell. No shadows outside sprites.",
+  "frames": {
+    "key": 0,
+    "lockedDoor": 1,
+    "openLockedDoor": 2,
+    "stoneSleep": 3,
+    "stoneAlert": 4,
+    "stoneCharge": 5,
+    "vine": 6,
+    "allSideSpikes": 7,
+    "whaleClimb": [
+      8,
+      9,
+      10,
+      11
+    ],
+    "pinkClimb": [
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "pixels": "Original generated PNG preserved; only frame UV rectangles measured."
+}

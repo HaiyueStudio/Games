@@ -1,0 +1,60 @@
+{
+  "name": "@haiyue/games-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build platform",
+    "test": "node ../../scripts/workspace-task.mjs test platform",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck platform"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{workspaceRoot}/site/game-host.js",
+          "{workspaceRoot}/site/game-host.js.map",
+          "{workspaceRoot}/site/gamepad.js",
+          "{workspaceRoot}/site/gamepad.js.map",
+          "{workspaceRoot}/site/simulator.js",
+          "{workspaceRoot}/site/simulator.js.map",
+          "{workspaceRoot}/site/core"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "allGameSources",
+          "{workspaceRoot}/games/test/camera-view-projection-cache.test.mjs",
+          "{workspaceRoot}/games/test/game-host-router.test.mjs",
+          "{workspaceRoot}/games/test/game-session.test.mjs",
+          "{workspaceRoot}/games/test/gamepad-connections.test.mjs",
+          "{workspaceRoot}/games/test/gamepad.test.mjs",
+          "{workspaceRoot}/games/test/launcher-activity.test.mjs",
+          "{workspaceRoot}/games/test/launcher-artwork.test.mjs",
+          "{workspaceRoot}/games/test/launcher-audio.test.mjs",
+          "{workspaceRoot}/games/test/launcher-hover.test.mjs",
+          "{workspaceRoot}/games/test/launcher-paths-layout.test.mjs",
+          "{workspaceRoot}/games/test/launcher-scroll.test.mjs",
+          "{workspaceRoot}/games/test/lobby-library.test.mjs",
+          "{workspaceRoot}/games/test/os-button-style.test.mjs",
+          "{workspaceRoot}/games/test/simulator-device.test.mjs",
+          "{workspaceRoot}/games/test/simulator-volume.test.mjs",
+          "{workspaceRoot}/games/test/single-slot-save.test.mjs"
+        ]
+      }
+    }
+  }
+}

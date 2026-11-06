@@ -1,0 +1,10 @@
+import type { Body, Item, Level, State } from './model';
+import type { WearableKind, P2BossKind } from './p2-schema';
+export interface Wearable {kind:WearableKind;age:number;charge:number;uses:number;capacity:number;flight:number;boost:number;cooldown:number;exposed:number;active:boolean}
+export interface P2Projectile extends Body {kind:'cannon'|'magic'|'ninja';age:number;charged?:boolean;owner?:Body;converted?:boolean}
+export interface P2Mechanism extends Body {kind:'beat-block'|'fall-block'|'icicle'|'tornado';id:number;home:[number,number];age:number;phase:'idle'|'warn'|'fall'|'gone';wait:number;props:NonNullable<Level['properties']>[string];active:boolean}
+export interface P2BossBrain {kind:P2BossKind;mode:'walk'|'shell'|'telegraph'|'vulnerable'|'climb'|'pounce'|'hidden';timer:number;hits:number;cycle:number;target:[number,number];mirages:Body[];maxHealth?:number}
+export interface P2State {wearable:Wearable|null;cannonShots:P2Projectile[];magicShots:P2Projectile[];p2Mechanisms:P2Mechanism[];vehicle:Item|null;
+ currentArea:string;rootLevel?:Level;areaMemory:Record<string,State>;checkpointArea:string;checkpointMemory:Record<string,Record<string,true>>;areaCooldown:number;areaFade?:number;
+ lives:number;gameOver:boolean;lifeCharged:boolean;nextLifeCoin:number;timeRemaining:number;timeBonus:number;liquidLevel:number;liquidRow?:number;liquidCells:Set<number>;cameraTravel:number;cameraRail:number;cameraStops:number[];cameraHold:{x:number;y:number}|null;}
+export function initP2(l:Level):P2State{return {wearable:null,cannonShots:[],magicShots:[],p2Mechanisms:[],vehicle:null,currentArea:'main',areaMemory:{},checkpointArea:'main',checkpointMemory:{},areaCooldown:0,lives:l.progress?.initialLives??3,gameOver:false,lifeCharged:false,nextLifeCoin:100,timeRemaining:l.progress?.timeLimit??0,timeBonus:0,liquidLevel:l.liquid?.low??l.height,liquidCells:new Set(),cameraTravel:0,cameraRail:l.cells.indexOf('camera-rail'),cameraStops:l.cells.flatMap((t,id)=>t==='camera-stop'?[id]:[]),cameraHold:null};}

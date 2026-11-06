@@ -1,0 +1,15 @@
+{
+  "generator": "image_gen",
+  "date": "2026-10-27",
+  "assets": [
+    {
+      "file": "tokens-half.png",
+      "prompt": "Create a production-ready transparent PNG sprite sheet for a cute pastel 2D platformer. EXACTLY 12 separate gold Token coin rotation frames, organized in a strict 4 columns by 3 rows grid, equal cell sizes, generous transparent padding. All frames have exactly the same center and vertical size. A thick round polished gold coin with a cute embossed capital T Token symbol inside a hexagonal token emblem. Two identical embossed faces on both sides. The coin rotates about its VERTICAL axis for HALF A TURN: row-major angles 0,15,30,45 / 60,75,90,105 / 120,135,150,165 degrees. At 0 degrees a full circular front, at 90 degrees a very narrow vertical gold edge, then the reverse face gradually becomes visible. Obey actual 3D perspective: the disk gets narrower to edge-on then wider. Do not draw circular disks at all angles, do not rotate the emblem within the face, do not squash height. Constant soft top-left lighting, warm amber outline, clean adorable hand-painted cartoon game art, not pixel art. No stars, no extra icons, no labels or numbers, no background, true alpha transparency. Sharp clean silhouettes, each image isolated inside its own grid cell."
+    },
+    {
+      "file": "distant-landscapes.png",
+      "prompt": "Make a production game-art background sheet: exactly THREE wide landscape panoramas arranged in THREE equal horizontal rows, one panorama per row, no columns. Wide 1536x1024 canvas. True transparent sky above each landscape silhouette; no background behind the sheet. Each row is an independent distant parallax horizon, landscapes occupy bottom 65 percent of each row with empty transparent upper sky, leave a little transparent vertical gap between rows. All three landscapes in a cohesive soft pastel hand-painted cute 2D platformer aesthetic, distant haze, NO heavy dark outlines, NO characters, NO UI, no text, no watermarks, no objects in the near foreground. Edges at left and right of every panorama have matching low smooth terrain elevation for horizontal repeating. TOP ROW: VERY FAR AWAY coral kingdom, a small delicate pearl-white and pink coral castle with tiny rounded spires and seashell roofs situated amongst many pale turquoise coral hills, hazy lilac silhouettes behind, small scale architecture surrounded by expansive landscape; pale aqua terrain to bottom of row. MIDDLE ROW: distant layered blue and lavender mountains, rounded alpine peaks, gentle pale turquoise foothills, serene airy haze, terrain extends to bottom of row. BOTTOM ROW: expansive distant mint-green rolling plains and tiny flower meadows, gentle undulating hills, a few minuscule trees far away, hazy blue ridge at horizon, terrain extends to bottom of row. Keep the shapes simple and readable at small game sizes, soft colors and low contrast so the playable level remains visually distinct."
+    }
+  ],
+  "processing": "Runtime packing crops declared frames, removes unused regions, and downsamples to 2x typical render size. Sources remain unchanged."
+}

@@ -1,0 +1,54 @@
+{
+  "name": "@haiyue/game-sky-strike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build sky-strike",
+    "test": "node ../../scripts/workspace-task.mjs test sky-strike",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck sky-strike"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/bundle.js",
+          "{projectRoot}/bundle.js.map"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "{workspaceRoot}/games/test/sky-strike-assets.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-asteroids.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-audio.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-black-hole.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-bomb-crates.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-fighter-aim.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-flames.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-i18n-effects.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-mirror.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-music.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-quantum.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-rules.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-space.test.mjs",
+          "{workspaceRoot}/games/test/sky-strike-viewport.test.mjs"
+        ]
+      }
+    }
+  }
+}

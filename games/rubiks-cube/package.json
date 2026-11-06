@@ -1,0 +1,41 @@
+{
+  "name": "@haiyue/game-rubiks-cube",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/workspace-task.mjs build rubiks-cube",
+    "test": "node ../../scripts/workspace-task.mjs test rubiks-cube",
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck rubiks-cube"
+  },
+  "dependencies": {
+    "@haiyue/games-platform": "0.1.0"
+  },
+  "peerDependencies": {
+    "@haiyue/animation-spec": "*",
+    "@haiyue/engine": "*",
+    "@haiyue/engine-gamepad": "*",
+    "@haiyue/extensions": "*",
+    "@haiyue/extensions-controls": "*",
+    "@haiyue/ui": "*",
+    "wgpu-matrix": "*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/bundle.js",
+          "{projectRoot}/bundle.js.map"
+        ]
+      },
+      "test": {
+        "inputs": [
+          "production",
+          "^production",
+          "testGlobals",
+          "{workspaceRoot}/games/test/rubiks-cube.test.mjs"
+        ]
+      }
+    }
+  }
+}

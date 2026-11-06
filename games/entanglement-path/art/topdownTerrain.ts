@@ -7,6 +7,21 @@ export interface TerrainStamp extends InkPoint {
   motif: number; width: number; height: number; angle: number; opacity: number;
 }
 export interface TerrainPlan { family: 'peaks' | 'ridges' | 'basin' | 'islands'; stamps: TerrainStamp[] }
+export interface WorldMountain extends TerrainStamp { id: string }
+
+/** Shared patches are authored in world space, then clipped by individual hexes. */
+export function mountainWorldPatches(q: number, r: number, seed: number): WorldMountain[] {
+  const ox=(q+r/2)*117*Math.sqrt(3),oy=r*117*1.5,pitch=190,result:WorldMountain[]=[];
+  for(let gy=Math.floor((oy-260)/pitch);gy<=Math.ceil((oy+260)/pitch);gy++)
+    for(let gx=Math.floor((ox-260)/pitch);gx<=Math.ceil((ox+260)/pitch);gx++) {
+      const x=gx*pitch+(inkHash(gx,gy,seed+301)-.5)*64,y=gy*pitch+(inkHash(gx,gy,seed+307)-.5)*64;
+      const width=236+inkHash(gx,gy,seed+313)*70;
+      if(Math.abs(x-ox)>width*.75+128||Math.abs(y-oy)>width*.75+128)continue;
+      result.push({id:`${gx},${gy}`,x,y,width,height:width*(.78+inkHash(gx,gy,seed+319)*.16),
+        motif:Math.floor(inkHash(gx,gy,seed+317)*8),angle:inkHash(gx,gy,seed+331)*Math.PI*2,opacity:.90});
+    }
+  return result;
+}
 
 export function terrainPairKey(pairs: TerrainPairs): string {
   return pairs.map(([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`).sort().join(':');

@@ -1,0 +1,26 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "coins.png",
+  "reference": "world.png",
+  "prompt": "Use case: stylized-concept. Production sprite atlas for a cute ocean-cartoon 2D platform game. Reference image is STYLE REFERENCE ONLY: soft painted shading, crisp dark golden/teal outlines, pearl accents. Make EXACTLY 3 columns x 3 rows, NINE equal-sized separated cells on real transparent alpha, no grid, no labels, no ground or cast shadow. Cells 1 to 8 in reading order are EIGHT rotation frames of ONE identical thick circular GOLD TOKEN COIN, rotating around its VERTICAL axis. Angles: 0 degrees full front, 45 degrees three-quarter, 90 degrees thin ribbed gold edge, 135 degrees three-quarter reverse face, 180 degrees full back face, 225 degrees three-quarter, 270 degrees thin ribbed edge, 315 degrees three-quarter. Both faces have the SAME prominent embossed capital T TOKEN emblem inside a simple rounded hexagonal mint stamp, with small neat readable TOKEN text below the T. Warm bright gold face, deeper amber beveled rim, fine reeded metallic edge, tiny turquoise enamel accent ring. The coin front is a ROUND DISK, absolutely NOT a star. IDENTICAL coin height, center, floor baseline, engraving and lighting across the eight cells. Perspective should naturally narrow its visible width as it turns; do not vary coin size/height. No sparkles, particles, floating stars or extra small objects. In cell 9 (bottom right), draw ONE square reward block matching the reference gold reward block's silhouette: golden beveled square frame, cream inset panel, pearl rivets in the corners, and a large ROUND gold TOKEN COIN emblem centered on the front, carrying the same T mint emblem. Absolutely NO stars on any object. Every sprite fully fits inside its equal cell with generous transparent margins. Polished readable cartoon game prop style suitable at 40 pixels, opaque clean object silhouettes surrounded by transparent pixels, no watermark.",
+  "layout": "3 columns × 3 rows",
+  "frames": {
+    "coin": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "tokenRewardBlock": 8
+  },
+  "animation": {
+    "framesPerSecond": 12,
+    "axis": "vertical"
+  },
+  "notes": "Original generated transparent PNG retained unchanged. UV sampling uses a shared canvas size, centered on each coin with its bottom aligned. Edge views narrow through painted artwork, not per-frame scale changes."
+}

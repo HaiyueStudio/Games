@@ -4,6 +4,7 @@ export interface RiverRoute { cell: string; entry: number; exit: number }
 export interface RiverSample extends InkPoint { distance: number }
 export interface RiverCurve { points: readonly RiverSample[]; length: number }
 export interface RiverWetness { entry: number; exit: number; progress: number; bank: number }
+export interface RiverScoreStep extends RiverRoute { gain: number; at: ()=>number }
 interface Fill extends RiverRoute { start: number; duration: number }
 const curves = new Map<string, RiverCurve>();
 
@@ -58,7 +59,7 @@ export class RiverFlow {
   get size(): number { return this.fills.size; }
   private id(route: RiverRoute): string { return `${route.cell}:${riverSegmentKey(route.entry, route.exit)}`; }
 
-  connect(routes: readonly RiverRoute[], now: number, instant = false): void {
+  connect(routes: readonly RiverRoute[], now: number, instant = false): RiverScoreStep[] {
     const fresh = routes.filter((route, i) => !this.fills.has(this.id(route))
       && routes.findIndex(other => this.id(other) === this.id(route)) === i);
     const totalLength = fresh.reduce((sum, r) => sum + riverCurve(r.entry, r.exit).length, 0);
@@ -71,11 +72,15 @@ export class RiverFlow {
     }
     let cursor = instant ? now - 2000 : Math.max(now, Math.min(this.tail, now + 320));
     const duration = Math.min(1200, Math.max(650, totalLength * 3.4));
-    for (const route of fresh) {
+    const steps: RiverScoreStep[]=[];
+    for (const [index,route] of fresh.entries()) {
       const span = instant ? 1 : duration * riverCurve(route.entry, route.exit).length / (totalLength || 1);
-      this.fills.set(this.id(route), { ...route, start: cursor, duration: span }); cursor += span;
+      const fill={...route,start:cursor,duration:span};
+      this.fills.set(this.id(route),fill);cursor+=span;
+      if(!instant)steps.push({...route,gain:index+1,at:()=>fill.start+fill.duration});
     }
     this.tail = cursor;
+    return steps;
   }
 
   wetness(cell: string, now: number): RiverWetness[] {

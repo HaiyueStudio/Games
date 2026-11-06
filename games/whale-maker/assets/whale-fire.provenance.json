@@ -1,0 +1,11 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-28",
+  "source": "whale-fire.png",
+  "prompt": "Use case: identity-preserve. Edit target: the provided 6 by 6 whale-maid action sprite atlas. Keep all EXACT 36 poses, their positions, body sizes, head sizes, faces, hair, tails, alignment and genuinely transparent background unchanged. Change ONLY the maid uniform into a flame-themed costume: deep crimson and ember-orange dress and bodice, ivory apron with little flame emblem and gold trim, fire-red collar bow, warm golden ruffle edging, dark red Mary Jane shoes. Blue hair and blue eyes stay identical. No environmental flames, no additional effects behind the sprites, no props. Preserve the clean cartoon art style, thick crisp outlines and every transparent gutter. One complete sprite in each of the same 6 columns and 6 rows.",
+  "references": [
+    "whale-tall.png"
+  ],
+  "processing": "Measured complete alpha silhouettes, cropped and uniformly downsampled to runtime atlas; source pixels preserved.",
+  "frames": 36
+}

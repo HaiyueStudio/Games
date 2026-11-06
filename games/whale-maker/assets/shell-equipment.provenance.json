@@ -1,0 +1,14 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-30",
+  "prompt": "One transparent production sprite atlas, four columns and one row: smooth blue turtle shell helmet, matching ivory-spiked shell helmet, hollow ivory bone shell boat, compact friendly turtle bone pile. Crisp dark teal outlines, cobalt/turquoise and ivory, soft painted cartoon highlights; empty equipment only, generous transparent gutters, no labels, scenery, background, shadows, or characters. Match the existing Whale Maker ocean-fantasy shell style.",
+  "source": "shell-equipment.png",
+  "sha256": "4ee0e9e0f98846da78734a0a625ec79b363babdd996e3e35261e6eca7200eac6",
+  "frames": [
+    "shell-helmet",
+    "spike-shell-helmet",
+    "bone-shell",
+    "bone-rest"
+  ],
+  "processing": "Original generated PNG retained unchanged; pack-shell-assets.py measures alpha, crops cells and downsamples only runtime samples."
+}

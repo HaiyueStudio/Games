@@ -1,0 +1,360 @@
+import { SingleSlotGameSave, isRecord, isNonNegativeInteger } from '../../save/SingleSlotGameSave';
+import { InkArt } from '../art/InkArt';
+import { collapseTerrain, extendTerrainSites, openTerrain } from '../art/terrainWfc';
+import { VersusMatch, greedyChoice, isMatchRecord, cellKey, type VersusMode, type MatchRecord, type Choice, type Player } from './VersusRules';
+import { VersusView, type DrawingLevel } from './VersusView';
+import { savedBoardIndex } from './boardCatalog';
+import { LifeRun, LIFE_MAP_ID, isLifeRecord, type LifeRecord } from './LifeRun';
+import { InkScoreFlight, type ScoreLayout } from '../art/InkScoreFlight';
+import type { RiverScoreStep } from '../art/riverFlow';
+import { BoardSelector } from './BoardSelector';
+import type { SelectionChoice } from './SelectionRules';
+import type { Point } from './BoardInteraction';
+
+type Mode = 'solo' | VersusMode | 'life';
+type PlayMatch = VersusMatch | LifeRun;
+interface VersusSave { mode: Mode; levelIndex: number; levelId?: string; seed: number; match: MatchRecord | LifeRecord | null;
+  swapped: boolean; rotations: number[]; lifeBest?: Record<string,number> }
+function isVersusSave(value: unknown): value is VersusSave {
+  return isRecord(value) && (value.mode === 'solo' || value.mode === 'shared' || value.mode === 'race' || value.mode === 'life')
+    && isNonNegativeInteger(value.levelIndex) && isNonNegativeInteger(value.seed) && value.seed <= 0xffffffff
+    && (value.levelId === undefined || typeof value.levelId === 'string')
+    && (value.match === null || isMatchRecord(value.match) || isLifeRecord(value.match)) && typeof value.swapped === 'boolean'
+    && (value.lifeBest === undefined || isRecord(value.lifeBest) && Object.values(value.lifeBest).every(isNonNegativeInteger))
+    && Array.isArray(value.rotations) && value.rotations.length === 2 && value.rotations.every(n => isNonNegativeInteger(n) && n < 6);
+}
+interface Options {
+  canvas: HTMLCanvasElement; art: InkArt; levels: DrawingLevel[]; ready: () => boolean;
+  now: () => number; sound: (kind: 'turn' | 'swap' | 'place' | 'end', gain?: number) => void;
+  present: (canvas: HTMLCanvasElement | null) => void;
+  soloLevel: () => number;
+  selectSoloLevel: (index: number) => Promise<void>;
+}
+const seedNumber = (): number => crypto.getRandomValues(new Uint32Array(1))[0]!;
+
+export class VersusController {
+  private readonly saves = new SingleSlotGameSave<VersusSave>({ gameId: 'entanglement-path-versus', name: '阡陌交通 · 对弈', validateData: isVersusSave });
+  private readonly toolbar = document.createElement('nav');
+  private readonly canvas = document.createElement('canvas');
+  private readonly announcement = document.createElement('span');
+  private readonly seedInput = document.createElement('input');
+  private readonly levelSelect = document.createElement('select');
+  private readonly modeButtons = new Map<Mode, HTMLButtonElement>();
+  private readonly soloScores: InkScoreFlight;
+  private readonly selector: BoardSelector;
+  private selectorPausedAt=0;
+  private readonly canvasLabel: string;
+  private artPromise: Promise<InkArt> | null = null;
+  private art: InkArt | null = null;
+  private view: VersusView | null = null;
+  private generation = 0;
+  private disposed = false;
+  mode: Mode = 'solo';
+  match: PlayMatch | null = null;
+  private lifeBest: Record<string,number> = {};
+  private terrainCells = 0;
+  seed = seedNumber();
+  levelIndex = 0;
+  loading = false;
+  private swapped = false;
+  private rotations = [0, 0];
+  private machineAt = Infinity;
+  private machineChoice: Choice | null = null;
+  private lastAnnouncement = '';
+  private soloFrame = '';
+  private readonly toolbarHits: { element: HTMLElement; x: number; y: number; w: number; h: number }[] = [];
+  get active(): boolean { return this.mode !== 'solo'||this.selector.visible; }
+  get selection(): Choice { return { swap: this.swapped, rotation: this.rotations[Number(this.swapped)]! }; }
+  constructor(private readonly options: Options) {
+    this.soloScores=new InkScoreFlight(options.art);
+    this.canvasLabel=options.canvas.ariaLabel??'阡陌交通';
+    this.selector=new BoardSelector({art:options.art,levels:options.levels,now:()=>this.options.now(),apply:choice=>this.applySelection(choice),
+      resumed:()=>{
+        if(Number.isFinite(this.machineAt))this.machineAt+=this.options.now()-this.selectorPausedAt;
+        this.soloFrame='';this.view?.invalidate();this.options.canvas.ariaLabel=this.canvasLabel;this.refreshToolbar();this.options.canvas.focus({preventScroll:true});
+      },announce:text=>{this.announcement.textContent=text;this.options.canvas.ariaLabel=text;}});
+    this.toolbar.className = 'versus-toolbar'; this.toolbar.ariaLabel = '游戏模式与随机种子';
+    this.announcement.className = 'versus-announcement'; this.announcement.setAttribute('role', 'status');
+    for (const [mode, label] of [['solo', '独行'], ['shared', '共盘对弈'], ['race', '双盘竞分'], ['life', '续流']] as const) {
+      const button = document.createElement('button'); button.textContent = label; button.dataset.mode = mode;
+      button.addEventListener('click', () => { void this.setMode(mode); }); this.modeButtons.set(mode, button); this.toolbar.append(button);
+    }
+    const choose=document.createElement('button');choose.textContent='选卷';choose.dataset.action='choose-board';choose.ariaLabel='收卷并选择棋盘与模式';
+    choose.addEventListener('click',()=>this.openSelector());this.toolbar.prepend(choose);
+    const seedLabel = document.createElement('label'); seedLabel.textContent = '种子 ';
+    this.seedInput.type = 'text'; this.seedInput.inputMode = 'numeric'; this.seedInput.maxLength = 10;
+    this.seedInput.ariaLabel = '随机种子（0至4294967295）'; seedLabel.append(this.seedInput);
+    for (const [i, level] of options.levels.entries()) { const option = document.createElement('option'); option.value = String(i); option.textContent = level.name; this.levelSelect.append(option); }
+    this.levelSelect.ariaLabel = '棋盘形状';
+    this.levelSelect.addEventListener('change', () => { this.selectLevel(Number(this.levelSelect.value)); });
+    this.toolbar.append(this.levelSelect);
+    const restart = document.createElement('button'); restart.textContent = '同种重赛'; restart.dataset.action = 'rematch';
+    restart.addEventListener('click', () => {
+      if (!/^\d{1,10}$/.test(this.seedInput.value) || Number(this.seedInput.value) > 0xffffffff) { this.seedInput.setCustomValidity('请输入 0 至 4294967295 的整数'); this.seedInput.reportValidity(); return; }
+      this.seedInput.setCustomValidity(''); void this.newMatch(Number(this.seedInput.value));
+    });
+    this.seedInput.addEventListener('input', () => this.seedInput.setCustomValidity(''));
+    const fresh = document.createElement('button'); fresh.textContent = '新一局'; fresh.dataset.action = 'new-seed';
+    fresh.addEventListener('click', () => { void this.newMatch(seedNumber()); });
+    const group = document.createElement('span'); group.className = 'versus-settings'; group.append(seedLabel, restart, fresh);
+    this.toolbar.append(group); document.body.append(this.toolbar,this.announcement);
+    this.refreshToolbar();
+  }
+  async init(): Promise<void> {
+    const generation = this.generation;
+    const saved = await this.saves.load(); if (this.disposed || generation !== this.generation || !saved) return;
+    const index = saved.mode === 'life' ? Math.min(saved.levelIndex,this.options.levels.length-1)
+      : savedBoardIndex(saved, this.options.levels.map(level => level.id));
+    this.lifeBest = { ...saved.lifeBest };
+    this.seed = saved.seed; this.levelIndex = index ?? 0;
+    if (saved.mode === 'solo') { this.refreshToolbar(); return; }
+    let match: PlayMatch | undefined;
+    try {
+      if (index !== null && saved.match && saved.match.mode === saved.mode && saved.match.seed === saved.seed) {
+        match = saved.match.mode === 'life' ? LifeRun.restore(this.options.levels[index]!, saved.match) : VersusMatch.restore(this.options.levels[index]!, saved.match);
+      }
+    } catch { /* A structurally valid but impossible move history starts a clean match. */ }
+    await this.setMode(saved.mode, match);
+    if (match && this.match === match) { this.swapped = saved.swapped; this.rotations = saved.rotations; this.view?.invalidate(); this.save(); }
+  }
+  async setMode(mode: Mode, restored?: PlayMatch): Promise<void> {
+    if (this.disposed || !this.options.ready()) return;
+    if (mode === this.mode && !restored) return;
+    this.clearSoloScores();this.view?.clearScores();
+    if (this.mode === 'solo' && mode !== 'solo' && !restored) this.levelIndex = this.options.soloLevel();
+    this.generation++; this.mode = mode; this.machineAt = Infinity; this.machineChoice = null;
+    this.toolbar.dataset.mode = mode; this.soloFrame = '';
+    if (mode === 'solo') { this.loading = false; this.refreshToolbar(); this.save(); this.options.canvas.tabIndex = 0; this.options.canvas.focus({ preventScroll: true }); return; }
+    await this.newMatch(this.seed, this.levelIndex, restored);
+  }
+  async newMatch(seed: number, levelIndex = this.levelIndex, restored?: PlayMatch): Promise<void> {
+    if (this.mode==='solo' || this.disposed || !this.options.ready()) return;
+    const generation = ++this.generation, mode = this.mode as VersusMode | 'life';
+    this.seed = seed;
+    if (mode !== 'life') this.levelIndex = (levelIndex + this.options.levels.length) % this.options.levels.length;
+    this.loading = true; this.machineAt = Infinity; this.machineChoice = null; this.lastAnnouncement = ''; this.refreshToolbar();
+    try {
+      this.artPromise ??= InkArt.load(); const art = await this.artPromise;
+      if (this.disposed) { art.connected.dispose(); return; }
+      this.art = art;
+      if (generation !== this.generation) return;
+      const configured = this.options.levels[mode === 'life' ? 0 : this.levelIndex]!;
+      const match = restored ?? (mode === 'life' ? new LifeRun(configured, seed) : new VersusMatch(configured, seed, mode));
+      const level = this.drawingLevel(match);
+      const world = mode === 'life' ? openTerrain(level.cells,seed) : collapseTerrain(extendTerrainSites(level.cells.map(c => ({ ...c,
+        kind: level.wallKeys.has(cellKey(c)) && !(level.startWall && cellKey(c) === cellKey(level.start)) ? 'wall' as const : 'play' as const }))), seed);
+      if (!await art.connected.configure(world) || generation !== this.generation || this.disposed) return;
+      this.match = match;
+      this.terrainCells = world.nodes.size;
+      this.view ??= new VersusView(this.canvas, art); this.view.configure(world, level);
+      this.swapped = false; this.rotations = [0, 0]; this.loading = false;
+      this.scheduleMachine(); this.refreshToolbar(); this.save(); this.update(); this.options.canvas.tabIndex = 0; this.options.canvas.focus({ preventScroll: true });
+    } catch (error) {
+      if (generation !== this.generation || this.disposed) return;
+      this.loading = false; this.announcement.textContent = '山河绘制失败，请重试'; console.error(error);
+    }
+  }
+  private drawingLevel(match: PlayMatch): DrawingLevel {
+    return { ...this.options.levels[match.mode === 'life' ? 0 : this.levelIndex]!, ...match.level,
+      ...(match.mode === 'life' ? { id:LIFE_MAP_ID,name:'续流',hexScreen:40,orientation:'pointy' as const } : {}) };
+  }
+  private async expandLifeTerrain(): Promise<void> {
+    const match=this.match;
+    if (match?.mode !== 'life' || match.level.cells.length <= this.terrainCells || !this.art || !this.view) return;
+    const generation=this.generation, world=openTerrain(match.level.cells,this.seed);
+    this.loading=true;
+    try {
+      if (!await this.art.connected.extend(world) || generation!==this.generation || this.disposed) return;
+      this.terrainCells=world.nodes.size; this.view.extend(world,this.drawingLevel(match),this.options.now());
+      this.loading=false; this.save(); this.update();
+    } catch(error) {
+      if (generation!==this.generation || this.disposed) return;
+      this.loading=false; this.announcement.textContent='山河绘制失败，请重试'; console.error(error);
+    }
+  }
+  private selectLevel(index: number): void {
+    if (this.mode === 'life') return;
+    if (this.active) void this.newMatch(this.seed, index);
+    else void this.options.selectSoloLevel(index).then(() => {
+      if (this.disposed || this.active || !this.options.ready()) return;
+      this.options.canvas.tabIndex = 0; this.options.canvas.focus({ preventScroll: true });
+    });
+  }
+  openSelector(): void {
+    if(this.disposed||!this.options.ready()||this.selector.visible)return;
+    this.selectorPausedAt=this.options.now();this.leavePointer();
+    // WebGPU's presented canvas is not a persistent snapshot. Reveal the live solo scene through the scroll mask instead.
+    this.selector.open({mode:this.mode,board:this.mode==='solo'?this.options.soloLevel():this.levelIndex,seed:this.seed},this.mode==='solo'?null:this.canvas);
+    this.toolbar.hidden=true;this.options.canvas.tabIndex=0;this.options.canvas.focus({preventScroll:true});
+  }
+  selectorKey(event:KeyboardEvent): boolean {
+    if(this.selector.visible)return this.selector.key(event);
+    if(event.key==='Escape'&&!event.repeat&&this.options.ready()){event.preventDefault();this.openSelector();return true;}return false;
+  }
+  selectorSwipe(from:Point,to:Point): boolean {
+    if(!this.selector.visible)return false;const r=this.options.canvas.getBoundingClientRect();
+    return this.selector.swipe({x:from.x-r.left,y:from.y-r.top},{x:to.x-r.left,y:to.y-r.top});
+  }
+  private async applySelection(choice:SelectionChoice): Promise<void> {
+    this.seed=choice.seed;
+    if(choice.mode==='solo') {
+      await this.setMode('solo');await this.options.selectSoloLevel(choice.board);this.levelIndex=choice.board;this.save();
+    } else {
+      this.levelIndex=choice.board;
+      const match=choice.mode==='life'?new LifeRun(this.options.levels[0]!,choice.seed):new VersusMatch(this.options.levels[choice.board]!,choice.seed,choice.mode);
+      await this.setMode(choice.mode,match);if(this.match!==match||this.loading)throw new Error('Selected scroll did not finish loading');
+    }
+  }
+  changeLevel(delta: number): void {
+    if(this.selector.visible){this.selector.stepBoard(delta);return;}
+    this.selectLevel((this.active ? this.levelIndex : this.options.soloLevel()) + delta);
+  }
+  pointer(clientX: number, clientY: number): boolean {
+    if(this.selector.visible){const r=this.options.canvas.getBoundingClientRect();this.selector.click(clientX-r.left,clientY-r.top);return true;}
+    if (!this.options.ready()) return false;
+    const rect = this.options.canvas.getBoundingClientRect(), x = clientX - rect.left, y = clientY - rect.top;
+    const control = this.toolbarHits.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+    if (control) {
+      if (control.element === this.levelSelect) { this.changeLevel(1); }
+      else if (control.element === this.seedInput) { this.seedInput.focus(); }
+      else control.element.click();
+      return true;
+    }
+    if (!this.active) return false;
+    if (!this.view || this.loading) return true;
+    if (this.match?.winner) { void this.newMatch(this.seed); return true; }
+    const hit = this.view.hit(x, y);
+    this.view.move({ x, y });
+    if (hit === 'restart') void this.newMatch(this.seed);
+    else if (hit === 'swap') this.swap();
+    else if (hit === 'ccw') { this.view.press(hit, this.options.now()); this.rotate(-1); }
+    else if (hit === 'cw') { this.view.press(hit, this.options.now()); this.rotate(1); }
+    else if (this.match && this.view.hitCurrent(x, y, this.match)) this.place();
+    return true;
+  }
+  movePointer(clientX: number, clientY: number): void {
+    const rect = this.options.canvas.getBoundingClientRect(),point={x:clientX-rect.left,y:clientY-rect.top};
+    if(this.selector.visible)this.selector.move(point);else this.view?.move(point);
+  }
+  leavePointer(): void { this.view?.move(null);this.selector.move(null); }
+  cycleMode(): void { if(this.selector.visible){this.selector.stepMode(1);return;}const modes: Mode[] = ['solo', 'shared', 'race', 'life']; void this.setMode(modes[(modes.indexOf(this.mode) + 1) % modes.length]!); }
+  private canPlay(): boolean { return !this.selector.visible && this.active && !this.loading && !!this.match && !this.match.winner && this.match.turn === 'human' && !this.match.human.ended; }
+  rotate(delta: number): void {
+    if(this.selector.visible){this.selector.stepBoard(delta);return;}
+    if (!this.canPlay()) return;
+    const i = Number(this.swapped), before = this.rotations[i]!; this.rotations[i] = (before + delta + 6) % 6;
+    this.view?.rotate(before, this.rotations[i]!, this.options.now());
+    this.options.sound('turn'); this.view?.invalidate(); this.save();
+  }
+  swap(): void {
+    if(this.selector.visible){this.selector.cancel();return;}
+    if (!this.canPlay()) return;
+    this.view?.swap(this.match!.human, this.selection, this.rotations[Number(!this.swapped)]!, this.options.now());
+    this.swapped = !this.swapped; this.options.sound('swap'); this.save();
+  }
+  place(): void {
+    if(this.selector.visible){this.selector.confirm();return;}
+    if (!this.active || this.loading) return;
+    if (this.match?.winner) { void this.newMatch(this.seed); return; }
+    if (!this.canPlay()) return;
+    const score = this.match!.human.score, reserveRotation = this.rotations[Number(!this.swapped)]!;
+    this.match!.play('human', this.selection); this.afterMove(reserveRotation, this.match!.human.score - score,'human');
+  }
+  private afterMove(reserveRotation: number, gain: number, player: Player): void {
+    this.swapped = false; this.rotations = [0, reserveRotation]; this.view?.cancelMotion();
+    this.view?.scoreGain(this.match!.board(player),this.options.now(),player);
+    this.options.sound('place', gain); if (this.match!.winner) this.options.sound('end');
+    if (this.match?.mode === 'life') {
+      this.lifeBest[LIFE_MAP_ID] = Math.max(this.lifeBest[LIFE_MAP_ID] ?? 0, this.match.human.score);
+      this.view?.lifeBonuses(this.match.lastBonuses, this.options.now());
+    }
+    this.scheduleMachine(); this.view?.invalidate(); this.save();
+    if (this.match?.mode === 'life') void this.expandLifeTerrain();
+  }
+  private scheduleMachine(): void {
+    this.machineChoice = null; this.machineAt = Infinity;
+    if (this.match && this.match.mode !== 'life' && !this.match.winner && this.match.turn === 'machine') {
+      this.machineChoice = greedyChoice(this.match.level, this.seed, this.match.machine); this.machineAt = this.options.now() + 650;
+      this.view?.rotate(0, this.machineChoice.rotation, this.options.now(), 'machine');
+    }
+  }
+  soloScore(step: RiverScoreStep, layout: ()=>ScoreLayout): void {
+    if(this.mode==='solo')this.soloScores.add(step.gain,'solo',this.options.now(),layout,step.at);
+  }
+  soloDisplayScore(actual: number): number { return this.soloScores.display(actual,'solo',this.options.now()); }
+  clearSoloScores(): void { this.soloScores.clear();this.soloFrame=''; }
+  update(): void {
+    const rect = this.options.canvas.getBoundingClientRect();
+    if(this.selector.visible) {
+      this.toolbar.hidden=true;
+      if(this.selector.revealsGame&&this.mode!=='solo'&&!this.loading&&this.match&&this.view)this.view.render(this.match,this.selection,this.machineChoice,this.rotations[Number(!this.swapped)]!,this.options.now(),rect,this.lifeBest[LIFE_MAP_ID]??0);
+      const frame=this.selector.render(this.options.now(),rect,this.mode==='solo'?undefined:this.canvas);
+      if(frame){if(this.selector.redrawn)this.options.present(frame);return;}
+    }
+    this.toolbar.hidden = !this.options.ready();
+    if (this.toolbar.hidden) { this.soloFrame = ''; this.options.present(null); return; }
+    if (!this.active) {
+      const signature = `${rect.width}:${rect.height}:${this.options.soloLevel()}`;
+      const now=this.options.now();
+      if (this.soloFrame !== signature || this.soloScores.busy(now) || this.soloScores.size>0) {
+        this.soloFrame = signature;
+        this.levelSelect.value = String(this.options.soloLevel());
+        const dpr = Math.min(devicePixelRatio || 1, 2, 2048 / Math.max(1, rect.width), 2048 / Math.max(1, rect.height));
+        const width=Math.max(1,Math.round(rect.width*dpr)),height=Math.max(1,Math.round(rect.height*dpr));
+        if(this.canvas.width!==width||this.canvas.height!==height){this.canvas.width=width;this.canvas.height=height;}
+        const ctx=this.canvas.getContext('2d')!;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,rect.height);
+        this.soloScores.draw(ctx,now);
+        this.paintToolbar(); this.options.present(this.canvas);
+      }
+      return;
+    }
+    if (this.loading || !this.match || !this.view) return;
+    const now = this.options.now();
+    if (this.machineChoice && this.match.mode !== 'life' && now >= this.machineAt && !this.match.winner && this.match.turn === 'machine') {
+      const score = this.match.machine.score, reserveRotation = this.match.mode === 'shared' && this.machineChoice.swap ? 0 : this.rotations[1]!;
+      this.match.play('machine', this.machineChoice); this.afterMove(reserveRotation, this.match.machine.score - score,'machine');
+    }
+    if (this.view.render(this.match, this.selection, this.machineChoice, this.rotations[Number(!this.swapped)]!, now, rect,
+      this.lifeBest[LIFE_MAP_ID] ?? 0)) { this.paintToolbar(); this.options.present(this.canvas); }
+    const text = this.match.mode === 'life' ? `余命 ${this.match.lives}，得分 ${this.match.human.score}${this.match.winner ? '，本局结束' : ''}`
+      : this.match.winner ? this.match.winner === 'draw' ? '平局' : this.match.winner === 'human' ? '你赢了' : '机器获胜'
+      : this.match.turn === 'human' ? '轮到你' : '机器落笔中';
+    if (text !== this.lastAnnouncement) { this.lastAnnouncement = text; this.announcement.textContent = text; }
+  }
+  /** Mirror controls into the engine texture so embedded screens receive the same UI and hit targets. */
+  private paintToolbar(): void {
+    const ctx = this.canvas.getContext('2d')!, bounds = document.body.getBoundingClientRect();
+    this.toolbarHits.length = 0;
+    for (const element of this.toolbar.querySelectorAll<HTMLElement>('button, input, select')) {
+      const rect = element.getBoundingClientRect(); if (rect.width < 1 || rect.height < 1) continue;
+      const x = rect.left - bounds.left, y = rect.top - bounds.top, style = getComputedStyle(element);
+      ctx.fillStyle = style.backgroundColor; ctx.fillRect(x, y, rect.width, rect.height);
+      ctx.strokeStyle = style.borderColor; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, rect.width - 1, rect.height - 1);
+      ctx.fillStyle = style.color; ctx.font = style.font; ctx.textAlign = element instanceof HTMLButtonElement ? 'center' : 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(element instanceof HTMLSelectElement ? element.selectedOptions[0]!.text : element instanceof HTMLInputElement ? element.value : element.textContent ?? '',
+        x + (element instanceof HTMLButtonElement ? rect.width / 2 : parseFloat(style.paddingLeft) + 1), y + rect.height / 2);
+      this.toolbarHits.push({ element, x, y, w: rect.width, h: rect.height });
+    }
+    if (this.active) {
+      const label = this.seedInput.parentElement!.getBoundingClientRect();
+      ctx.fillStyle = '#263e36'; ctx.textAlign = 'left'; ctx.fillText('种子', label.left - bounds.left, label.top - bounds.top + label.height / 2);
+    }
+  }
+  private refreshToolbar(): void {
+    for (const [mode, button] of this.modeButtons) button.setAttribute('aria-pressed', String(mode === this.mode));
+    this.seedInput.value = String(this.seed); this.levelSelect.value = String(this.levelIndex);
+    this.levelSelect.hidden = this.mode === 'life';
+    this.toolbar.dataset.mode = this.mode; this.toolbar.hidden = !this.options.ready()||this.selector.visible;
+    this.announcement.textContent = this.loading ? '正在绘制同种山河…' : '';
+  }
+  private save(): void {
+    if (this.loading) return;
+    this.saves.save({ mode: this.mode, levelIndex: this.levelIndex, levelId: this.mode === 'life' ? LIFE_MAP_ID : this.options.levels[this.levelIndex]!.id, seed: this.seed, match: this.match?.record() ?? null,
+      swapped: this.swapped, rotations: [...this.rotations], lifeBest: { ...this.lifeBest } });
+  }
+  dispose(): void {
+    this.disposed = true; this.generation++; this.machineAt = Infinity;
+    this.selector.dispose();this.soloScores.clear();this.art?.connected.dispose(); this.view?.dispose(); this.canvas.remove(); this.toolbar.remove();this.announcement.remove();
+    this.options.present(null);
+  }
+}

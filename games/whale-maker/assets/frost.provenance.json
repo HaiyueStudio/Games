@@ -1,0 +1,9 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-28",
+  "source": "frost.png",
+  "prompt": "Use case: stylized-concept. Transparent cartoon ocean-fantasy platformer sprite sheet, exactly 4 equal columns by 3 equal rows with 12 isolated complete sprites. Row one: four gently swaying animation frames of a cute ice flower collectible, cyan snowflake petals, white pearl smiling face, blue green leaves, consistent baseline and scale. Row two: four flickering animation frames of a cute fierce orange red living fire blob enemy, white hot core, determined eyes, first two pointing upward rising, last two pointing down falling. Row three: small cyan snowflake ice projectile; cyan white impact burst; square translucent ice block overlay with bright edges cracks frosted corners and genuinely empty transparent centre for seeing another sprite through it; ice shatter burst with separate fragments. No lettering grid or background. Fully transparent background and ample empty gutters. Crisp outlined cute cartoon, not pixel art.",
+  "references": [],
+  "processing": "Measured complete alpha silhouettes, cropped and uniformly downsampled to runtime atlas; source pixels preserved.",
+  "frames": 12
+}

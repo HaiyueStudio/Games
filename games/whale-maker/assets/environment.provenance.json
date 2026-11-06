@@ -1,0 +1,9 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "environment.png",
+  "prompt": "Use case: stylized-concept. Production transparent TILE and POWER-UP atlas for a cute ocean 2D platform game, matching reference style. EXACTLY FOUR columns x FOUR rows, SIXTEEN separated sprites in equal cells. Row1 FOUR successive animation frames of a tileable turquoise WATER SURFACE: nearly horizontal upper wave edge, transparent above it, translucent pale aqua water below it, flat left/right connection edges, small gentle crest travels right. Row2 FOUR matching tileable UNDERWATER FILL tiles with subtle soft caustic light patterns, translucent cyan water, straight square edges. Row3: 8 square rising-right coral-grass SLOPE tile, solid triangular lower-right region and transparent upper-left region, grass along diagonal; 9 mirror rising-left slope tile; 10 solid blue P PATH block with white P and gold trim; 11 same block as a hollow dashed aqua outline with fully transparent middle. Row4 FOUR frames of ONE original happy INVINCIBILITY STAR: rounded five-point little gold star with tiny dark oval eyes and pale aqua inner glow, progressive gold, bright cream, pink-gold, cyan-gold iridescent shimmer, identical outline and scale, no loose sparkles. Tiles fill their cells but each is cleanly separated by transparent gutters; no grid or labels. Flat side-view game art with crisp colored outlines. Real transparent alpha, no background, no scene, no ground plane, no watermark.",
+  "notes": [
+    "Raw generated transparent PNG copied without pixel edits; sampling rectangles and animation group canvases are measured."
+  ]
+}

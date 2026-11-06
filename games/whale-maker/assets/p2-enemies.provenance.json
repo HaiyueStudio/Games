@@ -1,0 +1,18 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-29",
+  "prompt": "Use case: illustration-story. Asset type: transparent 2D cartoon game enemy animation atlas. Create exactly 8 columns by 8 rows, 64 equal cells, every complete creature isolated with VERY generous transparent gutters, no background, no floor, no text, no watermarks. Original cute ocean fantasy whale-maid platformer, soft teal coral navy gold palette, crisp rounded dark navy outlines, hand-painted clean shading. Side view facing RIGHT, each row preserves creature size across frames and a common feet baseline. Row 1: adorable aqua sea bee with yellow scarf, two tiny feelers and white wings, eight fluttering/chasing poses. Row 2: cute pink sea-slug spring monster, squat round body atop a little coiled spring, four walking/squashing and four stretched jumping poses. Row 3: cute round white lantern ghost with little whale tail and navy eyes, eight floating/orbiting phases, friendly but mischievous. Row 4: stocky round navy-blue pushing penguin sea monster with tiny red horns and cream belly, four walking and four bracing/pushing poses. Row 5: giant cute fierce coral angler fish, big round mouth and soft fins, four swimming and four lunging/biting poses. Row 6: cute fierce orange lava sea dragon with fin ears, curved eel tail, molten coral scales, four arcing leap poses and four splash/recovery poses. Row 7: adorable blue turtle wizard with violet star hat and little pearl wand, four walking and four wand-casting/teleport poses. Row 8: EMPTY cute teal and orange shell-shaped small racing kart, no driver, four driving/wheel-spin frames and four smoking/bent/damaged frames. One entire sprite in every cell, complete heads, wings, tails and wheels, leave at least 12 percent transparent margin inside each cell.",
+  "grid": [
+    8,
+    8
+  ],
+  "runtime": "runtime/p2-enemies.png",
+  "runtimeSize": [
+    640,
+    640
+  ],
+  "runtimeCell": 80,
+  "packing": "Uniform family scale, measured alpha bounds, transparent padding and shared feet baseline; original generated pixels preserved.",
+  "sourceId": "exec-89eab3b1-8059-4d49-adc4-2428cbd91f48.png",
+  "localSource": "p2-enemies.png"
+}

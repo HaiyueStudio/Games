@@ -43,7 +43,7 @@ export const IDLE: Input = { direction: null, fire: false };
 export const STAGE_NAMES = ['边境哨所', '冰封峡谷', '海岸防线', '密林伏击', '钢铁要塞'];
 // Each character is a 32-pixel block composed of four destructible 16-pixel cells.
 const MAPS = [
-  ['.............', '.B.BB.BB.B.B.', '.B.B...B.B.B.', '...B.S.S.B...', '.B...F.F...B.', '.BBB.F.F.BBB.', '.....WWW.....', '.BSB.....BSB.', '.B...B.B...B.', '...F.B.B.F...', '.B.F.....F.B.', '.............', '.............'],
+  ['.............', '.B.BB.BB.B.B.', '.B.B...B.B.B.', '...B.S.S.B...', '.B...F.F...B.', '.BBB.F.F.BBB.', '.....WWW.....', '.BSB.....BSB.', '.B...BBB...B.', '...F.BBB.F...', '.B.F.....F.B.', '.............', '.............'],
   ['.............', '.N.B.N.N.B.N.', '.N.B.N.N.B.N.', '...S.....S...', '.BB.NNNNN.BB.', '....N.S.N....', '.NN.N.S.N.NN.', '.BB.N...N.BB.', '....N.B.N....', '.SS...B...SS.', '.N..B...B..N.', '.............', '.............'],
   ['.............', '.BB..B.B..BB.', '..W.......W..', '..W.B.S.B.W..', '..W.B...B.W..', '.FW...B...WF.', '.FWW..B..WWF.', '......S......', '.BB.W...W.BB.', '....W.B.W....', '.FF...B...FF.', '.............', '.............'],
   ['.............', '.F.B.F.F.B.F.', '.F.B.F.F.B.F.', '...F.....F...', '.BSF.B.B.FSB.', '.F...F.F...F.', '.FBB.F.F.BBF.', '.....S.S.....', '.FFF.....FFF.', '.B...B.B...B.', '...F.....F...', '.............', '.............'],
@@ -59,6 +59,8 @@ export function createMap(stage: number): Terrain[] {
   const tiles = Array.from({ length: GRID * GRID }, (_, i) =>
     TERRAIN[layout[Math.floor(i / GRID / 2)]![Math.floor((i % GRID) / 2)]!] ?? 'ground');
   for (const i of FORT_CELLS) tiles[i] = 'brick';
+  // The opening stage has a second roof layer; both player exit lanes stay open.
+  if (stage === 1) for (let x = 11; x <= 14; x++) tiles[22 * GRID + x] = 'brick';
   return tiles;
 }
 function random(state: GameState): number {
@@ -98,12 +100,17 @@ export function canMove(state: GameState, tank: Tank, x: number, y: number): boo
   }
   return !state.tanks.some(other => other.id !== tank.id && overlap(x, y, other.x, other.y, 25));
 }
-function move(state: GameState, tank: Tank, direction: Direction, speed: number): boolean {
+function movementOrigin(state: GameState, tank: Tank, direction: Direction): { x: number; y: number } {
   if (tank.direction % 2 !== direction % 2) {
     const x = direction % 2 ? tank.x : Math.round(tank.x / 16) * 16;
     const y = direction % 2 ? Math.round(tank.y / 16) * 16 : tank.y;
-    if (Math.abs(x - tank.x) <= 6 && Math.abs(y - tank.y) <= 6 && canMove(state, tank, x, y)) { tank.x = x; tank.y = y; }
+    if (Math.abs(x - tank.x) <= 6 && Math.abs(y - tank.y) <= 6 && canMove(state, tank, x, y)) return { x, y };
   }
+  return { x: tank.x, y: tank.y };
+}
+function move(state: GameState, tank: Tank, direction: Direction, speed: number): boolean {
+  const origin = movementOrigin(state, tank, direction);
+  tank.x = origin.x; tank.y = origin.y;
   tank.direction = direction;
   const v = VECTORS[direction];
   const x = tank.x + v.x * speed * STEP; const y = tank.y + v.y * speed * STEP;
@@ -226,11 +233,23 @@ function chooseDirection(state: GameState, tank: Tank): Direction {
     ? (target.x > tank.x ? 1 : 3) : (target.y > tank.y ? 2 : 0);
   const candidates: Direction[] = [preferred, 0, 1, 2, 3];
   if (random(state) < 0.3) candidates.unshift(Math.floor(random(state) * 4) as Direction);
-  for (const dir of candidates) {
-    const v = VECTORS[dir];
-    if (canMove(state, tank, tank.x + v.x * 5, tank.y + v.y * 5)) return dir;
+  const reverse = (tank.direction + 2) % 4;
+  // Prefer enough room to travel a cell, and reverse only to escape a dead end.
+  // Probe the same aligned origin as movement, including the intervening path.
+  const ordered = [...new Set(candidates)].filter(dir => dir !== reverse);
+  ordered.push(reverse as Direction);
+  for (const distance of [TILE, ENEMY_STATS[tank.kind as Exclude<TankKind, 'player'>].speed * STEP + state.stage * 2 * STEP]) {
+    for (const dir of ordered) {
+      const origin = movementOrigin(state, tank, dir); const v = VECTORS[dir];
+      let clear = true;
+      for (let part = 1; part <= 4; part++) {
+        if (!canMove(state, tank, origin.x + v.x * distance * part / 4, origin.y + v.y * distance * part / 4)) { clear = false; break; }
+      }
+      if (clear) return dir;
+    }
   }
-  return preferred;
+  // A surrounded tank keeps aiming/firing instead of picking a blocked heading.
+  return tank.direction;
 }
 function spawnEnemy(state: GameState): void {
   if (state.queue <= 0 || state.tanks.filter(t => !t.player).length >= (state.mode === 2 ? 6 : 4)) return;
@@ -288,9 +307,12 @@ export function stepGame(state: GameState, inputs: readonly Input[] = []): void 
         }
       }
     } else {
-      if (--tank.ai <= 0) { tank.direction = chooseDirection(state, tank); tank.ai = 45 + Math.floor(random(state) * 90); }
-      tank.moving = move(state, tank, tank.direction, ENEMY_STATS[tank.kind as Exclude<TankKind, 'player'>].speed + state.stage * 2);
-      if (!tank.moving) { tank.ai = 0; fire(state, tank); }
+      let direction = tank.direction;
+      if (--tank.ai <= 0) { direction = chooseDirection(state, tank); tank.ai = 60 + Math.floor(random(state) * 60); }
+      tank.moving = move(state, tank, direction, ENEMY_STATS[tank.kind as Exclude<TankKind, 'player'>].speed + state.stage * 2);
+      // Wait up to 0.4s for traffic/brick fire before choosing another route.
+      // Never reset this countdown every blocked frame or it cannot expire.
+      if (!tank.moving) { tank.ai = Math.min(tank.ai, 24); fire(state, tank); }
       if (tank.cooldown <= 0 && random(state) < 0.08) fire(state, tank);
     }
   }

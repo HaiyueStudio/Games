@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-29",
+  "rendering": "Original engine-native ordinary 2D geometry, shared indexed-sprite batch. GUI palette thumbnails use a self-contained authored SVG atlas.",
+  "sources": [
+    "../rendering/desert.ts",
+    "desert-icons.svg"
+  ],
+  "image_generation": {
+    "tool": "built-in imagegen",
+    "status": "HTTP 429; no image output. No CLI or external API used.",
+    "prompt": "Use case: stylized-concept. Asset type: wide full-bleed background for a cute cartoon 2D platform game with a blue-haired chibi whale-girl maid. A calm sunny DESERT with distant Egyptian-style pyramids clearly visible, layered soft golden sand dunes, pale warm peach and turquoise sky. Keep the upper two thirds airy and mostly empty for readable gameplay; place two small distant pyramids, warm mountains and oasis silhouettes in the lower third. The very bottom blends into warm golden sand at the foreground horizon. Crisp clean polished cartoon painted art with subtle soft shading, friendly ocean-fantasy palette adapted to a desert, NO smiley clouds, NO faces, NO characters, NO foreground obstacles, NO text or UI. Opaque landscape panorama, 1536 by 1024 or wider. Matching colors at left and right edges for seamless parallax repeats."
+  },
+  "art": [
+    "Golden dunes and shaded distant pyramids with sun and parallax",
+    "Animated sand ripples, foreground occlusion and sinking actors",
+    "Stacked green cactus with head, spines, pink flower, four walking phases and body collapse",
+    "Glossy pale blue-white rolling snowball and bounded snow fragments"
+  ],
+  "originalAssets": "Existing smile cloud retained from runtime/world.png frame 14; automatic population reduced from 12 to 4 anchors, now also paintable as a background decoration."
+}

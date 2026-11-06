@@ -1,6 +1,7 @@
 import { gameTime } from '../../session/SessionPause';
 import { GameEngine } from '../../session/GameEngine';
 import { Entity, HaiyueEngine, World } from '@haiyue/engine';
+import { InputMap } from '@haiyue/engine/input';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { GuiRoot, GuiElement, GuiLabel, GuiButton, GuiImage, GuiSystem, type GuiRect } from '@haiyue/engine/gui';
 import { BattlefieldRenderer } from '../rendering/render';
@@ -56,7 +57,9 @@ export class TankBattleHud {
     this.atlas.src = './assets/atlas.png'; await Promise.all([this.atlas.decode(), this.engine.init(), this.battlefield.init()]);
     const entity = new Entity('TankBattleHud'); entity.addComponent(this.root); this.world.addEntity(entity);
     this.build();
-    this.system = new GuiSystem(this.engine, { loadOp: 'clear', font: { chars: HUD_FONT_CHARS, fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
+    // Menu keys are routed by handleMenuKey only while the modal is visible.
+    // Automatic GUI navigation would also consume P2 arrows/Enter during battle.
+    this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'clear', font: { chars: HUD_FONT_CHARS, fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
     this.world.addSystem(this.system);
     const integration = new RenderIntegration(this.engine, { label: 'TankBattle.gui' });
     this.world.addRuntimeIntegration(integration); integration.registerAll(this.world, () => ({ pass: 'shared' }));
@@ -228,7 +231,7 @@ export class TankBattleHud {
     }
     if (!this.modal.visible) this.system.focus.blur();
   }
-  /** Installed Engine GUI exposes focus but not directional navigation; map menu keys locally. */
+  /** Route shared gameplay/menu keys only while the menu is visible. */
   handleMenuKey(event: KeyboardEvent): boolean {
     if (!this.modal.visible) return false;
     const previous = ['KeyW', 'KeyA', 'ArrowUp', 'ArrowLeft'].includes(event.code) || (event.code === 'Tab' && event.shiftKey);

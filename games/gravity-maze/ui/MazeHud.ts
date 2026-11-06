@@ -1,6 +1,8 @@
+import {HyaVictory} from './HyaVictory';
 import { GameHud } from '../../shared/ui/GameHud';
 import type { HaiyueEngine, Scene } from '@haiyue/engine';
 export class MazeHud extends GameHud {
+    private readonly hyaVictory:HyaVictory;
     readonly level;
     readonly seed;
     readonly holes;
@@ -12,6 +14,7 @@ export class MazeHud extends GameHud {
     advance = () => { };
     constructor(engine: HaiyueEngine, scene: Scene) {
         super(engine, scene, "°·…。一下也了以住使候倾入全关出到前力动卡去口可右后向启回固在失子存安完定宫小屏左已幕并建开当成或抵拖拽按掉斜方暗本机构档正洞滚点球生用相种第红终绿置自色角让败起达进迷选避重键！，：");
+        this.hyaVictory=new HyaVictory(engine,scene);
         this.label('GRAVITY MAZE', 20, 15, 320, 48, 28);
         this.status = this.label('', 20, 70, 620, 40);
         this.label('关卡 / 种子 / 洞口', 650, 15, 330, 28);
@@ -24,5 +27,5 @@ export class MazeHud extends GameHud {
         this.next = this.button('进入下一关', 360, 345, 280, () => this.advance());
         this.showVictory(false);
     }
-    showVictory(visible: boolean) { this.victory.setVisible(visible); this.next.setVisible(visible); }
+    showVictory(visible: boolean) { this.victory.setVisible(visible); this.next.setVisible(visible); if(visible)void this.hyaVictory.show(Number(this.level.text));else this.hyaVictory.hide(); }
 }

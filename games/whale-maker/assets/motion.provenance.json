@@ -1,0 +1,9 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-27",
+  "file": "motion.png",
+  "prompt": "Use case: stylized-concept. Production transparent CHARACTER ACTION atlas EXACTLY FOUR columns x FOUR rows, SIXTEEN isolated full-body sprites. Reference is EXACT CHARACTER IDENTITY and art style. Blue whale-hood chibi girl with long blue hair, blue-white dress and boots; pink round cat-eared mascot with rose and blue ribbon. Row1 BLUE GIRL CARRYING action four phases: idle, left step, right step, airborne tuck. In every pose BOTH EMPTY HANDS are extended together in front of her chest to cradle an object; draw NO object. Facing RIGHT. Row2 PINK mascot carrying, same four phases, BOTH paws held out together in front to cradle something, EMPTY hands, facing RIGHT. Row3 BLUE GIRL: col1 swimming with arms reaching forward, col2 swimming arms pulling back and kicking, col3 seated SLIDING DOWN A SLOPE facing RIGHT with feet forward and hands behind for balance, col4 same slide with delighted expression and hair trailing. Row4 PINK mascot same swim/swim/slide/slide poses facing RIGHT. Keep identical head and body proportions within each character, NO overall shrinking, no squash/stretch, fixed camera, clean separated silhouettes inside each equal cell. Large fully transparent gutters, no touching. Polished painted cartoon linework. No items, no shells, no water, no slopes, no floor, no particles, no text, no grid, no watermark.",
+  "notes": [
+    "Raw generated transparent PNG copied without pixel edits; sampling rectangles and animation group canvases are measured."
+  ]
+}
