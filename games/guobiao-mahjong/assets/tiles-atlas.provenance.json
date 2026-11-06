@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "artwork": "User-provided traditional mahjong fronts, watermark removed; original HaiyueStudio flowers and jade back",
+  "sourceImage": "reference-tiles-clean.png",
+  "editTool": "built-in image_gen",
+  "prompt": "Remove only the bottom-right watermark; restore the White Dragon border and ivory face from the clean duplicate. Preserve the complete 9×4 grid, all glyphs, pip counts, colors and shading.",
+  "packer": "pack-reference-atlas.mjs",
+  "rasterSize": [
+    1152,
+    1152
+  ],
+  "sourceLayout": {
+    "columns": 9,
+    "rows": 4,
+    "honorColumns": [
+      5,
+      2,
+      6,
+      0,
+      3,
+      4,
+      1
+    ]
+  },
+  "sha256": {
+    "reference-tiles-clean.png": "55b6f7e81dd4f61d63bacb93b3f39e361e1c1584586c22ed6da44f543f83276c",
+    "tiles-supplement.png": "63ed58873ab736a7d4d0603e4101bd36b2a962615f98adbe959f6d76eadfba99",
+    "pack-reference-atlas.mjs": "633672e99aa5de87c6eb87ead3ebf3fe2f1461606009c769e1a2c955d4230638",
+    "tiles-atlas.png": "d3ee4f6a9567903856f07b891172537c7047af8337d0c88c04e353b03859d1d5",
+    "tiles-atlas.json": "e14a2daae476eb9873b1b290b3fc607162cb3f49a9c81d51dc3d404e5c4d08c6"
+  }
+}

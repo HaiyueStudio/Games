@@ -10,7 +10,7 @@ const path = process.argv[2];
 if (!path) throw new Error('Usage: node --experimental-strip-types games/guobiao-mahjong/api/arena.mjs <config.json> [results.json]');
 const config = JSON.parse(readFileSync(resolve(path), 'utf8'));
 const scorer = await createScorer(readFileSync(new URL('../assets/mcr.wasm', import.meta.url)));
-const agents = config.agents.map(a => a.endpoint ? httpAgent(a.name, a.endpoint) : { name: a.name, decide: observation => decide(observation, scorer, a.depth ?? 2).action });
+const agents = config.agents.map(a => a.endpoint ? httpAgent(a.name, a.endpoint, { parameters: a.parameters }) : { name: a.name, decide: observation => decide(observation, scorer, a.depth ?? 2).action });
 const result = await runTournament(scorer, agents, config.seeds ?? [20261105], { rotateSeats: config.rotateSeats !== false, timeoutMs: config.timeoutMs ?? 30000 });
 const output = resolve(process.argv[3] ?? 'mahjong-arena-results.json');
 writeFileSync(output, JSON.stringify(result, null, 2) + '\n');

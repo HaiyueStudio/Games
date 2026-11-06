@@ -2,12 +2,12 @@ import { actionKey, type Action, type Observation } from '../rules/types';
 export interface AgentContext { signal: AbortSignal; requestId: string }
 export interface MahjongAgent { name: string; decide(observation: Observation, context: AgentContext): Action | Promise<Action> }
 /** Use a local server proxy to keep provider credentials out of the browser. */
-export function httpAgent(name: string, endpoint: string): MahjongAgent {
+export function httpAgent(name: string, endpoint: string, options: { parameters?: Record<string, unknown> | (() => Record<string, unknown>) } = {}): MahjongAgent {
   const url = new URL(endpoint);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Agent endpoint must be HTTP(S)');
   return { name, async decide(observation, context) {
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: context.signal,
-      body: JSON.stringify({ protocol: observation.protocol, requestId: context.requestId, observation }) });
+      body: JSON.stringify({ protocol: observation.protocol, requestId: context.requestId, observation, ...(options.parameters ? { parameters: typeof options.parameters === 'function' ? options.parameters() : options.parameters } : {}) }) });
     if (!response.ok) throw new Error(`Agent HTTP ${response.status}`);
     const reply = await response.json() as { requestId: string; revision: number; action: Action };
     if (reply.requestId !== context.requestId || reply.revision !== observation.revision) throw new Error('Agent returned a stale or mismatched response');

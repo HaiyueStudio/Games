@@ -1,6 +1,7 @@
 import type { Match, Observation } from '../rules/types';
 import type { Replay } from '../rules/replay';
 import type { Decision } from './strategy';
+import type { HandAnalysis } from '../rules/handAnalysis';
 export class WorkerAgent {
   private readonly worker: Worker;
   private serial = 0;
@@ -15,5 +16,6 @@ export class WorkerAgent {
   async init(bytes: ArrayBuffer): Promise<void> { await this.request({ bytes }); }
   decide(observation: Observation, depth = 2): Promise<Decision> { return this.request({ observation, depth }); }
   replay(replay: Replay): Promise<Match> { return this.request({ replay }); }
+  inspect(observation: Observation): Promise<HandAnalysis> { return this.request({ observation, inspect: true }); }
   dispose(): void { this.fail(new Error('AI worker disposed')); this.worker.terminate(); }
 }

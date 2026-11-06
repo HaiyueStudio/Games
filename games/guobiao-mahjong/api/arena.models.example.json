@@ -1,0 +1,11 @@
+{
+  "seeds": [20261105, 20261106, 20261107],
+  "rotateSeats": true,
+  "timeoutMs": 30000,
+  "agents": [
+    { "name": "KD Student 0", "endpoint": "http://127.0.0.1:8787/agent/kd-s0", "parameters": { "temperature": 0, "seed": 20261105 } },
+    { "name": "KD Student 1", "endpoint": "http://127.0.0.1:8787/agent/kd-s1", "parameters": { "temperature": 0, "seed": 20261105 } },
+    { "name": "KD Ensemble 3", "endpoint": "http://127.0.0.1:8787/agent/kdens3", "parameters": { "temperature": 0, "seed": 20261105 } },
+    { "name": "Builtin", "depth": 2 }
+  ]
+}
