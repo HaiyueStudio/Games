@@ -14,11 +14,9 @@ const TONES = {
 export class MahjongNotifications {
   private readonly feed = new ActionNoticeFeed();
   private readonly toast: GuiToast;
-  private readonly prompt: GuiToast;
   private readonly badges: GuiToast[];
   private readonly motion = matchMedia('(prefers-reduced-motion: reduce)');
   private view: Seat = 0;
-  private opportunityId = '';
   private current: ActionNotice | null = null;
   constructor(root: GuiRoot, canvas: HTMLCanvasElement) {
     const create = (id: string, kind: 'toast' | 'opportunity' | 'badge', relative = () => 0) => {
@@ -35,24 +33,18 @@ export class MahjongNotifications {
       return toast;
     };
     this.toast = create('mahjong-action-notification', 'toast');
-    this.prompt = create('mahjong-action-opportunity', 'opportunity');
     this.badges = Array.from({ length: 4 }, (_, who) => create(`mahjong-action-effect-${who}`, 'badge', () => seat(who - this.view)));
   }
   sync(o: Observation, human: Seat | null, started: boolean, epoch: number, modal: boolean): void {
     this.view = human ?? 0;
     const update = this.feed.sync(o, human, started, epoch);
-    if (update.reset) { for (const toast of [this.toast, this.prompt, ...this.badges]) toast.hide(); this.opportunityId = ''; this.current = null; }
+    if (update.reset) { for (const toast of [this.toast, ...this.badges]) toast.hide(); this.current = null; }
     for (const notice of update.added) this.flash(notice);
-    if (modal) { this.prompt.hide(); this.opportunityId = ''; return; }
+    if (modal) return;
     if (!this.toast.visible) this.current = null;
     if (update.urgent || !this.toast.visible) { const notice = this.feed.take(); if (notice) this.show(notice); }
-    if (!update.opportunity) { this.prompt.hide(); this.opportunityId = ''; }
-    else if (update.opportunity.id !== this.opportunityId || !this.prompt.visible) {
-      this.opportunityId = update.opportunity.id;
-      this.prompt.setStyle({ backgroundColor: update.opportunity.winning ? '#f1c66e' : '#d7bc78', color: '#282112' });
-      this.prompt.show({ text: update.opportunity.text, durationMs: 86_400_000, animationMs: this.motion.matches ? 0 : 180 });
-    }
   }
+
   private show(notice: ActionNotice): void {
     this.current = notice;
     const animationMs = this.motion.matches ? 0 : 180;
@@ -67,7 +59,7 @@ export class MahjongNotifications {
   snapshot() {
     const visible = (node: GuiToast) => ({ text: node.text, visible: node.visible, progress: node.progress, rect: { ...node.rect }, pointerFilter: node.pointerFilter });
     return { renderer: 'engine-gui-toast', event: this.current && this.toast.visible ? { ...this.current, ...visible(this.toast) } : null,
-      opportunity: this.prompt.visible ? visible(this.prompt) : null, queued: this.feed.pending,
+      opportunity: null, queued: this.feed.pending,
       effects: this.badges.flatMap((node, seat) => node.visible ? [{ seat, ...visible(node) }] : []) };
   }
 }

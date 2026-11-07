@@ -40,6 +40,8 @@ export function formedFans(hand: readonly Tile[], melds: readonly Meld[], round:
     }
     if (bigDragons) add('大三元'); else if (dragons.length === 2) add('双箭刻'); else if (dragons.length) add('箭刻');
     const concealed = pungs.filter(m => m.concealed).length, kongs = pungs.filter(m => m.kind === 'kong');
+    // A closed hand is a discard-win reference; self-draw and exclusions use the complete scorer.
+    if (melds.every(m => m.concealed) && concealed < 4) add('门前清');
     if (concealed === 4) add('四暗刻'); else if (concealed === 3) add('三暗刻'); else if (concealed === 2) add('双暗刻');
     if (kongs.length === 4) add('四杠'); else if (kongs.length === 3) add('三杠'); else if (kongs.length === 2) add(kongs.every(m => m.concealed) ? '双暗杠' : kongs.every(m => !m.concealed) ? '双明杠' : '明暗杠');
     else if (kongs.length) add(kongs[0]!.concealed ? '暗杠' : '明杠');

@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-07T04:08:13.004Z",
+  "model": {
+    "id": "browser-kd-s0-value",
+    "default": false,
+    "modelSha256": "3e9c69449d8d900250eef42df259cb8b5964a4d19f4cff379cfd482efd93c2ec",
+    "policySourceSha256": "60c92db48504b8e496ebb2b0cb6fd82bc387145d35c1da72ecdac26f2d70f02f",
+    "weightsBytes": 424283,
+    "training": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T03:44:33Z",
+      "trainingSeed": 20261108,
+      "numpy": "2.0.2",
+      "dataReportSha256": "59703c2efcc518eda6bd2bdae2e31a75c680822f8231b002de9ad4b51b469a2a",
+      "groupsSha256": "cebab2793beb5c3fe765ab67710e5b0eb40be43c258650ae2697fc190ab85f13",
+      "trainerSha256": "d7bda1e47e78c2090562ee5ee601619f86707e93f2f0e8f2f00e7a4f828195db",
+      "modelSha256": "3e9c69449d8d900250eef42df259cb8b5964a4d19f4cff379cfd482efd93c2ec",
+      "paritySha256": "e0e3aa60067077b4a08ea11348257f327462d64caf48c751c9b987527bf283fb",
+      "folds": {
+        "train": [
+          71001,
+          71002,
+          71003,
+          71004,
+          71005,
+          71006,
+          71007,
+          71008,
+          71009,
+          71010,
+          71011,
+          71012,
+          71013,
+          71014,
+          71015,
+          71016,
+          71017,
+          71018,
+          71019,
+          71020,
+          71021,
+          71022,
+          71023,
+          71024,
+          71025,
+          71026,
+          71027,
+          71028,
+          71029,
+          71030,
+          71031,
+          71032,
+          71033,
+          71034,
+          71035,
+          71036,
+          71037,
+          71038,
+          71039,
+          71040,
+          71041,
+          71042,
+          71043,
+          71044,
+          71045,
+          71046,
+          71047,
+          71048,
+          71049,
+          71050,
+          71051,
+          71052,
+          71053,
+          71054,
+          71055,
+          71056,
+          71057,
+          71058,
+          71059,
+          71060,
+          71061,
+          71062,
+          71063,
+          71064
+        ],
+        "calibration": [
+          72001,
+          72002,
+          72003,
+          72004,
+          72005,
+          72006,
+          72007,
+          72008
+        ],
+        "test": [
+          73001,
+          73002,
+          73003,
+          73004,
+          73005,
+          73006,
+          73007,
+          73008
+        ]
+      },
+      "metrics": {
+        "train": {
+          "groups": 1536,
+          "plans": 5120,
+          "loss": 0.00791637131300138,
+          "constantLoss": 0.012071169304448025,
+          "ownFanMAE": 2.109912327818743,
+          "pairedLabelUtility": 3.1188151041666665,
+          "priorLabelUtility": 2.6888563368055554,
+          "tiedGroups": 17
+        },
+        "calibration": {
+          "groups": 192,
+          "plans": 639,
+          "loss": 0.01071654832958116,
+          "constantLoss": 0.014203659409245928,
+          "ownFanMAE": 2.36430725401147,
+          "pairedLabelUtility": 2.9006076388888893,
+          "priorLabelUtility": 2.908203125,
+          "tiedGroups": 1
+        },
+        "test": {
+          "groups": 192,
+          "plans": 624,
+          "loss": 0.009715536209886463,
+          "constantLoss": 0.01286082646761786,
+          "ownFanMAE": 2.1925013641770184,
+          "pairedLabelUtility": 3.185980902777778,
+          "priorLabelUtility": 3.146484375,
+          "tiedGroups": 2
+        }
+      },
+      "status": "passed",
+      "limitations": [
+        "Uniform public-count-consistent unknown hands; no learned opponent posterior",
+        "Full current hand rollouts, not a simulation of all remaining rounds",
+        "Frozen builtin-depth-1 rollout policy; labels are conditional on this policy",
+        "Common sampled worlds for every action and immediate follow-up; no privileged actor inputs",
+        "Offline prediction accuracy and simulated-label utility are not independent game-strength evidence",
+        "Ensemble disagreement is a heuristic uncertainty measure, not a calibrated confidence interval"
+      ],
+      "exportedModelSha256": "bb109b64ad5f99fc6e3e692909c989ffe0d33a0ce60baa84d6ddb84b7b1e54cb"
+    }
+  },
+  "development": {
+    "reportSha256": "46182a28a6fd72092c2728d0fdc39b5c6d5d86a32dd48d0b6f6d9d61486bc0d7",
+    "summary": [
+      {
+        "id": "value-development",
+        "complete": true,
+        "matches": 8,
+        "hands": 128,
+        "drawRate": 0,
+        "rows": [
+          {
+            "policy": "kd-value",
+            "seatGames": 8,
+            "hands": 128,
+            "fan": 502,
+            "fanPerHand": 3.921875,
+            "scorePerHand": -0.375,
+            "winRate": 0.2421875,
+            "dealInRate": 0.15625,
+            "averagePlace": 2.375,
+            "decisions": 1910,
+            "choiceMsP50": 46,
+            "choiceMsP95": 51.200000047683716,
+            "forced": 3977,
+            "missedHu": 0,
+            "unqualifiedReady": 35,
+            "faults": 0,
+            "enhancements": 9,
+            "reasonCounts": {
+              "action-value": 11,
+              "legal-win": 31,
+              "value-follow-up": 2,
+              "value-prior": 1866
+            }
+          },
+          {
+            "policy": "kd-safe",
+            "seatGames": 24,
+            "hands": 384,
+            "fan": 1567,
+            "fanPerHand": 4.080729166666667,
+            "scorePerHand": 0.125,
+            "winRate": 0.2526041666666667,
+            "dealInRate": 0.15625,
+            "averagePlace": 2.5416666666666665,
+            "decisions": 5728,
+            "choiceMsP50": 45.5,
+            "choiceMsP95": 50.60000002384186,
+            "forced": 11933,
+            "missedHu": 0,
+            "unqualifiedReady": 110,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {
+              "legal-win": 97,
+              "model": 5631
+            }
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-value",
+            "baseline": "kd-safe",
+            "fanDeltaPerHand": -0.15885416666666674,
+            "fanDelta95": {
+              "low": -0.28125,
+              "high": -0.03645833333333348,
+              "method": "seed-block bootstrap",
+              "blocks": 2,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": -0.49999999999999994,
+            "scoreDelta95": {
+              "low": -1.5833333333333333,
+              "high": 0.5833333333333334,
+              "method": "seed-block bootstrap",
+              "blocks": 2,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 81003,
+                "fan": -0.03645833333333348,
+                "score": 0.5833333333333334
+              },
+              {
+                "seed": 81004,
+                "fan": -0.28125,
+                "score": -1.5833333333333333
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "config": {
+      "schemaVersion": 1,
+      "purpose": "Frozen action-value development comparison; current-hand simulation-trained candidate against identical KD-safe opponents",
+      "seeds": [
+        81003,
+        81004
+      ],
+      "rotateSeats": true,
+      "concurrency": 1,
+      "batchMatches": 8,
+      "enhancedMetrics": true,
+      "baseline": "kd-safe",
+      "suites": [
+        {
+          "id": "value-development",
+          "agents": [
+            "kd-value",
+            "kd-safe",
+            "kd-safe",
+            "kd-safe"
+          ]
+        }
+      ]
+    },
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T04:02:25.291Z",
+      "status": "passed",
+      "runKey": "bee6afe49d447519c6f2c771250d096574c25be30003f92098f957ce9842f1b8",
+      "reportSha256": "46182a28a6fd72092c2728d0fdc39b5c6d5d86a32dd48d0b6f6d9d61486bc0d7",
+      "matches": 8,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 128,
+      "decisions": 23548,
+      "faults": 0
+    }
+  },
+  "holdout": {
+    "reportSha256": "f8f135700274a08b74ad718b001750844cf8e8014c7e3fe45ac4ff7acc5dac07",
+    "summary": [
+      {
+        "id": "value-holdout",
+        "complete": true,
+        "matches": 32,
+        "hands": 512,
+        "drawRate": 0.05859375,
+        "rows": [
+          {
+            "policy": "kd-value",
+            "seatGames": 32,
+            "hands": 512,
+            "fan": 1837,
+            "fanPerHand": 3.587890625,
+            "scorePerHand": 0.62890625,
+            "winRate": 0.248046875,
+            "dealInRate": 0.1640625,
+            "averagePlace": 2.3125,
+            "decisions": 7961,
+            "choiceMsP50": 47,
+            "choiceMsP95": 53.39999997615814,
+            "forced": 17219,
+            "missedHu": 0,
+            "unqualifiedReady": 156,
+            "faults": 0,
+            "enhancements": 81,
+            "reasonCounts": {
+              "action-value": 88,
+              "last-tile-safe": 1,
+              "legal-win": 129,
+              "model": 5,
+              "value-follow-up": 25,
+              "value-prior": 7713
+            }
+          },
+          {
+            "policy": "kd-safe",
+            "seatGames": 96,
+            "hands": 1536,
+            "fan": 4984,
+            "fanPerHand": 3.2447916666666665,
+            "scorePerHand": -0.20963541666666666,
+            "winRate": 0.23111979166666666,
+            "dealInRate": 0.16861979166666666,
+            "averagePlace": 2.5625,
+            "decisions": 23853,
+            "choiceMsP50": 46.5,
+            "choiceMsP95": 52.799999952316284,
+            "forced": 51696,
+            "missedHu": 0,
+            "unqualifiedReady": 527,
+            "faults": 0,
+            "enhancements": 3,
+            "reasonCounts": {
+              "last-tile-safe": 3,
+              "legal-win": 362,
+              "model": 23488
+            }
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-value",
+            "baseline": "kd-safe",
+            "fanDeltaPerHand": 0.3430989583333333,
+            "fanDelta95": {
+              "low": -0.138671875,
+              "high": 0.870442708333333,
+              "method": "seed-block bootstrap",
+              "blocks": 8,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 0.8385416666666669,
+            "scoreDelta95": {
+              "low": -0.8281249999999999,
+              "high": 2.6927083333333335,
+              "method": "seed-block bootstrap",
+              "blocks": 8,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 83001,
+                "fan": -0.07291666666666652,
+                "score": -0.5208333333333334
+              },
+              {
+                "seed": 83002,
+                "fan": 0.65625,
+                "score": 2.1458333333333335
+              },
+              {
+                "seed": 83003,
+                "fan": 1.6770833333333335,
+                "score": 3.8958333333333335
+              },
+              {
+                "seed": 83004,
+                "fan": 1.1510416666666665,
+                "score": 5.375
+              },
+              {
+                "seed": 83005,
+                "fan": 0.109375,
+                "score": 0.3958333333333333
+              },
+              {
+                "seed": 83006,
+                "fan": -0.6302083333333335,
+                "score": -2.25
+              },
+              {
+                "seed": 83007,
+                "fan": 0.2604166666666665,
+                "score": -0.5416666666666666
+              },
+              {
+                "seed": 83008,
+                "fan": -0.40625,
+                "score": -1.7916666666666667
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "config": {
+      "schemaVersion": 1,
+      "purpose": "Predeclared independent action-value holdout; no model or selection tuning after inspecting this result",
+      "seeds": [
+        83001,
+        83002,
+        83003,
+        83004,
+        83005,
+        83006,
+        83007,
+        83008
+      ],
+      "rotateSeats": true,
+      "concurrency": 1,
+      "batchMatches": 8,
+      "enhancedMetrics": true,
+      "baseline": "kd-safe",
+      "suites": [
+        {
+          "id": "value-holdout",
+          "agents": [
+            "kd-value",
+            "kd-safe",
+            "kd-safe",
+            "kd-safe"
+          ]
+        }
+      ]
+    },
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T04:07:20.927Z",
+      "status": "passed",
+      "runKey": "f0ab7932384a3a6f6a110985e767f06cb7b9b3b4f1089800abf35dc180b55971",
+      "reportSha256": "f8f135700274a08b74ad718b001750844cf8e8014c7e3fe45ac4ff7acc5dac07",
+      "matches": 32,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 512,
+      "decisions": 100729,
+      "faults": 0
+    }
+  },
+  "promotion": {
+    "promote": false,
+    "reasons": [
+      "累计番数改善区间未完全高于零"
+    ]
+  },
+  "validation": {
+    "status": "passed",
+    "generatedAt": "2026-11-07T04:03:53.143Z",
+    "checks": {
+      "typecheck": {
+        "status": "passed",
+        "logSha256": "6a0c5e3fbc8edfbd324dc53a8182e81f80061a4fdbfc2cd04bb2a23f65d60fce"
+      },
+      "test": {
+        "status": "passed",
+        "logSha256": "09f4668eab852bb6a3baaaa9ffab3abfad98b48c1fcf6b3ccf7381c8d309bb16"
+      },
+      "build": {
+        "status": "passed",
+        "logSha256": "f5e01242f8a667319c9ab18380af74ec15d3b0b9593453234231fc06ae01b8ca"
+      }
+    },
+    "mahjongTests": 126,
+    "browser": {
+      "status": "passed",
+      "reportSha256": "703bc7454ee25e7516c59fe71390f018af692b9546e8e57b1d08e4490179dcba",
+      "backends": [
+        "webgpu",
+        "wasm"
+      ]
+    },
+    "modelSha256": "3e9c69449d8d900250eef42df259cb8b5964a4d19f4cff379cfd482efd93c2ec",
+    "reportSha256": "a2ead6ea5338716705d9fd61347b2af1eb15f091e59a2cfc4faac4fbd575d769",
+    "simulation": {
+      "schemaVersion": 1,
+      "status": "passed",
+      "generatedAt": "2026-11-07T03:44:38.066Z",
+      "modelSha256": "3e9c69449d8d900250eef42df259cb8b5964a4d19f4cff379cfd482efd93c2ec",
+      "dataReportSha256": "59703c2efcc518eda6bd2bdae2e31a75c680822f8231b002de9ad4b51b469a2a",
+      "groups": 1920,
+      "plans": 6383,
+      "simulations": 51064,
+      "simulatedLegalActions": 8305321,
+      "recomputedFeatures": 6383,
+      "replayedActionFamilies": 7,
+      "categories": {
+        "kong": 396,
+        "claim": 800,
+        "discard": 724
+      },
+      "metrics": {
+        "train": {
+          "groups": 1536,
+          "loss": 0.007916371313001387,
+          "ownFanMAE": 2.1099123278187415
+        },
+        "calibration": {
+          "groups": 192,
+          "loss": 0.010716548329581148,
+          "ownFanMAE": 2.364307254011469
+        },
+        "test": {
+          "groups": 192,
+          "loss": 0.009715536209886463,
+          "ownFanMAE": 2.192501364177016
+        }
+      },
+      "checks": [
+        "whole-wall-seed-splits",
+        "source-data-model-hashes",
+        "public-feature-recomputation",
+        "numpy-typescript-test-metrics",
+        "full-hand-outcome-invariants",
+        "common-world-branch-replays"
+      ]
+    }
+  },
+  "limitations": [
+    "Current-hand expected fan margin, not a learned value of the full remaining match",
+    "Uniform count-consistent worlds and builtin-depth-1 continuation policy can bias simulated action values",
+    "Offline simulated-label metrics do not establish strength against KD",
+    "All final model weights, selection thresholds and continuation policy were frozen before the final independent game evaluation",
+    "Superseded preliminary runs are excluded; final study uses development 81003/81004 and holdout 83001-83008"
+  ]
+}

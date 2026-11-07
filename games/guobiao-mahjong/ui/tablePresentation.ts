@@ -1,14 +1,20 @@
-import { actionKey, seat, type Action, type Observation, type Seat, type Tile } from '../rules/types';
+import { actionKey, seat, type Action, type Fan, type Observation, type Seat, type Tile } from '../rules/types';
 import type { Rect } from './layout';
 export interface DirectionMarker { seat: Seat; wind: Seat; position: 'bottom' | 'right' | 'top' | 'left'; active: boolean }
+/** Keep the no-honors point visible even when higher-value features fill the short HUD summary. */
+export function fanPreviewItems(items: readonly Fan[]): Fan[] {
+  const visible = items.slice(0, 3), noHonors = items.find(f => f.name === '无字');
+  if (noHonors && !visible.includes(noHonors)) visible[2] = noHonors;
+  return visible;
+}
 export function directionMarkers(o: Observation, view: Seat): DirectionMarker[] {
   return (['bottom', 'right', 'top', 'left'] as const).map((position, i) => { const who = seat(view + i); return { seat: who, wind: seat(who - o.dealer), position, active: who === o.turn && o.phase === 'turn' }; });
 }
 export function compassRects(center: { x: number; y: number }, table: Rect) {
-  const size = Math.min(116, table.width * .30, Math.max(84, table.height * .4)) * 1.25, scale = size / 116;
-  const r = (x: number, y: number, width: number, height: number): Rect => ({ x: center.x + x * scale, y: center.y + y * scale, width: width * scale, height: height * scale });
-  return { scale, panel: r(-58, -58, 116, 116), inner: r(-52, -52, 104, 104), round: r(-36, -15, 72, 27), caption: r(-32, 11, 64, 16),
-    markers: { bottom: r(-14, 29, 28, 25), right: r(29, -13, 26, 26), top: r(-14, -54, 28, 25), left: r(-55, -13, 26, 26) } };
+  const size=Math.min(270,table.width*.35,table.height*.5),scale=size/270;
+  const r=(x:number,y:number,width:number,height:number):Rect=>({x:center.x+x*scale,y:center.y+y*scale,width:width*scale,height:height*scale});
+  return {scale,panel:r(-135,-135,270,270),inner:r(-96,-96,192,192),round:r(-96,-96,192,192),caption:r(-60,64,120,22),
+    markers:{bottom:r(-20,94,40,40),right:r(94,-20,40,40),top:r(-20,-134,40,40),left:r(-134,-20,40,40)}};
 }
 export const isClaimAction = (a: Action): boolean => ['chow', 'pung', 'kong', 'concealed-kong', 'add-kong'].includes(a.type);
 /** Original hand indices, with multiplicity; never light unrelated duplicates for a single action. */

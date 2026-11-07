@@ -68,10 +68,10 @@ export function installGamepad(id:string):()=>void {
   listen(document,'visibilitychange',()=>{blocked=document.hidden;if(blocked){gate.reset();release();}});
   const loop=(time:number)=>{
     if(disposed)return;frame=requestAnimationFrame(loop);const dt=Math.min(.05,(time-last)/1000||0);last=time;
-    const pads=sampler.sample();
-    connections.poll();
+    const devices=Array.from(navigator.getGamepads?.()??[]),pads=sampler.sample(devices);
+    connections.poll(devices);
     if(document.hidden||blocked){gate.reset();release();controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
-    const devices=Array.from(navigator.getGamepads?.()??[]);const active=gate.filter(pads.filter(p=>devices[p.index]?.connected));
+    const active=gate.filter(pads.filter(p=>devices[p.index]?.connected));
     if(!active.length){release();if(returnMenu.active)returnMenu.update(time,[]);controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
     if(returnMenu.active){release();returnMenu.update(time,active);controllerOverlay.visible = false; controllerOverlay.cursor = false;return;}
     if(active.some(p=>p.pressed.has('b8'))){returnMenu.request();return;}

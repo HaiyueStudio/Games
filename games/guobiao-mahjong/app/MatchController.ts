@@ -30,6 +30,13 @@ export class MatchController {
   private readonly worker: WorkerAgent;
   constructor(scorer: Scorer, worker: WorkerAgent, seedValue = 20261105) { this.scorer = scorer; this.worker = worker; this.state = createMatch(seedValue); }
   observation(who: Seat = this.human ?? 0): Observation { return observe(this.state, who, this.scorer); }
+  /** Public wall positions for rendering; no tile identities or order are exposed. */
+  presentationWall(): { head: number; tail: number } { return { head: this.state.head, tail: this.state.tail }; }
+  presentationWinningTile(): Tile | null {
+    const result = this.state.results.at(-1);
+    if (!this.state.phase.endsWith('over') || !result || result.hand !== this.state.handIndex || result.winner === null) return null;
+    return result.selfDrawn ? this.state.drawn : this.state.last?.tile ?? null;
+  }
   /** Display-only spectator/settlement data. Never sent to a decision provider. */
   presentationHands(): { hands: Tile[][]; melds: Meld[][]; drawn: Tile | null } | null {
     const result = this.state.results.at(-1);
@@ -42,6 +49,8 @@ export class MatchController {
   /** Changes only when a loaded table or viewing seat is replaced. */
   get presentationEpoch(): number { return this.presentationGeneration; }
   get thinking(): boolean { return this.request !== null; }
+  /** Registration identity lets model settings preserve third-party providers in saves. */
+  agentAt(who: Seat): MahjongAgent | 'missing' | null { return this.agents.get(who) ?? (this.missingAgents.has(who) ? 'missing' : null); }
   get waitingMs(): number { return this.pending ? Math.max(0, this.pending.at - this.clock) : 0; }
   start(): void { this.started = true; this.paused = false; this.status = '对局进行中'; }
   pause(value = !this.paused): void { this.paused = value; }
@@ -52,7 +61,7 @@ export class MatchController {
     this.state.players.forEach((p, i) => { p.name = i === who ? '玩家' : this.agents.get(i as Seat)?.name ?? ['玄玉 AI', '青竹 AI', '白露 AI', '听雨 AI'][i]!; });
     this.invalidate();
   }
-  setAgent(who: Seat, agent: MahjongAgent | null): void { if (agent) this.agents.set(who, agent); else this.agents.delete(who); this.missingAgents.delete(who); this.state.players[who]!.name = agent?.name ?? ['玄玉 AI', '青竹 AI', '白露 AI', '听雨 AI'][who]!; this.invalidate(); }
+  setAgent(who: Seat, agent: MahjongAgent | null): void { if (agent) this.agents.set(who, agent); else this.agents.delete(who); this.missingAgents.delete(who); this.state.players[who]!.name = who === this.human ? '玩家' : agent?.name ?? ['玄玉 AI', '青竹 AI', '白露 AI', '听雨 AI'][who]!; this.invalidate(); }
   reset(seedValue: number): void { this.invalidate(); this.missingAgents.clear(); this.state = createMatch(seedValue); this.setHuman(this.human); this.started = false; this.paused = true; this.analysis = null; this.status = '新比赛就绪'; }
   next(): void { nextHand(this.state); this.invalidate(); this.status = '下一局'; }
   act(action: Action, revision = this.state.revision): void {
@@ -112,13 +121,14 @@ export class MatchController {
       this.paused = true; this.status = `算法异常，已暂停：${String(error)}`;
     } finally { clearTimeout(timer); if (this.request === abort) this.request = null; }
   }
-  async restore(saved: SavedGame): Promise<void> {
+  async restore(saved: SavedGame): Promise<boolean> {
     this.invalidate(); const generation = this.generation;
     const state = await this.worker.replay(saved.replay);
-    if (this.disposed || generation !== this.generation) return;
+    if (this.disposed || generation !== this.generation) return false;
     this.state = state; this.human = saved.human; this.delayMs = saved.delayMs; this.presentationGeneration++;
     this.missingAgents = new Set((saved.externalSeats ?? []).filter(i => !this.agents.has(i)));
     this.started = true; this.paused = true; this.status = this.missingAgents.size ? '外部算法未连接，请重新接入后继续' : '已恢复对局，点击继续';
+    return true;
   }
   save(): SavedGame { return { version: 1, replay: exportReplay(this.state), human: this.human, delayMs: this.delayMs, externalSeats: [...new Set([...this.agents.keys(), ...this.missingAgents])] }; }
   exportReplay(): object { return { ...exportReplay(this.state), events: structuredClone(this.state.events), results: structuredClone(this.state.results) }; }

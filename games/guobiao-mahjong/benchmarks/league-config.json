@@ -1,0 +1,9 @@
+{
+  "schemaVersion":1,"seed":20261119,"generations":2,"capturePerHand":2,
+  "trainingSeeds":[[121001,121002,121003,121004],[121101,121102,121103,121104]],
+  "evaluationSeeds":[201001,201002,201003,201004],
+  "objective":"Sixteen-hand remaining relative cumulative fan /32, final match winner credit weight 0.2",
+  "ppoClip":0.2,"maximumCalibrationKL":0.03,
+  "pool":"KD0, frozen original value, all historical joint versions, balanced/attack/defense styles",
+  "note":"Bounded initial league run; larger campaigns use fresh configured seeds and output directories"
+}

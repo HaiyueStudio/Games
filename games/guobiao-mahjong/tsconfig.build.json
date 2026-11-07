@@ -6,7 +6,7 @@
     "rootDir": "../.."
   },
   "include": [
-    "./**/*.ts",
+    "./main.ts",
     "../../node_modules/@haiyue/engine/src/**/*",
     "../../node_modules/@haiyue/extensions/src/**/*"
   ],

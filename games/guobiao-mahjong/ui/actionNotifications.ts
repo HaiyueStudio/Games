@@ -18,7 +18,7 @@ export function actionOpportunity(o: Observation, human: Seat | null, started: b
     (a.type === 'hu' ? '胡' : a.type === 'chow' ? '吃' : a.type === 'pung' ? '碰' : '杠') === name));
   const tile = o.phase === 'response' && o.last ? ` · ${TILE_NAMES[o.last.tile]}` : '';
   return { id: `${o.handIndex}:${human}:${o.phase}:${o.last?.seat}:${o.last?.tile}:${actions.map(actionKey).sort().join('|')}`,
-    text: `你可以 ${names.join(' / ')}${tile} · 请选择下方动作`, winning: actions.some(a => a.type === 'hu') };
+    text: `你可以 ${names.join(' / ')}${tile}`, winning: actions.some(a => a.type === 'hu') };
 }
 
 function completedNotice(o: Observation, e: GameEvent, human: Seat | null, epoch: number): ActionNotice {
@@ -44,6 +44,8 @@ export class ActionNoticeFeed {
   private cursor = -1;
   private hand = -1;
   private queue: ActionNotice[] = [];
+  private opportunityKey = '';
+  private opportunity: ActionOpportunity | null = null;
   sync(o: Observation, human: Seat | null, started: boolean, epoch: number) {
     const tail = o.events.at(-1)?.index ?? -1;
     const reset = this.epoch !== epoch || tail < this.cursor;
@@ -52,7 +54,9 @@ export class ActionNoticeFeed {
     if (reset) { this.epoch = epoch; this.queue = []; this.cursor = tail; }
     else {
       if (this.hand !== o.handIndex) this.queue = [];
-      for (const event of o.events) if (event.index > this.cursor && EVENTS.has(event.type)) {
+      let start=o.events.length;while(start>0&&o.events[start-1]!.index>this.cursor)start--;
+      for (let i=start;i<o.events.length;i++) {
+        const event=o.events[i]!;if(!EVENTS.has(event.type))continue;
         const notice = completedNotice(o, event, human, epoch);
         added.push(notice);
         if (notice.winning) { this.queue = [notice]; urgent = true; }
@@ -62,7 +66,9 @@ export class ActionNoticeFeed {
       this.cursor = tail;
     }
     this.hand = o.handIndex;
-    return { reset, urgent, added, opportunity: actionOpportunity(o, human, started) };
+    const key=`${epoch}:${o.revision}:${human}:${started}`;
+    if(key!==this.opportunityKey){this.opportunityKey=key;this.opportunity=actionOpportunity(o,human,started);}
+    return { reset, urgent, added, opportunity: this.opportunity };
   }
   take(): ActionNotice | null { return this.queue.shift() ?? null; }
   get pending(): number { return this.queue.length; }
@@ -74,7 +80,7 @@ export function notificationRects(w: number, h: number, relative: number) {
   const promptWidth = Math.min(540, r.width - 32);
   return {
     toast: { x: w - width - (compact ? 12 : 24), y: compact ? 80 : 82, width, height: compact ? 48 : 56 },
-    opportunity: { x: c.x - promptWidth / 2, y: actionY - 52, width: promptWidth, height: 44 },
+    opportunity: { x: c.x - promptWidth / 2, y: Math.min(actionY - 52, r.y + r.height * .68), width: promptWidth, height: 44 },
     badge: { x: relative === 0 || relative === 2 ? c.x - size / 2 : relative === 1 ? r.x + r.width - (compact ? 92 : 190) : r.x + (compact ? 44 : 124),
       y: relative === 0 ? r.y + r.height - (compact ? 108 : 244) : relative === 2 ? r.y + 86 : c.y - size / 2, width: size, height: size },
   };

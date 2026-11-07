@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve,relative} from 'node:path';
+import {createHash} from 'node:crypto';
+import {runChromeWebGpuFixture} from '../../../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
+import {runRollupOnce} from '../../../scripts/shared-rollup-runner.mjs';
+const root=resolve(import.meta.dirname,'../../..'),game=resolve(import.meta.dirname,'..'),out=resolve(process.argv[2]??'artifacts/guobiao-mahjong/value/data-v1'),hash=b=>createHash('sha256').update(b).digest('hex'),positions=JSON.parse(readFileSync(resolve(out,'positions-report.json')));
+assert.equal(hash(readFileSync(resolve(out,'positions.json'))),positions.inputSha256);
+await runRollupOnce({cwd:root,config:'games/guobiao-mahjong/benchmarks/rollup.gpu.config.mjs',expectedOutputs:['games/guobiao-mahjong/ai/tfjs.worker.js','games/guobiao-mahjong/benchmarks/gpu-arena.worker.js'],label:'Action-value prior collection',timeoutMs:60000});
+const files=['benchmarks/value-policy.mjs','benchmarks/gpu-client.mjs','benchmarks/gpu-arena.worker.js','ai/tfjs.worker.js','ai/browser/features.ts','model-service/models.lock.json'],fingerprints=Object.fromEntries(files.map(p=>[p,hash(readFileSync(resolve(game,p)))]));let result;
+const browser=await runChromeWebGpuFixture({root,fixture:'games/guobiao-mahjong/benchmarks/gpu.html',timeoutMs:900000,crossOriginIsolation:false,visualCapture:{viewportWidth:800,viewportHeight:600},interact:async cdp=>{
+  const evaluate=async expression=>{const r=await cdp.call('Runtime.evaluate',{expression,returnByValue:true});if(r.result?.exceptionDetails)throw Error(r.result.exceptionDetails.exception?.description??r.result.exceptionDetails.text);return r.result?.result?.value},delay=ms=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<400&&!await evaluate('!!window.mahjongBenchmark');i++)await delay(50);assert.ok(await evaluate('!!window.mahjongBenchmark'));
+  const call=async job=>{await evaluate(`window.__valueJob={done:false};mahjongBenchmark.call(${JSON.stringify(job)}).then(result=>__valueJob={done:true,result},error=>__valueJob={done:true,error:String(error)});true`);for(let i=0;i<8000;i++){const state=await evaluate('({done:__valueJob.done,error:__valueJob.error})');if(state.done){if(state.error)throw Error(state.error);return evaluate('__valueJob.result')}await delay(100)}throw Error('Value policy collection timeout')};
+  const prepared=await call({kind:'prepare',backend:'webgpu',policies:['kd-s0']});assert.equal(prepared.runtime.actualBackend,'webgpu');
+  result=await call({kind:'collect',url:'/'+relative(root,resolve(out,'positions.json')).split('\\').join('/')});assert.equal(result.runtime.actualBackend,'webgpu');assert.equal(result.policies.length,positions.groups);
+  await call({kind:'dispose'});await evaluate(`(()=>{const p=document.createElement('pre');p.id='result';p.hidden=true;p.dataset.status='passed';p.textContent=JSON.stringify({status:'passed',checks:['actual-webgpu','kd-priors','public-observations','worker-disposal']});document.body.append(p)})()`);
+}});
+assert.equal(browser.status,'passed');for(const p of files)assert.equal(hash(readFileSync(resolve(game,p))),fingerprints[p]);writeFileSync(resolve(out,'policies.json'),JSON.stringify(result.policies)+'\n');
+writeFileSync(resolve(out,'policy-report.json'),JSON.stringify({schemaVersion:1,status:'passed',inputSha256:positions.inputSha256,policySha256:hash(readFileSync(resolve(out,'policies.json'))),fingerprints,runtime:result.runtime,browser:browser.browserEvidence,httpProvenance:browser.httpProvenance},null,2)+'\n');console.log('Collected '+result.policies.length+' action-value KD priors.');

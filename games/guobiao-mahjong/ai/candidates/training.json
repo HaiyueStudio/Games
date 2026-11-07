@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-07T02:19:11Z",
+  "numpy": "2.0.2",
+  "trainingSeed": 20261107,
+  "dataReportSha256": "c260da5207ad1dca0324fabc07e838b289a8e0e4c7b0095533f37adf878e369e",
+  "policyReportSha256": "79236a42144499cfdc7b17e31c41c59814cca11c3de564839379cd212b58dcc0",
+  "trainerSha256": "4791dc722ab2b25a19cc6aa97ca04ba3d5ae279c2b32b2e15f43f30d224e6fe2",
+  "modelSha256": "c08bae49630388c720a5420583a962ccc2341a28cfdb49371c4b70773359886b",
+  "folds": {
+    "train": [
+      1101,
+      1102,
+      1103,
+      2101,
+      2102,
+      2103,
+      2104,
+      3101
+    ],
+    "calibration": [
+      1104,
+      2105
+    ],
+    "test": [
+      2106,
+      2107,
+      2108,
+      3102
+    ]
+  },
+  "risk": {
+    "train": {
+      "model": {
+        "rows": 212379,
+        "positives": 1273,
+        "rate": 0.005994001290146389,
+        "brier": 0.005832152556268212,
+        "logLoss": 0.029997403844771148,
+        "auc": 0.8791025422692645
+      },
+      "constant": {
+        "rows": 212379,
+        "positives": 1273,
+        "rate": 0.005994001290146389,
+        "brier": 0.00595807323868011,
+        "logLoss": 0.03664728245851819,
+        "auc": 0.5
+      }
+    },
+    "calibration": {
+      "model": {
+        "rows": 57486,
+        "positives": 350,
+        "rate": 0.0060884389242598196,
+        "brier": 0.005915347732719899,
+        "logLoss": 0.031107611089582352,
+        "auc": 0.8575357292875145
+      },
+      "constant": {
+        "rows": 57486,
+        "positives": 350,
+        "rate": 0.0060884389242598196,
+        "brier": 0.006051378754192114,
+        "logLoss": 0.037129951700892755,
+        "auc": 0.5
+      }
+    },
+    "test": {
+      "model": {
+        "rows": 50961,
+        "positives": 365,
+        "rate": 0.007162339828496301,
+        "brier": 0.007015884142486787,
+        "logLoss": 0.03673611202163673,
+        "auc": 0.8413627911459783
+      },
+      "constant": {
+        "rows": 50961,
+        "positives": 365,
+        "rate": 0.007162339828496301,
+        "brier": 0.007112405731617628,
+        "logLoss": 0.042618642101698245,
+        "auc": 0.5
+      }
+    }
+  },
+  "preference": {
+    "train": {
+      "groups": 764,
+      "teacherTop1": 0.975130890052356,
+      "baseTop1": 0.9764397905759162,
+      "crossEntropy": 0.22285016452086753,
+      "weightedCrossEntropy": 0.19634399594078503,
+      "changes": 10
+    },
+    "calibration": {
+      "groups": 161,
+      "teacherTop1": 0.9751552795031055,
+      "baseTop1": 0.9875776397515528,
+      "crossEntropy": 0.1580703640350039,
+      "weightedCrossEntropy": 0.1485755710124332,
+      "changes": 2
+    },
+    "test": {
+      "groups": 241,
+      "teacherTop1": 0.975103734439834,
+      "baseTop1": 0.9875518672199171,
+      "crossEntropy": 0.20214846248379198,
+      "weightedCrossEntropy": 0.146349744104397,
+      "changes": 3
+    }
+  },
+  "limitations": [
+    "Preference targets are reward-weighted logged expert actions, not counterfactual Q-values",
+    "Hidden hands label danger only; all inference inputs are public observations",
+    "Split by original wall seed, including all seat rotations and policy variants",
+    "Diagnostic offline metrics do not establish game-strength improvement"
+  ],
+  "status": "passed"
+}

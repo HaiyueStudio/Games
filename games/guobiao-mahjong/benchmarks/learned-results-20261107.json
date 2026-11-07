@@ -1,0 +1,527 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-07",
+  "scope": "Local diagnostic trained-candidate study; no universal strength or model ranking claim",
+  "implementation": {
+    "model": "KD 0 prior plus bounded learned preference; separate calibrated current-Ron predictor",
+    "browserId": "browser-kd-s0-learned",
+    "default": false,
+    "weightsBytes": 18078,
+    "featureVersion": 1,
+    "modelSha256": "c08bae49630388c720a5420583a962ccc2341a28cfdb49371c4b70773359886b",
+    "publicInformationOnly": true,
+    "mainThreadSearch": false,
+    "uiLabel": "实验 · KD0 策略学习"
+  },
+  "training": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-11-07T02:19:11Z",
+    "numpy": "2.0.2",
+    "trainingSeed": 20261107,
+    "dataReportSha256": "c260da5207ad1dca0324fabc07e838b289a8e0e4c7b0095533f37adf878e369e",
+    "policyReportSha256": "79236a42144499cfdc7b17e31c41c59814cca11c3de564839379cd212b58dcc0",
+    "trainerSha256": "4791dc722ab2b25a19cc6aa97ca04ba3d5ae279c2b32b2e15f43f30d224e6fe2",
+    "modelSha256": "c08bae49630388c720a5420583a962ccc2341a28cfdb49371c4b70773359886b",
+    "folds": {
+      "train": [
+        1101,
+        1102,
+        1103,
+        2101,
+        2102,
+        2103,
+        2104,
+        3101
+      ],
+      "calibration": [
+        1104,
+        2105
+      ],
+      "test": [
+        2106,
+        2107,
+        2108,
+        3102
+      ]
+    },
+    "risk": {
+      "train": {
+        "model": {
+          "rows": 212379,
+          "positives": 1273,
+          "rate": 0.005994001290146389,
+          "brier": 0.005832152556268212,
+          "logLoss": 0.029997403844771148,
+          "auc": 0.8791025422692645
+        },
+        "constant": {
+          "rows": 212379,
+          "positives": 1273,
+          "rate": 0.005994001290146389,
+          "brier": 0.00595807323868011,
+          "logLoss": 0.03664728245851819,
+          "auc": 0.5
+        }
+      },
+      "calibration": {
+        "model": {
+          "rows": 57486,
+          "positives": 350,
+          "rate": 0.0060884389242598196,
+          "brier": 0.005915347732719899,
+          "logLoss": 0.031107611089582352,
+          "auc": 0.8575357292875145
+        },
+        "constant": {
+          "rows": 57486,
+          "positives": 350,
+          "rate": 0.0060884389242598196,
+          "brier": 0.006051378754192114,
+          "logLoss": 0.037129951700892755,
+          "auc": 0.5
+        }
+      },
+      "test": {
+        "model": {
+          "rows": 50961,
+          "positives": 365,
+          "rate": 0.007162339828496301,
+          "brier": 0.007015884142486787,
+          "logLoss": 0.03673611202163673,
+          "auc": 0.8413627911459783
+        },
+        "constant": {
+          "rows": 50961,
+          "positives": 365,
+          "rate": 0.007162339828496301,
+          "brier": 0.007112405731617628,
+          "logLoss": 0.042618642101698245,
+          "auc": 0.5
+        }
+      }
+    },
+    "preference": {
+      "train": {
+        "groups": 764,
+        "teacherTop1": 0.975130890052356,
+        "baseTop1": 0.9764397905759162,
+        "crossEntropy": 0.22285016452086753,
+        "weightedCrossEntropy": 0.19634399594078503,
+        "changes": 10
+      },
+      "calibration": {
+        "groups": 161,
+        "teacherTop1": 0.9751552795031055,
+        "baseTop1": 0.9875776397515528,
+        "crossEntropy": 0.1580703640350039,
+        "weightedCrossEntropy": 0.1485755710124332,
+        "changes": 2
+      },
+      "test": {
+        "groups": 241,
+        "teacherTop1": 0.975103734439834,
+        "baseTop1": 0.9875518672199171,
+        "crossEntropy": 0.20214846248379198,
+        "weightedCrossEntropy": 0.146349744104397,
+        "changes": 3
+      }
+    },
+    "limitations": [
+      "Preference targets are reward-weighted logged expert actions, not counterfactual Q-values",
+      "Hidden hands label danger only; all inference inputs are public observations",
+      "Split by original wall seed, including all seat rotations and policy variants",
+      "Diagnostic offline metrics do not establish game-strength improvement"
+    ],
+    "status": "passed",
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T02:25:32.061Z",
+      "status": "passed",
+      "checks": [
+        "disjoint-original-wall-seeds",
+        "source-data-hashes",
+        "typescript-numpy-prediction-parity",
+        "heldout-brier-and-logloss"
+      ],
+      "aggregate": {
+        "rows": 50961,
+        "positives": 365,
+        "rate": 0.007162339828496301,
+        "brier": 0.007015884142486798,
+        "logLoss": 0.036736112021636715,
+        "auc": 0.8413627911459783
+      },
+      "perSeed": [
+        {
+          "seed": 2106,
+          "model": {
+            "rows": 10944,
+            "positives": 72,
+            "rate": 0.006578947368421052,
+            "brier": 0.00647699589988947,
+            "logLoss": 0.034213976295843385,
+            "auc": 0.8437270051508462
+          },
+          "constant": {
+            "rows": 10944,
+            "positives": 72,
+            "rate": 0.006578947368421052,
+            "brier": 0.00653600698185763,
+            "logLoss": 0.039636932539027496,
+            "auc": 0.5
+          }
+        },
+        {
+          "seed": 2107,
+          "model": {
+            "rows": 10890,
+            "positives": 62,
+            "rate": 0.005693296602387512,
+            "brier": 0.005597441728087139,
+            "logLoss": 0.030196363388005625,
+            "auc": 0.8511833120821765
+          },
+          "constant": {
+            "rows": 10890,
+            "positives": 62,
+            "rate": 0.005693296602387512,
+            "brier": 0.005660973399494381,
+            "logLoss": 0.03511038559338592,
+            "auc": 0.5
+          }
+        },
+        {
+          "seed": 2108,
+          "model": {
+            "rows": 11703,
+            "positives": 59,
+            "rate": 0.005041442365205503,
+            "brier": 0.00497042457441589,
+            "logLoss": 0.027430125485320138,
+            "auc": 0.8559322033898306
+          },
+          "constant": {
+            "rows": 11703,
+            "positives": 59,
+            "rate": 0.005041442365205503,
+            "brier": 0.005016933592589777,
+            "logLoss": 0.03177876897938469,
+            "auc": 0.5
+          }
+        },
+        {
+          "seed": 3102,
+          "model": {
+            "rows": 17424,
+            "positives": 172,
+            "rate": 0.009871441689623508,
+            "brier": 0.009614738834000379,
+            "logLoss": 0.04865806314869344,
+            "auc": 0.8520164834276039
+          },
+          "constant": {
+            "rows": 17424,
+            "positives": 172,
+            "rate": 0.009871441689623508,
+            "brier": 0.009789030872639742,
+            "logLoss": 0.05646481852385153,
+            "auc": 0.5
+          }
+        }
+      ],
+      "trainingReportSha256": "22b4566529e18503cb20f9e62a0c81a8dd21d71199383bef9083ba73e4cf8fd1"
+    }
+  },
+  "development": {
+    "path": "artifacts/guobiao-mahjong/strength/learned-development",
+    "reportSha256": "211f5e8a663d63a828d3ba50802f9955bc61325016ebedf4d6550abab10ad358",
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T02:28:53.961Z",
+      "status": "passed",
+      "runKey": "32b3b1216338e36271f95a037664c8656fa65db71dc339b5410c0b060daa5eeb",
+      "reportSha256": "211f5e8a663d63a828d3ba50802f9955bc61325016ebedf4d6550abab10ad358",
+      "matches": 8,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 128,
+      "decisions": 26622,
+      "faults": 0
+    },
+    "summary": [
+      {
+        "id": "learned-development",
+        "complete": true,
+        "matches": 8,
+        "hands": 128,
+        "drawRate": 0.03125,
+        "rows": [
+          {
+            "policy": "kd-learned",
+            "seatGames": 8,
+            "hands": 128,
+            "fan": 462,
+            "fanPerHand": 3.609375,
+            "scorePerHand": 0.7421875,
+            "winRate": 0.25,
+            "dealInRate": 0.1484375,
+            "averagePlace": 2.5,
+            "decisions": 2127,
+            "choiceMsP50": 140,
+            "choiceMsP95": 200.10000002384186,
+            "forced": 4530,
+            "missedHu": 0,
+            "unqualifiedReady": 29,
+            "faults": 0,
+            "enhancements": 13,
+            "reasonCounts": {
+              "last-tile-safe": 1,
+              "learned-preference": 12,
+              "learned-prior": 1644,
+              "legal-win": 32,
+              "model": 438
+            }
+          },
+          {
+            "policy": "kd-safe",
+            "seatGames": 24,
+            "hands": 384,
+            "fan": 1311,
+            "fanPerHand": 3.4140625,
+            "scorePerHand": -0.24739583333333334,
+            "winRate": 0.23958333333333334,
+            "dealInRate": 0.15625,
+            "averagePlace": 2.5,
+            "decisions": 6362,
+            "choiceMsP50": 139.5,
+            "choiceMsP95": 187.40000009536743,
+            "forced": 13603,
+            "missedHu": 0,
+            "unqualifiedReady": 94,
+            "faults": 0,
+            "enhancements": 3,
+            "reasonCounts": {
+              "last-tile-safe": 3,
+              "legal-win": 92,
+              "model": 6267
+            }
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-learned",
+            "baseline": "kd-safe",
+            "fanDeltaPerHand": 0.1953125,
+            "fanDelta95": {
+              "low": 0.06770833333333348,
+              "high": 0.3229166666666665,
+              "method": "seed-block bootstrap",
+              "blocks": 2,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 0.9895833333333333,
+            "scoreDelta95": {
+              "low": -0.25,
+              "high": 2.2291666666666665,
+              "method": "seed-block bootstrap",
+              "blocks": 2,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 5101,
+                "fan": 0.06770833333333348,
+                "score": -0.25
+              },
+              {
+                "seed": 5102,
+                "fan": 0.3229166666666665,
+                "score": 2.2291666666666665
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "holdout": {
+    "path": "artifacts/guobiao-mahjong/strength/learned-holdout",
+    "reportSha256": "4b392d4198e09eb365a5e23fc0838aaf3a389b9f0b31b176e3e6875e41e0d9f0",
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T02:35:05.068Z",
+      "status": "passed",
+      "runKey": "ea21d5b8f8978e54da9ef6bc4552228f13f42f53a0da2f034281e60bb050f5c9",
+      "reportSha256": "4b392d4198e09eb365a5e23fc0838aaf3a389b9f0b31b176e3e6875e41e0d9f0",
+      "matches": 16,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 256,
+      "decisions": 47562,
+      "faults": 0
+    },
+    "summary": [
+      {
+        "id": "learned-holdout",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.015625,
+        "rows": [
+          {
+            "policy": "kd-learned",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 974,
+            "fanPerHand": 3.8046875,
+            "scorePerHand": 0.546875,
+            "winRate": 0.25,
+            "dealInRate": 0.171875,
+            "averagePlace": 2.4375,
+            "decisions": 3783,
+            "choiceMsP50": 78.79999995231628,
+            "choiceMsP95": 194.59999990463257,
+            "forced": 8108,
+            "missedHu": 0,
+            "unqualifiedReady": 81,
+            "faults": 0,
+            "enhancements": 15,
+            "reasonCounts": {
+              "learned-preference": 15,
+              "learned-prior": 2944,
+              "legal-win": 64,
+              "model": 760
+            }
+          },
+          {
+            "policy": "kd-safe",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2861,
+            "fanPerHand": 3.7252604166666665,
+            "scorePerHand": -0.18229166666666666,
+            "winRate": 0.24479166666666666,
+            "dealInRate": 0.19010416666666666,
+            "averagePlace": 2.5208333333333335,
+            "decisions": 11331,
+            "choiceMsP50": 70.5,
+            "choiceMsP95": 193.10000002384186,
+            "forced": 24340,
+            "missedHu": 0,
+            "unqualifiedReady": 247,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {
+              "legal-win": 188,
+              "model": 11143
+            }
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-learned",
+            "baseline": "kd-safe",
+            "fanDeltaPerHand": 0.07942708333333326,
+            "fanDelta95": {
+              "low": -0.04557291666666663,
+              "high": 0.2421874999999999,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 0.7291666666666666,
+            "scoreDelta95": {
+              "low": 0.09895833333333333,
+              "high": 1.7239583333333335,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 6101,
+                "fan": -0.08854166666666652,
+                "score": 0.3958333333333333
+              },
+              {
+                "seed": 6102,
+                "fan": 0.08333333333333304,
+                "score": 0.3333333333333333
+              },
+              {
+                "seed": 6103,
+                "fan": 0,
+                "score": 0
+              },
+              {
+                "seed": 6104,
+                "fan": 0.3229166666666665,
+                "score": 2.1875
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "promotion": {
+    "promote": false,
+    "reasons": [
+      "累计番数改善区间未完全高于零"
+    ]
+  },
+  "limitations": [
+    "Only two development and four holdout seed blocks; seat rotations are dependent samples",
+    "Main criterion is accumulated fan; the fan interval still crosses zero",
+    "Positive secondary match-score evidence does not replace the fan criterion",
+    "Preference model learns hindsight-weighted logged expert choices, not counterfactual action values",
+    "Risk probabilities estimate current legal Ron under the training distribution, not future game deal-in probabilities",
+    "No post-holdout tuning; this model remains explicitly experimental"
+  ],
+  "productionSources": {
+    "ai/candidates/features.ts": "56801a03f012a45abf1edf911f21fbee0769164ab37350ae7e9678b85adb290a",
+    "ai/candidates/targets.ts": "0cf062cbfe029d6deaea20d6966d85de99725457c831def1dd95bcbd926308e9",
+    "ai/candidates/schema.ts": "ee8da4a97c3e5c2411c411cf31a03dc696c98325c0196c0c51bb61c67d7599ca",
+    "ai/candidates/weights.ts": "97ec00a87d6f1d50a10377d89ba90cce03de3809f383a0ea00740f17e3bde35f",
+    "ai/candidates/learned.ts": "54f0a508b405a7b5fa2192a1ffa4a8ea9e67bfbcb863159628b01c1892488851",
+    "ai/browser/tfjs.worker.ts": "43dd0712600f8c5a5345b9b363d46508e34cdee3e2d1aafba38eef27c4147c51",
+    "ai/browser/BrowserModelRuntime.ts": "948d9591bcc9653792eb6262d0a5f86ab145f47dc9a85ad01bdba7c75abd4bb8",
+    "ai/hybrid.ts": "fe16ea021af8c66fa226a101e568836b8024ed921c18b3211bf02f882f0a6adc",
+    "ai/coaching/publicAnalysis.ts": "114e986716f8593c65cdcc2c53cd678f5632417402e36315524ef6d58f096dda",
+    "ai/coaching/CoachSystem.ts": "fdcdf5c1612e2decf7d5f6459140fc14e6239eb0e0675f15b6148589614a29be",
+    "benchmarks/learning-validation.mjs": "b2dd2eea78024b64734360af8b6202df762bca5589837ec598c752ba35ecbf5c"
+  },
+  "validation": {
+    "rootTypecheck": "35 projects passed",
+    "rootTests": "35 projects passed",
+    "rootBuild": "33 projects and platform dependency passed",
+    "mahjongTests": 111,
+    "finalMahjongTypecheck": "passed",
+    "finalMahjongBuild": "passed",
+    "eslint": "passed",
+    "models": {
+      "status": "passed",
+      "path": "artifacts/guobiao-mahjong/browser-models/report.json",
+      "reportSha256": "8a18cbf3c3fa9c7525f18cbc129f747629049368376172bb6a3769b7806df039"
+    },
+    "coaching": {
+      "status": "passed",
+      "path": "artifacts/guobiao-mahjong/coaching/report.json",
+      "reportSha256": "0c1cc4c989333f5f641f6f33f6b40c826ba7b30fe57ecdabaaf828fa2b9660f3"
+    }
+  }
+}

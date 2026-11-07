@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Predeclared independent action-value holdout; no model or selection tuning after inspecting this result",
+  "seeds": [83001,83002,83003,83004,83005,83006,83007,83008],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "batchMatches": 8,
+  "enhancedMetrics": true,
+  "baseline": "kd-safe",
+  "suites": [{"id":"value-holdout","agents":["kd-value","kd-safe","kd-safe","kd-safe"]}]
+}

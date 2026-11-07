@@ -46,7 +46,13 @@
       "games/test/2048-tile-textures.test.mjs"
     ],
     "guobiao-mahjong": [
+      "games/test/guobiao-mahjong-browser-models.test.mjs",
+      "games/test/guobiao-mahjong-candidates.test.mjs",
+      "games/test/guobiao-mahjong-coaching.test.mjs",
+      "games/test/guobiao-mahjong-hybrid.test.mjs",
       "games/test/guobiao-mahjong-presentation.test.mjs",
+      "games/test/guobiao-mahjong-strength.test.mjs",
+      "games/test/guobiao-mahjong-value.test.mjs",
       "games/test/guobiao-mahjong.test.mjs"
     ],
     "ink-twin": [

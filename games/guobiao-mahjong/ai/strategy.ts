@@ -1,18 +1,34 @@
 import { seat, type Action, type Meld, type Observation, type Scorer, type Tile } from '../rules/types';
+import {formedFans} from '../rules/handAnalysis';
+import {handAnalysisCache} from './analysisCache';
+import {lastTileAlternative} from './lastTileDefense';
 export interface Candidate { action: Action; value: number; shanten: number; ukeire: number; legalWaits: number; risk: number }
 export interface Decision { action: Action; candidates: Candidate[]; explanation: string; elapsedMs: number }
 const without = (hand: Tile[], tile: Tile): Tile[] => { const next = [...hand]; next.splice(next.indexOf(tile), 1); return next; };
 /** Exact shanten for all MCR hand forms, live ukeire, score-gated waits, two-ply efficiency and public-information defense. */
-export function decide(o: Observation, scorer: Scorer, depth = 2): Decision {
+export function decide(o: Observation, scorer: Scorer, depth = 2, candidateLimit = 8): Decision {return decidePolicy(o,scorer,depth,candidateLimit,false);}
+/** Research candidate only: its fan-route and lookahead weights need independent strength evidence. */
+export function decideExperimental(o: Observation, scorer: Scorer, depth = 2, candidateLimit = 8): Decision {return decidePolicy(o,scorer,depth,candidateLimit,true);}
+function decidePolicy(o:Observation,scorer:Scorer,depth:number,candidateLimit:number,experimental:boolean):Decision {
   const started = performance.now(), hu = o.legalActions.find(a => a.type === 'hu');
   if (hu) return { action: hu, candidates: [], explanation: '满足 8 番，立即和牌', elapsedMs: performance.now() - started };
   const mine = o.players[o.seat]!, melds = mine.melds as Meld[];
   const visible = Array(34).fill(0) as number[];
   for (const t of o.hand) visible[t]!++;
   for (const p of o.players) { for (const t of p.river) visible[t]!++; for (const m of p.melds) for (const t of m.tiles) if (t !== null) visible[t]!++; }
-  const available = (t: Tile) => Math.max(0, 4 - visible[t]!);
-  const cache = new Map<string, ReturnType<Scorer['analyze']>>();
-  const analyze = (h: Tile[]) => { const key = h.join(','); let a = cache.get(key); if (!a) { a = scorer.analyze(h); cache.set(key, a); } return a; };
+  const available = (t: Tile, drawn:Tile|null=null) => Math.max(0, 4 - visible[t]! - +(drawn===t));
+  const publicVisible=Array<number>(34).fill(0);
+  for(const p of o.players){for(const t of p.river)publicVisible[t]!++;for(const m of p.melds)if(!m.concealed)for(const t of m.tiles)if(t!==null)publicVisible[t]!++;}
+  function flags(tile:Tile,self:boolean,sets:Meld[],discards:Tile[],kong=false){
+    let exposed=publicVisible[tile]!;
+    for(const m of melds)if(!m.concealed)exposed-=m.tiles.filter(t=>t===tile).length;
+    for(const m of sets)if(!m.concealed)exposed+=m.tiles.filter(t=>t===tile).length;
+    if(o.phase==='response'&&sets.length>melds.length&&o.last?.tile===tile)exposed--;
+    exposed+=discards.filter(t=>t===tile).length;
+    return +self|(exposed===3?2:0)|(kong&&self?4:0);
+  }
+  const shared=handAnalysisCache(scorer),cache = new Map<string, ReturnType<Scorer['analyze']>>();
+  const analyze = (h: Tile[]) => { const key = h.join(','); let a = cache.get(key); if (!a) { a = shared.analyze(h); cache.set(key, a); } return a; };
   function potential(hand: Tile[], sets: Meld[]): number {
     const tiles = [...hand, ...sets.flatMap(m => m.tiles)], suits = [0, 0, 0], counts = Array(34).fill(0) as number[];
     let honors = 0;
@@ -37,7 +53,15 @@ export function decide(o: Observation, scorer: Scorer, depth = 2): Decision {
       if (!pressure) return;
       // Discarded tiles are a soft signal only: MCR has no riichi-style furiten.
       let danger = tile >= 27 ? .45 : tile % 9 === 0 || tile % 9 === 8 ? .7 : 1;
-      danger *= (4 - Math.min(4, visible[tile]!)) / 4;
+      const unseen=available(tile);
+      // Keep the original weights by default; fix only the zero-copy sequence oversight.
+      let sequences=0,capacity=experimental?(unseen>=2?.75:unseen===1?.35:.08):unseen/4;
+      if(tile<27&&(experimental||unseen===0))for(let start=Math.max(0,tile%9-2);start<=Math.min(6,tile%9);start++){
+        const others=[0,1,2].map(d=>Math.floor(tile/9)*9+start+d).filter(t=>t!==tile);
+        if(others.every(t=>available(t)>0)){sequences++;if(experimental)capacity+=.22;}
+      }
+      if(experimental)capacity=Math.min(1.2,capacity);else if(!capacity&&sequences)capacity=.25;
+      danger *= capacity;
       if (p.river.includes(tile)) danger *= .55;
       const openSuits = p.melds.flatMap(m => m.tiles).filter((t): t is number => t !== null && t < 27).map(t => Math.floor(t / 9));
       if (openSuits.length && new Set(openSuits).size === 1 && (tile >= 27 || Math.floor(tile / 9) === openSuits[0])) danger *= 1.6;
@@ -45,23 +69,27 @@ export function decide(o: Observation, scorer: Scorer, depth = 2): Decision {
     });
     return total;
   }
-  function metric(hand: Tile[], sets: Meld[], action: Action): Candidate {
-    const a = analyze(hand), live = a.effective.filter(t => available(t) > 0);
-    let ukeire = live.reduce((n, t) => n + available(t), 0), legalWaits = 0;
+  function metric(hand: Tile[], sets: Meld[], action: Action,discards:Tile[]=[],drawn:Tile|null=null): Candidate {
+    const a = analyze(hand), live = a.effective.filter(t => available(t,drawn) > 0);
+    let ukeire = live.reduce((n, t) => n + available(t,drawn), 0), legalWaits = 0,fanValue=0;
     if (a.shanten === 0) {
       ukeire = 0;
       for (const t of live) {
-        const self = scorer.score(hand, sets, t, 0, 1, o.roundWind, seat(o.seat - o.dealer));
-        const ron = scorer.score(hand, sets, t, 0, 0, o.roundWind, seat(o.seat - o.dealer));
-        if (self && self.fan >= 8) { ukeire += available(t) * (ron && ron.fan >= 8 ? 1.5 : 1); legalWaits++; }
+        const self = scorer.score(hand, sets, t, 0, flags(t,true,sets,discards,action.type.includes('kong')), o.roundWind, seat(o.seat - o.dealer));
+        const ron = scorer.score(hand, sets, t, 0, flags(t,false,sets,discards), o.roundWind, seat(o.seat - o.dealer));
+        const canSelf=!!self&&self.fan>=8,canRon=!!ron&&ron.fan>=8;
+        if(canSelf||canRon){const weight=available(t,drawn)*(+canSelf+.5*+canRon);ukeire+=weight;fanValue+=weight*Math.max(canSelf?self!.fan:0,canRon?ron!.fan:0);legalWaits++;}
       }
     }
     const danger = action.type === 'discard' ? risk(action.tile!) : 0;
     const deadWait = a.shanten === 0 && legalWaits === 0;
-    const value = -a.shanten * 24 + Math.log1p(ukeire) * 4 + potential(hand, sets) * 1.6 - danger * (a.shanten >= 2 ? 5 : 2) - (deadWait ? 30 : 0);
+    // Reference structure helps preserve a route to eight fan; it is never used as official scoring.
+    const reference=experimental&&drawn===null?formedFans(hand,sets,o.roundWind,seat(o.seat-o.dealer),scorer.catalog).reduce((n,f)=>n+f.value*f.count,0):0;
+    const fanBonus=experimental&&ukeire&&a.shanten===0?Math.log1p(fanValue/ukeire/8)*.7:0;
+    const value = -a.shanten * 24 + Math.log1p(ukeire) * 4 + potential(hand, sets) * 1.6 - danger * (a.shanten >= 2 ? 5 : 2) - (deadWait ? 30 : 0)+Math.min(8,reference)*.35+(reference>=8?1:0)+fanBonus;
     return { action, value, shanten: a.shanten, ukeire, legalWaits, risk: danger };
   }
-  const discards = (hand: Tile[], sets: Meld[]) => [...new Set(hand)].map(tile => metric(without(hand, tile), sets, { type: 'discard', tile })).sort((a, b) => b.value - a.value || a.action.tile! - b.action.tile!);
+  const discards = (hand: Tile[], sets: Meld[],previous:Tile[]=[],drawn:Tile|null=null) => [...new Set(hand)].map(tile => metric(without(hand, tile), sets, { type: 'discard', tile },[...previous,tile],drawn)).sort((a, b) => b.value - a.value || a.action.tile! - b.action.tile!);
   let candidates: Candidate[];
   if (o.phase === 'turn') {
     candidates = discards(o.hand, melds);
@@ -71,10 +99,11 @@ export function decide(o: Observation, scorer: Scorer, depth = 2): Decision {
       let future = 0, weight = 0;
       for (const t of a.effective) {
         const n = available(t); if (!n) continue;
-        const drawn = [...hand, t].sort((x, y) => x - y), best = discards(drawn, melds)[0]!;
+        const drawn = [...hand, t].sort((x, y) => x - y), best = discards(drawn, melds,[c.action.tile!],t)[0]!;
         future += n * (best.value - c.value); weight += n;
       }
-      if (weight) c.value += future / weight * .18;
+      const pool=visible.reduce((n,count)=>n+4-count,0);
+      if (weight&&pool) c.value += experimental?future / pool * .75:future / weight * .18;
     }
     for (const a of o.legalActions.filter(a => a.type === 'concealed-kong' || a.type === 'add-kong')) {
       const h = [...o.hand], sets = structuredClone(melds);
@@ -96,7 +125,9 @@ export function decide(o: Observation, scorer: Scorer, depth = 2): Decision {
     }
   }
   candidates.sort((a, b) => b.value - a.value || (a.action.tile ?? -1) - (b.action.tile ?? -1));
+  const safe = !experimental && candidates[0] ? lastTileAlternative(o, candidates[0].action, candidates.map(c => c.action)) : null;
+  if (safe) { const index = candidates.findIndex(c => c.action.type === 'discard' && c.action.tile === safe.tile); candidates.unshift(...candidates.splice(index, 1)); }
   const best = candidates[0];
   if (!best) throw new Error('No legal decision available');
-  return { action: best.action, candidates: candidates.slice(0, 8), explanation: `${best.shanten === 0 ? '听牌' : best.shanten + ' 向听'} · 有效进张 ${Math.round(best.ukeire)} · ${best.legalWaits ? '满足起胡' : '兼顾番型与安全'}`, elapsedMs: performance.now() - started };
+  return { action: best.action, candidates: candidates.slice(0, Math.max(1, Math.min(128, candidateLimit))), explanation: safe ? '末张防守 · 牌墙已空且不能胡牌，改打可确认不会放铳的牌' : `${best.shanten === 0 ? '听牌' : best.shanten + ' 向听'} · 有效进张 ${Math.round(best.ukeire)} · ${best.legalWaits ? '满足起胡' : '兼顾番型与安全'}`, elapsedMs: performance.now() - started };
 }

@@ -78,6 +78,18 @@ class RealWeightsTests(unittest.TestCase):
         self.assertEqual(first['action'], second['action'])
         request['parameters']['temperature'] = -1
         with self.assertRaises(ValueError): self.runtime.decide('kd-s0', request)
+    def test_optional_policy_keeps_raw_choice_and_preserves_legal_index_order(self):
+        o = observation()
+        request = {'protocol': 'haiyue.mcr/1', 'requestId': 'policy', 'observation': o}
+        raw = self.runtime.decide('kd-s0', request)
+        detailed = self.runtime.decide('kd-s0', {**request, 'includePolicy': True})
+        self.assertEqual(raw['action'], detailed['action'])
+        self.assertNotIn('policy', raw)
+        p = detailed['policy']
+        self.assertEqual(p['indices'], [action_index(a) for a in o['legalActions']])
+        self.assertAlmostEqual(sum(p['probabilities']), 1)
+        self.assertEqual(o['legalActions'][int(np.argmax(p['probabilities']))], detailed['action'])
+        with self.assertRaises(ValueError): self.runtime.decide('kd-s0', {**request, 'includePolicy': 'yes'})
 
 class HttpTests(unittest.TestCase):
     def test_discovery_cors_and_model_request_contract(self):

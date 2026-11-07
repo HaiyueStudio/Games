@@ -4,7 +4,7 @@ import type { MahjongAgent } from './agents';
 import { exportReplay } from '../rules/replay';
 
 /** Headless competition uses precisely the browser referee and information boundary. */
-export async function runTournament(scorer: Scorer, agents: readonly MahjongAgent[], seeds: readonly number[], options: { rotateSeats?: boolean; timeoutMs?: number; signal?: AbortSignal; onEvent?(event: GameEvent): void } = {}) {
+export async function runTournament(scorer: Scorer, agents: readonly MahjongAgent[], seeds: readonly number[], options: { rotateSeats?: boolean; timeoutMs?: number; signal?: AbortSignal; skipForced?: boolean; strict?: boolean; onEvent?(event: GameEvent): void } = {}) {
   if (agents.length !== 4) throw new Error('Exactly four agents are required');
   const totals = agents.map(a => ({ name: a.name, fan: 0, score: 0, wins: 0, faults: 0 }));
   const matches = [];
@@ -14,21 +14,25 @@ export async function runTournament(scorer: Scorer, agents: readonly MahjongAgen
     while (s.phase !== 'match-over') {
       options.signal?.throwIfAborted();
       if (s.phase === 'hand-over') { nextHand(s); continue; }
-      const who = s.phase === 'turn' ? s.turn : [1, 2, 3].map(n => seat(s.last!.seat + n)).find(i => !s.responses[i])!;
-      const o = observe(s, who, scorer), agent = seated[who]!, abort = new AbortController();
+      const who: Seat = s.phase === 'turn' ? s.turn : [1, 2, 3].map(n => seat(s.last!.seat + n)).find(i => !s.responses[i])!;
+      const o = observe(s, who, scorer), agent = seated[who]!;
+      let action = structuredClone(o.legalActions.find(a => a.type === 'pass') ?? o.legalActions[0]!);
+      if(!options.skipForced||o.legalActions.length>1){
+      const abort = new AbortController();
       const onAbort = () => abort.abort(options.signal?.reason); options.signal?.addEventListener('abort', onAbort, { once: true });
       let timer: ReturnType<typeof setTimeout> | undefined;
       const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => { abort.abort(); reject(new Error('Agent timeout')); }, options.timeoutMs ?? 30000); });
       const cancelled = new Promise<never>((_, reject) => abort.signal.addEventListener('abort', () => reject(new Error('Agent request aborted')), { once: true }));
       const allowed = new Set(o.legalActions.map(actionKey));
-      let action = structuredClone(o.legalActions.find(a => a.type === 'pass') ?? o.legalActions[0]!);
       try {
-        const chosen = await Promise.race([Promise.resolve().then(() => agent.decide(o, { signal: abort.signal, requestId: `${seedValue}:${rotation}:${s.revision}:${who}` })), timeout, cancelled]);
-        if (!allowed.has(actionKey(chosen))) throw new Error('Illegal agent action');
-        action = chosen;
+          const chosen = await Promise.race([Promise.resolve().then(() => agent.decide(o, { signal: abort.signal, requestId: `${seedValue}:${rotation}:${s.revision}:${who}` })), timeout, cancelled]);
+          if (!allowed.has(actionKey(chosen))) throw new Error('Illegal agent action');
+          action = chosen;
       } catch (error) {
         options.signal?.throwIfAborted(); totals[(who + rotation) % 4]!.faults++;
+        if(options.strict)throw new Error(`Tournament agent ${agent.name} failed at ${seedValue}:${rotation}:${s.revision}:${who}`,{cause:error});
       } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', onAbort); abort.abort(); }
+      }
       applyAction(s, who, action, scorer, o.revision);
       while (eventCount < s.events.length) { const event = s.events[eventCount++]!; options.onEvent?.(structuredClone(event)); }
     }

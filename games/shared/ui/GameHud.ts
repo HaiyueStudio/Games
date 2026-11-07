@@ -7,10 +7,10 @@ export class GameHud {
     colors: { text: '#f1f5f9', textMuted: '#aab8cc', primary: '#3674c9', danger: '#d05050', background: '#142033', surface: '#23334b', border: '#57708f', hover: '#42638b', active: '#274d7a', disabled: '#556273' } } });
   readonly system: GuiSystem;
   private readonly world: World;
-  constructor(engine: HaiyueEngine, host: World | Scene, chars: string, readonly width = 1000, readonly height = 650, loadOp: 'load' | 'clear' = 'load') {
+  constructor(engine: HaiyueEngine, host: World | Scene, chars: string, readonly width = 1000, readonly height = 650, loadOp: 'load' | 'clear' = 'load', rootOnly = false) {
     const world = 'world' in host ? host.world : host; this.world = world;
     world.addEntity(new Entity('Game HUD').addComponent(this.root));
-    this.system = new GuiSystem(engine, { loadOp, font: { chars: [...new Set(chars + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, Arial, sans-serif', fontSize: 28, atlasSize: 2048 } });
+    this.system = new GuiSystem(engine, { loadOp, ...(rootOnly ? { roots: new Set([this.root]) } : {}), font: { chars: [...new Set(chars + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, Arial, sans-serif', fontSize: 28, atlasSize: 2048 } });
     this.system.priority = 1000;
     if (new URLSearchParams(location.search).has('verify') || new URLSearchParams(location.search).has('gamepadVerify')) {
       Object.defineProperty(window, '__gameHud', { configurable: true, get: () => this.snapshot() });

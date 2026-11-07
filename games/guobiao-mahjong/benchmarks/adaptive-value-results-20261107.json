@@ -1,0 +1,712 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "generatedAt": "2026-11-07T06:24:47.416Z",
+  "config": {
+    "schemaVersion": 1,
+    "purpose": "Stratified offline pilot of stronger KD0/original-value continuations and adaptive paired worlds; not a new full training corpus",
+    "sourceData": "artifacts/guobiao-mahjong/value/data-v2",
+    "positionsPerFold": 3,
+    "budget": {
+      "stages": [
+        8,
+        32,
+        64,
+        128
+      ],
+      "ordinaryMinimum": 8,
+      "tacticalMinimum": 32,
+      "closeFan": 0.5,
+      "confidenceZ": 1.96,
+      "dangerThreshold": 0.2,
+      "parallelTrials": 32
+    },
+    "folds": {
+      "train": [
+        71033,
+        71032
+      ],
+      "calibration": [
+        72005,
+        72004
+      ],
+      "test": [
+        73004,
+        73005
+      ]
+    },
+    "rolloutPolicy": "KD0/original-value balanced seat mixture",
+    "worlds": null
+  },
+  "counts": {
+    "train": {
+      "groups": 3,
+      "plans": 10
+    },
+    "calibration": {
+      "groups": 3,
+      "plans": 10
+    },
+    "test": {
+      "groups": 3,
+      "plans": 10
+    }
+  },
+  "simulations": 3840,
+  "simulatedActions": 588038,
+  "actionCounts": {
+    "discard": 1152,
+    "pass": 768,
+    "chow": 512,
+    "pung": 1024,
+    "kong": 384
+  },
+  "worldDistribution": {
+    "8": 0,
+    "32": 0,
+    "64": 0,
+    "128": 9
+  },
+  "labelComparisons": [
+    {
+      "id": 784,
+      "fold": "train",
+      "category": "discard",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 1,
+      "newBest": 2,
+      "meanAbsoluteFanValueChange": 3.8159722222222214,
+      "oldValues": [
+        3.0833333333333335,
+        7.291666666666665,
+        -0.33333333333333326
+      ],
+      "newValues": [
+        4.554687500000001,
+        4.054687500000001,
+        6.406249999999999
+      ]
+    },
+    {
+      "id": 773,
+      "fold": "train",
+      "category": "claim",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 0,
+      "newBest": 0,
+      "meanAbsoluteFanValueChange": 2.029513888888889,
+      "oldValues": [
+        6.125,
+        1.1666666666666667,
+        -0.3333333333333332
+      ],
+      "newValues": [
+        1.7005208333333335,
+        0.11458333333333334,
+        0.2786458333333336
+      ]
+    },
+    {
+      "id": 748,
+      "fold": "train",
+      "category": "kong",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 0,
+      "newBest": 0,
+      "meanAbsoluteFanValueChange": 2.444010416666667,
+      "oldValues": [
+        0.12499999999999989,
+        -4.916666666666667,
+        -2.6666666666666665,
+        -2.7083333333333335
+      ],
+      "newValues": [
+        0.5338541666666667,
+        -1.057291666666667,
+        -0.07031249999999989,
+        0.2031250000000001
+      ]
+    },
+    {
+      "id": 1647,
+      "fold": "calibration",
+      "category": "discard",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 0,
+      "newBest": 0,
+      "meanAbsoluteFanValueChange": 6.946180555555557,
+      "oldValues": [
+        15.958333333333336,
+        12.291666666666668,
+        9.333333333333332
+      ],
+      "newValues": [
+        6.442708333333333,
+        4.770833333333333,
+        5.53125
+      ]
+    },
+    {
+      "id": 1637,
+      "fold": "calibration",
+      "category": "claim",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 0,
+      "newBest": 2,
+      "meanAbsoluteFanValueChange": 1.1111111111111107,
+      "oldValues": [
+        -0.625,
+        -1.7916666666666665,
+        -2.6666666666666665
+      ],
+      "newValues": [
+        -2.0260416666666665,
+        -1.3567708333333337,
+        -1.1692708333333335
+      ]
+    },
+    {
+      "id": 1612,
+      "fold": "calibration",
+      "category": "kong",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 3,
+      "newBest": 3,
+      "meanAbsoluteFanValueChange": 1.064453125,
+      "oldValues": [
+        1.375,
+        1.2916666666666667,
+        -1.625,
+        1.9583333333333333
+      ],
+      "newValues": [
+        0.6614583333333333,
+        0.7395833333333333,
+        0.4088541666666666,
+        0.9999999999999998
+      ]
+    },
+    {
+      "id": 1823,
+      "fold": "test",
+      "category": "discard",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 2,
+      "newBest": 0,
+      "meanAbsoluteFanValueChange": 2.095486111111111,
+      "oldValues": [
+        -2.125,
+        -2.291666666666667,
+        -0.2083333333333332
+      ],
+      "newValues": [
+        0.8098958333333333,
+        0.38020833333333304,
+        0.47135416666666663
+      ]
+    },
+    {
+      "id": 1829,
+      "fold": "test",
+      "category": "claim",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 0,
+      "newBest": 0,
+      "meanAbsoluteFanValueChange": 4.036458333333333,
+      "oldValues": [
+        11.333333333333334,
+        -0.4999999999999998,
+        0.6666666666666666
+      ],
+      "newValues": [
+        6.856770833333333,
+        2.307291666666667,
+        5.4921875
+      ]
+    },
+    {
+      "id": 1824,
+      "fold": "test",
+      "category": "kong",
+      "oldWorlds": 8,
+      "newWorlds": 128,
+      "oldBest": 2,
+      "newBest": 2,
+      "meanAbsoluteFanValueChange": 1.939453125,
+      "oldValues": [
+        4.625,
+        2.958333333333333,
+        6,
+        -0.4583333333333333
+      ],
+      "newValues": [
+        0.9635416666666669,
+        2.8307291666666665,
+        3.0078125,
+        0.5182291666666666
+      ]
+    }
+  ],
+  "stageEffects": [
+    {
+      "id": 784,
+      "fold": "train",
+      "category": "discard",
+      "weakFirst8Values": [
+        3.0833333333333335,
+        7.291666666666665,
+        -0.33333333333333326
+      ],
+      "strongFirst8Values": [
+        8.791666666666666,
+        6.416666666666666,
+        9.291666666666666
+      ],
+      "strongFinalValues": [
+        4.554687500000001,
+        4.054687500000001,
+        6.406249999999999
+      ],
+      "sameWorldPolicyValueChangeFan": 5.402777777777778,
+      "additionalBudgetValueChangeFan": 3.161458333333332,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 3.2295377249921082
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.758858119604244
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.0511024144233718
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 2,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.8019972824985755
+        }
+      ]
+    },
+    {
+      "id": 773,
+      "fold": "train",
+      "category": "claim",
+      "weakFirst8Values": [
+        6.125,
+        1.1666666666666667,
+        -0.3333333333333332
+      ],
+      "strongFirst8Values": [
+        3.25,
+        -1.4166666666666665,
+        0.7916666666666667
+      ],
+      "strongFinalValues": [
+        1.7005208333333335,
+        0.11458333333333334,
+        0.2786458333333336
+      ],
+      "sameWorldPolicyValueChangeFan": 2.194444444444444,
+      "additionalBudgetValueChangeFan": 1.1979166666666663,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 0,
+          "reason": "tactical-minimum",
+          "meanPairedSE": 2.5491567388483984
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 0,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.1342542526359818
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 0,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 0.7902160458295864
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 0,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.586592216313238
+        }
+      ]
+    },
+    {
+      "id": 748,
+      "fold": "train",
+      "category": "kong",
+      "weakFirst8Values": [
+        0.12499999999999989,
+        -4.916666666666667,
+        -2.6666666666666665,
+        -2.7083333333333335
+      ],
+      "strongFirst8Values": [
+        1.9166666666666665,
+        -2.2916666666666665,
+        2.0833333333333335,
+        -4.125
+      ],
+      "strongFinalValues": [
+        0.5338541666666667,
+        -1.057291666666667,
+        -0.07031249999999989,
+        0.2031250000000001
+      ],
+      "sameWorldPolicyValueChangeFan": 2.6458333333333335,
+      "additionalBudgetValueChangeFan": 2.274739583333333,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 2,
+          "reason": "tactical-minimum",
+          "meanPairedSE": 4.096411023989584
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 0,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 2.017117638637995
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 0,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.259157341825875
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 0,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.9473986028410093
+        }
+      ]
+    },
+    {
+      "id": 1647,
+      "fold": "calibration",
+      "category": "discard",
+      "weakFirst8Values": [
+        15.958333333333336,
+        12.291666666666668,
+        9.333333333333332
+      ],
+      "strongFirst8Values": [
+        11.416666666666668,
+        11.874999999999998,
+        14.625000000000002
+      ],
+      "strongFinalValues": [
+        6.442708333333333,
+        4.770833333333333,
+        5.53125
+      ],
+      "sameWorldPolicyValueChangeFan": 3.416666666666669,
+      "additionalBudgetValueChangeFan": 7.057291666666667,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 4.174379473638906
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.7446404229468033
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.7371144245451993
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 0,
+          "reason": "maximum-budget",
+          "meanPairedSE": 1.4124950879137972
+        }
+      ]
+    },
+    {
+      "id": 1637,
+      "fold": "calibration",
+      "category": "claim",
+      "weakFirst8Values": [
+        -0.625,
+        -1.7916666666666665,
+        -2.6666666666666665
+      ],
+      "strongFirst8Values": [
+        -2.3333333333333335,
+        2.5,
+        7.583333333333333
+      ],
+      "strongFinalValues": [
+        -2.0260416666666665,
+        -1.3567708333333337,
+        -1.1692708333333335
+      ],
+      "sameWorldPolicyValueChangeFan": 5.416666666666667,
+      "additionalBudgetValueChangeFan": 4.305555555555556,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 2,
+          "reason": "tactical-minimum",
+          "meanPairedSE": 3.2854291396801614
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.5297902345853154
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.0682882195335377
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 2,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.6934662535651581
+        }
+      ]
+    },
+    {
+      "id": 1612,
+      "fold": "calibration",
+      "category": "kong",
+      "weakFirst8Values": [
+        1.375,
+        1.2916666666666667,
+        -1.625,
+        1.9583333333333333
+      ],
+      "strongFirst8Values": [
+        0,
+        3.208333333333333,
+        1.3333333333333333,
+        -0.4166666666666667
+      ],
+      "strongFinalValues": [
+        0.6614583333333333,
+        0.7395833333333333,
+        0.4088541666666666,
+        0.9999999999999998
+      ],
+      "sameWorldPolicyValueChangeFan": 2.15625,
+      "additionalBudgetValueChangeFan": 1.3678385416666665,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 1,
+          "reason": "tactical-minimum",
+          "meanPairedSE": 2.785084213685145
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 0.8217174174149124
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 3,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 0.6354167979307209
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 3,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.44931515692396085
+        }
+      ]
+    },
+    {
+      "id": 1823,
+      "fold": "test",
+      "category": "discard",
+      "weakFirst8Values": [
+        -2.125,
+        -2.291666666666667,
+        -0.2083333333333332
+      ],
+      "strongFirst8Values": [
+        -1.9166666666666665,
+        3.125,
+        -1.8750000000000004
+      ],
+      "strongFinalValues": [
+        0.8098958333333333,
+        0.38020833333333304,
+        0.47135416666666663
+      ],
+      "sameWorldPolicyValueChangeFan": 2.430555555555556,
+      "additionalBudgetValueChangeFan": 2.605902777777778,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 1,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 3.4758138008800943
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 0,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.4843572108031817
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.141224222446735
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 0,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.7250949926690331
+        }
+      ]
+    },
+    {
+      "id": 1829,
+      "fold": "test",
+      "category": "claim",
+      "weakFirst8Values": [
+        11.333333333333334,
+        -0.4999999999999998,
+        0.6666666666666666
+      ],
+      "strongFirst8Values": [
+        1.25,
+        4.958333333333333,
+        15.041666666666666
+      ],
+      "strongFinalValues": [
+        6.856770833333333,
+        2.307291666666667,
+        5.4921875
+      ],
+      "sameWorldPolicyValueChangeFan": 9.972222222222223,
+      "additionalBudgetValueChangeFan": 5.935763888888888,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 2,
+          "reason": "tactical-minimum",
+          "meanPairedSE": 4.065787812361546
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 2.603829721618885
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 1.6603032744684008
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 0,
+          "reason": "maximum-budget",
+          "meanPairedSE": 1.1872509805182403
+        }
+      ]
+    },
+    {
+      "id": 1824,
+      "fold": "test",
+      "category": "kong",
+      "weakFirst8Values": [
+        4.625,
+        2.958333333333333,
+        6,
+        -0.4583333333333333
+      ],
+      "strongFirst8Values": [
+        1.125,
+        1.125,
+        1.125,
+        0
+      ],
+      "strongFinalValues": [
+        0.9635416666666669,
+        2.8307291666666665,
+        3.0078125,
+        0.5182291666666666
+      ],
+      "sameWorldPolicyValueChangeFan": 2.6666666666666665,
+      "additionalBudgetValueChangeFan": 1.0670572916666665,
+      "stages": [
+        {
+          "worlds": 8,
+          "bestPlan": 0,
+          "reason": "tactical-minimum",
+          "meanPairedSE": 1.5088934190276817
+        },
+        {
+          "worlds": 32,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 0.8487936267529186
+        },
+        {
+          "worlds": 64,
+          "bestPlan": 2,
+          "reason": "close-or-uncertain",
+          "meanPairedSE": 0.6236456131666174
+        },
+        {
+          "worlds": 128,
+          "bestPlan": 2,
+          "reason": "maximum-budget",
+          "meanPairedSE": 0.517008892829029
+        }
+      ]
+    }
+  ],
+  "reportSha256": "d525fe4d7e4c1b518a527d4932fba48bdb4694e11855265498a1155de0a8637b",
+  "validationSha256": "a77381d07e8ad4f04552c6d27b0047c9f179ec93e00b996dbe62e46647f73d9b",
+  "limitations": [
+    "Stratified pilot reuses original public positions and KD priors, not independent playing-strength evidence",
+    "Uniform public-count-consistent worlds remain unchanged; no learned opponent posterior",
+    "Adaptive stopping and paired SE are budget heuristics, not statistical confidence guarantees",
+    "All plans share the same worlds and per-seat KD0/original-value policy assignment; each branch has isolated continuation memory",
+    "Outcomes finish the current hand only; the sixteen-hand objective is unchanged",
+    "Variable samples per group; train/test splits remain whole original wall seeds",
+    "This command does not train, export or replace any browser model"
+  ]
+}

@@ -69,6 +69,17 @@ site/simulator.js.map
 site/core/
 /games/guobiao-mahjong/ai/mahjong.worker.js
 /games/guobiao-mahjong/ai/mahjong.worker.js.map
+/games/guobiao-mahjong/ai/tfjs.worker.js
+/games/guobiao-mahjong/ai/tfjs.worker.js.map
+/games/guobiao-mahjong/ai/tfjs/
+/games/guobiao-mahjong/assets/models/
 
 # Lerna / Nx local task state and restored outputs
 .nx/
+
+/games/guobiao-mahjong/ai/coach.worker.js
+/games/guobiao-mahjong/ai/coach.worker.js.map
+/games/guobiao-mahjong/benchmarks/gpu-arena.worker.js
+/games/guobiao-mahjong/benchmarks/gpu-arena.worker.js.map
+/games/guobiao-mahjong/benchmarks/offline.worker.js
+/games/guobiao-mahjong/benchmarks/offline.worker.js.map

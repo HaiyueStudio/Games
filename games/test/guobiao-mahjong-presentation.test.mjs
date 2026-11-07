@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(s, c, next) { return next(/^\.{1,2}\//.test(s) && !/\.[a-z0-9]+$/i.test(s) ? s + '.ts' : s, c); } });
-const { handTiles, handTileRects, meldTileRects } = await import('../guobiao-mahjong/ui/tileLayout.ts');
+const { handTiles, handTileRects, meldTileRects, playerRowTiles, riverTileRects, seatPlacement, PLAYER_ROW_EDGE, PLAYER_ROW_SPAN, RIVER_OFFSET } = await import('../guobiao-mahjong/ui/tileLayout.ts');
 const { tileUv } = await import('../guobiao-mahjong/ui/TileAtlas.ts');
 const { formedFans, analyzeHand } = await import('../guobiao-mahjong/rules/handAnalysis.ts');
 const { createScorer } = await import('../guobiao-mahjong/rules/scorer.ts');
@@ -53,7 +53,31 @@ test('formed fan preview recognizes seat/prevalent winds once each and consolida
 });
 test('formed preview avoids adding no-honors to a full flush and never invents self-draw or wait points', () => {
   const fans = formedFans([0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 8], [], 0, 0, scorer.catalog);
-  assert.ok(fans.some(f => f.name === '清一色')); assert.ok(!fans.some(f => ['无字', '自摸', '门前清', '不求人', '花牌'].includes(f.name)));
+  assert.ok(fans.some(f => f.name === '清一色')); assert.equal(fans.find(f=>f.name==='门前清').value,2);assert.ok(!fans.some(f => ['无字', '自摸', '不求人', '花牌'].includes(f.name)));
+});
+test('no-honors preview counts one fan across hand and melds and stays visible in the HUD summary', async () => {
+  const { fanPreviewItems } = await import('../guobiao-mahjong/ui/tablePresentation.ts');
+  const hand = [0, 0, 4, 9, 13, 18, 22, 26], melds = [kong(9, false)];
+  const fans = formedFans(hand, melds, 0, 0, scorer.catalog);
+  assert.equal(fans.find(f=>f.name==='无字').value, 1);
+  assert.equal(fans.find(f=>f.name==='无字').count, 1);
+  for (const honor of [27, 31, 33]) {
+    assert.ok(!formedFans([...hand,honor],melds,0,0,scorer.catalog).some(f=>f.name==='无字'));
+    assert.ok(!formedFans(hand,[kong(honor,false)],0,0,scorer.catalog).some(f=>f.name==='无字'));
+  }
+  const busy = ['三色三同顺','门前清','幺九刻','无字'].map(name=>({...scorer.catalog.find(f=>f.name===name),count:1}));
+  assert.ok(fanPreviewItems(busy).some(f=>f.name==='无字')); assert.equal(busy.length,4);
+});
+test('closed-hand preview retains concealed kongs, loses status on exposed calls and defers self-draw exclusions to the scorer',()=>{
+  const hand=[0,2,4,9,12,15,18,22,26,27,28,31,32];
+  const has=melds=>formedFans(hand,melds,0,0,scorer.catalog).find(f=>f.name==='门前清');
+  assert.equal(has([]).value,2);assert.equal(has([kong(30,true)]).count,1);
+  for(const m of [chow(0),{...chow(9),kind:'pung',tiles:[9,9,9]},kong(30,false),{...kong(30,false),promoted:true}])assert.equal(has([m]),undefined);
+  const four=formedFans([0,0,0,9,9,9,18,18,18,27,27,27,31],[],0,0,scorer.catalog);
+  assert.ok(four.some(f=>f.name==='四暗刻'));assert.ok(!four.some(f=>f.name==='门前清'));
+  const ready=[0,1,2,9,10,11,18,19,20,24,25,26,31];
+  const ron=scorer.score(ready,[],31,0,0,0,0),self=scorer.score(ready,[],31,0,1,0,0);
+  assert.equal(ron.items.find(f=>f.name==='门前清').value,2);assert.ok(self.items.some(f=>f.name==='不求人'));assert.ok(!self.items.some(f=>f.name==='门前清'));
 });
 test('a complete but sub-eight hand displays its real fan separately from eight flowers', () => {
   const s = createMatch(1); s.players[0].melds = [chow(1), chow(12), chow(24)]; s.players[0].hand = [19, 20, 21, 23, 23]; s.players[0].flowers = [34, 35, 36, 37, 38, 39, 40, 41]; s.drawn = 23;
@@ -192,17 +216,255 @@ test('presentation epoch changes for resets, restores and viewing seats but ordi
   await c.restore(c.save()); assert.ok(c.presentationEpoch > fresh); c.dispose();
 });
 
-const awaitCompass = await import('../guobiao-mahjong/ui/tablePresentation.ts');
-test('square tables use the available height, larger side faces and a 25-percent larger compass', () => {
-  for (const [w,h] of [[1440,900],[1920,1080],[390,844],[390,700]]) {
-    const l=tableLayout(w,h); assert.equal(l.table.width,l.table.height);
-    assert.ok(l.table.x>=0&&l.table.y>=0&&l.table.x+l.table.width<=w);
-    const rects=sideHandRects(l.table,14,true,true);
-    rects.forEach(r=>{assert.ok(r.y>=l.table.y);assert.ok(r.y+r.height<l.table.y+l.table.height);assert.ok(Math.abs(r.height/r.width-1.375)<.001)});
-    assert.ok(rects.at(-1).y-rects.at(-2).y-rects.at(-2).height>3);
+const { TILE_THICKNESS, WALL_TILE_PITCH, TABLE_ZOOM, CAMERA_ELEVATION, CAMERA_FOV, HAND_STAND_ANGLE, OPPONENT_STAND_ANGLE, WALL_RADIUS, tilePose, tableFrame, projectPoint, tileScreenRect, wallTiles, dealerPosition } = await import('../guobiao-mahjong/rendering/tableModel.ts');
+const { surfaceLayout } = await import('../guobiao-mahjong/ui/layout.ts');
+const { TileAnimationTimeline, flightAt, wallPickup } = await import('../guobiao-mahjong/rendering/tileAnimations.ts');
+const { nextHand } = await import('../guobiao-mahjong/rules/match.ts');
+const { mat4 } = await import('wgpu-matrix');
+test('picking projection agrees with the perspective camera matrix at every viewport size', () => {
+  for(const [w,h] of [[1440,900],[1920,1080],[3500,734],[390,844]]) {
+    const f=tableFrame(w,h), a=CAMERA_ELEVATION;
+    const view=mat4.lookAt([f.cameraX,f.cameraY,f.cameraZ],[f.cameraX,f.targetUp*Math.cos(a),-f.targetUp*Math.sin(a)],[0,1,0]);
+    const vp=mat4.multiply(mat4.perspective(CAMERA_FOV,w/h,1,f.distance+5000),view);
+    for(const [x,y,z] of [[0,0,0],[-400,15,-450],[400,80,450],[0,160,0]]) {
+      const q=projectPoint(f,x,y,z), d=vp[3]*x+vp[7]*y+vp[11]*z+vp[15];
+      const sx=((vp[0]*x+vp[4]*y+vp[8]*z+vp[12])/d+1)*w/2;
+      const sy=(1-(vp[1]*x+vp[5]*y+vp[9]*z+vp[13])/d)*h/2;
+      assert.ok(Math.abs(q.x-sx)<.002&&Math.abs(q.y-sy)<.002);
+    }
   }
-  const l=tableLayout(1440,900);assert.ok(l.table.height>634);assert.ok(sideHandRects(l.table,13,false,false)[0].width>32);
-  const { compassRects }=awaitCompass; assert.equal(compassRects(l.center,l.table).panel.width,145);
+});
+test('wall sequence crosses adjacent corners and both ends pick the physical upper tile',()=>{
+  const all=wallTiles({head:0,tail:143}).filter(t=>t.index%2===0);
+  for(let i=1;i<all.length;i++)assert.ok(Math.hypot(all[i].x-all[i-1].x,all[i].z-all[i-1].z)<=Math.SQRT2*(WALL_RADIUS-255)+1e-9);
+  assert.ok(all.reduce((sum,t,i)=>{const n=all[(i+1)%all.length];return sum+t.x*n.z-n.x*t.z},0)>0,'clockwise in screen/table coordinates');
+  assert.equal(wallPickup({head:0,tail:143},0,false).pose.y,1+WALL_TILE_PITCH);
+  assert.equal(wallPickup({head:0,tail:143},0,true).pose.y,1+WALL_TILE_PITCH);
+  assert.equal(wallPickup({head:0,tail:142},0,true).pose.y,1);
+  assert.equal(wallPickup({head:144,tail:143},0,false),null);
+});
+function animationBoard(s, privateHands=false, epoch=1) {
+  const observation=observe(s,0,scorer), tiles=[];
+  const push=(tile,role,who,index,group=-1,drawn=false)=>tiles.push({tile,role,seat:who,sourceIndex:index,group,drawn,emphasis:'',rect:{x:100+index*40,y:100+who*220,width:30,height:41.25}});
+  s.players.forEach((p,who)=>{
+    const drawn=s.phase==='turn'&&s.turn===who?s.drawn:null;
+    handTiles(p.hand,drawn).forEach(t=>push(privateHands&&who!==0?null:t.tile,who===0?'hand':privateHands?'concealed':'revealed',who,t.index,-1,t.drawn));
+    p.river.forEach((t,i)=>push(t,'river',who,i));
+    observation.players[who].melds.forEach((m,g)=>m.tiles.forEach((t,i)=>push(t,'meld',who,i,g)));
+    p.flowers.forEach((t,i)=>push(t,'flower',who,i));
+  });
+  const result=s.results.at(-1), winningTile=s.phase.endsWith('over')&&result?.winner!==null?(result?.selfDrawn?s.drawn:s.last?.tile??null):null;
+  return {observation,tiles,wall:{head:s.head,tail:s.tail},view:0,epoch,winningTile};
+}
+test('actual replay actions animate draws, discards, claims and winning tiles with exact endpoints',()=>{
+  const replay=JSON.parse(readFileSync(new URL('./fixtures/mahjong-ui-melds.json',import.meta.url))).replay;
+  const s=createMatch(replay.seed,replay.players), timeline=new TileAnimationTimeline(), kinds=new Set();
+  timeline.sync(animationBoard(s),false);
+  for(const record of replay.actions) {
+    if(record.hand===s.handIndex+1)nextHand(s);
+    applyAction(s,record.seat,record.action,scorer,record.revision);
+    timeline.sync(animationBoard(s),false);
+    for(const f of timeline.flights) {
+      kinds.add(f.kind);assert.deepEqual(flightAt(f,f.delay).pose,f.from);
+      assert.deepEqual(flightAt(f,f.delay+f.duration).pose,f.to);
+      const middle=flightAt(f,f.delay+f.duration/2).pose;
+      assert.ok(middle.y>(f.from.y+f.to.y)/2);
+      if(f.kind==='draw'||f.kind==='flower')assert.ok(Number.isInteger(f.wallIndex));
+    }
+  }
+  for(const kind of ['draw','discard','chow','pung','concealed-kong','add-kong','hu'])assert.ok(kinds.has(kind),kind);
+});
+test('draw privacy, paused playback, single-step playback and restore reset are deterministic',()=>{
+  const s=createMatch(88), t=new TileAnimationTimeline();s.turn=0;s.phase='turn';s.drawn=s.players[0].hand.at(-1);
+  t.sync(animationBoard(s,true),false);
+  applyAction(s,0,{type:'discard',tile:s.players[0].hand[0]},scorer);
+  t.sync(animationBoard(s,true),false);assert.ok(t.active);
+  t.advance(100,true);assert.equal(t.elapsed,0);t.advance(100,false);assert.equal(t.elapsed,100);
+  t.sync(animationBoard(s,true,2),false);assert.equal(t.active,false);
+  // An explicit step starts its presentation even though the controller stays paused.
+  const o=animationBoard(s,true,2);o.observation.revision++;
+  o.observation.events.push({index:o.observation.events.at(-1).index+1,hand:0,type:'draw',seat:1,text:'摸牌'});
+  o.wall.head++;const target=o.tiles.filter(t=>t.seat===1&&t.role==='concealed').at(-1);target.drawn=true;
+  t.sync(o,true);assert.ok(t.active);t.advance(100,true);assert.equal(t.elapsed,100);
+  t.advance(100,true,true);assert.equal(t.elapsed,100);
+  assert.ok(t.flights.filter(f=>f.kind==='draw').every(f=>flightAt(f,9999).tile===null));
+});
+test('exposed kong moves four tiles before replacement; flower chains pick front then back in order',()=>{
+  const prepare=()=>{const s=createMatch(91);s.phase='response';s.turn=0;s.last={seat:0,tile:0,robKong:false};s.responses={};s.players[0].river.push(0);s.players[0].hand=s.players[0].hand.slice(0,13);s.drawn=null;return s};
+  const s=prepare(), timeline=new TileAnimationTimeline();
+  s.players[1].hand=[0,0,0,1,3,5,9,11,13,18,20,22,31];
+  timeline.sync(animationBoard(s),false);
+  applyAction(s,1,{type:'kong',tile:0},scorer);applyAction(s,2,{type:'pass'},scorer);applyAction(s,3,{type:'pass'},scorer);
+  timeline.sync(animationBoard(s),false);
+  assert.equal(timeline.flights.filter(f=>f.kind==='kong').length,4);
+  assert.ok(timeline.flights.find(f=>f.kind==='draw').delay>=850);
+  const f=prepare(), chain=new TileAnimationTimeline(), head=f.head, tail=f.tail;
+  f.wall[head]=34;f.wall[tail]=35;f.wall[tail-1]=2;
+  chain.sync(animationBoard(f,true),false);
+  for(const seat of [1,2,3])applyAction(f,seat,{type:'pass'},scorer);
+  chain.sync(animationBoard(f,true),false);
+  const flights=chain.flights.filter(v=>['flower','draw'].includes(v.kind));
+  assert.deepEqual(flights.map(v=>v.wallIndex),[head,tail,tail-1]);
+  assert.deepEqual(flights.map(v=>v.tile),[34,35,null]);
+  assert.ok(flights[2].delay>flights[1].delay&&flights[1].delay>flights[0].delay);
+});
+test('settlement hands lie flat face up on all four aligned racks, including a previously selected tile', () => {
+  for(let relative=0;relative<4;relative++) {
+    const row=playerRowTiles(handTiles([0,1,2,9,10,11,18,19,20,27,27,27,31],null),[],relative,0);
+    for(const t of row.hands) {
+      const p=tilePose({...t,role:'revealed',emphasis:'selected',flat:true});
+      assert.equal(p.angle,0);assert.equal(p.y,1);
+      assert.ok(Math.abs(p.x*Math.sin(p.yaw)+p.z*Math.cos(p.yaw)+t.rect.height/2-PLAYER_ROW_EDGE)<1e-8);
+    }
+  }
+});
+test('all eight flowers precede melds and hands on the same aligned rack without overflowing any seat',()=>{
+  for(let relative=0;relative<4;relative++)for(let groups=0;groups<=4;groups++){
+    const melds=Array.from({length:groups},()=>kong(1,false)),tiles=handTiles(Array.from({length:14-groups*3},(_,i)=>i),13-groups*3);
+    const row=playerRowTiles(tiles,melds,relative,HAND_STAND_ANGLE,[34,35,36,37,38,39,40,41]);
+    const along=t=>{const p=tilePose({...t,role:'flower',emphasis:''});return p.x*Math.cos(t.yaw)-p.z*Math.sin(t.yaw)};
+    assert.equal(row.flowers.length,8);assert.deepEqual(row.flowers.map(t=>t.tile),[34,35,36,37,38,39,40,41]);
+    assert.ok(along(row.flowers.at(-1))+row.flowers.at(-1).rect.width/2<along([...row.melds,...row.hands][0])-[...row.melds,...row.hands][0].rect.width/2);
+    for(const t of row.flowers){const p=tilePose({...t,role:'flower',emphasis:''});assert.ok(Math.abs(p.x*Math.sin(p.yaw)+p.z*Math.cos(p.yaw)+t.rect.height/2-PLAYER_ROW_EDGE)<1e-8);}
+    const all=[...row.flowers,...row.melds,...row.hands];
+    assert.ok(Math.max(...all.map(t=>along(t)+t.rect.width/2))-Math.min(...all.map(t=>along(t)-t.rect.width/2))<=PLAYER_ROW_SPAN+1e-8);
+  }
+});
+test('native rounded PBR instances preserve static transforms while flying instances update and remain bounded',async()=>{
+  const {World}=await import('@haiyue/engine'),{RoundedTileBodies,TILE_BODY_CAPACITY}=await import('../guobiao-mahjong/rendering/RoundedTileBodies.ts');
+  const world=new World('rounded tile instances'),bodies=new RoundedTileBodies(world),pose={x:14,y:35,z:120,angle:HAND_STAND_ANGLE,yaw:Math.PI/2};
+  try{
+    bodies.beginStatic();bodies.add(pose,40,55,false);bodies.beginMoving();bodies.add({...pose,x:210},28,38,true,true);bodies.commit();
+    assert.equal(bodies.material.type,'instanced-pbr');assert.equal(bodies.material.activeInstanceCount,4);
+    const fixed=bodies.material.transforms.slice(0,32);bodies.material.clearTransformsDirty();
+    bodies.beginMoving();bodies.add({...pose,x:250,y:90},30,42,true,true);bodies.commit();
+    assert.deepEqual(bodies.material.transforms.slice(0,32),fixed);assert.ok(Math.abs(bodies.material.transforms[44]-(250+TILE_THICKNESS*.15*Math.sin(pose.angle)))<1e-5);
+    const normals=bodies.geometry.normals;assert.ok(new Set(Array.from({length:normals.length/3},(_,i)=>Array.from(normals.subarray(i*3,i*3+3)).join(','))).size>6,'rounded edges have smooth intermediate normals');
+    bodies.beginStatic();for(let i=0;i<144;i++)bodies.add(pose,28,38,false);bodies.beginMoving();for(let i=0;i<32;i++)bodies.add(pose,28,38,false,true);bodies.commit();
+    assert.equal(bodies.material.activeInstanceCount,TILE_BODY_CAPACITY);assert.throws(()=>bodies.add(pose,28,38,false,true),/capacity/);
+  }finally{world.destroy();}
+});
+test('retained table batches preserve rotated faces, normals and indices when reused, shrunk and hidden', async () => {
+  const { World,BasicMaterial }=await import('@haiyue/engine');
+  const { TableBatch }=await import('../guobiao-mahjong/rendering/TableBatch.ts');
+  const world=new World('batch regression'),solid=new TableBatch(world,'solid',new BasicMaterial(),128);
+  const textured=new TableBatch(world,'face',new BasicMaterial(),16,true);
+  try {
+    const pose={x:31,y:72,z:-140,angle:Math.PI/3,yaw:Math.PI/2};
+    solid.slab(pose,40,55,3,7);solid.commit();
+    const g=solid.geometry,positions=g.positions.buffer,indices=g.indices.buffer;
+    assert.equal(g.vertexCount,56);assert.equal(g.indexCount,72);
+    assert.ok([...g.indices].every(i=>i<g.vertexCount));
+    for(let i=0;i<g.normals.length;i+=3)assert.ok(Math.abs(Math.hypot(...g.normals.subarray(i,i+3))-1)<1e-6);
+    const local=[-18,10,-27.5],y=local[1]*Math.cos(pose.angle)-local[2]*Math.sin(pose.angle),z=local[1]*Math.sin(pose.angle)+local[2]*Math.cos(pose.angle);
+    const expected=[local[0]*Math.cos(pose.yaw)+z*Math.sin(pose.yaw)+pose.x,y+pose.y,-local[0]*Math.sin(pose.yaw)+z*Math.cos(pose.yaw)+pose.z];
+    g.positions.subarray(0,3).forEach((v,i)=>assert.ok(Math.abs(v-expected[i])<1e-5));
+    solid.clear();solid.face({x:0,y:1,z:0},40,55,0);solid.commit();
+    assert.equal(g.vertexCount,4);assert.equal(g.normals.length,12);assert.equal(g.indexCount,6);
+    assert.equal(g.positions.buffer,positions);assert.equal(g.indices.buffer,indices);
+    const uv=tileUv(31);textured.face(pose,40,55,10.15,uv);textured.commit();
+    assert.equal(textured.geometry.getTextureCoordinates(0).length,textured.geometry.vertexCount*2);
+    assert.ok(Math.abs(textured.geometry.getTextureCoordinates(0)[0]-uv[0])<1e-7);
+    textured.clear();textured.face({x:0,y:0,z:0},40,55,-.12,uv,true);textured.commit();
+    assert.equal(textured.geometry.normals[1],-1);
+    const ps=textured.geometry.positions,is=textured.geometry.indices;
+    const a=Array.from(ps.subarray(is[0]*3,is[0]*3+3)),b=Array.from(ps.subarray(is[1]*3,is[1]*3+3)),c=Array.from(ps.subarray(is[2]*3,is[2]*3+3));
+    assert.ok((b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2])<0,'back surface winding agrees with its outward PBR normal');
+    const version=g.version;solid.clear();solid.commit();assert.equal(solid.entity.disabled,true);assert.equal(g.version,version);
+    assert.throws(()=>{for(let i=0;i<3;i++)solid.slab(pose,40,55,0,10);},/capacity/);
+  } finally {world.destroy();}
+});
+test('the 30-degree perspective camera fits both the table and upright hands without clipping', () => {
+  for (const [w,h] of [[1440,900],[1920,1080],[3500,734],[390,844],[390,700],[844,390]]) {
+    const f=tableFrame(w,h), r=f.table;
+    assert.ok(r.x>=0&&r.y>=0&&r.x+r.width<=w&&r.y+r.height<=h);
+    assert.ok(Math.abs(f.viewport.height-(h<600?h-92:h)*.95)<1e-6);
+    if(h<600)assert.ok(r.y+r.height<h-80);
+    assert.ok(r.height/h<=.950001);
+    for(let relative=0;relative<4;relative++)for(const t of playerRowTiles(handTiles(Array.from({length:14},(_,i)=>i),13),[],relative).hands) {
+      const box=tileScreenRect(f,{rect:t.rect,yaw:t.yaw,role:'revealed',emphasis:''});
+      assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=w&&box.y+box.height<=h,JSON.stringify({w,h,relative,box}));
+    }
+    assert.ok(projectPoint(f,100,0,400).scale>projectPoint(f,100,0,-400).scale, 'near tiles are larger');
+  }
+  const l=surfaceLayout(), rects=sideHandRects(l.table,14,true,true);
+  assert.ok(rects.at(-1).y-rects.at(-2).y-rects.at(-2).height>3);
+  const own=playerRowTiles(handTiles(Array.from({length:14},(_,i)=>i),13),[],0).hands[0];
+  assert.ok(tileScreenRect(tableFrame(1440,900),{...own,role:'hand',emphasis:''}).width>40);
+});
+test('each player has one aligned row for upright hands and separate exposed groups, even with four kongs',()=>{
+  for(let relative=0;relative<4;relative++)for(let groups=0;groups<=4;groups++) {
+    const melds=Array.from({length:groups},()=>kong(1,false)), count=14-groups*3;
+    const ordered=handTiles(Array.from({length:count},(_,i)=>i),count-1), row=playerRowTiles(ordered,melds,relative);
+    const all=[...row.melds.map(t=>({...t,role:'meld'})),...row.hands.map(t=>({...t,role:'revealed'}))];
+    let min=Infinity,max=-Infinity;
+    for(const t of all) {
+      const p=tilePose({...t,emphasis:''}), outward=p.x*Math.sin(t.yaw)+p.z*Math.cos(t.yaw);
+      const extent=t.role==='meld'?t.rect.height/2:Math.cos(HAND_STAND_ANGLE)*t.rect.height/2+Math.sin(HAND_STAND_ANGLE)*TILE_THICKNESS;
+      assert.ok(Math.abs(outward+extent-PLAYER_ROW_EDGE)<1e-8);
+      const along=p.x*Math.cos(t.yaw)-p.z*Math.sin(t.yaw);
+      min=Math.min(min,along-t.rect.width/2);max=Math.max(max,along+t.rect.width/2);
+      assert.equal(p.angle,t.role==='meld'?0:HAND_STAND_ANGLE);
+    }
+    assert.ok(max-min<=PLAYER_ROW_SPAN+1e-8);
+    assert.deepEqual(row.hands.map(t=>t.index),ordered.map(t=>t.index));assert.ok(row.hands.at(-1).drawn);
+    for(const role of ['hand','concealed','revealed'])assert.equal(tilePose({rect:row.hands[0].rect,role,emphasis:''}).angle,role==='concealed'?OPPONENT_STAND_ANGLE:HAND_STAND_ANGLE);
+    for(let g=1;g<groups;g++) {
+      const before=row.melds.filter(t=>t.group===g-1).at(-1), after=row.melds.find(t=>t.group===g);
+      const a=tilePose({...before,role:'meld',emphasis:''}),b=tilePose({...after,role:'meld',emphasis:''});
+      const gap=(b.x-a.x)*Math.cos(b.yaw)-(b.z-a.z)*Math.sin(b.yaw)-(after.rect.width+before.rect.width)/2;
+      assert.ok(gap>10);
+    }
+  }
+});
+test('concealed opponent racks stand exactly vertical and remain aligned with their exposed tiles',()=>{
+  for(let relative=1;relative<4;relative++) {
+    const row=playerRowTiles(handTiles([0,1,2,9,10,11,18,19,20,27,31],31),[chow(3)],relative,OPPONENT_STAND_ANGLE);
+    for(const t of row.hands) {
+      const p=tilePose({...t,role:'concealed',emphasis:''});assert.equal(p.angle,Math.PI/2);
+      assert.ok(Math.abs(p.x*Math.sin(p.yaw)+p.z*Math.cos(p.yaw)+TILE_THICKNESS-PLAYER_ROW_EDGE)<1e-8);
+    }
+  }
+});
+test('rivers leave a wider central gap, do not overlap one another, and stay inside the expanded wall',()=>{
+  const all=[];
+  for(let relative=0;relative<4;relative++) {
+    const rects=riverTileRects(36,relative);all.push(...rects);
+    for(const r of rects) {
+      const near=relative===0?r.y-500:relative===2?500-r.y-r.height:relative===1?r.x-500:500-r.x-r.width;
+      const far=near+(relative%2?r.width:r.height);
+      assert.ok(near>=RIVER_OFFSET-1e-9&&far<WALL_RADIUS-19);
+    }
+  }
+  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++) {
+    const a=all[i],b=all[j];assert.ok(a.x+a.width<=b.x+1e-8||b.x+b.width<=a.x+1e-8||a.y+a.height<=b.y+1e-8||b.y+b.height<=a.y+1e-8);
+  }
+});
+test('screen hit areas follow the raised 3D hand and preserve the separated draw', () => {
+  const l=surfaceLayout(), ordered=handTiles(Array.from({length:14},(_,i)=>i),13);
+  const plan=handTileRects(ordered,{x:0,y:l.handY,width:1000,height:80},l.tile);
+  for(const [w,h] of [[1440,900],[390,844]]) {
+    const f=tableFrame(w,h), rects=plan.map(rect=>tileScreenRect(f,{rect,role:'hand',emphasis:''}));
+    rects.forEach(r=>{assert.ok(r.x>=0&&r.y>=0&&r.x+r.width<=w&&r.y+r.height<=h)});
+    assert.ok(rects.at(-1).x-rects.at(-2).x-rects.at(-2).width>3*(rects[1].x-rects[0].x-rects[0].width));
+    const raised=tileScreenRect(f,{rect:plan[0],role:'hand',emphasis:'selected'});
+    assert.ok(raised.y<rects[0].y); assert.ok(raised.width>rects[0].width);
+  }
+});
+test('wall stacks reflect front and replacement draws exactly without floating upper tiles or hidden identities', () => {
+  for(const head of [0,1,2,53,87,143,144]) for(const back of [0,1,2,7,30]) for(let dealer=0;dealer<4;dealer++) {
+    const tail=143-back, tiles=wallTiles({head,tail},dealer);
+    assert.equal(tiles.length,Math.max(0,tail-head+1));
+    assert.equal(new Set(tiles.map(t=>t.index)).size,tiles.length);
+    for(const t of tiles) {
+      assert.ok(!('tile' in t));assert.ok(t.index>=head&&t.index<=tail);
+      if(t.layer===1)assert.ok(tiles.some(b=>b.side===t.side&&b.stack===t.stack&&b.layer===0));
+    }
+  }
+  const c=new MatchController(scorer,{},91), wall=c.presentationWall();
+  assert.equal(wallTiles(wall).length,c.observation().wallRemaining);
+  wall.head=144;assert.notEqual(c.presentationWall().head,144);c.dispose();
+  for(let relative=0;relative<4;relative++)assert.ok(dealerPosition(relative).width>0);
 });
 
 const {ModelHub}=await import('../guobiao-mahjong/api/ModelHub.ts');
@@ -216,7 +478,7 @@ test('model discovery and seat assignments validate the whole change and pass ex
     return new Response(JSON.stringify({requestId:request.requestId,revision:request.observation.revision,action}));
   };
   try{
-    await hub.refresh(); assert.equal(hub.models.length,1);
+    await hub.refresh(); assert.equal(hub.models.filter(m=>m.source==='http').length,1); assert.equal(hub.models.filter(m=>m.source==='browser').length,9); assert.equal(hub.backend,'webgpu');
     assert.throws(()=>hub.apply(['kd-s0','unknown','builtin','builtin'],{temperature:0,seed:42}));
     assert.deepEqual(hub.assignments,['builtin','builtin','builtin','builtin']);
     hub.apply(['kd-s0','builtin','builtin','builtin'],{temperature:.5,seed:42});assert.equal(hub.assignments[0],'kd-s0');
@@ -226,4 +488,22 @@ test('model discovery and seat assignments validate the whole change and pass ex
     assert.throws(()=>hub.apply(['builtin','builtin','builtin','builtin'],{temperature:3,seed:1}));
     hub.dispose();
   }finally{globalThis.fetch=original;c.dispose()}
+});
+
+test('closed drawers center a 15-percent wider table and docked layouts keep the entire table in its own viewport',()=>{
+  const closed=tableFrame(1440,900);assert.equal(closed.zoom,TABLE_ZOOM);assert.ok(Math.abs(closed.table.width/(1440-32-246)-1.15)<1e-8);assert.ok(Math.abs(closed.table.x+closed.table.width/2-720)<1e-8);
+  for(const dock of ['left','right']){const f=tableFrame(1440,900,dock);assert.ok(f.table.x>=f.viewport.x);assert.ok(f.table.x+f.table.width<=f.viewport.x+f.viewport.width);assert.ok(dock==='left'?f.cx>720:f.cx<720);}
+  const recentered=tableFrame(1440,900);assert.deepEqual(recentered,closed);assert.equal(TILE_THICKNESS,15);assert.equal(WALL_TILE_PITCH,15.8);
+});
+test('claim family controls retain distinct chow/kong choices and mark only the incoming tile in each pictured chow',async()=>{
+  const {claimGroups,choiceTiles}=await import('../guobiao-mahjong/ui/claimPresentation.ts');
+  const actions=[{type:'pass'},{type:'chow',tile:6,tiles:[4,5,6]},{type:'chow',tile:6,tiles:[5,6,7]},{type:'chow',tile:6,tiles:[6,7,8]},{type:'pung',tile:6},{type:'kong',tile:6},{type:'concealed-kong',tile:3},{type:'hu'}],before=JSON.stringify(actions);
+  const groups=claimGroups(actions);assert.deepEqual(groups.map(g=>g.label),['胡','杠','碰','吃']);assert.equal(groups.find(g=>g.kind==='chow').options.length,3);assert.equal(groups.find(g=>g.kind==='kong').options.length,2);
+  for(const a of groups.find(g=>g.kind==='chow').options){const t=choiceTiles(a);assert.deepEqual(t.map(v=>v.tile),a.tiles);assert.equal(t.filter(v=>v.called).length,1);assert.equal(t.find(v=>v.called).tile,6);}
+  assert.deepEqual(choiceTiles({type:'pass'}),[]);assert.equal(JSON.stringify(actions),before);
+});
+test('the recorded multi-chow fixture reconstructs three legal alternatives and each remains independently playable',async()=>{
+  const {replayMatch}=await import('../guobiao-mahjong/rules/replay.ts'),{legalActions}=await import('../guobiao-mahjong/rules/match.ts');
+  const saved=JSON.parse(readFileSync(new URL('./fixtures/mahjong-ui-chow-options.json',import.meta.url))),s=replayMatch(saved.replay,scorer),options=legalActions(s,saved.human,scorer).filter(a=>a.type==='chow');assert.equal(options.length,3);
+  for(const action of options){const copy=structuredClone(s);applyAction(copy,saved.human,action,scorer,s.revision);assert.equal(copy.revision,s.revision+1);}
 });

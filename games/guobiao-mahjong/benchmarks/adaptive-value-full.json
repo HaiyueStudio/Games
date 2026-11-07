@@ -1,0 +1,7 @@
+{
+  "schemaVersion":1,
+  "purpose":"Full original public-position corpus; inspect --plan-only before starting a larger offline campaign",
+  "sourceData":"artifacts/guobiao-mahjong/value/data-v2",
+  "selection":"all",
+  "budget":{"stages":[8,32,64,128],"ordinaryMinimum":8,"tacticalMinimum":32,"closeFan":0.5,"confidenceZ":1.96,"dangerThreshold":0.2,"parallelTrials":32}
+}

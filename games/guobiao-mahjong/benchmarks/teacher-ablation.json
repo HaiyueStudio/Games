@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen original / offline teacher / pre-quantization student / deployed FP16 student; fresh seeds",
+  "seeds": [101001,101002,101003,101004,101005,101006,101007,101008],
+  "rotateSeats": true,"concurrency": 1,"batchMatches": 8,"enhancedMetrics": true,"baseline": "kd-value-v1",
+  "suites": [
+    {"id":"teacher-vs-original","agents":["kd-teacher","kd-value-v1","kd-value-v1","kd-value-v1"]},
+    {"id":"fp32-vs-original","agents":["kd-student-fp32","kd-value-v1","kd-value-v1","kd-value-v1"]},
+    {"id":"fp16-vs-original","agents":["kd-student-fp16","kd-value-v1","kd-value-v1","kd-value-v1"]}
+  ]
+}

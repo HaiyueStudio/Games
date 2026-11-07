@@ -84,6 +84,7 @@ for (const game of manifest.entries) {
 
   copyDirectory(source, join(outputGames, game.id), (entry) => {
     if (!entry) return true;
+    if (game.id === 'guobiao-mahjong' && /^(model-service|node_modules)(\/|$)/.test(entry)) return false;
     return !omittedSourceFile.test(entry) && !sourceMap.test(entry);
   });
   const published = join(outputGames, game.id);

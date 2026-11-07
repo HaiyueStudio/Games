@@ -6,10 +6,16 @@
   "scripts": {
     "build": "node ../../scripts/workspace-task.mjs build guobiao-mahjong",
     "test": "node ../../scripts/workspace-task.mjs test guobiao-mahjong",
-    "typecheck": "node ../../scripts/workspace-task.mjs typecheck guobiao-mahjong"
+    "typecheck": "node ../../scripts/workspace-task.mjs typecheck guobiao-mahjong",
+    "models:fetch": "python3 model-service/fetch_models.py",
+    "models:prepare": "node ../../scripts/prepare-mahjong-tfjs.mjs"
   },
   "dependencies": {
-    "@haiyue/games-platform": "0.1.0"
+    "@haiyue/games-platform": "0.1.0",
+    "@tensorflow/tfjs": "4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "4.22.0",
+    "@tensorflow/tfjs-backend-webgpu": "4.22.0",
+    "fflate": "0.8.2"
   },
   "peerDependencies": {
     "@haiyue/animation-spec": "*",
@@ -27,7 +33,13 @@
           "{projectRoot}/bundle.js",
           "{projectRoot}/bundle.js.map",
           "{projectRoot}/ai/mahjong.worker.js",
-          "{projectRoot}/ai/mahjong.worker.js.map"
+          "{projectRoot}/ai/mahjong.worker.js.map",
+          "{projectRoot}/ai/tfjs.worker.js",
+          "{projectRoot}/ai/tfjs.worker.js.map",
+          "{projectRoot}/ai/tfjs",
+          "{projectRoot}/assets/models",
+          "{projectRoot}/ai/coach.worker.js",
+          "{projectRoot}/ai/coach.worker.js.map"
         ]
       },
       "test": {
@@ -35,7 +47,13 @@
           "production",
           "^production",
           "testGlobals",
+          "{workspaceRoot}/games/test/guobiao-mahjong-browser-models.test.mjs",
+          "{workspaceRoot}/games/test/guobiao-mahjong-candidates.test.mjs",
+          "{workspaceRoot}/games/test/guobiao-mahjong-coaching.test.mjs",
+          "{workspaceRoot}/games/test/guobiao-mahjong-hybrid.test.mjs",
           "{workspaceRoot}/games/test/guobiao-mahjong-presentation.test.mjs",
+          "{workspaceRoot}/games/test/guobiao-mahjong-strength.test.mjs",
+          "{workspaceRoot}/games/test/guobiao-mahjong-value.test.mjs",
           "{workspaceRoot}/games/test/guobiao-mahjong.test.mjs"
         ]
       }

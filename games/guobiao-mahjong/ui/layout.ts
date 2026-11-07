@@ -1,16 +1,15 @@
+import { tableFrame } from '../rendering/tableModel';
 export interface Rect { x: number; y: number; width: number; height: number }
 export function tableLayout(w: number, h: number) {
-  const compact = w < 900, margin = compact ? 12 : 28;
-  const sidebar = compact ? 0 : Math.min(310, w * .24);
-  const contentWidth = w - margin * 2 - sidebar - (compact ? 0 : 22), top = compact ? 116 : 88;
-  const size = Math.max(180, Math.min(contentWidth, h - top - (compact ? 304 : 76)));
-  const table: Rect = { x: margin + (contentWidth - size) / 2, y: top, width: size, height: size };
-  const center = { x: table.x + size / 2, y: table.y + size / 2 };
-  return { compact, table, center, panel: { x: w - sidebar - margin, y: 102, width: sidebar, height: h - 130 },
-    handY: compact ? h - 170 : table.y + size - 76, handWidth: Math.min(700, size - 24), tile: Math.min(38, (size - 44) / 15.5),
-    controlsY: compact ? h - 61 : h - 44, statusY: compact ? h - 118 : table.y + size + 2,
-    actionY: compact ? table.y + size + 52 : table.y + size - 230,
-    meldTile: Math.min(26, size * .033), topTile: Math.min(32, (size - 112) / 15.5) };
+  const frame = tableFrame(w, h), { compact, table, panel } = frame;
+  return { compact, table, center: { x: frame.cx, y: frame.cy }, panel, frame,
+    controlsY: h - (compact ? 43 : 41), statusY: compact ? h - 142 : 158,
+    actionY: compact ? h - 192 : h - 84 };
+}
+/** Stable world-space surface coordinates, independent from HUD and camera framing. */
+export function surfaceLayout() {
+  return { table: { x: 0, y: 0, width: 1000, height: 1000 }, center: { x: 500, y: 500 },
+    handY: 910, tile: 46, meldTile: 26, topTile: 36 };
 }
 /** Preserve complete tile faces on the sides; fit fourteen cards plus a separated draw. */
 export function sideHandRects(table: Rect, count: number, right: boolean, drawn: boolean): Rect[] {

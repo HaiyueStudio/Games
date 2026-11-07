@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "purpose": "development comparison; one KD policy against three identical frozen built-in opponents",
+  "seeds": [1101, 1102, 1103, 1104],
+  "rotateSeats": true,
+  "concurrency": 2,
+  "suites": [
+    {"id": "student0", "agents": ["kd-s0", "v1", "v1", "v1"]},
+    {"id": "student1", "agents": ["kd-s1", "v1", "v1", "v1"]},
+    {"id": "student2", "agents": ["kd-s2", "v1", "v1", "v1"]},
+    {"id": "ensemble", "agents": ["kdens3", "v1", "v1", "v1"]}
+  ]
+}

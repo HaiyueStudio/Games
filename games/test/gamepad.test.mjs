@@ -36,6 +36,22 @@ test('neutral gate prevents held input leaking across game changes, reconnects a
   gate.filter([]); assert.deepEqual(gate.filter([frame(0, -1)]), []);
   gate.filter([frame(0, 0)]); gate.reset(); assert.deepEqual(gate.filter([frame(0, 1)]), []);
 });
+test('idle sampler skips empty slots, polls once, and hot-plugging restarts button edges without stale holds', () => {
+  let polls=0,devices=[];
+  const target=new EventTarget(),visibility=new EventTarget(),input=new GamepadSampler(()=>{polls++;return devices;},target,visibility);
+  try {
+    for(let i=0;i<100;i++)assert.deepEqual(input.sample(),[]);
+    assert.equal(polls,100);
+    const pad=device(0);devices=[pad];pad.values[0]=1;
+    assert.ok(input.sample()[0].pressed.has('b0'));assert.ok(!input.sample()[0].pressed.has('b0'));
+    devices=[];assert.deepEqual(input.sample(),[]);
+    devices=[pad];assert.ok(input.sample()[0].pressed.has('b0'));
+    const before=polls;input.sample(devices);assert.equal(polls,before,'provided per-frame devices are reused');
+    visibility.hidden=true;visibility.dispatchEvent(new Event('visibilitychange'));assert.deepEqual(input.sample(),[]);
+    visibility.hidden=false;visibility.dispatchEvent(new Event('visibilitychange'));assert.ok(input.sample()[0].pressed.has('b0'));
+  } finally {input.dispose();}
+  assert.throws(()=>input.sample([]),/disposed/);
+});
 
 test('every playable manifest entry has an explicit controller profile and bootstrap', () => {
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));

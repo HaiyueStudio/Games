@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen compact student against the original 32-hidden value model; eight fresh wall seeds, full rotations; no post-holdout tuning",
+  "seeds": [91001,91002,91003,91004,91005,91006,91007,91008],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "batchMatches": 8,
+  "enhancedMetrics": true,
+  "baseline": "kd-value-v1",
+  "suites": [{"id":"distilled-value-holdout","agents":["kd-value","kd-value-v1","kd-value-v1","kd-value-v1"]}]
+}

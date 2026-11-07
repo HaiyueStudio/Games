@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "seeds": [
+    5101,
+    5102
+  ],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "batchMatches": 8,
+  "enhancedMetrics": true,
+  "baseline": "kd-safe",
+  "suites": [
+    {
+      "id": "learned-development",
+      "agents": [
+        "kd-learned",
+        "kd-safe",
+        "kd-safe",
+        "kd-safe"
+      ]
+    }
+  ]
+}

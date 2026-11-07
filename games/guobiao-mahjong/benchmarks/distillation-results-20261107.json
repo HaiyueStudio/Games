@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-07T05:26:07.761Z",
+  "scope": "Offline teacher distillation and compact Worker deployment; direct comparison with original value heads",
+  "model": {
+    "id": "browser-kd-s0-distilled",
+    "name": "实验 · KD0 蒸馏价值",
+    "default": false,
+    "originalModelId": "browser-kd-s0-value",
+    "originalPreserved": true,
+    "teacherParameters": 76428,
+    "studentParameters": 9564,
+    "runtimePayloadBytes": 20680,
+    "exportedSourceBytes": 31028,
+    "originalSourceBytes": 424283,
+    "sourceReduction": 0.9268695658322393,
+    "teacherSha256": "026918a1fe6123c19abe04ee58c46f46af4cdc4b4fc38e76e15b8e4040135642",
+    "studentSha256": "169a1df40d1458437ca939b197f58e2a8f4a3af7bc0c76b3bc7ec556d504fbf4",
+    "payloadSha256": "5582faa61cebc3d3d5aef957a085d85c66d34d5b6a08e64d6dba2de5622cb256",
+    "weightsSha256": "e203cb44ce9d96111af164ecc991da3049341b896518f2e92643c1e4e27be37f"
+  },
+  "training": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-11-07T04:41:00Z",
+    "status": "passed",
+    "config": {
+      "schemaVersion": 1,
+      "seed": 20261109,
+      "teacherHidden": 128,
+      "studentHidden": 16,
+      "members": 3,
+      "teacherEpochs": 100,
+      "studentEpochs": 200,
+      "teacherPatience": 16,
+      "studentPatience": 24,
+      "temperature": 0.1,
+      "teacherWeight": 0.7,
+      "policyWeight": 0.2,
+      "gates": {
+        "maximumCalibrationQrmse": 0.05,
+        "maximumCalibrationKL": 0.02,
+        "maximumTeacherRegretFan": 0.64,
+        "maximumCalibrationLossRatio": 1.15
+      },
+      "settings": {
+        "minimumPrior": 0.01,
+        "minimumGain": 0.03,
+        "priorWeight": 0.02,
+        "uncertaintyWeight": 2,
+        "maximumPlans": 18
+      }
+    },
+    "configSha256": "1a70f6fe9c5d3e8e88b8aee5cccb1b6d3c279c55488d6e5cd0393348e1b63272",
+    "dataReportSha256": "59703c2efcc518eda6bd2bdae2e31a75c680822f8231b002de9ad4b51b469a2a",
+    "groupsSha256": "cebab2793beb5c3fe765ab67710e5b0eb40be43c258650ae2697fc190ab85f13",
+    "sourceArchiveSha256": "1ed7b0004a4d021710974234747db1c633855d5723f4d48fc016a7fdad98bfb9",
+    "trainerSha256": "963a00e825e02dc53f3adf1cfe94149be2281387ffcaacced87fa326466ac0a3",
+    "helperSha256": "d7bda1e47e78c2090562ee5ee601619f86707e93f2f0e8f2f00e7a4f828195db",
+    "teacherSha256": "026918a1fe6123c19abe04ee58c46f46af4cdc4b4fc38e76e15b8e4040135642",
+    "studentSha256": "169a1df40d1458437ca939b197f58e2a8f4a3af7bc0c76b3bc7ec556d504fbf4",
+    "packedSha256": "dd5d635d955f48ae1b5c8fa21a5f5ba09d1d1478d2a86654e552fc8c16884d7a",
+    "payloadSha256": "5582faa61cebc3d3d5aef957a085d85c66d34d5b6a08e64d6dba2de5622cb256",
+    "paritySha256": "e7c1207ba621f69d55546bb3c368d6c9bbd7668b15b964b26b6bf37bc6022aa8",
+    "folds": {
+      "train": [
+        71001,
+        71002,
+        71003,
+        71004,
+        71005,
+        71006,
+        71007,
+        71008,
+        71009,
+        71010,
+        71011,
+        71012,
+        71013,
+        71014,
+        71015,
+        71016,
+        71017,
+        71018,
+        71019,
+        71020,
+        71021,
+        71022,
+        71023,
+        71024,
+        71025,
+        71026,
+        71027,
+        71028,
+        71029,
+        71030,
+        71031,
+        71032,
+        71033,
+        71034,
+        71035,
+        71036,
+        71037,
+        71038,
+        71039,
+        71040,
+        71041,
+        71042,
+        71043,
+        71044,
+        71045,
+        71046,
+        71047,
+        71048,
+        71049,
+        71050,
+        71051,
+        71052,
+        71053,
+        71054,
+        71055,
+        71056,
+        71057,
+        71058,
+        71059,
+        71060,
+        71061,
+        71062,
+        71063,
+        71064
+      ],
+      "calibration": [
+        72001,
+        72002,
+        72003,
+        72004,
+        72005,
+        72006,
+        72007,
+        72008
+      ],
+      "test": [
+        73001,
+        73002,
+        73003,
+        73004,
+        73005,
+        73006,
+        73007,
+        73008
+      ]
+    },
+    "metrics": {
+      "train": {
+        "groups": 1536,
+        "plans": 5120,
+        "teacherLoss": 0.007118122445619889,
+        "studentLoss": 0.008152469092022661,
+        "teacherQrmse": 0.013743453531384963,
+        "policyKL": 0.0023504271269474742,
+        "planAgreement": 0.9537760416666666,
+        "teacherRegretFan": 0.01377110939871263,
+        "ownFanMAE": 2.1342461375634842
+      },
+      "calibration": {
+        "groups": 192,
+        "plans": 639,
+        "teacherLoss": 0.010348585029194945,
+        "studentLoss": 0.01058334713911864,
+        "teacherQrmse": 0.013702003578807721,
+        "policyKL": 0.002139938013453968,
+        "planAgreement": 0.953125,
+        "teacherRegretFan": 0.01030990824169164,
+        "ownFanMAE": 2.3741362991590145
+      },
+      "test": {
+        "groups": 192,
+        "plans": 624,
+        "teacherLoss": 0.009621268410718892,
+        "studentLoss": 0.009620007244194147,
+        "teacherQrmse": 0.01193902557810654,
+        "policyKL": 0.0020111900653920043,
+        "planAgreement": 0.9635416666666666,
+        "teacherRegretFan": 0.008959022938908974,
+        "ownFanMAE": 2.1602731468089633
+      }
+    },
+    "teacherParameters": 76428,
+    "studentParameters": 9564,
+    "runtimePayloadBytes": 20680,
+    "limitations": [
+      "Uniform public-count-consistent unknown hands; no learned opponent posterior",
+      "Full current hand rollouts, not a simulation of all remaining rounds",
+      "Frozen builtin-depth-1 rollout policy; labels are conditional on this policy",
+      "Common sampled worlds for every action and immediate follow-up; no privileged actor inputs",
+      "Distillation fidelity is not independent evidence of playing strength",
+      "KD Student 0 policy backbone is unchanged; this compresses only the added value heads"
+    ],
+    "exportedModelSha256": "75a326db53eefff465559166d27697f4a256bba42c7136679a3238fcf69bb899",
+    "exportedSourceBytes": 31028
+  },
+  "deployment": {
+    "runtimeBoundary": {
+      "status": "passed",
+      "entries": [
+        "main.ts",
+        "ai/browser/tfjs.worker.ts",
+        "ai/mahjong.worker.ts",
+        "ai/coach.worker.ts"
+      ],
+      "modules": 77
+    },
+    "checkedFeatures": 6383,
+    "workerBytes": 161333,
+    "originalWorkerBytes": 569095,
+    "kdBackboneBytes": 26564407,
+    "kdBackboneChanged": false,
+    "originalValueWeightsLoadedOnDemand": true
+  },
+  "validation": {
+    "runtimeReportSha256": "d7239f8e0642be456f70ae0eced1205fb334ff15f3ba1ff83f80b9a33c68254e",
+    "browserReportSha256": "5364449f0733dcca6ba7c35b44fcf0e2dc55e8b2533ea58931ebea34212f9747",
+    "backends": [
+      "webgpu",
+      "wasm"
+    ],
+    "gameReplay": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-07T05:03:29.556Z",
+      "status": "passed",
+      "runKey": "caac412e2991c00797b2d4e46c6e3a920c7aae9e4da7adba75ed8e8702f7c306",
+      "reportSha256": "94db0a65f187edba8c99cac28daa1609827b33fccbbf34410b8481f36dfbcd0a",
+      "matches": 32,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 512,
+      "decisions": 100608,
+      "faults": 0
+    },
+    "publishedReplay": {
+      "reportSha256": "8ef2c1fc501f3baf6fe84febdd6f402682375357d4fb882943f977579d82047a",
+      "matches": 8,
+      "hands": 128,
+      "identicalActions": 24780,
+      "independentStrengthSamples": false,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ]
+    }
+  },
+  "comparison": {
+    "reportSha256": "94db0a65f187edba8c99cac28daa1609827b33fccbbf34410b8481f36dfbcd0a",
+    "recordedPolicyRoles": {
+      "kd-value": "distilled student (now browser-kd-s0-distilled)",
+      "kd-value-v1": "original value heads (browser-kd-s0-value)"
+    },
+    "config": {
+      "schemaVersion": 1,
+      "purpose": "Frozen compact student against the original 32-hidden value model; eight fresh wall seeds, full rotations; no post-holdout tuning",
+      "seeds": [
+        91001,
+        91002,
+        91003,
+        91004,
+        91005,
+        91006,
+        91007,
+        91008
+      ],
+      "rotateSeats": true,
+      "concurrency": 1,
+      "batchMatches": 8,
+      "enhancedMetrics": true,
+      "baseline": "kd-value-v1",
+      "suites": [
+        {
+          "id": "distilled-value-holdout",
+          "agents": [
+            "kd-value",
+            "kd-value-v1",
+            "kd-value-v1",
+            "kd-value-v1"
+          ]
+        }
+      ]
+    },
+    "summary": [
+      {
+        "id": "distilled-value-holdout",
+        "complete": true,
+        "matches": 32,
+        "hands": 512,
+        "drawRate": 0.017578125,
+        "rows": [
+          {
+            "policy": "kd-value",
+            "seatGames": 32,
+            "hands": 512,
+            "fan": 1717,
+            "fanPerHand": 3.353515625,
+            "scorePerHand": -1.13671875,
+            "winRate": 0.234375,
+            "dealInRate": 0.185546875,
+            "averagePlace": 2.71875,
+            "decisions": 8000,
+            "choiceMsP50": 48.90000009536743,
+            "choiceMsP95": 55.60000002384186,
+            "forced": 17149,
+            "missedHu": 0,
+            "unqualifiedReady": 113,
+            "faults": 0,
+            "enhancements": 90,
+            "reasonCounts": {
+              "action-value": 100,
+              "last-tile-safe": 3,
+              "legal-win": 121,
+              "model": 1,
+              "value-follow-up": 22,
+              "value-prior": 7753
+            }
+          },
+          {
+            "policy": "kd-value-v1",
+            "seatGames": 96,
+            "hands": 1536,
+            "fan": 5640,
+            "fanPerHand": 3.671875,
+            "scorePerHand": 0.37890625,
+            "winRate": 0.24934895833333334,
+            "dealInRate": 0.17708333333333334,
+            "averagePlace": 2.4270833333333335,
+            "decisions": 24018,
+            "choiceMsP50": 49,
+            "choiceMsP95": 55.60000002384186,
+            "forced": 51441,
+            "missedHu": 0,
+            "unqualifiedReady": 321,
+            "faults": 0,
+            "enhancements": 245,
+            "reasonCounts": {
+              "action-value": 275,
+              "last-tile-safe": 5,
+              "legal-win": 388,
+              "value-follow-up": 65,
+              "value-prior": 23285
+            }
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-value",
+            "baseline": "kd-value-v1",
+            "fanDeltaPerHand": -0.318359375,
+            "fanDelta95": {
+              "low": -0.6451822916666669,
+              "high": -0.0019531249999999445,
+              "method": "seed-block bootstrap",
+              "blocks": 8,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": -1.5156250000000002,
+            "scoreDelta95": {
+              "low": -2.885416666666667,
+              "high": -0.2161458333333333,
+              "method": "seed-block bootstrap",
+              "blocks": 8,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 91001,
+                "fan": -1.010416666666667,
+                "score": -4.791666666666667
+              },
+              {
+                "seed": 91002,
+                "fan": 0.296875,
+                "score": -0.375
+              },
+              {
+                "seed": 91003,
+                "fan": -0.6770833333333335,
+                "score": -2.7291666666666665
+              },
+              {
+                "seed": 91004,
+                "fan": 0.06770833333333348,
+                "score": 1.3541666666666667
+              },
+              {
+                "seed": 91005,
+                "fan": -0.10416666666666652,
+                "score": -0.3333333333333333
+              },
+              {
+                "seed": 91006,
+                "fan": -0.16666666666666652,
+                "score": -0.6666666666666666
+              },
+              {
+                "seed": 91007,
+                "fan": 0.015625,
+                "score": -0.625
+              },
+              {
+                "seed": 91008,
+                "fan": -0.96875,
+                "score": -3.9583333333333335
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "strengthConclusion": "negative-against-original-value"
+  },
+  "limitations": [
+    "Distillation candidate agreement is measured on offline simulated data, not playing strength",
+    "Only the value heads are compressed; the KD policy backbone still uses its original checkpoint",
+    "The teacher and training data remain offline; runtime uses public observations only",
+    "Current-hand uniform unknown-state simulations and builtin-depth-1 rollouts retain the original modeling limitations",
+    "Eight fresh seed blocks against the original value model are not a universal model ranking; no post-holdout tuning",
+    "Negative comparison evidence prevented replacing the original; publication uses separate model IDs with identical compared weights"
+  ]
+}

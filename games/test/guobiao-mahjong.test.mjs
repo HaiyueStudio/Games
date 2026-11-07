@@ -162,3 +162,32 @@ test('restoring an external-model seat requires reconnecting it and never silent
   assert.equal(restored.paused, true); assert.equal(restored.revision, 0); assert.match(restored.status, /未连接/);
   restored.setAgent(0, null); assert.equal(restored.save().externalSeats.length, 0); restored.dispose();
 });
+test('a restored human seat retains its missing external provider when switched back to AI', async () => {
+  let builtinCalls = 0;
+  const worker = { replay: async replay => replayMatch(replay, scorer), decide: async () => { builtinCalls++; throw new Error('Must not substitute a model'); } };
+  const original = new MatchController(scorer, worker, 33);
+  original.setAgent(0, { name: 'Model A', decide: () => ({ type: 'hu' }) });
+  assert.equal(original.observation().players[0].name, '玩家');
+  const saved = original.save(); original.dispose();
+  const restored = new MatchController(scorer, worker, 1);
+  assert.equal(await restored.restore(saved), true); restored.setHuman(null); await restored.step();
+  assert.equal(restored.revision, 0); assert.equal(builtinCalls, 0); assert.match(restored.status, /未连接/); restored.dispose();
+});
+
+test('browser settings never serialize a third-party provider as builtin or as an earlier browser model', async () => {
+  const { ModelHub } = await import('../guobiao-mahjong/api/ModelHub.ts');
+  let builtinCalls = 0;
+  const worker = { replay: async replay => replayMatch(replay, scorer), decide: async () => { builtinCalls++; throw new Error('Must not substitute a model'); } };
+  const c = new MatchController(scorer, worker, 33), hub = new ModelHub(c);
+  c.setHuman(null);
+  const external = { name: 'Third-party', decide: () => ({ type: 'hu' }) };
+  c.setAgent(0, external); assert.equal(hub.savedConfiguration().assignments[0], null);
+  hub.apply(['browser-kd-s0','builtin','builtin','builtin'], {temperature:0,seed:42});
+  assert.equal(hub.savedConfiguration().assignments[0], 'browser-kd-s0');
+  c.setAgent(0, external); assert.equal(hub.savedConfiguration().assignments[0], null);
+  const saved = {...c.save(), browserModels:hub.savedConfiguration()};
+  const restored = new MatchController(scorer, worker, 1), restoredHub = new ModelHub(restored);
+  await restored.restore(saved); restoredHub.restoreConfiguration(saved.browserModels); await restored.step();
+  assert.equal(restored.revision, 0); assert.equal(builtinCalls, 0); assert.equal(restored.agentAt(0), 'missing'); assert.match(restored.status, /未连接/);
+  restoredHub.dispose(); restored.dispose(); hub.dispose(); c.dispose();
+});

@@ -1,0 +1,7 @@
+{
+  "schemaVersion":1,
+  "purpose":"Stratified offline pilot of stronger KD0/original-value continuations and adaptive paired worlds; not a new full training corpus",
+  "sourceData":"artifacts/guobiao-mahjong/value/data-v2",
+  "positionsPerFold":3,
+  "budget":{"stages":[8,32,64,128],"ordinaryMinimum":8,"tacticalMinimum":32,"closeFan":0.5,"confidenceZ":1.96,"dangerThreshold":0.2,"parallelTrials":32}
+}

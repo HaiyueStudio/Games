@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "seeds": [
+    6101,
+    6102,
+    6103,
+    6104
+  ],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "batchMatches": 8,
+  "enhancedMetrics": true,
+  "baseline": "kd-safe",
+  "suites": [
+    {
+      "id": "learned-holdout",
+      "agents": [
+        "kd-learned",
+        "kd-safe",
+        "kd-safe",
+        "kd-safe"
+      ]
+    }
+  ]
+}

@@ -42,4 +42,17 @@ const mahjongWorkers = games.filter(entry => entry.id === 'guobiao-mahjong').map
   output: { file: 'games/guobiao-mahjong/ai/mahjong.worker.js', format: 'es', sourcemap: true },
   plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/tsconfig.worker.json' }),
 }));
-export default process.env.GAME_FILTER ? [...terrainWorkers, ...mahjongWorkers, ...configs] : [...lobby, ...terrainWorkers, ...mahjongWorkers, ...configs];
+const mahjongModelWorkers = games.filter(entry => entry.id === 'guobiao-mahjong').map(() => ({
+  input: 'games/guobiao-mahjong/ai/browser/tfjs.worker.ts',
+  output: { file: 'games/guobiao-mahjong/ai/tfjs.worker.js', format: 'iife', sourcemap: true, inlineDynamicImports: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/browser/tsconfig.worker.json' }),
+}));
+const mahjongCoachWorkers = games.filter(entry => entry.id === 'guobiao-mahjong').map(() => ({
+  input: 'games/guobiao-mahjong/ai/coach.worker.ts',
+  output: { file: 'games/guobiao-mahjong/ai/coach.worker.js', format: 'es', sourcemap: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/coaching/tsconfig.worker.json' }),
+}));
+const selected = process.env.GAME_FILTER ? [...terrainWorkers, ...mahjongWorkers, ...mahjongModelWorkers, ...mahjongCoachWorkers, ...configs] : [...lobby, ...terrainWorkers, ...mahjongWorkers, ...mahjongModelWorkers, ...mahjongCoachWorkers, ...configs];
+const stageEntry = process.env.GAME_BUILD_ENTRY;
+if(stageEntry&&(!process.env.GAME_FILTER||!selected.some(c=>c.input===stageEntry)))throw Error('Unknown scoped game build entry: '+stageEntry);
+export default stageEntry?selected.filter(c=>c.input===stageEntry):selected;

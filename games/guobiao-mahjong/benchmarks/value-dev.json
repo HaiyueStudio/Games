@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen action-value development comparison; current-hand simulation-trained candidate against identical KD-safe opponents",
+  "seeds": [81003,81004],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "batchMatches": 8,
+  "enhancedMetrics": true,
+  "baseline": "kd-safe",
+  "suites": [{"id":"value-development","agents":["kd-value","kd-safe","kd-safe","kd-safe"]}]
+}

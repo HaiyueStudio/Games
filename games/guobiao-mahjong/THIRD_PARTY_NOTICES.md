@@ -27,4 +27,18 @@ node games/guobiao-mahjong/vendor/build-wasm.mjs /absolute/path/to/wasi-sdk-25
 
 ## 国标预训练模型
 
-模型服务使用 Dannibal/ijcai-mahjong-ckpts-2026 的 MIT 部署权重及 NumPy 推理代码，固定在 `5670a37c87890ffe95ea0cc0431cb1c704ec8564`。原始模型卡、来源及许可位于 `model-service/vendor/`，文件校验值位于 `model-service/models.lock.json`。大权重通过脚本下载，不纳入游戏资源包。
+模型服务使用 Dannibal/ijcai-mahjong-ckpts-2026 的 MIT 部署权重及 NumPy 推理代码，固定在 `5670a37c87890ffe95ea0cc0431cb1c704ec8564`。原始模型卡、来源及许可位于 `model-service/vendor/`，文件校验值位于 `model-service/models.lock.json`。大权重通过脚本下载，不纳入源码版本控制；构建时可复制到浏览器资源包。浏览器与 HTTP 服务使用相同的固定权重。
+
+## 浏览器模型运行时
+
+TensorFlow.js、WASM 后端及 WebGPU 后端固定为 4.22.0，许可证 Apache-2.0，来源 https://github.com/tensorflow/tfjs/tree/tfjs-v4.22.0 。完整许可证保留于 `ai/browser/LICENSE.tensorflow.txt`，构建复制到 `ai/tfjs/LICENSE.txt`。运行库文件的大小、版本与 SHA-256 在生成的 `ai/tfjs/provenance.json` 中记录。
+
+Worker 内的 checkpoint 解压使用 fflate 0.8.2（MIT，Copyright © 2023 Arjun Barrett），来源 https://github.com/101arrowz/fflate 。构建将完整许可证复制到 `ai/tfjs/LICENSE.fflate.txt`。浏览器 checkpoint 目录附带原模型 MIT 许可证与固定版本目录信息。
+
+## 界面装饰
+
+`assets/ui-backdrop-v1.png`、`ui-drawer-v1.png` 和带透明背景的 `ui-ranking-v1.png` 使用内置 OpenAI image_gen 工具生成。完整提示词、尺寸与 SHA-256 见 `assets/ui-art.provenance.json`。播放器与菜单图标由本项目的几何路径在启动时合成小型图标合图。
+
+## 本地训练的联合候选
+
+`ai/joint/candidate.json` 的对手推断与联合策略小网络由本仓库的离线裁判模拟、自博弈牌谱和 NumPy 训练器生成；来源、校准、数据划分和检查点 SHA-256 记录于联赛结果。它继续使用上述固定 MIT KD0 主干，未引入新的第三方预训练权重。浏览器资源只含小网络的量化推理数据，不含训练器或暗手标签。

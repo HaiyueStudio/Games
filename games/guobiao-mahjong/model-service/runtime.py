@@ -41,6 +41,7 @@ class ModelRuntime:
         if model is None: raise KeyError('Unknown model')
         if request.get('protocol') != 'haiyue.mcr/1' or not isinstance(request.get('requestId'), str): raise ValueError('Invalid decision request')
         o = request['observation']
+        if 'includePolicy' in request and type(request['includePolicy']) is not bool: raise ValueError('includePolicy must be boolean')
         if type(o.get('revision')) is not int or o['revision'] < 0: raise ValueError('Invalid revision')
         params = request.get('parameters', {})
         if not isinstance(params, dict) or set(params) - {'temperature', 'seed'}: raise ValueError('Unknown model parameter')
@@ -64,6 +65,8 @@ class ModelRuntime:
             q /= q.sum()
             rng = np.random.default_rng(np.random.SeedSequence([seed, o['revision'], o['seat'], o['handIndex']]))
             selected = int(rng.choice(len(indices), p=q))
-        return {'requestId': request['requestId'], 'revision': o['revision'], 'action': o['legalActions'][selected],
+        reply = {'requestId': request['requestId'], 'revision': o['revision'], 'action': o['legalActions'][selected],
                 'model': model_id, 'inferenceMs': round((time.perf_counter() - started) * 1000, 2),
                 'parameters': {'temperature': temperature, 'seed': seed}, 'weightsRevision': self.lockfile['revision']}
+        if request.get('includePolicy'): reply['policy'] = {'indices': indices, 'probabilities': p.tolist()}
+        return reply

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "purpose": "held-out confirmation; do not tune the policy after reading these results",
+  "seeds": [2101, 2102, 2103, 2104, 2105, 2106, 2107, 2108],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "suites": [{"id": "v2-holdout", "agents": ["v2", "v1", "v1", "v1"]}]
+}
