@@ -13,5 +13,5 @@ export function posteriorWeights(targets:readonly number[][],predicted:readonly 
 }
 export function beliefWorldPool(o:Observation,seed:number,scorer:Scorer,model:BeliefModel,count:number){
   if(!Number.isInteger(count)||count<2||count>256)throw Error('Invalid belief world count');const predictions=opponentBeliefs(o,model),worlds=Array.from({length:count},(_,i)=>sampleWorld(o,simulationSeed(seed,o.revision,i))),targets=worlds.map(w=>[1,2,3].flatMap(n=>{const target=seat(o.seat+n),p=w.players[target]!;return beliefTargets(o,target,p.hand,p.melds,scorer).slice(0,43)})),p=predictions.flatMap(v=>[v.ready,...v.ron,...v.patterns.map(v=>v.probability)]);
-  return {worlds,...posteriorWeights(targets,p),predictions};
+  return {worlds,...posteriorWeights(targets,p),predictions,targets,predicted:p};
 }

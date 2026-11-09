@@ -2,14 +2,19 @@ import { seat, type Action, type Meld, type Observation, type Scorer, type Tile 
 import {formedFans} from '../rules/handAnalysis';
 import {handAnalysisCache} from './analysisCache';
 import {lastTileAlternative} from './lastTileDefense';
-export interface Candidate { action: Action; value: number; shanten: number; ukeire: number; legalWaits: number; risk: number }
+import {eightFanReachability,kongReplacement,robKongHazard,type FanReachability,type ReplacementValue,fanRouteAdjustment,fanRoutePrior} from './tactics';
+export interface Candidate { action: Action; value: number; shanten: number; ukeire: number; legalWaits: number; risk: number;followUpDiscard?:Tile;fanReachability?:FanReachability;kong?:ReplacementValue;robKong?:ReturnType<typeof robKongHazard> }
 export interface Decision { action: Action; candidates: Candidate[]; explanation: string; elapsedMs: number }
 const without = (hand: Tile[], tile: Tile): Tile[] => { const next = [...hand]; next.splice(next.indexOf(tile), 1); return next; };
+export interface TacticOptions {replacement:boolean;robKong:boolean;fanRoute:boolean}
+export const DEFAULT_TACTICS:Readonly<TacticOptions>=Object.freeze({replacement:true,robKong:true,fanRoute:true});
+/** Offline ablations change exactly one component; the ordinary game uses all three. */
+export function decideWithTactics(o:Observation,scorer:Scorer,options:TacticOptions,depth=2,candidateLimit=8){if(Object.keys(options).length!==3||!['replacement','robKong','fanRoute'].every(k=>typeof options[k as keyof TacticOptions]==='boolean'))throw Error('Invalid tactics');return decidePolicy(o,scorer,depth,candidateLimit,false,options);}
 /** Exact shanten for all MCR hand forms, live ukeire, score-gated waits, two-ply efficiency and public-information defense. */
 export function decide(o: Observation, scorer: Scorer, depth = 2, candidateLimit = 8): Decision {return decidePolicy(o,scorer,depth,candidateLimit,false);}
 /** Research candidate only: its fan-route and lookahead weights need independent strength evidence. */
 export function decideExperimental(o: Observation, scorer: Scorer, depth = 2, candidateLimit = 8): Decision {return decidePolicy(o,scorer,depth,candidateLimit,true);}
-function decidePolicy(o:Observation,scorer:Scorer,depth:number,candidateLimit:number,experimental:boolean):Decision {
+function decidePolicy(o:Observation,scorer:Scorer,depth:number,candidateLimit:number,experimental:boolean,tactics:Readonly<TacticOptions>=DEFAULT_TACTICS):Decision {
   const started = performance.now(), hu = o.legalActions.find(a => a.type === 'hu');
   if (hu) return { action: hu, candidates: [], explanation: '满足 8 番，立即和牌', elapsedMs: performance.now() - started };
   const mine = o.players[o.seat]!, melds = mine.melds as Meld[];
@@ -110,7 +115,10 @@ function decidePolicy(o:Observation,scorer:Scorer,depth:number,candidateLimit:nu
       const n = a.type === 'concealed-kong' ? 4 : 1; for (let i = 0; i < n; i++) h.splice(h.indexOf(a.tile!), 1);
       if (n === 4) sets.push({ kind: 'kong', tiles: Array(4).fill(a.tile!), from: o.seat, concealed: true, promoted: false });
       else { const m = sets.find(m => m.kind === 'pung' && m.tiles[0] === a.tile)!; m.kind = 'kong'; m.tiles.push(a.tile!); m.promoted = true; }
-      const c = metric(h, sets, a); c.value += 2; candidates.push(c);
+      const c = metric(h, sets, a);
+      if(experimental)c.value+=2;
+      else{if(tactics.replacement){c.kong=kongReplacement(o,h,sets,scorer,(t,self,river,kong)=>flags(t,self,sets,river,kong),(hand,drawn)=>discards(hand,sets,[],drawn)[0]!);c.value=c.kong.value;}else c.value+=2;if(tactics.robKong&&a.type==='add-kong'){c.robKong=robKongHazard(o,a.tile!);c.risk=c.robKong.probability;c.value-=c.robKong.penalty;}}
+      candidates.push(c);
     }
   } else {
     const pass = metric(o.hand, melds, { type: 'pass' }); candidates = [pass];
@@ -118,16 +126,35 @@ function decidePolicy(o:Observation,scorer:Scorer,depth:number,candidateLimit:nu
       const h = [...o.hand], tiles = a.tiles ?? Array(a.type === 'kong' ? 4 : 3).fill(a.tile!) as Tile[];
       const need = without(tiles, a.tile!); for (const t of need) h.splice(h.indexOf(t), 1);
       const sets: Meld[] = [...melds, { kind: a.type as Meld['kind'], tiles, from: o.last!.seat, concealed: false, promoted: false }];
-      const c = a.type === 'kong' ? metric(h, sets, a) : { ...discards(h, sets)[0]!, action: a };
+      const best=a.type==='kong'?null:discards(h,sets)[0]!,c:Candidate=a.type==='kong'?metric(h,sets,a):{...best!,action:a,followUpDiscard:best!.action.tile!};
+      if(!experimental&&tactics.replacement&&a.type==='kong'){c.kong=kongReplacement(o,h,sets,scorer,(t,self,river,kong)=>flags(t,self,sets,river,kong),(hand,drawn)=>discards(hand,sets,[],drawn)[0]!);c.value=c.kong.value;}
       c.value -= melds.every(m => m.concealed) ? 2.8 : .4;
       if (c.shanten === 0 && c.legalWaits === 0) c.value -= 12;
       candidates.push(c);
     }
   }
   candidates.sort((a, b) => b.value - a.value || (a.action.tile ?? -1) - (b.action.tile ?? -1));
+  if(!experimental&&tactics.fanRoute&&o.wallRemaining>0){
+    const eligible=(c:Candidate)=>c.shanten>=1&&c.shanten<=Math.min(depth,2)&&!['kong','concealed-kong','add-kong'].includes(c.action.type);
+    // Apply the same reference prior before pruning; budget state never changes it.
+    for(const c of candidates)if(eligible(c))c.value+=fanRoutePrior(c.shanten);
+    candidates.sort((a,b)=>b.value-a.value||(a.action.tile??-1)-(b.action.tile??-1));
+    const review=(c:Candidate)=>{
+      let hand=[...o.hand],sets=melds;
+      if(c.action.type==='discard')hand=without(hand,c.action.tile!);
+      else if(c.action.type==='chow'||c.action.type==='pung'){const tiles=c.action.tiles??Array<Tile>(3).fill(c.action.tile!),need=without(tiles,c.action.tile!);need.forEach(t=>hand=without(hand,t));sets=[...melds,{kind:c.action.type,tiles,from:o.last!.seat,concealed:false,promoted:false}];hand=without(hand,c.followUpDiscard!);}
+      const river=c.action.type==='discard'?[c.action.tile!]:c.followUpDiscard===undefined?[]:[c.followUpDiscard];
+      c.fanReachability=eightFanReachability(o,hand,sets,scorer,(t,self,discards)=>flags(t,self,sets,discards),river,Math.min(depth,2));
+      c.value+=fanRouteAdjustment(c.fanReachability,c.shanten);
+    };
+    for(const c of candidates.filter(eligible).slice(0,3))review(c);
+    candidates.sort((a,b)=>b.value-a.value||(a.action.tile??-1)-(b.action.tile??-1));
+    // Positive-only route bonuses make this final review bounded to one extra candidate.
+    const top=candidates[0];if(top&&eligible(top)&&!top.fanReachability)review(top);
+  }
   const safe = !experimental && candidates[0] ? lastTileAlternative(o, candidates[0].action, candidates.map(c => c.action)) : null;
   if (safe) { const index = candidates.findIndex(c => c.action.type === 'discard' && c.action.tile === safe.tile); candidates.unshift(...candidates.splice(index, 1)); }
   const best = candidates[0];
   if (!best) throw new Error('No legal decision available');
-  return { action: best.action, candidates: candidates.slice(0, Math.max(1, Math.min(128, candidateLimit))), explanation: safe ? '末张防守 · 牌墙已空且不能胡牌，改打可确认不会放铳的牌' : `${best.shanten === 0 ? '听牌' : best.shanten + ' 向听'} · 有效进张 ${Math.round(best.ukeire)} · ${best.legalWaits ? '满足起胡' : '兼顾番型与安全'}`, elapsedMs: performance.now() - started };
+  return { action: best.action, candidates: candidates.slice(0, Math.max(1, Math.min(128, candidateLimit))), explanation: safe ? '末张防守 · 牌墙已空且不能胡牌，改打可确认不会放铳的牌' : best.kong?`杠后补牌参考 · 可胡补牌比例 ${Math.round(best.kong.winProbability*100)}%${best.robKong?.possible?' · 已计入抢杠风险':''}`:`${best.shanten === 0 ? '听牌' : best.shanten + ' 向听'} · 有效进张 ${Math.round(best.ukeire)} · ${best.fanReachability?'八番路径参考 '+Math.round(best.fanReachability.support*100)+'%':best.legalWaits ? '满足起胡' : '兼顾番型与安全'}`, elapsedMs: performance.now() - started };
 }

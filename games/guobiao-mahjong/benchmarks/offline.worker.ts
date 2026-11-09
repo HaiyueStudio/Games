@@ -68,7 +68,7 @@ globalThis.onmessage=async({data:job}:MessageEvent<Job|{kind:'model-reply';reply
           return async(input:Observation)=>{const o=valueObservation(input),hu=o.legalActions.find(a=>a.type==='hu');if(hu)return hu;const p=await inference!.policy(o),selected=o.legalActions.findIndex(a=>actionKey(a)===actionKey(p.action));return rankers[o.seat]!.decide(assignment[o.seat]!,o,p.probabilities,selected).action;};
         };
         if(job.kind==='joint-label'&&!beliefModel)throw Error('Belief not loaded');
-        const row=job.kind==='joint-label'?await jointLabel(group,rules,beliefModel!,factory,job.worlds??8,controller.signal):await adaptiveLabel(group,rules,factory,job.budget,controller.signal);groups.push(row);globalThis.postMessage({kind:'progress',group:row.id,worlds:row.sampling.worlds,plans:row.rows.length,inference:inference.snapshot()});
+        const row=job.kind==='joint-label'?await jointLabel(group,rules,beliefModel!,factory,job.budget??job.worlds??8,controller.signal):await adaptiveLabel(group,rules,factory,job.budget,controller.signal);groups.push(row);globalThis.postMessage({kind:'progress',group:row.id,worlds:row.sampling.worlds,plans:row.rows.length,inference:inference.snapshot()});
       }
       globalThis.postMessage({id:job.id,result:{groups,inference:inference.snapshot(),runtime:models.snapshot(),positionLoads}});return;
     }

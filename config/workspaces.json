@@ -46,6 +46,7 @@
       "games/test/2048-tile-textures.test.mjs"
     ],
     "guobiao-mahjong": [
+      "games/test/guobiao-mahjong-advanced.test.mjs",
       "games/test/guobiao-mahjong-browser-models.test.mjs",
       "games/test/guobiao-mahjong-candidates.test.mjs",
       "games/test/guobiao-mahjong-coaching.test.mjs",

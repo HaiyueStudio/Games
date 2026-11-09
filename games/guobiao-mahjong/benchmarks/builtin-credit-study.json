@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Positive-only fan-route adjustment versus frozen pre-fix builtin v3; fresh matched walls",
+  "seeds": [
+    261001,
+    261002,
+    261003,
+    261004
+  ],
+  "baseline": "builtin-v3",
+  "rotateSeats": true,
+  "depth": 2,
+  "concurrency": 2,
+  "parallelProcesses": true,
+  "enhancedMetrics": true,
+  "suites": [
+    {
+      "id": "route-score-v4",
+      "agents": [
+        "builtin-tactical",
+        "builtin-v3",
+        "builtin-v3",
+        "builtin-v3"
+      ]
+    }
+  ]
+}

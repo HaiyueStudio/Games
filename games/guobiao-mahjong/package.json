@@ -47,6 +47,7 @@
           "production",
           "^production",
           "testGlobals",
+          "{workspaceRoot}/games/test/guobiao-mahjong-advanced.test.mjs",
           "{workspaceRoot}/games/test/guobiao-mahjong-browser-models.test.mjs",
           "{workspaceRoot}/games/test/guobiao-mahjong-candidates.test.mjs",
           "{workspaceRoot}/games/test/guobiao-mahjong-coaching.test.mjs",

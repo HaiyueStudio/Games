@@ -8,7 +8,7 @@ import {predictDiscardRisk} from '../ai/candidates/learned';
 import type {OfflinePolicy} from './offline-models';
 
 export interface AdaptiveBudget {stages:number[];ordinaryMinimum:number;tacticalMinimum:number;closeFan:number;confidenceZ:number;dangerThreshold:number;parallelTrials:number}
-export interface ValuePosition {id:number;seed:number;fold:string;category:string;observation:Observation;prior:number[]}
+export interface ValuePosition {featureVersion?:1|2;id:number;seed:number;fold:string;category:string;observation:Observation;prior:number[]}
 export const DEFAULT_ADAPTIVE_BUDGET:AdaptiveBudget={stages:[8,32,64,128],ordinaryMinimum:8,tacticalMinimum:32,closeFan:.5,confidenceZ:1.96,dangerThreshold:.2,parallelTrials:32};
 export function validateAdaptiveBudget(b:AdaptiveBudget){
   if(!Array.isArray(b.stages)||b.stages.length<2||b.stages.some((v,i)=>!Number.isInteger(v)||v<2||v>128||i>0&&v<=b.stages[i-1]!)||!b.stages.includes(b.ordinaryMinimum)||!b.stages.includes(b.tacticalMinimum)||b.tacticalMinimum<b.ordinaryMinimum||!Number.isInteger(b.parallelTrials)||b.parallelTrials<1||b.parallelTrials>64||![b.closeFan,b.confidenceZ,b.dangerThreshold].every(Number.isFinite)||b.closeFan<0||b.confidenceZ<0||b.dangerThreshold<0||b.dangerThreshold>1)throw Error('Invalid adaptive simulation budget');

@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+import {resolve} from 'node:path';
+import {readFileSync} from 'node:fs';
+import {hash,json,write} from './offline-runner.mjs';
+import {pinnedJson} from './offline-inputs.mjs';
+registerHooks({resolve(s,c,next){return next(/^\.{1,2}\//.test(s)&&!/\.[a-z0-9]+$/i.test(s)?s+'.ts':s,c)}});
+const {mergeJointGroups}=await import('./joint-merge.mjs'),[out,...paths]=process.argv.slice(2);assert.ok(out&&paths.length>=2,'Usage: merge-joint-data OUTPUT OLD_FULL_ACTION NEW_ADAPTIVE');const inputs=paths.map(path=>{const base=resolve(path),report=json(resolve(base,'report.json')),groups=resolve(base,'groups.json');assert.equal(report.status,'passed');assert.equal(hash(readFileSync(groups)),report.groupsSha256);return {path:base,reportSha256:hash(readFileSync(resolve(base,'report.json'))),report,groups:json(groups)};});assert.ok(inputs.every(i=>i.report.beliefSha256===inputs[0].report.beliefSha256));
+const output=resolve(out),groups=mergeJointGroups(inputs.map(i=>i.groups));pinnedJson(resolve(output,'inputs.json'),inputs.map(({path,reportSha256})=>({path,reportSha256})));pinnedJson(resolve(output,'groups.json'),groups);write(resolve(output,'report.json'),{schemaVersion:1,status:'passed',groups:groups.length,plans:groups.reduce((s,g)=>s+g.rows.length,0),simulations:groups.reduce((s,g)=>s+g.rows.length*g.sampling.worlds,0),beliefSha256:inputs[0].report.beliefSha256,groupsSha256:hash(readFileSync(resolve(output,'groups.json'))),sources:inputs.map(({path,reportSha256})=>({path,reportSha256})),method:'Complete-action coverage retained; adaptive roots overlay fixed-budget roots; archived paired uncertainty derived without new rollout claims'});console.log(JSON.stringify({groups:groups.length,adaptive:groups.filter(g=>g.sampling.stages).length}));

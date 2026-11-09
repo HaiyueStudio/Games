@@ -1,0 +1,6 @@
+{
+  "schemaVersion":1,
+  "selection":"stratified",
+  "positionsPerFold":{"train":3,"calibration":3,"test":3},
+  "budget":{"stages":[8,16,32,64],"ordinaryMinimum":16,"tacticalMinimum":32,"closeFan":0.5,"confidenceZ":1.96,"dangerThreshold":0.2,"parallelTrials":32}
+}

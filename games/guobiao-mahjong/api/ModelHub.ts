@@ -60,7 +60,7 @@ export class ModelHub {
     if (!this.assignments.some(id => browserModel(id))) this.browser.release();
     this.configRevision++; this.status = '模型设置已应用';
   }
-  browserAgent(id: string) { return this.browser.agent(id, () => ({ ...this.parameters }), () => this.backend); }
+  browserAgent(id: string) { return this.browser.agent(id, () => ({ ...this.parameters }), () => this.backend,undefined,() => `${this.game.presentationEpoch}:${this.configRevision}`); }
   savedConfiguration(): BrowserModelSettings {
     return { version: 1, backend: this.backend, assignments: this.assignments.map((id, who) => {
       const registered = this.game.agentAt(who as Seat);

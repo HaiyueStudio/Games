@@ -64,9 +64,9 @@ export class BrowserModelRuntime {
     if(models.length)await this.request({kind:'prepare',models:[...new Set(models)],...(enhancement?{enhancement}:{})},signal);
   }
   /** Same real Worker inference as an agent, with legal-action probabilities for training/tools. */
-  async policy(id:string,o:Observation,parameters:BrowserParameters,backend:BrowserBackend,signal:AbortSignal){
+  async policy(id:string,o:Observation,parameters:BrowserParameters,backend:BrowserBackend,signal:AbortSignal,policyContext?:string){
     if(!browserModel(id))throw Error('未知浏览器模型');validateParameters(parameters);this.setBackend(backend);
-    const reply=await this.request({kind:'decide',models:[id],observation:o,parameters:{...parameters},includePolicy:true},signal);
+    const reply=await this.request({kind:'decide',models:[id],observation:o,parameters:{...parameters},includePolicy:true,...(policyContext===undefined?{}:{policyContext})},signal);
     if(reply.revision!==o.revision||!reply.action||!o.legalActions.some(a=>actionKey(a)===actionKey(reply.action!))||reply.policy?.length!==o.legalActions.length||reply.policy.some(p=>!Number.isFinite(p)||p<0)||Math.abs(reply.policy.reduce((a,b)=>a+b,0)-1)>1e-6)throw Error('Invalid policy reply');
     const prior=reply.priorPolicy===undefined?reply.policy:reply.priorPolicy;if(!Array.isArray(prior)||prior.length!==o.legalActions.length||prior.some(p=>!Number.isFinite(p)||p<0)||Math.abs(prior.reduce((a,b)=>a+b,0)-1)>1e-6)throw Error('Invalid policy prior');
     return {action:reply.action,probabilities:[...reply.policy],priorProbabilities:[...prior],info:this.snapshot()};
@@ -79,11 +79,11 @@ export class BrowserModelRuntime {
     reply.rows.forEach((r,i)=>{const o=observations[i]!;if(r.revision!==o.revision||!o.legalActions.some(a=>actionKey(a)===actionKey(r.action))||r.probabilities.length!==o.legalActions.length||r.probabilities.some(p=>!Number.isFinite(p)||p<0)||Math.abs(r.probabilities.reduce((a,b)=>a+b,0)-1)>1e-6)throw Error('Invalid policy batch row');});
     return {rows:reply.rows,info:this.snapshot()};
   }
-  agent(id:string,parameters:()=>BrowserParameters,backend:()=>BrowserBackend,enhancement?:HybridProfile):MahjongAgent{
+  agent(id:string,parameters:()=>BrowserParameters,backend:()=>BrowserBackend,enhancement?:HybridProfile,policyContext?:()=>string):MahjongAgent{
     const model=browserModel(id);if(!model)throw new Error('未知浏览器模型');
     return {name:model.name,decide:async(o:Observation,context:AgentContext):Promise<Action>=>{
       const p={...parameters()};validateParameters(p);this.setBackend(backend());
-      const reply=await this.request({kind:'decide',models:[id],observation:o,parameters:p,...(enhancement?{enhancement}:{})},context.signal);
+      const reply=await this.request({kind:'decide',models:[id],observation:o,parameters:p,...(enhancement?{enhancement}:{}),...(policyContext?{policyContext:policyContext()}:{})},context.signal);
       if(context.signal.aborted)throw abortError();
       if(reply.revision!==o.revision||!reply.action||!o.legalActions.some(a=>actionKey(a)===actionKey(reply.action!)))throw new Error('浏览器模型返回了过期或非法动作');
       return reply.action;

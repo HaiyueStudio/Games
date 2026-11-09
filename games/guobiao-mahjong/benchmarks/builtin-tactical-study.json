@@ -1,0 +1,11 @@
+{
+  "schemaVersion":1,
+  "purpose":"New builtin kong/fan tactics against the frozen previous builtin; local strength experiment",
+  "seeds":[241001,241002,241003,241004],
+  "baseline":"builtin-reference",
+  "rotateSeats":true,
+  "depth":2,
+  "concurrency":1,
+  "enhancedMetrics":true,
+  "suites":[{"id":"tactical-vs-reference","agents":["builtin-tactical","builtin-reference","builtin-reference","builtin-reference"]}]
+}

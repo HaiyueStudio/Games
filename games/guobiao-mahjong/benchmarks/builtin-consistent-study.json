@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Common near-ready prior for all candidates, with bounded positive route evidence; fresh confirmation walls after failed zero-prior pilot",
+  "seeds": [
+    281001,
+    281002,
+    281003,
+    281004
+  ],
+  "baseline": "builtin-v3",
+  "rotateSeats": true,
+  "depth": 2,
+  "concurrency": 4,
+  "parallelProcesses": true,
+  "enhancedMetrics": true,
+  "suites": [
+    {
+      "id": "consistent-route-score",
+      "agents": [
+        "builtin-tactical",
+        "builtin-v3",
+        "builtin-v3",
+        "builtin-v3"
+      ]
+    }
+  ]
+}

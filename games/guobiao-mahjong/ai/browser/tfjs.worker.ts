@@ -11,7 +11,8 @@ import {ORIGINAL_VALUE_ASSET} from '../value/legacyAsset';
 import {validateActionValueModel,type ActionValueModel} from '../value/model';
 import {JOINT_ASSET} from '../joint/asset';
 import {decodeJointBundle,type PackedJointBundle} from '../joint/packed';
-import {JointPolicy,type JointBundle} from '../joint/model';
+import type {JointBundle} from '../joint/model';
+import {JointSessionPolicies} from '../joint/sessions';
 import {jointRandom} from '../joint/random';
 
 declare const tf:typeof Tensorflow&{wasm:{setWasmPaths(path:string):void;setThreadsCount(count:number):void}};
@@ -22,13 +23,19 @@ const queued=new Set<number>();
 let info:BrowserInfo=initialBrowserInfo('webgpu'),backendPromise:Promise<void>|null=null,queue=Promise.resolve();
 let scorerPromise:ReturnType<typeof createScorer>|null=null;
 let originalValueModel:ActionValueModel|undefined;
-let jointBundle:JointBundle|undefined,jointPolicy:JointPolicy|undefined;
+let jointBundle:JointBundle|undefined;const jointPolicies=new JointSessionPolicies();
+async function jointContinuation(o:import('../../rules/types').Observation,id:number){
+  const encoded=encodeObservation(o),out=forward(models.get(0)!,encoded.features);let logits:Float32Array;
+  try{logits=new Float32Array(await out.data());}finally{out.dispose();}check(id);
+  const probabilities=Array.from(policyProbabilities([logits],encoded.indices));let index=0;for(let i=1;i<probabilities.length;i++)if(probabilities[i]!>probabilities[index]!)index=i;
+  return {action:o.legalActions[index]!,probabilities};
+}
 async function loadJoint(id:number,signal:AbortSignal){
   if(jointBundle)return;publish(id,'正在加载联合候选');
   const url=new URL('../assets/models/'+JOINT_ASSET.name,scope.location.href);url.searchParams.set('sha256',JOINT_ASSET.sha256);
   const response=await fetch(url,{signal,cache:'force-cache'});if(!response.ok)throw Error('Joint model HTTP '+response.status);
   const bytes=new Uint8Array(await response.arrayBuffer());if(bytes.length!==JOINT_ASSET.size||await checksum(bytes)!==JOINT_ASSET.sha256)throw Error('Joint model checksum mismatch');check(id);
-  jointBundle=decodeJointBundle(JSON.parse(new TextDecoder().decode(bytes)) as PackedJointBundle);jointPolicy=new JointPolicy();info={...info,jointModelLoaded:true,jointModelBytes:bytes.length};
+  jointBundle=decodeJointBundle(JSON.parse(new TextDecoder().decode(bytes)) as PackedJointBundle);jointPolicies.clear();info={...info,jointModelLoaded:true,jointModelBytes:bytes.length};
 }
 async function loadOriginalValue(id:number,signal:AbortSignal){
   if(originalValueModel)return;publish(id,'正在加载原版行动价值');
@@ -121,14 +128,14 @@ async function execute(job:BrowserJob){
     const configured=selected[0],enhancement=job.enhancement??(selected.length===1&&configured&&'enhancement' in configured?configured.enhancement:undefined);
     const encoded=job.kind==='decide'&&job.observation?encodeObservation(job.observation):null;
     await initialize(job.backend,id);check(id);
-    info={...info,enhancement:enhancement??null,enhancementChanged:false,decisionReason:null,analysisCalls:0,searchMs:null};
+    info={...info,enhancement:enhancement??null,enhancementChanged:false,decisionReason:null,analysisCalls:0,searchMs:null,jointGuard:null};
     for(const index of new Set(selected.flatMap(m=>[...m.members])))await load(index,id,controller.signal);
     if(enhancement==='value'||job.kind==='prepare'&&selected.some(m=>'enhancement' in m&&m.enhancement==='value'))await loadOriginalValue(id,controller.signal);
     if(enhancement==='joint'||job.kind==='prepare'&&selected.some(m=>'enhancement' in m&&m.enhancement==='joint'))await loadJoint(id,controller.signal);
     if(enhancement&&enhancement!=='safe')await rules(controller.signal);check(id);
     if(job.kind==='prepare'){
       if(enhancement!=='value'&&!selected.some(m=>'enhancement' in m&&m.enhancement==='value')){originalValueModel=undefined;info={...info,originalValueLoaded:false};}
-      if(enhancement!=='joint'&&!selected.some(m=>'enhancement' in m&&m.enhancement==='joint')){jointBundle=undefined;jointPolicy=undefined;info={...info,jointModelLoaded:false,jointModelBytes:0};}
+      if(enhancement!=='joint'&&!selected.some(m=>'enhancement' in m&&m.enhancement==='joint')){jointBundle=undefined;jointPolicies.clear();info={...info,jointModelLoaded:false,jointModelBytes:0};}
       const keep=new Set<number>(selected.flatMap(m=>[...m.members]));
       for(const [index,weights] of models)if(!keep.has(index)){Object.values(weights).forEach(t=>t.dispose());models.delete(index);}
     }
@@ -155,9 +162,9 @@ async function execute(job:BrowserJob){
       if(enhancement&&enhancement!=='safe'||job.includePolicy)policy=Array.from(policyProbabilities(outputs,encoded.indices));
       if(enhancement==='joint'){
         if(job.includePolicy)priorPolicy=[...policy!];
-        if(!jointBundle||!jointPolicy)throw Error('Joint model not loaded');const begin=performance.now(),d=jointPolicy.decide(job.observation,policy!,selectedIndex,await rules(controller.signal),jointBundle,job.parameters.temperature>0?jointRandom(job.parameters.seed,job.observation):undefined,job.parameters.temperature||1);selectedIndex=d.index;
-        if(job.includePolicy){policy=Array<number>(job.observation.legalActions.length).fill(0);if(d.evaluation)d.evaluation.plans.forEach((p,i)=>policy![p.index]!+=d.evaluation!.probabilities[i]!);else policy[selectedIndex]=1;}
-        info={...info,enhancementChanged:d.changed,decisionReason:d.reason,analysisCalls:d.analysisCalls,searchMs:performance.now()-begin};
+        if(!jointBundle)throw Error('Joint model not loaded');const jointPolicy=jointPolicies.get(job.observation,job.parameters.seed,job.parameters.temperature,job.policyContext??''),begin=performance.now(),d=await jointPolicy.decideAsync(job.observation,policy!,selectedIndex,await rules(controller.signal),jointBundle,o=>jointContinuation(o,id),job.parameters.temperature>0?jointRandom(job.parameters.seed,job.observation):undefined,job.parameters.temperature||1);selectedIndex=d.index;
+        if(job.includePolicy)policy=d.probabilities;
+        info={...info,enhancementChanged:d.changed,decisionReason:d.reason,analysisCalls:d.analysisCalls,searchMs:performance.now()-begin,jointGuard:d.guard};
       }else if(enhancement&&enhancement!=='safe'){const begin=performance.now(),mode=['learned','value','distilled'].includes(enhancement)&&job.parameters.temperature!==0?'safe':enhancement,d=enhancePolicy(job.observation,policy!,selectedIndex,await rules(controller.signal),mode,originalValueModel);selectedIndex=d.index;info={...info,enhancementChanged:d.changed,decisionReason:mode!==enhancement&&!d.changed?'temperature-prior':d.reason,analysisCalls:d.analysisCalls,searchMs:performance.now()-begin};}
       action=job.observation.legalActions[selectedIndex]!;
     }

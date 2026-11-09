@@ -1,0 +1,889 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "role": "local-experimental-evidence",
+  "generatedAt": "2026-11-08T16:43:46.903Z",
+  "items": [
+    3,
+    4,
+    5
+  ],
+  "changes": [
+    "One attainable KD baseline, guarded compound-claim commitments and execution version 2",
+    "Per-seat browser continuation sessions invalidated by settings, restore or restart",
+    "256 public tournament features and first-place plus relative-fan objective",
+    "Complete mixed-style historical/current self-play and 64-world full-action labels",
+    "Teacher qualification before distillation and independent student walls; no live promotion"
+  ],
+  "newSelfPlay": {
+    "matches": 52,
+    "hands": 832,
+    "policyDecisions": 11626,
+    "learnerTraceSteps": 40331,
+    "criticalOpportunities": 2553
+  },
+  "newFullActionLabels": {
+    "roots": 48,
+    "plans": 420,
+    "worldsPerPlan": 64,
+    "simulations": 26880
+  },
+  "teacherModelSha256": "9eec7960ff0186b3e8ba0dc13a51bd09cbedee6b57bd3cdffd6ddd43b77630f9",
+  "traceEquality": [
+    {
+      "left": "teacher",
+      "right": "reference",
+      "identical": 40,
+      "total": 64,
+      "scope": "entire four-player action sequences on identical wall and seat rotation; timestamps and policy names excluded"
+    },
+    {
+      "left": "reference",
+      "right": "reference-legacy",
+      "identical": 60,
+      "total": 64,
+      "scope": "entire four-player action sequences on identical wall and seat rotation; timestamps and policy names excluded"
+    }
+  ],
+  "evaluation": {
+    "matches": 192,
+    "hands": 3072,
+    "walls": [
+      360001,
+      360002,
+      360003,
+      360004,
+      360005,
+      360006,
+      360007,
+      360008
+    ],
+    "summary": [
+      {
+        "id": "reference-legacy",
+        "pool": "original",
+        "matches": 32,
+        "fanPerHand": 3.78125,
+        "scorePerHand": 0.240234375,
+        "firstPlaceCredit": 0.21875,
+        "placeDistribution": [
+          0.21875,
+          0.34375,
+          0.15625,
+          0.28125
+        ],
+        "averagePlace": 2.5,
+        "winRate": 0.24609375,
+        "dealInRate": 0.185546875,
+        "faults": 0,
+        "corrections": 6,
+        "choiceMsP50": 49.299999952316284,
+        "choiceMsP95": 59.39999997615814
+      },
+      {
+        "id": "reference-legacy",
+        "pool": "mixed",
+        "matches": 32,
+        "fanPerHand": 3.78125,
+        "scorePerHand": 0.30078125,
+        "firstPlaceCredit": 0.21875,
+        "placeDistribution": [
+          0.21875,
+          0.25,
+          0.25,
+          0.28125
+        ],
+        "averagePlace": 2.59375,
+        "winRate": 0.244140625,
+        "dealInRate": 0.181640625,
+        "faults": 0,
+        "corrections": 8,
+        "choiceMsP50": 53.5,
+        "choiceMsP95": 64.29999995231628
+      },
+      {
+        "id": "reference",
+        "pool": "original",
+        "matches": 32,
+        "fanPerHand": 3.78125,
+        "scorePerHand": 0.240234375,
+        "firstPlaceCredit": 0.21875,
+        "placeDistribution": [
+          0.21875,
+          0.34375,
+          0.15625,
+          0.28125
+        ],
+        "averagePlace": 2.5,
+        "winRate": 0.24609375,
+        "dealInRate": 0.185546875,
+        "faults": 0,
+        "corrections": 7,
+        "choiceMsP50": 55.800000071525574,
+        "choiceMsP95": 105.29999995231628
+      },
+      {
+        "id": "reference",
+        "pool": "mixed",
+        "matches": 32,
+        "fanPerHand": 3.78125,
+        "scorePerHand": 0.251953125,
+        "firstPlaceCredit": 0.21875,
+        "placeDistribution": [
+          0.21875,
+          0.25,
+          0.25,
+          0.28125
+        ],
+        "averagePlace": 2.59375,
+        "winRate": 0.244140625,
+        "dealInRate": 0.1796875,
+        "faults": 0,
+        "corrections": 9,
+        "choiceMsP50": 56.300000071525574,
+        "choiceMsP95": 106.89999997615814
+      },
+      {
+        "id": "teacher",
+        "pool": "original",
+        "matches": 32,
+        "fanPerHand": 3.849609375,
+        "scorePerHand": 0.4375,
+        "firstPlaceCredit": 0.21875,
+        "placeDistribution": [
+          0.21875,
+          0.3125,
+          0.21875,
+          0.25
+        ],
+        "averagePlace": 2.5,
+        "winRate": 0.25,
+        "dealInRate": 0.181640625,
+        "faults": 0,
+        "corrections": 6,
+        "choiceMsP50": 55.89999997615814,
+        "choiceMsP95": 105.70000004768372
+      },
+      {
+        "id": "teacher",
+        "pool": "mixed",
+        "matches": 32,
+        "fanPerHand": 3.853515625,
+        "scorePerHand": 0.5859375,
+        "firstPlaceCredit": 0.1875,
+        "placeDistribution": [
+          0.1875,
+          0.28125,
+          0.25,
+          0.28125
+        ],
+        "averagePlace": 2.625,
+        "winRate": 0.25,
+        "dealInRate": 0.177734375,
+        "faults": 0,
+        "corrections": 9,
+        "choiceMsP50": 56.700000047683716,
+        "choiceMsP95": 109.5
+      }
+    ],
+    "versusReference": [
+      {
+        "pool": "original",
+        "fanDelta": 0.068359375,
+        "fan95": {
+          "low": -0.048828125,
+          "high": 0.181640625,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0,
+        "firstPlace95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0,
+        "deltas": [
+          {
+            "seed": 360001,
+            "fan": 0.21875,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360002,
+            "fan": 0.1875,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360003,
+            "fan": 0,
+            "first": 0,
+            "place": -0.25
+          },
+          {
+            "seed": 360004,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360005,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360006,
+            "fan": -0.203125,
+            "first": 0,
+            "place": 0.25
+          },
+          {
+            "seed": 360007,
+            "fan": 0.34375,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360008,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          }
+        ]
+      },
+      {
+        "pool": "mixed",
+        "fanDelta": 0.072265625,
+        "fan95": {
+          "low": -0.04296875,
+          "high": 0.208984375,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "firstPlaceDelta": -0.03125,
+        "firstPlace95": {
+          "low": -0.09375,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0.03125,
+        "deltas": [
+          {
+            "seed": 360001,
+            "fan": 0.40625,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360002,
+            "fan": -0.171875,
+            "first": -0.25,
+            "place": 0.25
+          },
+          {
+            "seed": 360003,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360004,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360005,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360006,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360007,
+            "fan": 0.34375,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360008,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          }
+        ]
+      }
+    ],
+    "alignedVsLegacy": [
+      {
+        "pool": "original",
+        "fanDelta": 0,
+        "fan95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0,
+        "firstPlace95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0,
+        "deltas": [
+          {
+            "seed": 360001,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360002,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360003,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360004,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360005,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360006,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360007,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360008,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          }
+        ]
+      },
+      {
+        "pool": "mixed",
+        "fanDelta": 0,
+        "fan95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0,
+        "firstPlace95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0,
+        "deltas": [
+          {
+            "seed": 360001,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360002,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360003,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360004,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360005,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360006,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360007,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360008,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          }
+        ]
+      }
+    ],
+    "replay": {
+      "matches": 192,
+      "hands": 3072,
+      "samples": 0,
+      "actions": 574169,
+      "coverage": {
+        "original-0": 96,
+        "original-1": 96,
+        "original-2": 96,
+        "original": 96,
+        "historical-attack": 96,
+        "historical-defense": 96
+      },
+      "recomputedTrajectories": 0,
+      "criticalRetained": 0,
+      "originalAnchors": 0,
+      "traceSteps": 0,
+      "recomputedGuards": 30405,
+      "maximumFeatureError": 0
+    }
+  },
+  "critic": {
+    "stateCalibrationMSE": 0.13152899770048332,
+    "roundOnlyCalibrationMSE": 0.1829094019644256
+  },
+  "guardCalibration": {
+    "roots": 8,
+    "walls": [
+      340025,
+      340026,
+      340027,
+      340028
+    ],
+    "plans": 55,
+    "approved": 0,
+    "bins": [
+      {
+        "low": -1000000000,
+        "high": 0,
+        "count": 39,
+        "predicted": -2.96376197004543,
+        "pairedObserved": -3.0681209359457577
+      },
+      {
+        "low": 0,
+        "high": 1,
+        "count": 15,
+        "predicted": 0.40497109023325634,
+        "pairedObserved": -1.175852473388508
+      },
+      {
+        "low": 1,
+        "high": 4,
+        "count": 1,
+        "predicted": 1.4120141360023082,
+        "pairedObserved": -1.3178585744341862
+      },
+      {
+        "low": 4,
+        "high": 1000000000,
+        "count": 0,
+        "predicted": null,
+        "pairedObserved": null
+      }
+    ],
+    "thresholdsChanged": false
+  },
+  "tactics": {
+    "summary": [
+      {
+        "component": "builtin-no-replacement",
+        "matches": 16,
+        "identicalFullActionTraces": 13,
+        "fanDeltaPerHand": -0.03515625,
+        "fanDelta95": {
+          "low": -0.10546875,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0,
+        "firstPlaceDelta95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0,
+        "winDelta": -0.00390625,
+        "dealInDelta": -0.00390625,
+        "blocks": [
+          {
+            "seed": 370001,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": 0
+          },
+          {
+            "seed": 370002,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": 0
+          },
+          {
+            "seed": 370003,
+            "fan": -0.140625,
+            "firstPlace": 0,
+            "place": 0.25
+          },
+          {
+            "seed": 370004,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": -0.25
+          }
+        ]
+      },
+      {
+        "component": "builtin-no-rob-kong",
+        "matches": 16,
+        "identicalFullActionTraces": 15,
+        "fanDeltaPerHand": 0,
+        "fanDelta95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0,
+        "firstPlaceDelta95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0,
+        "winDelta": 0,
+        "dealInDelta": 0,
+        "blocks": [
+          {
+            "seed": 370001,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": 0
+          },
+          {
+            "seed": 370002,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": 0
+          },
+          {
+            "seed": 370003,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": 0
+          },
+          {
+            "seed": 370004,
+            "fan": 0,
+            "firstPlace": 0,
+            "place": 0
+          }
+        ]
+      },
+      {
+        "component": "builtin-no-eight-fan",
+        "matches": 16,
+        "identicalFullActionTraces": 0,
+        "fanDeltaPerHand": -0.015625,
+        "fanDelta95": {
+          "low": -0.71484375,
+          "high": 0.6796875,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0.125,
+        "firstPlaceDelta95": {
+          "low": 0,
+          "high": 0.25,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "averagePlaceDelta": -0.1875,
+        "winDelta": 0.00390625,
+        "dealInDelta": 0.0234375,
+        "blocks": [
+          {
+            "seed": 370001,
+            "fan": 0.703125,
+            "firstPlace": 0,
+            "place": -0.25
+          },
+          {
+            "seed": 370002,
+            "fan": 0.65625,
+            "firstPlace": 0.25,
+            "place": -0.5
+          },
+          {
+            "seed": 370003,
+            "fan": -0.25,
+            "firstPlace": 0.25,
+            "place": -0.5
+          },
+          {
+            "seed": 370004,
+            "fan": -1.171875,
+            "firstPlace": 0,
+            "place": 0.5
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Four independent walls; seat rotations are averaged within each wall",
+      "Positive delta means the component removal outscored the full policy on these walls",
+      "No automatic component removal or heuristic tuning from this small experiment"
+    ],
+    "report": "artifacts/guobiao-mahjong/tournament-v5/tactic-analysis.json",
+    "reportSha256": "1e74e7381867e3a21c896683f2a55bd3ab781740b6d3c2f675beb6418699a1a0"
+  },
+  "qualification": {
+    "qualified": false,
+    "comparisons": [
+      {
+        "pool": "original",
+        "fanDelta": 0.068359375,
+        "fan95": {
+          "low": -0.048828125,
+          "high": 0.181640625,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "firstPlaceDelta": 0,
+        "firstPlace95": {
+          "low": 0,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0,
+        "deltas": [
+          {
+            "seed": 360001,
+            "fan": 0.21875,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360002,
+            "fan": 0.1875,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360003,
+            "fan": 0,
+            "first": 0,
+            "place": -0.25
+          },
+          {
+            "seed": 360004,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360005,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360006,
+            "fan": -0.203125,
+            "first": 0,
+            "place": 0.25
+          },
+          {
+            "seed": 360007,
+            "fan": 0.34375,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360008,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          }
+        ]
+      },
+      {
+        "pool": "mixed",
+        "fanDelta": 0.072265625,
+        "fan95": {
+          "low": -0.04296875,
+          "high": 0.208984375,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "firstPlaceDelta": -0.03125,
+        "firstPlace95": {
+          "low": -0.09375,
+          "high": 0,
+          "method": "seed-block bootstrap",
+          "blocks": 8,
+          "draws": 10000
+        },
+        "averagePlaceDelta": 0.03125,
+        "deltas": [
+          {
+            "seed": 360001,
+            "fan": 0.40625,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360002,
+            "fan": -0.171875,
+            "first": -0.25,
+            "place": 0.25
+          },
+          {
+            "seed": 360003,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360004,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360005,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360006,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360007,
+            "fan": 0.34375,
+            "first": 0,
+            "place": 0
+          },
+          {
+            "seed": 360008,
+            "fan": 0,
+            "first": 0,
+            "place": 0
+          }
+        ]
+      }
+    ],
+    "errors": 0,
+    "rule": "each matched opponent pool: first-place and fan lower 95% seed-block bounds > 0, average place nonworse, zero faults/missed hu"
+  },
+  "distillation": "skipped: teacher strength not established",
+  "student": null,
+  "liveAssetUpdated": false,
+  "validation": {
+    "typecheckProjects": 35,
+    "testProjects": 35,
+    "mahjongTests": 183,
+    "buildGames": 33,
+    "browserBackends": [
+      "webgpu",
+      "wasm",
+      "explicit-webgpu-to-wasm-fallback"
+    ],
+    "browserReportSha256": "f3e0df242868f315aa57e2acecabb12846d63f5309c2e07b10881b945beeea38",
+    "controlledClaimContracts": [
+      "fresh-KD-baseline",
+      "approved-safe-continuation",
+      "explore-compound-plan",
+      "per-seat-restore-settings-context"
+    ],
+    "pythonChecks": [
+      "tournament-objective",
+      "GAE-credit"
+    ],
+    "workspaceManifestGames": 33
+  },
+  "sources": {
+    "report": "artifacts/guobiao-mahjong/tournament-v5/report.json",
+    "reportSha256": "adc8d374488b8385e98834f02238c4dea589d89f109e75870feb1a42cfc679c2",
+    "evaluation": "artifacts/guobiao-mahjong/tournament-v5/teacher-evaluation-aligned/report.json",
+    "evaluationSha256": "fc7d65e9d38a4d4272b4de0f3f36c43491acfd280ff83eb87a7f2c963fb20ddd",
+    "browser": "artifacts/guobiao-mahjong/tournament-v5/browser-aligned/report.json"
+  },
+  "limitations": [
+    "Local experimental evidence; whole independent walls are the statistical units",
+    "Complete self-play and simulation datasets retain their immutable producer source snapshots",
+    "Historical exploration actor likelihoods were revalidated; final guarded execution uses the corrected continuation contract",
+    "Future-round supervised labels use an approximate frozen public critic",
+    "Safety margins unchanged and no threshold sweep on final evaluation walls",
+    "If produced, student uses a full quantized bundle with common quantized beliefs and separate new evaluation walls"
+  ]
+}

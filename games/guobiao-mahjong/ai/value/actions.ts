@@ -42,5 +42,5 @@ export function continuationObservation(o:Observation,plan:ActionPlan):Observati
   c.turn=o.seat;c.phase='turn';c.drawn=null;c.replacement=false;c.last=null;c.legalActions=[...new Set(after.hand)].map(tile=>({type:'discard',tile}));return c;
 }
 export function continuationKey(o:Observation):string {
-  return JSON.stringify([o.seat,o.handIndex,o.phase,o.turn,o.drawn,o.replacement,o.wallRemaining,o.hand,o.players.map((p,i)=>[p.handCount,p.river,p.flowers,p.fan,p.score,p.melds.map(m=>[m.kind,m.from,m.concealed,m.promoted,m.concealed&&i!==o.seat?null:m.tiles])])]);
+  return JSON.stringify([o.seat,o.handIndex,o.roundWind,o.dealer,o.phase,o.turn,o.drawn,o.replacement,o.wallRemaining,o.hand,o.players.map((p,i)=>[p.handCount,p.river,p.flowers,p.fan,p.score,p.melds.map(m=>[m.kind,m.from,m.concealed,m.promoted,m.concealed&&i!==o.seat?null:m.tiles])])]);
 }
