@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(s, c, next) { return next(/^\.{1,2}\//.test(s) && !/\.[a-z0-9]+$/i.test(s) ? s + '.ts' : s, c); } });
-const { handTiles, handTileRects, meldTileRects, playerRowTiles, riverTileRects, seatPlacement, PLAYER_ROW_EDGE, PLAYER_ROW_SPAN, RIVER_OFFSET } = await import('../guobiao-mahjong/ui/tileLayout.ts');
+const { handTiles, handTileRects, meldTileRects, playerRowTiles, riverTileRects, PLAYER_ROW_EDGE, PLAYER_ROW_SPAN, RIVER_OFFSET } = await import('../guobiao-mahjong/ui/tileLayout.ts');
 const { tileUv } = await import('../guobiao-mahjong/ui/TileAtlas.ts');
 const { formedFans, analyzeHand } = await import('../guobiao-mahjong/rules/handAnalysis.ts');
 const { createScorer } = await import('../guobiao-mahjong/rules/scorer.ts');
@@ -205,7 +205,7 @@ test('notification locations fit desktop and portrait viewports and leave action
   for (const [w, h] of [[1440, 900], [390, 844]]) for (let relative = 0; relative < 4; relative++) {
     const r = notificationRects(w, h, relative);
     for (const rect of Object.values(r)) { assert.ok(rect.x >= 0 && rect.y >= 0); assert.ok(rect.x + rect.width <= w); assert.ok(rect.y + rect.height <= h); }
-    const table = tableLayout(w, h).table; assert.ok(r.opportunity.y + r.opportunity.height < tableLayout(w, h).actionY);
+    assert.ok(r.opportunity.y + r.opportunity.height < tableLayout(w, h).actionY);
   }
 });
 test('presentation epoch changes for resets, restores and viewing seats but ordinary human decisions keep it stable', async () => {

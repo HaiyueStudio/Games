@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(s, c, next) { return next(/^\.{1,2}\//.test(s) && !/\.[a-z0-9]+$/i.test(s) ? s + '.ts' : s, c); } });
 const { createScorer } = await import('../guobiao-mahjong/rules/scorer.ts');
-const { createMatch, legalActions, applyAction, observe, evaluateWin, nextHand, remaining } = await import('../guobiao-mahjong/rules/match.ts');
+const { createMatch, legalActions, applyAction, observe, evaluateWin, nextHand } = await import('../guobiao-mahjong/rules/match.ts');
 const { decide } = await import('../guobiao-mahjong/ai/strategy.ts');
 const { runTournament } = await import('../guobiao-mahjong/api/tournament.ts');
 const { MatchController } = await import('../guobiao-mahjong/app/MatchController.ts');
