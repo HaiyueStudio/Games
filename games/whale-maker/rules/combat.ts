@@ -17,7 +17,7 @@ export function bonkWithHelmet(s:State,e:Enemy,previousPlayer:Body,previousEnemy
         p.x+p.w<=e.x+.001||p.x>=e.x+e.w-.001||
         p.y>e.y+e.h+.025||p.y+p.h<=e.y+.001)return false;
     if(!['defeat','shatter'].includes(attackResult(e,'helmet')))return false;
-    emit(s,'metal',e.x+e.w/2);defeatEnemy(s,e,'block');return true;
+    emit(s,'metal',e.x+e.w/2);if(s.shellHelmet==='shell-helmet'){e.y=Math.min(e.y,p.y-e.h-.03);e.vy=-7;e.vx=Math.sign(e.x+e.w/2-p.x-p.w/2||s.facing)*2;e.cooldown=.2;}else if(s.shellHelmet==='spike-shell-helmet'&&(e.kind==='iron-turtle'||e.kind==='shell'&&e.iron)){e.y=Math.min(e.y,p.y-e.h-.03);e.vy=-7;e.cooldown=.2;}else defeatEnemy(s,e,'block');return true;
 }
 
 /** One defeat path for contacts, attacks and blocks becoming solid. */

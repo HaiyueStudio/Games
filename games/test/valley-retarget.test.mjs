@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createObject,emptyMap,MapRuntime,surfaceGarden,rotatedSeamGarden,switchGarden,walkSurfaces,worldSamples,emptyPoses,project} from '../valley-of-light/map/model.ts';
+import {createObject,emptyMap,MapRuntime,surfaceGarden,rotatedSeamGarden,switchGarden,walkSurfaces,project} from '../valley-of-light/map/model.ts';
 const distance=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
 const near=(a,b)=>assert.ok(distance(a,b)<1e-7,`${a} != ${b}`);
 function forkMap(){const map=emptyMap();map.objects=[['start',9,[0,0,0]],['junction',1,[1,0,0]],['road',1,[2,0,0]],['far',1,[3,0,0]],['exit',10,[4,0,0]],['branch',1,[1,0,1]],['branch-end',1,[1,0,2]],['isolated',1,[7,0,7]]].map(([id,type,p])=>createObject(type,id,p));return map;}

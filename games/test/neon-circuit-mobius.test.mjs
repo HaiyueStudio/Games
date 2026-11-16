@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMobiusTrack, sampleTrack, dot, mixAxes, frameTurn, racePose, BOOST_PADS,
+import {createMobiusTrack, sampleTrack, dot, frameTurn, racePose, BOOST_PADS,
   BOOST_PAD_LENGTH, BOOST_PAD_HALF_WIDTH, ROAD_HALF_WIDTH, boostZoneAt, CIRCUITS, circuitTrack,
   createInitialRaceState,stepRace,BOOST_MAX_SPEED} from '../neon-circuit/rules/RaceRules.ts';
 

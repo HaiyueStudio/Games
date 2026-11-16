@@ -1,7 +1,8 @@
 import {isPlayerPower} from './player-body';
 import {P2_PATHS,P2_ENEMIES} from './p2-schema';
-import type { Level, Tile, State } from './model';
+import type { Level, State } from './model';
 import { rulesFor } from './profile';
+import { HOLD_TARGETS,RIDE_TARGETS,WEAR_TARGETS,type RideTarget,type WearTarget, type HoldTarget } from './conditions';
 
 export const P1_ENEMIES=['ant','spike-ant','jump-mouse','spike-mouse','creeper-plant','dry-turtle','fishbone','fire-plant','fire-brother','ball-thrower','snow-cactus'] as const;
 export type P1EnemyKind=typeof P1_ENEMIES[number];
@@ -9,7 +10,7 @@ export const P1_TOOLS=['cat-bell','boomerang-flower','hammer-suit','hard-block',
 export const P1_NAMES=['猫铃铛','回旋镖花','建造锤','硬砖','方向牌','缓上坡','缓下坡','半实体平台','输送带','冲刺块','蓝色蛇砖','红路径砖','蓝路径砖','伸缩刺砖','蘑菇弹床','开关弹床','移动弹床','红POW','珊瑚树','感叹号砖','传送箱','上锁传送箱','粉红钥匙币','大雪球','蚂蚁兵','尖刺蚁','跳跃鼠','尖刺鼠','蔓延食人花','骷髅龟','鱼骨','吐火食人花','火焰兄弟','投球怪','雪仙人球','普通火炮','炮弹发射器'];
 export type Theme='coast'|'underground'|'forest'|'snow'|'desert'|'castle';
 export const PIPE_PERIODS={green:1.8,red:1.2,blue:2.4,yellow:3.6} as const;
-export type Condition={kind:'coins';amount:number}|{kind:'defeats';amount:number;enemy:string}|{kind:'power';power:State['power']};
+export type Condition={kind:'coins';amount:number}|{kind:'defeats';amount:number;enemy:string}|{kind:'power';power:State['power']}|{kind:'holding';item:HoldTarget}|{kind:'no-damage'}|{kind:'no-landing'}|{kind:'star'}|{kind:'stay-water'}|{kind:'riding';item:RideTarget}|{kind:'wearing';item:WearTarget};
 export const P1_PROPERTIES=new Set(['width','depth','large','winged','parachute','trigger','color','pace','radius','count','ammoSpeed','spiked','preview','liquid','shockwave']);
 export const PATH_TILES=new Set(['snake-block','snake-fast','path-red','path-blue','extend-block','creeper-plant','trampoline-moving',...P2_PATHS]);
 export const CONTAINER_TILES=new Set(['?','hidden-block','cannon','ice','wood-crate','tree','P','cannon-basic','bill-blaster']);
@@ -26,13 +27,14 @@ export function validP1Property(key:string,value:unknown):boolean {
 }
 export function levelIssues(l:Level):{message:string;cell?:number}[] {
     const errors:{message:string;cell?:number}[]=[];
+    const goals=l.cells.flatMap((t,id)=>t==='E'?[id]:[]);if(goals.length>1)errors.push({message:'每个区域最多放置一个终点旗杆',cell:goals[1]!});
     if(l.theme!==undefined&&!['coast','underground','forest','snow','desert','castle'].includes(l.theme))errors.push({message:'未知玩法主题'});
     const c=l.condition;
-    if(c){if(c.kind==='coins'||c.kind==='defeats'){if(!Number.isInteger(c.amount)||c.amount<1||c.amount>999)errors.push({message:'通关数量必须为 1–999'});if(c.kind==='defeats'&&!['duck','turtle','shell','plant','fish','squid','spiky','cannonball','iron-turtle','ghost','fire-jumper','bomb','hammer-otter','cactus',...P1_ENEMIES,...P2_ENEMIES].includes(c.enemy))errors.push({message:'未知通关目标敌人'});}else if(c.kind==='power'){if(!isPlayerPower(c.power))errors.push({message:'未知目标形态'});}else errors.push({message:'未知通关条件'});
+    if(c){if(c.kind==='coins'||c.kind==='defeats'){if(!Number.isInteger(c.amount)||c.amount<1||c.amount>999)errors.push({message:'通关数量必须为 1–999'});if(c.kind==='defeats'&&!['duck','turtle','shell','plant','fish','squid','spiky','cannonball','iron-turtle','ghost','fire-jumper','bomb','hammer-otter','cactus',...P1_ENEMIES,...P2_ENEMIES].includes(c.enemy))errors.push({message:'未知通关目标敌人'});}else if(c.kind==='power'){if(!isPlayerPower(c.power))errors.push({message:'未知目标形态'});}else if(c.kind==='holding'){if(!(HOLD_TARGETS as readonly string[]).includes(c.item))errors.push({message:'未知目标抱物'});}else if(c.kind==='riding'){if(!(RIDE_TARGETS as readonly string[]).includes(c.item))errors.push({message:'未知目标乘具'});}else if(c.kind==='wearing'){if(!(WEAR_TARGETS as readonly string[]).includes(c.item))errors.push({message:'未知目标穿戴物'});}else if(!['no-damage','no-landing','star','stay-water'].includes(c.kind))errors.push({message:'未知通关条件'});
         if(rulesFor(l).rewards==='score')l.cells.forEach((t,cell)=>{if(t==='C')errors.push({message:`通关条件不能与检查点组合（${cell%l.width},${Math.floor(cell/l.width)}）`,cell});});
     }
-    for(const [id,p]of Object.entries(l.properties??{}))if((p.large||p.winged||p.parachute)&&!['J','T','plant','spiky','iron-turtle','bomb','hammer-otter','fire-brother','jump-mouse','spike-mouse','dry-turtle','ant','spike-ant','fish','fishbone','ball-thrower',...P2_ENEMIES].includes(l.cells[+id]!))errors.push({message:`该敌人不支持尺寸／飞行修饰（${+id%l.width},${Math.floor(+id/l.width)}）`,cell:+id});
-    for(const [id,p]of Object.entries(l.properties??{}))if((p.winged||p.parachute)&&(!FLIGHT_MODIFIERS.has(l.cells[+id]!)||l.cells[+id]==='plant'&&p.mode==='pipe'))errors.push({message:`该敌人不支持飞行修饰（${+id%l.width},${Math.floor(+id/l.width)}）`,cell:+id});
+    for(const [id,p]of Object.entries(l.properties??{}))if((p.large||p.winged||p.parachute)&&!['stone','J','T','plant','spiky','iron-turtle','bomb','hammer-otter','fire-brother','jump-mouse','spike-mouse','dry-turtle','ant','spike-ant','fish','fishbone','ball-thrower',...P2_ENEMIES].includes(l.cells[+id]!))errors.push({message:`该敌人不支持尺寸／飞行修饰（${+id%l.width},${Math.floor(+id/l.width)}）`,cell:+id});
+    for(const [id,p]of Object.entries(l.properties??{}))if((p.winged||p.parachute)&&l.cells[+id]!=='stone'&&(!FLIGHT_MODIFIERS.has(l.cells[+id]!)||l.cells[+id]==='plant'&&p.mode==='pipe'))errors.push({message:`该敌人不支持飞行修饰（${+id%l.width},${Math.floor(+id/l.width)}）`,cell:+id});
     l.cells.forEach((t,id)=>{
         const x=id%l.width,y=Math.floor(id/l.width),p=l.properties?.[id];
         if(t==='gentle-up'||t==='gentle-down'){if(x+1>=l.width||l.cells[id+1]!==t+'-body')errors.push({message:`缓坡缺少右半部分（${x},${y}）`,cell:id});}

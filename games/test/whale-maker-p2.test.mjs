@@ -4,15 +4,14 @@ const {create,step,EMPTY_INPUT,validate,respawn,services,tile}=await import('../
 const {REFERENCE_RULES}=await import('../whale-maker/rules/profile.ts');
 const {makeEnemy,makeItem,modifyEnemy}=await import('../whale-maker/rules/body-factory.ts');
 const {equipWearable,wearCeiling,advanceCannonShots,disguised}=await import('../whale-maker/rules/p2-wearables.ts');
-const {beforeP2Defeat,updateP2Enemy,advanceMagic}=await import('../whale-maker/rules/p2-enemies.ts');
-const {damageBoss,updateFortress,placeBoss,releaseBridge}=await import('../whale-maker/rules/fortress.ts');
+const {updateP2Enemy,advanceMagic}=await import('../whale-maker/rules/p2-enemies.ts');
+const {damageBoss,updateFortress,placeBoss}=await import('../whale-maker/rules/fortress.ts');
 const {updateP2Bosses}=await import('../whale-maker/rules/p2-bosses.ts');
 const {advanceP2Mechanisms}=await import('../whale-maker/rules/p2-mechanisms.ts');
 const {changeArea,areaTravel}=await import('../whale-maker/rules/p2-areas.ts');
-const {progressStep,finishProgress,lifeReward}=await import('../whale-maker/rules/p2-progress.ts');
+const {finishProgress,lifeReward}=await import('../whale-maker/rules/p2-progress.ts');
 const {advanceLiquid}=await import('../whale-maker/rules/p2-liquid.ts');
 const {cameraFor,advanceP2Camera}=await import('../whale-maker/rules/p2-camera.ts');
-const {centeredCamera}=await import('../whale-maker/rules/camera.ts');
 const {poleHeight,goalAt}=await import('../whale-maker/rules/goal.ts');
 const {grantPower}=await import('../whale-maker/rules/power.ts');
 const {defeatEnemy}=await import('../whale-maker/rules/combat.ts');
@@ -27,14 +26,65 @@ const {driveCar,seatPlayer}=await import('../whale-maker/rules/p2-vehicle.ts');
 const {p2Level,P2_DEMOS}=await import('../whale-maker/rules/p2-levels.ts');
 const {P2_TOOLS,P2_ENEMIES,WEARABLES,p2Issues}=await import('../whale-maker/rules/p2-schema.ts');
 const {p2Art}=await import('../whale-maker/rendering/p2.ts');
-const {playerArt}=await import('../whale-maker/rendering/player.ts');
+const {windVelocity}=await import('../whale-maker/rules/wind.ts');
+const {tornadoPlanes,drawTornado,drawEnvironmentWind,TORNADO_FRAMES}=await import('../whale-maker/rendering/wind.ts');
 const {editProperty,propertyKeys}=await import('../whale-maker/editor/p1.ts');
-const {editSetting,emptySubArea,resizeWidth}=await import('../whale-maker/editor/p2-settings.ts');
+const {editSetting,resizeWidth}=await import('../whale-maker/editor/p2-settings.ts');
 const {stampSelection,pasteStamp,objectCells}=await import('../whale-maker/editor/selection.ts');
 const tick=(s,i={},n=1)=>{for(let k=0;k<n;k++)step(s,{...EMPTY_INPUT,...i});};
 function level(width=100,height=32,floor=20){const cells=Array(width*height).fill('.');for(let y=floor;y<height;y++)for(let x=0;x<width;x++)cells[y*width+x]='#';cells[(floor-1)*width+width-6]='E';return {version:1,name:'P2 test',width,height,spawn:[3,floor-.8],cells,properties:{},contents:{},rules:{...REFERENCE_RULES}};}
 const flat=()=>{const s=create(level());tick(s);return s;};
 const enemy=(s,kind,x=10,y=19,p={})=>{const e=modifyEnemy(makeEnemy(kind,x,y,p),p);s.enemies.push(e);return e;};
+
+test('environment wind is validated, editable and retained by level serialization',()=>{
+    let l=editSetting(level(),'windMode','periodic');l=editSetting(l,'windDirection','left');l=editSetting(l,'windStrength',3);l=editSetting(l,'windPeriod',8);
+    assert.deepEqual(validate(JSON.parse(JSON.stringify(l))).wind,{mode:'periodic',direction:'left',strength:3,period:8});
+    assert.equal(editSetting(l,'windStrength',Infinity),null);assert.equal(editSetting(l,'windPeriod',0),null);
+    assert.equal(editSetting(l,'windDirection','up'),null);assert.equal(editSetting(l,'windMode','none').wind,undefined);
+    assert.throws(()=>validate({...l,wind:{...l.wind,mode:'unknown'}}),/环境风/);
+});
+test('periodic wind eases through gust and calm without changing direction or replay results',()=>{
+    const w={mode:'periodic',direction:'right',strength:4,period:10};
+    assert.equal(windVelocity(undefined,5),0);assert.equal(windVelocity(w,0),0);assert.equal(windVelocity(w,8),0);
+    assert.equal(windVelocity(w,3.5),4);assert.equal(windVelocity(w,13.5),4);
+    assert.equal(windVelocity({...w,direction:'left'},3.5),-4);
+    assert.equal(windVelocity({...w,mode:'constant'},8),4);
+});
+test('wind moves idle players, enemies and loose objects while preserving their own walking velocity',()=>{
+    for(const direction of ['left','right']){
+        const l=level();l.spawn=[15,19.2];l.wind={mode:'constant',direction,strength:2,period:6};
+        const s=create(l),e=enemy(s,'duck',22,19);e.vx=0;
+        const box=makeItem('wood-crate',30,19);s.items.push(box);
+        const px=s.player.x,ex=e.x,ix=box.x;tick(s,{},120);const sign=direction==='right'?1:-1;
+        assert.ok((s.player.x-px)*sign>1.8);assert.ok((e.x-ex)*sign>1.8);assert.ok((box.x-ix)*sign>1.8);
+        assert.equal(s.player.vx,0);assert.equal(e.vx,0);assert.equal(box.vx,0);
+    }
+});
+test('wind respects terrain collisions and leaves held objects attached to their carrier',()=>{
+    const l=level();l.spawn=[8,19.2];l.wind={mode:'constant',direction:'right',strength:6,period:6};
+    l.cells[1909]='B';const s=create(l);tick(s,{},180);
+    assert.ok(s.player.x+s.player.w<=9.00001);assert.equal(s.phase,'playing');
+    const a=create(level()),b=create(level());a.level.wind={mode:'constant',direction:'right',strength:2,period:6};
+    const held=makeItem('wood-crate',4,18);held.held=true;a.items.push(held);a.held=held;tick(a,{grab:true},30);tick(b,{grab:true},30);
+    assert.equal(a.held,held);assert.ok(Math.abs(held.x-a.player.x)<2);assert.ok(a.player.x>b.player.x);
+});
+test('wind resets and remains area-local across travel',()=>{
+    const l=withAreas();l.wind={mode:'periodic',direction:'left',strength:2,period:6};
+    l.areas.sub.wind={mode:'constant',direction:'right',strength:1,period:4};
+    const s=create(l);s.time=3;changeArea(s,'sub',create,[5,58]);assert.equal(s.level.wind.direction,'right');
+    changeArea(s,'main',create,[3,19.2]);assert.equal(s.level.wind.direction,'left');
+    s.phase='dead';respawn(s);assert.equal(s.time,0);assert.equal(s.level.wind.mode,'periodic');
+});
+test('tornado frames form one tapered volume and wind effects remain bounded',()=>{
+    const planes=tornadoPlanes();assert.equal(planes.length,TORNADO_FRAMES);
+    const p=planes[0],span=y=>{let n=0;for(let x=0;x<p.width;x++)if(p.pixels[(y*p.width+x)*4+3]>10)n++;return n;};
+    assert.ok(span(25)>span(185)*2);assert.ok(span(100)>span(185));assert.ok(span(185)>0);
+    assert.notDeepEqual(planes[0].pixels,planes[1].pixels);
+    const draws=[],scene={sprite:(...a)=>draws.push(['sprite',...a]),dustParticle:(...a)=>draws.push(['particle',...a]),fill:(...a)=>draws.push(['fill',...a])};
+    drawTornado(scene,0,0,72,180,1);assert.equal(draws.filter(d=>d[0]==='sprite').length,1);assert.equal(draws[0][1],'tornado');
+    draws.length=0;drawEnvironmentWind(scene,level(),1,0,0,36,{x:0,y:0,w:800,h:500});assert.equal(draws.length,0);
+    drawEnvironmentWind(scene,{...level(),wind:{mode:'constant',direction:'left',strength:3,period:6}},1,0,0,36,{x:0,y:0,w:800,h:500});assert.ok(draws.length>20&&draws.length<100);
+});
 function withAreas(){const l=level(),sub=level(40,64,60);sub.orientation='vertical';sub.cells[59*40+5]='door';sub.properties[59*40+5]={area:'main',targetX:20,targetY:19};l.cells[1906]='door';l.properties[1906]={area:'sub',targetX:5,targetY:59};l.areas={sub};return l;}
 function boss(kind){const l=level();l.cells[1809]=kind;return create(l);}
 
@@ -49,7 +99,7 @@ test('standing cannon shots reach ground enemies in small and tall body forms',(
 test('charged cannon breaks ordinary bricks and normal cannon respects hard terrain',()=>{for(const charged of [false,true]){const l=level();l.cells[1908]=charged?'B':'hard-block';const s=create(l);s.cannonShots.push({kind:'cannon',x:7.5,y:19.2,w:.4,h:.4,vx:12,vy:0,age:0,charged});for(let n=0;n<30;n++)advanceCannonShots(s,1/120,services);assert.equal(tile(s.level,8,19),charged?'.':'hard-block');if(!charged)assert.equal(s.cannonShots.length,0);}});
 test('propeller has three boosts, cannot gain a fourth in air, and refills on landing',()=>{const s=flat();equipWearable(s,'propeller-box');for(let n=0;n<3;n++){tick(s,{special:true});tick(s,{},8);assert.equal(s.wearable.uses,2-n);}const before=s.wearable.boost;tick(s,{special:true});assert.equal(s.wearable.uses,0);assert.ok(s.wearable.boost<before);Object.assign(s.player,{y:19.2,vy:0});s.grounded=true;tick(s);assert.equal(s.wearable.uses,3);});
 test('propeller dive accelerates downward and swimming disables boost',()=>{const s=flat();equipWearable(s,'propeller-box');tick(s,{special:true});tick(s,{},4);tick(s,{down:true});assert.ok(s.player.vy>=17);assert.equal(s.pound,'none');const a=flat();equipWearable(a,'propeller-box');a.swimming=true;tick(a,{special:true});assert.equal(a.wearable.uses,3);});
-test('bullet mask has finite flight, accepts steering and stops at a wall',()=>{const l=level();for(let y=10;y<20;y++)l.cells[y*100+10]='hard-block';const s=create(l);tick(s);equipWearable(s,'bullet-mask');tick(s,{special:true});assert.equal(s.wearable.active,true);tick(s,{axis:-1,interact:true},10);assert.ok(s.player.vx<0&&s.player.vy<0);s.player.x=8;tick(s,{axis:1},30);assert.equal(s.wearable.active,false);assert.ok(s.player.x+s.player.w<=10.001);const a=flat();equipWearable(a,'bullet-mask');tick(a,{special:true});tick(a,{interact:true},500);assert.equal(a.wearable.active,false);assert.equal(a.wearable.flight,0);});
+test('bullet mask flies horizontally with finite air time and is consumed on wall contact',()=>{const l=level();for(let y=10;y<20;y++)l.cells[y*100+10]='hard-block';const s=create(l);tick(s);equipWearable(s,'bullet-mask');tick(s,{special:true});assert.equal(s.wearable.active,true);tick(s,{axis:-1,interact:true},10);assert.ok(s.player.vx<0&&s.player.vy===0);s.player.x=8;tick(s,{axis:1},30);assert.equal(s.wearable,null);assert.ok(s.player.x+s.player.w<=10.001);const a=flat();a.player.y=8;a.grounded=false;equipWearable(a,'bullet-mask');tick(a,{special:true});tick(a,{interact:true},500);assert.equal(a.wearable.active,false);assert.equal(a.wearable.flight,0);});
 test('goomba disguise suppresses recognition and jumping exposes it temporarily',()=>{const s=flat(),bee=enemy(s,'bee',10,15);equipWearable(s,'goomba-mask');tick(s,{},30);assert.equal(disguised(s),true);assert.equal(bee.vx,0);tick(s,{jump:true},4);assert.equal(disguised(s),false);assert.ok(bee.vx<0);tick(s,{},300);assert.equal(disguised(s),true);});
 test('red POW wearable has three guarded activations and uses normal red POW interactions',()=>{const s=flat();equipWearable(s,'pow-box');const e=enemy(s,'duck',4);wearCeiling(s,services);assert.equal(e.alive,false);assert.equal(s.wearable.uses,2);wearCeiling(s,services);assert.equal(s.wearable.uses,2);for(let n=0;n<2;n++){s.wearable.cooldown=0;wearCeiling(s,services);}assert.equal(s.wearable,null);assert.equal(s.defeatCounts.duck,1);});
 test('real upward ceiling collision activates the worn POW without shrinking the character',()=>{const l=level();l.cells[1703]='hard-block';const s=create(l);tick(s);equipWearable(s,'pow-box');s.player.y=18.1;s.player.vy=-10;s.grounded=false;tick(s,{},5);assert.equal(s.wearable.uses,2);assert.equal(s.player.w,.9);assert.equal(s.phase,'playing');});
@@ -65,10 +115,10 @@ test('magical conversion is restricted to original ordinary bricks and has a fin
 test('homing and cat bills adjust their trajectory; the giant bill retains its heading',()=>{for(const kind of ['homing-bill','cat-bill','giant-bill']){const s=flat(),e=enemy(s,kind,16,12);e.vx=-4;updateP2Enemy(s,e,.1,services);assert.equal(e.vy>0,kind!=='giant-bill');}const s=flat(),e=enemy(s,'cat-bill',9,19);s.level.cells[1910]='B';e.vx=6;e.vy=0;for(let n=0;n<30;n++)updateP2Enemy(s,e,1/120,services);assert.equal(tile(s.level,10,19),'.');});
 test('car can be entered, driven, jumped, exited and destroyed with independent durability',()=>{const l=level();l.cells[1904]='koopa-car';const s=create(l),car=s.items[0];s.player.x=4;driveCar(s,{...EMPTY_INPUT,interact:true},1/120,services);assert.equal(s.vehicle,car);s.previous.interact=true;driveCar(s,{...EMPTY_INPUT,axis:1,jump:true},1/120,services);seatPlayer(s);assert.ok(car.vx>0&&car.vy<0);assert.equal(s.player.w,.9);s.previous.interact=false;driveCar(s,{...EMPTY_INPUT,grab:true,interact:true},1/120,services);assert.equal(s.vehicle,null);s.vehicle=car;for(let n=0;n<3;n++){s.invincible=0;services.hurt(s);}assert.equal(car.alive,false);assert.equal(s.vehicle,null);assert.equal(s.phase,'playing');});
 test('a moving car defeats an enemy at its body while standing cars remain obstacles',()=>{const l=level();l.cells[1908]='koopa-car';const s=create(l),car=s.items[0],e=enemy(s,'duck',9.1);car.vx=8;s.vehicle=car;driveCar(s,{...EMPTY_INPUT,axis:1},1/120,services);assert.equal(e.alive,false);assert.ok(s.score>0);});
-test('new bosses use distinct armor windows and resistance instead of identical damage rules',()=>{const a=boss('boom-boss'),b=boss('pom-boss'),c=boss('cat-boss');for(const s of [a,b,c])assert.equal(s.bosses.length,1);a.bosses[0].brain.mode='shell';damageBoss(a,a.bosses[0],'fire');assert.equal(a.bosses[0].health,3);damageBoss(a,a.bosses[0],'heavy');assert.equal(a.bosses[0].health,2);b.bosses[0].brain.mode='hidden';damageBoss(b,b.bosses[0],'hammer');assert.equal(b.bosses[0].health,3);c.bosses[0].brain.mode='climb';damageBoss(c,c.bosses[0],'fire');assert.equal(c.bosses[0].health,6);damageBoss(c,c.bosses[0],'stone');assert.equal(c.bosses[0].health,4);});
+test('new bosses use distinct armor windows and resistance instead of identical damage rules',()=>{const a=boss('boom-boss'),b=boss('pom-boss'),c=boss('cat-boss');for(const s of [a,b,c])assert.equal(s.bosses.length,1);a.bosses[0].brain.mode='shell';damageBoss(a,a.bosses[0],'fire');assert.equal(a.bosses[0].health,3);damageBoss(a,a.bosses[0],'heavy');assert.equal(a.bosses[0].health,2);b.bosses[0].brain.mode='hidden';damageBoss(b,b.bosses[0],'hammer');assert.equal(b.bosses[0].health,3);c.bosses[0].brain.mode='climb';damageBoss(c,c.bosses[0],'fire');assert.equal(c.bosses[0].health,19);damageBoss(c,c.bosses[0],'stone');assert.equal(c.bosses[0].health,0);});
 test('bosses collapse once and preserve the original five-health reef boss behavior',()=>{for(const kind of ['boom-boss','pom-boss','cat-boss']){const s=boss(kind),b=s.bosses[0];damageBoss(s,b,'crush');const score=s.score;damageBoss(s,b,'crush');assert.equal(b.health,0);assert.equal(s.score,score);assert.equal(b.phase,'fall');tick(s,{},300);assert.equal(b.phase,'gone');}const l=level();placeBoss(l,10,18);const s=create(l),b=s.bosses[0];assert.equal(b.health,5);assert.equal(b.brain,undefined);for(let n=0;n<5;n++){b.hurt=0;damageBoss(s,b,'fire');}assert.equal(b.phase,'fall');assert.equal(s.score,1000);});
 test('ninja creates bounded mirages and projectiles, and cat boss cycles climb telegraph pounce',()=>{for(const kind of ['pom-boss','cat-boss']){const s=boss(kind);s.player.x=25;s.invincible=100;const b=s.bosses[0],modes=new Set();for(let n=0;n<1600;n++){updateP2Bosses(s,1/120,services);modes.add(b.brain.mode);}if(kind==='pom-boss'){assert.ok(modes.has('hidden')&&modes.has('telegraph'));assert.ok(b.brain.mirages.length<=2);assert.ok(s.magicShots.length<=24);}else assert.ok(modes.has('climb')&&modes.has('pounce')&&modes.has('vulnerable'));}});
-test('falling heavy objects and icicles use boss damage paths',()=>{const s=boss('boom-boss'),b=s.bosses[0];s.stones.push({x:b.x,y:b.y,w:2,h:2,vx:0,vy:8,phase:'charge',timer:0,origin:[b.x,b.y],direction:'down'});updateFortress(s,1/120,services);assert.equal(b.health,2);assert.equal(s.stones[0].phase,'pause');});
+test('falling heavy objects and icicles use boss damage paths',()=>{const s=boss('boom-boss'),b=s.bosses[0];s.stones.push({x:b.x,y:b.y,w:2,h:2,vx:0,vy:8,phase:'charge',timer:0,origin:[b.x,b.y],direction:'down'});updateFortress(s,1/120,services);assert.equal(b.health,0);assert.equal(s.stones[0].phase,'pause');});
 test('beat blocks share the clock and resolve only the newly materialized overlap',()=>{const l=level();l.cells[1808]='beat-block';l.cells[1810]='beat-block';const s=create(l);s.time=.5;advanceP2Mechanisms(s,1/120,services);assert.equal(s.p2Mechanisms.every(d=>d.active),true);assert.equal(deviceSolids(s).filter(b=>b.kind==='beat-block').length,2);s.time=1.5;advanceP2Mechanisms(s,1/120,services);const e=enemy(s,'duck',8,18);s.time=2.01;advanceP2Mechanisms(s,1/120,services);assert.equal(e.alive,false);assert.equal(s.defeatCounts.duck,1);advanceP2Mechanisms(s,1/120,services);assert.equal(s.defeatCounts.duck,1);});
 test('falling ring platform cancels its warning when stepped off, then falls and safely respawns',()=>{const l=level();l.cells[1708]='fall-block';l.properties[1708]={width:3,delay:.1,recovery:.1};const s=create(l),d=s.p2Mechanisms[0];s.player.x=8;s.player.y=16.2;s.player.vy=0;advanceP2Mechanisms(s,1/120,services);assert.equal(d.phase,'warn');s.player.x=3;advanceP2Mechanisms(s,1/120,services);assert.equal(d.phase,'idle');s.player.x=8;for(let n=0;n<20;n++){s.player.y=d.y-.8;s.player.vy=0;advanceP2Mechanisms(s,1/120,services);}assert.equal(d.phase,'fall');s.player.x=3;for(let n=0;n<500;n++)advanceP2Mechanisms(s,1/120,services);assert.equal(d.phase,'idle');assert.equal(d.y,17);});
 test('icicle warns, falls, hits enemies and returns; tornado affects all physical body types',()=>{const l=level();l.cells[1008]='icicle';l.properties[1008]={height:2,delay:.1,recovery:.2};l.cells[1516]='tornado';const s=create(l),ice=s.p2Mechanisms[0];s.player.x=8;s.player.y=18;s.invincible=100;const e=enemy(s,'duck',8,19);advanceP2Mechanisms(s,1/120,services);s.player.x=3;for(let n=0;n<300&&e.alive;n++)advanceP2Mechanisms(s,1/120,services);assert.equal(e.alive,false);assert.equal(ice.phase,'gone');s.player.x=16;s.player.y=17;const item=makeItem('pow',16,18);s.items.push(item);const fish=enemy(s,'duck',16,17);advanceP2Mechanisms(s,1/120,services);assert.ok(s.player.vy<0&&item.vy<0&&fish.vy<0);});
@@ -91,7 +141,7 @@ test('cross-area warp boxes are consumed once and a failed destination never spe
 test('subarea return coordinates validate against the main area dimensions',()=>{const l=withAreas();l.areas.sub.properties[2365].targetX=90;assert.ok(validate(l));l.properties[1906].targetX=41;assert.throws(()=>validate(l),/出口坐标/);delete l.properties[1906].targetX;l.areas.sub.properties[2365].targetY=40;assert.throws(()=>validate(l),/出口坐标/);});
 test('large mechanisms cannot overflow a row and width shrinking refuses outgoing routes',()=>{const l=level();l.cells[1999]='fall-block';l.properties[1999]={width:4};assert.throws(()=>validate(l),/机关尺寸/);l.cells[1999]='.';delete l.properties[1999];l.cells[l.cells.indexOf('E')]='.';l.cells[1910]='E';l.cells[1205]='camera-rail';l.properties[1205]={path:[[0,0],[50,0]]};assert.equal(resizeWidth(l,30),null);});
 test('controlled liquid takes ownership of prepainted cells only within its configured band',()=>{const l=level();l.liquid={kind:'water',low:20,high:15,period:8,mode:'cycle',x:10,width:5};l.cells[1711]='water';l.cells[1705]='water';const s=create(l);advanceLiquid(s,1/120);assert.equal(tile(s.level,11,17),'.');assert.equal(tile(s.level,5,17),'water');s.time=4;advanceLiquid(s,1/120);assert.equal(tile(s.level,11,17),'water');});
-test('original and new bosses receive heavy-object contact without changing the original five HP',()=>{for(const kind of ['turtle-boss','boom-boss','pom-boss','cat-boss']){const l=level();if(kind==='turtle-boss')placeBoss(l,10,18);else l.cells[1810]=kind;const s=create(l),b=s.bosses[0],hp=b.health;s.turrets.push({...b,vy:8});updateFortress(s,1/120,services);assert.equal(b.health,hp-(kind==='cat-boss'?2:1));}});
+test('original and new bosses receive heavy-object contact without changing the original five HP',()=>{for(const kind of ['turtle-boss','boom-boss','pom-boss','cat-boss']){const l=level();if(kind==='turtle-boss')placeBoss(l,10,18);else l.cells[1810]=kind;const s=create(l),b=s.bosses[0],hp=b.health;s.turrets.push({...b,vy:8});updateFortress(s,1/120,services);assert.equal(b.health,kind==='turtle-boss'?hp-1:0);}});
 test('each boss demo blocks its castle until defeated, then finishes the approach and celebration',()=>{for(let n=8;n<=10;n++){const s=create(p2Level(n));s.invincible=100;s.player.x=61.5;s.player.y=19.2;tick(s,{axis:1},40);assert.equal(s.phase,'playing');for(const b of s.bosses)damageBoss(s,b,'crush');tick(s,{axis:1},80);assert.equal(s.phase,'won');tick(s,{},1000);assert.equal(s.victory.stage,'done');}});
 test('bullet tutorial gap is traversable using its actual finite flight',()=>{const s=create(p2Level(3));equipWearable(s,'bullet-mask');s.player.x=14;s.player.y=18;s.grounded=false;tick(s,{axis:1,special:true});tick(s,{axis:1},270);assert.ok(s.player.x>37);assert.equal(s.phase,'playing');assert.ok(s.wearable.flight>0);});
 test('propeller tutorial first high wall can be crossed through three actual boosts',()=>{const s=create(p2Level(1));equipWearable(s,'propeller-box');s.player.x=16;s.player.y=19.2;s.grounded=true;for(let n=0;n<3;n++){tick(s,{axis:1,special:true});tick(s,{axis:1},30);}tick(s,{axis:1},130);assert.ok(s.player.x>19);assert.equal(s.phase,'playing');});
@@ -100,3 +150,77 @@ test('configured propeller capacity survives use, landing and area travel',()=>{
 test('liquid creatures launch from their matching moving liquid surface',()=>{for(const kind of ['giant-fish','lava-dragon']){const l=level();l.liquid={kind:kind==='giant-fish'?'water':'lava',low:20,high:12,period:8,mode:'cycle',x:8,width:10};const s=create(l),e=enemy(s,kind,10,18);s.time=4;advanceLiquid(s,1/120);e.ai.phase='wait';e.ai.wait=.5;updateP2Enemy(s,e,1/120,services);assert.equal(e.y,15);s.time=8;advanceLiquid(s,1/120);updateP2Enemy(s,e,1/120,services);assert.equal(e.y,23);}});
 
 test('editing a subarea without a goal preserves legal links back to a wider main area',()=>{const l=withAreas();l.areas.sub.properties[2365].targetX=90;l.areas.sub.cells[l.areas.sub.cells.indexOf('E')]='.';const sub={...l.areas.sub,areas:l.areas};assert.equal(editSetting(sub,'liquidPeriod',10,l).liquid.period,10);assert.equal(editSetting(sub,'areaHeight',80,l).height,80);assert.equal(editSetting(sub,'areaWidth',50,l).width,50);});
+
+const {collectPinkCoin,checkpointPinkCoins}=await import('../whale-maker/rules/pink-coins.ts');
+const {conditionProgress,advanceClearRun}=await import('../whale-maker/rules/conditions.ts');
+const {wearableInput,wearMotion,afterWearMove}=await import('../whale-maker/rules/p2-wearables.ts');
+
+test('pink coins form one set across areas and award exactly one key',()=>{
+ const l=withAreas();l.cells[1904]='pink-coin';l.areas.sub.cells[59*40+8]='pink-coin';const s=create(l);
+ assert.equal(s.pinkTotal,2);collectPinkCoin(s,1904);assert.equal(s.keys.length,0);
+ changeArea(s,'sub',create);assert.equal(s.pinkCollected,1);assert.equal(s.pinkTotal,2);collectPinkCoin(s,59*40+8);assert.equal(s.keys.length,1);
+ changeArea(s,'main',create);assert.equal(s.level.cells[1904],'.');collectPinkCoin(s,1904);assert.equal(s.keys.length,1);
+ changeArea(s,'sub',create);assert.equal(s.level.cells[59*40+8],'.');assert.equal(s.pinkCollected,2);
+});
+test('pink checkpoint subset survives death, but completing the set causes key death reset',()=>{
+ const l=withAreas();l.cells[1904]='pink-coin';l.areas.sub.cells[59*40+8]='pink-coin';const s=create(l);
+ collectPinkCoin(s,1904);checkpointPinkCoins(s);services.crush(s);respawn(s);assert.equal(s.pinkCollected,1);assert.equal(s.level.cells[1904],'.');
+ changeArea(s,'sub',create);collectPinkCoin(s,59*40+8);assert.equal(s.keys.length,1);services.crush(s);respawn(s);
+ assert.equal(s.pinkCollected,0);assert.equal(s.keys.length,0);assert.equal(s.level.cells[1904],'pink-coin');changeArea(s,'sub',create);assert.equal(s.level.cells[59*40+8],'pink-coin');
+});
+test('lit checkpoints can be reactivated in alternation and update saved pink progress',()=>{
+ const l=level();l.cells[1905]='C';l.cells[1915]='C';l.cells[1908]='pink-coin';l.cells[1918]='pink-coin';const s=create(l);
+ const touch=x=>{s.player.x=x;s.player.y=19.2;s.player.vx=s.player.vy=0;tick(s);};
+ touch(5);collectPinkCoin(s,1908);touch(15);touch(5);assert.equal(s.checkpoint[0],5);services.crush(s);respawn(s);assert.equal(s.pinkCollected,1);
+});
+test('contact warp boxes carry the same driven car through both local and cross-area travel',()=>{
+ const l=level();l.cells[1906]='warp-box';l.cells[1916]='warp-box';const s=create(l),car=makeItem('koopa-car',6,19);s.items.push(car);s.vehicle=car;seatPlayer(s);tick(s,{},90);
+ assert.equal(s.vehicle,car);assert.ok(car.x>15);assert.ok(Math.abs(car.y+car.h-20)<.05);assert.equal(s.usedWarps[1906],true);assert.equal(s.usedWarps[1916],true);
+ const a=withAreas();a.cells[1906]='warp-box';a.areas.sub.cells[59*40+5]='warp-box';const t=create(a),c=makeItem('koopa-car',6,19);t.items.push(c);t.vehicle=c;seatPlayer(t);assert.equal(areaTravel(t,EMPTY_INPUT,1/120,create),true);
+ assert.equal(t.currentArea,'sub');assert.equal(t.vehicle,c);assert.equal(t.items.filter(i=>i===c).length,1);assert.equal(t.areaMemory.main.items.includes(c),false);assert.ok(Math.abs(c.y+c.h-60)<.001);
+ changeArea(t,'main',create,[10,19.2]);assert.equal(t.vehicle,c);assert.equal(t.items.filter(i=>i===c).length,1);assert.equal(t.areaMemory.sub.vehicle,null);assert.equal(t.areaMemory.sub.items.includes(c),false);
+});
+test('bullet mask has horizontal unlimited slow underwater flight and wall loss preserves no-damage',()=>{
+ const l=level();for(let y=10;y<20;y++)for(let x=1;x<90;x++)l.cells[y*100+x]='water';l.condition={kind:'no-damage'};const s=create(l);s.player.y=14;equipWearable(s,'bullet-mask');
+ wearableInput(s,{...EMPTY_INPUT,special:true},1/120);s.wearable.flight=.01;for(let n=0;n<700;n++)wearMotion(s,EMPTY_INPUT,1/120);
+ assert.equal(s.wearable.active,true);assert.equal(s.player.vy,0);assert.equal(s.player.vx,6);assert.equal(s.wearable.flight,.01);
+ afterWearMove(s,1);assert.equal(s.wearable,null);assert.ok(s.invincible>0);assert.equal(conditionProgress(s).done,true);assert.equal(s.clearRun.damaged,false);
+});
+test('bullet jump activation and release never replenish the airborne flight budget',()=>{
+ const s=flat();s.grounded=false;s.player.y=8;s.player.vy=2;equipWearable(s,'bullet-mask');wearableInput(s,{...EMPTY_INPUT,jump:true},.01);assert.equal(s.wearable.active,true);
+ wearMotion(s,EMPTY_INPUT,1);const remaining=s.wearable.flight;wearableInput(s,EMPTY_INPUT,.01);assert.equal(s.wearable.active,false);wearableInput(s,{...EMPTY_INPUT,jump:true},.01);assert.equal(s.wearable.flight,remaining);
+});
+test('cannon shots expire at six or twelve travelled tiles and fully extend a hit ! block',()=>{
+ for(const charged of [false,true]){const s=flat(),b={kind:'cannon',x:4,y:10,w:.4,h:.4,vx:11,vy:0,age:0,charged};s.cannonShots.push(b);for(let n=0;n<300&&s.cannonShots.length;n++)advanceCannonShots(s,1/120,services);assert.ok(Math.abs(b.x-4-(charged?12:6))<.001);assert.equal(s.cannonShots.length,0);}
+ const l=level();l.cells[1908]='extend-block';l.properties[1908]={path:[[0,0],[0,-4]]};const s=create(l);s.cannonShots.push({kind:'cannon',x:6,y:19.2,w:.4,h:.4,vx:11,vy:0,age:0});for(let n=0;n<50;n++)advanceCannonShots(s,1/120,services);assert.equal(s.devices[0].blocks.length,5);
+ for(const charged of [false,true]){const a=level();a.cells[1908]='hard-block';const t=create(a);t.cannonShots.push({kind:'cannon',x:6,y:19.2,w:.4,h:.4,vx:11,vy:0,age:0,charged});for(let n=0;n<50;n++)advanceCannonShots(t,1/120,services);assert.equal(t.level.cells[1908],'hard-block');}
+});
+test('boss attack counts match three stomps/cannon shots, fifteen fireballs, twenty fireballs, seven cannon shots and two POWs',()=>{
+ for(const [kind,attack,count] of [['boom-boss','cannon',3],['pom-boss','cannon',3],['boom-boss','fire',15],['cat-boss','fire',20],['cat-boss','cannon',7],['cat-boss','pow',2]]){
+  const s=boss(kind),b=s.bosses[0];for(let n=0;n<count;n++){b.hurt=0;b.vy=0;b.brain.mode='walk';damageBoss(s,b,attack);if(n<count-1)assert.ok(b.health>0,`${kind}/${attack}/${n}`);}assert.equal(b.health,0,`${kind}/${attack}`);
+ }
+ for(const kind of ['boom-boss','pom-boss','cat-boss'])for(const attack of ['star','stone','turret']){const s=boss(kind),b=s.bosses[0];b.brain.mode='hidden';b.hurt=.5;damageBoss(s,b,attack);assert.equal(b.health,0);}
+});
+test('star, riding and wearing clear conditions follow the actual current inventory',()=>{
+ const s=flat();s.level.condition={kind:'star'};assert.equal(conditionProgress(s).done,false);s.starTime=1;assert.equal(conditionProgress(s).done,true);s.starTime=0;assert.equal(conditionProgress(s).done,false);
+ s.level.condition={kind:'wearing',item:'cannon-box'};equipWearable(s,'cannon-box');assert.equal(conditionProgress(s).done,true);s.wearable=null;assert.equal(conditionProgress(s).done,false);
+ s.level.condition={kind:'riding',item:'koopa-car'};const car=makeItem('koopa-car',4,19);s.items.push(car);assert.equal(conditionProgress(s).done,false);s.vehicle=car;assert.equal(conditionProgress(s).done,true);car.alive=false;assert.equal(conditionProgress(s).done,false);
+ for(const condition of [{kind:'star'},{kind:'stay-water'},{kind:'wearing',item:'bullet-mask'},{kind:'riding',item:'basin'}]){const l=level();l.condition=condition;assert.deepEqual(validate(JSON.parse(JSON.stringify(l))),l);}
+});
+test('water clear condition is irrevocably lost upon leaving water and resets on retry',()=>{
+ const l=level();l.condition={kind:'stay-water'};for(let y=12;y<20;y++)for(let x=1;x<20;x++)l.cells[y*100+x]='water';const s=create(l);s.player.y=16;advanceClearRun(s);assert.equal(conditionProgress(s).done,true);
+ s.player.x=25;advanceClearRun(s);assert.equal(conditionProgress(s).failed,true);s.player.x=5;advanceClearRun(s);assert.equal(conditionProgress(s).done,false);services.crush(s);respawn(s);assert.equal(s.clearRun.leftWater,false);
+});
+
+test('3D falling ring blocks are solid on all faces and stone weight triggers their fall',()=>{
+ const l=level();l.cells[1508]='fall-block';l.properties[1508]={delay:.05};const s=create(l),d=s.p2Mechanisms[0];assert.equal(d.h,1);assert.ok(deviceSolids(s).includes(d));
+ const side={x:7,y:15,w:.8,h:.8,vx:5,vy:0};assert.equal(services.move(s,side,.1).wall,1);
+ const below={x:8.1,y:16.1,w:.8,h:.8,vx:0,vy:-5};services.move(s,below,.1);assert.ok(below.y>=16);
+ s.stones.push({x:8,y:13,w:2,h:2,vx:0,vy:0,origin:[8,13],direction:'down',phase:'idle',timer:0});for(let n=0;n<10;n++)advanceP2Mechanisms(s,1/120,services);assert.equal(d.phase,'fall');
+});
+
+test('unsatisfied clear conditions gray the goal flag and display a world-space lock',async()=>{
+ const {drawGoal}=await import('../whale-maker/rendering/goal.ts');const s=create(level());s.level.condition={kind:'coins',amount:1};
+ const sprites=[],fills=[],scene={sprite(...args){sprites.push(args);},fill(...args){fills.push(args);},dustParticle(){}};
+ drawGoal(scene,s,94,19,100,500,48,0,false);assert.ok(sprites.find(a=>a[0]==='goal-flags')[9]);const locked=fills.length;s.coins=1;sprites.length=fills.length=0;drawGoal(scene,s,94,19,100,500,48,0,false);assert.equal(sprites.find(a=>a[0]==='goal-flags')[9],undefined);assert.ok(fills.length<locked);
+});

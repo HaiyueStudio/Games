@@ -35,7 +35,7 @@ export function synthesizeSkySound(id: SkySound): Float32Array {
   const noise = () => {seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return (seed>>>0)/2147483648-1;};
   for (let i=0;i<samples.length;i++) {
     const t=i/SKY_SAMPLE_RATE,p=i/(samples.length-1),n=noise();
-    let value=0;
+    let value: number;
     if(id==='boss-warning') {
       // Two alternating scanner tones per second; tapered pulses keep every loop boundary silent.
       const local=t%0.5,hz=t<0.5?620:930;

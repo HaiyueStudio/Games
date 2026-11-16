@@ -48,7 +48,8 @@ export function advancePlatforms(s:State,dt:number,svc:Services):void {
 }
 export function damageBoss(s:State,b:TurtleBoss,attack='fire'):void {
     if(b.brain){hitP2Boss(s,b,attack);return;}
-    if(b.phase==='fall'||b.phase==='gone'||b.hurt>0)return;
+    if(b.phase==='fall'||b.phase==='gone')return;
+    if(attack==='bone-pound'){dropBoss(s,b);return;}if(b.hurt>0)return;
     b.health--;b.hurt=.22;emit(s,'hit',b.x+1);
     if(b.health<=0)dropBoss(s,b);
 }
@@ -91,12 +92,12 @@ export function updateFortress(s:State,dt:number,svc:Services):void {
             emit(s,'fire',b.x+1);b.fired=true;
         }
         if(b.cycle>=b.fireAt){b.cycle=0;b.fired=false;b.phase='walk';}
-        b.jumpAt-=dt;let pace=b.phase==='breath'?0:(b.x>b.home+1.8?-1:b.x<b.home-1.8?1:Math.sign(b.vx)||-1);
+        b.jumpAt-=dt;const pace=b.phase==='breath'?0:(b.x>b.home+1.8?-1:b.x<b.home-1.8?1:Math.sign(b.vx)||-1);
         b.vx=pace*1.05;b.vy=Math.min(16,b.vy+22*dt);const r=svc.move(s,b,dt);
         if(r.wall)b.vx=-pace*1.05;
         if(r.floor&&b.jumpAt<=0){b.vy=-8.3;b.jumpAt=3.4;}
         if(overlaps(s.player,b)&&!s.pipe){
-            if(s.starTime>0)damageBoss(s,b);
+            if(s.bonePound&&s.pound==='fall'&&s.player.vy>=0&&s.player.y+s.player.h<=b.y+.6){damageBoss(s,b,'bone-pound');s.player.vy=-5;s.grounded=false;}else if(s.starTime>0)damageBoss(s,b);
             else if(s.spinning&&s.player.vy>=0&&s.player.y+s.player.h<b.y+.55){s.player.y=b.y-s.player.h;s.player.vy=-11;s.grounded=false;s.spinAge=0;emit(s,'stomp',b.x);}
             else svc.hurt(s);
         }

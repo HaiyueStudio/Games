@@ -1,4 +1,5 @@
 import type { Level, Tile } from './model';
+import { virtualEndGround } from './course-bounds';
 
 const horizons=new WeakMap<Tile[],{width:number;height:number;row:number}>();
 const land=(t:Tile|undefined)=>t==='#'||t==='quicksand';
@@ -27,8 +28,8 @@ export function backdropGround(l:Level):number {
 }
 
 /** Out-of-bounds sampling has one policy for rules, geometry and generators. */
-export const cellAt=(l:Pick<Level,'cells'|'width'|'height'>,x:number,y:number):Tile=>
-    x<0||y<0||x>=l.width||y>=l.height?'.':l.cells[Math.floor(y)*l.width+Math.floor(x)]!;
+export const cellAt=(l:Pick<Level,'cells'|'width'|'height'> & Partial<Pick<Level,'endZone'>>,x:number,y:number):Tile=>
+    x<0||y<0||y>=l.height?'.':x>=l.width?(virtualEndGround(l,x,Math.floor(y))?'hard-block':'.'):l.cells[Math.floor(y)*l.width+Math.floor(x)]!;
 
 export function slopeAt(l:Level,x:number,y:number):{height:number;grade:number}|null {
     const t=cellAt(l,x,y),row=Math.floor(y),u=x-Math.floor(x);

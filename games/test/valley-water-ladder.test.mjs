@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createObject,emptyMap,parseMap,serializeMap,serializeCompactMap,waterHeight,waterWeights,ladderGarden,MapRuntime,localSamples,extrusionSamples,worldSamples,emptyPoses,isWalkable,isDecoration,connections,surfaceGarden} from '../valley-of-light/map/model.ts';
+import {createObject,emptyMap,parseMap,serializeMap,serializeCompactMap,waterHeight,waterWeights,ladderGarden,MapRuntime,localSamples,extrusionSamples,emptyPoses,isWalkable,isDecoration,connections,surfaceGarden} from '../valley-of-light/map/model.ts';
 import {seaMeshData,seaPalette} from '../valley-of-light/map/water.ts';
 const near=(a,b,t=1e-6)=>assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<t,`${a} != ${b}`);
 const finish=(r)=>{for(let i=0;i<8000&&r.walking;i++)r.tick(.01);assert.equal(r.walking,false);};

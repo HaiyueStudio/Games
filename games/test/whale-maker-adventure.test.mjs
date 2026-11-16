@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 registerHooks({resolve(specifier,context,next){try{return next(specifier,context);}catch(error){if(specifier.startsWith('.')&&context.parentURL?.includes('/whale-maker/'))return next(specifier+'.ts',context);throw error;}}});
 const {create,demo,validate,step,EMPTY_INPUT,tile,respawn}=await import('../whale-maker/rules/model.ts');
-const {makeEnemy,makeItem}=await import('../whale-maker/rules/expansion.ts');
+const {makeEnemy}=await import('../whale-maker/rules/expansion.ts');
 const {placeStone,collectKey}=await import('../whale-maker/rules/adventure.ts');
 const {objectCells,moveSelection,stampSelection,pasteStamp,clearCells}=await import('../whale-maker/editor/selection.ts');
 const tick=(s,input={},n=1)=>{for(let k=0;k<n;k++)step(s,{...EMPTY_INPUT,...input});};

@@ -2,12 +2,12 @@ import {effect,type Effect} from './effects';
 export {effect} from './effects';
 import {overlaps as overlap} from './geometry';
 import {hasHelmet,ridingBoneShell} from './player-equipment';
-import {mountBoneShell} from './shell-equipment';
+import {equipShellHelmet,mountBoneShell} from './shell-equipment';
 import { resolveActivation, activateTrampolines } from './p1-mechanisms';
 import { spawnContent as payload } from './containers';
-import type { Body, State, Level, Enemy, Item, Input, BlockContent, Tile } from './model';
+import type { Body, State, Level, Enemy, Item, Input, BlockContent } from './model';
 import type { Services } from './services';
-import { ITEM_KINDS, EXTRA_ENEMIES, type ElementProperties } from './catalog';
+import { type ElementProperties } from './catalog';
 import { crushPlayer, defeatEnemy } from './combat';
 import {launchBomb} from './workshop';
 import { emit } from './events';
@@ -102,6 +102,7 @@ export function ironWake(s:State,e:Enemy,dt:number):void {
 }
 export function heldAction(s:State,i:Input):boolean {
     const e=s.held;if(!e)return false;
+    if((e.kind==='shell-helmet'||e.kind==='spike-shell-helmet')&&i.down&&!s.previous.down){equipShellHelmet(s,e.kind);e.alive=false;e.held=false;s.held=null;return true;}
     if(e.kind==='bomb'&&e.bombFuse!==undefined&&!e.frozen){const throwing=i.fire&&!s.previous.fire;if(!throwing&&i.grab)return false;emit(s,throwing?'throw':'grab',e.x);e.held=false;if(throwing)launchBomb(e,s.facing,'throw');else{e.bombThrown=false;e.vx=e.vy=0;}e.cooldown=.3;e.x=s.facing>0?s.player.x+s.player.w+.02:s.player.x-e.w-.02;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);s.held=null;return throwing;}
     if('frozen'in e&&e.frozen){const throwing=i.fire&&!s.previous.fire;if(!throwing&&i.grab)return false;emit(s,throwing?'throw':'grab',e.x);e.held=false;e.frozen.thrown=throwing;e.frozen.detached=true;e.frozen.hang=0;e.attackChain=0;e.vx=throwing?s.facing*12:0;e.vy=0;e.cooldown=.3;e.x=s.facing>0?s.player.x+s.player.w+.02:s.player.x-e.w-.02;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);s.held=null;return throwing;}
     if(e.kind==='bone-shell'&&i.down&&!s.previous.down){e.y=s.player.y+s.player.h;e.held=false;s.held=null;mountBoneShell(s,e);placeRiding(s);return true;}

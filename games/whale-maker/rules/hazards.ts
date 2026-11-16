@@ -1,4 +1,4 @@
-import type { State, Enemy } from './model';
+import type { State } from './model';
 import {defeatEnemy} from './combat';
 export function drownEnemies(s:State):void{
     for(const e of s.enemies){

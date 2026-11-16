@@ -1,7 +1,6 @@
 import {poleHeight} from './goal';
 import type { Input, State } from './model';
 import { emit } from './events';
-import { oneWayDevices } from './p1-mechanisms';
 
 /** Explicit combinations leave ordinary jump, spin, grab and throw untouched. */
 export function prepareMotion(s:State,i:Input,dt:number):{ground:boolean;charge:number;style:'normal'|'charged'|'high'|'long'} {

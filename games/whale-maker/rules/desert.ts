@@ -1,5 +1,5 @@
 import {overlaps as overlap} from './geometry';
-import type { Body, Enemy, Input, Item, Level, State, Tile } from './model';
+import type { Body, Enemy, Input, Item, Level, State } from './model';
 import type { Services } from './services';
 import { setCell } from './terrain';
 import { emit } from './events';

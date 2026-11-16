@@ -1,6 +1,43 @@
 # 鲸屿制造与《马里奥制造 2》的现行机制对照
 
-核对日期：2026-10-30。以当前 `rules/`、编辑器和确定性探针为准，参考任天堂介绍及 Mario Wiki 的《Super Mario Maker 2》分游戏条目；本轮没有 Switch 实机逐帧录制。结论覆盖已有机制的主要交互，不等于全部对象组合和物理参数已经与原作一致。
+核对日期：2026-11-04。以当前 `rules/`、编辑器和确定性探针为准，参考任天堂介绍及 Mario Wiki 的《Super Mario Maker 2》分游戏条目；本轮没有 Switch 实机逐帧录制。结论覆盖已有机制的主要交互，不等于全部对象组合和物理参数已经与原作一致。
+
+## 终点边界与细节复核（2026-11-04）
+
+主场景右边界按旗杆所在列起算 **10 格**，即旗杆在第 x 列时，人物完整碰撞体不得超出 x+10；相机跟随、自动滚屏和停镜均使用同一边界。复制、粘贴或重新放置旗杆会替换当前区域的旧旗杆，撤销／重做同步恢复终点位置。原始 cells 宽度和索引保持原值，短地图不足十格的尾部以运行时地面补足；编辑器以虚线和遮罩标出可玩边界。地图边界不当作可蹬跳的实体墙。旧版远端管道房间及显式地下房间按各自边界处理，无旗杆副区仍使用本区原宽度。来自玩家的[关卡尺寸实测](https://www.reddit.com/r/MarioMaker/comments/ci5umo/mario_maker_2_maximum_level_dimensions/)也记录终点固定地面区宽十格；这里明确采用包含旗杆格的网格计数。
+
+本轮重新执行代码探针，不把上次审计的过时状态当作当前缺口。原始输出在 `artifacts/whale-end-audit/probes.json`：
+
+| 类别 | 本轮结论 | 后续优先级 |
+| --- | --- | --- |
+| 已完成 | 十类通关条件、头顶鲸鱼旗、失败 HUD、同帧伤害／拿放／弹跳后的终点判定，以及普通单墙防净爬高，已更新文档旧条目 | 维持回归 |
+| 已修正 | 终点后可继续走远、相机仍跟随存储宽度、短图尾部不足、多个旗杆边界不明确，以及三个壳类的风格标签 | 本轮交付 |
+| 已修正 | 粉红币全关共享，检查点子集及 key death 已覆盖 | 维持回归 |
+| 已修正 | 传送箱接触触发，龟车驾驶及唯一实体随传送迁移 | 维持回归 |
+| 已修正 | 状态条件及终点灰旗／锁标反馈已补齐 | 维持回归 |
+| 已修正交互，精确时序仍待标定 | 面具、炮箱、帽子、首领、圈砖及石头交互见下表 | 与 Switch 逐帧标定另列 |
+| 按用户要求保留 | 八个副区、编辑高度 0–255、冰花、流沙、巨型、三段跳、旋转踩刺、铁盆、原创首领及环境风 | 项目扩展，不为套用原作互斥规则删除 |
+
+[任天堂制关介绍](https://www.nintendo.com/jp/switch/baaqa/pc/make/index.html)说明主题、游戏风格和零件组合；上面的具体数值／跨对象差异还区分了本项目探针、社区实测和未标定项，不宣称已经覆盖全部组合。粉红币跨区域目标亦可参照[玩家制关讨论](https://www.reddit.com/r/MarioMaker/comments/cd719f/)。
+
+边界浏览器验证：`node games/whale-maker/verify-end-boundary-browser.mjs`，覆盖未达标绕过旗杆、短图尾部、旗杆重放及撤销、保存读取、旧地下房间、完整滑旗与城堡入场；截图位于 `artifacts/whale-end-boundary/`。
+
+## 跳跃与墙跳校准（2026-11-04）
+
+普通跳保持原有可变跳高，不把上升／下降改成相同速度。当前项目以格为单位，长按最高跳约 4.50 格，上升 0.667 秒、下降 0.558 秒；轻点时上升提前减速，不能把所有短跳也概括成同一升降时长比例。上升重力 20、下降 30、松键后的上升减速 65，均保持不变。这些是本项目 120 Hz 实测，**不是任天堂公布的物理数值**。
+
+单墙爬高的原因是原先墙跳直接刷新普通跳的完整上升速度，向外锁定只有 0.16 秒，空中转向加速度又足以迅速折返。在 64 tick 的重复按键节奏下，旧实现可从单面墙脚不断净爬高到测试墙顶。修复使用独立蹬墙参数：
+
+| 参数 | 修复前 | 修复后 |
+| --- | --- | --- |
+| 墙跳向上速度 | 13.5 格/秒 | 12.5 格/秒 |
+| 向外蹬离速度 | 8 格/秒 | 10 格/秒 |
+| 恢复空中转向前的锁定时间 | 0.16 秒 | 0.28 秒 |
+| 长跳等动作的状态 | 可以带入墙跳 | 墙跳结束旧动作，恢复普通空中运动 |
+
+这里通过推离距离和折返所需时间消除单墙连续净爬高，仍允许下降后再次蹬同一面墙补救，也保留左右两墙交替攀升。小型／长高／巨型、七种重复按键节奏、步行／快跑共 42 个场景均要求后续同墙起跳点不高于前一次；3／5／7 格双墙间距仍可连续爬升。猫形态的有限攀墙及旋桨等装备能力单独保留。任天堂的[3D World 介绍](https://www.nintendo.com/jp/switch/auzpa/3dworld/index.html)也把猫的攀墙列为形态能力，但没有公开本轮所需的逐帧墙跳常量；本轮未取得 Switch 原作逐帧录制，因此不宣称这些调校值与官方引擎逐帧等价。
+
+复测：`node --experimental-strip-types games/whale-maker/benchmark-jump.mjs current`，输出 `artifacts/whale-jump/current.json`（含代码哈希）；单墙和普通跳控制器在前后报告中相同，双墙控制器第 2 版保持空中按跳、接触对墙后松开一帧再按。浏览器验证为 `node games/whale-maker/verify-jump-browser.mjs`，覆盖正常跳跃时长、向外推离、单墙无法净爬高和双墙攀升，截图及测量位于 `artifacts/whale-jump/browser/`。
 
 P0／P1／P2 的基础能力已交付。旧版表格中把猫、锤子、面具、主副区等写成“尚未实现”的过程记录已压缩为下表，交付细节仍见 [P0](P0_RULES.md)、[P1](P1_IMPLEMENTATION.md)、[P2](P2_IMPLEMENTATION.md)，原编号和目标依赖见 [路线图](SMM2_3D_WORLD_ROADMAP.md)。
 
@@ -30,30 +67,30 @@ P0／P1／P2 的基础能力已交付。旧版表格中把猫、锤子、面具�
 | 石头与炮台 A17–A18 | 石头实体、三向冲砸、回程；可装填炮台、发射器、抛物线火炮；帽子顶起、石头新归位点 | 顶炮台与改变归位点按用户要求保留，不宣称原版一致 |
 | 树、扩展砖、传送 G01–G03 | 爬树／树冠内容、感叹号展开／收回、一次性箱和锁箱 | 传送触发、车辆和炮箱展开仍有缺口 |
 | 地形 G07–G10、G13 | 缓坡、半实体平台、硬砖、方向牌、节拍砖、坠落圈砖、冰柱、风场 | 坠落圈砖目前为单向平台 |
-| 计分与进度 A15–A16、I09–I10、L06–L07 | 金币／得分分开、连击、掉落、条件、生命、大额币、检查点、旗顶奖励、计时转分 | 粉红币跨区错误；条件目前仅三类 |
+| 计分与进度 A15–A16、I09–I10、L06–L07 | 金币／得分分开、连击、掉落、条件、生命、大额币、检查点、旗顶奖励、计时转分 | 粉红币已全关共享；十类条件、头顶达标旗、锁定终点和条件 HUD |
 | 区域、主题与镜头 L03–L05 | 横／竖区域、最多八副区、区域状态缓存、门／管／箱跨区、升降液面、自动滚屏／停镜 | 六个玩法主题；不是原作完整主题／风格系统 |
 | 编辑与产品 L01、L08–L09 | 分类、数值／路径、复制撤销、属性批量修改、预览、JSON 与单槽存档 | 多槽库、世界地图、联网和多人仍未交付 |
 
-## 已确认需要继续补齐的交互
+## 已确认交互差异的修复（2026-11-04）
 
-以下是**待处理差异**，优先级按照制关正确性和玩家可感知影响排序。
+下表替代前次探针的待办结论。参考规则已落实到模拟、编辑器和回归用例；自定义参数仍允许作者覆盖，速度、时长不是未经实测就宣称的原作常数。
 
-| 优先 | 问题与当前结论 | 解决方向、代码与原作依据 |
+| 项目 | 当前结果 | 依据 |
 | --- | --- | --- |
-| 高 | **粉红币跨区错误**：主、副区各一枚时，当前每区按 `1/1` 出一把钥匙，两枚合计两把；原作全关属于同一组，只应收齐后出一把 | 关卡共享已收集集合及总数，区域只保存实体是否消失；补往返与检查点生命周期。[p1.ts](rules/p1.ts)、[p2-areas.ts](rules/p2-areas.ts)、[粉红币](https://www.mariowiki.com/Pink_Coin_(Super_Mario_Maker)) |
-| 高 | **普通帽／尖刺帽缺少能力区分**：两者普通顶击都会直接击败普通敌人，均只能碎普通砖，尖刺帽不能碎硬砖 | 普通帽对多数对象应弹开，尖刺帽才有更广的击杀／破坏表；空块、硬砖、冰砖、奖励块及内容释放也应逐项区分。[combat.ts](rules/combat.ts)、[interactions.ts](rules/interactions.ts)、[model.ts](rules/model.ts)、[普通帽](https://www.mariowiki.com/Buzzy_Shell_(helmet))／[尖刺帽](https://www.mariowiki.com/Spiny_Shell_(helmet)) |
-| 高 | **空帽拾取与攻击**：当前任意接触自动戴上，抱着按上戴；新帽子尚未走铁盆的高速投掷伤敌分支 | 原作从下触碰或抱着蹲下戴帽，空尖刺帽顶部有伤害；空壳还可踢、抱、投。应把穿戴触发、顶面危险和壳体攻击分开。[expansion.ts](rules/expansion.ts)、[advanced.ts](rules/advanced.ts)、[尖刺帽资料](https://www.mariowiki.com/Spiny_Shell_(helmet)) |
-| 高 | **骨头壳水下不能浮起**：浮力只接住从上方经过的液面；水面第 14 行、空壳放第 18 行，240 步后仍停水底第 20 行 | 补浸水浮升、穿着时水下升降及液面连续过渡；原作空壳和穿壳角色均可浮升。[shell-equipment.ts](rules/shell-equipment.ts)、[骨头壳](https://www.mariowiki.com/Dry_Bones_Shell) |
-| 中 | **骨头壳的重压结果**：当前借普通下砸及 Boss 扣血入口；没有专门的骨壳重压攻击表，投壳碰墙也未按骨壳规则碎裂 | 原作骨壳重压可直接击败包括 Bowser 在内的首领，少数对象按地形处理；需与普通下砸、投掷、敌人抗性分开。五秒自动复原是用户指定规则，继续保留，不拿未经标定的原版时长覆盖。[fortress.ts](rules/fortress.ts)、[骨头壳资料](https://www.mariowiki.com/Dry_Bones_Shell) |
-| 高 | **传送箱触发与车**：同区及跨区都要求按上；跨区会结束龟车驾驶 | 原作箱子接触即传送，龟车也能进入；应与门的按上操作分离，统一锁箱、一次性入口和载具迁移。[p1-mechanisms.ts](rules/p1-mechanisms.ts)、[p2-areas.ts](rules/p2-areas.ts)、[Warp Box](https://www.mariowiki.com/Warp_Box) |
-| 高 | **鲸弹面具**：当前可上下飞、水中不能发动、撞墙只停飞且保留面具 | 原作以水平飞行为主，水下仍能用，撞墙会失去面具；需要独立飞行、入水与撞击状态。[p2-wearables.ts](rules/p2-wearables.ts)、[Bullet Bill Mask](https://www.mariowiki.com/Bullet_Bill_Mask) |
-| 中 | **鲸炮射程**：空场探针测得普通约 27.6 格、蓄力约 40.1 格，当前由速度乘 2.5 秒寿命决定 | 参考资料为约 6／12 格，应给射程独立限制；蓄力炮仍不能破硬砖。[p2-wearables.ts](rules/p2-wearables.ts)、[Cannon Box](https://www.mariowiki.com/Cannon_Box) |
-| 高 | **鲸炮联动**：当前遇扩展砖走普通顶砖入口，未按坐击一次全展开；打首领与火／冰共用轻攻击计数 | 炮箱命中感叹号砖应全部展开；对 Boom Boom／Pom Pom 一发相当一次踩踏，Meowser 七发。补目标专门结果。[p2-wearables.ts](rules/p2-wearables.ts)、[p2-bosses.ts](rules/p2-bosses.ts)、[Cannon Box 交互](https://www.mariowiki.com/Cannon_Box) |
-| 高 | **建造锤抗性表不全**：可砸硬砖，但挥锤只扫描普通敌人，未命中独立 `stones`；巨型蚂蚁也按通用击败处理 | 原作锤可打碎 Thwomp，但对巨型蚂蚁无效；补特殊实体与尺寸抗性，保留已有最多五个建造箱。[p1-abilities.ts](rules/p1-abilities.ts)、[interactions.ts](rules/interactions.ts)、[Super Hammer](https://www.mariowiki.com/Super_Hammer_(Super_Mario_Maker_2)) |
-| 高 | **首领数值与重物**：拳王每三次火球扣一点，龙王默认六点／四次轻命中扣一点；石头／炮台对龙王扣两点，蓝 POW 无效 | 制造 2 的 Boom Boom 五火球相当一踩；Meowser 二十火球、两蓝 POW，星／石头／发射器重压可直接击败。若追求兼容需按攻击类型配置，不能把当前原创首领生命条当原版。[p2-bosses.ts](rules/p2-bosses.ts)、[3D 差异](https://www.mariowiki.com/Super_Mario_Maker_2#Super_Mario_3D_World)、[Meowser](https://www.mariowiki.com/Meowser) |
-| 中 | **坠落圈砖碰撞与触发对象**：当前高 0.3 的单向平台，`deviceSolids()` 不含它；触发者列表也没有石头 | 3D 风格的 Donut Block 是全实体，不能从下穿过，Thwomp 能压动。补全侧面／底面和重物触发。[p2-mechanisms.ts](rules/p2-mechanisms.ts)、[device-solids.ts](rules/device-solids.ts)、[Donut Block](https://www.mariowiki.com/Donut_Block) |
-| 中 | **石头破砖与变体**：当前固定 2×2，撞砖停下，主要重物联动覆盖 POW 与 Boss | 补可破坏砖的层级、巨大／飞行变体和机关逐项反应；压顶致死与安全站立已有，不应重写。[adventure.ts](rules/adventure.ts)、[Thwomp](https://www.mariowiki.com/Thwomp) |
-| 中 | **编辑器风格归属误标**：三个新壳在 `elementOrigin()` 被默认归为“3D基础” | 壳帽与骨头壳在制造 2 属四种经典风格，当前混用按用户需求保留，但元数据应标“保留扩展”。[profile.ts](rules/profile.ts)、[普通帽风格](https://www.mariowiki.com/Buzzy_Shell_(helmet))、[骨头壳风格](https://www.mariowiki.com/Dry_Bones_Shell) |
+| 粉红币 | 主副区共享总数与收集集合，整组只给一把钥匙；检查点保存子集，可交替激活。未完成时死亡恢复子集，集齐获得钥匙后死亡整组重置，钥匙清空。 | [粉红币](https://www.mariowiki.com/Pink_Coin_(Super_Mario_Maker))、[玩家检查点实测](https://www.resetera.com/threads/super-mario-maker-2-ot-the-super-mario-world-ends-with-you.125850/page-203) |
+| 两类壳帽 | 普通帽向上弹开敌人，尖刺帽击败普通敌人、弹开铁壳；尖刺帽可破普通／奖励／空／硬／冰砖，毁掉容器不释放内容，冰中金币计收集。铁盆原有顶敌规则保留。 | [普通帽](https://www.mariowiki.com/Buzzy_Shell_(helmet))、[尖刺帽](https://www.mariowiki.com/Spiny_Shell_(helmet)) |
+| 空帽 | 从下方接触或抱着按下穿戴；侧碰可踢、Shift 可抱、J 可投，移动壳可伤敌；空尖刺帽顶部危险。 | 同上 |
+| 骨头壳 | 深水放置也会浮升；穿壳可按上下潜浮、浮至液面，投壳撞墙碎裂；骨壳下砸直接击败首领。水中下键潜水，陆地／岩浆面下键和落地仍保留用户指定五秒骨头状态。 | [骨头壳](https://www.mariowiki.com/Dry_Bones_Shell) |
+| 传送箱与车 | 同区／跨区接触触发，与门的按上分开；钥匙锁、两端一次性、失败不消耗；驾驶中的同一辆车迁移到目标区，出口落点按车底对齐。 | [传送箱](https://www.mariowiki.com/Warp_Box) |
+| 鲸弹面具 | 空中长按跳跃或 K 横飞，左右转向，水下减速且不消耗飞行时间；空中开关不刷新预算，落地补充。撞墙脱落并获得短暂无敌，这次撞墙不算无伤失败。四秒为空中项目参数。 | [鲸弹面具](https://www.mariowiki.com/Bullet_Bill_Mask) |
+| 鲸炮 | 普通／蓄力炮按实际行程限 6／12 格，不能破硬砖；命中感叹号砖全部展开。炮击拳王／幻忍一发相当一次踩踏，龙王默认七炮击败。 | [炮箱](https://www.mariowiki.com/Cannon_Box) |
+| 建造锤 | 可击碎独立石头实体；巨型蚂蚁免疫锤击，普通蚂蚁仍可击败；五个建造箱上限保留。 | [建造锤](https://www.mariowiki.com/Super_Hammer_(Super_Mario_Maker_2)) |
+| 首领 | 拳王／幻忍默认三次踩踏或炮击；轻弹每五次扣一生命。龙王默认 20 火球／7 炮／2 个落地蓝 POW，星、石头、下落炮台及骨壳下砸直接击败。原创吊桥尖刺龟仍是五点生命。 | [拳王](https://www.mariowiki.com/Boom_Boom)、[猫酷霸王](https://www.mariowiki.com/Meowser) |
+| 坠落圈砖 | 3D 参考采用一格高全实体，侧面、底部、顶部均参与碰撞；石头重量可触发，带乘客下落与安全复位保留。 | [圈砖](https://www.mariowiki.com/Donut_Block) |
+| 石头 | 普通石头砸破一层普通砖后停止；巨大石头 4×4，可连续破普通／硬砖；可按 P 开关、触发奖励砖／颜色开关／POW。新增巨大、翅膀属性及尺寸一致的编辑、选择、复制、碰撞和绘制；翅膀型待机左右飘动。压顶、站立与铁盆改变归位点保留。 | [石头](https://www.mariowiki.com/Thwomp) |
+| 条件与反馈 | 增加无敌星、保持水中、指定坐骑和指定穿戴，合计十类；跨区保留失败记录。未满足时终点灰旗／锁标，满足后恢复彩旗，头顶达标旗及 HUD 同步。水中条件是保留扩展，不标成 3D 原生制关能力。 | [条件](https://www.mariowiki.com/Super_Mario_Maker_2#Clear_Conditions) |
+
+规则回归覆盖跨区往返、检查点死亡、key death、同一载具不复制、装备失效、射程、首领攻击次数、深水浮力、巨型石头和全实体圈砖。浏览器脚本：`verify-parity-browser.mjs`，截图与结果：`artifacts/whale-maker-parity/`。
 
 ## 继续保留的设计差异
 
@@ -66,7 +103,7 @@ P0／P1／P2 的基础能力已交付。旧版表格中把猫、锤子、面具�
 
 | 范围 | 当前与后续结论 |
 | --- | --- |
-| 通关条件 | 当前只有金币数、敌人击败数和指定身体形态；未支持离地后不可再落地、全程不受伤、携带指定物、坐骑／装备要求等。保留参考档“条件关不能设检查点”的校验。[条件资料](https://www.mariowiki.com/Super_Mario_Maker_2#Clear_Conditions) |
+| 通关条件 | 已支持金币数、敌人击败数、指定形态、抱持指定物、无伤、不落地、无敌星、保持水中、坐骑及穿戴十类；头顶飘旗、锁定终点及 HUD 同步本帧结果。保留参考档“条件关不能设检查点”的校验。[条件资料](https://www.mariowiki.com/Super_Mario_Maker_2#Clear_Conditions) |
 | 主题 | 当前六种玩法主题，天空／水下／鬼屋／飞船尚无完整主题；夜景图片不代表夜间玩法。3D 风格本来没有四经典风格的整套夜间特殊规则，不能混列为必须补齐。[原作主题](https://www.mariowiki.com/Super_Mario_Maker_2#Themes) |
 | 关卡管理 | 单槽保存／JSON、经典四关串联已有；多槽库、缩略图、世界编排、分享、多人和上传前完整通关验证属于路线图 P3，尚未交付。[官方世界与分享介绍](https://www.nintendo.com/jp/switch/baaqa/pc/make/index.html) |
 | 精确手感 | 步行／快跑／蓄力时长、跳跃弧线、刹车、火／冰弹、石头警戒与回程、蛇砖／弹床／节拍、POW／P 时长、敌人 AI 及面具暴露时长都未做 Switch 同场逐帧标定。已有项目参数不是原作常数；未确认处不当成已知错误改动。 |
@@ -76,4 +113,4 @@ P0／P1／P2 的基础能力已交付。旧版表格中把猫、锤子、面具�
 
 重构前的代码探针结果位于 [probes.json](../../artifacts/whale-maker-mechanics-audit/probes.json)，记录的是当时实现的观察值，不是让错误行为永久保留的验收基线。包含水下空骨壳、尖刺帽硬砖、普通帽顶敌、跨区粉红币、传送触发、锤击石头、骨壳变身尺寸、鲸炮射程和风格标签。
 
-骨壳尺寸问题已解决。建议顺序：**跨区粉红币 → 两顶帽的攻击／空壳与骨壳生命周期 → 传送箱和面具 → 武器与首领抗性 → 坠落砖／石头联动 → 主题与条件 → 产品能力**。每项补独立组合回归后再改，速度／时长另做原作录屏标定；已有零件不再重复列为“未实现”。
+骨壳尺寸及本页已确认交互缺口已修复。剩余主题、关卡管理和精确时序标定按上表单独规划，不将这些交互测试等同于完整原作兼容。

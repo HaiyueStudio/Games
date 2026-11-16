@@ -70,5 +70,5 @@ test('a P switch ceiling prevents standing, and pressed or held switches leave n
 });
 
 test('P switch braking and collisions are deterministic across identical throw inputs',()=>{
- const runs=[];for(let n=0;n<2;n++){const s=flat(),item=addSwitch(s,4);Object.assign(s.player,{x:4,y:14.2});tick(s,{grab:true},2);tick(s,{fire:true});tick(s,{},120);runs.push(s);}assert.deepEqual(runs[0],runs[1]);
+ const runs=[];for(let n=0;n<2;n++){const s=flat();addSwitch(s,4);Object.assign(s.player,{x:4,y:14.2});tick(s,{grab:true},2);tick(s,{fire:true});tick(s,{},120);runs.push(s);}assert.deepEqual(runs[0],runs[1]);
 });

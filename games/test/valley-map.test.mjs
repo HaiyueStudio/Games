@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CATALOG, MapRuntime, catalogGarden, centerIndex, connections, createObject, emptyMap, emptyPoses, findRoute, localSamples, parseMap, pathPorts, playIssues, prismOutline, project, serializeMap, splitCube, splitGarden, switchGarden, seasideGarden, waterHeight, wheelFrame, groupPoint, detachPillar, worldSample, worldSamples, rotate } from '../valley-of-light/map/model.ts';
+import { CATALOG, MapRuntime, catalogGarden, connections, createObject, emptyMap, emptyPoses, findRoute, localSamples, parseMap, pathPorts, playIssues, prismOutline, project, serializeMap, splitCube, splitGarden, switchGarden, seasideGarden, waterHeight, wheelFrame, groupPoint, detachPillar, worldSample, worldSamples, rotate } from '../valley-of-light/map/model.ts';
 
 const tickUntil=(runtime,predicate)=>{for(let i=0;i<3000;i++){runtime.tick(.02);if(predicate())return;}assert.fail('runtime did not reach expected state');};
 test('stable numbered catalog, JSON round trip, unknown IDs and dangling references',()=>{

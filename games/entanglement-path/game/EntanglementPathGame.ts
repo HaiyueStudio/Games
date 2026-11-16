@@ -4,7 +4,7 @@ import { BasicMaterial, Camera3D, CartesianTransform3D, Entity, Mesh3D, HaiyueEn
 import { MusicPlayerComponent, Transform3D } from '@haiyue/engine/components';
 import { Render3DSystem } from '@haiyue/engine/systems';
 import { RenderIntegration } from '@haiyue/engine/experimental';
-import { requiredItemAt, requiredNumberAt } from '../../shared/collections/arrayAccess';
+import { requiredItemAt } from '../../shared/collections/arrayAccess';
 import { SingleSlotGameSave, isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
 import { InkArt, INK_FONT, ScrollReveal } from '../art/InkArt';
 import { INK, PAPER, INTRO_DURATION_MS, cellPigment } from '../art/inkNoise';

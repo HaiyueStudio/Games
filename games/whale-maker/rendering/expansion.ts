@@ -78,7 +78,7 @@ export function drawInactivePDoor(scene:WhaleScene2D,centerX:number,feetY:number
 export function drawExtraTile(scene:WhaleScene2D,s:State,l:Level,t:Tile,x:number,y:number,px:number,py:number,z:number,time:number,editing:boolean):boolean {
     if(t==='hidden-block'){if(editing){scene.sprite('world',1,px,py,z,z,false,0,.4);scene.fill({x:px+z*.15,y:py+z*.15,width:z*.7,height:2},[1,1,1,.8]);}return true;}
     if(t==='stone-body')return true;
-    if(t==='stone'){if(editing)scene.sprite('adventure',3,px-.1*z,py-.2*z,2.2*z,2.2*z);return true;}
+    if(t==='stone'){if(editing){const size=l.properties?.[y*l.width+x]?.large?4:2;if(l.properties?.[y*l.width+x]?.winged)scene.centeredActor('p1-icons',24,px+size*z/2,py+size*z*.45,z*size*1.35,24);scene.sprite('adventure',3,px-.1*z,py-.2*z,(size+.2)*z,(size+.2)*z);}return true;}
     if(t==='vine'){scene.sprite('adventure',6,px+z*.25,py,z*.5,z);return true;}
     if(t==='spike-all'){scene.sprite('adventure',7,px,py,z,z);return true;}
     if(t==='water'){

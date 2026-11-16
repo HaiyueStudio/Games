@@ -85,7 +85,7 @@ export function synthesizeSound(id:Sound):Float32Array {
     }else{
         let seed=0x7a1e;for(const c of id)seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;const noise=random(seed);let phase=0,low=0;
         for(let n=0;n<out.length;n++){
-            const t=n/SAMPLE_RATE,p=t/SOUNDS[id].seconds,r=noise();low+=.12*(r-low);let v=0,f=0;
+            const t=n/SAMPLE_RATE,p=t/SOUNDS[id].seconds,r=noise();low+=.12*(r-low);let v:number,f:number;
             if(id==='jump'||id==='spin'||id==='spring'){f=id==='jump'?210+650*p:id==='spin'?350+300*p+100*Math.sin(p*TAU*3):135+530*p+190*Math.sin(p*TAU*2)*Math.exp(-p*2);phase+=TAU*f/SAMPLE_RATE;v=(Math.sin(phase)*.7+Math.sin(phase*2)*.12)*Math.exp(-p*(id==='spring'?2.6:3));}
             else if(['bump','stomp','kick','land','step','stone'].includes(id)){f=id==='bump'?170:id==='stomp'?260:id==='kick'?330:id==='stone'?78:id==='step'?115:100;phase+=TAU*(f*Math.exp(-p*2)+35)/SAMPLE_RATE;v=(Math.sin(phase)*.7+low*(id==='stone'?.6:.2))*Math.exp(-p*5);}
             else if(['break','hit','pow','cannon','ice'].includes(id)){phase+=TAU*(id==='pow'?48+100*Math.exp(-t*16):id==='cannon'?70+180*Math.exp(-t*25):id==='ice'?1450*(1-p)+300:110+240*(1-p))/SAMPLE_RATE;v=(low*.9+Math.sin(phase)*(id==='ice'?.22:.55))*Math.exp(-p*5)+r*.1*Math.exp(-t*80);}

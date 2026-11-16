@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {logicGarden,emptyMap,createObject,MapRuntime,parseMap,serializeMap,serializeCompactMap,analyzeStaticPaths,objectState,centerIndex,findRoute,playIssues} from '../valley-of-light/map/model.ts';
+import {logicGarden,emptyMap,createObject,MapRuntime,parseMap,serializeMap,serializeCompactMap,analyzeStaticPaths,objectState,findRoute,playIssues} from '../valley-of-light/map/model.ts';
 const rule=(id,event,actions,condition={kind:'all',conditions:[]},once=true)=>({id,name:id,enabled:true,once,event,condition,actions});
 const base=()=>{const m=emptyMap();m.objects=[createObject(9,'start'),createObject(1,'road',[1,0,0]),createObject(10,'exit',[2,0,0])];m.logic={variables:[{id:'count',name:'计数',initial:0},{id:'flag',name:'标志',initial:false}],rules:[]};return m;};
 const count={kind:'variable',id:'count',operation:'add',value:1};

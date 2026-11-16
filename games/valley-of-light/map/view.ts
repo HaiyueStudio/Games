@@ -8,7 +8,7 @@ import { createCylinder3D, createPathExtrusion3D, Geometry3D } from '@haiyue/eng
 import { applyGltfAnimationClip, createGltfPlugin, GltfModelComponent } from '@haiyue/extensions/gltf';
 import { mat4, vec3 } from 'wgpu-matrix';
 import { Ray, type RayHit } from '@haiyue/engine/math';
-import { objectState, activePath, activePortal, RAD, add, length, connections, groupPoint, emptyPoses, localSamples, extrusionSamples, objectSample, isWalkable, pathCorner, rotate, sub, mul, wheelFrame, waterWeights, surfaceIndexAt, walkSurfaces, prismOutline, unit, worldSample, worldSamples, type MapObject, type MapPoses, type MapRuntime, type CornerId, type ValleyMap, type Vec3 } from './model';
+import { objectState, activePath, activePortal, RAD, add, length, connections, groupPoint, emptyPoses, extrusionSamples, objectSample, isWalkable, pathCorner, sub, mul, wheelFrame, waterWeights, surfaceIndexAt, walkSurfaces, prismOutline, unit, worldSample, worldSamples, type MapObject, type MapPoses, type MapRuntime, type CornerId, type ValleyMap, type Vec3 } from './model';
 import { analyzeStaticPaths, canAttachPillar, defaultPillarOffset, pathMarker, markerIndex, isBuiltDecoration, twistStopIndices } from './model';
 import { startStaticCompilation, type StaticPrimitive, type StaticCompilation } from './staticCompiler';
 import { seaGeometry, seaTexture } from './scenery';

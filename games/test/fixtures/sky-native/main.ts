@@ -33,7 +33,7 @@ async function run() {
   await game.init();
   const integration = new RenderIntegration(engine); world.addRuntimeIntegration(integration); integration.registerAll(world);
   let frames = 0;
-  const update = ({ detail: { time, delta } }: { detail: { time: number; delta: number } }) => {
+  const update = () => {
     game.update(16); world.update(frames * 16, 16); frames++;
   };
   engine.on('update', update); engine.run(); await wait(500);
@@ -67,7 +67,7 @@ async function run() {
     const pool=layer.commandPool.slice();for(let frame=0;frame<100;frame++){battle.begin(240);f.drawBullets(bullets);}
     check(layer.commandPool.length===pool.length&&pool.every((v:any,i:number)=>v===layer.commandPool[i]),'command pool reuses all warmed objects');
     // Shrinking, growing, sorting, errors and reuse must not leak previous command fields.
-    const renderer=layer.renderer, originalWrite=device.queue.writeBuffer.bind(device.queue),scratch:unknown[]=[];
+    const originalWrite=device.queue.writeBuffer.bind(device.queue),scratch:unknown[]=[];
     device.queue.writeBuffer=((buffer:any,offset:any,data:any,...rest:any[])=>{if(data instanceof ArrayBuffer)scratch.push(data);originalWrite(buffer,offset,data,...rest);}) as any;
     try{await capture(true);await capture(true);}finally{device.queue.writeBuffer=originalWrite;}
     check(scratch.length===2&&scratch[0]===scratch[1],'renderer reuses instance staging buffer');
@@ -263,14 +263,14 @@ async function run() {
     engine.stop();const f=game as any,stage=new URLSearchParams(location.search).get('stage')??'long';
     const reset=()=>{f.beginLevel(10);f.levelCarousel.hide();f.score=0;f.phase='playing';f.levelTimeline=[];f.enemies=[];f.enemyBullets=[];f.playerBullets=[];f.boss=null;f.flames.clear();f.flameProtectionMs=0;f.player.invulnerableMs=0;f.player.health=100;f.player.x=240;f.player.y=680;f.pointerFiring=false;};
     const spawn=(id:string,x:number,y:number)=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id===id),x,y);e.entered=true;return e;};
-    reset();let elite=spawn('cinder-elite',240,100);f.player.y=260;f.flames.update(890,f.enemies,f.player);f.updateFlames(200);check(f.player.health===97,'flame ticks bypass bullet hit cooldown and deal three');
+    reset();spawn('cinder-elite',240,100);f.player.y=260;f.flames.update(890,f.enemies,f.player);f.updateFlames(200);check(f.player.health===97,'flame ticks bypass bullet hit cooldown and deal three');
     f.player.y=850;for(let i=0;i<25;i++)f.updateFlames(200);check(f.player.health===72&&f.flames.burnMs===0,'five-second residual burn deals exactly 25');
-    reset();let boss=spawn('inferno-ark',240,145);const small=spawn('scout',188,340);f.player.x=188;f.player.y=650;f.flames.update(1400,f.enemies,f.player);check(f.flames.charges.length===1,'boss flame ignites small fighter');
+    reset();spawn('inferno-ark',240,145);const small=spawn('scout',188,340);f.player.x=188;f.player.y=650;f.flames.update(1400,f.enemies,f.player);check(f.flames.charges.length===1,'boss flame ignites small fighter');
     f.damageEnemy(f.enemies.indexOf(small),small,999);check(f.flames.charges.length===1&&!f.flames.charges[0].source,'shot-down fighter leaves armed wreck');
     f.player.x=188;f.player.y=340;f.player.invulnerableMs=0;f.flames.clearBurn();f.flames.cones=[];f.enemies=[];f.boss=null;
     f.updateFlames(3000);check(f.flames.charges.length===0&&f.player.health===40,'wreck still explodes and deals circular area damage');
     reset();const live=spawn('scout',180,430);f.flames.ignite(live);f.updateFlames(2999);check(f.enemies.includes(live),'living ignited fighter survives until fuse deadline');f.updateFlames(1);check(!f.enemies.includes(live),'living ignited fighter explodes at deadline');
-    reset();boss=spawn('inferno-ark',240,145);const doomed=spawn('scout',180,430);f.flames.ignite(doomed);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);check(f.levelAdvanceMs>=3000&&f.flames.charges.length===1,'boss death cannot cancel a pending fuse');
+    reset();let boss=spawn('inferno-ark',240,145);const doomed=spawn('scout',180,430);f.flames.ignite(doomed);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);check(f.levelAdvanceMs>=3000&&f.flames.charges.length===1,'boss death cannot cancel a pending fuse');
     reset();f.player.health=1;f.player.lives=2;f.damagePlayer(3,true);check(f.player.health===100&&f.player.lives===1&&f.flameProtectionMs===1800,'burn death respawns once');f.damagePlayer(3,true);check(f.player.health===100,'respawn protects against repeated burn ticks');
     reset();boss=spawn('inferno-ark',240,145);boss.fireCooldownMs=0;f.updateEnemies(16);check(f.enemyBullets.length===3,'boss emits ordinary three-round salvo');
     f.flames.update(1500,f.enemies,f.player,true);const activeAngle=f.flames.nozzles[0].angle;f.player.x=420;f.flames.update(500,f.enemies,f.player,true);check(f.flames.nozzles[0].angle<activeAngle&&activeAngle-f.flames.nozzles[0].angle<=.08001,'live narrow cone tracks with bounded turn speed');
@@ -375,16 +375,16 @@ async function run() {
     const miner=()=>{const e=f.spawnEnemy(ENEMY_DEFINITIONS.find(d=>d.id==='ore-reaper'),240,160);e.entered=true;return e;};
     reset(0);for(let i=0;i<450;i++)game.update(16);check(f.bombCrates.crates.length===0,'no crates in other stages');
     reset();for(let i=0;i<450;i++)game.update(16);check(f.bombCrates.crates.length===0,'no crates before mining boss');
-    const boss=miner();for(let i=0;i<375;i++)game.update(16);check(f.bombCrates.crates.length===1,'mining boss naturally spawns first crate after six seconds');
+    miner();for(let i=0;i<375;i++)game.update(16);check(f.bombCrates.crates.length===1,'mining boss naturally spawns first crate after six seconds');
     const before=JSON.stringify(f.bombCrates.snapshot());f.pause();for(let i=0;i<40;i++)game.update(16);check(JSON.stringify(f.bombCrates.snapshot())===before,'pause freezes crate and supply timer');f.togglePause();
-    reset();let c=f.bombCrates.spawn(240,600);const bullet=(damage:number)=>({x:240,y:500,previousX:240,previousY:750,vx:0,vy:-800,radius:4,damage,hostile:false,color:'#5ef'});
+    reset();const c=f.bombCrates.spawn(240,600);const bullet=(damage:number)=>({x:240,y:500,previousX:240,previousY:750,vx:0,vy:-800,radius:4,damage,hostile:false,color:'#5ef'});
     f.playerBullets.push(bullet(20));f.resolveCollisions();check(c.health===22&&f.bombPowerups.length===0&&f.playerBullets.length===0,'first swept hit damages sealed crate without drop');
     f.playerBullets.push(bullet(22));f.resolveCollisions();check(f.bombCrates.crates.length===0&&f.bombPowerups.length===1,'breaking crate releases one bomb');f.damageBombCrate(c,999);check(f.bombPowerups.length===1,'cannot duplicate drop');
     f.player.x=240;f.player.y=600;f.updatePowerups(0);check(f.bombs===2&&f.bombPowerups.length===0,'touch released bomb adds exactly one');
-    reset();c=f.bombCrates.spawn(240,600);f.player.y=600;f.resolveCollisions();f.updatePowerups(0);check(f.bombs===1&&f.player.health===100&&f.bombCrates.crates.length===1,'sealed crate cannot be collected and causes no contact damage');
+    reset();f.bombCrates.spawn(240,600);f.player.y=600;f.resolveCollisions();f.updatePowerups(0);check(f.bombs===1&&f.player.health===100&&f.bombCrates.crates.length===1,'sealed crate cannot be collected and causes no contact damage');
     f.player.y=820;f.weaponForm='purple';f.weaponLevel=3;f.laserFiring=true;f.laserDamageCooldownMs=0;for(let i=0;i<30&&f.bombCrates.crates.length;i++)f.updatePlayerLaser(100);check(f.bombCrates.crates.length===0&&f.bombPowerups.length===1,'laser breaks crate and releases bomb');
-    reset();c=f.bombCrates.spawn(240,600);const rock=f.asteroids.spawn(240,700,64),hp=rock.health;f.playerBullets.push(bullet(20));f.resolveCollisions();check(c.health===42&&rock.health===hp-20,'nearest asteroid shields farther crate');
-    reset();miner();c=f.bombCrates.spawn(240,600);f.damageEnemy(f.enemies.indexOf(f.boss),f.boss,999999);check(f.bombCrates.crates.length===0,'boss death clears sealed supplies');
+    reset();const shieldedCrate=f.bombCrates.spawn(240,600);const rock=f.asteroids.spawn(240,700,64),hp=rock.health;f.playerBullets.push(bullet(20));f.resolveCollisions();check(shieldedCrate.health===42&&rock.health===hp-20,'nearest asteroid shields farther crate');
+    reset();miner();f.bombCrates.spawn(240,600);f.damageEnemy(f.enemies.indexOf(f.boss),f.boss,999999);check(f.bombCrates.crates.length===0,'boss death clears sealed supplies');
     reset();const played:string[]=[];const original=audioBackend.play.bind(audioBackend);audioBackend.play=(id,options)=>{played.push(id);return original(id,options);};audio.resume();await wait(40);
     for(const form of ['red','blue','purple']){f.powerups.push({x:240,y:820,baseX:240,ageMs:0,formTimerMs:4000,orbitAngle:0,form,radius:18});f.updatePowerups(0);check(f.weaponForm===form,'collect '+form);}
     f.spawnBombPowerup({x:240,y:820});f.bombPowerups[0].orbitAngle=0;f.updatePowerups(0);check(['pickup-red','pickup-blue','pickup-purple','pickup-bomb'].every(id=>played.includes(id)),'each actual pickup triggers its distinct audio');
@@ -406,7 +406,7 @@ async function run() {
       check(seenBoss&&seenGhost&&finished,'full mission timeline naturally reaches boss victory and next mission');check(game.snapshot().quantum.length===0,'victory clears all quantum bodies');
       f.phase='paused';f.syncHud();await renderFrames();result.textContent=JSON.stringify({status:'passed',checks:['full-quantum-timeline','natural-boss-victory','transition-cleanup'],durationMs:f.elapsedMs,state:game.snapshot()});result.dataset.status='passed';return;
     }
-    reset();let entering=spawn('bomber',120,-80);check(game.snapshot().quantum[0]!.ghost.y===-80,'both paired enemies enter from above');f.updateEnemies(1000);check(game.snapshot().quantum[0]!.body.y===game.snapshot().quantum[0]!.ghost.y,'paired entry remains at identical height');
+    reset();spawn('bomber',120,-80);check(game.snapshot().quantum[0]!.ghost.y===-80,'both paired enemies enter from above');f.updateEnemies(1000);check(game.snapshot().quantum[0]!.body.y===game.snapshot().quantum[0]!.ghost.y,'paired entry remains at identical height');
     reset();let body=spawn();body.rotation=.3;
     let pair=game.snapshot().quantum[0]!;check(Math.abs(pair.body.x+pair.ghost.x-2*f.quantumCenterX())<.001&&pair.body.y===pair.ghost.y,'left-right symmetry at identical height including narrow camera');
     f.player.x=430;pair=game.snapshot().quantum[0]!;check(Math.abs(pair.body.x+pair.ghost.x-2*f.quantumCenterX())<.001,'tracked camera preserves visual symmetry');f.player.x=240;
@@ -449,7 +449,7 @@ async function run() {
       f.phase='paused';f.syncHud();await renderFrames();result.textContent=JSON.stringify({status:'passed',checks:['natural-overload','thirty-shard-storm','delayed-victory','hazard-cleanup'],durationMs:f.elapsedMs,state:game.snapshot()});result.dataset.status='passed';return;
     }
     reset();let m=spawn();f.playerBullets.push(shot());f.resolveCollisions();check(m.hitPoints===24&&f.playerBullets.length===0,'reflection consumes exact original bullet damage');
-    let b=f.enemyBullets.find((p:any)=>p.reflected);check(!!b&&b.hostile&&b.vy>0&&Math.abs(b.vx)<.001,'facet returns player bullet as hostile');
+    const b=f.enemyBullets.find((p:any)=>p.reflected);check(!!b&&b.hostile&&b.vy>0&&Math.abs(b.vx)<.001,'facet returns player bullet as hostile');
     f.player.x=b.x;f.player.y=b.y+18;f.updateBullets(34);f.resolveCollisions();check(f.player.health===93,'reflected bullet deals exactly seven player damage');
     reset();m=spawn();m.hitPoints=3;f.playerBullets.push(shot(20));f.resolveCollisions();check(!f.enemies.includes(m)&&f.enemyBullets[0].damage===7,'last reflection deals seven damage while saturating finite budget and shattering');
     reset();m=spawn();m.rotation=.35;f.playerBullets.push(shot());f.resolveCollisions();check(Math.abs(f.enemyBullets[0].vx)>100,'rotating facet changes reflection angle');
@@ -542,21 +542,21 @@ async function run() {
     f.player.invulnerableMs=0;f.damagePlayer(100);check(haptics.join()==='player-hit,player-destroyed','life loss emits strong feedback once');
     reset();haptics.length=0;f.bombs=0;f.activateBomb();check(haptics.length===0,'empty bomb does not vibrate');
     f.bombs=2;f.activateBomb();f.activateBomb();check(haptics.join()==='bomb','only successfully released bomb vibrates');
-    reset();let rock=f.asteroids.spawn(240,500,80),health=rock.health;
+    reset();let rock=f.asteroids.spawn(240,500,80);const health=rock.health;
     f.playerBullets.push(bullet(240,500));f.resolveCollisions();check(rock.health===health-10&&f.playerBullets.length===0,'player bullet damages rock');
     f.player.invulnerableMs=100;f.enemyBullets.push(bullet(240,500,true,20));f.resolveCollisions();check(rock.health===health-30&&f.enemyBullets.length===0,'hostile bullets hit neutral cover during invulnerability');
     reset();f.asteroids.spawn(100,500,64);for(let i=0;i<12;i++)f.enemyBullets.push(bullet(240,820,true,100));
     f.resolveCollisions();check(f.player.lives===2,'lethal bullet cleanup safely handles remaining projectiles');
-    reset();rock=f.asteroids.spawn(240,820,64);f.resolveCollisions();check(f.player.lives===2&&f.player.health===100,'rock collision deals exactly 100 HP and loses one life');
+    reset();f.asteroids.spawn(240,820,64);f.resolveCollisions();check(f.player.lives===2&&f.player.health===100,'rock collision deals exactly 100 HP and loses one life');
     check(f.asteroids.rocks.length===0,'contact destroys rock');
-    rock=f.asteroids.spawn(240,820,64);f.resolveCollisions();check(f.player.lives===2,'contact respects respawn invulnerability');
+    f.asteroids.spawn(240,820,64);f.resolveCollisions();check(f.player.lives===2,'contact respects respawn invulnerability');
     reset();rock=f.asteroids.spawn(240,600,64);const enemy=spawn('scout',240,450),hp=enemy.hitPoints;
     f.playerBullets.push({...bullet(240,400),previousX:240,previousY:800});f.resolveCollisions();check(enemy.hitPoints===hp&&rock.health<rock.maxHealth,'nearest rock intercepts a fast bullet before enemy');
     reset();rock=f.asteroids.spawn(240,820,64);rock.previousX=240;rock.previousY=700;rock.y=920;f.resolveCollisions();check(f.player.lives===2,'fast thrown rock cannot tunnel through player');
     reset();rock=f.asteroids.spawn(240,710,64);f.weaponForm='purple';f.weaponLevel=3;f.laserFiring=true;f.updatePlayerLaser(100);check(rock.health<rock.maxHealth,'player laser damages asteroid');
-    reset();rock=f.asteroids.spawn(240,620,100);f.activateBomb();check(f.asteroids.rocks.length===0,'bomb clears rocks in radius');
+    reset();f.asteroids.spawn(240,620,100);f.activateBomb();check(f.asteroids.rocks.length===0,'bomb clears rocks in radius');
     reset();haptics.length=0;const elite=spawn('fission-elite');f.damageEnemy(f.enemies.indexOf(elite),elite,99999);check(haptics.join() === 'elite-defeated','elite haptic once');
-    const boss=spawn('ore-reaper');rock=f.asteroids.spawn(100,200,64);f.updateAsteroids(16);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);
+    const boss=spawn('ore-reaper');f.asteroids.spawn(100,200,64);f.updateAsteroids(16);f.damageEnemy(f.enemies.indexOf(boss),boss,99999);
     check(haptics.join() === 'elite-defeated,boss-defeated','boss haptic once');check(f.asteroids.rocks.length===0&&f.asteroids.arms.length===0,'boss victory clears rocks and arms');
     reset();haptics.length=0;spawn('twin-red');const pair=[...f.twins];f.damageEnemy(f.enemies.indexOf(pair[0]),pair[0],99999);
     check(haptics.length===0,'single downed twin has no victory haptic');f.damageEnemy(f.enemies.indexOf(pair[1]),pair[1],99999);check(haptics.join()==='boss-defeated','twin victory emits one haptic');

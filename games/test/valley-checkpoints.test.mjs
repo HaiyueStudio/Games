@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {checkpointGarden,emptyMap,createObject,MapRuntime,parseMap,parseCheckpoint,serializeMap,serializeCompactMap,splitCube,walkSurfaces,worldSamples,objectState,portalGarden} from '../valley-of-light/map/model.ts';
+import {checkpointGarden,emptyMap,createObject,MapRuntime,parseMap,parseCheckpoint,serializeMap,serializeCompactMap,splitCube,worldSamples,objectState,portalGarden} from '../valley-of-light/map/model.ts';
 const rule=(id,event,actions,resetGroup)=>({id,name:id,enabled:true,once:false,event,condition:{kind:'all',conditions:[]},actions,...(resetGroup?{resetGroup}:{})});
 const tick=(r,time)=>{for(let i=0;i<Math.ceil(time/.01);i++)r.tick(.01);};
 const walk=(r,id)=>{assert.ok(r.walkTo(id),r.message);for(let i=0;i<2000&&(r.walking||r.busy);i++)r.tick(.01);assert.equal(r.at.objectId,id);};

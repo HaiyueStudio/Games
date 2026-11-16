@@ -26,7 +26,7 @@ export function advancePipeObjects(s:State,dt:number,svc:Services):void {
             for(const other of bodies)if(other!==b&&other.transit&&overlap(b,other)){
                 // Projectiles hit pipe occupants; ordinary travellers pass each
                 // other rather than deadlocking a one-lane tube.
-                const boom=s.boomerangs.find(o=>o===b),target=other as Enemy,key='pipe:'+s.enemies.indexOf(target);if(boom&&s.enemies.includes(target)&&!(boom.targets??=[]).includes(target)){boom.targets.push(target);specialHit(s,target,'boomerang',svc,true);}const coin=s.items.find(i=>i===other&&i.kind==='coin'&&i.alive);if(boom&&coin){coin.alive=false;svc.coin(s,other.x,other.y);}
+                const boom=s.boomerangs.find(o=>o===b),target=other as Enemy;if(boom&&s.enemies.includes(target)&&!(boom.targets??=[]).includes(target)){boom.targets.push(target);specialHit(s,target,'boomerang',svc,true);}const coin=s.items.find(i=>i===other&&i.kind==='coin'&&i.alive);if(boom&&coin){coin.alive=false;svc.coin(s,other.x,other.y);}
                 if(s.cannonShots.includes(b as never)&&s.enemies.includes(other as Enemy)){const e=other as Enemy;if(['defeat','shatter'].includes(attackResult(e,'shell')))svc.defeat(s,e,'shell',b);b.w=0;delete b.transit;}
                 if(s.shots.includes(b)){const e=other as Enemy;if(s.enemies.includes(e)){const result=attackResult(e,(b as {kind?:string}).kind==='ice'?'ice':'fire');s.shots.splice(s.shots.indexOf(b),1);if(result==='defeat')svc.defeat(s,e,'shot');else if(result==='freeze')e.transit!.freezeAtExit=true;b.w=0;delete b.transit;}}
             }

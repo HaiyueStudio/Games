@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {registerHooks} from 'node:module';
 registerHooks({resolve(s,c,next){try{return next(s,c);}catch(e){if(s.startsWith('.')&&c.parentURL?.includes('/whale-maker/'))return next(s+'.ts',c);throw e;}}});
-const {SOUNDS,SOUND_IDS,MUSIC,AUDIO_IDS,soundPath}=await import('../whale-maker/audio/sounds.ts');
+const {SOUNDS,MUSIC,AUDIO_IDS,soundPath}=await import('../whale-maker/audio/sounds.ts');
 const {WhaleAudio}=await import('../whale-maker/audio/WhaleAudio.ts');
 const {emit}=await import('../whale-maker/rules/events.ts');
 const {create,demo,step,EMPTY_INPUT,respawn}=await import('../whale-maker/rules/model.ts');

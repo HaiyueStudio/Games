@@ -4,7 +4,7 @@ import { boardCenter, boardPlaneSize, boardAngle, hexPlaneSize } from '../art/he
 import { INK, PAPER, inkHash, inkNoise } from '../art/inkNoise';
 import { lifeLevel } from './LifeRun';
 import { MODE_CHOICES, SCROLL_CLOSE_MS, SCROLL_OPEN_MS, PREVIEW_CHANGE_MS, wrappedIndex, scrollAmount, previewAlpha,
-  type GameMode, type SelectionChoice } from './SelectionRules';
+  type SelectionChoice } from './SelectionRules';
 import type { DrawingLevel } from './VersusView';
 import type { Point, Rect } from './BoardInteraction';
 

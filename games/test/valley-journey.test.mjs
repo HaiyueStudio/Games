@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {journeyGarden,parseMap,parseCheckpoint,serializeMap,serializeCompactMap,MapRuntime,createObject,defaultPlatform,setPathMarker,worldSamples,connections,findRoute,analyzeStaticPaths,objectState,emptyPoses,centerIndex} from '../valley-of-light/map/model.ts';
+import {journeyGarden,parseMap,parseCheckpoint,serializeMap,serializeCompactMap,MapRuntime,createObject,defaultPlatform,setPathMarker,worldSamples,connections,findRoute,analyzeStaticPaths,objectState,centerIndex} from '../valley-of-light/map/model.ts';
 const tick=(r,time)=>{for(let i=0;i<Math.ceil(time/.01);i++)r.tick(.01);};
 const walk=(r,id)=>{assert.ok(r.walkTo(id),r.message);for(let i=0;i<3000&&(r.walking||r.busy);i++)r.tick(.01);assert.equal(r.at.objectId,id);};
 const base=()=>{const m=journeyGarden();m.objects.find(o=>o.id==='reveal').type=1;m.logic={variables:[{id:'count',name:'count',initial:0}],rules:[]};return m;};

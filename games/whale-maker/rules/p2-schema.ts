@@ -1,5 +1,6 @@
 import {isPlayerPower} from './player-body';
-import type { Level, Tile } from './model';
+import {validWind} from './wind';
+import type { Level } from './model';
 export const WEARABLES=['cannon-box','propeller-box','goomba-mask','bullet-mask','pow-box'] as const;
 export type WearableKind=typeof WEARABLES[number];
 export const P2_ENEMIES=['bee','spring-enemy','ring-ghost','bully','giant-fish','lava-dragon','magikoopa','homing-bill','giant-bill','cat-bill'] as const;
@@ -27,6 +28,7 @@ export function validP2Property(key:string,v:unknown):boolean {
 }
 export function p2Issues(l:Level,main:Level=l):{message:string;cell?:number}[]{
     const out:{message:string;cell?:number}[]=[];
+    if(l.wind!==undefined&&!validWind(l.wind))out.push({message:'环境风配置无效：风力 0.25–6，周期 1–60 秒'});
     if(l.orientation!==undefined&&!['horizontal','vertical'].includes(l.orientation))out.push({message:'区域方向无效'});
     if(l.progress){const p=l.progress;if(Object.keys(p).some(k=>!['lives','initialLives','timeLimit'].includes(k))||p.lives!==undefined&&typeof p.lives!=='boolean'||p.initialLives!==undefined&&(!Number.isInteger(p.initialLives)||p.initialLives<1||p.initialLives>99)||p.timeLimit!==undefined&&(!Number.isInteger(p.timeLimit)||p.timeLimit<0||p.timeLimit>999))out.push({message:'生命或倒计时配置无效'});}
     if(l.cameraRules){const c=l.cameraRules;if(!['follow','auto'].includes(c.mode)||c.axis!==undefined&&!['x','y'].includes(c.axis)||c.speed!==undefined&&(!Number.isFinite(c.speed)||c.speed<.1||c.speed>12))out.push({message:'镜头配置无效'});}

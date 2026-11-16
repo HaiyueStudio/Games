@@ -2,7 +2,7 @@ import { PbrMaterial, CartesianTransform3D } from '@haiyue/engine';
 import type { Cell, MinesweeperSaveData } from '../app/bootstrap';
 import type { CellMaterials } from '../../shared/minesweeper/Theme';
 import type { MinesHud } from '../ui/MinesHud';
-import { CELL_SIZE, REVEAL_DROP, TILE_TOP } from '../rendering/BoardScene';
+import { REVEAL_DROP, TILE_TOP } from '../rendering/BoardScene';
 import type { MinesAudio } from '../../shared/minesweeper/audio/MinesAudio';
 import { audioCounts, cueDelta, verifyAudioReady, verifyAudioControls } from '../../shared/minesweeper/audio/verifyAudio';
 

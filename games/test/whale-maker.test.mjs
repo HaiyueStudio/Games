@@ -271,9 +271,9 @@ test('checkpoint contact lights once, starts waves and cheer, and permits moveme
 });
 test('lit checkpoints and the latest spawn survive death, while a fresh run starts gray',()=>{
     const s=checkpointStage();tick(s);s.player.x=10;tick(s);const lit={...s.litCheckpoints};assert.equal(Object.keys(lit).length,2);assert.deepEqual(s.checkpoint,[10,13]);
-    s.player.x=6;tick(s);assert.deepEqual(s.checkpoint,[10,13],'revisiting a lit flag does not overwrite the latest checkpoint');
+    s.player.x=6;tick(s);assert.deepEqual(s.checkpoint,[6,13],'revisiting another lit flag reactivates its checkpoint');
     s.player.y=s.level.height+3;tick(s);assert.equal(s.phase,'dead');assert.equal(s.flagWaves.length,0);assert.equal(s.cheerAge,CHEER_DURATION);respawn(s);
-    assert.deepEqual(s.litCheckpoints,lit);assert.deepEqual([s.player.x,s.player.y],[10,13]);assert.equal(s.flagWaves.length,0);assert.equal(s.cheerAge,CHEER_DURATION);
+    assert.deepEqual(s.litCheckpoints,lit);assert.deepEqual([s.player.x,s.player.y],[6,13]);assert.equal(s.flagWaves.length,0);assert.equal(s.cheerAge,CHEER_DURATION);
     const beforeRetry=s.litCheckpoints;respawn(s);assert.notEqual(s.litCheckpoints,beforeRetry);delete beforeRetry[14*s.level.width+6];assert.deepEqual(s.litCheckpoints,lit);
     const fresh=create(s.startLevel);assert.deepEqual(fresh.litCheckpoints,{});assert.equal(fresh.cheerAge,CHEER_DURATION);assert.equal(Object.keys(s.litCheckpoints).length,2);
 });

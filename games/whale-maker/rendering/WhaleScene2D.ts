@@ -3,6 +3,7 @@ import { beginRenderCommandPass, type IEngine, type RenderCommandContext } from 
 import { IndexedSpriteRenderer, type IndexedSpriteDrawCommand, type IndexedSpritePlaneDescriptor } from '@haiyue/extensions/experimental/indexed-sprite';
 import { actorRect } from './poses';
 import { terrainPlanes } from './terrain';
+import { tornadoPlanes } from './wind';
 
 export interface SceneRect { x: number; y: number; width: number; height: number }
 type Draw = { id: string; rect: SceneRect; flip: boolean; rotation?: number; opacity?: number; tint?: readonly [number, number, number, number] };
@@ -27,6 +28,7 @@ export class WhaleScene2D extends System {
         this.priority = 10;
         const planes: IndexedSpritePlaneDescriptor[] = [{ id: 'white', width: 1, height: 1, format: 'rgba8', pixels: new Uint8Array([255, 255, 255, 255]) }];
         this.sources.set('white', { width: 1, height: 1 });
+        for(const plane of tornadoPlanes()){planes.push(plane);this.sources.set(plane.id,{width:plane.width,height:plane.height});}
         // A soft circular particle material, kept in the same recoverable GPU batch.
         const diameter=32,pixels=new Uint8Array(diameter*diameter*4);
         for(let y=0;y<diameter;y++)for(let x=0;x<diameter;x++){
