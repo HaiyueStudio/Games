@@ -3,6 +3,47 @@
   "kind": "games",
   "entries": [
     {
+      "id": "dafeiyu",
+      "title": "大肥鱼",
+      "entry": "dafeiyu/main.ts",
+      "thumbnail": "screenshots/dafeiyu.png",
+      "capabilities": [
+        "2d",
+        "gui",
+        "input",
+        "gamepad",
+        "generated-assets",
+        "baba-level-import",
+        "save",
+        "experimental-indexed-sprite"
+      ],
+      "assets": [
+        "dafeiyu/assets/whale-walk/atlas.png",
+        "dafeiyu/assets/whale-walk/atlas.json",
+        "dafeiyu/assets/tiles.png",
+        "dafeiyu/assets/lagoon.png",
+        "dafeiyu/assets/provenance.json",
+        "dafeiyu/levels/first-dive.l",
+        "dafeiyu/levels/first-dive.ld",
+        "dafeiyu/levels/breakwater.l",
+        "dafeiyu/levels/breakwater.ld",
+        "dafeiyu/levels/change-course.l",
+        "dafeiyu/levels/change-course.ld",
+        "dafeiyu/levels/warm-current.l",
+        "dafeiyu/levels/warm-current.ld",
+        "dafeiyu/levels/make-a-goal.l",
+        "dafeiyu/levels/make-a-goal.ld",
+        "dafeiyu/levels/coral-bay.l",
+        "dafeiyu/levels/coral-bay.ld"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "ink-twin",
       "title": "墨白双生 · Ink Twin",
       "entry": "ink-twin/main.ts",
@@ -174,7 +215,7 @@
       "title": "谷外之光 · Beyond the Valley",
       "entry": "valley-of-light/main.ts",
       "capabilities": ["3d", "orthographic", "optical-illusion", "worker", "input", "gui", "gltf", "animation", "game-workflow", "gamepad"],
-      "assets": ["valley-of-light/assets/traveler.gltf", "valley-of-light/maps/switch-garden.json", "valley-of-light/maps/catalog-garden.json", "valley-of-light/maps/decoration-garden.json", "valley-of-light/maps/ladder-garden.json", "valley-of-light/maps/portal-garden.json", "valley-of-light/maps/logic-garden.json", "valley-of-light/maps/checkpoint-garden.json", "valley-of-light/maps/journey-garden.json", "valley-of-light/maps/story-garden.json", "valley-of-light/maps/chapter-two-garden.json", "valley-of-light/maps/catalog.json", "valley-of-light/maps/split-cube.json", "valley-of-light/maps/seaside-garden.json", "valley-of-light/maps/rotated-seam.json", "valley-of-light/maps/six-surfaces.json", "valley-of-light/maps/arc-surfaces.json", "valley-of-light/maps/map.schema.json", "valley-of-light/maps/compact-map.schema.json"],
+      "assets": ["valley-of-light/assets/traveler.gltf", "valley-of-light/maps/switch-garden.json", "valley-of-light/maps/catalog-garden.json", "valley-of-light/maps/decoration-garden.json", "valley-of-light/maps/ladder-garden.json", "valley-of-light/maps/portal-garden.json", "valley-of-light/maps/logic-garden.json", "valley-of-light/maps/checkpoint-garden.json", "valley-of-light/maps/journey-garden.json", "valley-of-light/maps/story-garden.json", "valley-of-light/maps/chapter-two-garden.json", "valley-of-light/maps/mixandjam-monument.json", "valley-of-light/maps/catalog.json", "valley-of-light/maps/split-cube.json", "valley-of-light/maps/seaside-garden.json", "valley-of-light/maps/rotated-seam.json", "valley-of-light/maps/six-surfaces.json", "valley-of-light/maps/arc-surfaces.json", "valley-of-light/maps/map.schema.json", "valley-of-light/maps/compact-map.schema.json"],
       "screenshot": { "required": false, "baseline": null },
       "performance": null,
       "ci": "smoke"

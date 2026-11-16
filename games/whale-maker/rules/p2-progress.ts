@@ -1,7 +1,8 @@
 import type { Reward, State } from './model';
 import type { Services } from './services';
 import { emit } from './events';
-export function lifeReward(s:State):void {if(s.level.progress?.lives)s.lives=Math.min(99,s.lives+1);else s.score+=1000;emit(s,'power',s.player.x);s.notice=s.level.progress?.lives?'获得一条生命！':'生命珍珠 · 得分 +1000';}
+export const MAX_LIVES=99;
+export function lifeReward(s:State):void {if(s.level.progress?.lives)s.lives=Math.min(MAX_LIVES,s.lives+1);else s.score+=1000;emit(s,'power',s.player.x);s.notice=s.level.progress?.lives?'获得一条生命！':'生命珍珠 · 得分 +1000';}
 export function coinMilestone(s:State):void {if(!s.level.progress?.lives)return;while(s.coins>=s.nextLifeCoin){s.nextLifeCoin+=100;lifeReward(s);}}
 export function progressReward(s:State,r:Reward,svc:Services):boolean {if(r.kind==='one-up'){lifeReward(s);r.w=0;return true;}if(r.kind==='coin-10'||r.kind==='coin-30'||r.kind==='coin-50'){svc.coin(s,r.x,r.y,Number(r.kind.slice(5)));r.w=0;return true;}return false;}
 /** Called by both the next simulation step and an immediate retry. */

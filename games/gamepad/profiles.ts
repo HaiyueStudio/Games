@@ -16,6 +16,7 @@ const wasd = ['KeyW','KeyD','KeyS','KeyA'] as const;
 const puzzle = { cursor:true, buttons:{3:'KeyR'}, help:'左摇杆/方向键移动指针 · A 点选/拖拽 · B 右键 · X/Y 调整选项' };
 /** Explicit, reviewed mappings for every manifest entry. No guessed fallback bindings. */
 export const GAMEPAD_PROFILES: Readonly<Record<string, GamepadProfile>> = {
+  dafeiyu:{engineHud:true,direct:true,directions:arrows,buttons:{0:'Space',1:'KeyZ',2:'KeyR',3:'KeyL'},help:'摇杆/十字键移动 · A 等待/确认 · B 撤销 · X 重开 · Y 关卡'},
   'whale-maker':{engineHud:true,directions:wasd,buttons:{0:'Space',1:'KeyX',2:'KeyJ',3:'KeyE',4:'ShiftLeft',5:'KeyR',6:'KeyK',7:'KeyL',9:'KeyP'},help:'左摇杆移动 · A 跳 · B 旋转跳 · X 火球/投掷 · LB 快跑/抱物/松开轻放 · LT 特技 · RT 建造箱 · Y 编辑器 · Start 暂停'},
   'glass-rush':{engineHud:true,directions:arrows,buttons:{0:'Enter',9:'KeyP'},help:'方向键旋转 · A 开始 / 继续 · Start 暂停'},
   'valley-of-light':{directions:['KeyQ','KeyD','KeyE','KeyA'],buttons:{0:'Space',1:'Escape',2:'KeyH',3:'KeyJ',4:'KeyQ',5:'KeyE',9:'KeyR'},help:'左摇杆平移/旋转桥 · A 行走 · X 提示 · Y 日志 · LB/RB 转桥'},

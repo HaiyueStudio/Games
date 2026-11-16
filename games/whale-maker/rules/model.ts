@@ -127,6 +127,7 @@ export interface Enemy extends Body {
     grounded?: boolean;
     turnWait?: number;
     iron?:boolean;
+    playerLaunchedShell?:boolean;
     inverted?:boolean;ballistic?:boolean;projectileAge?:number;
     baseKind?:Enemy['kind'];
     shellAge?:number;
@@ -189,7 +190,7 @@ export interface State extends AdvancedState, FortressState, WorkshopState, P1St
     enemies: Enemy[];
     shots: (Body&{kind?:'fire'|'ice';bounces?:number})[];
     scoreChain:ScoreState;
-    scorePops:{x:number;y:number;age:number;points:number;chain:number}[];
+    scorePops:import('./scoring').ScorePop[];
     rewards: Reward[];
     coinPops:{x:number;y:number;age:number}[];
     defeated: Defeated[];
@@ -773,9 +774,9 @@ function advanceFrame(s: State, i: Input, dt: number) {
     if(ridingBoneShell(s)){if(floatShell(s,p,before,.15,Number(i.down)-Number(!!i.interact)))result.floor=true;else if(p.vy<0)result.floor=false;}
     s.grounded = result.floor;
     if(s.grounded&&s.bonePound)boneRest(s);
-    if(s.grounded)s.scoreChain.stomp=0;
     if(s.grounded&&!wasGrounded)emit(s,'land');
     if(pressPSwitch(s,p,playerPrevious)){s.grounded=false;s.coyote=0;}
+    if(s.grounded)s.scoreChain.stomp=0;
     if(s.grounded&&!wasGrounded&&s.jumpChain)s.chainWindow=.28;
     if(s.grounded&&s.chainWindow===0)s.jumpChain=0;
     if(s.grounded)s.pound='none';
@@ -901,13 +902,17 @@ function advanceFrame(s: State, i: Input, dt: number) {
                 e.h = .5;
                 e.y += .3;
                 e.vx = 0;
+                e.playerLaunchedShell=false;
+                e.attackChain=0;
                 e.cooldown = .2;
             }
             else if (e.kind !== 'shell' || s.spinning) {
                 defeat(s, e, 'stomp');
             }
             else {
-                e.vx = Math.abs(e.vx) > 1 ? 0 : s.facing * 12;e.attackChain=0;
+                actionScore(s,'stomp',e.x+e.w/2,e.y);
+                e.playerLaunchedShell=Math.abs(e.vx)<=1;
+                e.vx=e.playerLaunchedShell?s.facing*12:0;e.attackChain=0;
                 emit(s,'kick',e.x);
                 e.cooldown = .25;
             }
@@ -917,9 +922,10 @@ function advanceFrame(s: State, i: Input, dt: number) {
                 s.held = e;
                 emit(s,'grab',e.x);
                 e.held = true;
+                e.playerLaunchedShell=false;
             }
             else {
-                e.vx = s.facing * 12;e.attackChain=0;
+                e.vx = s.facing * 12;e.attackChain=0;e.playerLaunchedShell=true;
                 emit(s,'kick',e.x);
                 e.cooldown = .3;
             }

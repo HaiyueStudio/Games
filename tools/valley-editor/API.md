@@ -1,5 +1,7 @@
 # 地图工坊 API v1
 
+公开数据转换示例：将下方 `chapter-two.commands.json` 换为 `mixandjam.commands.json`，即可加载「错视旋塔」。该命令文件由 `sources/mixandjam/scene.json` 中的公开场景坐标转换得到，支持 `?demo=mixandjam` 和工具栏「填入开源关卡命令」。转换脚本、MIT 许可及已知差异见 [来源说明](./sources/mixandjam/README.md)。
+
 编辑器初始化后提供 `window.valleyEditor`，并发送 `valley-editor-ready` 事件。无需 `?verify=1`。这是当前页面内的建图 API，没有开放网络写入服务，也不需要访问引擎、Editor 或游戏的私有字段。
 
 ## 通过 API 搭建第二关
@@ -78,6 +80,8 @@ api.apply({
 坐标使用地图本地坐标约定；普通立方体 `position` 是顶面中心，厚度向局部负 Y 延伸。旋转为角度，父节点及实际导航规则与手工编辑一致。新建不自动套用当前选中组或鼠标吸附，请直接提供 `groupId`。换父节点需保持世界姿态时使用 `nodes.reparent`。
 
 物体 `colors`、`motion`、`water`、`trigger`、`portal`、`state`、`marker`、`checkpoint` 的 patch 按子字段合并；其他数组和字段整体替换。动作列表、台词、条件树请提交完整新列表。手轮 `motion.targetGroup` 可引用同批创建的组，最终统一校验引用；绑定门、设记号、修改、删除及换父节点的目标需在该命令前创建。未知命令、拼错参数、重复 ID、无效坐标和悬空引用会报错。API 允许刻意重叠构件，以支持拱门、窗饰和复合建筑。
+
+`motion.carryRider: true` 允许角色静止站在受控道路或其子组上时拖动机关，脚位、表面法线及朝向随变换更新。缺省或 false 保留原有占用锁定；行走、动画、禁用和通关状态仍禁止操作。完整和精简地图都保留该选项。
 
 完整字段约束见 [地图协议](../../games/valley-of-light/map/FORMAT.md) 和地图 JSON Schema。`appearance` 支持 `background: '#rrggbb'` 和可选 `ambientIntensity: 0..4`；未设置时保持原浅绿背景和 0.85 环境亮度。编辑器与独立游戏共用配置。
 

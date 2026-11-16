@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "phase": "full",
   "games": [
+    "dafeiyu",
     "ink-twin",
     "whale-maker",
     "glass-rush",
@@ -36,6 +37,9 @@
     "fruit-ninja"
   ],
   "testOwners": {
+    "dafeiyu": [
+      "games/test/dafeiyu.test.mjs"
+    ],
     "2048": [
       "games/test/2048-config.test.mjs",
       "games/test/2048-forge.test.mjs",
@@ -87,6 +91,7 @@
       "games/test/valley-journey.test.mjs",
       "games/test/valley-logic.test.mjs",
       "games/test/valley-map.test.mjs",
+      "games/test/valley-map-carry.test.mjs",
       "games/test/valley-markers-gates.test.mjs",
       "games/test/valley-of-light.test.mjs",
       "games/test/valley-pointer-capture.test.mjs",

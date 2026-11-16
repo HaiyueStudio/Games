@@ -1,7 +1,7 @@
 # 手柄操作
 
-29 个 manifest 游戏通过 `installGamepad(id)` 接入。采样使用本地未发布 Engine
-候选包的公共 `BrowserMultiplayerInput` API，按帧产生按下、保持和释放状态。
+manifest 游戏通过 `installGamepad(id)` 接入。采样使用 npm Engine 0.2.3
+（`@haiyue/engine-gamepad` 别名）的公共 `BrowserMultiplayerInput` API，按帧产生按下、保持和释放状态。
 普通游戏复用现有键盘/指针处理器。MUGEN 已迁往同级独立仓库。
 
 首页：左摇杆或方向键选游戏，A 进入，LB/RB 切分类。搜索结果和分类过滤同时生效。

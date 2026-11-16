@@ -1,0 +1,1373 @@
+{
+  "format": "mixandjam-monument-scene",
+  "version": 1,
+  "source": {
+    "repository": "https://github.com/mixandjam/MonumentValley-LevelDesign",
+    "scene": "Assets/Scenes/SampleScene.unity",
+    "url": "https://raw.githubusercontent.com/mixandjam/MonumentValley-LevelDesign/master/Assets/Scenes/SampleScene.unity",
+    "sha256": "1b664eb9c08d92243b438ca4abb9376ba0200a64da45ef418208eba743a02447",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2019 Mix and Jam",
+    "retrieved": "2026-11-09"
+  },
+  "camera": {
+    "position": [
+      20,
+      27.69,
+      -20
+    ],
+    "rotation": [
+      35.264,
+      -45,
+      0
+    ]
+  },
+  "spawn": [
+    3,
+    0.5,
+    -2
+  ],
+  "pivots": [
+    {
+      "id": "748259335",
+      "name": "CenterPivot",
+      "position": [
+        0,
+        5,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "841462477",
+      "name": "RightPivot",
+      "position": [
+        0,
+        6,
+        7
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "paths": [
+    {
+      "componentId": "61392971",
+      "id": "61392970",
+      "name": "14",
+      "parentId": "1356687873",
+      "position": [
+        0,
+        6,
+        5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "549514382",
+          "active": true
+        },
+        {
+          "target": "1935361020",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "96511115",
+      "id": "96511114",
+      "name": "1",
+      "parentId": "1356687873",
+      "position": [
+        3,
+        0,
+        -2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1025421133",
+          "active": true
+        },
+        {
+          "target": "1467260659",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "153007724",
+      "id": "153007720",
+      "name": "l_3",
+      "parentId": "748259335",
+      "position": [
+        0,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "476676045768374338",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "165556428",
+      "id": "165556432",
+      "name": "x",
+      "parentId": "21792612",
+      "position": [
+        -4,
+        12,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "459629125",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "459629129",
+      "id": "459629125",
+      "name": "u_1",
+      "parentId": "748259335",
+      "position": [
+        3,
+        8,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "818239849",
+          "active": true
+        },
+        {
+          "target": "1011665402",
+          "active": false
+        },
+        {
+          "target": "1718603969",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "466804026",
+      "id": "466804030",
+      "name": "x",
+      "parentId": "21792612",
+      "position": [
+        -4,
+        11,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "459629125",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "549514383",
+      "id": "549514382",
+      "name": "13",
+      "parentId": "1356687873",
+      "position": [
+        0,
+        6,
+        4
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "61392970",
+          "active": true
+        },
+        {
+          "target": "476676045731963585",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "675634744",
+      "id": "675634739",
+      "name": "p2",
+      "parentId": "841462477",
+      "position": [
+        0,
+        2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        -90
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1188568823",
+          "active": true
+        },
+        {
+          "target": "1011665402",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "699715142",
+      "id": "699715141",
+      "name": "5stair",
+      "parentId": "1356687873",
+      "position": [
+        0,
+        1,
+        -3
+      ],
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": true,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1430322265",
+          "active": true
+        },
+        {
+          "target": "1612816929",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "775415259",
+      "id": "775415258",
+      "name": "11stair",
+      "parentId": "1356687873",
+      "position": [
+        -4,
+        6,
+        -1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": true,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1669377233",
+          "active": true
+        },
+        {
+          "target": "2029831292",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "818239853",
+      "id": "818239849",
+      "name": "u_2",
+      "parentId": "748259335",
+      "position": [
+        2,
+        8,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "459629125",
+          "active": true
+        },
+        {
+          "target": "1594381511",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "980609066",
+      "id": "980609065",
+      "name": "17button",
+      "parentId": "1356687873",
+      "position": [
+        4,
+        6,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": true,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "476676045731963585",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "1011665407",
+      "id": "1011665402",
+      "name": "p3",
+      "parentId": "841462477",
+      "position": [
+        0,
+        3,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        -90
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "675634739",
+          "active": true
+        },
+        {
+          "target": "459629125",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "1025421134",
+      "id": "1025421133",
+      "name": "0",
+      "parentId": "1356687873",
+      "position": [
+        3,
+        0,
+        -1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "96511114",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1188568828",
+      "id": "1188568823",
+      "name": "p1",
+      "parentId": "841462477",
+      "position": [
+        0,
+        1,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        -90
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1906992999",
+          "active": false
+        },
+        {
+          "target": "675634739",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1394538695",
+      "id": "1394538694",
+      "name": "3",
+      "parentId": "1356687873",
+      "position": [
+        2,
+        0,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1467260659",
+          "active": true
+        },
+        {
+          "target": "1430322265",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1430322266",
+      "id": "1430322265",
+      "name": "4",
+      "parentId": "1356687873",
+      "position": [
+        1,
+        0,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1394538694",
+          "active": true
+        },
+        {
+          "target": "699715141",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1467260660",
+      "id": "1467260659",
+      "name": "2",
+      "parentId": "1356687873",
+      "position": [
+        3,
+        0,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "96511114",
+          "active": true
+        },
+        {
+          "target": "1394538694",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1594381515",
+      "id": "1594381511",
+      "name": "u_3",
+      "parentId": "748259335",
+      "position": [
+        1,
+        8,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "818239849",
+          "active": true
+        },
+        {
+          "target": "1614690201",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1612816930",
+      "id": "1612816929",
+      "name": "6stair",
+      "parentId": "1356687873",
+      "position": [
+        -1,
+        2,
+        -3
+      ],
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": true,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "699715141",
+          "active": true
+        },
+        {
+          "target": "1785654127",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1614690205",
+      "id": "1614690201",
+      "name": "u_4",
+      "parentId": "748259335",
+      "position": [
+        0,
+        8,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1594381511",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1669377234",
+      "id": "1669377233",
+      "name": "10stair",
+      "parentId": "1356687873",
+      "position": [
+        -4,
+        5,
+        -2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": true,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1840787681",
+          "active": true
+        },
+        {
+          "target": "775415258",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1718603970",
+      "id": "1718603969",
+      "name": "18final",
+      "parentId": "1356687873",
+      "position": [
+        -4,
+        13,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "459629125",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "1777825433",
+      "id": "1777825432",
+      "name": "8stair",
+      "parentId": "1356687873",
+      "position": [
+        -3,
+        4,
+        -3
+      ],
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": true,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1785654127",
+          "active": true
+        },
+        {
+          "target": "1840787681",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1785654128",
+      "id": "1785654127",
+      "name": "7stair",
+      "parentId": "1356687873",
+      "position": [
+        -2,
+        3,
+        -3
+      ],
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": true,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1612816929",
+          "active": true
+        },
+        {
+          "target": "1777825432",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1840787682",
+      "id": "1840787681",
+      "name": "9",
+      "parentId": "1356687873",
+      "position": [
+        -4,
+        4,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1777825432",
+          "active": true
+        },
+        {
+          "target": "1669377233",
+          "active": true
+        }
+      ]
+    },
+    {
+      "componentId": "1906993000",
+      "id": "1906992999",
+      "name": "16",
+      "parentId": "1356687873",
+      "position": [
+        0,
+        6,
+        7
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "1935361020",
+          "active": false
+        },
+        {
+          "target": "1188568823",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "1935361021",
+      "id": "1935361020",
+      "name": "15",
+      "parentId": "1356687873",
+      "position": [
+        0,
+        6,
+        6
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "61392970",
+          "active": true
+        },
+        {
+          "target": "1906992999",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "2029831293",
+      "id": "2029831292",
+      "name": "12",
+      "parentId": "1356687873",
+      "position": [
+        -4,
+        6,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": false,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "775415258",
+          "active": true
+        },
+        {
+          "target": "476676045731963585",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "476676045731963587",
+      "id": "476676045731963585",
+      "name": "l_1",
+      "parentId": "748259335",
+      "position": [
+        0,
+        1,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "476676045768374338",
+          "active": true
+        },
+        {
+          "target": "2029831292",
+          "active": false
+        },
+        {
+          "target": "549514382",
+          "active": false
+        },
+        {
+          "target": "980609065",
+          "active": false
+        }
+      ]
+    },
+    {
+      "componentId": "476676045768374340",
+      "id": "476676045768374338",
+      "name": "l_2",
+      "parentId": "748259335",
+      "position": [
+        0,
+        1,
+        2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "stair": false,
+      "button": false,
+      "moving": true,
+      "walkOffset": 0.5,
+      "stairOffset": 0.4,
+      "paths": [
+        {
+          "target": "476676045731963585",
+          "active": true
+        },
+        {
+          "target": "153007720",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Left Connection",
+      "angles": [
+        {
+          "pivotId": "748259335",
+          "rotation": [
+            0,
+            270,
+            0
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "476676045731963585",
+          "to": "2029831292"
+        },
+        {
+          "from": "2029831292",
+          "to": "476676045731963585"
+        }
+      ]
+    },
+    {
+      "name": "Middle Connection",
+      "angles": [
+        {
+          "pivotId": "748259335",
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "476676045731963585",
+          "to": "549514382"
+        },
+        {
+          "from": "549514382",
+          "to": "476676045731963585"
+        }
+      ]
+    },
+    {
+      "name": "Right Connection",
+      "angles": [
+        {
+          "pivotId": "748259335",
+          "rotation": [
+            0,
+            90,
+            0
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "476676045731963585",
+          "to": "980609065"
+        },
+        {
+          "from": "980609065",
+          "to": "476676045731963585"
+        }
+      ]
+    },
+    {
+      "name": "Illusion Connection",
+      "angles": [
+        {
+          "pivotId": "748259335",
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "pivotId": "841462477",
+          "rotation": [
+            0,
+            0,
+            90
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "1011665402",
+          "to": "459629125"
+        },
+        {
+          "from": "459629125",
+          "to": "1011665402"
+        }
+      ]
+    },
+    {
+      "name": "Final Connection",
+      "angles": [
+        {
+          "pivotId": "748259335",
+          "rotation": [
+            0,
+            180,
+            0
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "459629125",
+          "to": "1718603969"
+        },
+        {
+          "from": "1718603969",
+          "to": "459629125"
+        }
+      ]
+    },
+    {
+      "name": "Extra Connection",
+      "angles": [
+        {
+          "pivotId": "841462477",
+          "rotation": [
+            0,
+            0,
+            90
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "1906992999",
+          "to": "1935361020"
+        },
+        {
+          "from": "1935361020",
+          "to": "1906992999"
+        }
+      ]
+    },
+    {
+      "name": "Extra Connection",
+      "angles": [
+        {
+          "pivotId": "841462477",
+          "rotation": [
+            0,
+            0,
+            90
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "1906992999",
+          "to": "1188568823"
+        },
+        {
+          "from": "1188568823",
+          "to": "1906992999"
+        }
+      ]
+    }
+  ],
+  "hiddenFaces": [
+    {
+      "id": "1762484645",
+      "parentId": "459629125",
+      "position": [
+        0.5,
+        0,
+        0
+      ],
+      "rotation": [
+        90,
+        90,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.1,
+        0.1
+      ]
+    },
+    {
+      "id": "1051174809",
+      "parentId": "459629125",
+      "position": [
+        0,
+        0,
+        0.5
+      ],
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.1,
+        0.1
+      ]
+    }
+  ]
+}

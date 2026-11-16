@@ -111,6 +111,7 @@ export function heldAction(s:State,i:Input):boolean {
     if(!throwing&&i.grab)return false;
     emit(s,throwing?'throw':'grab');
     e.held=false;e.attackChain=0;e.vx=throwing?s.facing*12:0;e.vy=0;e.cooldown=throwing?.3:.4;
+    if(e.kind==='shell')e.playerLaunchedShell=throwing;
     if(e.kind==='basin'||e.kind==='bone-shell'||e.kind==='shell-helmet'||e.kind==='spike-shell-helmet'||e.kind==='pow'||e.kind==='red-pow'||e.kind==='wood-crate'||(e.kind==='snowball'||e.kind==='snowball-large')){e.x=s.facing>0?s.player.x+s.player.w+.03:s.player.x-e.w-.03;e.y=Math.min(e.y,s.player.y+s.player.h-e.h-.03);}
     if('thrown'in e){e.thrown=throwing;if((e.kind==='snowball'||e.kind==='snowball-large')){e.vx=throwing?s.facing*8.5:0;e.vy=throwing?-3:0;}else if(e.kind==='spring-v'){e.vx=throwing?s.facing*8:0;e.vy=throwing?-4:0;e.springBounces=0;e.compression=0;}else if((e.kind==='pow'||e.kind==='red-pow'||e.kind==='wood-crate')&&throwing)e.vy=-3;}
     s.held=null;return throwing;

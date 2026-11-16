@@ -11,11 +11,11 @@ import { actionScore } from './scoring';
 export {modifyEnemy} from './body-factory';
 export function beforeDefeat(s:State,e:Enemy,cause:string):boolean {
     if(e.frozen)return false;
-    if(cause==='stomp'&&e.modifiers?.winged&&!e.removedWings){e.removedWings=true;delete e.flight;e.vy=0;e.cooldown=.25;actionScore(s,'stomp',e.x,e.y);emit(s,'stomp',e.x);return true;}
-    if(cause==='stomp'&&e.modifiers?.large){const feet=e.y+e.h;e.modifiers.large=false;e.w/=2;e.h/=2;e.y=feet-e.h;e.cooldown=.25;actionScore(s,'stomp',e.x,e.y);emit(s,'stomp',e.x);return true;}
+    if(cause==='stomp'&&e.modifiers?.winged&&!e.removedWings){e.removedWings=true;delete e.flight;e.vy=0;e.cooldown=.25;actionScore(s,'stomp-contact',e.x,e.y);emit(s,'stomp',e.x);return true;}
+    if(cause==='stomp'&&e.modifiers?.large){const feet=e.y+e.h;e.modifiers.large=false;e.w/=2;e.h/=2;e.y=feet-e.h;e.cooldown=.25;actionScore(s,'stomp-contact',e.x,e.y);emit(s,'stomp',e.x);return true;}
     if(e.kind==='creeper-plant'&&['stomp','claw','boomerang'].includes(cause)){if(e.ai){e.ai.phase='retreat';e.ai.wait=1;}e.cooldown=.3;emit(s,'bump',e.x);return true;}
     if(e.kind==='dry-turtle'&&['stomp','claw','boomerang'].includes(cause)){
-        if(e.downAge===undefined){e.downAge=3;e.vx=e.vy=0;e.cooldown=.1;emit(s,'stomp',e.x);if(cause==='stomp')actionScore(s,'stomp',e.x,e.y);}return true;
+        if(e.downAge===undefined){e.downAge=3;e.vx=e.vy=0;e.cooldown=.1;emit(s,'stomp',e.x);if(cause==='stomp')actionScore(s,'stomp-contact',e.x,e.y);}return true;
     }return false;
 }
 function fire(s:State,e:Enemy,vx:number,vy:number):void {

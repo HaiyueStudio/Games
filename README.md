@@ -143,12 +143,15 @@ select a game, A to enter, and LB/RB to change categories. In games, Back toggle
 return confirmation dialog and pauses gameplay. R3 switches the virtual pointer;
 R3+LB/RB switches games.
 See [controller mappings and verification](games/gamepad/README.md) and
-[unpublished package provenance](vendor/README.md).
+[dependency versions and historical package provenance](vendor/README.md).
 
 ## Local development
 
-Use Node.js 22.22.2, a compatible Node 24 (24.15+), or Node 26. Local Haiyue dependencies are packed from source and included
-in `vendor/`, so installing Games does not require sibling repositories:
+Use Node.js 22.22.2, a compatible Node 24 (24.15+), or Node 26. Games installs published npm packages:
+Engine and Extensions **0.2.3**, animation-spec and UI **0.2.2**. Versions and integrity hashes are
+locked in `package-lock.json`; runtime packages no longer come from sibling repositories.
+Some tests share PNG/GPU audit helpers from `../Engine`; Pages checks out those helpers but does not build
+or install Engine/UI candidate packages:
 
 ```bash
 npm ci
@@ -258,14 +261,14 @@ legacy checkpoints only after a successful Engine save. Game rules, authored sha
 pixel artwork, synthesis and presentation policy remain game-owned. Existing seeded
 algorithms are retained where changing the generator would invalidate saved/replay state.
 
-The gamepad adapter deliberately uses the vendored unpublished Engine input candidate;
+The gamepad adapter uses the npm Engine 0.2.3 alias `@haiyue/engine-gamepad`;
 it must not deep-import the sibling Engine source tree. Browser/native audio adapters
 that already use `OwnerSafeAudioMixer` retain their public API boundary.
 
 - `games/`: game sources, HTML entry points, game-facing shared code, manifest, and deterministic tests.
 - `scripts/`: repository build, local dependency, target selection, and preview-site tooling.
 - `site/`: source files for the GitHub Pages game lobby.
-- `.github/workflows/deploy-pages.yml`: builds Engine package candidates, all games, and the Pages artifact.
+- `.github/workflows/deploy-pages.yml`: installs locked npm dependencies, validates all games, and builds the Pages artifact.
 
 ## Game launcher
 

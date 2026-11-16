@@ -38,28 +38,15 @@ test('Pages deployment validates games and uploads the generated site', () => {
   const workflow = read('.github', 'workflows', 'deploy-pages.yml');
 
   assert.equal(packageJson.scripts['preview:build'], 'node scripts/build-preview-site.mjs');
-  assert.match(
-    workflow,
-    /repository: HaiyueStudio\/Engine\n\s+ref: master\n\s+path: Engine/,
-    'the Engine checkout should use its default master branch',
-  );
   assert.doesNotMatch(
     workflow,
-    /repository: HaiyueStudio\/Engine\n\s+ref: main/,
-    'the Engine repository does not expose a main branch',
+    /repository: HaiyueStudio\/UI|npm run (?:deps:local|pack:candidates?|build:engine)/,
+    'Pages must use the locked npm releases without replacing them with sibling candidates',
   );
-  const enginePackageCommands = [
-    'npm run build:shader-language',
-    'npm run build:engine',
-    'npm run build:animation-spec',
-    'npm run build:extensions',
-    'npm run pack:candidates',
-  ];
-  const enginePackageCommandOffsets = enginePackageCommands.map(command => workflow.indexOf(command));
-  assert.ok(
-    enginePackageCommandOffsets.every((offset, index) => offset >= 0 && (index === 0 || offset > enginePackageCommandOffsets[index - 1])),
-    'Engine workspaces should be built in dependency order before candidate packages are packed',
-  );
+  assert.match(workflow, /repository: HaiyueStudio\/Engine\r?\n\s+ref: master\r?\n\s+path: Engine/,
+    'shared test helpers still require the Engine checkout, without installing its candidate packages');
+  assert.match(workflow, /cache-dependency-path: Games\/package-lock\.json/);
+  assert.match(workflow, /working-directory: Games\r?\n\s+run: npm ci/);
   const uploadOffset = workflow.indexOf('actions/upload-pages-artifact@');
   const deployJobOffset = workflow.indexOf('\n  deploy:');
   const configurePagesOffset = workflow.indexOf('actions/configure-pages@');

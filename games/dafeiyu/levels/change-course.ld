@@ -1,0 +1,9 @@
+[general]
+name=换个主角
+subtitle=重新排列规则，让附近的石头接替大肥鱼。
+author=HaiyueStudio
+palette=default.png
+leveltype=0
+levels=0
+paths=0
+specials=0

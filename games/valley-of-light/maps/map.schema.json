@@ -95,7 +95,8 @@
         "min": { "type": "number", "minimum": -360, "maximum": 360, "description": "Translation lower limit for type 4; ignored by continuously rotating type 3 wheels." },
         "max": { "type": "number", "minimum": -360, "maximum": 360, "description": "Translation upper limit for type 4; ignored by continuously rotating type 3 wheels." },
         "step": { "type": "number", "minimum": 0.1, "maximum": 360 },
-        "targetGroup": { "$ref": "#/$defs/groupRef" }
+        "targetGroup": { "$ref": "#/$defs/groupRef" },
+        "carryRider": {"type":"boolean","default":false,"description":"Allow an idle rider to move with a dragged mechanism."}
       }
     },
     "trigger": {

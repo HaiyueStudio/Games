@@ -1,0 +1,149 @@
+{
+  "name": "大肥鱼 · 四向行走",
+  "generator": "OpenAI built-in ImageGen",
+  "reference": "用户提供的「照片 1.jpg」",
+  "prompt": "Use case: game-asset. Generate ONE finished production sprite sheet for the 2D tile puzzle game 大肥鱼. The attached image is the exact character-design reference. Recreate the SAME chibi whale maid, closely preserving her original style and visual identity: huge blue eyes, tiny round face, very long indigo wavy hair with dusty sky-blue curled ends, airy white ruffled maid headband and upward hair curl, a small blue bow over her own left temple, soft dark blue whale-fin ears, navy long-sleeve knee-length maid dress with gold embroidery and gold bows on the skirt, white scalloped apron with small whale emblem, white socks, navy Mary Janes, and a large dark-indigo curled whale fluke tail. Clean dark indigo linework, neat anime cel shading, navy and slate blue colors. Draw the whole body including the feet and tail. Use the reference for the drawing, not its white background or lettering.\n\nA square game atlas laid out in EXACTLY 4 equal columns by 4 equal rows, 16 separate sprite cutouts on a truly transparent alpha background. Grid cells have equal dimensions and the same anchor across all four columns. The sprites should be relatively generous in size but fit completely inside the center 83% of each cell with conspicuous transparent gutters; the tail, hair, shoes and headband must stay inside their own cells. Centers horizontally at 12.5%, 37.5%, 62.5%, 87.5%, and the same percentages vertically. Show each direction with the same proportions, scale, ground level and a very slight top-down RPG camera. Every frame in each row must face the same cardinal direction. ROW 1: facing forward and walking toward the viewer (down on a game screen); both blue eyes visible. ROW 2: full left-side profile walking toward the LEFT edge of the screen; nose and leading toe point left, only one eye visible, tail flows to the right. ROW 3: full right-side profile walking toward the RIGHT edge of the screen; nose and leading toe point right, only one eye visible, tail flows to the left. ROW 4: walking directly away from viewer (up on game screen), genuine back view; show back of head, white apron bow at back and dress, hair curls and tail, no face and no eyes. Repeat the same 4 walk-cycle phases across columns in each row: left foot forward with right arm swinging forward; feet pass under the dress and body lifts slightly; right foot forward with left arm swinging forward; opposite passing pose. Make the different foot and arm positions clearly readable at small game scale, with small alternating hair and tail motion. Keep silhouettes and face features consistent through the cycle. Do not draw profile characters from a three-quarter front angle. Do not change costume between poses. No grid outlines, numbering, arrows, speech bubbles, typography, decorative stars, ground marks, shadows, or scenery. No extra sprites. Four columns and four rows only. High-res polished digital sprite art with actual transparent background.",
+  "atlas": "atlas.png",
+  "layout": {
+    "columns": 4,
+    "rows": 4,
+    "frameWidth": 320,
+    "frameHeight": 320,
+    "origin": "top-left",
+    "anchor": {
+      "x": 160,
+      "y": 300
+    }
+  },
+  "playback": {
+    "loop": true,
+    "phases": [
+      "left contact",
+      "passing",
+      "right contact",
+      "opposite passing"
+    ]
+  },
+  "directions": [
+    {
+      "name": "down",
+      "strip": "down.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 320,
+          "y": 0,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 640,
+          "y": 0,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 960,
+          "y": 0,
+          "width": 320,
+          "height": 320
+        }
+      ]
+    },
+    {
+      "name": "left",
+      "strip": "left.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 320,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 320,
+          "y": 320,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 640,
+          "y": 320,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 960,
+          "y": 320,
+          "width": 320,
+          "height": 320
+        }
+      ]
+    },
+    {
+      "name": "right",
+      "strip": "right.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 640,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 320,
+          "y": 640,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 640,
+          "y": 640,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 960,
+          "y": 640,
+          "width": 320,
+          "height": 320
+        }
+      ]
+    },
+    {
+      "name": "up",
+      "strip": "up.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 960,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 320,
+          "y": 960,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 640,
+          "y": 960,
+          "width": 320,
+          "height": 320
+        },
+        {
+          "x": 960,
+          "y": 960,
+          "width": 320,
+          "height": 320
+        }
+      ]
+    }
+  ]
+}

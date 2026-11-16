@@ -1,0 +1,87 @@
+{
+  "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3279757753",
+  "cases": [
+    {
+      "id": "1level",
+      "label": "01. WHERE DO I GO?",
+      "focus": "重组 WALL IS YOU 与胜利规则",
+      "route": "ullllllluuurrddrrrr",
+      "expected": "win",
+      "alternate": "ullllllluuurrddrrrr"
+    },
+    {
+      "id": "3level",
+      "label": "03. OUT OF REACH",
+      "focus": "WATER IS SINK、把石头改为胜利目标",
+      "route": "rrurrdlluldddddddddrruuurdddllluuuuuurr",
+      "expected": "win",
+      "alternate": "urrrddrdllrrdlluuldddddddrruuurdddllld"
+    },
+    {
+      "id": "209level",
+      "label": "06. LOCK",
+      "focus": "OPEN / SHUT、钥匙与门",
+      "route": "ldllurrrrrrrrrrrrurrdlllllluldddddulllldurrrrrddlllldddlurrruuuuuuurrrrrrurddddd",
+      "expected": "win",
+      "alternate": "ullldrrrrrrrrrrrrurrdllllllluldddddrdllldlurrrulruuuurrrrrrurddddd"
+    },
+    {
+      "id": "205level",
+      "label": "01. FLOAT",
+      "focus": "FLOAT 分层与 SINK",
+      "route": "llddddrrrruldllluuuuuuulururddd",
+      "expected": "win",
+      "alternate": "llddddrrrruldllluuuuulurdruuu"
+    },
+    {
+      "id": "199level",
+      "label": "01. FRAGILITY",
+      "focus": "WEAK / DEFEAT，推石处理骷髅",
+      "route": "uuurrrrrddddrdrullurrrrdrulurddruddduuuruuldlluurdldrurddddddrdllllrrrrdlllldllldllll",
+      "expected": "win",
+      "alternate": "rruuurrrddrrrddlldlulurrrrrrdrruurullrdllluurdldrurddddddrdllllrrrrdlllldllldllll"
+    },
+    {
+      "id": "11level",
+      "label": "02. LONELY FLAG",
+      "focus": "EMPTY、整片空格转化",
+      "route": "uuldldrrrruulddldrrdrruulrddlurullllllldlurulld",
+      "expected": "win",
+      "alternate": "uuldldrrrruulddldrrrdrurulllllllldlurullu"
+    },
+    {
+      "id": "319level",
+      "label": "09. RESEARCH FACILITY",
+      "focus": "BOLT IS MOVE、HOT / MELT 与等待",
+      "route": "rrdruuuuuruulldrdddlllurdrullllllllllllwwwwwwwwwwddddddrrrrrurrdruuuuuuulurrrrurd",
+      "expected": "win",
+      "alternate": "rrdruuuuuruldllrdldlullllllllllwddddddrrrrrurrdruuuuuuluurdldruul"
+    },
+    {
+      "id": "64level",
+      "label": "05. MARITIME ADVENTURES",
+      "focus": "HAND IS MOVE / HAND ON WALL IS YOU / OPEN 与 DOOR HAS FLAG",
+      "route": "urrrrllldrrruurdlllllldlddrrrrdrrrrrruurdllllrulluldrrdllulddldruuuldddlluurrurdddddldrdrrrrrddlllldluuuudruurrdluwudldluuulurrrurdrlldlurrrrdddddrrrrrruuurruuu",
+      "expected": "win",
+      "alternate": "urrurrddldddddddddddluruuulldrlldddrulurdrrudlullurruurrddrrrrrrllddllllulluuurrrddluullddldrdruruulruullddruuuuurdddddddlluulurdruuuulurrdrulurrrrrlllldddddddduuuuuuuuuuullddddddddddldrruruuuuruurdrdllulddddrdllulldrurrrrddrddllurdruluuulluuuuuuuullllddrdruuuddluuddddllddddlllddlulurrrrdruuuulurrdruuurulldlurrrrrdddddddrrdddlurullllldluuuuulurdruurulrrrddddddrddlllldluuuuuulurdruuuuruldlurrrrddddddddrdddlllldluuuuuuulurdruuuruldddlllluuruurldldddrrrrrrrrrruurruuuwwwwuwwwwlwwwwwwuwwwwwrwwwwwuw",
+      "alternateSource": "https://steamcommunity.com/sharedfiles/filedetails/?id=1736747332"
+    },
+    {
+      "id": "245level",
+      "label": "09. FRAGILE EXISTENCE",
+      "focus": "多组对象转化、KEY IS YOU 与 DEFEAT",
+      "route": "rrrdddrudrruldludllllllurrrdrrudddrruudruuluuurluddrrurddrrrullllddddrrruuudddlllddddrrruuuurruuuuuurrdlrdluulddddrddlruuldrdllllldurrdlllldlurrullldluuuuddddluuuudddrrrrrurullddluuuuuddruuuu",
+      "expected": "win",
+      "alternate": "rrrdddrudrruldludllllllurrrdruddrrruddruuulurruurddrrrurrurulluldddllllddrudddluuudddllllldluruluudrruudllddllllruuuuurrruuuu"
+    },
+    {
+      "id": "291level",
+      "label": "05. AVALANCHE",
+      "focus": "LEVEL IS BABA 写回 Meta 地图",
+      "route": "uurulrddddddluuuuu",
+      "expected": "map-transform",
+      "alternate": "lddrdruuuuu"
+    }
+  ],
+  "alternateSource": "https://github.com/SzieberthAdam/baba-is-optimized/tree/08a396717e4814de0d414f8f58382cfbc9e2afdd"
+}

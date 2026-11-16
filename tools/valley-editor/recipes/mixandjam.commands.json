@@ -1,0 +1,1390 @@
+{
+  "apiVersion": 1,
+  "label": "转换 Mix and Jam 开源关卡数据",
+  "commands": [
+    {
+      "op": "map.create",
+      "id": "mixandjam-monument",
+      "name": "错视旋塔 · 开源场景转换"
+    },
+    {
+      "op": "group.create",
+      "group": {
+        "id": "source-center",
+        "name": "中央载人转台",
+        "position": [
+          0,
+          5,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "op": "group.create",
+      "group": {
+        "id": "source-right",
+        "name": "开关翻折桥",
+        "position": [
+          0,
+          6,
+          -7
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "op": "group.create",
+      "group": {
+        "id": "fixed",
+        "name": "来源固定道路",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "op": "group.create",
+      "group": {
+        "id": "scenery",
+        "name": "补建塔身与装饰",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-14",
+        "name": "来源路径 14",
+        "type": 1,
+        "position": [
+          0,
+          6.5,
+          -5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-1",
+        "name": "来源路径 1",
+        "type": 1,
+        "position": [
+          3,
+          0.5,
+          2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-l_3",
+        "name": "来源路径 l_3",
+        "type": 1,
+        "position": [
+          0,
+          1.5,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-hidden-165556432",
+        "name": "来源路径 x",
+        "type": 1,
+        "position": [
+          -4,
+          12.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-u_1",
+        "name": "来源路径 u_1",
+        "type": 1,
+        "position": [
+          3,
+          8.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-hidden-466804030",
+        "name": "来源路径 x",
+        "type": 1,
+        "position": [
+          -4,
+          11.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-13",
+        "name": "来源路径 13",
+        "type": 1,
+        "position": [
+          0,
+          6.5,
+          -4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-p2",
+        "name": "来源路径 p2",
+        "type": 1,
+        "position": [
+          0.5,
+          2,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          -90
+        ],
+        "groupId": "source-right",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-5stair",
+        "name": "来源路径 5stair",
+        "type": 2,
+        "position": [
+          0,
+          0.5,
+          3
+        ],
+        "rotation": [
+          0,
+          180,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "length": 1,
+        "rise": 1,
+        "steps": 4,
+        "thickness": 0.3
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-11stair",
+        "name": "来源路径 11stair",
+        "type": 2,
+        "position": [
+          -4,
+          5.5,
+          1
+        ],
+        "rotation": [
+          0,
+          90,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "length": 1,
+        "rise": 1,
+        "steps": 4,
+        "thickness": 0.3
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-u_2",
+        "name": "来源路径 u_2",
+        "type": 1,
+        "position": [
+          2,
+          8.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-17button",
+        "name": "翻折桥开关",
+        "type": 8,
+        "position": [
+          4,
+          6.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "trigger": {
+          "mode": "once",
+          "actions": [
+            {
+              "groupId": "source-right",
+              "translation": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                90
+              ],
+              "duration": 1.2,
+              "easing": "smooth"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-p3",
+        "name": "来源路径 p3",
+        "type": 1,
+        "position": [
+          0.5,
+          3,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          -90
+        ],
+        "groupId": "source-right",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-0",
+        "name": "来源路径 0",
+        "type": 1,
+        "position": [
+          3,
+          0.5,
+          1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-p1",
+        "name": "来源路径 p1",
+        "type": 1,
+        "position": [
+          0.5,
+          1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          -90
+        ],
+        "groupId": "source-right",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-3",
+        "name": "来源路径 3",
+        "type": 1,
+        "position": [
+          2,
+          0.5,
+          3
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-4",
+        "name": "来源路径 4",
+        "type": 1,
+        "position": [
+          1,
+          0.5,
+          3
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-2",
+        "name": "来源路径 2",
+        "type": 1,
+        "position": [
+          3,
+          0.5,
+          3
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-u_3",
+        "name": "来源路径 u_3",
+        "type": 1,
+        "position": [
+          1,
+          8.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-6stair",
+        "name": "来源路径 6stair",
+        "type": 2,
+        "position": [
+          -1,
+          1.5,
+          3
+        ],
+        "rotation": [
+          0,
+          180,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "length": 1,
+        "rise": 1,
+        "steps": 4,
+        "thickness": 0.3
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-u_4",
+        "name": "来源路径 u_4",
+        "type": 1,
+        "position": [
+          0,
+          8.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-10stair",
+        "name": "来源路径 10stair",
+        "type": 2,
+        "position": [
+          -4,
+          4.5,
+          2
+        ],
+        "rotation": [
+          0,
+          90,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "length": 1,
+        "rise": 1,
+        "steps": 4,
+        "thickness": 0.3
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-18final",
+        "name": "终点高台",
+        "type": 1,
+        "position": [
+          -4,
+          13.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-8stair",
+        "name": "来源路径 8stair",
+        "type": 2,
+        "position": [
+          -3,
+          3.5,
+          3
+        ],
+        "rotation": [
+          0,
+          180,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "length": 1,
+        "rise": 1,
+        "steps": 4,
+        "thickness": 0.3
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-7stair",
+        "name": "来源路径 7stair",
+        "type": 2,
+        "position": [
+          -2,
+          2.5,
+          3
+        ],
+        "rotation": [
+          0,
+          180,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "length": 1,
+        "rise": 1,
+        "steps": 4,
+        "thickness": 0.3
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-9",
+        "name": "来源路径 9",
+        "type": 1,
+        "position": [
+          -4,
+          4.5,
+          3
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-16",
+        "name": "来源路径 16",
+        "type": 1,
+        "position": [
+          0,
+          6.5,
+          -7
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        },
+        "state": {
+          "visible": false,
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-15",
+        "name": "来源路径 15",
+        "type": 1,
+        "position": [
+          0,
+          6.5,
+          -6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-12",
+        "name": "来源路径 12",
+        "type": 1,
+        "position": [
+          -4,
+          6.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "fixed",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-l_1",
+        "name": "来源路径 l_1",
+        "type": 1,
+        "position": [
+          0,
+          1.5,
+          -3
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "mv-l_2",
+        "name": "来源路径 l_2",
+        "type": 1,
+        "position": [
+          0,
+          1.5,
+          -2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "groupId": "source-center",
+        "colors": {
+          "surface": "#e5e1c9"
+        }
+      }
+    },
+    {
+      "op": "marker.set",
+      "id": "mv-1",
+      "kind": "spawn"
+    },
+    {
+      "op": "marker.set",
+      "id": "mv-18final",
+      "kind": "exit"
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "source-wheel",
+        "type": 3,
+        "position": [
+          0,
+          14.15,
+          0
+        ],
+        "colors": {
+          "surface": "#e5e1c9",
+          "hub": "#679d9c",
+          "spokes": "#e9c775",
+          "tips": "#699fa1",
+          "base": "#9cb8b5"
+        },
+        "name": "载人转台手轮",
+        "thickness": 0.4,
+        "motion": {
+          "axis": "y",
+          "step": 90,
+          "targetGroup": "source-center",
+          "carryRider": true
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "foundation",
+        "type": 1,
+        "position": [
+          -0.5,
+          -0.55,
+          0
+        ],
+        "colors": {
+          "surface": "#b1c4b6"
+        },
+        "name": "塔身 · foundation",
+        "groupId": "scenery",
+        "length": 10,
+        "width": 9,
+        "thickness": 0.65,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "left-tower",
+        "type": 1,
+        "position": [
+          -4,
+          6,
+          0
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "name": "塔身 · left-tower",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 6.5,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "right-tower",
+        "type": 1,
+        "position": [
+          4,
+          6,
+          0
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "name": "塔身 · right-tower",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 6.5,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "middle-pier",
+        "type": 1,
+        "position": [
+          0,
+          5.95,
+          -4
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "name": "塔身 · middle-pier",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 6.45,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "middle-arm",
+        "type": 1,
+        "position": [
+          0,
+          5.95,
+          -5
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "name": "塔身 · middle-arm",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 3,
+        "thickness": 0.7,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "end-arch-a",
+        "type": 18,
+        "position": [
+          -4,
+          6.5,
+          0
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "groupId": "scenery",
+        "length": 1.05,
+        "width": 0.12,
+        "rise": 6.45,
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "end-arch-b",
+        "type": 18,
+        "position": [
+          -4,
+          6.5,
+          0
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "groupId": "scenery",
+        "length": 1.05,
+        "width": 0.12,
+        "rise": 6.45,
+        "rotation": [
+          0,
+          90,
+          0
+        ]
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "drum",
+        "type": 1,
+        "position": [
+          0,
+          4.95,
+          0
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "name": "塔身 · drum",
+        "groupId": "scenery",
+        "length": 1.7,
+        "width": 1.7,
+        "thickness": 5.5,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "axle-l-n",
+        "type": 12,
+        "position": [
+          -0.42,
+          0,
+          -0.42
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "groupId": "source-center",
+        "width": 0.11,
+        "rise": 8.7
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "axle-l-s",
+        "type": 12,
+        "position": [
+          -0.42,
+          0,
+          0.42
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "groupId": "source-center",
+        "width": 0.11,
+        "rise": 8.7
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "axle-r-n",
+        "type": 12,
+        "position": [
+          0.42,
+          0,
+          -0.42
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "groupId": "source-center",
+        "width": 0.11,
+        "rise": 8.7
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "axle-r-s",
+        "type": 12,
+        "position": [
+          0.42,
+          0,
+          0.42
+        ],
+        "colors": {
+          "surface": "#9cb8b5"
+        },
+        "groupId": "source-center",
+        "width": 0.11,
+        "rise": 8.7
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "stair-support-5stair",
+        "type": 1,
+        "position": [
+          0,
+          0.5,
+          3
+        ],
+        "colors": {
+          "surface": "#b6c7bc"
+        },
+        "name": "塔身 · stair-support-5stair",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 1,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "stair-support-11stair",
+        "type": 1,
+        "position": [
+          -4,
+          5.5,
+          1
+        ],
+        "colors": {
+          "surface": "#b6c7bc"
+        },
+        "name": "塔身 · stair-support-11stair",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 6,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "stair-support-6stair",
+        "type": 1,
+        "position": [
+          -1,
+          1.5,
+          3
+        ],
+        "colors": {
+          "surface": "#b6c7bc"
+        },
+        "name": "塔身 · stair-support-6stair",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 2,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "stair-support-10stair",
+        "type": 1,
+        "position": [
+          -4,
+          4.5,
+          2
+        ],
+        "colors": {
+          "surface": "#b6c7bc"
+        },
+        "name": "塔身 · stair-support-10stair",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 5,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "stair-support-8stair",
+        "type": 1,
+        "position": [
+          -3,
+          3.5,
+          3
+        ],
+        "colors": {
+          "surface": "#b6c7bc"
+        },
+        "name": "塔身 · stair-support-8stair",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 4,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "stair-support-7stair",
+        "type": 1,
+        "position": [
+          -2,
+          2.5,
+          3
+        ],
+        "colors": {
+          "surface": "#b6c7bc"
+        },
+        "name": "塔身 · stair-support-7stair",
+        "groupId": "scenery",
+        "length": 1,
+        "width": 1,
+        "thickness": 3,
+        "state": {
+          "walkable": false
+        }
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "finish-gate",
+        "type": 19,
+        "position": [
+          -4,
+          13.5,
+          0
+        ],
+        "colors": {
+          "surface": "#e8d8a4",
+          "hub": "#7bbfba"
+        },
+        "groupId": "scenery",
+        "length": 0.82,
+        "width": 0.15,
+        "rise": 1.7
+      }
+    },
+    {
+      "op": "object.create",
+      "object": {
+        "id": "sea",
+        "type": 11,
+        "position": [
+          0,
+          -1.3,
+          -0.6
+        ],
+        "colors": {
+          "surface": "#6aafbb"
+        },
+        "groupId": "scenery",
+        "length": 20,
+        "width": 19,
+        "water": {
+          "amplitude": 0.035,
+          "speed": 0.35,
+          "wavelength": 5
+        }
+      }
+    },
+    {
+      "op": "map.configure",
+      "settings": {
+        "appearance": {
+          "background": "#d9ebe5",
+          "ambientIntensity": 1.4
+        },
+        "opticalLinks": [
+          {
+            "a": "mv-p3",
+            "aEnd": 0,
+            "b": "mv-u_1",
+            "bEnd": 1
+          }
+        ],
+        "logic": {
+          "variables": [],
+          "rules": [
+            {
+              "id": "source-intro",
+              "name": "source-intro",
+              "enabled": true,
+              "once": true,
+              "event": {
+                "type": "start",
+                "source": null
+              },
+              "condition": {
+                "kind": "all",
+                "conditions": []
+              },
+              "actions": [
+                {
+                  "kind": "message",
+                  "text": "沿台阶上到左岸。手轮转到 90° 接住下层桥，站上桥后继续转动。"
+                }
+              ]
+            },
+            {
+              "id": "source-unfold",
+              "name": "source-unfold",
+              "enabled": true,
+              "once": true,
+              "event": {
+                "type": "switch",
+                "source": "mv-17button"
+              },
+              "condition": {
+                "kind": "all",
+                "conditions": []
+              },
+              "actions": [
+                {
+                  "kind": "wait",
+                  "duration": 1.2
+                },
+                {
+                  "kind": "state",
+                  "targetId": "mv-16",
+                  "property": "visible",
+                  "value": true
+                },
+                {
+                  "kind": "state",
+                  "targetId": "mv-16",
+                  "property": "walkable",
+                  "value": true
+                },
+                {
+                  "kind": "message",
+                  "text": "翻折桥已展开。乘转台回到中间长廊，在默认视角下寻找上层的错视接缝。"
+                }
+              ]
+            },
+            {
+              "id": "source-top",
+              "name": "source-top",
+              "enabled": true,
+              "once": true,
+              "event": {
+                "type": "enter",
+                "source": "mv-u_1",
+                "face": 0
+              },
+              "condition": {
+                "kind": "all",
+                "conditions": []
+              },
+              "actions": [
+                {
+                  "kind": "message",
+                  "text": "你已跨过错视接缝。留在上层转台，转到 180° 后前往终点。"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "generator": "OpenAI built-in ImageGen",
+  "characterReference": {
+    "origin": "上善无形的鲸鱼娘「溟月」及 ZipZipPipe 的 DeepSeek 女仆鲸鱼娘二次设计",
+    "qVersion": "YunYueSama",
+    "sources": [
+      "https://github.com/xiaoweigen/deepseek-dafeiyu-assets",
+      "https://github.com/YunYueSama/codex-deepseek-pet"
+    ],
+    "method": "Text-based visual reference. All packaged images were newly generated."
+  },
+  "assets": {
+    "whale.png": "Use case: game-asset. A single full-body clear 2D chibi anime sprite called 大肥鱼, a Blue Whale Girl inspired by the online DeepSeek whale-girl community design: saturated ocean-blue bob hair with rounded fringe, sky blue highlights, huge turquoise eyes, a white scalloped maid headband with two blue whale-fin tufts, dark navy and white sailor-maid dress/apron with pale aqua bow, small black shoes, and a clearly visible cute blue whale fluke tail coming out behind her to the right. She looks welcoming, stands facing slightly left toward viewer, arms at sides, complete silhouette. Approximately 2.2 heads tall. Crisp deep navy outlines, simple clean flat cel shading and chunky graphic shapes. At 42px the hair, face, dress and tail must read. Centered, fills 88% of square frame, isolated sprite, genuinely transparent background, no ground/shadow, no text, no logo, no border, no other objects.",
+    "tiles.png": "Use case: game-asset. Square 1024x1024 transparent 2D cartoon sprite atlas for a clean chibi underwater rule puzzle. EXACT precise uniform four-column four-row 16 icon grid, cell centers at 12.5, 37.5, 62.5, 87.5 percent in both directions; each icon safely centered inside its own cell, fills 66% of cell, transparent gaps and no contact between icons. Row 1: amber golden finish pennant, smooth lavender coral boulder, rectangular teal masonry wall block, navy blue water puddle with cyan ripple. Row 2: glowing coral red lava puddle, brass key, purple wooden door, pearly pink scallop shell. Row 3: emerald kelp tuft, orange crab, bright blue jellyfish, round yellow starfish. Row 4: coral red heart, pale turquoise ice crystal, cream cartoon skull, pink branching coral. Flat hand-drawn graphic sticker sprites, dark indigo strong outlines, simple two-step cel shading, cute rounded shapes, all easily readable at 32 px. Genuine alpha transparency, no grid lines, no text, no backplates, no external shadows. Maintain exact row/column order.",
+    "lagoon.png": "Use case: game-asset. Wide 16:9 hand-drawn 2D chibi cartoon underwater grotto background for a rule-puzzle game named 大肥鱼. Wide shot near the floor, with deep blue desaturated teal water, soft light rays filtering down diagonally from the upper left, rounded navy coral rock silhouettes and dark teal kelp fronds mainly framing left and right edges and bottom. A few tiny bubbles and subtle schools of tiny fish. The middle is calm deep blue with low detail and intentionally visually quiet so a game board can cover it. Night-ocean tones overall, muted cyan rim light, beautiful clean material shapes with gentle gradients, sophisticated editorial game art. No characters, no text, no UI, no panel, no props in center. Full bleed landscape."
+  }
+}

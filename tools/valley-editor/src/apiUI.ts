@@ -9,5 +9,6 @@ export class ApiUI {
     document.getElementById('api')!.onclick=()=>{if(!text.value)text.value=JSON.stringify({apiVersion:1,label:'API 新建路径',expectedRevision:api.status().revision,commands:[{op:'object.create',object:{id:'api-road',type:1,position:[0,2,0]}}]},null,2);dialog.showModal();};
     document.getElementById('close-api')!.onclick=()=>dialog.close();document.getElementById('api-validate')!.onclick=()=>run(false);document.getElementById('api-apply')!.onclick=()=>run(true);
     document.getElementById('api-chapter-two')!.onclick=()=>{text.value=JSON.stringify({...chapterTwoRecipe(),expectedRevision:api.status().revision},null,2);report.textContent='已填入第二关建图命令，应用后替换当前地图；整批可撤销。';};
+    document.getElementById('api-mixandjam')!.onclick=async()=>{try{const revision=api.status().revision,r=await fetch('./recipes/mixandjam.commands.json');if(!r.ok)throw new Error('读取来源关卡失败。');text.value=JSON.stringify({...await r.json(),expectedRevision:revision},null,2);report.textContent='Mix and Jam 开源场景转换（MIT）；应用后替换当前地图，可撤销。';}catch(e){report.textContent=String(e);}};
   }
 }

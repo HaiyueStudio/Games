@@ -1,0 +1,211 @@
+{
+  "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3279757753",
+  "checkControls": true,
+  "cases": [
+    {
+      "id": "68level",
+      "label": "10. WIRELESS CONNECTION",
+      "focus": "交替推进、机器人朝向与自动移动",
+      "expected": "win",
+      "route": "luuuuurrdrdluulddddrddruuulurulurlllddddddrrrrrlurddruuuuuruuldrdldlldlluurdddduuullwwwwwww",
+      "tracked": [
+        "cog",
+        "robot",
+        "flag"
+      ],
+      "requiredRules": [
+        "COG IS ROBOT",
+        "ROBOT IS MOVE",
+        "FLAG IS WIN"
+      ]
+    },
+    {
+      "id": "62level",
+      "label": "04. TELEPHONE",
+      "focus": "传送冰块、跨区保留操控对象",
+      "expected": "win",
+      "route": "drrrrrrrrdlldlludrrulrrdllllurdrurrruuuldddlrrlrrrdruulurrrr",
+      "tracked": [
+        "baba",
+        "ice",
+        "flag"
+      ],
+      "requiredRules": [
+        "ICE IS TELE",
+        "BABA IS TELE"
+      ]
+    },
+    {
+      "id": "150level",
+      "label": "07. BLOCKADE",
+      "focus": "条件下沉、两物体接触结算",
+      "expected": "win",
+      "route": "dlllllddrrurdldrrrrrllllldrrrrrllllldrrrrrlllllluuulurrrrrrrurdldrrrrrrrdruulurddllllllllulllllllurrrrrrrurddldrrrrrrllllllddddruluuurrrrrrrdruudlllllllldddruluurrrrrrrdrullllllllddrulurrrrrrrduuuuddddruluuuruuullllluu",
+      "tracked": [
+        "moon",
+        "rock",
+        "pillar",
+        "star",
+        "water"
+      ],
+      "requiredRules": [
+        "WATER IS SINK",
+        "ROCK IS PUSH",
+        "ROCK ON WATER IS SINK"
+      ]
+    },
+    {
+      "id": "91level",
+      "label": "08. JAYWALKERS UNITED",
+      "focus": "条件变形、自动移动及可移动文本栈",
+      "expected": "win",
+      "route": "llllllddluuldddrrrrrrrrrrrrrrrrruuuuuuuuuuuuuuulddddddluuuulddluuullddrdlllllllllluld",
+      "tracked": [
+        "keke",
+        "rock",
+        "flag",
+        "me"
+      ],
+      "requiredRules": [
+        "BABA MAKE GRASS",
+        "KEKE MAKE TILE",
+        "KEKE IS MOVE",
+        "FLAG ON ROCK IS ME",
+        "ROCK ON ME IS WIN"
+      ]
+    },
+    {
+      "id": "142level",
+      "label": "EXTRA 02. OUT AT SEA",
+      "focus": "SHIFT 方向、物体叠放和开门融化",
+      "expected": "win",
+      "route": "lluurrrrrurrrrddddrdlrdllldluuuuuluurrurdrddllddddruuruuuullddduuulddddrlldrrlldrrrdruuldluluuuurrrddlulduuurrrdduullddldrrrrrruurrdduullddrluurrdddddldrr",
+      "tracked": [
+        "baba",
+        "box",
+        "belt",
+        "door",
+        "ice",
+        "flag",
+        "lava",
+        "text_lava",
+        "text_ice",
+        "text_on"
+      ],
+      "requiredRules": [
+        "BELT IS SHIFT",
+        "ICE IS TEXT",
+        "LAVA IS PUSH"
+      ],
+      "alternate": "lluurrrrrurdldruurrrddddrdlrdllldluuuuuulurrurdlldrrrdddddluuulurdruudrrurululllddldrrllururdduulddldrrrrrruurrdduullddrluurrdddddldrr",
+      "alternateSource": "https://github.com/SzieberthAdam/baba-is-optimized/blob/08a396717e4814de0d414f8f58382cfbc9e2afdd/BABA%20IS%20YOU/solutions/Level%20Garden-Extra%202%2C%20Out%20At%20Sea%2C%20134.txt"
+    },
+    {
+      "id": "155level",
+      "label": "EXTRA 01. METACOGNITION",
+      "focus": "WORD 对象参与拼句、条件迭代",
+      "expected": "win",
+      "route": "drrurrdrrrddrulurrrlllddddruulurrrrdddrddlllllludluddddllluuuuurrrrrrrdrulurddruululdddldrrrrrrr",
+      "tracked": [
+        "baba",
+        "key",
+        "flag",
+        "skull"
+      ],
+      "requiredRules": [
+        "BABA IS WORD",
+        "KEY IS WORD",
+        "KEY IS OPEN"
+      ]
+    },
+    {
+      "id": "175level",
+      "label": "EXTRA 03. BROKEN",
+      "focus": "解除文字 PUSH、传送并叠放词块",
+      "expected": "win",
+      "route": "lddddrrdruudrrrrruuuuuuullulddddddrlldrrlllllllldrrrrrrrrdruuuuuuuuu",
+      "tracked": [
+        "baba",
+        "ice",
+        "rock",
+        "text_is",
+        "text_push"
+      ],
+      "requiredRules": [
+        "TEXT IS NOT PUSH",
+        "ROCK IS WORD",
+        "ROCK IS TELE",
+        "ROCK IS WIN"
+      ]
+    },
+    {
+      "id": "122level",
+      "label": "13. TUNNEL",
+      "focus": "SKULL NOT FACING SKULL、传送带与火焰判定",
+      "expected": "win",
+      "route": "ddlllludlulurrrrrurdurdlllllldddddddrudrullurrrrdruudrrlllddluuuuuuurrdduurddlllullruuuldddduuulddduuuulddddldrrruuuurrrrrrrrddddrrrrrddddrrrulldluuuuudddrrrrrdllldluuuuullurrrrrruuudddllllllllldddlllllllllddd",
+      "tracked": [
+        "baba",
+        "skull",
+        "fire",
+        "flag",
+        "lava",
+        "text_flag",
+        "text_win"
+      ],
+      "requiredRules": [
+        "BELT IS SHIFT",
+        "SKULL NOT FACING SKULL IS PUSH",
+        "FLAG IS WIN"
+      ],
+      "alternate": "lllddludlulurrruulduldddduurrurdrurrduldllddlllldrrldddrrdrudrullurrddruurrlluuuuurdduuuuldddduulurrrrrddddrrrrrrddrrdldluuuuuddrrrrddlllldluuuuulurrrrrruuudddllllllllldddlllllllllddd",
+      "alternateSource": "https://github.com/SzieberthAdam/baba-is-optimized/blob/08a396717e4814de0d414f8f58382cfbc9e2afdd/BABA%20IS%20YOU/solutions/Level%20Cavern-13%2C%20Tunnel%2C%20183.txt"
+    },
+    {
+      "id": "298level",
+      "label": "09. DELICATE STARS",
+      "focus": "条件 PULL、近距离推拉、开门与 SINK",
+      "expected": "win",
+      "route": "ddrrrrrulurrrlddrururuululldddlddrrulldluuluurrurdluuuurrruuudddlllddllddddruurrurrddduullluuldldrrrlllddrrrrddrurulruuuulllluuuulluuuuullddddddrrrrdddddddllurrrdrrlulurrllluuuuullllllddduuurrrrrrdrrurrrddddd",
+      "tracked": [
+        "me",
+        "star",
+        "box",
+        "door",
+        "flag"
+      ],
+      "requiredRules": [
+        "STAR ON ME IS PULL",
+        "BOX ON ME IS PUSH",
+        "FIRE IS DEFEAT",
+        "STAR IS PUSH",
+        "ME IS WIN"
+      ],
+      "alternate": "rrrrrrdrdruuruulllluldlddrrldrdrurrruuluuullluuuulluuuuullddddddrrrrddddddullldrrdrdruudllururlurlurluurrruuudddllldddrrdlldrluuuuuullllllddduuurrrrrrdrrurrrddddddllulldldrr",
+      "alternateSource": "https://github.com/SzieberthAdam/baba-is-optimized/blob/08a396717e4814de0d414f8f58382cfbc9e2afdd/BABA%20IS%20YOU/solutions/Level%20Meta-9%2C%20Delicate%20Stars%2C%20173.txt"
+    },
+    {
+      "id": "279level",
+      "label": "14. QUEUE",
+      "focus": "条件 FLOAT、跨层 TELE、叠放文字与字母拼词",
+      "expected": "win",
+      "route": "urrrrrdlllllllulddrrrdddrrrrdruuuuulurdrurddddluuruullllllldlulurrrrulllluldddddrrrddddrrrrrrrrulldluuuruullrrrullllrdlrrrrrruuldddllllllllllulduuuurrrrrrrrdddddduuuuuurddddddduurrddrdllllllrrruuuuuudddll",
+      "tracked": [
+        "baba",
+        "keke",
+        "ice",
+        "text_keke",
+        "text_is",
+        "letter_i",
+        "letter_s",
+        "skull"
+      ],
+      "requiredRules": [
+        "ICE IS TELE",
+        "ICE NEAR KEKE IS FLOAT",
+        "BABA IS PUSH",
+        "KEKE IS PUSH"
+      ]
+    }
+  ]
+}

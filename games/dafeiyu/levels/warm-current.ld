@@ -1,0 +1,9 @@
+[general]
+name=融化冰门
+subtitle=把暖流推向冰块，清出通往旗帜的路。
+author=HaiyueStudio
+palette=default.png
+leveltype=0
+levels=0
+paths=0
+specials=0

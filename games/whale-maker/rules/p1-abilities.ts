@@ -12,7 +12,7 @@ import { attackResult } from './interactions';
 export function specialHit(s:State,e:Enemy,kind:'claw'|'boomerang'|'hammer',svc:Services,throughPipe=false):void {
     if(!e.alive||e.held||e.transit&&!throughPipe)return;
     if(attackResult(e,kind)==='ignore')return;
-    if(e.kind==='shell'&&kind!=='hammer'&&!e.frozen){e.vx=s.facing*12;e.cooldown=.25;e.attackChain=0;emit(s,'kick',e.x);return;}
+    if(e.kind==='shell'&&kind!=='hammer'&&!e.frozen){e.vx=s.facing*12;e.cooldown=.25;e.attackChain=0;e.playerLaunchedShell=false;emit(s,'kick',e.x);return;}
     if(e.kind==='spiky'&&kind!=='hammer'&&!e.frozen){const feet=e.y+e.h;e.kind='shell';e.h=.5*(e.modifiers?.large?2:1);e.y=feet-e.h;e.vx=e.vy=0;e.cooldown=.25;e.inverted=true;emit(s,'stomp',e.x);return;}
     if(e.kind==='ghost'&&kind!=='hammer')return;
     svc.defeat(s,e,kind);

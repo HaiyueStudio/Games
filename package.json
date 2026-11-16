@@ -27,12 +27,12 @@
     "workspaces:verify-browser": "node scripts/verify-workspaces-browser.mjs"
   },
   "dependencies": {
-    "@haiyue/animation-spec": "file:vendor/haiyue-animation-spec-0.2.2.tgz",
-    "@haiyue/engine": "file:vendor/haiyue-engine-0.2.2.tgz",
-    "@haiyue/engine-gamepad": "file:vendor/haiyue-engine-0.2.2.tgz",
-    "@haiyue/extensions": "file:vendor/haiyue-extensions-0.2.2.tgz",
-    "@haiyue/extensions-controls": "file:vendor/haiyue-extensions-0.2.2.tgz",
-    "@haiyue/ui": "file:vendor/haiyue-ui-0.2.2.tgz",
+    "@haiyue/animation-spec": "0.2.2",
+    "@haiyue/engine": "0.2.3",
+    "@haiyue/engine-gamepad": "npm:@haiyue/engine@0.2.3",
+    "@haiyue/extensions": "0.2.3",
+    "@haiyue/extensions-controls": "npm:@haiyue/extensions@0.2.3",
+    "@haiyue/ui": "0.2.2",
     "wgpu-matrix": "^3.0.0"
   },
   "devDependencies": {

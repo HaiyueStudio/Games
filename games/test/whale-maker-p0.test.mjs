@@ -31,7 +31,10 @@ test('missing rule metadata preserves legacy behavior; fresh profiles round-trip
  for(const rules of [null,[],{...REFERENCE_RULES,revision:2},{...REFERENCE_RULES,rewards:'coins'},{...REFERENCE_RULES,freezing:'never'},{...REFERENCE_RULES,extra:1}])assert.throws(()=>validate({...old,rules}));
 });
 test('campaign transitions and retry retain the explicit rule profile',()=>{
- const l=modernLevel(classicLevel()),s=create(l);s.phase='won';s.victory={stage:'done',age:3};assert.deepEqual(nextClassic(s).level.rules,REFERENCE_RULES);s.score=1234;s.coins=6;s.scoreChain.stomp=4;respawn(s);assert.deepEqual(s.level.rules,REFERENCE_RULES);assert.deepEqual([s.score,s.coins,s.scoreChain.stomp,s.scorePops.length],[0,0,0,0]);
+ const l=modernLevel(classicLevel()),s=create(l);assert.equal(s.lives,3);
+ Object.assign(s,{lives:6,score:1234,coins:106,nextLifeCoin:200,phase:'won',victory:{stage:'done',age:3}});
+ const next=nextClassic(s);assert.deepEqual(next.level.rules,REFERENCE_RULES);assert.deepEqual([next.lives,next.coins,next.nextLifeCoin],[6,106,200]);
+ next.phase='dead';next.scoreChain.stomp=4;respawn(next);assert.deepEqual(next.level.rules,REFERENCE_RULES);assert.deepEqual([next.lives,next.score,next.coins,next.scoreChain.stomp,next.scorePops.length],[5,1234,0,0,0]);
 });
 test('combat table covers every current enemy, special resistance, frozen result and boss damage',()=>{
  assert.equal(Object.keys(ENEMY_TRAITS).length,35);
@@ -80,8 +83,58 @@ test('a real moving shell defeats consecutive enemies with one escalating chain'
  const s=flat(),a=enemy(s,'shell',6),b=enemy(s,'duck',9),c=enemy(s,'duck',12);a.vx=12;b.vx=c.vx=0;tick(s,{},70);assert.equal(b.alive,false);assert.equal(c.alive,false);assert.equal(a.attackChain,2);assert.equal(s.score,300);assert.equal(s.coins,0);
 });
 test('star chain continues during the same star and resets after its expiration',()=>{
- const s=flat();s.starTime=2;defeatEnemy(s,enemy(s),'star');s.time=1;s.starTime=1;defeatEnemy(s,enemy(s),'star');s.time=3;s.starTime=10;defeatEnemy(s,enemy(s),'star');assert.deepEqual(s.scorePops.map(p=>p.points),[100,200,100]);
+ const s=flat();s.starTime=.2;defeatEnemy(s,enemy(s),'star');tick(s,{},10);defeatEnemy(s,enemy(s),'star');assert.deepEqual(s.scorePops.map(p=>p.points),[100,200]);
+ tick(s,{},18);assert.equal(s.starTime,0);assert.equal(s.scoreChain.star,0);s.starTime=10;defeatEnemy(s,enemy(s),'star');assert.equal(s.scorePops.at(-1).points,100);
  for(let n=0;n<30;n++)defeatEnemy(s,enemy(s),'shot');assert.equal(s.scorePops.length,12);tick(s,{},121);assert.equal(s.scorePops.length,0);
+});
+test('airborne enemy stomps grant lives starting at the ninth and reset on landing',()=>{
+ const l=level();l.progress={lives:true};l.spawn=[5,16];const s=create(l);
+ for(let n=1;n<=10;n++){
+  const e=enemy(s,'duck',s.player.x);e.vx=0;
+  for(let frame=0;e.alive&&frame<120;frame++)tick(s);
+  assert.equal(e.alive,false);assert.equal(s.grounded,false);assert.equal(s.scoreChain.stomp,n);
+  assert.equal(s.lives,3+Math.max(0,n-8));
+  if(n>=9)assert.equal(s.scorePops.at(-1).oneUp,true);
+ }
+ tick(s,{},120);assert.equal(s.grounded,true);assert.equal(s.scoreChain.stomp,0);assert.equal(s.lives,5);
+});
+test('a shell rebounding from one stair awards repeated lives until the cap',()=>{
+ const l={version:1,name:'龟壳续踩',width:32,height:18,cells:Array(32*18).fill('.'),spawn:[22.455,10.9],progress:{lives:true,initialLives:3},rules:{...REFERENCE_RULES}};
+ l.cells.fill('#',14*l.width);l.cells[13*l.width+22]='T';
+ for(let stair=0;stair<3;stair++)for(let y=13-stair;y<14;y++)l.cells[y*l.width+19-stair]='#';
+ const s=create(l),shell=s.enemies[0];shell.x=22.205;shell.vx=0;s.facing=-1;
+ tick(s,{},600);assert.equal(s.phase,'playing');assert.equal(s.grounded,false);assert.equal(shell.kind,'shell');
+ assert.ok(s.scoreChain.stomp>=10);assert.equal(s.lives,3+s.scoreChain.stomp-8);assert.equal(s.score,16500);
+ s.lives=98;tick(s,{},240);assert.equal(s.lives,99);assert.equal(s.scorePops.at(-1).oneUp,undefined);
+});
+test('star contact grants lives while active and picking up another star extends the same combo',()=>{
+ const l=level();l.progress={lives:true};const s=create(l);
+ const killByContact=()=>{const e=enemy(s,'duck',s.player.x+.35);e.vx=0;tick(s);assert.equal(e.alive,false);};
+ s.starTime=.05;for(let n=0;n<4;n++)killByContact();
+ const star=makeItem('star',s.player.x,19);star.x=s.player.x+.2;star.y=19.4;star.vx=star.vy=star.cooldown=0;s.items.push(star);
+ tick(s);assert.equal(star.alive,false);assert.equal(s.starTime,10);
+ tick(s,{},8);for(let n=5;n<=10;n++){killByContact();assert.equal(s.scoreChain.star,n);assert.equal(s.lives,3+Math.max(0,n-8));}
+ s.starTime=.001;tick(s);assert.equal(s.scoreChain.star,0);s.starTime=10;killByContact();assert.equal(s.scoreChain.star,1);assert.equal(s.lives,5);
+});
+test('kicking or throwing a turtle shell grants lives for its kills, including after a wall rebound',()=>{
+ for(const grab of [false,true]){
+  const l=level();l.progress={lives:true};l.cells[19*l.width+22]='#';
+  const s=create(l),shell=enemy(s,'shell',2.75,19.5);shell.vx=0;shell.h=.5;
+  const targets=Array.from({length:8},(_,i)=>enemy(s,'duck',5+i*1.6));for(const e of targets)e.vx=0;
+  tick(s,{grab});if(grab){assert.equal(s.held,shell);tick(s,{grab,fire:true});assert.equal(s.held,null);}
+  assert.equal(shell.playerLaunchedShell,true);
+  for(let frame=0;shell.vx>0&&frame<240;frame++)tick(s);
+  assert.ok(shell.vx<0);assert.ok(targets.every(e=>!e.alive));assert.equal(shell.attackChain,8);assert.equal(s.lives,3);
+  for(const x of [17.2,14.2])enemy(s,'duck',x).vx=0;
+  tick(s,{},90);assert.equal(shell.attackChain,10);assert.equal(s.lives,5);
+ }
+});
+test('other weapons keep their score rules and legacy life mode still supports combos',()=>{
+ for(const [modern,lives,weapon,expected] of [[true,true,'bomb',3],[true,true,'shell',3],[true,false,'stomp',3],[false,true,'stomp',5]]){
+  const l=level(modern);l.progress={lives};const s=create(l),source=weapon==='stomp'?undefined:enemy(s,weapon);
+  for(let n=0;n<10;n++)defeatEnemy(s,enemy(s),source?'shell':'stomp',source);
+  assert.equal(s.lives,expected);assert.equal(s.score,modern?32500:0);assert.equal(s.coins,modern?0:10);
+ }
 });
 test('old ice remains meltable even empty; ordinary ice is solid slippery terrain that cannot melt',()=>{
  for(const modern of [false,true]){const l=level(modern);for(const [x,t]of [[7,'ice'],[8,'ice'],[9,'ice-solid']])l.cells[20*l.width+x]=t;l.contents[20*l.width+8]='coin';const s=create(l);assert.equal(solid('ice-solid'),true);s.player.x=9;s.player.y=19.2;assert.equal(surface(s,s.player).grip,.5);meltIce(s,7,20);meltIce(s,8,20);meltIce(s,9,20);assert.equal(tile(s.level,7,20),'.');assert.equal(tile(s.level,8,20),'o');assert.equal(tile(s.level,9,20),'ice-solid');assert.equal(s.coins,0);}

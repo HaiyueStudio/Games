@@ -1,0 +1,9 @@
+[general]
+name=初入珊瑚湾
+subtitle=把推箱规则读成一句话，再走到旗帜。
+author=HaiyueStudio
+palette=default.png
+leveltype=0
+levels=0
+paths=0
+specials=0

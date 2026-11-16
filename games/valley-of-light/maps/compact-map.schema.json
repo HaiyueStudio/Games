@@ -271,7 +271,8 @@
         },
         "targetGroup": {
           "$ref": "map.schema.json#/$defs/groupRef"
-        }
+        },
+        "carryRider": {"type":"boolean","default":false}
       }
     },
     "trigger": {

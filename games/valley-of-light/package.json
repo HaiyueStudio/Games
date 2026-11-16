@@ -39,6 +39,7 @@
           "{workspaceRoot}/games/test/valley-journey.test.mjs",
           "{workspaceRoot}/games/test/valley-logic.test.mjs",
           "{workspaceRoot}/games/test/valley-map.test.mjs",
+          "{workspaceRoot}/games/test/valley-map-carry.test.mjs",
           "{workspaceRoot}/games/test/valley-markers-gates.test.mjs",
           "{workspaceRoot}/games/test/valley-of-light.test.mjs",
           "{workspaceRoot}/games/test/valley-pointer-capture.test.mjs",

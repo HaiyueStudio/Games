@@ -7,7 +7,7 @@ import type { Input, Level, State } from './model';
 import { emit } from './events';
 import { pipeShape } from './pipes';
 type Factory=(l:Level)=>State;
-const GLOBAL=['pinkProgress','pinkTotal','pinkCollected','vehicle','clearRun','power','score','coins','deaths','time','keys','helmet','shellHelmet','boneTime','bonePound','starTime','invincible','wearable','held','riding','lives','gameOver','lifeCharged','nextLifeCoin','timeRemaining','timeBonus','defeatCounts','checkpoint','checkpointArea','checkpointMemory'] as const;
+const GLOBAL=['pinkProgress','pinkTotal','pinkCollected','vehicle','clearRun','power','score','scoreChain','coins','deaths','time','keys','helmet','shellHelmet','boneTime','bonePound','starTime','invincible','wearable','held','riding','lives','gameOver','lifeCharged','nextLifeCoin','timeRemaining','timeBonus','defeatCounts','checkpoint','checkpointArea','checkpointMemory'] as const;
 export function rootLevel(s:State):Level{return s.rootLevel??s.startLevel;}
 export function inheritArea(root:Level,id:string):Level{return id==='main'?root:{...root.areas![id]!,...(root.areas?{areas:root.areas}:{}),...(root.rules?{rules:root.rules}:{}),...(root.condition?{condition:root.condition}:{}),...(root.progress?{progress:root.progress}:{})};}
 export function areaBlueprint(s:State,id=s.currentArea):Level{return inheritArea(rootLevel(s),id);}
@@ -17,6 +17,7 @@ export function changeArea(s:State,id:string,create:Factory,position?:[number,nu
     const carry=[s.held,s.riding,s.vehicle].filter((b,n,a)=>b&&a.indexOf(b)===n),enemies=new Set(s.enemies),global:Partial<State>={};for(const key of GLOBAL)(global as Record<string,unknown>)[key]=s[key];
     const cache=s.areaMemory,old=s.currentArea;s.items=s.items.filter(i=>!carry.includes(i));s.enemies=s.enemies.filter(e=>!carry.includes(e));s.shots=[];s.boomerangs=[];s.cannonShots=[];s.pendingShot=false;
     cache[old]={...s,vehicle:null,areaMemory:{}};const next=cache[id]??create(inheritArea(root,id));delete cache[id];Object.assign(s,next,global);
+    s.scoreChain.stomp=0;
     s.rootLevel=root;s.startLevel=root;s.currentArea=id;s.areaMemory=cache;s.phase='playing';s.areaCooldown=.8;s.areaFade=.5;if(s.wearable){s.wearable.active=false;s.wearable.charge=0;s.wearable.boost=0;}s.pipe=s.door=null;s.motion='none';s.grounded=false;s.climbing=false;s.cameraHold=null;
     const at=position??(id==='main'?root.spawn:root.areas![id]!.spawn);const {w:width,h:height}=playerDimensions(s,false);s.player={x:Math.max(0,Math.min(s.level.width-width,at[0])),y:Math.max(0,Math.min(s.level.height-height,at[1])),w:width,h:height,vx:0,vy:0};
     for(const b of carry){if(!b)continue;if(enemies.has(b as never)){if(!s.enemies.includes(b as never))s.enemies.push(b as never);}else if(!s.items.includes(b as never))s.items.push(b as never);b.x=s.player.x+s.facing*.7;b.y=s.player.y+.5;b.vx=b.vy=0;}

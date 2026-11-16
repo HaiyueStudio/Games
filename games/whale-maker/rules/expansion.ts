@@ -76,6 +76,7 @@ export function resolveSlope(s:State,b:Body,oldY:number,oldX:number,dt:number,is
 export {triggerP,pressSwitch,pressPSwitch,P_SWITCH_VANISH_TIME} from './p-switch';
 export function expansionTimers(s:State,dt:number,svc?:Services):void {
     s.starTime=Math.max(0,s.starTime-dt);s.shake=Math.max(0,s.shake-dt);s.powFlash=Math.max(0,s.powFlash-dt);s.doorWait=Math.max(0,s.doorWait-dt);s.slideTime=Math.max(0,s.slideTime-dt);
+    if(s.starTime===0)s.scoreChain.star=0;
     for(const fx of s.springEffects)fx.age+=dt;s.springEffects=s.springEffects.filter(f=>f.age<.32);
     // Keep the pressed pose briefly, then retire it even during door/pipe travel.
     for(const item of s.items)if(item.kind==='p-switch'&&item.spent){item.pressedAge=(item.pressedAge??0)+dt;if(item.pressedAge>=P_SWITCH_VANISH_TIME)item.alive=false;}

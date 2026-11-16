@@ -26,7 +26,7 @@ export const CATALOG = [
   {type:21,name:'水流',icon:'≋',color:'#459daf',description:'沿局部 X 方向流动的低多边形水道'},
   {type:22,name:'瀑布',icon:'⇣',color:'#66bcc5',description:'从顶部向下落的水幕与落水浪花'},
 ] as const;
-export interface Motion { axis: Axis; min: number; max: number; step: number; targetGroup: string|null }
+export interface Motion { axis: Axis; min: number; max: number; step: number; targetGroup: string|null; carryRider?:boolean }
 export interface Action { groupId: string; translation: Vec3; rotation: Vec3; duration: number; easing: 'linear'|'smooth' }
 export type StateProperty='enabled'|'visible'|'walkable';
 export type ObjectState=Record<StateProperty,boolean>;
@@ -189,7 +189,7 @@ export function parseMap(input:unknown):ValleyMap {
     if((o.type===12||Number(o.type)>=13)&&!finite(o.rise,.1,20))throw new Error(`${o.id}: 构件高度必须介于 0.1 和 20。`);
     if(o.attachment!==undefined&&o.attachment!==null){const a=o.attachment;if(o.type!==12||!record(a)||!identifier(a.pathId)||![0,1,2,3].includes(a.corner as number)||o.groupId!==null)throw new Error(`${o.id}: 柱子的角点引用无效。`);}
     const m=o.motion;
-    if(!record(m)||!['x','y','z'].includes(m.axis as string)||!finite(m.min,-360,360)||!finite(m.max,-360,360)||m.min>m.max||!finite(m.step,.1,360)||(m.targetGroup!==null&&!groups.has(m.targetGroup as string))) throw new Error(`${o.id}: 拖拽机关设置无效。`);
+    if(!record(m)||!['x','y','z'].includes(m.axis as string)||!finite(m.min,-360,360)||!finite(m.max,-360,360)||m.min>m.max||!finite(m.step,.1,360)||(m.targetGroup!==null&&!groups.has(m.targetGroup as string))||m.carryRider!==undefined&&typeof m.carryRider!=='boolean') throw new Error(`${o.id}: 拖拽机关设置无效。`);
     const t=o.trigger;
     if(!record(t)||!['once','toggle'].includes(t.mode as string)||!Array.isArray(t.actions)||t.actions.length>20) throw new Error(`${o.id}: 开关配置无效。`);
     const targets=new Set<string>();
@@ -232,7 +232,7 @@ export function parseMap(input:unknown):ValleyMap {
       ...(o.state?{state:{...o.state}}:{}),
       ...(o.type===20?{portal:o.portal?{pathId:o.portal.pathId,face:o.portal.face,targetId:o.portal.targetId,shape:o.portal.shape}:{pathId:null,face:0,targetId:null,shape:'arch'}}:{}),
       length:o.length,width:o.width,thickness:o.thickness,rise:o.rise,steps:o.steps,radius:o.radius,arc:o.arc,twist:o.twist,arcTwist:o.arcTwist??0,prismHalf:o.prismHalf??'a',colors:o.colors?{...o.colors}:defaultColors(o.type),water:o.water?{...o.water}:defaultWater(o.type),attachment:o.attachment?{pathId:o.attachment.pathId,corner:o.attachment.corner}:null,
-      motion:{axis:o.motion.axis,min:o.motion.min,max:o.motion.max,step:o.motion.step,targetGroup:o.motion.targetGroup},
+      motion:{axis:o.motion.axis,min:o.motion.min,max:o.motion.max,step:o.motion.step,targetGroup:o.motion.targetGroup,...(o.motion.carryRider!==undefined?{carryRider:o.motion.carryRider}:{})},
       trigger:{mode:o.trigger.mode,actions:o.trigger.actions.map((a:Action)=>({groupId:a.groupId,translation:[...a.translation] as Vec3,rotation:[...a.rotation] as Vec3,duration:a.duration,easing:a.easing}))}}))} as ValleyMap;
 }
 export function playIssues(map:ValleyMap):string[] {
@@ -1170,12 +1170,19 @@ export class MapRuntime {
   }
   canDrag(id:string):boolean {
     const o=this.map.objects.find(x=>x.id===id),at=this.map.objects.find(x=>x.id===this.at.objectId);
-    return !!o&&objectState(this.map,o,this.poses).enabled&&objectState(this.map,o,this.poses).visible&&(o.type===3||o.type===4)&&!this.walking&&!this.busy&&!this.completed&&(o.motion.targetGroup?!belongsToGroup(this.map,at?.groupId,o.motion.targetGroup):o.id!==this.at.objectId);
+    return !!o&&objectState(this.map,o,this.poses).enabled&&objectState(this.map,o,this.poses).visible&&(o.type===3||o.type===4)&&!this.walking&&!this.busy&&!this.completed&&(o.motion.carryRider||(o.motion.targetGroup?!belongsToGroup(this.map,at?.groupId,o.motion.targetGroup):o.id!==this.at.objectId));
   }
   dragTo(id:string,value:number,snap=false):boolean {
     const o=this.map.objects.find(x=>x.id===id);if(!o||!this.canDrag(id)||!Number.isFinite(value))return false;
     this.automaticRecoveries=0;if(snap)value=Math.round(value/o.motion.step)*o.motion.step;
-    this.poses.mechanisms[id]=o.type===3?value:Math.max(o.motion.min,Math.min(o.motion.max,value));if(snap){this.logic.emit({type:'mechanism',source:id});this.logic.flush();}return true;
+    const rider=this.map.objects.find(x=>x.id===this.at.objectId)!;
+    const carries=o.motion.carryRider&&(o.motion.targetGroup?belongsToGroup(this.map,rider.groupId,o.motion.targetGroup):rider.id===o.id);
+    const frame=()=>pointMatrix(p=>worldSample(this.map,rider,surfaceSample(p),this.poses).point);
+    const vector=(m:number[],v:Vec3)=>sub(matrixPoint(m,v),matrixPoint(m,[0,0,0]));
+    const heading=carries?vector(inverseMatrix(frame()),this.direction):null;
+    this.poses.mechanisms[id]=o.type===3?value:Math.max(o.motion.min,Math.min(o.motion.max,value));
+    if(heading){this.stand(this.at);this.direction=unit(vector(frame(),heading));}
+    if(snap){this.logic.emit({type:'mechanism',source:id});this.logic.flush();}return true;
   }
   private enter():void {
     this.surfaceEvents();this.logic.flush();

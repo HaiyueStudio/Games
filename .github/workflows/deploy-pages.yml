@@ -22,51 +22,24 @@ jobs:
         with:
           path: Games
 
-      - name: Check out Engine
+      # Tests share PNG decoding and GPU audit helpers; runtime packages come from npm.
+      - name: Check out Engine test helpers
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           repository: HaiyueStudio/Engine
           ref: master
           path: Engine
 
-      - name: Check out UI
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          repository: HaiyueStudio/UI
-          ref: dev-0.1.2
-          path: UI
-
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: Games/.node-version
           cache: npm
-          cache-dependency-path: |
-            Games/package-lock.json
-            Engine/package-lock.json
-            UI/package-lock.json
-
-      - name: Build local Engine packages
-        working-directory: Engine
-        run: |
-          npm ci
-          npm run build:shader-language
-          npm run build:engine
-          npm run build:animation-spec
-          npm run build:extensions
-          npm run pack:candidates
-
-      - name: Build local UI package
-        working-directory: UI
-        run: |
-          npm ci
-          npm run pack:candidate
+          cache-dependency-path: Games/package-lock.json
 
       - name: Install Games dependencies
         working-directory: Games
-        run: |
-          npm ci
-          npm run deps:local
+        run: npm ci
 
       - name: Validate and build games
         working-directory: Games

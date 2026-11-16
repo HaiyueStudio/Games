@@ -41,6 +41,7 @@ export function reboundSupport(s:State,b:Body):boolean {
 
 export function recordConditionLanding(s:State):void {
     if(s.phase!=='playing')return;
+    s.scoreChain.stomp=0;
     s.clearRun.groundTime=s.time;
     if(s.clearRun.leftGround)s.clearRun.landed=true;
 }

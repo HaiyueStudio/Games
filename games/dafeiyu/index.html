@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b2439">
+  <title>大肥鱼</title>
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #0b2439; }
+    #lagoon { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+  </style>
+</head>
+<body>
+  <canvas id="lagoon" tabindex="0" role="application" aria-label="大肥鱼。方向键或 WASD 移动，空格等待，Z 撤销，R 重开，L 选择关卡。"></canvas>
+  <input id="level-pair" type="file" accept=".l,.ld" multiple hidden>
+  <input id="level-pack" type="file" webkitdirectory multiple hidden>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>
