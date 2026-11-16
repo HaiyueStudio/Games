@@ -26,17 +26,17 @@ test('all three items are editable, survive JSON validation and use the shared c
  for(const kind of SHELL_TOOLS){const item=spawnContent(s,kind,30,15);assert.equal(item.kind,kind);assert.ok(s.items.includes(item));}
 });
 
-test('shell helmets equip on contact or from carried items and replace the single head slot',()=>{
+test('shell helmets equip from below or by crouching with the held shell',()=>{
  for(const kind of SHELL_TOOLS.slice(0,2)){
-  const s=flat(),item=makeItem(kind,2,19);item.cooldown=0;s.items=[item];s.helmet=true;tick(s);assert.equal(s.shellHelmet,kind);assert.equal(s.helmet,false);assert.equal(item.alive,false);
-  const carried=flat(),hat=makeItem(kind,2,19);hat.held=true;carried.items=[hat];carried.held=hat;tick(carried,{interact:true,grab:true});assert.equal(carried.shellHelmet,kind);assert.equal(carried.held,null);
+  const s=flat(),item=makeItem(kind,2,15);item.cooldown=0;s.items=[item];s.helmet=true;Object.assign(s.player,{y:item.y+item.h+.03,vy:-9});s.grounded=false;tick(s,{jump:true});assert.equal(s.shellHelmet,kind);assert.equal(s.helmet,false);assert.equal(item.alive,false);
+  const carried=flat(),hat=makeItem(kind,2,19);hat.held=true;carried.items=[hat];carried.held=hat;tick(carried,{down:true,grab:true});assert.equal(carried.shellHelmet,kind);assert.equal(carried.held,null);
   services.hurt(carried,'top');assert.equal(carried.phase,'playing');assert.equal(carried.shellHelmet,null);assert.equal(carried.effects.at(-1).headgear,kind);
  }
 });
 
-test('both shell helmets defeat enemies from below and break ordinary bricks without being consumed',()=>{
+test('ordinary shell helmet deflects while the spiked helmet defeats; both break ordinary bricks',()=>{
  for(const kind of SHELL_TOOLS.slice(0,2)){
-  const s=flat(),e=makeEnemy('spiky',10,14);e.vx=0;s.enemies=[e];equipShellHelmet(s,kind);Object.assign(s.player,{x:10,y:e.y+e.h+.03,vy:-9});s.grounded=false;tick(s,{},2);assert.equal(e.alive,false);assert.equal(s.shellHelmet,kind);assert.equal(s.phase,'playing');
+  const s=flat(),e=makeEnemy('spiky',10,14);e.vx=0;s.enemies=[e];equipShellHelmet(s,kind);Object.assign(s.player,{x:10,y:e.y+e.h+.03,vy:-9});s.grounded=false;tick(s,{},2);assert.equal(e.alive,kind==='shell-helmet');assert.equal(s.shellHelmet,kind);assert.equal(s.phase,'playing');
   const brick=flat();equipShellHelmet(brick,kind);brick.level.cells[15*60+10]='B';Object.assign(brick.player,{x:10.1,y:16.02,vy:-9});tick(brick,{},2);assert.equal(brick.level.cells[15*60+10],'.');assert.equal(brick.shellHelmet,kind);
  }
 });
@@ -116,4 +116,39 @@ test('bone rest cancels wearable charge without firing, while helmet protection 
 test('cross-area inventory carries each shell exactly once and retry clears temporary equipment',()=>{
  const l=level();l.areas={side:{...level(),name:'副区'}};const s=mounted(create(l));equipShellHelmet(s,'spike-shell-helmet');boneRest(s);const hull=s.riding;assert.equal(changeArea(s,'side',create),true);assert.equal(s.shellHelmet,'spike-shell-helmet');assert.equal(s.boneTime,5);assert.equal(s.player.h,.8);assert.equal(s.items.filter(i=>i===hull).length,1);assert.equal(s.areaMemory.main.items.includes(hull),false);
  respawn(s);assert.equal(s.shellHelmet,null);assert.equal(s.boneTime,0);assert.equal(s.riding,null);dropHelmet(s);assert.equal(s.effects.length,0);
+});
+
+const {updateStones,stoneCells}=await import('../whale-maker/rules/adventure.ts');
+const {placeBoss,damageBoss}=await import('../whale-maker/rules/fortress.ts');
+const {editProperty}=await import('../whale-maker/editor/p1.ts');
+const {specialHit,abilities}=await import('../whale-maker/rules/p1-abilities.ts');
+
+test('spiked helmet destroys hard, empty, ice and reward blocks without releasing stored contents',()=>{
+ for(const t of ['B','?','U','hard-block','ice','ice-solid']){const s=flat(),id=15*60+10;equipShellHelmet(s,'spike-shell-helmet');s.level.cells[id]=t;s.level.contents={[id]:'growth'};Object.assign(s.player,{x:10.1,y:16.02,vy:-9});tick(s,{},2);assert.equal(s.level.cells[id],'.',t);assert.equal(s.rewards.length,0,t);assert.equal(s.level.contents[id],undefined,t);}
+ const s=flat(),id=15*60+10;s.level.cells[id]='ice';s.level.contents={[id]:'coin'};equipShellHelmet(s,'spike-shell-helmet');services.hitBlock(s,10,15,'ice');assert.equal(s.coins,1);
+});
+test('empty helmets require a below contact or carried crouch, and thrown shells defeat enemies',()=>{
+ for(const kind of ['shell-helmet','spike-shell-helmet']){
+  const s=flat(),item=makeItem(kind,4,19);item.cooldown=0;s.items=[item];s.player.x=4;tick(s);assert.equal(s.shellHelmet,null);
+  const a=flat(),hat=makeItem(kind,10,15),enemy=makeEnemy('duck',11,15);hat.vx=12;hat.cooldown=.3;enemy.vx=0;a.items=[hat];a.enemies=[enemy];tick(a,{},16);assert.equal(enemy.alive,false,kind);
+ }
+ const s=flat(),hat=makeItem('spike-shell-helmet',10,19);hat.cooldown=0;s.items=[hat];Object.assign(s.player,{x:10,y:hat.y-s.player.h-.02,vy:6});tick(s,{},2);assert.equal(s.phase,'dead');
+});
+test('submerged empty and worn bone shells rise from the bottom, and worn shells can dive and surface again',()=>{
+ for(const riding of [false,true]){const l=level();for(let y=14;y<20;y++)for(let x=8;x<26;x++)l.cells[y*60+x]='water';const s=create(l),item=makeItem('bone-shell',12,18);s.items=[item];if(riding){s.player.x=12;mountBoneShell(s,item);s.grounded=false;}tick(s,{},300);const feet=riding?s.player.y+s.player.h+.15:item.y+item.h;assert.ok(Math.abs(feet-14)<.02,`${riding}: ${feet}`);if(riding){tick(s,{down:true},50);assert.ok(s.player.y+s.player.h>14.5);assert.equal(s.boneTime,0);tick(s,{interact:true},90);assert.ok(Math.abs(s.player.y+s.player.h+.15-14)<.02);}}
+});
+test('bone shell hitting a wall shatters, and its pound defeats even a boss in one hit',()=>{
+ const s=flat();s.level.cells[19*60+12]='hard-block';const item=makeItem('bone-shell',10,19);item.vx=12;item.cooldown=.3;s.items=[item];tick(s,{},30);assert.equal(item.alive,false);
+ const l=level();placeBoss(l,10,18);const a=create(l);damageBoss(a,a.bosses[0],'bone-pound');assert.equal(a.bosses[0].health,0);
+});
+test('builder hammer shatters stones and respects giant ant immunity',()=>{
+ const l=level();placeStone(l,10,18);const s=create(l);grantPower(s,7);s.player.x=8.6;s.facing=1;abilities(s,{...EMPTY_INPUT,fire:true},1/120,services);assert.equal(s.stones.length,0);
+ for(const large of [false,true]){const a=flat(),e=makeEnemy('ant',6,19);e.modifiers={large};a.enemies=[e];specialHit(a,e,'hammer',services);assert.equal(e.alive,large);}
+});
+test('stones destroy one normal brick layer, while giant stones continue through bricks and hard blocks',()=>{
+ for(const large of [false,true]){const l=level();placeStone(l,10,8,{large});const width=large?4:2;for(const y of [14,16])for(let x=10;x<10+width;x++)l.cells[y*60+x]=large?'hard-block':'B';const s=create(l),stone=s.stones[0];stone.phase='charge';stone.vy=14.4;s.player.x=2;for(let n=0;n<140;n++)updateStones(s,1/120,services);assert.equal(s.level.cells[14*60+10],'.');assert.equal(s.level.cells[16*60+10],large?'.':'B');}
+});
+test('giant and winged stone properties validate, resize atomically, copy and render with matching collision bounds',()=>{
+ const l=level();placeStone(l,10,8);assert.equal(editProperty(l,[8*60+10],'large',true),true);assert.equal(stoneCells(l,8*60+10).length,16);assert.equal(editProperty(l,[8*60+10],'winged',true),true);validate(JSON.parse(JSON.stringify(l)));const s=create(l),stone=s.stones[0];assert.equal(stone.w,4);assert.equal(stone.winged,true);s.player.x=2;tick(s,{},40);assert.ok(stone.x>10);
+ assert.equal(editProperty(l,[8*60+10],'large',false),true);assert.equal(stoneCells(l,8*60+10).length,4);assert.equal(l.cells[11*60+13],'.');
 });

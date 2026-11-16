@@ -93,7 +93,7 @@ export class ConnectedTerrainArt {
 
   base(node: TerrainNode): HTMLCanvasElement {
     const id = `${node.q},${node.r}`, cached = this.bases.get(id); if (cached) return cached;
-    const target = makeCanvas(), ctx = target.getContext('2d')!, origin = logicalOrigin(node), seed = this.world!.seed;
+    const target = makeCanvas(), ctx = target.getContext('2d')!, seed = this.world!.seed;
     ctx.translate(128, 0); ctx.scale(HEX_TEXTURE_STRETCH, 1); ctx.translate(-128, 0); hexClip(ctx);
     const raster = this.rasters.get(id); if (!raster) throw new Error(`Terrain raster not ready for ${id}`);
     const size = TERRAIN_RASTER_SIZE, small = makeCanvas(size), sctx = small.getContext('2d')!;

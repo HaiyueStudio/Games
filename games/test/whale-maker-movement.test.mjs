@@ -5,8 +5,33 @@ registerHooks({resolve(specifier,context,next){try{return next(specifier,context
 const {create,demo,step,respawn,EMPTY_INPUT,WALK_SPEED,RUN_SPEED,DUST_DURATION}=await import('../whale-maker/rules/model.ts');
 const {makeItem}=await import('../whale-maker/rules/expansion.ts');
 const {dustPose}=await import('../whale-maker/rendering/poses.ts');
+const {grantPower}=await import('../whale-maker/rules/power.ts');
 const tick=(s,input={},n=1)=>{for(let k=0;k<n;k++)step(s,{...EMPTY_INPUT,...input});};
 function flat(direction=1,power=0){const l=demo();l.cells.fill('.');delete l.contents;l.properties={};for(let y=15;y<l.height;y++)for(let x=0;x<l.width;x++)l.cells[y*l.width+x]='#';l.cells[14*l.width+95]='E';const s=create(l);s.power=power;Object.assign(s.player,{x:30,y:15-(power?1.4:.8),h:power?1.4:.8});s.grounded=true;s.facing=direction;return s;}
+
+function highWall(power=0,gap=0){const width=80,height=64,cells=Array(width*height).fill('.');for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(y>=60||x===40||gap&&x===39-gap)cells[y*width+x]=y>=60?'hard-block':'#';const s=create({version:1,name:'wall jump',width,height,cells,spawn:[20,59.2]});grantPower(s,power);Object.assign(s.player,{x:40-s.player.w,y:40,vx:0,vy:0});s.grounded=false;s.coyote=0;return s;}
+test('normal maximum jump retains variable-speed asymmetric rise and fall',()=>{
+ const s=highWall();s.player.x=20;s.player.y=60-s.player.h;s.grounded=true;const base=s.player.y;let top=base,apex=0,end=0,fallSpeed=0;
+ for(let n=0;n<240;n++){tick(s,{jump:true});if(s.player.y<top){top=s.player.y;apex=n+1;}fallSpeed=Math.max(fallSpeed,s.player.vy);if(n>0&&s.grounded){end=n+1;break;}}
+ assert.ok(base-top>4.45&&base-top<4.55);assert.ok(apex/120>.63&&apex/120<.70);assert.ok((end-apex)/120>.53&&(end-apex)/120<.59);assert.ok(fallSpeed>15);assert.ok(apex>end-apex);
+});
+test('single-wall repeat kicks cannot gain height across input rhythms, run buttons or body sizes',()=>{
+ for(const power of [0,1,3])for(const run of [false,true])for(const period of [2,8,24,48,64,96,120]){
+  const s=highWall(power),start=s.player.y,kicks=[];let top=start;
+  for(let n=0;n<1800;n++){const serial=s.jumpSerial;tick(s,{axis:1,grab:run,jump:n%period!==period-1});top=Math.min(top,s.player.y);if(s.jumpSerial!==serial)kicks.push(s.player.y);if(s.grounded||s.phase!=='playing')break;}
+  const label=JSON.stringify({power,run,period,kicks});assert.ok(kicks.length>0,label);assert.ok(start-top<4,label);
+  for(let n=1;n<kicks.length;n++)assert.ok(kicks[n]>=kicks[n-1]-.001,label);
+ }
+});
+test('alternating walls still permit repeated upward progress in narrow shafts',()=>{
+ for(const gap of [3,5,7]){const s=highWall(0,gap);let axis=1,top=s.player.y,kicks=0;
+  for(let n=0;n<1800;n++){const serial=s.jumpSerial,jump=s.wall?!s.previous.jump:true;tick(s,{axis,jump,grab:true});if(serial!==s.jumpSerial){kicks++;axis=Math.sign(s.player.vx)||axis;}top=Math.min(top,s.player.y);if(top<15||s.grounded||s.phase!=='playing')break;}
+  assert.ok(kicks>=4,`gap ${gap}`);assert.ok(40-top>20,`gap ${gap}, height ${40-top}`);
+ }
+});
+test('wall kicks leave long-jump motion and keep a deliberate outward impulse',()=>{
+ const s=highWall();s.wall=1;s.motion='long';s.motionAge=.3;tick(s,{axis:1,jump:true});assert.equal(s.motion,'none');assert.ok(s.player.vy>-13);const start=s.player.x;tick(s,{axis:1,jump:true},25);assert.ok(s.wallKick>0);assert.ok(s.player.vx<0);assert.ok(start-s.player.x>2);
+});
 
 test('walking accelerates continuously to its cap in both directions and then covers equal distances',()=>{
  for(const direction of [-1,1]){const s=flat(direction),speeds=[];for(let n=0;n<24;n++){tick(s,{axis:direction});speeds.push(Math.abs(s.player.vx));}assert.ok(speeds[0]>0&&speeds[0]<1);assert.ok(speeds[5]<speeds[11]&&speeds[11]<WALK_SPEED);assert.equal(speeds.at(-1),WALK_SPEED);const x=s.player.x;tick(s,{axis:direction},30);const distance=Math.abs(s.player.x-x),next=s.player.x;tick(s,{axis:direction},30);assert.ok(Math.abs(Math.abs(s.player.x-next)-distance)<1e-8);assert.equal(s.running,false);assert.ok(s.stride>0);}

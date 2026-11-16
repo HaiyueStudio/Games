@@ -10,6 +10,6 @@ export function validRules(value:unknown):value is RuleOptions {
     const p=value as RuleOptions;
     return Object.keys(p).every(k=>['revision','rewards','freezing','pipes'].includes(k))&&(p.pipes===undefined||p.pipes==='legacy'||p.pipes==='reference')&&p.revision===1&&['score','legacy-coins'].includes(p.rewards)&&['timed','permanent'].includes(p.freezing);
 }
-const extensions=new Set<string>(['^','spike-all','basin','firebar','vine','iron-turtle','giant-pearl','bridge','bridge-bell','turtle-boss','ice-flower','ice','quicksand','moving-platform','speed-belt','cannon-basic']);
+const extensions=new Set<string>(['shell-helmet','spike-shell-helmet','bone-shell','^','spike-all','basin','firebar','vine','iron-turtle','giant-pearl','bridge','bridge-bell','turtle-boss','ice-flower','ice','quicksand','moving-platform','speed-belt','cannon-basic']);
 export const elementOrigin=(tile:Tile):'3D基础'|'保留扩展'|'编辑工具'=>tile==='.'?'编辑工具':extensions.has(tile)?'保留扩展':'3D基础';
 

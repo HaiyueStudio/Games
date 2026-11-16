@@ -62,7 +62,7 @@ export function upgradeGlassPipes(l:Level):void{
         const path:Point[]=[[0,0],[0,bottom-y],[bx-x,bottom-y],[bx-x,by-y]];
         if(!validGlassPath(l,id,path))continue;
         const endPlant=l.properties?.[other]?.plant;
-        for(const mouth of [id,other]){let row=Math.floor(mouth/l.width),col=mouth%l.width;do{for(const dx of [0,1]){const n=row*l.width+col+dx;if(isGlass(l.cells[n]!))l.cells[n]='.';if(l.properties)delete l.properties[n];}row++;}while(l.cells[row*l.width+col]==='glass-left-shaft');}
+        for(const mouth of [id,other]){const col=mouth%l.width;let row=Math.floor(mouth/l.width);do{for(const dx of [0,1]){const n=row*l.width+col+dx;if(isGlass(l.cells[n]!))l.cells[n]='.';if(l.properties)delete l.properties[n];}row++;}while(l.cells[row*l.width+col]==='glass-left-shaft');}
         (l.properties??={})[id]={...props,...(endPlant?{endPlant:true}:{}),path};placeGlassPipe(l,id,path);used.add(id);used.add(other);
     }
 }
@@ -74,7 +74,7 @@ export function glassMouths(points:Point[]):{point:Point;normal:Point}[]{
 export function roundedGlassPath(points:Point[]):Point[]{
     const p=compactGlassPath(points),out:Point[]=[[...p[0]!]];
     for(let n=1;n<p.length-1;n++){
-        const c=p[n]!,u=direction(p[n-1]!,c),v=direction(c,p[n+1]!),r=GLASS_RADIUS,a:Point=[c[0]-u[0]*r,c[1]-u[1]*r],b:Point=[c[0]+v[0]*r,c[1]+v[1]*r];out.push(a);
+        const c=p[n]!,u=direction(p[n-1]!,c),v=direction(c,p[n+1]!),r=GLASS_RADIUS,a:Point=[c[0]-u[0]*r,c[1]-u[1]*r];out.push(a);
         const center:Point=[c[0]-u[0]*r+v[0]*r,c[1]-u[1]*r+v[1]*r],start=Math.atan2(a[1]-center[1],a[0]-center[0]),turn=u[0]*v[1]-u[1]*v[0];
         for(let k=1;k<=24;k++){const angle=start+turn*Math.PI/2*k/24;out.push([center[0]+Math.cos(angle)*r,center[1]+Math.sin(angle)*r]);}
     }out.push([...p.at(-1)!]);return out;

@@ -1,13 +1,13 @@
 import {PLAYER_FORMS} from '../rules/player-body';
 import {p2Level,P2_DEMOS,P2_HELP} from '../rules/p2-levels';
 import { P1Editor, P1_EDITOR_CHARS, movePathNode } from '../editor/p1';
-import { P2_TOOLS, P2_NAMES, P2_BOSSES } from '../rules/p2-schema';
+import { P2_TOOLS, P2_NAMES } from '../rules/p2-schema';
 import { emptySubArea } from '../editor/p2-settings';
 import { inheritArea, changeArea } from '../rules/p2-areas';
 import { cameraFor } from '../rules/p2-camera';
 import { p2Art, drawP2Tile, drawP2Enemy, drawP2World, drawWearable, drawAreaEntryPreview } from '../rendering/p2';
 import { elementFits } from '../editor/p1-geometry';
-import { P1_TOOLS, P1_NAMES, CONTAINER_TILES, PATH_TILES, levelIssues } from '../rules/p1-schema';
+import { P1_TOOLS, P1_NAMES, CONTAINER_TILES, PATH_TILES } from '../rules/p1-schema';
 import { p1Level, P1_DEMOS, P1_HELP } from '../rules/p1-levels';
 import { conditionProgress } from '../rules/p1';
 import { drawP1, drawP1Tile, drawP1Enemy, drawModifiers, drawP1Overlay } from '../rendering/p1';
@@ -18,7 +18,7 @@ import { InputMap } from '@haiyue/engine/input';
 import { GameEngine } from '../../session/GameEngine';
 import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
 import { installGamepad } from '../../gamepad/runtime';
-import { create, demo, validate, step, respawn, blockOffset, tile, TOOLS, NAMES, CONTENTS, CONTENT_NAMES, SHOT_DURATION, SHOT_WINDUP, EAT_DURATION, CHEER_DURATION, type BlockContent, type Level, type Tile, type Input } from '../rules/model';
+import { create, demo, validate, step, respawn, blockOffset, tile, TOOLS, NAMES, CONTENTS, CONTENT_NAMES, SHOT_DURATION, SHOT_WINDUP, type BlockContent, type Level, type Tile, type Input } from '../rules/model';
 import { objectCells, selectBox, clearCells, moveSelection, stampSelection, pasteStamp, type EditorTool, type Stamp } from '../editor/selection';
 import { placePipe } from '../rules/levels';
 import { isPipe, pipeShape, rotatePipe } from '../rules/pipes';
@@ -40,7 +40,6 @@ import { workshopLevel } from '../rules/workshop-level';
 import { frostLevel } from '../rules/frost-level';
 import { WhaleScene2D } from '../rendering/WhaleScene2D';
 import { extraArt, enemyArt, drawExtraTile, drawItem } from '../rendering/expansion';
-import type { ElementProperties } from '../rules/catalog';
 import { placeGlassPipe, upgradeGlassPipes, glassCells, editGlassEnd, DEFAULT_GLASS_PATH, isGlass } from '../rules/glass';
 import { drawGlassRoutes } from '../rendering/glass';
 import { placeCannon, cannonCells } from '../rules/advanced';
@@ -48,9 +47,13 @@ import { drawCannon, drawAnimatedEnemy, drawAdvancedTile, drawIronTurtle } from 
 import { placeStone } from '../rules/adventure';
 import { drawFrozenEnemy, drawFrostEffects } from '../rendering/frost';
 import { drawDust } from '../rendering/dust';
-import { drawTerrain, isCoral } from '../rendering/terrain';
+import { drawTerrain, isCoral, loadSlopeIcons } from '../rendering/terrain';
+import { drawEnvironmentWind, tornadoPlanes } from '../rendering/wind';
+import { drawClearFlag } from '../rendering/conditions';
+import { courseBounds,findEndZone,editorCourseWidth } from '../rules/course-bounds';
+import { drawCourseEdge } from '../rendering/course-bounds';
 import { drawCoinPops } from '../rendering/brick-reactions';
-import { drawGoal } from '../rendering/goal';
+import { drawGoal,drawGoalLock } from '../rendering/goal';
 import { PALETTE_CATEGORIES, categoryOf, categoryTools, categoryPages } from '../editor/catalog';
 import { WhaleBrowserAudio } from '../audio/BrowserAudio';
 import { WhaleAudio } from '../audio/WhaleAudio';
@@ -204,6 +207,11 @@ class WhaleMaker {
         [this.characters, this.terrain, this.expansion, this.coins, this.tokens, this.shell, this.checkpointArt] = await Promise.all([load('./assets/runtime/characters.png'), load('./assets/runtime/world.png'), load('./assets/runtime/expansion.png'), load('./assets/runtime/coins.png'), load('./assets/runtime/tokens.png'), load('./assets/runtime/shell.png'), load('./assets/runtime/checkpoint.png')]);
         this.frames = await fetch('./assets/runtime/frames.json').then(r => { if (!r.ok)
             throw Error('Atlas metadata unavailable'); return r.json(); });
+        this.extraImages['slope-icons']=await loadSlopeIcons(this.terrain,this.frames.world![0]!);
+        this.frames['slope-icons']=[[0,0,.5,1],[.5,0,.5,1]];
+        {const plane=tornadoPlanes()[0]!,canvas=document.createElement('canvas');canvas.width=plane.width;canvas.height=plane.height;
+            canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(plane.pixels),plane.width,plane.height),0,0);
+            this.extraImages['tornado-icon']=await load(canvas.toDataURL());this.frames['tornado-icon']=[[0,0,1,1]];}
         await Promise.all(['shell-equipment','gadgets','creatures','environment','clear','adventure','mechanics','squid2','devices','backdrops','iron-parts','pearls','goal-flags','reef-boss','reef-bridge','night-coast','firebar-anchor','frost','lava','whale-small','whale-tall','whale-fire','whale-ice','workshop','hammer-otter','p1-creatures','p1-costumes','p1-special','p1-actions','p2-wearables','p2-enemies','p2-bosses','p2-bills'].map(async name=>{this.extraImages[name]=await load(`./assets/runtime/${name}.png`);}));
         const iconSvg=await fetch('./assets/desert-icons.svg').then(r=>{if(!r.ok)throw Error('Desert icons unavailable');return r.text();}),iconUrl=URL.createObjectURL(new Blob([iconSvg],{type:'image/svg+xml'}));
         try{this.extraImages['desert-icons']=await load(iconUrl);}finally{URL.revokeObjectURL(iconUrl);}
@@ -226,7 +234,7 @@ class WhaleMaker {
         this.world.addSystem(this.scene);
         this.world.addEntity(new Entity('Whale interface').addComponent(this.ui));
         // Gameplay owns arrows and Space even after a GUI button receives focus.
-        this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'load', font: { chars: [...new Set(COPY + CLASSIC_COPY + P2_NAMES.join('') + P2_DEMOS.join('') + P2_HELP.join('') + '龟壳帽尖刺骨头漂浮水面岩浆五秒自动复原顶起炮台改变起点落定盔保留'+ '主区域副区穿戴装备炮箱蓄力松开发射旋桨上升三次落地恢复俯冲安静行走伪装跳跃攻击暴露鲸弹推进结束方向升降红脉冲箱向下从方撞击发动生命珍珠耐久获得条用尽重新开始计时奖励时间到抵达参数范围不存在嵌套新增最多八个尺寸清除空副区域仅能删除还没有放置元素的副区创建并进入区域出口全部本金残余上升风力触发预警秒数复位环绕半径检查点形态旗杆高度顶端有限循环跟随人物自动镜头模式滚屏液体最低最高行' + P1_EDITOR_CHARS + P1_NAMES.join('') + P1_DEMOS.join('') + P1_HELP.join('') + '技造尚未满足普通形态规则不能与检查点组合未知受困开始结束伸展回缩' + CONTENT_NAMES.join('') + '透明管道出口被挡住了正在内穿梭穿出末端延长转弯撤去末段管线格双向超出地图或发生重叠已更新入口朝上可放食人花‹›−有无反转方向配置选中机关场景翻页已经戴着铁盆挡住了头顶伤害戴好了可抵挡来自一次被地面敌人震飞P开关启动秒路径变化时间结束P门需要先踩下开关请给两扇门设置相同连接编号游泳机关试验海岸' + NAMES.join('') + Object.values(PLAYER_FORMS).map(form=>form.label+form.hudLabel).join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
+        this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'load', font: { chars: [...new Set(COPY + CLASSIC_COPY + P2_NAMES.join('') + P2_DEMOS.join('') + P2_HELP.join('') + '龟壳帽尖刺骨头漂浮水面岩浆五秒自动复原顶起炮台改变起点落定盔保留'+ '水中持续主区域副区穿戴装备炮箱蓄力松开发射旋桨上升三次落地恢复俯冲安静行走伪装跳跃攻击暴露鲸弹推进结束方向升降红脉冲箱向下从方撞击发动生命珍珠耐久获得条用尽重新开始计时奖励时间到抵达参数范围不存在嵌套新增最多八个尺寸清除空副区域仅能删除还没有放置元素的副区创建并进入区域出口全部本金残余上升风力触发预警秒数复位环绕半径检查点形态旗杆高度顶端有限循环跟随人物自动镜头模式滚屏液体最低最高行' + P1_EDITOR_CHARS + P1_NAMES.join('') + P1_DEMOS.join('') + P1_HELP.join('') + '技造尚未满足普通形态规则不能与检查点组合未知受困开始结束伸展回缩' + CONTENT_NAMES.join('') + '透明管道出口被挡住了正在内穿梭穿出末端延长转弯撤去末段管线格双向超出地图或发生重叠已更新入口朝上可放食人花‹›−有无反转方向配置选中机关场景翻页已经戴着铁盆挡住了头顶伤害戴好了可抵挡来自一次被地面敌人震飞P开关启动秒路径变化时间结束P门需要先踩下开关请给两扇门设置相同连接编号游泳机关试验海岸' + NAMES.join('') + Object.values(PLAYER_FORMS).map(form=>form.label+form.hudLabel).join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
         this.system.priority = 1000;
         this.world.addSystem(this.system);
         const render = new RenderIntegration(this.engine, { label: 'WhaleMaker.Scene2D+HUD' });
@@ -293,7 +301,7 @@ class WhaleMaker {
             if (e.shiftKey)
                 this.editY = Math.max(0, Math.min(Math.max(0, this.level.height - EDIT_VIEW.h / 36), this.editY + Math.sign(e.deltaY)));
             else
-                this.editCamera = Math.max(0, Math.min(Math.max(0, this.level.width - EDIT_VIEW.w / 36), this.editCamera + e.deltaY * .025 + e.deltaX * .025));
+                this.editCamera = Math.max(0, Math.min(Math.max(0, editorCourseWidth(this.level) - EDIT_VIEW.w / 36), this.editCamera + e.deltaY * .025 + e.deltaX * .025));
         } }, { ...opt, passive: false });
         this.resize = new ResizeObserver(() => this.engine.resizeToDisplaySize());
         this.resize.observe(this.canvas);
@@ -355,7 +363,7 @@ class WhaleMaker {
         if (this.editing) {
         this.editTime += dt;
         const dx=Number(this.keys.has('ArrowRight'))-Number(this.keys.has('ArrowLeft')),dy=Number(this.keys.has('ArrowDown'))-Number(this.keys.has('ArrowUp'));
-        this.editCamera = Math.max(0,Math.min(Math.max(0,this.level.width-EDIT_VIEW.w/36),this.editCamera+dx*dt*15));
+        this.editCamera = Math.max(0,Math.min(Math.max(0,editorCourseWidth(this.level)-EDIT_VIEW.w/36),this.editCamera+dx*dt*15));
         this.editY = Math.max(0,Math.min(Math.max(0,this.level.height-EDIT_VIEW.h/36),this.editY+dy*dt*15));
         return;
     } if (this.paused)
@@ -387,7 +395,7 @@ class WhaleMaker {
     }
     else {
         upgradeGlassPipes(this.level);
-        this.editCamera = Math.min(Math.max(0,this.level.width-EDIT_VIEW.w/36),this.camera);
+        this.editCamera = Math.min(Math.max(0,editorCourseWidth(this.level)-EDIT_VIEW.w/36),this.camera);
         this.editY = Math.min(Math.max(0,this.level.height-EDIT_VIEW.h/36),this.cameraY);
     } this.editing = !this.editing;this.audio.reset(this.state,true); this.paused = false; this.accumulator = 0; this.clearControls(); this.notice = ''; }
     point(e: PointerEvent) { const r = this.canvas.getBoundingClientRect(), scale = Math.min(r.width / W, r.height / H); return { x: (e.clientX - r.left - (r.width - W * scale) / 2) / scale, y: (e.clientY - r.top - (r.height - H * scale) / 2) / scale }; }
@@ -468,6 +476,7 @@ class WhaleMaker {
             clearCells(this.level,old); placePipe(this.level,x,y,3);(this.level.properties??={})[id]={link:1}; this.selection = new Set(objectCells(this.level,x,y));
         } else {
             if(([...P1_TOOLS,...P2_TOOLS] as readonly string[]).includes(this.selected)&&!elementFits(this.level,this.selected,x,y)){this.notice='元素尺寸超出地图';return;}
+            if(this.selected==='E')for(let old=0;old<this.level.cells.length;old++)if(old!==id&&this.level.cells[old]==='E')clearCells(this.level,[old]);
             const underlying=this.level.cells[id];clearCells(this.level,[id,...objectCells(this.level,x,y)]);
             setCell(this.level,id,this.selected);if((underlying==='water'||underlying==='lava'||underlying==='quicksand')&&this.frozenContent(this.selected))(this.level.properties??={})[id]={...this.level.properties?.[id],liquid:underlying};
             this.selection = [...P1_TOOLS,...P2_TOOLS,'?','hidden-block','plant','firebar','door','p-door','locked-door','bridge','bridge-bell','moving-platform','fire-jumper'].includes(this.selected) ? new Set([id]) : new Set();
@@ -498,6 +507,8 @@ class WhaleMaker {
         this.notice='方块内容已设置：'+CONTENT_NAMES[CONTENTS.indexOf(content)];
     }
     editorIcon(tile: Tile): [HTMLImageElement,number[],number] {
+        if(tile==='slope-up'||tile==='slope-down'){const frame=tile==='slope-up'?0:1;return [this.extraImages['slope-icons']!,this.frames['slope-icons']![frame]!,frame];}
+        if(tile==='tornado')return [this.extraImages['tornado-icon']!,this.frames['tornado-icon']![0]!,0];
         const extra=p2Art(tile)??extraArt(tile);if(extra)return [extra.atlas==='world'?this.terrain:extra.atlas==='characters'?this.characters:extra.atlas==='expansion'?this.expansion:this.extraImages[extra.atlas]!,this.frames[extra.atlas]![extra.frame]!,extra.frame];
         if(tile==='C') return [this.checkpointArt,this.frames.checkpoint![0]!,0];
         if(tile==='o') return [this.tokens,this.frames.tokens![0]!,0];
@@ -652,7 +663,7 @@ class WhaleMaker {
         Object.assign(this.scene.board,{x:v.x,y:v.y,width:v.w,height:v.h});
         this.scene.begin();
         this.scene.fill({ x: v.x, y: v.y, width: v.w, height: v.h }, !this.state.level.classicStage&&this.state.player.x>220&&!!this.state.level.warps?.some(w=>w.to[0]>=221)&&!this.editing ? [.12, .25, .36, 1] : [180 / 255, 232 / 255, 228 / 255, 1]);
-        const s = this.state, l = this.editing ? this.level : s.level;
+        const s = this.state, l = this.editing ? {...this.level,endZone:findEndZone(this.level)} : s.level;
         const shaking=!this.editing?s.shake:0;
         const cam=(this.editing?this.editCamera:this.camera)+Math.sin(s.time*91)*shaking*.18,cy=(this.editing?this.editY:this.cameraY)+Math.cos(s.time*109)*shaking*.1;
         const coinTime = this.editing ? this.editTime : s.time + (s.victory?.age ?? (s.phase==='dead'?s.deathAge:0));
@@ -717,36 +728,37 @@ class WhaleMaker {
                 if(drawWorkshopTile(this.scene,l,t,x,y,px,py,z,coinTime,this.editing))continue;
                 const p2Tile=drawP2Tile(this.scene,s,l,t,x,y,px,py,z,coinTime,this.editing);
                 const advanced=p2Tile||drawAdvancedTile(this.scene,this.editing?{...s,redOn:this.p1Editor.switchOn}:s,l,t,x,y,px,py,z,this.editing,content=>{if(content==='coin')this.scene.actor('tokens',0,px+z/2,py+z*.9,z*.7);else if(content!=='empty'&&content!=='auto'){const art=extraArt(content,0);if(art)this.scene.actor(art.atlas,art.frame,px+z/2,py+z*.9,z*.8);else this.scene.actor('characters',content==='growth'?12:content==='fire'?13:content==='turtle'?9:8,px+z/2,py+z*.9,z*.8);}});
-                if(drawFortressTile(this.scene,s,l,t,x,y,px,py,z,coinTime,this.editing)){}
-                else if(advanced){}
-                else if(drawExtraTile(this.scene,s,l,t,x,y,px,py,z,coinTime,this.editing)) { /* Ordinary 2D expansion art. */ }
-                else if (t === 'P') {
-                    const start=this.scene.draws.length;
-                    const pipe=pipeShape(l,y*l.width+x)!,cap=this.frames.mechanics![12]!,image=this.extraImages.mechanics!;
-                    drawPipe(this.scene,pipe,px,py,z,cap[3]!*image.naturalHeight/(cap[2]!*image.naturalWidth),l.properties?.[y*l.width+x]?.color);
-                    pipeDraws.push(...this.scene.draws.splice(start));
-                } else if (t === '?') this.scene.sprite('coins',8,px,py,z,z);
-                else if (t === 'C') {
-                    const frame=checkpointFrame(coinTime,!this.editing&&!!s.litCheckpoints[y*l.width+x]);
-                    const wave=!this.editing?s.flagWaves.find(w=>w.x===x&&w.y===y):undefined;
-                    const angle=wave?flagWobble(wave.age,wave.direction):0,uv=this.frames.checkpoint![frame]!;
-                    const rect=checkpointRect({width:Math.round(uv[2]!*this.checkpointArt.naturalWidth),height:Math.round(uv[3]!*this.checkpointArt.naturalHeight)},px+z/2,py+z,72*z/S,angle);
-                    this.scene.sprite('checkpoint',frame,rect.x,rect.y,rect.width,rect.height,false,angle);
+                const rendered=drawFortressTile(this.scene,s,l,t,x,y,px,py,z,coinTime,this.editing)||
+                    advanced||drawExtraTile(this.scene,s,l,t,x,y,px,py,z,coinTime,this.editing);
+                if(!rendered){
+                    if (t === 'P') {
+                        const start=this.scene.draws.length;
+                        const pipe=pipeShape(l,y*l.width+x)!,cap=this.frames.mechanics![12]!,image=this.extraImages.mechanics!;
+                        drawPipe(this.scene,pipe,px,py,z,cap[3]!*image.naturalHeight/(cap[2]!*image.naturalWidth),l.properties?.[y*l.width+x]?.color);
+                        pipeDraws.push(...this.scene.draws.splice(start));
+                    } else if (t === '?') this.scene.sprite('coins',8,px,py,z,z);
+                    else if (t === 'C') {
+                        const frame=checkpointFrame(coinTime,!this.editing&&!!s.litCheckpoints[y*l.width+x]);
+                        const wave=!this.editing?s.flagWaves.find(w=>w.x===x&&w.y===y):undefined;
+                        const angle=wave?flagWobble(wave.age,wave.direction):0,uv=this.frames.checkpoint![frame]!;
+                        const rect=checkpointRect({width:Math.round(uv[2]!*this.checkpointArt.naturalWidth),height:Math.round(uv[3]!*this.checkpointArt.naturalHeight)},px+z/2,py+z,72*z/S,angle);
+                        this.scene.sprite('checkpoint',frame,rect.x,rect.y,rect.width,rect.height,false,angle);
+                    }
+                    else if (t === 'U') this.scene.sprite('expansion',14,px,py,z,z);
+                    else if (t === 'Q' || t === 'p' || t === 'q') { /* Complete pipe drawn from its P cell. */ }
+                    else if(t==='E'){if(l.finish!=='castle')drawGoal(this.scene,s,x,y,px,py,z,coinTime,this.editing);}
+                    else if (art !== undefined)
+                        this.sprite(this.terrain, art, px, py, z, z);
+                    else if(t==='o') this.coin(px+z/2,py+z,40*z/S,coinTime);
+                    else if (t === 'G' || t === 'F' || t === 'T' || t === 'J')
+                        this.scene.actor('characters',t==='G'?12:t==='F'?13:t==='T'?9:8,px+z/2,py+z,44*z/S);
                 }
-                else if (t === 'U') this.scene.sprite('expansion',14,px,py,z,z);
-                else if (t === 'Q' || t === 'p' || t === 'q') { /* Complete pipe drawn from its P cell. */ }
-                else if(t==='E'){if(l.finish!=='castle')drawGoal(this.scene,s,x,y,px,py,z,coinTime,this.editing);}
-                else if (art !== undefined)
-                    this.sprite(this.terrain, art, px, py, z, z);
-                else if(t==='o') this.coin(px+z/2,py+z,40*z/S,coinTime);
-                else if (t === 'G' || t === 'F' || t === 'T' || t === 'J')
-                    this.scene.actor('characters',t==='G'?12:t==='F'?13:t==='T'?9:8,px+z/2,py+z,44*z/S);
                 if(this.editing && (t==='?'||t==='hidden-block')) {
                     const content=l.contents?.[y*l.width+x]??'auto';
                     if(content==='coin') this.coin(px+.77*z,py+.48*z,18*z/S,coinTime);
                     else if(content!=='auto'&&content!=='empty'){const art=extraArt(content,coinTime);if(art)this.scene.actor(art.atlas,art.frame,px+.77*z,py+.48*z,18*z/S);else this.scene.actor('characters',content==='growth'?12:content==='fire'?13:content==='turtle'?9:8,px+.77*z,py+.48*z,18*z/S);}
                 }
-                if (t === 'E') this.scene.actor('expansion', 15, px + (l.finish==='castle'?.5:4) * z, py + z, 3.5 * z);
+                if (t === 'E') {this.scene.actor('expansion', 15, px + (l.finish==='castle'?.5:4) * z, py + z, 3.5 * z);if(l.finish==='castle')drawGoalLock(this.scene,s,px,py,z,this.editing);}
                 if(this.editing&&t==='P'&&l.properties?.[y*l.width+x]?.plant){const pipe=pipeShape(l,y*l.width+x)!;drawPipePlant(this.scene,{...s.player,kind:'plant',alive:true,held:false,cooldown:0,w:pipe.normal[0]?1.15:.8,h:pipe.normal[0]?.8:1.15,plantDirection:pipe.normal},v.x+(pipe.mouth[0]-cam)*z,v.y+(pipe.mouth[1]-cy)*z,z,0);}else if(this.editing&&t==='glass-pipe'&&l.properties?.[y*l.width+x]?.plant)this.scene.actor('creatures',0,px+z,py+z*.05,60*z/S);
             }
         if(this.editing)l.cells.forEach((t,id)=>{if(t==='snake-block'){const x=id%l.width,y=Math.floor(id/l.width);drawWorkshopTile(this.scene,l,t,x,y,v.x+(x-cam)*z,v.y+(y-cy)*z,z,coinTime,true);}});
@@ -772,7 +784,7 @@ class WhaleMaker {
             drawFortress(this.scene,s,cam,cy,z,v);
             drawWorkshop(this.scene,s,cam,cy,z,v);
             drawCoinPops(this.scene,s,cam,cy,z,v);
-            for(const stone of s.stones)this.scene.sprite('adventure',stone.phase==='idle'?3:stone.phase==='alert'||stone.phase==='return'||stone.phase==='pause'?4:5,v.x+(stone.x-cam-.1)*z,v.y+(stone.y-cy-.2)*z,2.2*z,2.2*z);
+            for(const stone of s.stones){if(stone.winged)this.scene.centeredActor('p1-icons',24,v.x+(stone.x+stone.w/2-cam)*z,v.y+(stone.y+stone.h*.45-cy)*z,z*stone.w*(1.35+.08*Math.sin(s.time*24)),24);this.scene.sprite('adventure',stone.phase==='idle'?3:stone.phase==='alert'||stone.phase==='return'||stone.phase==='pause'?4:5,v.x+(stone.x-cam-.1)*z,v.y+(stone.y-cy-.2)*z,(stone.w+.2)*z,(stone.h+.2)*z);}
             for(const key of s.keys)this.scene.actor('adventure',0,v.x+(key.x-cam)*z,v.y+(key.y-cy)*z,30*z/S,false,0,Math.sin(key.age*4)*.06);
             for(const c of s.turrets)drawCannon(this.scene,c,v.x+(c.x-cam)*z,v.y+(c.y-cy)*z,z,s.player.x<c.x);
             drawDust(this.scene,s.dust,cam,cy,z,v);
@@ -823,6 +835,8 @@ class WhaleMaker {
             if((s.helmet||s.shellHelmet)&&s.boneTime===0&&playerRect){const hatAtlas=s.shellHelmet?'shell-equipment':'gadgets',hatFrame=s.shellHelmet==='shell-helmet'?0:s.shellHelmet==='spike-shell-helmet'?1:7;if(traveling)this.scene.centeredActor(hatAtlas,hatFrame,v.x+(p.x+p.w/2-cam)*z+(Math.cos(travelAngle)*.22+Math.sin(travelRotation)*.12)*actorSize,v.y+(p.y+p.h/2-cy)*z+(Math.sin(travelAngle)*.22-Math.cos(travelRotation)*.12)*actorSize,actorSize*.55,hatFrame,travelRotation,1,travelFlip);else this.scene.actor(hatAtlas,hatFrame,playerRect.x+playerRect.width/2+(flip?-1:1)*actorSize*.15,playerRect.y+actorSize*.27,actorSize*.66,flip,hatFrame);}
             drawFrostEffects(this.scene,s,cam,cy,z,v);
             for(const fx of s.effects){if(fx.kind==='frost'||fx.kind==='snow'||fx.kind==='cactus')continue;if(drawWorkshopEffect(this.scene,fx,v.x+(fx.x-cam)*z,v.y+(fx.y-cy)*z,z))continue;if(fx.kind==='stone'){this.scene.actor('adventure',3,v.x+(fx.x-cam)*z,v.y+(fx.y-cy)*z,2*z,false,3,fx.age*4,Math.max(0,1-fx.age/.8));continue;}const opacity=Math.max(0,1-fx.age/(fx.kind==='helmet'?.65:.4)),atlas=fx.kind==='helmet'?(fx.headgear?'shell-equipment':'gadgets'):'mechanics',frame=fx.kind==='helmet'?(fx.headgear==='shell-helmet'?0:fx.headgear==='spike-shell-helmet'?1:7):fx.kind==='fire'?6+Math.min(3,Math.floor(fx.age*10)):fx.age<.13?10:fx.age<.26?11:15;this.scene.actor(atlas,frame,v.x+(fx.x-cam)*z,v.y+(fx.y-cy)*z,(fx.kind==='helmet'?44:fx.kind==='ice'?58:32)*z/S,false,frame,fx.kind==='helmet'?fx.age*4:0,opacity);}
+            drawClearFlag(this.scene,s,v.x+(p.x+p.w/2-cam)*z,playerRect?.y??v.y+(p.y-cy)*z,z,coinTime,v.y);
+            drawEnvironmentWind(this.scene,l,coinTime,cam,cy,z,v);
             if((s.areaFade??0)>0)this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.03,.09,.14,(s.areaFade??0)/.5]);
             if(traveling)drawGlassRoutes(this.scene,l,cam,cy,z,v,.22);
             if(s.phase==='playing') for(const bite of s.bites) {
@@ -852,7 +866,8 @@ class WhaleMaker {
                 this.scene.fill({ x: v.x, y: v.y, width: v.w, height: v.h }, [.025, .06, .12, shade]);
             }
         }
-        if(this.editing){drawP1Overlay(this.scene,l,this.selection,cam,cy,z,v,this.p1Editor.preview);if(this.p1Editor.preview&&[...this.selection].some(id=>l.properties?.[id]?.area))drawAreaEntryPreview(this.scene,this.editAreaId==='main'?l:this.areaRoot??l,l,this.selection,v);}
+        if(this.editing){drawEnvironmentWind(this.scene,l,coinTime,cam,cy,z,v);drawP1Overlay(this.scene,l,this.selection,cam,cy,z,v,this.p1Editor.preview);if(this.p1Editor.preview&&[...this.selection].some(id=>l.properties?.[id]?.area))drawAreaEntryPreview(this.scene,this.editAreaId==='main'?l:this.areaRoot??l,l,this.selection,v);}
+        drawCourseEdge(this.scene,l,this.editing?l.endZone?.right??l.width:courseBounds(l,s.player).right,cam,z,v,this.editing);
         const winFinished=s.phase==='won'&&s.victory?.stage==='done';
         this.banner.setVisible(!this.editing && (winFinished || (s.phase === 'dead' && s.deathAge > .9)));
         const bannerAge = s.phase === 'dead' ? s.deathAge - .9 : (s.victory?.age ?? 0) - 1.5;
@@ -893,9 +908,13 @@ class WhaleMaker {
         const advancedPanel=this.p1Editor.update();if(advancedPanel){this.contentNodes.forEach(n=>n.setVisible(false));this.propertyNodes.forEach(({node})=>node.setVisible(false));this.backdropNodes.forEach(n=>n.setVisible(false));this.selectionHints.forEach(n=>n.setVisible(false));this.contentHint.setVisible(false);}
         this.backdropButtons.forEach(({button,value})=>this.highlight(button,(l.backdrop??'coast')===value));
         this.rect(this.hint,{x:24,y:this.editing?758:112,width:1230,height:30});
-        const lastScore=s.scorePops.at(-1);this.scoreBanner.setVisible(!this.editing&&(!!lastScore||!!s.level.condition));this.scoreBanner.setText(lastScore?`${lastScore.chain>1?'连击 ×'+lastScore.chain+'  ':''}+${lastScore.points}`:conditionProgress(s).text);
+        const lastScore=s.scorePops.at(-1),clear=conditionProgress(s),hasCondition=!!s.level.condition;
+        this.rect(this.scoreBanner,hasCondition?{x:36,y:158,width:900,height:30}:{x:1060,y:150,width:186,height:30});
+        const clearColor=hasCondition?(clear.failed?'#ff9eb4':clear.done?'#ffe387':'#e6fbf8'):'#e6fbf8',clearBackground=hasCondition?'#173f50':'#00000000';
+        if(this.scoreBanner.style.color!==clearColor||this.scoreBanner.style.backgroundColor!==clearBackground)this.scoreBanner.setStyle({color:clearColor,backgroundColor:clearBackground,radius:8});
+        this.scoreBanner.setVisible(!this.editing&&(!!lastScore||hasCondition));this.scoreBanner.setText([hasCondition?`${clear.failed?'条件失败':clear.done?'条件达成':'通关条件'} · ${clear.text}`:'',lastScore?`${lastScore.chain>1?'连击 ×'+lastScore.chain+'  ':''}+${lastScore.points}`:''].filter(Boolean).join('  |  '));
         this.status.setText(this.editing ? `LEVEL LAB  /  ${l.name}  /  ${Math.floor(cam)} m` : `得分 ${s.score}  金币 ${s.coins.toString().padStart(3, '0')}    ${PLAYER_FORMS[s.power].hudLabel}    ${s.level.progress?.timeLimit?'剩余 '+Math.ceil(s.timeRemaining)+'s':Math.floor(s.time)+'s'}  ${s.pTime>0?'P '+Math.ceil(s.pTime)+'s  ':''}${s.starTime>0?'★ '+Math.ceil(s.starTime)+'s  ':''}${s.redOn?'红 ': '蓝 '}${s.boneTime>0?'骨头 '+Math.ceil(s.boneTime)+'s  ':s.riding?.kind==='bone-shell'?'骨头龟壳  ':''}${s.shellHelmet==='shell-helmet'?'龟壳帽  ':s.shellHelmet==='spike-shell-helmet'?'尖刺龟壳帽  ':s.helmet?'铁盆  ':''}${s.keys.length?'钥匙 '+s.keys.length+'  ':''}${s.phase === 'won' ? '抵达星海！' : s.phase === 'dead' ? '按 R 重试' : this.paused ? '暂停' : l.name}`);
-        const entry=[...this.selection].map(id=>l.properties?.[id]).find(p=>p?.area);const wear=s.wearable;this.p2Hud.setVisible(this.editing||!!(wear||s.level.progress?.lives||s.rootLevel?.areas||s.level.areas));this.p2Hud.setText(this.editing?`${this.editAreaId==='main'?'主区域':this.editAreaId} · ${l.width} × ${l.height}${entry?' → '+entry.area+' ('+(entry.targetX??2)+', '+(entry.targetY??2)+')':''}`:[s.level.progress?.lives?'生命 '+s.lives:'',wear?P2_NAMES[P2_TOOLS.indexOf(wear.kind)]+(wear.kind==='propeller-box'||wear.kind==='pow-box'?' '+wear.uses+' 次':wear.kind==='cannon-box'?' 蓄力 '+Math.round(wear.charge*100)+'%':wear.kind==='bullet-mask'&&wear.active?' '+Math.ceil(wear.flight)+'s':wear.kind==='goomba-mask'?wear.exposed>0?' 已暴露':' 伪装中':''):'',s.currentArea!=='main'?'副区 '+s.level.name:s.level.areas?'主区域':''].filter(Boolean).join(' · '));
+        const entry=[...this.selection].map(id=>l.properties?.[id]).find(p=>p?.area);const wear=s.wearable;this.p2Hud.setVisible(this.editing||!!(wear||s.level.progress?.lives||s.rootLevel?.areas||s.level.areas));this.p2Hud.setText(this.editing?`${this.editAreaId==='main'?'主区域':this.editAreaId} · ${l.width} × ${l.height}${entry?' → '+entry.area+' ('+(entry.targetX??2)+', '+(entry.targetY??2)+')':''}`:[s.level.progress?.lives?'生命 '+s.lives:'',wear?P2_NAMES[P2_TOOLS.indexOf(wear.kind)]+(wear.kind==='propeller-box'||wear.kind==='pow-box'?' '+wear.uses+' 次':wear.kind==='cannon-box'?' 蓄力 '+Math.round(wear.charge*100)+'%':wear.kind==='bullet-mask'&&wear.active?s.swimming?' 水中持续':' '+Math.ceil(wear.flight)+'s':wear.kind==='goomba-mask'?wear.exposed>0?' 已暴露':' 伪装中':''):'',s.currentArea!=='main'?'副区 '+s.level.name:s.level.areas?'主区域':''].filter(Boolean).join(' · '));
         this.hint.setText(this.notice || (this.editing ? '元素翻页 · 单选拖拽 · 框选组合 · 点击配置机关 · 方向键平移 / Shift 滚轮垂直 · Ctrl C / V 复制粘贴 · E 试玩' : 'A D 移动 · Shift 抱物/松开轻放 · S 蹲/砸地/坐盆 · Space/Z 跳/游泳 · X 旋转跳 · W/↑ 门 · J 发射/投掷  |  ' + s.notice));
     }
     destroy() { if (this.disposed)

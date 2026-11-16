@@ -11,9 +11,40 @@ const {placePipe}=await import('../whale-maker/rules/levels.ts');
 const {placeGlassPipe}=await import('../whale-maker/rules/glass.ts');
 const {placeStone}=await import('../whale-maker/rules/adventure.ts');
 const {placeCannon}=await import('../whale-maker/rules/advanced.ts');
+const {courseBounds,findEndZone}=await import('../whale-maker/rules/course-bounds.ts');
+const {centeredCamera}=await import('../whale-maker/rules/camera.ts');
+const {cameraFor}=await import('../whale-maker/rules/p2-camera.ts');
+const {drawCourseEdge}=await import('../whale-maker/rendering/course-bounds.ts');
 const tick=(s,input={},n=1)=>{for(let k=0;k<n;k++)step(s,{...EMPTY_INPUT,...input});};
 function level(){const l=demo();l.cells.fill('.');delete l.contents;l.properties={};for(let y=15;y<l.height;y++)for(let x=0;x<l.width;x++)l.cells[y*l.width+x]='#';l.cells[14*l.width+95]='E';return l;}
 function gradient(){const width=64,height=64,pixels=new Uint8Array(width*height*4);for(let y=0;y<height;y++)for(let x=0;x<width;x++)pixels.set([x*4,y*4,100,255],(y*width+x)*4);return {width,height,pixels};}
+
+test('the ten-column goal zone limits the full player body and camera, including failed clear conditions',()=>{
+ const l=level();l.condition={kind:'coins',amount:999};const s=create(l),right=105;s.player.x=103;s.player.y=14.2;s.grounded=true;tick(s,{axis:1,grab:true},240);
+ assert.equal(s.phase,'playing');assert.ok(Math.abs(s.player.x+s.player.w-right)<1e-8);assert.equal(s.wall,0);assert.equal(s.wallGrace,0);
+ const camera=centeredCamera(s.level,s.player,20,12);assert.equal(camera.x,85);s.level.cameraRules={mode:'auto',axis:'x',speed:1};s.cameraTravel=999;assert.equal(cameraFor(s,camera,20,12).x,85);
+ const x=s.player.x;tick(s,{axis:1,jump:true},120);assert.ok(s.player.x+s.player.w<=right+1e-8);assert.equal(s.jumpSerial,1);assert.equal(s.player.x,x);
+});
+test('short stored maps get a solid derived ending tail without changing saved cell indices',()=>{
+ const l=level();l.width=100;l.cells=Array(100*l.height).fill('.');for(let y=15;y<l.height;y++)for(let x=0;x<100;x++)l.cells[y*100+x]='#';l.cells[14*100+95]='E';l.condition={kind:'coins',amount:999};const saved=structuredClone(l.cells),s=create(l);s.player.x=99;s.player.y=14.2;s.grounded=true;tick(s,{axis:1},180);
+ assert.equal(s.level.width,100);assert.deepEqual(s.level.cells,saved);assert.ok(s.player.x>100);assert.ok(s.player.x+s.player.w<=105);assert.equal(s.grounded,true);assert.equal(s.phase,'playing');
+ const draws=[],scene={sprite:(...args)=>draws.push(args)};drawTerrain(scene,s.level,98,13,36,{x:0,y:0,w:252,h:108});assert.ok(draws.some(d=>d[0]==='terrain'&&d[2]>=72));
+});
+test('goal boundaries preserve legacy pipe rooms and explicitly bounded underground rooms',()=>{
+ const l=level();l.warps=[{from:[5,12],to:[225,12]}];const s=create(l);s.player.x=226;assert.deepEqual(courseBounds(s.level,s.player),{left:221,right:240});
+ const room=level();room.rooms=[{x:0,y:26,w:18,h:14}];room.height=40;room.cells.length=room.width*40;room.cells.fill('.',room.width*24);const a=create(room);a.player.x=16;a.player.y=30;const c=centeredCamera(a.level,a.player,20,12);assert.equal(c.x,0);assert.ok(c.y>=26);assert.deepEqual(courseBounds(a.level,a.player),{left:0,right:18});
+ const blank=level();blank.cells[14*blank.width+95]='.';const b=create(blank);assert.equal(b.level.endZone,undefined);assert.equal(courseBounds(b.level,b.player).right,240);
+});
+test('goal copies replace the prior goal and derive a new boundary while the original blueprint stays intact',()=>{
+ const l=level(),from=14*l.width+95,stamp=stampSelection(l,new Set([from]));l.properties[from]={goalHeight:7};const placed=pasteStamp(l,stamp,40,14);assert.ok(placed);assert.equal(l.cells.filter(t=>t==='E').length,1);assert.equal(l.cells[from],'.');assert.equal(l.properties[from],undefined);assert.equal(findEndZone(l).right,50);assert.equal(create(l).level.endZone.right,50);
+});
+test('powered direct positioning cannot carry a player past the goal boundary',()=>{
+ const s=create(level());s.player.x=115;s.player.y=9;tick(s);assert.ok(s.player.x+s.player.w<=105);
+ const car={kind:'koopa-car',x:104,y:14,w:1.8,h:1.1,vx:10,vy:0,alive:true,held:false,cooldown:0,age:0,thrown:false,spent:false,health:3};s.items.push(car);s.vehicle=car;s.player.x=104;tick(s,{axis:1},30);assert.ok(s.player.x+s.player.w<=105+1e-8);
+});
+test('editor course edge marks off-course cells without allocating entities',()=>{
+ const fills=[],scene={fill:(...a)=>fills.push(a)};drawCourseEdge(scene,{...level(),endZone:{x:20,y:14,right:30}},30,25,36,{x:0,y:0,w:360,h:200},true);assert.ok(fills.length>5);assert.ok(fills.some(([r])=>r.x===180&&r.width===180));
+});
 
 function horizonLevel(){const width=40,height=24,cells=Array(width*height).fill('.');for(const y of [10,15])for(let x=1;x<=8;x++)cells[y*width+x]='#';return {version:1,name:'远景缓存',width,height,cells,spawn:[2,8],properties:{}};}
 

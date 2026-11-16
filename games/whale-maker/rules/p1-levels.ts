@@ -1,7 +1,6 @@
 import type { Level, Tile } from './model';
 import { REFERENCE_RULES } from './profile';
 import { placeGlassPipe } from './glass';
-import { writePipe } from './pipes';
 export const P1_DEMOS=['搬运与液体','3D动作训练','猫爪攀爬','回旋镖弯管','建造锤工坊','开关运输解谜','敌人与雪地'] as const;
 export const P1_HELP=['Shift 抱箱，松开轻放，J 投掷；木箱可浮在水与岩浆上','按住 ↓ 蓄力后跳；↓ + K 翻滚，翻滚中跳可远跳；K + X 高旋转跳','猫铃铛：J 爪击，空中 K 扑击，贴墙按 ↑ 攀爬','回旋镖花：J 投出并接回；回旋镖和敌人也能进入弯管','建造锤：J 锤击硬砖，L 造箱，最多保留五个建造箱','开关改变刺砖、弹床和输送带；踩蓝蛇砖和蓝路径砖出发','雪地投球怪会抛雪球；收集三枚 Token 才能使用终点'] as const;
 export function p1Level(index=0):Level {

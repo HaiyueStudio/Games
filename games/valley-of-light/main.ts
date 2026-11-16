@@ -129,7 +129,10 @@ class ValleyGame {
       else if (e.code === 'KeyJ') { this.cancelDrag(); this.hud.toggleJournal(); }
       else if (e.code === 'KeyR') this.reset();
       else if (e.code === 'KeyH') this.hint();
-      else if (e.code === 'Space') this.state.completed ? this.reset() : this.walk('gate');
+      else if (e.code === 'Space') {
+        if (this.state.completed) this.reset();
+        else this.walk('gate');
+      }
       else if (!this.drag && !this.hud.journalOpen) {
         if (e.code === 'KeyQ' || e.code === 'KeyE') this.edit('turn',this.state.angle + (e.code === 'KeyQ' ? -1 : 1)*Math.PI/2);
         if (e.code === 'KeyA' || e.code === 'KeyD') this.edit('slide',this.state.offset + (e.code === 'KeyA' ? -.5 : .5));

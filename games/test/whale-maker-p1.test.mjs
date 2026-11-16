@@ -12,6 +12,9 @@ const {grantPower}=await import('../whale-maker/rules/power.ts');
 const {freezeEnemy}=await import('../whale-maker/rules/frost.ts');
 const {triggerExtension,redPow,treeContact,advanceDevices,deviceSolids}=await import('../whale-maker/rules/p1-mechanisms.ts');
 const {conditionProgress}=await import('../whale-maker/rules/p1.ts');
+const {holdingTarget,HOLD_TARGETS}=await import('../whale-maker/rules/conditions.ts');
+const {drawClearFlag}=await import('../whale-maker/rendering/conditions.ts');
+const {changeArea}=await import('../whale-maker/rules/p2-areas.ts');
 const {p1Level,P1_DEMOS}=await import('../whale-maker/rules/p1-levels.ts');
 const {P1_TOOLS,levelIssues}=await import('../whale-maker/rules/p1-schema.ts');
 const {p1Art}=await import('../whale-maker/rendering/p1.ts');
@@ -33,6 +36,68 @@ const tick=(s,i={},n=1)=>{for(let k=0;k<n;k++)step(s,{...EMPTY_INPUT,...i});};
 function level(modern=true){const width=100,height=32,cells=Array(width*height).fill('.');for(let y=20;y<height;y++)for(let x=0;x<width;x++)cells[y*width+x]='#';cells[19*width+95]='E';return {version:1,name:'P1 verification',width,height,cells,spawn:[3,19.2],properties:{},contents:{},...(modern?{rules:{...REFERENCE_RULES}}:{})};}
 const flat=()=>{const s=create(level());tick(s);return s;};
 const enemy=(s,kind='duck',x=8,p={})=>{const e=modifyEnemy(makeEnemy(kind,x,19,p),p,s.level.theme);e.y=20-e.h;s.enemies.push(e);return e;};
+
+test('new clear conditions validate and serialize with legal carried-object targets',()=>{
+ for(const condition of [{kind:'no-damage'},{kind:'no-landing'},...HOLD_TARGETS.map(item=>({kind:'holding',item}))]){const l=level();l.condition=condition;assert.deepEqual(validate(JSON.parse(JSON.stringify(l))).condition,condition);}
+ const l=level();l.condition={kind:'holding',item:'star'};assert.throws(()=>validate(l),/抱物/);
+});
+test('holding goals distinguish ordinary shells, iron shells and frozen enemies, and reject dead or released bodies',()=>{
+ const s=flat(),shell=enemy(s,'shell');shell.held=true;s.held=shell;
+ assert.equal(holdingTarget(s,'shell'),true);shell.iron=true;assert.equal(holdingTarget(s,'shell'),false);assert.equal(holdingTarget(s,'iron-shell'),true);
+ const frozen=enemy(s);freezeEnemy(s,frozen);frozen.held=true;s.held=frozen;assert.equal(holdingTarget(s,'iron-shell'),false);assert.equal(holdingTarget(s,'frozen-enemy'),true);
+ frozen.alive=false;assert.equal(holdingTarget(s,'frozen-enemy'),false);frozen.alive=true;frozen.held=false;assert.equal(holdingTarget(s,'frozen-enemy'),false);
+});
+test('putting down or throwing a required object on the goal tick revokes clear permission',()=>{
+ for(const action of [{},{grab:true,fire:true}]){const l=level();l.condition={kind:'holding',item:'wood-crate'};const s=create(l),box=makeItem('wood-crate',94,17);box.held=true;s.items.push(box);s.held=box;s.player.x=95;s.player.y=17;
+  assert.equal(conditionProgress(s).done,true);tick(s,action);assert.equal(s.phase,'playing');assert.equal(conditionProgress(s).done,false);}
+ const l=level();l.condition={kind:'holding',item:'wood-crate'};const s=create(l),box=makeItem('wood-crate',94,17);box.held=true;s.items.push(box);s.held=box;s.player.x=95;s.player.y=17;tick(s,{grab:true});assert.equal(s.phase,'won');
+});
+test('no-damage clear records effective hits including consumed protection, but ignores invulnerability',()=>{
+ const l=level();l.condition={kind:'no-damage'};const s=create(l);grantPower(s,2);assert.equal(conditionProgress(s).done,true);
+ s.starTime=1;services.hurt(s);assert.equal(conditionProgress(s).done,true);s.starTime=0;s.invincible=1;services.hurt(s);assert.equal(conditionProgress(s).done,true);
+ s.invincible=0;s.helmet=true;services.hurt(s);assert.equal(s.power,2);assert.equal(s.helmet,false);assert.equal(conditionProgress(s).failed,true);
+ tick(s,{},300);assert.equal(conditionProgress(s).done,false);respawn(s);assert.equal(conditionProgress(s).done,true);assert.equal(s.clearRun.damaged,false);
+});
+test('damage on the same tick as touching the flag prevents a no-damage victory',()=>{
+ const l=level();l.condition={kind:'no-damage'};const s=create(l);grantPower(s,1);s.player.x=95;s.player.y=17;const e=enemy(s,'duck',95);e.y=18.4;e.vx=0;tick(s);
+ assert.equal(s.phase,'playing');assert.equal(s.clearRun.damaged,true);assert.equal(conditionProgress(s).done,false);
+});
+test('no-landing starts only after departure and an ordinary landing fails until retry',()=>{
+ const l=level();l.condition={kind:'no-landing'};const s=create(l);tick(s,{},20);assert.equal(s.clearRun.leftGround,false);assert.equal(conditionProgress(s).done,false);
+ tick(s,{jump:true});assert.equal(s.clearRun.leftGround,true);assert.equal(conditionProgress(s).done,true);tick(s,{},250);
+ assert.equal(s.grounded,true);assert.equal(conditionProgress(s).failed,true);tick(s,{jump:true});assert.equal(conditionProgress(s).done,false);
+ respawn(s);assert.equal(s.clearRun.landed,false);assert.equal(s.clearRun.leftGround,false);
+});
+test('actual enemy, vertical spring and P-switch rebounds preserve no-landing eligibility',()=>{
+ for(const kind of ['duck','spring-v','p-switch']){const l=level();l.condition={kind:'no-landing'};const s=create(l);s.player.x=8.1;s.grounded=false;s.clearRun.leftGround=true;
+  const body=kind==='duck'?enemy(s):makeItem(kind,8,19);if(kind!=='duck'){body.cooldown=0;s.items.push(body);}body.vx=0;
+  s.player.y=body.y-s.player.h-.025;s.player.vy=8;tick(s);
+  assert.ok(s.player.vy<0,kind);assert.equal(conditionProgress(s).done,true,kind);assert.equal(s.clearRun.landed,false,kind);
+ }
+});
+test('standing on horizontal springs is exempt, while platforms and ground are ordinary landings',()=>{
+ const l=level();l.condition={kind:'no-landing'};const s=create(l),spring=makeItem('spring-h',8,19);s.items.push(spring);s.clearRun.leftGround=true;s.player.x=8.1;s.player.y=spring.y-s.player.h-.025;s.player.vy=8;tick(s);assert.equal(s.clearRun.landed,false);
+ const p=level();p.condition={kind:'no-landing'};p.cells[1708]='=';const a=create(p);a.clearRun.leftGround=true;a.player.x=8.1;a.player.y=16.18;a.player.vy=8;tick(a);assert.equal(conditionProgress(a).failed,true);
+});
+test('pressing a sideways P switch while walking on the floor does not count as leaving the ground',()=>{
+ const l=level();l.condition={kind:'no-landing'};l.cells[1904]='p-switch';l.properties[1904]={rotation:90};l.spawn=[5.05,19.2];const s=create(l);tick(s);tick(s,{axis:-1},30);
+ assert.equal(s.items.find(i=>i.kind==='p-switch')?.spent,true);assert.equal(s.clearRun.leftGround,false);assert.equal(s.clearRun.landed,false);
+});
+test('downward attacks breaking boxes still count as terrain contact despite their rebound',()=>{
+ const l=level();l.condition={kind:'no-landing'};const s=create(l),box=makeItem('wood-crate',8,19);s.items.push(box);s.clearRun.leftGround=true;s.player.x=8.1;s.player.y=18.18;s.player.vy=10;s.pound='fall';tick(s);
+ assert.equal(box.alive,false);assert.ok(s.player.vy<0);assert.equal(conditionProgress(s).failed,true);
+});
+test('clear attempt damage and landing history survive subarea round trips',()=>{
+ const l=level();l.condition={kind:'no-damage'};l.areas={sub:level()};const s=create(l);s.clearRun.damaged=true;s.clearRun.leftGround=true;s.clearRun.landed=true;
+ assert.equal(changeArea(s,'sub',create,[3,19.2]),true);assert.equal(conditionProgress(s).failed,true);
+ assert.equal(changeArea(s,'main',create,[3,19.2]),true);assert.equal(s.clearRun.landed,true);respawn(s);assert.equal(s.clearRun.damaged,false);
+});
+test('world clear marker appears only while an authored condition is currently satisfied',()=>{
+ const s=flat(),draws=[],scene={sprite:(...x)=>draws.push(['sprite',...x]),fill:(...x)=>draws.push(['fill',...x]),dustParticle:(...x)=>draws.push(['dust',...x])};
+ const draw=()=>{draws.length=0;drawClearFlag(scene,s,100,150,48,1,0);return draws.some(x=>x[0]==='sprite'&&x[1]==='goal-flags');};
+ assert.equal(draw(),false);s.level.condition={kind:'coins',amount:2};assert.equal(draw(),false);s.coins=2;assert.equal(draw(),true);
+ s.level.condition={kind:'no-damage'};s.clearRun.damaged=true;assert.equal(draw(),false);s.clearRun.damaged=false;assert.equal(draw(),true);s.phase='dead';assert.equal(draw(),false);
+});
 
 test('all seven P1 demos validate, serialize, reset and expose independent playable stages',()=>{
  assert.equal(P1_DEMOS.length,7);for(let n=0;n<P1_DEMOS.length;n++){const l=p1Level(n);assert.deepEqual(validate(JSON.parse(JSON.stringify(l))),l);const s=create(l);tick(s,{},120);assert.equal(s.phase,'playing',l.name);respawn(s);assert.deepEqual(s.startLevel,l);assert.equal(s.boomerangs.length,0);assert.equal(s.buildBoxes.length,0);}

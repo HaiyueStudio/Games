@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     },
     haptic: kind => { navigator.vibrate?.(kind === 'shot' ? 8 : 35); },
   });
-  const suspend = () => { game.cancelInteraction(); void game.flushSave(); document.hidden ? engine.stop() : engine.run(); };
+  const suspend = () => { game.cancelInteraction(); void game.flushSave(); if (document.hidden) engine.stop(); else engine.run(); };
   const blur = () => game.cancelInteraction();
   const show = () => engine.run();
   const hide = (event: PageTransitionEvent) => {

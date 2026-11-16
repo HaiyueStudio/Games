@@ -7,28 +7,30 @@ import { effect } from './effects';
 import { touchingSwitch } from './switches';
 import { emit } from './events';
 import { setCell } from './terrain';
+import {shatterTile} from './breaking';
+import {pressPSwitch} from './p-switch';
+import type {ElementProperties} from './catalog';
 
 export interface FollowingKey { x:number;y:number;age:number }
 export interface Stone extends Body {
     origin:[number,number];direction:'left'|'right'|'down';
-    phase:'idle'|'alert'|'charge'|'pause'|'return'|'knocked';timer:number;
+    phase:'idle'|'alert'|'charge'|'pause'|'return'|'knocked';timer:number;winged?:boolean;age?:number;
 }
 
 
 export function stoneCells(l:Level,id:number):number[]{
-    if(l.cells[id]==='stone')return [id,id+1,id+l.width,id+l.width+1];
+    if(l.cells[id]==='stone'){const size=l.properties?.[id]?.large?4:2;return Array.from({length:size*size},(_,n)=>id+Math.floor(n/size)*l.width+n%size);}
     if(l.cells[id]!=='stone-body')return [];
-    for(const n of [id-1,id-l.width,id-l.width-1])if(l.cells[n]==='stone'&&Math.floor(n/l.width)<=Math.floor(id/l.width)&&id%l.width>=n%l.width)return stoneCells(l,n);
+    for(let dy=0;dy<4;dy++)for(let dx=0;dx<4;dx++){const n=id-dy*l.width-dx;if(n>=0&&id%l.width>=dx&&l.cells[n]==='stone'&&stoneCells(l,n).includes(id))return stoneCells(l,n);}
     return [];
 }
-export function placeStone(l:Level,x:number,y:number):boolean {
-    if(x<0||x+2>l.width||y<0||y+2>l.height)return false;
-    const id=y*l.width+x;setCell(l,id,'stone');for(const n of [id+1,id+l.width,id+l.width+1])setCell(l,n,'stone-body');
-    (l.properties??={})[id]={direction:'down'};return true;
+export function placeStone(l:Level,x:number,y:number,props:ElementProperties={}):boolean {
+    const size=props.large?4:2;if(x<0||x+size>l.width||y<0||y+size>l.height)return false;
+    const id=y*l.width+x;setCell(l,id,'stone');(l.properties??={})[id]={direction:'down',...props};for(const n of stoneCells(l,id).slice(1))setCell(l,n,'stone-body');return true;
 }
 export function initAdventure(l:Level):Pick<State,'stones'|'keys'|'keyTrail'|'unlockedDoors'|'climbing'|'climbAge'|'climbWait'> {
     const stones:Stone[]=[];
-    l.cells.forEach((t,id)=>{if(t!=='stone')return;const x=id%l.width,y=Math.floor(id/l.width);stones.push({x,y,w:2,h:2,vx:0,vy:0,origin:[x,y],direction:l.properties?.[id]?.direction??'down',phase:'idle',timer:0});for(const n of stoneCells(l,id))l.cells[n]='.';});
+    l.cells.forEach((t,id)=>{if(t!=='stone')return;const x=id%l.width,y=Math.floor(id/l.width),p=l.properties?.[id],size=p?.large?4:2;stones.push({x,y,w:size,h:size,vx:0,vy:0,origin:[x,y],direction:p?.direction??'down',phase:'idle',timer:0,winged:!!p?.winged,age:0});for(const n of stoneCells(l,id))l.cells[n]='.';});
     return {stones,keys:[],keyTrail:[],unlockedDoors:{},climbing:false,climbAge:0,climbWait:0};
 }
 export function collectKey(s:State,x:number,y:number):void {
@@ -73,7 +75,9 @@ function approach(stone:Stone,p:Body):number|null {
 export function updateStones(s:State,dt:number,svc:Services):void {
     const p=s.player;
     for(const stone of s.stones){
-        const old={...stone},standing=Math.abs(p.y+p.h-stone.y)<.04&&p.vy>=0&&p.x+p.w>stone.x+.01&&p.x<stone.x+stone.w-.01;
+        const old={...stone};stone.age=(stone.age??0)+dt;
+        if(stone.winged&&(stone.phase==='idle'||stone.phase==='alert')){const x=stone.origin[0]+Math.sin(stone.age*2)*.65,dx=x-stone.x;stone.vx=dx/dt;stone.vy=0;svc.move(s,stone,dt);stone.vx=0;}
+        const standing=Math.abs(p.y+p.h-stone.y)<.04&&p.vy>=0&&p.x+p.w>stone.x+.01&&p.x<stone.x+stone.w-.01;
         stone.timer=Math.max(0,stone.timer-dt);
         if(stone.phase==='idle'||stone.phase==='alert'){
             const gap=approach(stone,p);stone.phase=gap!==null&&gap<=3?'alert':'idle';
@@ -88,8 +92,21 @@ export function updateStones(s:State,dt:number,svc:Services):void {
         }
         if(stone.phase==='knocked'){stone.vy+=22*dt;if(stone.vy>=0){stone.origin=[stone.x,stone.y];stone.phase='pause';stone.timer=.45;stone.vx=stone.vy=0;}}
         if(stone.vx||stone.vy){
-            const hit=svc.move(s,stone,dt);
+            const velocity=[stone.vx,stone.vy],hit=svc.move(s,stone,dt);
             if(stone.phase==='charge'&&(hit.wall||hit.floor)){
+                pressPSwitch(s,stone,{...old,vx:velocity[0]!,vy:velocity[1]!});
+                let broke=false,stopped=false,destroyed=false;
+                const vertical=stone.direction==='down',face=vertical?Math.floor(stone.y+stone.h+.02):Math.floor(stone.direction==='left'?stone.x-.02:stone.x+stone.w+.02);
+                const start=Math.floor(vertical?stone.x+.001:stone.y+.001),end=Math.floor(vertical?stone.x+stone.w-.001:stone.y+stone.h-.001);
+                for(let n=start;n<=end;n++){
+                    const x=vertical?n:face,y=vertical?face:n,t=s.level.cells[y*s.level.width+x];
+                    if(t==='B'||stone.w>2&&['hard-block','U','ice','ice-solid'].includes(t!)){shatterTile(s,x,y);broke=true;}
+                    else if(t==='?'){svc.hitBlock(s,x,y,t,true);destroyed=true;}
+                    else if(t==='toggle-switch'){svc.hitBlock(s,x,y,t,true);stopped=true;}
+                    else if(t&&svc.solid(t,s.pTime,s.redOn))stopped=true;
+                }
+                if(destroyed){effect(s,'stone',stone.x+stone.w/2,stone.y+stone.h,2,-7);s.stones=s.stones.filter(other=>other!==stone);continue;}
+                if(broke&&stone.w>2&&!stopped){stone.vx=velocity[0]!;stone.vy=velocity[1]!;hit.wall=0;hit.floor=false;}
                 const pow=s.items.find(item=>item.kind==='pow'&&item.alive&&!item.held&&touchingSwitch(stone,item)&&
                     (stone.direction==='down'?Math.abs(stone.y+stone.h-item.y)<.03:stone.direction==='left'?Math.abs(stone.x-item.x-item.w)<.03:Math.abs(stone.x+stone.w-item.x)<.03));
                 if(pow){detonatePow(s,pow,svc);effect(s,'stone',stone.x+1,stone.y+2,stone.direction==='left'?-2:2,-7);s.stones=s.stones.filter(other=>other!==stone);s.notice='POW震碎了石头怪！';continue;}

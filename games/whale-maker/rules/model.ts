@@ -1,4 +1,6 @@
 import {cellAt as tile} from './terrain';
+import {courseBounds,findEndZone} from './course-bounds';
+import {validWind,windVelocity} from './wind';
 import type {PlayerPower} from './player-body';
 import type {Services} from './services';
 import {hurtPlayer as hurt,killPlayer,SHOT_DURATION,EAT_DURATION,CHEER_DURATION} from './player-damage';
@@ -7,7 +9,7 @@ import {playerDimensions} from './player-body';
 export {overlaps} from './geometry';
 import {overlaps} from './geometry';
 import {SHELL_TOOLS,SHELL_NAMES,hasHelmet,ridingBoneShell} from './player-equipment';
-import {shellInput,floatShell,boneRest} from './shell-equipment';
+import {shellInput,shellBuoyancy,shellSurface,floatShell,boneRest} from './shell-equipment';
 import {progressStep,progressReward,finishProgress} from './p2-progress';
 import {areaTravel,respawnP2} from './p2-areas';
 import {advanceP2Camera,cameraCrush} from './p2-camera';
@@ -20,12 +22,14 @@ import { initP2, type P2State } from './p2';
 import { P2_ENEMIES, P2_NAMES, WEARABLES, P2_PROPERTY_KEYS, validP2Property, p2Issues, isWearable } from './p2-schema';
 import { equipWearable, wearCeiling, wearTimers, wearableInput, wearMotion, afterWearMove, advanceCannonShots } from './p2-wearables';
 import { initP1, p1Timers, conditionProgress } from './p1';
+import { advanceClearRun, reboundSupport, recordConditionLanding } from './conditions';
 import { advanceDevices, oneWayDevices, triggerExtension, treeContact, warpBoxes } from './p1-mechanisms';
 import { prepareMotion, applyMotion } from './p1-motion';
 import { abilities } from './p1-abilities';
 import { modifyEnemy, advanceEnemyProjectiles } from './p1-enemies';
 import { advancePipeObjects } from './pipe-objects';
-import { collectKey } from './adventure';
+import {shatterTile} from './breaking';
+import {collectPinkCoin,checkpointPinkCoins,retryPinkCoins,syncPinkCoins} from './pink-coins';
 import type { P1State } from './p1';
 import { P1_ENEMIES, P1_NAMES, CONTAINER_TILES, PATH_TILES, P1_PROPERTIES, validP1Property, levelIssues } from './p1-schema';
 /** Deterministic 120 Hz platformer. Coordinates are tiles, y points down. */
@@ -41,9 +45,9 @@ import { initWorkshop, advanceWorkshop, surface, isBrick, bombContact, breakCrat
 import { validSnakePath } from './snake-path';
 import { initFlowers, freezeEnemy, thawEnemy, updateFrozen, interactFrozen, frostEffect, advanceFrost, shatterFrozen } from './frost';
 import { setCell } from './terrain';
-import { initAdventure, advanceAdventure, updateStones, vineStep, bonkStone, type Stone, type FollowingKey } from './adventure';
+import { stoneCells,initAdventure, advanceAdventure, updateStones, vineStep, bonkStone, type Stone, type FollowingKey } from './adventure';
 import { initAdvanced, advancedTimers, effect, toggleColor, meltIce, updateTurrets, bonkTurret, ironWake, heldAction, ridingStep, placeRiding, type AdvancedState } from './advanced';
-import { updateGoal, goalAt, goalPoints, GOAL_HEIGHT, poleHeight } from './goal';
+import { updateGoal, goalAt, goalPoints, poleHeight } from './goal';
 import { bumpContents, type BrickBump } from './brick-reactions';
 import { bounceHorizontalSpring, bounceVerticalSpring, standOnHorizontalSpring, updateSpringLaunch } from './springs';
 import { pipeShape, enterOrdinaryPipe, advanceOrdinaryPipe } from './pipes';
@@ -63,6 +67,9 @@ export type BlockContent = typeof CONTENTS[number];
 export const CONTENT_NAMES = ['自动成长', 'Token金币', '成长珍珠', '火珊瑚', '咕咕嘎嘎', '龟龟', '空方块','纵向弹簧','铁盆','POW块','P开关','无敌星','食人花','鱼','鱿鱼','尖刺龟','钥匙','可爱炮弹','铁壳龟','害羞幽灵','巨型珍珠','冰花','跳跃火焰','木箱','炸弹小怪','投锤海獭','横向弹簧','雪球','仙人球','猫铃铛','回旋镖花','建造锤','红POW','大雪球',...P1_NAMES.slice(24,35),...P2_NAMES.slice(0,15),'生命珍珠','十枚金币','三十金币','五十金币',...SHELL_NAMES];
 export interface Warp { from: [number, number]; to: [number, number] }
 export interface Level {
+    /** Runtime-only derived bounds. Recomputed from cells at create(). */
+    endZone?:import('./course-bounds').EndZone|undefined;
+    wind?:import('./wind').WindOptions;
     areas?:Record<string,import('./p2-schema').SubArea>;
     orientation?:'horizontal'|'vertical';
     progress?:import('./p2-schema').ProgressOptions;
@@ -268,6 +275,10 @@ export interface State extends AdvancedState, FortressState, WorkshopState, P1St
 }
 export const EMPTY_INPUT: Input = { axis: 0, jump: false, spin: false, down: false, grab: false, fire: false };
 export const JUMP_SPEED = 13.5;
+// Gameplay tuning in tiles/second and seconds; not claimed native engine values.
+export const WALL_JUMP_SPEED = 12.5;
+export const WALL_JUMP_PUSH = 10;
+export const WALL_JUMP_LOCK = .28;
 export const FIREBALL_SPEED = 11;
 export const SHOT_WINDUP = .05;
 
@@ -320,6 +331,7 @@ export function demo(index = 0): Level {
 }
 export function validate(value: unknown,child=false,main?:Level): Level {
     const l = value as Level;
+    if(l?.wind!==undefined&&!validWind(l.wind))throw Error('环境风配置无效');
     if(l?.rules!==undefined&&!validRules(l.rules))throw Error('关卡规则配置无效');
     if(l?.backdrop!==undefined&&!['coast','castle','mountains','plains','night','desert'].includes(l.backdrop))throw Error('远景配置无效');
     if(l?.classicStage!==undefined&&(!Number.isInteger(l.classicStage)||l.classicStage<1||l.classicStage>4))throw Error('闯关编号无效');
@@ -336,7 +348,7 @@ export function validate(value: unknown,child=false,main?:Level): Level {
     if(l.cells.some((t,id)=>t==='cannon-body'&&!cannonOwned.has(id)))throw Error('炮塔需要完整的空间');
     if(l.cells.some((t,id)=>t==='giant-pearl'&&(id%l.width+1>=l.width||Math.floor(id/l.width)<1)))throw Error('巨型珍珠需要完整的2×2空间');
     const stoneOwned=new Set<number>();
-    l.cells.forEach((t,id)=>{if(t!=='stone')return;if(id%l.width+2>l.width||Math.floor(id/l.width)+2>l.height||[id+1,id+l.width,id+l.width+1].some(n=>l.cells[n]!=='stone-body'||stoneOwned.has(n)))throw Error('石头需要完整的2×2空间');for(const n of [id,id+1,id+l.width,id+l.width+1])stoneOwned.add(n);});
+    l.cells.forEach((t,id)=>{if(t!=='stone')return;const size=l.properties?.[id]?.large?4:2,owned=stoneCells(l,id);if(id%l.width+size>l.width||Math.floor(id/l.width)+size>l.height||owned.slice(1).some(n=>l.cells[n]!=='stone-body'||stoneOwned.has(n)))throw Error('石头需要完整的2×2空间或4×4空间');for(const n of owned)stoneOwned.add(n);});
     if(l.cells.some((t,id)=>t==='stone-body'&&!stoneOwned.has(id)))throw Error('石头需要完整的2×2空间');
     const bossOwned=new Set<number>();
     l.cells.forEach((t,id)=>{if(t!=='turtle-boss')return;if(id%l.width+2>l.width||Math.floor(id/l.width)+2>l.height||[id+1,id+l.width,id+l.width+1].some(n=>l.cells[n]!=='boss-body'||bossOwned.has(n)))throw Error('首领需要完整的2×2空间');for(const n of [id,id+1,id+l.width,id+l.width+1])bossOwned.add(n);});
@@ -351,11 +363,12 @@ export function validate(value: unknown,child=false,main?:Level): Level {
     if (!l.cells.includes('E')&&!child)
         throw Error('请放置至少一个终点');
     const issues=[...levelIssues(l),...p2Issues(l,main??l)];if(issues.length)throw Error(issues[0]!.message);
-    if(!child&&l.areas)for(const [id,area]of Object.entries(l.areas)){if((area as Level)?.areas)throw Error('副区域不能嵌套');try{validate({...area,areas:l.areas},true,l);}catch(e){throw Error(`副区 ${id}：${(e as Error).message}`);}}
+    if(!child&&l.areas)for(const [id,area]of Object.entries(l.areas)){if((area as Level)?.areas)throw Error('副区域不能嵌套');try{validate({...area,areas:l.areas},true,l);}catch(e){throw Error(`副区 ${id}：${(e as Error).message}`,{cause:e});}}
     return structuredClone(l);
 }
 export function create(level: Level): State {
     const copy = structuredClone(level), enemies: Enemy[] = [],initialBody=playerDimensions({power:0,riding:null,crouching:false});
+    copy.endZone=findEndZone(copy);
     upgradeGlassPipes(copy);
     const advanced=initAdvanced(copy);
     const {extraEnemies,...extra}=initExpansion(copy);enemies.push(...extraEnemies);
@@ -426,6 +439,7 @@ function breakBrick(s: State, x: number, y: number, giant=false): void {
     s.fragments = s.fragments.slice(-48);
 }
 function hitBlock(s: State, x: number, y: number, t: Tile,down=false): void {
+    if(!down&&s.shellHelmet==='spike-shell-helmet'&&['B','?','U','hard-block','ice','ice-solid'].includes(t)){if((t==='ice'||t==='ice-solid')&&s.level.contents?.[y*s.level.width+x]==='coin')collectCoin(s,x+.5,y+.5);shatterTile(s,x,y);return;}
     if(triggerExtension(s,x,y,down,services))return;
     if(t==='toggle-switch'&&mechanismResult(t,down?'pound':'head')==='trigger'){toggleColor(s);return;}
     if (t !== 'B' && t !== '?' && t !== 'hidden-block') return;
@@ -454,7 +468,12 @@ function move(s: State,b:Body,dt:number,player=false,breakSideBricks=false){
     if((b.sandDepth??0)>0&&rulesFor(s.level).rewards==='score')b.vx*=Math.exp(-4*dt);
     if(s.enemies.includes(b as Enemy)&&(b as Enemy).modifiers?.parachute&&!(b as Enemy).frozen&&b.vy>2)b.vy=2;
     const oldX=b.x,oldFeet=b.y+b.h;if(!s.shots.includes(b))sandJump(b);
+    const physical=player||s.enemies.includes(b as Enemy)||s.items.includes(b as Item)||s.rewards.includes(b as Reward);
+    const drift=physical&&!('held'in b&&b.held)?windVelocity(s.level.wind,s.time)*(inWater(s.level,b)?.25:1):0;
+    const ownVx=b.vx;b.vx+=drift;
     const result=moveBody(s,b,dt,player,breakSideBricks);
+    if(player&&result.floor&&!reboundSupport(s,b))recordConditionLanding(s);
+    if(drift&&!result.wall)b.vx=ownVx;
     if(!s.shots.includes(b)&&resolveSand(s,b,oldX,oldFeet,dt,result.floor))result.floor=true;
     if((b.sandDepth??0)>=b.h-.001&&b.h>0){
         if(player&&s.phase==='playing'){crush(s);s.notice='被流沙吞没 · 按 R 重试';}
@@ -471,7 +490,8 @@ function bonkCeiling(s:State,b:Body,ceiling:number):void {
 }
 function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks = false) {
     const oldY = b.y,oldX=b.x;
-    const velocityX=b.vx,endX=oldX+velocityX*dt,clampedX=Math.max(0,Math.min(s.level.width-b.w,endX));
+    const bounds=player?courseBounds(s.level,b):{left:0,right:s.level.width};
+    const velocityX=b.vx,endX=oldX+velocityX*dt,clampedX=Math.max(bounds.left,Math.min(bounds.right-b.w,endX));
     // Include the full motion, map-edge clamping and up to one body width plus
     // a tile of horizontal terrain separation. Vertical movement keeps this x.
     const minX=Math.min(oldX,endX,clampedX)-b.w-1,maxX=Math.max(oldX,endX,clampedX)+2*b.w+1;
@@ -504,7 +524,9 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
         else if(velocityX<0&&oldX>=obstacle.x+obstacle.w-.025){b.x=obstacle.x+obstacle.w;b.vx=0;wall=-1;}
     }
     if(resolveGlassAxis(s.level,b,'x',oldX)){wall=Math.sign(velocityX);b.vx=0;}
-    b.x = Math.max(0, Math.min(s.level.width - b.w, b.x));
+    const edgeX=Math.max(bounds.left,Math.min(Math.max(bounds.left,bounds.right-b.w),b.x));
+    if(player&&edgeX!==b.x){wall=0;b.vx=0;}
+    b.x=edgeX;
     b.y += b.vy * dt;
     if(player&&b.y<0){b.y=0;b.vy=Math.max(0,b.vy);}
     if(resolveGlassAxis(s.level,b,'y',oldY)){floor=b.vy>0;b.vy=0;return {floor,wall,slope:0};}
@@ -538,6 +560,7 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
             for(let x=Math.floor(b.x);x<=Math.floor(b.x+b.w-.001);x++)if(['#','B'].includes(tile(s.level,x,y))&&oldY+b.h<=y+.025)contacts.push(x);
             if(!contacts.length)continue;
             for(const x of contacts)breakBrick(s,x,y,true);
+            recordConditionLanding(s);
             b.y=y-b.h;b.vy=-Math.sqrt(15);s.fallPeak=y;s.giantBounce=true;s.pound='none';s.jumpSustain=s.jumpCut=false;
             return {floor:false,wall,slope:0};
         }
@@ -559,9 +582,9 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
     for(const obstacle of obstacles)if(overlaps(b,obstacle)&&oldY+b.h<=obstacle.y+.025){
         b.y=obstacle.y-b.h;
         if(player&&s.pound==='fall'&&(obstacle as Enemy).frozen){shatterFrozen(s,obstacle as Enemy,services);b.vy=-5;s.pound='none';s.coyote=0;floor=false;}
-        else if(player&&s.pound==='fall'&&s.items.includes(obstacle as Item)&&(obstacle as Item).kind==='wood-crate'){breakCrate(s,obstacle as Item);b.vy=-5;s.pound='none';s.coyote=0;floor=false;}
+        else if(player&&s.pound==='fall'&&s.items.includes(obstacle as Item)&&(obstacle as Item).kind==='wood-crate'){recordConditionLanding(s);breakCrate(s,obstacle as Item);b.vy=-5;s.pound='none';s.coyote=0;floor=false;}
         else if(player&&s.pound==='fall'&&s.items.includes(obstacle as Item)&&((obstacle as Item).kind==='pow'||(obstacle as Item).kind==='red-pow')){
-            detonatePow(s,obstacle as Item,services);b.vy=-5;s.pound='none';s.coyote=0;floor=false;
+            recordConditionLanding(s);detonatePow(s,obstacle as Item,services);b.vy=-5;s.pound='none';s.coyote=0;floor=false;
         }else{if(player&&s.pound==='fall')for(const d of s.devices)if(d.kind==='extend-block'&&d.blocks.includes(obstacle))triggerExtension(s,...d.home,true,services);b.vy=0;floor=true;}
     }
     if(b.vy>=0)for(const platform of [...s.platforms,...oneWayDevices(s)])if(b.x<platform.x+platform.w&&b.x+b.w>platform.x&&oldY+b.h<=platform.y+.06&&b.y+b.h>=platform.y&&(!floor||platform.y<=b.y+b.h)){b.y=platform.y-b.h;b.vy=0;floor=true;}
@@ -572,8 +595,8 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
 }
 export function respawn(s: State) {
     if(respawnP2(s,create))return;
-    const checkpoint: [number,number] = [...s.checkpoint], deaths = s.deaths, litCheckpoints = { ...s.litCheckpoints };
-    Object.assign(s,create(s.startLevel));
+    const pink=retryPinkCoins(s),checkpoint: [number,number] = [...s.checkpoint], deaths = s.deaths, litCheckpoints = { ...s.litCheckpoints };
+    Object.assign(s,create(s.startLevel));s.pinkProgress=pink;syncPinkCoins(s);
     s.checkpoint = checkpoint; s.player.x = checkpoint[0]; s.player.y = checkpoint[1];
     s.litCheckpoints = litCheckpoints;
     s.deaths = deaths; s.invincible = 2; s.notice = '重新出发！';
@@ -586,7 +609,8 @@ function collectCoin(s: State,x: number,y: number,count=1) {
 }
 function activateCheckpoint(s: State, x: number, y: number) {
     const id = y * s.level.width + x;
-    if (s.litCheckpoints[id] || s.phase !== 'playing') return;
+    if (s.phase !== 'playing'||s.litCheckpoints[id]&&s.checkpointArea===s.currentArea&&s.checkpoint[0]===x&&s.checkpoint[1]===y-1) return;
+    checkpointPinkCoins(s);
     s.litCheckpoints[id] = true; s.checkpoint = [x, y - 1];
     s.flagWaves.push({ x, y, age: 0, direction: Math.sign(s.player.vx) || s.facing });
     s.flagWaves = s.flagWaves.slice(-32);
@@ -595,7 +619,15 @@ function activateCheckpoint(s: State, x: number, y: number) {
     emit(s,'checkpoint',x+.5);
     s.notice = '检查点已点亮！';
 }
-export function step(s: State, i: Input, dt = 1 / 120) {
+export function step(s:State,i:Input,dt=1/120):void {
+    advanceFrame(s,i,dt);
+    // Also cover authored transfers, riding and powered flight that position the
+    // player directly instead of going through the ordinary movement solver.
+    const {left,right}=courseBounds(s.level,s.player),x=Math.max(left,Math.min(Math.max(left,right-s.player.w),s.player.x));
+    const delta=x-s.player.x;
+    if(delta){s.player.x=x;s.player.vx=0;s.wall=s.wallGrace=0;if(s.vehicle){s.vehicle.x+=delta;s.vehicle.vx=0;}if(s.riding){s.riding.x+=delta;s.riding.vx=0;}}
+}
+function advanceFrame(s: State, i: Input, dt: number) {
     const physicalInput=i;
     advancedTimers(s,dt);p1Timers(s,dt);wearTimers(s,dt);progressStep(s,dt,services);
     for(const pop of s.scorePops)pop.age+=dt;s.scorePops=s.scorePops.filter(p=>p.age<1);
@@ -640,7 +672,6 @@ export function step(s: State, i: Input, dt = 1 / 120) {
     advanceFrost(s,dt);advanceP2Mechanisms(s,dt,services);driveCar(s,i,dt,services);advanceDevices(s,dt,services);advancePipeObjects(s,dt,services);advanceEnemyProjectiles(s,dt,services);advanceCannonShots(s,dt,services);advanceMagic(s,dt,services);for(const hit of s.pipeHits)freezeEnemy(s,hit.enemy);s.pipeHits=[];warpBoxes(s,i);
     advancePlatforms(s,dt,services);
     updateFortress(s,dt,services);updateP2Bosses(s,dt,services);
-    if(s.level.finish==='castle'&&s.bridgeCollapse&&s.bridgeCollapse.removed===s.bridgeCollapse.cells.length&&s.bosses.length>0&&s.bosses.every(b=>b.health<=0)){const id=s.level.cells.indexOf('E');if(id>=0){finish(s,id%s.level.width,Math.floor(id/s.level.width),true);s.previous={...i};return;}}
     if(doorStep(s,i,dt)){s.running=s.skidding=s.turning=false;positionHeld(s);s.previous={...i};return;}
     s.pipeWait = Math.max(0, s.pipeWait - dt);
     if (s.pipe) {
@@ -705,11 +736,13 @@ export function step(s: State, i: Input, dt = 1 / 120) {
         s.jumpChain=chaining?(s.chainWindow>0&&s.jumpChain<3?s.jumpChain+1:1):0;s.chainWindow=0;
         p.vy = s.jumpChain===3?-Math.sqrt(JUMP_SPEED**2+80):-JUMP_SPEED;
         if (s.coyote === 0 && s.wallGrace > 0) {
-            p.vx = -s.wallDirection * 8;
+            p.vy = -WALL_JUMP_SPEED;
+            p.vx = -s.wallDirection * WALL_JUMP_PUSH;
             s.facing = -s.wallDirection;
-            s.wallKick = .16;
+            s.wallKick = WALL_JUMP_LOCK;
             s.wallGrace = 0;
             s.wall = 0;
+            s.motion='none';s.motionAge=s.charge=0;s.jumpChain=0;
         }
         s.spinning = s.bufferedSpin;
         emit(s,s.spinning?'spin':'jump');
@@ -721,7 +754,7 @@ export function step(s: State, i: Input, dt = 1 / 120) {
     // Release changes ascent gravity rather than snapping to a fixed velocity.
     // The release moment therefore produces a continuous range of jump heights.
     if (s.jumpSustain && !i.jump && !i.spin) { s.jumpSustain = false; s.jumpCut = p.vy < 0; }
-    if((!riding||ridingBoneShell(s))&&!climbing&&!s.swimming&&i.down&&!s.previous.down&&!s.grounded&&!s.crouching&&s.pound==='none'){emit(s,'spin');s.pound='flip';s.bonePound=ridingBoneShell(s);s.poundAge=0;s.spinning=false;p.vy=0;}
+    if((!riding||ridingBoneShell(s))&&!climbing&&!s.swimming&&i.down&&!s.previous.down&&!s.grounded&&!s.crouching&&s.pound==='none'&&!(ridingBoneShell(s)&&shellSurface(s,p,.15)!==undefined&&!s.grounded)){emit(s,'spin');s.pound='flip';s.bonePound=ridingBoneShell(s);s.poundAge=0;s.spinning=false;p.vy=0;}
     if(s.pound!=='none'){s.poundAge+=dt;if(s.pound==='flip'&&s.poundAge>=.22)s.pound='fall';p.vy=s.pound==='flip'?0:23;}
     if(jump&&s.springWindow>0&&!s.springBoosted&&p.vy<0){p.vy=-Math.sqrt(40*(p.vy*p.vy/60+JUMP_SPEED*JUMP_SPEED/40));s.springBoosted=true;s.jumpSustain=true;s.jumpCut=false;s.buffer=0;}
     const fastFall = s.pound==='fall';
@@ -731,13 +764,13 @@ export function step(s: State, i: Input, dt = 1 / 120) {
     if (s.wall && i.axis === s.wall && s.wallKick === 0 && p.vy > 4) p.vy = 4;
     s.fallPeak=s.grounded||s.power!==3?p.y+p.h:Math.min(s.fallPeak,p.y+p.h);
     if(p.vy>=0)s.giantBounce=false;
-    applyMotion(s,i,dt,preparedMotion);wearMotion(s,physicalInput,dt);
+    applyMotion(s,i,dt,preparedMotion);wearMotion(s,physicalInput,dt);if(ridingBoneShell(s))shellBuoyancy(s,p,.15,Number(i.down)-Number(!!i.interact));
     if(s.boneTime>0)p.vx=0;
     const intendedVx=p.vx;p.pushVx=intendedVx;
     if(braking)p.vx=brakingVelocity(horizontalBefore,p.vx,acceleration*traction,dt);
     const wasGrounded=s.grounded,playerPrevious={...p},before = p.y + p.h,oldX=p.x,result = move(s, p, dt, true);afterWearMove(s,result.wall);seatPlayer(s);
     if(braking&&!result.wall)p.vx=intendedVx;
-    if(ridingBoneShell(s)&&floatShell(s,p,before,.15))result.floor=true;
+    if(ridingBoneShell(s)){if(floatShell(s,p,before,.15,Number(i.down)-Number(!!i.interact)))result.floor=true;else if(p.vy<0)result.floor=false;}
     s.grounded = result.floor;
     if(s.grounded&&s.bonePound)boneRest(s);
     if(s.grounded)s.scoreChain.stomp=0;
@@ -774,7 +807,7 @@ export function step(s: State, i: Input, dt = 1 / 120) {
                 s.level.cells[id] = '.';
                 s.notice = t === 'G' ? '成长珍珠！体型变大' : '火珊瑚！J 发射火球';
             }
-            if(t==='pink-coin'){s.level.cells[id]='.';s.pinkCollected++;emit(s,'coin',x);if(s.pinkCollected===s.pinkTotal&&s.pinkTotal>0)collectKey(s,p.x,p.y);}
+            if(t==='pink-coin')collectPinkCoin(s,id);
             if(t==='lava'&&!(s.level.liquid?.kind==='lava'&&s.level.liquidSurface!==undefined&&p.y+p.h<s.level.liquidSurface))crush(s);
             if(t==='bridge-bell')releaseBridge(s,y*s.level.width+x);
             if(t==='spike-all')hurt(s,y+.5<p.y+.2?'top':'side');
@@ -782,8 +815,6 @@ export function step(s: State, i: Input, dt = 1 / 120) {
                 activateCheckpoint(s, x, y);
             }
         }
-    const goal=goalAt(s);if(goal&&!conditionProgress(s).done)s.notice='尚未满足通关条件：'+conditionProgress(s).text;
-    if(goal&&!(s.power===5&&i.interact&&s.catStamina>0&&p.y+p.h>Math.max(0,goal.y-poleHeight(s,goal.x,goal.y))+.25)&&conditionProgress(s).done&&s.phase==='playing'&&(s.level.finish!=='castle'||!s.bosses.some(b=>b.health>0))){finish(s,goal.x,goal.y);s.previous={...i};return;}
     // Contents emerge harmlessly from behind the used block before activation.
     for (const reward of s.rewards) {
         if(reward.transit)continue;
@@ -831,6 +862,7 @@ export function step(s: State, i: Input, dt = 1 / 120) {
         if(!e.alive||e.transit||e.downAge!==undefined||e.kind==='plant'&&Math.min(e.w,e.h)<.08&&!e.frozen||e.kind==='fire-jumper'&&e.flamePhase==='wait')continue;
         if(bonkWithHelmet(s,e,playerPrevious,enemyPrevious.get(e)!))continue;
         if(heldSnowContact(s,e,services))continue;
+        if(s.bonePound&&s.pound==='fall'&&overlaps(p,e)&&p.vy>=0&&before<=e.y+.3){defeat(s,e,'pound');p.vy=-5;boneRest(s);s.grounded=false;stomped=true;continue;}
         if(interactFrozen(s,e,i))continue;
         if(bombContact(s,e,i,before,services))continue;
         const heldShell=s.held;
@@ -900,6 +932,10 @@ export function step(s: State, i: Input, dt = 1 / 120) {
     if (s.boneTime===0&&p.y > (room?room.y+room.h:s.level.playHeight??s.level.height) + 2) {
         killPlayer(s,'fall');
     }
+    advanceClearRun(s);
+    if(s.phase==='playing'&&conditionProgress(s).done&&s.level.finish==='castle'&&s.bridgeCollapse&&s.bridgeCollapse.removed===s.bridgeCollapse.cells.length&&s.bosses.length>0&&s.bosses.every(b=>b.health<=0)){const id=s.level.cells.indexOf('E');if(id>=0){finish(s,id%s.level.width,Math.floor(id/s.level.width),true);s.previous={...i};return;}}
+    const goal=goalAt(s);if(goal&&!conditionProgress(s).done)s.notice='尚未满足通关条件：'+conditionProgress(s).text;
+    if(goal&&!(s.power===5&&i.interact&&s.catStamina>0&&p.y+p.h>Math.max(0,goal.y-poleHeight(s,goal.x,goal.y))+.25)&&conditionProgress(s).done&&s.phase==='playing'&&(s.level.finish!=='castle'||!s.bosses.some(b=>b.health>0))){finish(s,goal.x,goal.y);s.previous={...i};return;}
     s.previous = { ...physicalInput };
 }
 const crush=crushPlayer;

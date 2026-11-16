@@ -15,6 +15,7 @@ function releaseHeld(s:State):void {if(s.held){s.held.held=false;s.held=null;}}
 /** All lethal environments share one teardown; their notices remain distinct. */
 export function killPlayer(s:State,cause:'crush'|'fall'|'contact'='crush'):void {
     if(s.phase!=='playing'||s.boneTime>0)return;
+    s.clearRun.damaged=true;
     dropHelmet(s);cancelPlayerActions(s);releaseHeld(s);
     s.boneTime=0;s.starTime=s.invincible=0;s.power=0;s.motion='none';s.charge=s.runCharge=s.stun=0;
     s.boomerangs=[];s.wearable=null;s.cannonShots=[];s.vehicle=null;
@@ -25,6 +26,7 @@ export function killPlayer(s:State,cause:'crush'|'fall'|'contact'='crush'):void 
 export const crushPlayer=(s:State):void=>killPlayer(s,'crush');
 export function hurtPlayer(s:State,direction:HitDirection='side'):void {
     if(s.phase!=='playing'||s.pipe||direction==='bottom'&&s.riding||s.invincible>0||s.starTime>0||s.boneTime>0)return;
+    s.clearRun.damaged=true;
     if(absorbEquipmentHit(s,direction))return;
     if(!s.power){killPlayer(s,'contact');return;}
     cancelPlayerActions(s);s.motion='none';s.motionAge=s.charge=s.runCharge=0;s.catStamina=1.8;

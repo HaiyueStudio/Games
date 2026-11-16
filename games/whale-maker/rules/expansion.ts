@@ -1,18 +1,21 @@
+import {pressSwitch,pressPSwitch,P_SWITCH_VANISH_TIME} from './p-switch';
+import {effect} from './effects';
+import {inWater} from './water';
+import {syncVehicleToPlayer} from './p2-vehicle';
 import {detonatePow} from './pow';
 import {equipHelmet} from './player-equipment';
 import {overlaps as overlap} from './geometry';
-import {equipShellHelmet,mountBoneShell,floatShell} from './shell-equipment';
+import {equipShellHelmet,mountBoneShell,shellBuoyancy,floatShell} from './shell-equipment';
 import {disguised} from './p2-wearables';
 import {updateP2Enemy} from './p2-enemies';
 import {makeItem,makeEnemy} from './body-factory';
 import { modifyEnemy, updateP1Enemy } from './p1-enemies';
 import { resolveActivation } from './p1-mechanisms';
-import type { State, Level, Body, Enemy, Item, Input, Tile, Defeated } from './model';
-import { ITEM_KINDS, EXTRA_ENEMIES, type ItemKind, type ElementProperties } from './catalog';
+import type { State, Level, Body, Enemy, Item, Input, Tile } from './model';
+import { ITEM_KINDS, EXTRA_ENEMIES, type ItemKind } from './catalog';
 import { worldGlassPath, glassMouths } from './glass';
-import { toggleColor } from './advanced';
 import { collectKey } from './adventure';
-import { bounceHorizontalSpring, bounceVerticalSpring, HORIZONTAL_SPRING_HEIGHT } from './springs';
+import { bounceHorizontalSpring, bounceVerticalSpring } from './springs';
 import { touchingSwitch } from './switches';
 import { grantPower } from './power';
 import { updateCrate, updateWorkshopEnemy } from './workshop';
@@ -40,9 +43,7 @@ export function initExpansion(l:Level):Pick<State,'items'|'starTime'|'helmet'|'p
     for(const e of [...extraEnemies])if(e.kind==='ring-ghost'){const count=e.modifiers?.count??6;e.origin=[0,0];for(let n=1;n<count&&extraEnemies.length<256;n++){const copy=structuredClone(e);copy.origin=[n*Math.PI*2/count,0];extraEnemies.push(copy);}}
     return {items,extraEnemies,starTime:0,helmet:false,pTime:0,pConversions:{},springEffects:[],swimming:false,swimAge:0,sliding:false,slope:0,slideTime:0,shake:0,powFlash:0,door:null,doorWait:0,view:{x:Math.max(0,l.spawn[0]-9),y:Math.max(0,l.spawn[1]-8),w:1232/48,h:12}};
 }
-export function inWater(l:Level,b:Body):boolean {
-    return [b.y+b.h*.3,b.y+b.h*.75].some(y=>{const x=b.x+b.w/2;if(l.liquid?.kind==='water'&&l.liquidSurface!==undefined&&x>=(l.liquid.x??0)&&x<(l.liquid.x??0)+(l.liquid.width??l.width))return y>=l.liquidSurface;return cell(l,x,y)==='water';});
-}
+export {inWater} from './water';
 import {slopeAt} from './terrain';
 export {slopeAt} from './terrain';
 /** Test only the filled triangle, leaving the air above the diagonal traversable. */
@@ -72,28 +73,7 @@ export function resolveSlope(s:State,b:Body,oldY:number,oldX:number,dt:number,is
     }
     if(!best)return null;b.y=best.height-b.h;b.vy=0;return best.grade;
 }
-export function triggerP(s:State):void {
-    emit(s,'switch');
-    if(s.pTime===0){s.pConversions={};s.level.cells.forEach((t,id)=>{if(t==='B'||t==='o'){const to=t==='B'?'o':'B';s.pConversions[id]={from:t,to};s.level.cells[id]=to;}});}
-    s.pTime=10;s.notice='P开关启动！10秒路径变化';
-}
-export const P_SWITCH_VANISH_TIME=.4;
-export function pressSwitch(s:State,item:Item):void {
-    item.spent=true;item.pressedAge=0;const r=item.rotation??0;if(r===90||r===270){if(r===90)item.x+=item.w-.18;item.w=.18;}else{if(r===0)item.y+=item.h-.18;item.h=.18;}item.vx=item.vy=0;triggerP(s);
-}
-/** Only a downward top contact presses a switch; sides remain solid barriers. */
-export function pressPSwitch(s:State,b:Body,previous:Body):boolean {
-    for(const item of s.items){if(item===b||item.kind!=='p-switch'||!item.alive||item.held||item.spent)continue;
-        const r=item.rotation??0,n:[number,number]=r===0?[0,-1]:r===90?[1,0]:r===180?[0,1]:[-1,0];
-        const tangent=n[0]?b.y<item.y+item.h-.001&&b.y+b.h>item.y+.001:b.x<item.x+item.w-.001&&b.x+b.w>item.x+.001;
-        const edge=n[0]?n[0]>0?item.x+item.w:item.x:n[1]>0?item.y+item.h:item.y;
-        const gap=(q:Body)=>n[0]?n[0]>0?q.x-edge:edge-q.x-q.w:n[1]>0?q.y-edge:edge-q.y-q.h;
-        if(!tangent||(previous.vx*n[0]+previous.vy*n[1]>=-1e-8&&!(n[1]===-1&&previous.vy>=0))||gap(previous)<-.04||gap(b)>.03||gap(b)<-.08)continue;
-        pressSwitch(s,item);
-        if(n[0])b.x=n[0]>0?item.x+item.w:item.x-b.w;else b.y=n[1]>0?item.y+item.h:item.y-b.h;
-        if(b===s.player){b.vx=n[0]*4;b.vy=n[1]*4;}return true;
-    }return false;
-}
+export {triggerP,pressSwitch,pressPSwitch,P_SWITCH_VANISH_TIME} from './p-switch';
 export function expansionTimers(s:State,dt:number,svc?:Services):void {
     s.starTime=Math.max(0,s.starTime-dt);s.shake=Math.max(0,s.shake-dt);s.powFlash=Math.max(0,s.powFlash-dt);s.doorWait=Math.max(0,s.doorWait-dt);s.slideTime=Math.max(0,s.slideTime-dt);
     for(const fx of s.springEffects)fx.age+=dt;s.springEffects=s.springEffects.filter(f=>f.age<.32);
@@ -109,15 +89,14 @@ export function pairedExit(l:Level,id:number,pTime:number,pipes=false):number|un
     return candidates[0];
 }
 export function doorStep(s:State,i:Input,dt:number):boolean {
-    if(s.door){const d=s.door;d.age+=dt;s.player.vx=s.player.vy=0;if(d.age>=.35){s.player.x=d.to[0];s.player.y=d.to[1];}if(d.age>=.7){s.door=null;s.doorWait=.5;s.invincible=Math.max(s.invincible,.8);}return true;}
+    if(s.door){const d=s.door;d.age+=dt;s.player.vx=s.player.vy=0;if(d.age>=.35){s.player.x=d.to[0];s.player.y=d.to[1];}syncVehicleToPlayer(s);if(d.age>=.7){s.door=null;s.doorWait=.5;s.invincible=Math.max(s.invincible,.8);}return true;}
     if(!i.interact||s.previous.interact||s.doorWait>0)return false;
-    if(s.held?.kind==='shell-helmet'||s.held?.kind==='spike-shell-helmet'){const kind=s.held.kind,item=s.held;equipShellHelmet(s,kind);item.alive=false;item.held=false;s.held=null;return false;}
     if(s.held?.kind==='basin'){if(s.helmet){s.notice='已经戴着铁盆';return false;}equipHelmet(s,'basin');s.held.alive=false;s.held.held=false;s.held=null;s.notice='铁盆戴好了！可抵挡一次伤害并保留形态';return false;}
     const p=s.player;
     for(let y=Math.max(0,Math.floor(p.y));y<=Math.min(s.level.height-1,Math.floor(p.y+p.h));y++)for(let x=Math.floor(p.x);x<=Math.floor(p.x+p.w);x++){
         const id=y*s.level.width+x,t=s.level.cells[id];if(t!=='door'&&t!=='p-door'&&t!=='locked-door')continue;const exit=pairedExit(s.level,id,s.pTime);if(exit===undefined){s.notice=t==='p-door'&&s.pTime===0?'P门需要先踩下P开关':'请给两扇门设置相同的连接编号';continue;}
         if(t==='locked-door'&&!s.unlockedDoors[id]){if(!s.keys.length){s.notice='这扇门需要一把钥匙';continue;}s.keys.shift();s.unlockedDoors[id]=true;}
-        emit(s,'door');s.climbing=false;const ex=exit%s.level.width,ey=Math.floor(exit/s.level.width);s.door={age:0,from:[p.x,p.y],to:[ex+.5-p.w/2,ey+1-p.h],source:id,target:exit};s.cheerAge=.8;s.notice='正在穿过门';return true;
+        emit(s,'door');s.climbing=false;const ex=exit%s.level.width,ey=Math.floor(exit/s.level.width);s.door={age:0,from:[p.x,p.y],to:[ex+.5-p.w/2,ey+1-p.h-(s.vehicle?s.vehicle.h-.35:0)],source:id,target:exit};s.cheerAge=.8;s.notice='正在穿过门';return true;
     }return false;
 }
 export function firebarPoints(l:Level,x:number,y:number,time:number):{x:number;y:number}[]{
@@ -152,9 +131,10 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
         if(item.kind==='coin'){const old={...item};item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);item.vy=Math.min(18,item.vy+26*dt);const hit=svc.move(s,item,dt);if(!item.alive||item.y>s.level.height+2){item.alive=false;continue;}if(hit.floor&&item.sandSurface===undefined){item.vy=-2;item.vx*=.8;}bounceVerticalSpring(s,item,old);bounceHorizontalSpring(s,item,old);if(overlap(p,item)&&item.cooldown===0){svc.coin(s,item.x+item.w/2,item.y);item.alive=false;}continue;}
         if(item.kind==='key'){item.age+=dt;item.vy=Math.min(18,item.vy+26*dt);svc.move(s,item,dt);if(item.y>s.level.height+2)item.alive=false;if(!item.alive||item.transit)continue;if(overlap(p,item)){collectKey(s,item.x+item.w/2,item.y+item.h/2);item.alive=false;}continue;}
         item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);
-        const old={...item},vx=item.vx;item.vy=Math.min(18,item.vy+26*dt);const impactVy=item.vy;
-        const r=svc.move(s,item,dt,false,item.kind==='basin'&&Math.abs(vx)>5);if(!item.alive||item.transit)continue;
+        const old={...item},vx=item.vx;item.vy=Math.min(18,item.vy+26*dt);if(item.kind==='bone-shell')shellBuoyancy(s,item);const impactVy=item.vy;
+        const r=svc.move(s,item,dt,false,['basin','shell-helmet','spike-shell-helmet','bone-shell'].includes(item.kind)&&Math.abs(vx)>5);if(!item.alive||item.transit)continue;
         if(item.kind==='bone-shell'&&floatShell(s,item,old.y+old.h)){r.floor=true;item.vx*=Math.exp(-3*dt);}
+        if(r.wall&&item.kind==='bone-shell'){item.alive=false;effect(s,'stone',item.x,item.y,0,-3);continue;}
         if(r.wall)item.vx=item.kind==='p-switch'||item.kind==='pow'?0:-vx;
         const sprung=bounceVerticalSpring(s,item,old);bounceHorizontalSpring(s,item,old);
         if(sprung)r.floor=false;
@@ -184,10 +164,15 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
             if(first){svc.defeat(s,first.e,'pow');detonatePow(s,item,svc);continue;}
             if(r.wall||r.floor){detonatePow(s,item,svc);continue;}
         }
-        if(item.kind==='basin'&&Math.abs(item.vx)>5)for(const e of s.enemies)if(e.alive&&!e.held&&overlap(item,e))svc.defeat(s,e,'shell',item);
+        if(['basin','shell-helmet','spike-shell-helmet','bone-shell'].includes(item.kind)&&Math.abs(item.vx)>5)for(const e of s.enemies)if(e.alive&&!e.held&&overlap(item,e))svc.defeat(s,e,'shell',item);
         if(item.kind==='spring-h'){if(r.floor)item.vx=0;continue;}
         if(item.cooldown>0||!(['p-switch','basin','pow','red-pow','bone-shell'].includes(item.kind)?touchingSwitch(p,item):overlap(p,item)))continue;
-        if((item.kind==='shell-helmet'||item.kind==='spike-shell-helmet')&&!i.grab){equipShellHelmet(s,item.kind);item.alive=false;continue;}
+        if(item.kind==='shell-helmet'||item.kind==='spike-shell-helmet'){
+            if(!i.grab&&p.vy<0&&p.y>=old.y+old.h-.18){equipShellHelmet(s,item.kind);item.alive=false;continue;}
+            const top=p.vy>=0&&before<=item.y+.2;
+            if(top&&item.kind==='spike-shell-helmet'){svc.hurt(s,'bottom');continue;}
+            if(!i.grab){if(top){p.y=item.y-p.h;p.vy=-7;s.grounded=false;item.vx=Math.abs(item.vx)>5?0:s.facing*12;}else if(Math.abs(item.vx)>5)svc.hurt(s);else item.vx=s.facing*12;item.cooldown=.3;continue;}
+        }
         if(item.kind==='bone-shell'&&!i.grab&&(i.down||p.vy>=0&&before<=item.y+.2)){mountBoneShell(s,item);continue;}
         if(item.kind==='star'){emit(s,'star');item.alive=false;s.starTime=10;s.notice='无敌星！10秒无敌';continue;}
         if(item.kind==='giant-pearl'){item.alive=false;grantPower(s,3);s.notice='巨型珍珠！落下两格可踩碎一层砖';continue;}
@@ -231,7 +216,7 @@ export function updateSpecialEnemy(s:State,e:Enemy,dt:number,svc:Services):boole
             const length=Math.max(.015,exposed*1.15);e.w=n[0]?length:.8;e.h=n[0]?.8:length;
             e.x=mouth[0]+(n[0]<0?-length:n[0]>0?0:-.4);e.y=mouth[1]+(n[1]<0?-length:n[1]>0?0:-.4);e.grounded=true;return true;
         }
-        if(e.mode==='pipe'){const phase=e.age%4;let exposed=phase<1?0:phase<1.7?(phase-1)/.7:phase<2.7?1:phase<3.4?1-(phase-2.7)/.7:0;if(Math.abs(s.player.x+s.player.w/2-origin[0]-.4)<1.25&&phase<1)e.age-=dt;e.h=Math.max(.015,exposed*1.15);e.y=origin[1]-e.h;}else{e.h=1;e.y=origin[1]-1;}e.grounded=true;return true;
+        if(e.mode==='pipe'){const phase=e.age%4;const exposed=phase<1?0:phase<1.7?(phase-1)/.7:phase<2.7?1:phase<3.4?1-(phase-2.7)/.7:0;if(Math.abs(s.player.x+s.player.w/2-origin[0]-.4)<1.25&&phase<1)e.age-=dt;e.h=Math.max(.015,exposed*1.15);e.y=origin[1]-e.h;}else{e.h=1;e.y=origin[1]-1;}e.grounded=true;return true;
     }
     if(e.kind==='cannonball'&&e.ballistic){e.vy=Math.min(18,e.vy+20*dt);const r=svc.move(s,e,dt);if(r.wall||r.floor||e.age>12)e.alive=false;return true;}
     if(e.kind==='cannonball'){e.x+=e.vx*dt;e.vy=0;if(e.age>12||e.x< -2||e.x>s.level.width+2)e.alive=false;return true;}

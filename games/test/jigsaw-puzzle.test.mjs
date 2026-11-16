@@ -103,12 +103,13 @@ test('arranging recovers faraway pieces and repeated clicks keep exactly the sam
   const p = puzzle(), identities = [...p.groups];
   p.groups.forEach((g, i) => { g.x = (i - 5) * 1e6; g.y = (5 - i) * 1e6; });
   p.moves = 37;
-  const properties = p.groups.map(({ x, y, ...g }) => structuredClone(g));
+  const withoutPosition = group => Object.fromEntries(Object.entries(group).filter(([key]) => key !== "x" && key !== "y"));
+  const properties = p.groups.map(group => structuredClone(withoutPosition(group)));
   arrangeGroups(p);
   const arranged = structuredClone(p.groups), bounds = puzzleBounds(p);
   assert.ok(bounds.maxX - bounds.minX < 5000 && bounds.maxY - bounds.minY < 5000);
   for (let i = 0; i < 30; i++) { arrangeGroups(p); assert.deepEqual(p.groups, arranged); }
-  assert.deepEqual(p.groups.map(({ x, y, ...g }) => g), properties);
+  assert.deepEqual(p.groups.map(withoutPosition), properties);
   assert.ok(p.groups.every((g, i) => g === identities[i])); assert.equal(p.moves, 37);
 });
 

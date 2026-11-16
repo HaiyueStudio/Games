@@ -3,7 +3,7 @@ import { BasicMaterial, Camera3D, CartesianTransform3D, DirectionalLight, Entity
 import { createCylinder3D, createTorus3D, type Geometry3D } from '@haiyue/engine/geometry';
 import { applyGltfAnimationClip, createGltfPlugin, GltfModelComponent } from '@haiyue/extensions/gltf';
 import { GUI_CHARS } from '../rules/story';
-import { joins, midpoint, paths, project, type PuzzleState, type Vec3 } from '../rules/rules';
+import { joins, paths, project, type PuzzleState, type Vec3 } from '../rules/rules';
 
 const COLORS = { stone: '#e5ddc7', cap: '#faf2db', rose: '#cf9c87', gold: '#d7a65a', goldDark: '#977b4b', teal: '#74aaa3', tealDark: '#486f72', dark: '#35555b', light: '#fff0b8', moss: '#92a985', distant: '#cfdcd0' };
 function rgba(hex: string): [number,number,number,number] { return [parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255,1]; }

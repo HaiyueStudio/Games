@@ -1,6 +1,6 @@
 import type { State } from './model';
 /** Only changed rows are touched. Decorative terrain and mechanisms stay intact. */
-export function advanceLiquid(s:State,dt:number):void {
+export function advanceLiquid(s:State,_dt:number):void {
     const l=s.level.liquid;if(!l)return;const t=s.time/l.period,phase=l.mode==='cycle'?(1-Math.cos(t*Math.PI*2))/2:Math.min(1,t),surface=l.mode==='fall'?l.high+(l.low-l.high)*phase:l.low-(l.low-l.high)*phase;s.liquidLevel=surface;s.level.liquidSurface=surface;
     const first=Math.max(0,Math.floor(surface)),x0=l.x??0,x1=x0+(l.width??s.level.width);
     if(s.liquidRow===first)return;

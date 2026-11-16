@@ -200,7 +200,7 @@ export class NeonCircuitGui {
         return this.home.visible && !this.settingsLayer?.visible && hitCarousel(this.carouselPosition,p.width,p.height,x-p.x,y-p.y,CIRCUITS.length) === i ? card : null;
       };
     }
-    for (const [id, text, step] of [['previous-course','←',-1],['next-course','→',1]] as const) {
+    for (const [id, step] of [['previous-course',-1],['next-course',1]] as const) {
       const button = this.carouselStage.add(this.button(id,'',() => this.shiftCourse(step),null));
       const art=createCarouselArrow(device,raster,step as -1|1);this.images.push(art);
       const image=button.add(new GuiImage({source:art,width:'100%',height:'100%',disabled:true}));

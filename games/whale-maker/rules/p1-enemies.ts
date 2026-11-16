@@ -1,7 +1,6 @@
 import {overlaps as overlap} from './geometry';
 import {disguised} from './p2-wearables';
-import type { Body, Enemy, Level, State } from './model';
-import type { ElementProperties } from './catalog';
+import type { Enemy, State } from './model';
 import type { Services } from './services';
 import { p1Enemy } from './p1-schema';
 import { pathPoint, pathLength } from './snake-path';

@@ -1,23 +1,30 @@
 import {overlaps as overlap} from './geometry';
-import type { Body, Level, State } from './model';
+import type { Level, State } from './model';
 import type { TurtleBoss } from './fortress';
 import type { Services } from './services';
 import { isP2Boss } from './p2-schema';
 import { emit } from './events';
 
-export function initP2Bosses(l:Level):TurtleBoss[]{const out:TurtleBoss[]=[];l.cells.forEach((t,id)=>{if(!isP2Boss(t))return;const size=t==='cat-boss'?3:2,x=id%l.width,y=Math.floor(id/l.width);out.push({x,y,w:size,h:size,vx:0,vy:0,home:x,health:l.properties?.[id]?.durability??(t==='cat-boss'?6:3),age:0,cycle:0,fireAt:2,fired:false,jumpAt:2,hurt:0,facing:-1,phase:'walk',link:l.properties?.[id]?.link??1,brain:{kind:t,mode:'walk',timer:1.4,hits:0,cycle:0,target:[x,y],mirages:[],maxHealth:l.properties?.[id]?.durability??(t==='cat-boss'?6:3)}});l.cells[id]='.';});return out;}
+export function initP2Bosses(l:Level):TurtleBoss[]{const out:TurtleBoss[]=[];l.cells.forEach((t,id)=>{if(!isP2Boss(t))return;const size=t==='cat-boss'?3:2,x=id%l.width,y=Math.floor(id/l.width);out.push({x,y,w:size,h:size,vx:0,vy:0,home:x,health:l.properties?.[id]?.durability??(t==='cat-boss'?20:3),age:0,cycle:0,fireAt:2,fired:false,jumpAt:2,hurt:0,facing:-1,phase:'walk',link:l.properties?.[id]?.link??1,brain:{kind:t,mode:'walk',timer:1.4,hits:0,cycle:0,target:[x,y],mirages:[],maxHealth:l.properties?.[id]?.durability??(t==='cat-boss'?20:3)}});l.cells[id]='.';});return out;}
 export function defeatP2Boss(s:State,b:TurtleBoss):void {if(b.phase==='fall'||b.phase==='gone')return;b.health=0;b.phase='fall';b.age=0;b.vy=-5;b.vx=0;b.brain!.mirages=[];s.score+=1500;emit(s,'defeat',b.x);}
 /** Each boss has a different armor window and resistance, not a shared HP hit. */
 export function hitP2Boss(s:State,b:TurtleBoss,attack:string):void {
-    const a=b.brain;if(!a||b.health<=0||b.hurt>0)return;
-    if(attack==='crush'){defeatP2Boss(s,b);return;}
-    const heavy=['stone','turret','heavy','icicle'].includes(attack),red=attack==='red-pow';
-    if(a.kind==='cat-boss'&&a.mode!=='vulnerable'&&!heavy||a.kind==='pom-boss'&&a.mode==='hidden'||a.kind==='boom-boss'&&a.mode==='shell'&&!heavy&&attack!=='star'){emit(s,'metal',b.x);return;}
-    if(attack==='pow'&&(a.kind==='cat-boss'||a.mode==='climb'||b.vy!==0))return;
-    if(attack==='stomp'&&a.kind==='cat-boss')return;
-    if(['fire','ice','boomerang','cannon'].includes(attack)){a.hits++;if(a.hits<(a.kind==='cat-boss'?4:3)){b.hurt=.12;emit(s,'hit',b.x);return;}a.hits=0;}
-    else if(!heavy&&!red&&!['stomp','pound','hammer','shell','star','block','pow'].includes(attack))return;
-    b.health-=heavy?(a.kind==='cat-boss'?2:1):1;b.hurt=.7;a.mode='vulnerable';a.timer=1.1;emit(s,'hit',b.x);if(b.health<=0)defeatP2Boss(s,b);
+    const a=b.brain;if(!a||b.health<=0)return;
+    if(['crush','stone','turret','star','bone-pound'].includes(attack)){defeatP2Boss(s,b);return;}
+    if(b.hurt>0)return;
+    const heavy=['heavy','icicle'].includes(attack),cat=a.kind==='cat-boss';
+    if(a.kind==='pom-boss'&&a.mode==='hidden'||a.kind==='boom-boss'&&a.mode==='shell'&&!heavy){emit(s,'metal',b.x);return;}
+    if(attack==='pow'&&(a.mode==='climb'||Math.abs(b.vy)>.001))return;
+    if(cat&&['stomp','pound'].includes(attack))return;
+    let damage=1;
+    if(cat){
+        if(attack==='pow'||attack==='red-pow')damage=10;
+        else if(['cannon','hammer','heavy','icicle'].includes(attack))damage=3;
+        else if(!['fire','ice','boomerang','shell','block'].includes(attack))return;
+    }else if(['fire','ice','boomerang'].includes(attack)){
+        a.hits++;if(a.hits<5){b.hurt=.12;emit(s,'hit',b.x);return;}a.hits=0;
+    }else if(!heavy&&!['red-pow','cannon','stomp','pound','hammer','shell','block','pow'].includes(attack))return;
+    b.health-=damage;b.hurt=.7;a.mode='vulnerable';a.timer=1.1;emit(s,'hit',b.x);if(b.health<=0)defeatP2Boss(s,b);
 }
 export function updateP2Bosses(s:State,dt:number,svc:Services):void {
     for(const b of s.bosses){const a=b.brain;if(!a||b.health<=0||Math.abs(s.player.x-b.x)>40)continue;
@@ -41,6 +48,6 @@ export function updateP2Bosses(s:State,dt:number,svc:Services):void {
             else{if(a.mode!=='pounce')b.vx=a.mode==='walk'?b.facing:0;b.vy=Math.min(20,b.vy+24*dt);const r=svc.move(s,b,dt);if(r.floor&&a.mode==='pounce'){a.mode='vulnerable';a.timer=1.8;s.shake=.5;emit(s,'stone',b.x);}}
             if(a.mode==='vulnerable'&&a.timer>1.45&&!b.fired){b.fired=true;if(s.bossFire.length<24)s.bossFire.push({x:b.x+b.w/2,y:b.y+1,w:1,h:.5,vx:b.facing*6,vy:0,age:0});}if(a.mode==='climb')b.fired=false;
         }
-        if(a.mode!=='hidden'&&overlap(p,b)&&!s.pipe){if(s.starTime>0)hitP2Boss(s,b,'star');else if(p.vy>=0&&p.y+p.h<=old.y+.5&&a.mode!=='shell'&&a.kind!=='cat-boss'){hitP2Boss(s,b,s.pound==='fall'?'pound':'stomp');p.y=b.y-p.h;p.vy=-12;s.grounded=false;s.pound='none';emit(s,'stomp',b.x);}else svc.hurt(s);}
+        if(a.mode!=='hidden'&&overlap(p,b)&&!s.pipe){if(s.bonePound&&s.pound==='fall'&&p.vy>=0&&p.y+p.h<=old.y+.6){hitP2Boss(s,b,'bone-pound');p.vy=-5;s.grounded=false;}else if(s.starTime>0)hitP2Boss(s,b,'star');else if(p.vy>=0&&p.y+p.h<=old.y+.5&&a.mode!=='shell'&&a.kind!=='cat-boss'){hitP2Boss(s,b,s.pound==='fall'?'pound':'stomp');p.y=b.y-p.h;p.vy=-12;s.grounded=false;s.pound='none';emit(s,'stomp',b.x);}else svc.hurt(s);}
     }
 }

@@ -22,25 +22,32 @@ export function boneRest(s:State):void {
     s.pendingShot=false;emit(s,'metal',s.player.x);s.notice='变成骨头！5秒免疫伤害，随后自动复原';
 }
 export function shellInput(s:State,input:Input):Input {
-    if(s.phase==='playing'&&ridingBoneShell(s)&&s.grounded&&input.down&&!s.previous.down)boneRest(s);
+    const p=s.player,l=s.level,water=l.cells[Math.floor(p.y+p.h+.2)*l.width+Math.floor(p.x+p.w/2)]==='water'||l.liquid?.kind==='water'&&shellSurface(s,p,.15)!==undefined;
+    if(s.phase==='playing'&&ridingBoneShell(s)&&s.grounded&&input.down&&!s.previous.down&&!water)boneRest(s);
     return s.boneTime>0?{...input,axis:0,jump:false,spin:false,down:false,grab:false,fire:false,interact:false,special:false,build:false}:input;
 }
-/** First exposed liquid surface crossed by the shell. Solid banks still use the normal mover. */
-export function floatShell(s:State,body:Body,previousFeet:number,offset=0):boolean {
-    if(body.vy<0)return false;
-    const feet=body.y+body.h+offset,l=s.level;
+/** Locate the connected liquid column at the shell, including a submerged start. */
+export function shellSurface(s:State,body:Body,offset=0):number|undefined {
+    const l=s.level,feet=body.y+body.h+offset,liquid=l.liquid;
+    if(liquid&&(liquid.kind==='water'||liquid.kind==='lava')&&l.liquidSurface!==undefined&&body.x+body.w>(liquid.x??0)&&body.x<(liquid.x??0)+(liquid.width??l.width)&&feet>=l.liquidSurface-.3)return l.liquidSurface;
     let surface=Infinity;
-    const liquid=l.liquid;
-    if(liquid&&(liquid.kind==='water'||liquid.kind==='lava')&&l.liquidSurface!==undefined&&
-        body.x+body.w>(liquid.x??0)&&body.x<(liquid.x??0)+(liquid.width??l.width)&&
-        previousFeet+offset<=l.liquidSurface+.3&&feet>=l.liquidSurface)surface=l.liquidSurface;
-    for(let y=Math.max(0,Math.floor(previousFeet+offset-.3));y<=Math.min(l.height-1,Math.floor(feet));y++)
-        for(let x=Math.max(0,Math.floor(body.x+.01));x<=Math.min(l.width-1,Math.floor(body.x+body.w-.01));x++){
-            const tile=l.cells[y*l.width+x];if(tile!=='water'&&tile!=='lava')continue;
-            if(liquid?.kind===tile&&l.liquidSurface!==undefined)continue;
-            if(y>0&&l.cells[(y-1)*l.width+x]===tile)continue;
-            if(previousFeet+offset<=y+.3&&feet>=y)surface=Math.min(surface,y);
-        }
-    if(!Number.isFinite(surface))return false;
+    for(let x=Math.max(0,Math.floor(body.x+.01));x<=Math.min(l.width-1,Math.floor(body.x+body.w-.01));x++){
+        let row=Math.min(l.height-1,Math.floor(feet+.02));
+        const tile=l.cells[row*l.width+x];
+        if(tile!=='water'&&tile!=='lava')continue;
+        while(row>0&&l.cells[(row-1)*l.width+x]===tile)row--;
+        surface=Math.min(surface,row);
+    }
+    return Number.isFinite(surface)?surface:undefined;
+}
+export function shellBuoyancy(s:State,body:Body,offset=0,control=0):boolean {
+    const surface=shellSurface(s,body,offset);if(surface===undefined||body.y+body.h+offset<=surface+.03||s.bonePound&&body===s.player)return false;
+    body.vy=control>0?3.5:control<0?-5:-3.5;return true;
+}
+/** Stop at the surface while allowing deliberate diving and ordinary jumps out. */
+export function floatShell(s:State,body:Body,previousFeet:number,offset=0,control=0):boolean {
+    if(control>0||body.vy<-6)return false;
+    const surface=shellSurface(s,body,offset),feet=body.y+body.h+offset;
+    if(surface===undefined||feet>surface+.3&&previousFeet+offset>surface+.3)return false;
     body.y=surface-body.h-offset;body.vy=0;return true;
 }

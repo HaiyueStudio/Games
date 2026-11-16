@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createObject,emptyMap,emptyPoses,localSamples,pathPorts,pathEdges,walkSurfaces,worldSamples,connections,findRoute,MapRuntime,splitGarden,project,centerIndex,rotatedSeamGarden,surfaceGarden,parseMap,serializeMap,surfaceIndexAt,add,mul,sub} from '../valley-of-light/map/model.ts';
+import {createObject,emptyMap,emptyPoses,localSamples,pathPorts,pathEdges,walkSurfaces,worldSamples,MapRuntime,splitGarden,project,centerIndex,rotatedSeamGarden,surfaceGarden,parseMap,serializeMap,surfaceIndexAt,add,sub} from '../valley-of-light/map/model.ts';
 const near=(a,b)=>assert.ok(Math.hypot(...a.map((v,i)=>v-b[i]))<1e-7,`${a} != ${b}`);
 const finish=r=>{for(let i=0;i<4000&&r.walking;i++)r.tick(.02);assert.ok(r.completed);};
 test('the user map connects its two rotated A halves automatically without changing authored JSON',()=>{
@@ -34,7 +34,7 @@ test('extended ports and arc bank angles round-trip while old maps keep flat arc
 });
 test('hit points resolve the correct face and all prism faces have independent internal edges',()=>{
  const map=emptyMap(),o=createObject(5,'prism');o.rotation=[90,0,-90];map.objects=[o];const samples=worldSamples(map,o,emptyPoses()),faces=walkSurfaces(o);assert.equal(faces.length,5);
- for(const f of faces){assert.equal(surfaceIndexAt(map,o,emptyPoses(),samples[f.center].point),f.center);for(const [a,b] of pathEdges(o).filter(([a])=>a===f.center))assert.ok(f.indices.includes(b));}
+ for(const f of faces){assert.equal(surfaceIndexAt(map,o,emptyPoses(),samples[f.center].point),f.center);for(const [,b] of pathEdges(o).filter(([a])=>a===f.center))assert.ok(f.indices.includes(b));}
  assert.ok(pathPorts(o).some(p=>p.port>4));
 });
 

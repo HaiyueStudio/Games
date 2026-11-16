@@ -18,7 +18,7 @@ export function synthesizeMineSound(id: MineSound): Float32Array {
   for (let i = 0; i < pcm.length; i++) {
     const t = i / rate, noise = random() * 2 - 1;
     low += .075 * (noise - low); bass += .012 * (noise - bass);
-    let value = 0;
+    let value: number;
     if (id === 'click') {
       value = .55 * Math.sin(tau * 1350 * t) * Math.exp(-t * 72)
         + .24 * Math.sin(tau * 2470 * t) * Math.exp(-t * 112)

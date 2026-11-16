@@ -23,7 +23,7 @@ test('multi-touch release/capture loss cannot leave a flipper held or launch on 
  const hook=registerHooks({resolve(specifier,context,next){return next(/^\.{1,2}\//.test(specifier)&&! /\.[a-z0-9]+$/i.test(specifier)?specifier+'.ts':specifier,context);}});
  const previous=globalThis.window;globalThis.window=new EventTarget();
  const {InkInput}=await import('../ink-pinball/input/InkInput.ts');let enabled=true;const input=new InkInput(()=>enabled);
- const pointer=(type,id)=>{const e=new Event(type);Object.defineProperty(e,'pointerId',{value:id});window.dispatchEvent(e);};
+ const pointer=(type,id)=>{const e=new Event(type);Object.defineProperty(e,'pointerId',{value:id});globalThis.window.dispatchEvent(e);};
  try {
   input.press('left',10);input.press('right',11);assert.ok(input.down('left')&&input.down('right'));
   pointer('pointerup',10);pointer('pointerup',11);input.flushReleases();assert.ok(!input.down('left')&&!input.down('right'));

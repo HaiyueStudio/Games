@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 registerHooks({resolve(s,c,next){try{return next(s,c);}catch(e){if(s.startsWith('.')&&c.parentURL?.includes('/whale-maker/'))return next(s+'.ts',c);throw e;}}});
 const {create,step,EMPTY_INPUT,respawn}=await import('../whale-maker/rules/model.ts');
-const {makeEnemy,makeItem,updateSpecialEnemy}=await import('../whale-maker/rules/expansion.ts');
+const {makeEnemy,updateSpecialEnemy}=await import('../whale-maker/rules/expansion.ts');
 const {grantPower}=await import('../whale-maker/rules/power.ts');
 const tick=(s,i={},n=1)=>{for(let k=0;k<n;k++)step(s,{...EMPTY_INPUT,...i});};
 function level(surface='#'){const width=100,height=32,cells=Array(width*height).fill('.');for(let y=26;y<height;y++)for(let x=0;x<width;x++)cells[y*width+x]=y===26?surface:'#';cells[25*width+95]='E';return {version:1,name:'squid pow ice',width,height,cells,spawn:[2,25.2],properties:{},contents:{}};}

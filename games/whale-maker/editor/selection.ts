@@ -67,10 +67,12 @@ export function stampSelection(level: Level, selected: Set<number>): Stamp | nul
 }
 
 export function pasteStamp(level: Level, stamp: Stamp, x: number, y: number): Set<number> | null {
+    const goals=stamp.cells.filter(c=>c.tile==='E');if(goals.length>1)return null;
     if (x < 0 || y < 0 || x + stamp.width > level.width || y + stamp.height > level.height) return null;
     if(stamp.cells.some(c=>([...P1_TOOLS,...P2_TOOLS] as readonly string[]).includes(c.tile)&&!elementFits(level,c.tile,x+c.dx,y+c.dy,c.properties)))return null;
     if(stamp.cells.some(c=>PATH_TILES.has(c.tile)&&c.properties?.path&&!validSnakePath(level,(y+c.dy)*level.width+x+c.dx,c.properties.path)))return null;
     const targets = new Set<number>();
+    if(goals.length)for(let id=0;id<level.cells.length;id++)if(level.cells[id]==='E')targets.add(id);
     for (const c of stamp.cells) for (const id of objectCells(level, x + c.dx, y + c.dy)) targets.add(id);
     clearCells(level, targets);
     const result = new Set<number>();

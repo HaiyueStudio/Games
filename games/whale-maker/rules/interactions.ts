@@ -41,7 +41,7 @@ export const ENEMY_TRAITS:Readonly<Record<Enemy['kind'],Readonly<EnemyTraits>>>=
     cactus:{spiked:true,fireproof:false,freeze:'normal',body:'solid'},
 });
 /** Results describe the contact; movement, animations and scoring apply once at the caller. */
-export function attackResult(e:Pick<Enemy,'kind'|'alive'|'held'|'frozen'|'iron'|'bombFuse'>,attack:Attack):AttackResult {
+export function attackResult(e:Pick<Enemy,'kind'|'alive'|'held'|'frozen'|'iron'|'bombFuse'|'modifiers'>,attack:Attack):AttackResult {
     if(!e.alive||e.held)return 'ignore';
     const trait=ENEMY_TRAITS[e.kind];
     if(attack==='fire')return e.frozen?'thaw':trait.fireproof||e.iron?'ignore':e.kind==='cactus'?'segment':'defeat';
@@ -50,7 +50,7 @@ export function attackResult(e:Pick<Enemy,'kind'|'alive'|'held'|'frozen'|'iron'|
     if(e.frozen)return ['pound','helmet','shell','star','block','claw','boomerang','hammer'].includes(attack)?'shatter':'ignore';
     if(['claw','boomerang','hammer'].includes(attack)){
         if(trait.body==='flame'||e.kind==='ghost'&&attack!=='hammer')return 'ignore';
-        if(attack==='hammer')return 'defeat';
+        if(attack==='hammer')return e.kind==='ant'&&e.modifiers?.large?'ignore':'defeat';
         if(e.kind==='spiky'||e.kind==='shell')return 'shell';
         if(e.kind==='dry-turtle')return 'collapse';if(e.kind==='creeper-plant')return 'withdraw';return 'defeat';
     }

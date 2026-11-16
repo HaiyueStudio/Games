@@ -1,9 +1,21 @@
-import type { Body, Enemy, Level, State, Tile } from '../rules/model';
+import type { Enemy, Level, State, Tile } from '../rules/model';
 import { WEARABLES, isP2Boss, P2_ENEMIES } from '../rules/p2-schema';
 import { elementBounds } from '../editor/p1-geometry';
 import type { WhaleScene2D } from './WhaleScene2D';
+import { drawTornado } from './wind';
 const enemyRows:Record<string,number>={bee:0,'spring-enemy':8,'ring-ghost':16,bully:24,'giant-fish':32,'lava-dragon':40,magikoopa:48,'koopa-car':56};
 const icons:Record<string,number>={'beat-block':0,'fall-block':2,icicle:3,tornado:4,'camera-rail':8,'camera-stop':9,'coin-10':10,'coin-30':11,'coin-50':12};
+/** A visible front face matches the new full-height solid collision. */
+function drawFallBlock(scene:WhaleScene2D,x:number,y:number,width:number,z:number,opacity=1):void {
+    for(let n=0;n<width;n++){
+        const px=x+n*z,w=Math.min(1,width-n)*z;
+        scene.fill({x:px,y,width:w,height:z},[.27,.17,.1,opacity]);
+        scene.fill({x:px+.045*z,y:y+.055*z,width:w-.09*z,height:.87*z},[.79,.5,.24,opacity]);
+        scene.fill({x:px+.1*z,y:y+.14*z,width:w-.2*z,height:.48*z},[1,.75,.4,opacity]);
+        scene.dustParticle(px+w/2,y+.48*z,.19*z,1,[.26,.19,.14,opacity]);
+        scene.sprite('p2-icons',2,px,y-.12*z,w,.7*z,false,0,opacity);
+    }
+}
 export function p2Art(kind:string,time=0):{atlas:string;frame:number}|null {
     const w=(WEARABLES as readonly string[]).indexOf(kind);if(w>=0)return {atlas:'p2-wearables',frame:w*8+Math.floor(time*8)%4};
     if(enemyRows[kind]!==undefined)return {atlas:'p2-enemies',frame:enemyRows[kind]!+Math.floor(time*8)%4};
@@ -25,19 +37,21 @@ export function drawP2Tile(scene:WhaleScene2D,s:State,l:Level,t:Tile,x:number,y:
     if(!editing)return true;const b=elementBounds(t,x,y,p,l.theme),bx=px+(b.x-x)*z,by=py+(b.y-y)*z;
     if(t==='camera-stop'){scene.sprite('p2-icons',9,bx,by,b.w*z,b.h*z,false,0,.4);return true;}
     if(t==='camera-rail'){scene.sprite('p2-icons',8,px,py,z,z,false,0,.6);return true;}
-    if(t==='tornado'){for(let n=0;n<b.h;n++)scene.sprite('p2-icons',4+Math.floor(time*8+n)%4,bx,by+n*z,b.w*z,z,false,0,.75);return true;}
-    if(t==='beat-block'||t==='fall-block'){scene.sprite(art.atlas,art.frame,px,py,(p?.width??1)*z,t==='fall-block'?.4*z:z);return true;}
+    if(t==='tornado'){drawTornado(scene,bx,by,b.w*z,b.h*z,time);return true;}
+    if(t==='fall-block'){drawFallBlock(scene,px,py,p?.width??1,z);return true;}
+    if(t==='beat-block'){scene.sprite(art.atlas,art.frame,px,py,(p?.width??1)*z,z);return true;}
     scene.fitActor(art.atlas,art.frame,bx+b.w*z/2,by+b.h*z,b.w*z*(isP2Boss(t)?1.15:1),b.h*z*(isP2Boss(t)?1.15:1));return true;
 }
 export function drawP2World(scene:WhaleScene2D,s:State,cam:number,cy:number,z:number,v:{x:number;y:number}):void {
     for(const d of s.p2Mechanisms){const x=v.x+(d.x-cam)*z,y=v.y+(d.y-cy)*z;if(d.phase==='gone')continue;
-        if(d.kind==='tornado'){for(let n=0;n<d.h;n++)scene.sprite('p2-icons',4+Math.floor(s.time*10+n)%4,x,y+n*z,d.w*z,z,false,0,.7);continue;}
-        const frame=d.kind==='beat-block'?(d.active?0:1):d.kind==='fall-block'?2:3;scene.sprite('p2-icons',frame,x+(d.phase==='warn'?Math.sin(s.time*60)*z*.035:0),y,d.w*z,d.h*z,false,0,d.kind==='beat-block'&&!d.active?.22:d.phase==='warn'?.65+.3*Math.sin(s.time*24):1);
+        if(d.kind==='tornado'){drawTornado(scene,x,y,d.w*z,d.h*z,s.time);continue;}
+        const frame=d.kind==='beat-block'?(d.active?0:1):d.kind==='fall-block'?2:3,px=x+(d.phase==='warn'?Math.sin(s.time*60)*z*.035:0),opacity=d.kind==='beat-block'&&!d.active?.22:d.phase==='warn'?.65+.3*Math.sin(s.time*24):1;
+        if(d.kind==='fall-block')drawFallBlock(scene,px,y,d.w,z,opacity);else scene.sprite('p2-icons',frame,px,y,d.w*z,d.h*z,false,0,opacity);
     }
     for(const b of s.bosses){const a=b.brain;if(!a||b.phase==='gone')continue;const base=a.kind==='boom-boss'?0:a.kind==='pom-boss'?16:32,frame=b.phase==='fall'?base+15:b.hurt>0?base+14:a.mode==='shell'?base+8+Math.floor(b.age*12)%4:a.mode==='climb'?base+8+Math.floor(b.age*8)%2:a.mode==='telegraph'?base+4:a.mode==='pounce'?base+7:a.mode==='vulnerable'?base+12+Math.floor(b.age*8)%2:a.mode==='hidden'?base+8+Math.floor(b.age*8)%2:base+Math.floor(b.age*8)%4;
         for(const mirror of a.mirages)scene.actor('p2-bosses',base+10,v.x+(mirror.x+mirror.w/2-cam)*z,v.y+(mirror.y+mirror.h-cy)*z,b.h*z*1.15,b.facing<0,base,0,.4);
         scene.actor('p2-bosses',frame,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h-cy)*z,b.h*z*1.15,b.facing<0,base,b.phase==='fall'?b.age*1.5:0,a.mode==='hidden'?.3:1);
-        if(b.health>0){const width=b.w*z;scene.fill({x:v.x+(b.x-cam)*z,y:v.y+(b.y-cy)*z-.2*z,width,height:.1*z},[.08,.16,.24,1]);scene.fill({x:v.x+(b.x-cam)*z,y:v.y+(b.y-cy)*z-.2*z,width:width*b.health/(a.maxHealth??(a.kind==='cat-boss'?6:3)),height:.1*z},[.95,.46,.55,1]);}
+        if(b.health>0){const width=b.w*z;scene.fill({x:v.x+(b.x-cam)*z,y:v.y+(b.y-cy)*z-.2*z,width,height:.1*z},[.08,.16,.24,1]);scene.fill({x:v.x+(b.x-cam)*z,y:v.y+(b.y-cy)*z-.2*z,width:width*b.health/(a.maxHealth??(a.kind==='cat-boss'?20:3)),height:.1*z},[.95,.46,.55,1]);}
     }
     for(const b of s.cannonShots)scene.actor('devices',2,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h-cy)*z,b.w*z*1.2,b.vx<0,2,s.time*8);
     for(const b of s.magicShots)scene.actor('p2-icons',b.kind==='ninja'?13:14,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h-cy)*z,z*.65,false,b.kind==='ninja'?13:14,s.time*10);

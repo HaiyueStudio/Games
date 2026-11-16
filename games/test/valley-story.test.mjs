@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {storyGarden,journeyGarden,MapRuntime,parseMap,parseCheckpoint,serializeMap,serializeCompactMap,inspectNavigation,findRoute,worldSamples,removeLogicReferences} from '../valley-of-light/map/model.ts';
+import {storyGarden,journeyGarden,MapRuntime,parseMap,parseCheckpoint,serializeMap,serializeCompactMap,inspectNavigation,findRoute,removeLogicReferences} from '../valley-of-light/map/model.ts';
 const tick=(r,t)=>{for(let i=0;i<Math.ceil(t/.01);i++)r.tick(.01);};
 const walk=(r,id)=>{assert.ok(r.walkTo(id),r.message);for(let i=0;i<1500&&r.walking;i++)r.tick(.01);assert.equal(r.at.objectId,id);};
 const finish=(r,choice)=>{r.tick(0);let d=r.dialogueSnapshot();assert.ok(d);for(let i=0;i<40&&d.line<d.total-1;i++){assert.ok(r.advanceDialogue());d=r.dialogueSnapshot();}assert.ok(r.advanceDialogue(choice));r.tick(0);};

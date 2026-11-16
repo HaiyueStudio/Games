@@ -80,7 +80,7 @@ export class SkyStrikeFlames<T extends FireBody> {
     state.emitMs+=step;state.ageMs+=step;
     if(state.ageMs>=cycleLength){state.ageMs=0;state.cycle++;state.emitMs=FLAME_EMIT_MS;}
    }
-   this.cones=this.packets.map(({source,speed,lifeMs,...cone})=>cone);
+   this.cones=this.packets.map(({source:_source,speed:_speed,lifeMs:_lifeMs,...cone})=>cone);
    for(const other of enemies)if(other.definition.tier==='normal'&&other.hitPoints>0&&this.cones.some(jet=>jet.boss&&inFlame(jet,other)))this.ignite(other);
    if(protectedPlayer){this.clearBurn();continue;}
    let inside=0,burn=0;
