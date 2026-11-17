@@ -9,6 +9,7 @@
       "!{projectRoot}/bundle.js",
       "!{projectRoot}/bundle.js.map",
       "!{projectRoot}/bundle.meta.json",
+      "!{projectRoot}/assets/atlas.build.png",
       "!{projectRoot}/terrain-raster.worker.js",
       "!{projectRoot}/terrain-raster.worker.js.map",
       "!{projectRoot}/dist/**/*",

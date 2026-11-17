@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { loadWorkspacePlan, validatePlan, validatePackages, selectedGameIds, environmentDuration, cacheSummary, workspaceConcurrency, migrationGameIds } from '../../scripts/workspace-policy.mjs';
 import { dependencyFingerprint } from '../../scripts/workspace-dependencies.mjs';
+import { atlasConfigFile, atlasOutputFile } from '../../scripts/game-image-atlas.mjs';
 
 const manifest = { entries: [{ id: '2048' }, { id: 'whale-maker' }] };
 const tests = ['games/test/2048.test.mjs', 'games/test/whale-maker.test.mjs', 'games/test/platform.test.mjs'];
@@ -87,15 +88,18 @@ test('real repository has one owner per suite, complete packages and explicit ca
   assert.ok(!nx.namedInputs.testGlobals.some(input => input.startsWith('!')), 'shared fixture exclusions must not mask explicitly owned test inputs');
   for (const id of plan.games) {
     const pkg = json(`games/${id}/package.json`);
-    assert.deepEqual(pkg.nx.targets.build.outputs, id === 'gravity-maze' ? ['{projectRoot}/dist'] : id === 'entanglement-path' ? ['{projectRoot}/bundle.js', '{projectRoot}/bundle.js.map', '{projectRoot}/terrain-raster.worker.js', '{projectRoot}/terrain-raster.worker.js.map'] : ['{projectRoot}/bundle.js', '{projectRoot}/bundle.js.map']);
+    const outputs = id === 'gravity-maze' ? ['{projectRoot}/dist'] : ['{projectRoot}/bundle.js', '{projectRoot}/bundle.js.map'];
+    if (id === 'entanglement-path') outputs.push('{projectRoot}/terrain-raster.worker.js', '{projectRoot}/terrain-raster.worker.js.map');
+    if (id !== 'gravity-maze' && existsSync(resolve(root, 'games', id, atlasConfigFile))) outputs.push(`{projectRoot}/${atlasOutputFile}`);
+    assert.deepEqual(pkg.nx.targets.build.outputs, outputs);
     for (const file of plan.testOwners[id]) assert.ok(pkg.nx.targets.test.inputs.includes(`{workspaceRoot}/${file}`));
     for (const name of Object.keys(json('package.json').dependencies)) {
       assert.equal(pkg.peerDependencies[name], '*');
       assert.equal(pkg.dependencies[name], undefined, 'runtime candidate must not be shadowed by a pinned workspace copy');
     }
   }
-  for (const file of ['terrain-raster.worker.js', 'terrain-raster.worker.js.map']) {
-    assert.ok(nx.namedInputs.default.includes(`!{projectRoot}/${file}`), 'generated terrain workers must not invalidate their own cache inputs');
+  for (const file of ['terrain-raster.worker.js', 'terrain-raster.worker.js.map', atlasOutputFile]) {
+    assert.ok(nx.namedInputs.default.includes(`!{projectRoot}/${file}`), 'generated files must not invalidate their own cache inputs');
   }
   if (plan.phase === 'full') {
     assert.equal(json('games/ink-pinball/package.json').dependencies['@haiyue/game-pinball'], '0.1.0');

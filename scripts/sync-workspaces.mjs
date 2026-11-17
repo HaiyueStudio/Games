@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
+import { atlasConfigFile, atlasOutputFile } from './game-image-atlas.mjs';
 import { loadWorkspacePlan, packageName, packageDirectory, readJson, migrationGameIds } from './workspace-policy.mjs';
 
 const root = resolve(import.meta.dirname, '..'), checking = process.argv.includes('--check');
@@ -44,6 +45,9 @@ else {
     if (id !== 'platform') dependencies[packageName('platform')] = '0.1.0';
     if (id !== 'tooling' && id !== 'platform') for (const dep of scanGameDependencies(id)) dependencies[packageName(dep)] = '0.1.0';
     const buildOutputs = id === 'platform' ? ['{workspaceRoot}/site/game-host.js', '{workspaceRoot}/site/game-host.js.map', '{workspaceRoot}/site/gamepad.js', '{workspaceRoot}/site/gamepad.js.map', '{workspaceRoot}/site/simulator.js', '{workspaceRoot}/site/simulator.js.map', '{workspaceRoot}/site/core'] : id === 'gravity-maze' ? ['{projectRoot}/dist'] : id === 'entanglement-path' ? ['{projectRoot}/bundle.js', '{projectRoot}/bundle.js.map', '{projectRoot}/terrain-raster.worker.js', '{projectRoot}/terrain-raster.worker.js.map'] : ['{projectRoot}/bundle.js', '{projectRoot}/bundle.js.map'];
+    if (id !== 'tooling' && id !== 'platform' && id !== 'gravity-maze' && existsSync(resolve(root, directory, atlasConfigFile))) {
+      buildOutputs.push(`{projectRoot}/${atlasOutputFile}`);
+    }
     write(`${directory}/package.json`, {
       name: packageName(id), version: '0.1.0', private: true, type: 'module',
       scripts: { ...(id === 'tooling' ? {} : { build: command('build') }), test: command('test'), typecheck: command('typecheck') }, dependencies, peerDependencies: external,

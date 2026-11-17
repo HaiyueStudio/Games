@@ -1,6 +1,6 @@
 import type { BabaLevel, Direction } from '../levels/baba-format';
 import { wordTypes } from '../levels/catalog';
-import { isText, readRules, spelling, type Rule, type Term, type Unit } from './syntax';
+import { isText, readRules, spelling, type Rule, type RuleReader, type Term, type Unit } from './syntax';
 
 export const vectors = [[1, 0], [0, -1], [-1, 0], [0, 1]] as const;
 export const directions = ['right', 'up', 'left', 'down'] as const;
@@ -20,7 +20,10 @@ export interface RuleContext {
   units: Unit[];
 }
 
-export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiting = false, movementRules?: Rule[]): RuleContext {
+export const player = (context: RuleContext, unit: Unit): boolean => context.has(unit, 'you') || context.has(unit, 'you2');
+
+export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiting = false, movementRules?: Rule[],
+  read: RuleReader = (pieces, extra) => readRules(pieces, level.width, level.height, extra)): RuleContext {
   const cells = new Map<number, Unit[]>();
   for (const unit of units) {
     const index = unit.y * level.width + unit.x;
@@ -31,17 +34,19 @@ export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiti
   const at = (x: number, y: number) => x >= 0 && x < level.width && y >= 0 && y < level.height ? cells.get(y * level.width + x) ?? [] : [];
   const blanks = new Map<number, Unit>();
   const objects = new Set(units.filter(u => !isText(u) && u.name !== 'level' && u.name !== 'empty').map(u => u.name));
-  let rules = movementRules ?? readRules(units, level.width, level.height);
+  let rules = movementRules ?? read(units);
   const active = new Set<number>();
   const visiting = new Set<string>();
-  const between = new Map<string, Rule[]>();
+  const isTargets = new Map<string, Rule[]>();
   const byVerb = new Map<string, Rule[]>();
+  const typedVerbs = new Map<string, Rule[]>();
   const properties = new Map<string, boolean>();
   let effective: Rule[] = [];
   const rebuild = () => {
     active.clear();
-    between.clear();
+    isTargets.clear();
     byVerb.clear();
+    typedVerbs.clear();
     properties.clear();
     const inherited = rules.flatMap(rule => {
       if (rule.verb !== 'mimic' || rule.target.not || rules.some(other => other.verb === 'mimic' &&
@@ -52,13 +57,18 @@ export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiti
     });
     effective = [...rules, ...inherited];
     for (const rule of effective) {
-      const key = rule.verb + '/' + rule.target.name;
-      const list = between.get(key);
-      if (list) list.push(rule);
-      else between.set(key, [rule]);
+      if (rule.verb === 'is') {
+        const list = isTargets.get(rule.target.name);
+        if (list) list.push(rule);
+        else isTargets.set(rule.target.name, [rule]);
+      }
       const verb = byVerb.get(rule.verb);
       if (verb) verb.push(rule);
       else byVerb.set(rule.verb, [rule]);
+      const key = rule.verb + '/' + rule.targetType;
+      const typed = typedVerbs.get(key);
+      if (typed) typed.push(rule);
+      else typedVerbs.set(key, [rule]);
       for (const id of rule.ids) active.add(id);
     }
   };
@@ -84,7 +94,7 @@ export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiti
     if (name === 'all') return objects.has(unit.name) && !isText(unit);
     if (name === 'text') return isText(unit);
     if (isGroup(name)) return guarded(unit.id + ':' + name, () => {
-      const group = (between.get('is/' + name) ?? []).filter(r => r.targetType === 0 && applies(unit, r));
+      const group = (isTargets.get(name) ?? []).filter(r => r.targetType === 0 && applies(unit, r));
       return group.some(r => !r.target.not) && !group.some(r => r.target.not);
     });
     return unit.name === name && !isText(unit);
@@ -132,29 +142,37 @@ export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiti
       return pass !== condition.not;
     });
   const propertyRules = (unit: Unit, name: string) =>
-    (between.get('is/' + name) ?? []).filter(rule => rule.targetType === 2 && applies(unit, rule));
+    (isTargets.get(name) ?? []).filter(rule => rule.targetType === 2 && applies(unit, rule));
   function has(unit: Unit, name: string): boolean {
+    const candidates = isTargets.get(name);
+    const intrinsic = name === 'push' && isText(unit) || name === 'select' && unit.name === 'cursor';
+    if (!candidates) return intrinsic;
     const key = unit.id + ':is:' + name;
     const prior = properties.get(key);
     if (prior !== undefined) return prior;
     const root = !visiting.size;
     const found = guarded(key, () => {
-      const list = propertyRules(unit, name);
-      return !list.some(rule => rule.target.not) &&
-        (list.length > 0 || name === 'push' && isText(unit) || name === 'select' && unit.name === 'cursor');
+      let granted = intrinsic, denied = false;
+      for (const rule of candidates) if (rule.targetType === 2 && applies(unit, rule)) {
+        if (rule.target.not) denied = true;
+        else granted = true;
+      }
+      return granted && !denied;
     });
     if (root) properties.set(key, found);
     return found;
   }
-  if (!movementRules) {
+  if (!movementRules && isTargets.has('word')) {
     const extraWords = new Set(units.filter(unit => !isText(unit) && has(unit, 'word')).map(unit => unit.id));
-    if (extraWords.size) { rules = readRules(units, level.width, level.height, extraWords); rebuild(); }
+    if (extraWords.size) { rules = read(units, extraWords); rebuild(); }
   }
   const targets = (unit: Unit, verb: string, type?: number): string[] => {
+    const candidates = type === undefined ? byVerb.get(verb) : typedVerbs.get(verb + '/' + type);
+    if (!candidates) return [];
     const denied = new Set<string>();
     const allowed = new Set<string>();
-    for (const rule of byVerb.get(verb) ?? []) {
-      if (type !== undefined && rule.targetType !== type || !applies(unit, rule)) continue;
+    for (const rule of candidates) {
+      if (!applies(unit, rule)) continue;
       const name = rule.target.name;
       const resolved = name === 'all' ? [...objects] : isGroup(name) ? units.filter(other => named(other, name)).map(u => u.name) : [name];
       for (const target of resolved) (rule.target.not ? denied : allowed).add(target);

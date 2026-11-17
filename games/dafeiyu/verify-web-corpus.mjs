@@ -83,7 +83,7 @@ function installProbes() {
       const serialized = JSON.stringify(initial.state);
       require(initial.state.turn === 0 && !initial.state.won, 'opened in wrong state');
       require(!initial.message, 'unexpected status message ' + initial.message);
-      require(initial.bounds.cell > 0 && initial.hud.some(node => node.visible && node.text === '大肥鱼'), 'board or HUD is missing');
+      require(initial.bounds.cell > 0 && initial.hud.some(node => node.visible && node.id === 'tool-pause' && node.icon), 'board or HUD is missing');
       require(initial.state.units.every(unit => !/^tile_[0-9a-f]+$/i.test(unit.name)), 'unresolved object code');
       const fps = performance.now();
       const direction = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'][index % 4];
@@ -117,7 +117,7 @@ function installProbes() {
 const report = { expected, checked: 0, passed: 0, failed: 0, packs: [], gpuDiagnostics: [], browserDiagnostics: null };
 const updateReport = () => writeFileSync(resolve(output, 'results.json'), JSON.stringify(report, null, 2) + '\n');
 const browser = await runChromeWebGpuFixture({
-  root, fixture: 'games/dafeiyu/index.html', query: { verify: 1 }, timeoutMs: 45000,
+  root, fixture: 'games/dafeiyu/index.html', query: { verify: 1, autoplay: 1 }, timeoutMs: 45000,
   disableDx12InfoCollection: true, visualCapture: { viewportWidth: 1000, viewportHeight: 680 },
   interact: async cdp => {
     let active = null;

@@ -25,7 +25,8 @@
       "build": {
         "outputs": [
           "{projectRoot}/bundle.js",
-          "{projectRoot}/bundle.js.map"
+          "{projectRoot}/bundle.js.map",
+          "{projectRoot}/assets/atlas.build.png"
         ]
       },
       "test": {

@@ -2,12 +2,29 @@ import type { BabaLevel, LevelPath } from '../levels/baba-format';
 import type { LevelPack } from '../levels/pack';
 import { vectors } from './properties';
 
+export interface CampaignProgress {
+  completed: string[];
+  bonuses: [string, number][];
+  conversions: [string, string, string[]][];
+}
+
 export class Campaign {
   readonly completed = new Set<string>();
   readonly bonuses = new Map<string, number>();
   private readonly conversions = new Map<string, Map<string, readonly string[]>>();
   private readonly pack: LevelPack;
-  constructor(pack: LevelPack) { this.pack = pack; }
+  constructor(pack: LevelPack, saved?: CampaignProgress) {
+    this.pack = pack;
+    saved?.completed.forEach(id => this.completed.add(id));
+    saved?.bonuses.forEach(([id, count]) => this.bonuses.set(id, count));
+    saved?.conversions.forEach(([parent, child, targets]) => this.replace(parent, child, targets));
+  }
+
+  progress(): CampaignProgress {
+    return { completed: [...this.completed], bonuses: [...this.bonuses],
+      conversions: [...this.conversions].flatMap(([parent, children]) =>
+        [...children].map(([child, targets]): [string, string, string[]] => [parent, child, [...targets]])) };
+  }
 
   replace(parent: string, child: string, targets: readonly string[]): void {
     let changes = this.conversions.get(parent);
@@ -52,6 +69,7 @@ export class Campaign {
         if (adjacent(source, link) && states[index]! < 2) states[index] = 2;
       });
     }
-    return { states, paths: level.paths.filter(path => revealed.has(path) && canOpen(path)) };
+    const revealedPaths = level.paths.filter(path => revealed.has(path));
+    return { states, revealedPaths, paths: revealedPaths.filter(canOpen) };
   }
 }

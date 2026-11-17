@@ -87,19 +87,19 @@ function parse(words: Word[], emit: (rule: Rule) => void): void {
 
 export function readRules(units: readonly Unit[], width: number, height: number, extraWords: ReadonlySet<number> = new Set()): Rule[] {
   const cells = new Map<number, Word[]>();
-  const lexicon = new Map(defaultLexicon);
+  const lexicon = units.some(unit => unit.type === LETTER) ? new Map(defaultLexicon) : undefined;
   for (const unit of units) {
     if (!isText(unit) && !extraWords.has(unit.id)) continue;
     const name = spelling(unit.name);
     const type = Math.max(0, unit.type);
     const index = unit.y * width + unit.x;
-    if (type !== LETTER) lexicon.set(name, type);
+    if (type !== LETTER) lexicon?.set(name, type);
     const word = { name, type, ids: [unit.id] };
     const stack = cells.get(index);
     if (stack) stack.push(word);
     else cells.set(index, [word]);
   }
-  const prefixes = new Set([...lexicon.keys()].flatMap(word => Array.from({ length: word.length }, (_, i) => word.slice(0, i + 1))));
+  const prefixes = lexicon && new Set([...lexicon.keys()].flatMap(word => Array.from({ length: word.length }, (_, i) => word.slice(0, i + 1))));
   const rules = new Map<string, Rule>();
   const emit = (rule: Rule) => {
     const key = rule.label + ':' + rule.targetType;
@@ -130,9 +130,9 @@ export function readRules(units: readonly Unit[], width: number, height: number,
         };
         const readLetters = (position: number, word: string, ids: number[]): void => {
           if (++branches > 768) return;
-          const type = lexicon.get(word);
+          const type = lexicon?.get(word);
           if (type !== undefined && type !== LETTER) use({ name: word, type, ids }, position);
-          if (!prefixes.has(word) || !valid(position, start)) return;
+          if (!prefixes?.has(word) || !valid(position, start)) return;
           for (const letter of cells.get(position) ?? []) if (letter.type === LETTER) {
             readLetters(position + step, word + letter.name, [...ids, ...letter.ids]);
           }
@@ -148,4 +148,23 @@ export function readRules(units: readonly Unit[], width: number, height: number,
     }
   }
   return [...rules.values()];
+}
+
+export type RuleReader = (units: readonly Unit[], extraWords?: ReadonlySet<number>) => Rule[];
+
+export function createRuleReader(width: number, height: number): RuleReader {
+  type WordCell = Pick<Unit, 'id' | 'name' | 'type' | 'x' | 'y'>;
+  const cache: ({ words: WordCell[]; rules: Rule[] } | undefined)[] = [];
+  return (units, extraWords) => {
+    const slot = extraWords?.size ? 1 : 0;
+    const words = units.filter(unit => isText(unit) || extraWords?.has(unit.id));
+    const prior = cache[slot];
+    if (prior && words.length === prior.words.length && words.every(({ id, name, type, x, y }, index) => {
+      const word = prior.words[index]!;
+      return word.id === id && word.name === name && word.type === type && word.x === x && word.y === y;
+    })) return prior.rules;
+    const rules = readRules(words, width, height, extraWords);
+    cache[slot] = { words: words.map(({ id, name, type, x, y }) => ({ id, name, type, x, y })), rules };
+    return rules;
+  };
 }

@@ -1,35 +1,43 @@
 import type { GuiRect } from '@haiyue/engine/gui';
 
-export interface GameLayout {
-  compact: boolean;
-  header: GuiRect;
-  board: GuiRect;
-  sidebar: GuiRect;
-  footer: GuiRect;
-  modal: GuiRect;
-}
-export function gameLayout(width: number, height: number, room?: { width: number; height: number }): GameLayout {
-  const compact = width < 760 || height > width;
-  const gap = compact ? 12 : 20;
-  const container = Math.min(1320, width - gap * 2);
-  const x = (width - container) / 2;
-  const footerHeight = compact ? 47 : 52;
-  const headHeight = compact ? 94 : 71;
-  const sidebarExtent = compact ? (height < 490 ? 84 : 138) : Math.max(236, Math.min(308, container * .27));
-  const shelfY = gap + headHeight + gap;
-  const shelfWidth = compact ? container : container - sidebarExtent - gap;
-  const footerY = height - gap - footerHeight;
-  const available = Math.max(28, footerY - shelfY - gap - (compact ? sidebarExtent + gap : 0));
-  const shelfHeight = compact && room ? Math.min(available, (shelfWidth - 16) * room.height / room.width + 28) : available;
-  const modalWidth = Math.min(container - 12, 540);
-  const modalHeight = Math.min(height - 16, 482);
-  return {
-    compact,
-    header: { x, y: gap, width: container, height: headHeight },
-    board: { x, y: shelfY, width: shelfWidth, height: shelfHeight },
-    sidebar: compact ? { x, y: shelfY + shelfHeight + gap, width: container, height: sidebarExtent } :
-      { x: x + shelfWidth + gap, y: shelfY, width: sidebarExtent, height: shelfHeight },
-    footer: { x, y: footerY, width: container, height: footerHeight },
-    modal: { x: (width - modalWidth) / 2, y: (height - modalHeight) / 2, width: modalWidth, height: modalHeight },
+export function playLayout(width: number, height: number) {
+  const margin = width < 600 ? 10 : 16;
+  const button = width < 600 ? 42 : 46;
+  const gap = 6;
+  const widthOfToolbar = 4 * button + 3 * gap;
+  const toolbar = { x: width - margin - widthOfToolbar, y: margin, width: widthOfToolbar, height: button };
+  const centered = (w: number, h: number): GuiRect => ({ x: (width - w) / 2, y: (height - h) / 2, width: w, height: h });
+  return { margin, button, gap, toolbar,
+    library: centered(Math.min(width - 2 * margin, 540), Math.min(height - 2 * margin, 482)),
+    pause: centered(Math.min(width - 2 * margin, 338), Math.min(height - 2 * margin, 278)),
   };
+}
+
+export function playGrid(width: number, height: number, cols: number, rows: number) {
+  const { toolbar } = playLayout(width, height);
+  const inset = Math.min(8, width * .018, height * .018);
+  const fit = (top: number) => {
+    const cell = Math.max(.1, Math.min((width - 2 * inset) / cols, (height - top - inset) / rows));
+    return { x: (width - cols * cell) / 2, y: top + (height - top - inset - rows * cell) / 2, cell };
+  };
+  const grid = fit(inset);
+  const crossesControls = grid.x + cols * grid.cell > toolbar.x - 4;
+  return crossesControls && grid.y < toolbar.y + toolbar.height + 5 ? fit(toolbar.y + toolbar.height + 5) : grid;
+}
+
+export function editorLayout(width: number, height: number, room: { width: number; height: number }) {
+  const compact = width < 700;
+  const gap = compact ? 10 : 18;
+  const outer = Math.min(1380, Math.max(1, width - gap * 2));
+  const x = (width - outer) / 2;
+  const header = { x, y: gap, width: outer, height: compact ? 87 : 58 };
+  const y = header.y + header.height + gap;
+  const openHeight = Math.max(30, height - y - gap);
+  const panelWidth = compact ? outer : Math.min(350, Math.max(280, outer * .3));
+  const boardWidth = compact ? outer : outer - panelWidth - gap;
+  const boardHeight = compact ? Math.max(55, Math.min(openHeight * .54, boardWidth * room.height / room.width + 22)) : openHeight;
+  const board = { x, y, width: boardWidth, height: boardHeight };
+  const panel = { x: compact ? x : x + boardWidth + gap, y: compact ? y + boardHeight + gap : y,
+    width: panelWidth, height: compact ? Math.max(1, openHeight - boardHeight - gap) : openHeight };
+  return { compact, header, board, panel };
 }

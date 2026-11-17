@@ -43,6 +43,7 @@ export interface BabaLevel {
   links: LevelLink[];
   paths: LevelPath[];
   specials: LevelSpecial[];
+  island?: readonly PlacedTile[];
   metadata: Metadata;
   unknown: number[];
   catalog: ReadonlyMap<string, Tile>;

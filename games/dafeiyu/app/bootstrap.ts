@@ -1,100 +1,134 @@
-import { World } from '@haiyue/engine';
+import { Entity, World } from '@haiyue/engine';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { gamepadFrame, installGamepad } from '../../gamepad/runtime';
 import { GameEngine } from '../../session/GameEngine';
 import { gameSession } from '../../session/SessionPause';
 import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
-import { builtinPack, localPacks, type LevelPack } from '../levels/pack';
-import { LagoonScene, loadArt } from '../rendering/scene';
+import { LagoonAudio } from '../audio/LagoonAudio';
+import { builtinPack, localPacks, officialPacks, type LevelPack } from '../levels/pack';
+import { isWorldDraft, levelFromDraft, newDraft, packFromDraft, palettes, sameCell, WorldEditor, type Cell, type WorldDraft } from '../levels/editor';
+import type { Direction } from '../levels/baba-format';
+import { LagoonScene } from '../rendering/scene';
 import { Campaign } from '../rules/campaign';
-import { Puzzle, type Move } from '../rules/game';
-import { isProgress, type Progress } from '../rules/progress';
-import { copy, LagoonHud, rowsPerPage, type HudAction } from '../ui/hud';
+import { isMap, Puzzle, type Move } from '../rules/game';
+import { player, vectors, type RuleContext } from '../rules/properties';
+import { isOfficialProgress, isProgress, isSlotProgress, type OfficialProgress, type SlotProgress } from '../rules/progress';
+import { copy, LagoonHud, pauseActions, rowsPerPage, type HudAction } from '../ui/hud';
+import { editorMapTools, palettePageSize, screenCopy, ScreenHud, type EditorCommand, type HomeView, type PaletteTab } from '../ui/screens';
 
 const moves = new Map<string, Move>([
   ['ArrowRight', 0], ['KeyD', 0], ['ArrowUp', 1], ['KeyW', 1],
   ['ArrowLeft', 2], ['KeyA', 2], ['ArrowDown', 3], ['KeyS', 3], ['Space', 'wait'],
 ]);
 const actions = new Map<string, HudAction>([
-  ['KeyZ', 'undo'], ['Backspace', 'undo'], ['KeyR', 'restart'], ['KeyL', 'library'],
-  ['Escape', 'library'], ['Enter', 'next'], ['KeyI', 'files'], ['KeyF', 'folder'],
+  ['KeyZ', 'undo'], ['Backspace', 'undo'], ['KeyY', 'redo'], ['KeyR', 'restart'], ['KeyL', 'library'],
+  ['Escape', 'pause'], ['KeyM', 'pause'], ['Enter', 'next'], ['KeyI', 'files'], ['KeyF', 'folder'],
 ]);
+type Room = { index: number; puzzle: Puzzle };
 
 class LagoonGame {
   private readonly lifetime = new AbortController();
   private readonly world = new World('大肥鱼');
+  private readonly audio = new LagoonAudio(this.lifetime.signal);
   private readonly engine: GameEngine;
   private readonly canvas: HTMLCanvasElement;
   private readonly picker: HTMLInputElement;
   private readonly folder: HTMLInputElement;
+  private readonly projectPicker: HTMLInputElement;
   private readonly resize: ResizeObserver;
   private readonly packs = [builtinPack(this.lifetime.signal)];
-  private readonly saves = new SingleSlotGameSave<Progress>({ gameId: 'dafeiyu', name: '大肥鱼', validateData: isProgress });
-  private readonly campaigns = new WeakMap<LevelPack, Campaign>();
-  private readonly parents: { index: number; puzzle: Puzzle }[] = [];
+  private readonly saves = [1, 2, 3].map(index => new SingleSlotGameSave<SlotProgress>({ gameId: 'dafeiyu-slot-' + index,
+    name: `${screenCopy.slot} ${index}`, validateData: isSlotProgress }));
+  private readonly draftSave = new SingleSlotGameSave<WorldDraft>({ gameId: 'dafeiyu-workshop', name: screenCopy.editor, validateData: isWorldDraft,
+    onStatus: status => { if (status === 'error' && this.mode === 'editor' && !this.lifetime.signal.aborted) {
+      this.message = screenCopy.storageError; this.refresh();
+    } } });
+  private readonly packKeys = new Map<LevelPack, string>([[this.packs[0]!, 'coral']]);
+  private campaigns = new WeakMap<LevelPack, Campaign>();
+  private parked = new WeakMap<LevelPack, { room: Room; parents: Room[] }>();
+  private readonly parents: Room[] = [];
   private overworld: Puzzle | undefined;
   private hud: LagoonHud | undefined;
+  private screens: ScreenHud | undefined;
   private scene: LagoonScene | undefined;
   private puzzle: Puzzle | null = null;
   private pack = this.packs[0]!;
   private index = 0;
   private selected = 0;
   private library = false;
+  private paused = false;
+  private pauseIndex = 0;
   private busy = false;
   private usingPad = false;
   private message = '';
   private pending: Move | undefined;
+  private mode: 'home' | 'play' | 'editor' | 'test' = 'home';
+  private homePage: HomeView['page'] = 'main';
+  private homeIndex = 0;
+  private overwrite = 0;
+  private slots: (SlotProgress | null)[] = [null, null, null];
+  private slot = -1;
+  private profile: SlotProgress | undefined;
+  private preferred = this.packs[0]!;
+  private editor: WorldEditor | undefined;
+  private tab: PaletteTab = 'objects';
+  private brushPage = 0;
+  private lastPaint: Cell | undefined;
+  private naming = false;
 
-  constructor(canvas: HTMLCanvasElement, picker: HTMLInputElement, folder: HTMLInputElement) {
+  constructor(canvas: HTMLCanvasElement, picker: HTMLInputElement, folder: HTMLInputElement, projectPicker: HTMLInputElement) {
     this.canvas = canvas;
     this.picker = picker;
     this.folder = folder;
+    this.projectPicker = projectPicker;
     this.engine = new GameEngine({ canvas, msaaSamples: 4, clearColor: { r: .015, g: .063, b: .1, a: 1 },
       devicePixelRatio: () => Math.min(devicePixelRatio || 1, 2) });
     this.resize = new ResizeObserver(() => this.fit());
   }
   async init(): Promise<void> {
-    const save = await this.saves.load();
+    const params = new URLSearchParams(location.search);
+    const [, official, saved] = await Promise.all([this.engine.init(), officialPacks(this.lifetime.signal),
+      Promise.all(this.saves.map(store => store.load()))]);
     this.lifetime.signal.throwIfAborted();
-    const start = this.pack.initial;
-    this.index = save?.stage ?? start;
-    this.selected = this.index;
-    const campaign = new Campaign(this.pack);
-    this.campaigns.set(this.pack, campaign);
-    save?.completed.forEach(id => campaign.completed.add(id));
-    const map = this.pack.entries[start]!.read();
-    const [, art, mapLevel, level] = await Promise.all([this.engine.init(), loadArt(), map,
-      this.index === start ? map : this.pack.entries[this.index]!.read()]);
+    this.slots = saved;
+    for (const pack of official) {
+      this.packs.push(pack);
+      this.packKeys.set(pack, pack.id);
+    }
+    this.preferred = params.get('start') === 'coral' ? this.packs[0]! : official[0] ?? this.packs[0]!;
+    if (!this.slots[0]) await this.migrate();
     this.lifetime.signal.throwIfAborted();
-    this.scene = new LagoonScene(this.engine, art);
+    const scene = this.scene = new LagoonScene(this.engine);
     this.world.addSystem(this.scene);
     this.hud = new LagoonHud(this.engine, this.world, action => this.act(action), row => {
       const target = Math.floor(this.selected / rowsPerPage) * rowsPerPage + row;
-      if (!this.busy && this.canOpen(target)) void this.open(this.pack, target);
+      if (!this.busy && this.canOpen(target)) { this.audio.play('click'); void this.open(this.pack, target); }
     });
+    this.screens = new ScreenHud(index => this.homeAction(index), command => this.editorAction(command), index => this.pickBrush(index),
+      value => this.finishName(value), (name, facing) => scene.editorPreview(name, facing));
+    this.world.addEntity(new Entity('大肥鱼菜单').addComponent(this.screens.root));
     const integration = new RenderIntegration(this.engine, { label: '大肥鱼 2D + GUI' });
     this.world.addRuntimeIntegration(integration);
     integration.registerAll(this.world, system => system === this.scene ? { pass: 'isolated', loadOp: 'clear', depth: false, sort: 10 } :
       { pass: 'shared', loadOp: 'load', sort: 1000 });
-    this.overworld = new Puzzle(mapLevel, this.index === start ? save?.state : undefined, campaign);
-    this.puzzle = this.index === start ? this.overworld : new Puzzle(level, save?.state, campaign);
-    if (this.puzzle !== this.overworld) this.parents.push(this.builtinParent(level.id));
-    this.scene.setPuzzle(this.puzzle);
     this.bind();
     this.fit();
+    if (params.has('verify') && params.get('autoplay') === '1') await this.beginSlot(0, !this.slots[0]);
+    else await scene.prepare(true);
+    this.lifetime.signal.throwIfAborted();
     this.refresh();
     this.engine.on('update', event => {
-      if (!gameSession.paused && this.pending !== undefined) {
+      if (!this.paused && !gameSession.paused && this.pending !== undefined) {
         const move = this.pending;
         this.pending = undefined;
         this.move(move);
       }
       const nowPad = !!gamepadFrame();
       if (this.usingPad !== nowPad) { this.usingPad = nowPad; this.refresh(); }
-      this.scene?.tick(event.detail.delta);
+      if (!this.paused) this.scene?.tick(event.detail.delta);
       this.world.update(event.detail.time, event.detail.delta);
     });
-    if (new URLSearchParams(location.search).has('verify')) {
+    if (params.has('verify')) {
       Object.defineProperty(window, '__dafeiyu', { configurable: true, get: () => this.snapshot() });
     }
     document.body.dataset.renderStatus = 'ready';
@@ -104,14 +138,31 @@ class LagoonGame {
     if (!this.hud || this.lifetime.signal.aborted) return;
     this.engine.resizeToDisplaySize();
     this.hud.resize(this.engine.displayWidth, this.engine.displayHeight);
+    this.refresh();
   }
   private refresh(): void {
-    this.hud?.update({ puzzle: this.puzzle, pack: this.pack, index: this.index, active: this.selected,
-      library: this.library, busy: this.busy, gamepad: this.usingPad, message: this.message, canGoBack: this.parents.length > 0,
-      builtin: this.pack === this.packs[0],
+    if (!this.hud || !this.screens) return;
+    const { displayWidth: width, displayHeight: height } = this.engine;
+    const playing = this.mode === 'play' || this.mode === 'test';
+    this.hud.root.root.setVisible(playing);
+    if (this.mode === 'home') {
+      this.screens.home(width, height, { page: this.homePage, selected: this.homeIndex, busy: this.busy, message: this.message,
+        slots: this.slots.map(save => save ? this.packForKey(save.active)?.title ?? screenCopy.continue : null) });
+      return;
+    }
+    if (this.mode === 'editor' && this.editor) {
+      this.screens.editor(width, height, { editor: this.editor, tab: this.tab, page: this.brushPage, choices: this.choices(), message: this.message,
+        naming: this.naming });
+      return;
+    }
+    this.screens.hide();
+    this.hud.update({ puzzle: this.puzzle, pack: this.pack, active: this.selected,
+      library: this.library, paused: this.paused, pauseIndex: this.pauseIndex, busy: this.busy, message: this.message,
+      canGoBack: this.parents.length > 0, canReturnWorld: this.paused && this.worldIndex() >= 0,
       selectedLink: this.puzzle?.selectedLink(),
       completed: this.campaigns.get(this.pack)?.completed ?? new Set(),
-      locked: this.library ? new Set(this.pack.entries.filter((_, index) => !this.canOpen(index)).map(entry => entry.id)) : new Set() });
+      locked: this.library ? new Set(this.pack.entries.filter((_, index) => !this.canOpen(index)).map(entry => entry.id)) : new Set(),
+      playtest: this.mode === 'test' });
   }
   private save(): void {
     const puzzle = this.puzzle;
@@ -121,10 +172,14 @@ class LagoonGame {
     if (puzzle.state.bonus) {
       campaign.bonuses.set(puzzle.level.id, Math.max(puzzle.state.bonus, campaign.bonuses.get(puzzle.level.id) ?? 0));
     }
-    if (this.pack === this.packs[0]) {
-      if (puzzle.state.won) this.overworld?.refreshMap();
-      this.saves.save({ stage: this.index, state: puzzle.state, completed: [...campaign.completed] });
-    }
+    if (this.pack === this.packs[0] && puzzle.state.won) this.overworld?.refreshMap();
+    const key = this.packKeys.get(this.pack);
+    if (this.mode !== 'play' || !key || !this.profile || this.slot < 0) return;
+    const rooms = [...this.parents.slice(-31).map(({ puzzle }) => puzzle), puzzle];
+    const progress = { campaign: campaign.progress(), rooms: rooms.map(room => ({ id: room.level.id, state: room.state })) };
+    this.profile = { active: key, packs: { ...this.profile.packs, [key]: progress } };
+    this.slots[this.slot] = this.profile;
+    this.saves[this.slot]!.save(this.profile);
   }
   private canOpen(index: number): boolean {
     const entry = this.pack.entries[index];
@@ -141,16 +196,354 @@ class LagoonGame {
     }
     return { index: this.packs[0]!.initial, puzzle: this.overworld! };
   }
+  private packForKey(key: string): LevelPack | undefined {
+    return this.packs.find(pack => this.packKeys.get(pack) === key);
+  }
+  private async migrate(): Promise<void> {
+    const coral = this.packs[0]!;
+    const legacy = new SingleSlotGameSave({ gameId: 'dafeiyu', name: copy.title, validateData: isProgress });
+    const packs: Record<string, OfficialProgress> = {};
+    const [old, ...official] = await Promise.all([legacy.load(), ...this.packs.slice(1).map(async pack => ({
+      key: this.packKeys.get(pack)!, progress: await new SingleSlotGameSave({ gameId: 'dafeiyu-official-' + this.packKeys.get(pack),
+        name: pack.title, validateData: isOfficialProgress }).load(),
+    }))]);
+    if (old) packs.coral = { campaign: { completed: old.completed, bonuses: [], conversions: [] },
+      rooms: [{ id: coral.entries[old.stage]!.id, state: old.state }] };
+    for (const { key, progress } of official) if (progress) packs[key] = progress;
+    const preferred = this.packKeys.get(this.preferred)!;
+    const active = packs[preferred] ? preferred : Object.keys(packs)[0];
+    if (active && !this.lifetime.signal.aborted) {
+      this.slots[0] = { active, packs };
+      this.saves[0]!.save(this.slots[0]);
+    }
+  }
+  private homeScreen(): void {
+    if (this.mode === 'play' && this.puzzle) this.audio.play('exit');
+    this.mode = 'home';
+    this.homePage = 'main';
+    this.homeIndex = 0;
+    this.slot = -1;
+    this.pending = undefined;
+    this.library = false;
+    this.paused = false;
+    this.message = '';
+    this.scene?.setEditorCursor();
+    this.scene?.setHome(true);
+    this.refresh();
+  }
+  private homeBack(): void {
+    if (this.homePage === 'overwrite') { this.homePage = 'new'; this.homeIndex = this.overwrite; }
+    else { this.homePage = 'main'; this.homeIndex = 0; }
+    this.message = '';
+    this.refresh();
+  }
+  private homeAction(index: number): void {
+    if (this.busy || this.mode !== 'home' || gameSession.paused) return;
+    this.audio.play('click');
+    this.message = '';
+    if (this.homePage === 'main') {
+      if (index === 2) { void this.startEditor(); return; }
+      if (index === 0 || index === 1 && this.slots.some(Boolean)) {
+        this.homePage = index === 0 ? 'new' : 'continue';
+        this.homeIndex = index === 0 ? Math.max(0, this.slots.indexOf(null)) : this.slots.findIndex(Boolean);
+      }
+    } else if (this.homePage === 'overwrite') {
+      if (index === 0) { void this.beginSlot(this.overwrite, true); return; }
+      this.homeBack();
+    } else if (index === 3) this.homeBack();
+    else if (index >= 0 && index < this.slots.length) {
+      if (this.homePage === 'continue') { if (this.slots[index]) void this.beginSlot(index, false); }
+      else if (this.slots[index]) { this.overwrite = index; this.homePage = 'overwrite'; this.homeIndex = 1; }
+      else void this.beginSlot(index, true);
+    }
+    this.refresh();
+  }
+  private async beginSlot(slot: number, fresh: boolean): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    this.refresh();
+    try {
+      const draft = fresh ? undefined : this.slots[slot];
+      const pack = (draft && this.packForKey(draft.active)) || this.preferred;
+      this.slot = slot;
+      this.profile = draft ?? { active: this.packKeys.get(pack)!, packs: {} };
+      this.parked = new WeakMap();
+      this.campaigns = new WeakMap();
+      this.parents.length = 0;
+      this.puzzle = null;
+      const coral = this.packs[0]!;
+      const saved = this.profile.packs.coral;
+      const [map] = await Promise.all([coral.entries[coral.initial]!.read(), this.scene?.prepare(false)]);
+      this.lifetime.signal.throwIfAborted();
+      const campaign = new Campaign(coral, saved?.campaign);
+      this.campaigns.set(coral, campaign);
+      this.overworld = new Puzzle(map, saved?.rooms.find(room => room.id === map.id)?.state, campaign);
+      this.mode = 'play';
+      this.library = false;
+      this.scene?.setHome(false);
+      await this.openStart(pack);
+      if (!this.puzzle) throw Error('The starting room could not be loaded');
+    } catch (error) {
+      if (this.lifetime.signal.aborted) return;
+      this.homeScreen();
+      this.message = copy.failed;
+      console.warn('大肥鱼存档启动失败', error);
+    } finally {
+      this.busy = false;
+      if (!this.lifetime.signal.aborted) this.refresh();
+    }
+  }
+
+  private async startEditor(): Promise<void> {
+    this.busy = true;
+    this.refresh();
+    try {
+      const [draft] = await Promise.all([this.editor ? undefined : this.draftSave.load(), this.scene?.prepare(false)]);
+      this.lifetime.signal.throwIfAborted();
+      this.editor ??= new WorldEditor(draft ?? newDraft());
+      this.editScreen();
+    } catch (error) {
+      if (!this.lifetime.signal.aborted) { this.message = copy.failed; console.warn('大肥鱼草稿读取失败', error); }
+    } finally {
+      this.busy = false;
+      if (!this.lifetime.signal.aborted) this.refresh();
+    }
+  }
+  private editScreen(): void {
+    if (this.mode === 'test' && this.puzzle) this.audio.play('exit');
+    this.mode = 'editor';
+    this.naming = false;
+    this.puzzle = null;
+    this.parents.length = 0;
+    this.library = false;
+    this.paused = false;
+    this.pending = undefined;
+    this.message = '';
+    this.scene?.setHome(false);
+    this.redrawEditor();
+  }
+  private choices(): readonly string[] { return this.tab === 'map' ? editorMapTools : palettes[this.tab]; }
+  private chooseTab(tab: PaletteTab): void {
+    this.tab = tab;
+    this.brushPage = 0;
+  }
+  private pickBrush(index: number): void {
+    const brush = this.choices()[this.brushPage * palettePageSize + index];
+    if (this.mode !== 'editor' || this.naming || !this.editor || !brush) return;
+    this.audio.play('click');
+    this.editor.brush = brush;
+    this.message = '';
+    this.refresh();
+  }
+  private redrawEditor(persist = false): void {
+    const editor = this.editor;
+    if (!editor) return;
+    if (!editor.room.map && this.tab === 'map') this.chooseTab('objects');
+    this.scene?.setEditorCursor(editor.cursor);
+    this.scene?.setPuzzle(new Puzzle(levelFromDraft(editor.room)));
+    if (persist) this.draftSave.save(structuredClone(editor.project));
+    this.refresh();
+  }
+  private paint(at: Cell, erase = false, stack?: boolean): void {
+    const editor = this.editor;
+    if (!editor || this.mode !== 'editor' || gameSession.paused) return;
+    if (editor.paint(at, erase ? '@erase' : editor.brush, stack)) { this.message = ''; this.redrawEditor(true); }
+    else {
+      this.scene?.setEditorCursor(editor.cursor);
+      if (editor.brush === '@select') this.refresh();
+    }
+  }
+  private editorAction(action: EditorCommand): void {
+    const editor = this.editor;
+    if (!editor || this.mode !== 'editor' || this.busy || this.naming || gameSession.paused) return;
+    this.audio.play('click');
+    this.message = '';
+    if (action === 'home') { this.homeScreen(); return; }
+    if (action === 'run') { void this.playtest(); return; }
+    if (action === 'undo') { if (editor.undo()) this.redrawEditor(true); return; }
+    if (action === 'export') { this.exportDraft(editor.project); return; }
+    if (action === 'import') { this.projectPicker.click(); return; }
+    if (action === 'rename') { this.renameEditor(); return; }
+    if (action === 'add' || action === 'map') {
+      if (editor.addRoom(action === 'map')) {
+        if (editor.brush === '@locked') this.chooseTab('map');
+        this.message = editor.brush === '@locked' ? screenCopy.added : screenCopy.roomAdded;
+        this.redrawEditor(true);
+      }
+      return;
+    }
+    if (action === 'room-prev' || action === 'room-next' || action === 'world') {
+      editor.select(action === 'world' ? 0 : editor.index + (action === 'room-prev' ? -1 : 1));
+      this.redrawEditor();
+      return;
+    }
+    if (action.startsWith('width-') || action.startsWith('height-')) {
+      const change = action.endsWith('-up') ? 1 : -1;
+      const alongWidth = action.startsWith('width-');
+      if (editor.resize(editor.room.width + (alongWidth ? change : 0), editor.room.height + (alongWidth ? 0 : change))) {
+        this.redrawEditor(true); return;
+      }
+      this.message = screenCopy.noEdit;
+    }
+    if (action === 'objects' || action === 'text' || action === 'map-tools') this.chooseTab(action === 'map-tools' ? 'map' : action);
+    if (action === 'select') editor.brush = '@select';
+    if (action === 'erase') editor.brush = '@erase';
+    if (action === 'stack') editor.stacking = !editor.stacking;
+    if (action === 'rotate') editor.facing = ((editor.facing + 1) % 4) as Direction;
+    if (action === 'target-prev' || action === 'target-next') editor.selectTarget(action === 'target-prev' ? -1 : 1);
+    if (action === 'palette-prev' || action === 'palette-next') this.brushPage = Math.max(0,
+      Math.min(Math.ceil(this.choices().length / palettePageSize) - 1, this.brushPage + (action === 'palette-prev' ? -1 : 1)));
+    this.refresh();
+  }
+  private renameEditor(): void {
+    const input = this.screens?.nameInput;
+    if (!input || !this.editor) return;
+    this.naming = true;
+    input.setValue(this.editor.room.title);
+    // Select the previous name before opening the native text session.
+    input.selectAll();
+    this.refresh();
+    // The field needs a GUI layout pass before the focus manager admits it.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!this.naming || this.lifetime.signal.aborted) return;
+      this.hud?.system.focus.focus(input);
+    }));
+  }
+  private finishName(value: string | undefined): void {
+    if (!this.naming) return;
+    this.audio.play('click');
+    this.naming = false;
+    this.hud?.system.focus.blur();
+    if (value && this.editor?.rename(value)) this.redrawEditor(true);
+    else this.refresh();
+  }
+  private exportDraft(project: WorldDraft): void {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(project, null, 2) + '\n'], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'dafeiyu-world.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  private async importDraft(file: File): Promise<void> {
+    if (this.mode !== 'editor' || this.busy) return;
+    this.busy = true;
+    try {
+      if (file.size > 8 * 1024 * 1024) throw Error('Draft is too large');
+      const draft: unknown = JSON.parse(await file.text());
+      if (!isWorldDraft(draft)) throw Error('Invalid world draft');
+      if (this.lifetime.signal.aborted || this.mode !== 'editor') return;
+      this.editor = new WorldEditor(draft);
+      this.editor.select(0);
+      this.chooseTab('objects');
+      this.message = '';
+      this.redrawEditor(true);
+    } catch {
+      this.message = screenCopy.badImport;
+    } finally {
+      this.busy = false;
+      if (!this.lifetime.signal.aborted) this.refresh();
+    }
+  }
+  private async playtest(): Promise<void> {
+    if (!this.editor || this.busy) return;
+    const pack = packFromDraft(this.editor.project);
+    this.campaigns.set(pack, new Campaign(pack));
+    this.mode = 'test';
+    this.scene?.setEditorCursor();
+    await this.open(pack, this.editor.index);
+    if (!this.lifetime.signal.aborted && !this.puzzle) this.editScreen();
+  }
+
+  private editPointer(event: PointerEvent): void {
+    if (this.mode !== 'editor' || this.busy || this.naming || !this.scene?.bounds.cell) return;
+    const { x, y, cell } = this.scene.bounds;
+    const rect = this.canvas.getBoundingClientRect();
+    const col = Math.floor(((event.clientX - rect.left) * this.engine.displayWidth / rect.width - x) / cell);
+    const row = Math.floor(((event.clientY - rect.top) * this.engine.displayHeight / rect.height - y) / cell);
+    const room = this.editor!.room;
+    if (col < 1 || row < 1 || col >= room.width - 1 || row >= room.height - 1) return;
+    const at = { x: col, y: row };
+    if (event.buttons & 3) {
+      if (event.type === 'pointerdown' || !this.lastPaint || !sameCell(this.lastPaint, at)) {
+        this.lastPaint = at;
+        this.paint(at, !!(event.buttons & 2), event.shiftKey || this.editor!.stacking);
+      }
+    } else if (this.editor!.brush !== '@select' && !sameCell(this.editor!.cursor, at)) {
+      this.lastPaint = undefined;
+      this.editor!.cursor = at;
+      this.scene.setEditorCursor(at);
+    }
+  }
   private bind(): void {
     const options = { signal: this.lifetime.signal };
+    const unlock = (event: Event) => {
+      if (event.isTrusted || document.body.dataset.gamepadActive === 'true') this.audio.unlock(event.isTrusted);
+    };
+    for (const type of ['pointerdown', 'pointerup', 'keydown'] as const) {
+      window.addEventListener(type, unlock, { ...options, capture: true });
+    }
+    this.audio.visibility(document.hidden);
     window.addEventListener('keydown', event => {
-      if (event.ctrlKey || event.altKey || event.metaKey || gameSession.paused) return;
-      const action = actions.get(event.code);
+      if (event.altKey || gameSession.paused) return;
+      const modified = event.ctrlKey || event.metaKey;
+      const playing = this.mode === 'play' || this.mode === 'test';
+      const history = modified && playing && (event.code === 'KeyY' || event.code === 'KeyZ');
+      if (modified && !history) return;
+      const action = history ? event.code === 'KeyY' || event.shiftKey ? 'redo' : 'undo' : actions.get(event.code);
       const move = moves.get(event.code);
+      if (this.mode === 'home') {
+        if (this.busy || !action && move === undefined) return;
+        event.preventDefault();
+        if (event.code === 'Escape' || action === 'undo') { if (!event.repeat) { this.audio.play('click'); this.homeBack(); } }
+        else if (action === 'next' || move === 'wait') { if (!event.repeat) this.homeAction(this.homeIndex); }
+        else if (move !== undefined) {
+          const length = this.homePage === 'main' ? 3 : this.homePage === 'overwrite' ? 2 : 4;
+          const delta = move === 1 || move === 2 ? -1 : 1;
+          do { this.homeIndex = (this.homeIndex + length + delta) % length; }
+          while (this.homePage === 'continue' && this.homeIndex < 3 && !this.slots[this.homeIndex] ||
+            this.homePage === 'main' && this.homeIndex === 1 && !this.slots.some(Boolean));
+          this.refresh();
+        }
+        return;
+      }
+      if (this.mode === 'editor' && this.editor) {
+        if (this.naming) {
+          if (event.code === 'Escape' && !event.isComposing) { event.preventDefault(); this.finishName(undefined); }
+          return;
+        }
+        if (this.busy || !action && move === undefined && !['KeyQ', 'KeyE', 'Delete', 'Tab'].includes(event.code)) return;
+        event.preventDefault();
+        if (action === 'pause') { if (!event.repeat) this.editorAction('home'); }
+        else if (action === 'restart') { if (!event.repeat) this.editorAction('run'); }
+        else if (action === 'undo') { if (!event.repeat) this.editorAction('undo'); }
+        else if (action === 'library' || event.code === 'Tab') this.editorAction(this.tab === 'objects' ? 'text' : this.tab === 'text' && this.editor.room.map ? 'map-tools' : 'objects');
+        else if (event.code === 'KeyQ' || event.code === 'KeyE') this.editorAction(event.code === 'KeyQ' ? 'palette-prev' : 'palette-next');
+        else if (event.code === 'Delete') this.paint(this.editor.cursor, true);
+        else if (move === 'wait' || action === 'next') { if (!event.repeat) this.paint(this.editor.cursor, false, event.shiftKey || this.editor.stacking); }
+        else if (move !== undefined) {
+          const [dx, dy] = vectors[move];
+          this.editor.moveCursor(dx, dy);
+          this.scene?.setEditorCursor(this.editor.cursor);
+          if (this.editor.brush === '@select') this.refresh();
+        }
+        return;
+      }
       if (!action && move === undefined) return;
-      if (event.code === 'Escape' && !this.library) return;
+      if (this.paused) {
+        event.preventDefault();
+        if (action === 'pause' || action === 'undo') { if (!event.repeat) this.act('resume'); }
+        else if (action === 'next' || move === 'wait') { if (!event.repeat) this.act(pauseActions[this.pauseIndex]!); }
+        else if (move !== undefined) {
+          const delta = move === 1 || move === 2 ? -1 : 1;
+          do { this.pauseIndex = (this.pauseIndex + pauseActions.length + delta) % pauseActions.length; }
+          while (pauseActions[this.pauseIndex] === 'world' && this.worldIndex() < 0);
+          this.refresh();
+        }
+        return;
+      }
       event.preventDefault();
-      if (action) { if (!event.repeat) this.act(action); return; }
+      if (action) { if (!event.repeat) this.act(action === 'pause' && this.library ? 'library' : action); return; }
       if (move !== undefined) {
         if (move === 'wait' && event.repeat) return;
         if (this.library && move === 'wait') this.act('next');
@@ -159,16 +552,27 @@ class LagoonGame {
       }
     }, options);
     window.addEventListener('blur', () => { this.pending = undefined; }, options);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.pending = undefined; }, options);
+    document.addEventListener('visibilitychange', () => {
+      this.audio.visibility(document.hidden);
+      if (document.hidden) this.pending = undefined;
+    }, options);
     for (const input of [this.picker, this.folder]) input.addEventListener('change', () => {
       const files = Array.from(input.files ?? []);
       input.value = '';
       if (files.length) void this.import(files);
     }, options);
+    this.projectPicker.addEventListener('change', () => {
+      const file = this.projectPicker.files?.[0];
+      this.projectPicker.value = '';
+      if (file) void this.importDraft(file);
+    }, options);
+    for (const type of ['pointerdown', 'pointermove'] as const) this.canvas.addEventListener(type, event => this.editPointer(event), options);
+    for (const type of ['pointerup', 'pointercancel'] as const) this.canvas.addEventListener(type, () => { this.lastPaint = undefined; }, options);
+    this.canvas.addEventListener('contextmenu', event => { if (this.mode === 'editor') event.preventDefault(); }, options);
     this.resize.observe(this.canvas);
   }
   private move(move: Move): void {
-    if (this.busy) return;
+    if (this.busy || this.paused) return;
     if (this.library) {
       if (move === 1 || move === 3) this.select(this.selected + (move === 1 ? -1 : 1));
       else if (move === 0 || move === 2) this.select(this.selected + (move === 2 ? -rowsPerPage : rowsPerPage));
@@ -176,12 +580,31 @@ class LagoonGame {
     }
     if (!this.puzzle || this.puzzle.state.won) return;
     const before = this.puzzle.state;
+    const context = this.puzzle.context;
     this.puzzle.move(move);
+    if (this.puzzle.state !== before) this.turnSound(context, this.puzzle, move !== 'wait');
     this.scene?.setPuzzle(this.puzzle, before);
     this.message = '';
     this.save();
     this.refresh();
     if (this.puzzle.state.conversion) void this.convertRoom(this.puzzle, this.puzzle.state.conversion);
+  }
+  private turnSound(before: RuleContext, puzzle: Puzzle, directional: boolean): void {
+    if (!this.audio.active) return;
+    if (puzzle.state.won) { this.audio.play('victory'); return; }
+    if (puzzle.state.conversion) return;
+    if (!isMap(puzzle.level) && !puzzle.context.units.some(unit => player(puzzle.context, unit)) &&
+        before.units.some(unit => player(before, unit))) {
+      this.audio.play('failure');
+      return;
+    }
+    if (!directional) return;
+    const controlled = new Map(before.units.filter(unit => unit.id >= 0 && (player(before, unit) || before.has(unit, 'select')))
+      .map(unit => [unit.id, unit]));
+    if (puzzle.state.units.some(unit => {
+      const old = controlled.get(unit.id);
+      return old && (old.x !== unit.x || old.y !== unit.y);
+    })) this.audio.play('move');
   }
   private select(index: number): void {
     this.selected = Math.max(0, Math.min(this.pack.entries.length - 1, index));
@@ -190,13 +613,36 @@ class LagoonGame {
   private act(action: HudAction): void {
     if (this.busy || gameSession.paused) return;
     const puzzle = this.puzzle;
+    if (action === 'pause') {
+      if (!puzzle || this.library) return;
+      this.audio.play('click');
+      this.paused = true;
+      this.pauseIndex = 0;
+      this.pending = undefined;
+      this.refresh();
+      return;
+    }
+    if (this.paused && action !== 'resume' && action !== 'world' && action !== 'home') return;
+    this.audio.play('click');
+    if (action === 'resume') {
+      this.paused = false;
+      this.refresh();
+      return;
+    }
     this.message = '';
-    if (action === 'library') {
+    if (action === 'world') {
+      this.returnToWorld();
+      return;
+    } else if (action === 'home' || this.mode === 'test' && action === 'library') {
+      if (this.mode === 'test') this.editScreen();
+      else this.homeScreen();
+      return;
+    } else if (action === 'library') {
       this.library = !this.library;
       this.selected = this.index;
       this.pending = undefined;
     } else if (action === 'files' || action === 'folder') {
-      (action === 'files' ? this.picker : this.folder).click();
+      if (this.mode === 'play') (action === 'files' ? this.picker : this.folder).click();
     } else if (this.library) {
       if (action === 'older' || action === 'newer') this.select(this.selected + (action === 'older' ? -rowsPerPage : rowsPerPage));
       if (action === 'pack') {
@@ -209,12 +655,20 @@ class LagoonGame {
         else this.message = copy.locked;
       }
     } else if (puzzle) {
-      if (action === 'undo' || action === 'restart') {
-        if (action === 'undo') {
+      if (action === 'undo' || action === 'redo' || action === 'restart') {
+        if (action === 'restart') {
+          puzzle.reset();
+          this.scene?.setPuzzle(puzzle);
+        } else {
           const previous = puzzle.state;
-          puzzle.undo();
-          if (puzzle.state !== previous) this.scene?.setPuzzle(puzzle, previous);
-        } else { puzzle.reset(); this.scene?.setPuzzle(puzzle); }
+          const context = puzzle.context;
+          if (action === 'undo') puzzle.undo();
+          else puzzle.redo();
+          if (puzzle.state !== previous) {
+            if (action === 'redo') this.turnSound(context, puzzle, false);
+            this.scene?.setPuzzle(puzzle, previous);
+          }
+        }
         this.save();
       } else if (action === 'next') {
         if (puzzle.state.won && this.parents.length) {
@@ -229,6 +683,27 @@ class LagoonGame {
     }
     this.refresh();
   }
+  private worldIndex(): number {
+    if (this.pack.entries[this.pack.initial]?.map) return this.pack.initial;
+    const top = this.parents.find(room => isMap(room.puzzle.level));
+    if (top) return top.index;
+    if (!this.puzzle) return -1;
+    if (isMap(this.puzzle.level)) return this.index;
+    return this.campaigns.get(this.pack)?.parentOf(this.puzzle.level.id) ?? -1;
+  }
+  private returnToWorld(): void {
+    const index = this.worldIndex();
+    if (index < 0) return;
+    this.paused = false;
+    this.pending = undefined;
+    if (index === this.index) { this.refresh(); return; }
+    const world = this.parents.find(room => room.index === index);
+    if (!world) { void this.open(this.pack, index); return; }
+    world.puzzle.refreshMap();
+    this.show(this.pack, world, [], false);
+    this.save();
+    this.refresh();
+  }
   private returnToParent(): void {
     const parent = this.parents.pop();
     if (!parent) return;
@@ -237,6 +712,7 @@ class LagoonGame {
     this.puzzle = parent.puzzle;
     this.index = this.selected = parent.index;
     this.scene?.setPuzzle(parent.puzzle);
+    this.audio.play('exit');
     this.save();
     this.refresh();
   }
@@ -254,13 +730,61 @@ class LagoonGame {
       await this.open(this.pack, index, false, undefined, { child: id, targets });
     }
   }
-  private openStart(pack: LevelPack, keepLibrary = false): Promise<void> {
+  private async openStart(pack: LevelPack, keepLibrary = false): Promise<void> {
+    const parked = this.parked.get(pack);
+    if (parked) { this.show(pack, parked.room, parked.parents, keepLibrary); this.save(); this.refresh(); return; }
+    const key = this.packKeys.get(pack);
+    const saved = key ? this.profile?.packs[key] : undefined;
+    const campaign = this.campaigns.get(pack) ?? new Campaign(pack, saved?.campaign);
+    this.campaigns.set(pack, campaign);
+    if (saved) {
+      this.busy = true;
+      this.pending = undefined;
+      this.refresh();
+      try {
+        const indices = saved.rooms.map(room => pack.entries.findIndex(entry => entry.id === room.id));
+        if (indices.every(index => index >= 0)) {
+          const builtin = pack === this.packs[0];
+          const rooms = await Promise.all(indices.map(async (index, slot) => ({ index,
+            puzzle: builtin && index === pack.initial && this.overworld ? this.overworld :
+              new Puzzle(await pack.entries[index]!.read(), saved.rooms[slot]!.state, campaign) })));
+          if (this.lifetime.signal.aborted) return;
+          const active = rooms.pop()!;
+          if (builtin && active.index !== pack.initial && !rooms.length) rooms.push(this.builtinParent(active.puzzle.level.id));
+          this.show(pack, active, rooms, keepLibrary);
+          if (active.puzzle.state.conversion) await this.convertRoom(active.puzzle, active.puzzle.state.conversion);
+          this.save();
+          return;
+        }
+      } catch (error) {
+        if (this.lifetime.signal.aborted) return;
+        console.warn('大肥鱼存档读取失败', error);
+      } finally {
+        this.busy = false;
+        if (!this.lifetime.signal.aborted) this.refresh();
+      }
+    }
     const first = pack.first;
     const intro = first !== undefined && first !== pack.initial &&
       !this.campaigns.get(pack)?.completed.has(pack.entries[first]!.id);
     return this.open(pack, intro ? first : pack.initial, keepLibrary, undefined, undefined, intro);
   }
-  private async open(pack: LevelPack, index: number, keepLibrary = false, parent?: { index: number; puzzle: Puzzle },
+  private show(pack: LevelPack, { index, puzzle }: Room, parents: Room[], keepLibrary: boolean): void {
+    const leaving = this.puzzle && pack === this.pack && (parents.length < this.parents.length ||
+      (!isMap(this.puzzle.level) && isMap(puzzle.level)));
+    if (pack !== this.pack && this.puzzle) this.parked.set(this.pack, { room: { index: this.index, puzzle: this.puzzle }, parents: [...this.parents] });
+    this.parked.delete(pack);
+    this.pending = undefined;
+    this.paused = false;
+    this.scene?.setPuzzle(puzzle);
+    this.index = this.selected = index;
+    this.pack = pack;
+    this.puzzle = puzzle;
+    this.library = keepLibrary;
+    this.parents.splice(0, this.parents.length, ...parents);
+    this.audio.play(leaving ? 'exit' : 'enter');
+  }
+  private async open(pack: LevelPack, index: number, keepLibrary = false, parent?: Room,
     conversion?: { child: string; targets: string[] }, intro = false): Promise<void> {
     this.busy = true;
     this.pending = undefined;
@@ -273,18 +797,10 @@ class LagoonGame {
       const campaign = this.campaigns.get(pack);
       if (conversion) campaign?.replace(level.id, conversion.child, conversion.targets);
       const puzzle = returning ?? new Puzzle(level, undefined, campaign);
-      this.scene?.setPuzzle(puzzle);
-      this.index = index;
-      this.selected = index;
-      this.pack = pack;
-      this.puzzle = puzzle;
-      this.library = keepLibrary;
-      if (parent) this.parents.push(parent);
-      else {
-        this.parents.length = 0;
-        if (builtin && index !== pack.initial) this.parents.push(this.builtinParent(level.id));
-        else if (start) this.parents.push({ index: pack.initial, puzzle: new Puzzle(start, undefined, campaign) });
-      }
+      const parents = parent ? [...this.parents, parent] : [];
+      if (!parent && builtin && index !== pack.initial) parents.push(this.builtinParent(level.id));
+      if (!parent && start) parents.push({ index: pack.initial, puzzle: new Puzzle(start, undefined, campaign) });
+      this.show(pack, { index, puzzle }, parents, keepLibrary);
       this.save();
     } catch (error) {
       if (!this.lifetime.signal.aborted) {
@@ -313,7 +829,7 @@ class LagoonGame {
       if (this.pack === first) {
         // Release replaced file handles when the same named pack is imported again.
         for (const pack of packs) {
-          const previous = this.packs.findIndex((entry, i) => i > 0 && entry.title === pack.title);
+          const previous = this.packs.findIndex(entry => !this.packKeys.has(entry) && entry.title === pack.title);
           if (previous === -1) this.packs.push(pack);
           else this.packs[previous] = pack;
         }
@@ -327,16 +843,23 @@ class LagoonGame {
     }
   }
   snapshot() {
-    return { current: this.puzzle?.level.id, title: this.puzzle?.level.title, state: this.puzzle?.state,
-      rules: this.puzzle?.context.rules.map(rule => rule.label), library: this.library, active: this.selected,
+    const nodes = (this.mode === 'home' || this.mode === 'editor' ? this.screens : this.hud)?.root.root.children;
+    return { mode: this.mode, slot: this.slot + 1, slots: this.slots.map(Boolean), editor: this.mode === 'editor' ? this.editor?.project : undefined,
+      editing: this.mode === 'editor' ? this.editor?.room.id : undefined, brush: this.mode === 'editor' ? this.editor?.brush : undefined,
+      editorPalette: this.mode === 'editor' ? this.choices().slice(this.brushPage * palettePageSize, (this.brushPage + 1) * palettePageSize) : undefined,
+      current: this.puzzle?.level.id, title: this.puzzle?.level.title, state: this.puzzle?.state,
+      rules: this.puzzle?.context.rules.map(rule => rule.label), library: this.library, paused: this.paused, active: this.selected,
       pack: this.pack.title, gamepad: this.usingPad, bounds: this.scene?.bounds, message: this.message,
       animation: this.scene?.animationSnapshot(),
+      audio: this.audio.snapshot(),
       openPaths: this.puzzle?.openPaths.map(({ x, y }) => [x, y]), selectedLink: this.puzzle?.selectedLink(),
-      hud: this.hud?.root.root.children.map(node => ({ text: 'text' in node ? node.text : '', visible: node.visible, rect: {...node.rect} })) };
+      hud: nodes?.map(node => ({ id: node.id, text: 'text' in node ? node.text : '', value: 'value' in node ? node.value : undefined,
+        visible: node.visible, disabled: node.disabled, icon: !!node.style.icon, rect: {...node.rect} })) };
   }
   dispose(): void {
     if (this.lifetime.signal.aborted) return;
     this.lifetime.abort();
+    this.audio.dispose();
     this.resize.disconnect();
     this.engine.stop();
     this.world.destroy();
@@ -346,7 +869,7 @@ class LagoonGame {
 
 const stopGamepad = installGamepad('dafeiyu');
 const game = new LagoonGame(document.getElementById('lagoon') as HTMLCanvasElement, document.getElementById('level-pair') as HTMLInputElement,
-  document.getElementById('level-pack') as HTMLInputElement);
+  document.getElementById('level-pack') as HTMLInputElement, document.getElementById('world-draft') as HTMLInputElement);
 window.addEventListener('pagehide', event => {
   if (!event.persisted) { stopGamepad(); game.dispose(); }
 });

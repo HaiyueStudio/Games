@@ -2,11 +2,16 @@ import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import lobby from './rollup.gamepad.config.js';
 import { gameModulePlugin } from './scripts/rollup-plugin-game-module.mjs';
+import { atlasConfigFile, gameImageAtlasPlugin } from './scripts/game-image-atlas.mjs';
 import { cleanOutputDirectory, haiyuePlugins, loadContentManifest, selectContentEntries, toGlobalName } from './config/rollup.shared.js';
 
 const gamesDirectory = resolve(process.cwd(), 'games');
 const manifest = loadContentManifest('games', gamesDirectory);
 const games = selectContentEntries(manifest, process.env.GAME_FILTER);
+const imageAtlas = id => {
+  const file = resolve(gamesDirectory, id, atlasConfigFile);
+  return existsSync(file) ? [gameImageAtlasPlugin(file, !!process.env.GAME_DEV_DEPENDENCIES_FILE)] : [];
+};
 
 const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
   input: 'games/gravity-maze/main.ts',
@@ -27,7 +32,7 @@ const configs = games.map(entry => entry.id === 'gravity-maze' ? ({
       sourcemap: true,
       inlineDynamicImports: true,
     },
-    plugins: [...haiyuePlugins({ declaration: false, tsconfig: existsSync(`games/${entry.id}/tsconfig.build.json`) ? `games/${entry.id}/tsconfig.build.json` : './tsconfig.rollup.json' }), gameModulePlugin(entry.id)],
+  plugins: [...imageAtlas(entry.id), ...haiyuePlugins({ declaration: false, tsconfig: existsSync(`games/${entry.id}/tsconfig.build.json`) ? `games/${entry.id}/tsconfig.build.json` : './tsconfig.rollup.json' }), gameModulePlugin(entry.id)],
   }));
 
 // Build the terrain worker first so the game's bundle is published only after its worker exists.

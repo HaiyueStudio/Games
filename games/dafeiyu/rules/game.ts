@@ -1,7 +1,8 @@
 import type { BabaLevel, Direction } from '../levels/baba-format';
 import type { Campaign } from './campaign';
-import { directions, isUniversal, opposite, ruleContext, textName, typeOf, vectors, type RuleContext } from './properties';
-import { isText, type Unit } from './syntax';
+import { directions, isUniversal, opposite, player, ruleContext, textName, typeOf, vectors, type RuleContext } from './properties';
+import { createRuleReader, isText, type RuleReader, type Unit } from './syntax';
+import { recordTurn, restoreTurn, type TurnChange } from './history';
 
 export type Move = Direction | 'wait';
 interface Movement {
@@ -16,17 +17,29 @@ export interface GameState {
   waiting: boolean;
   conversion?: string[];
   bonus?: number;
+  island?: true;
 }
-const player = (context: RuleContext, unit: Unit) => context.has(unit, 'you') || context.has(unit, 'you2');
 const selector = (context: RuleContext, unit: Unit) => context.has(unit, 'select');
 const directionsFor = (context: RuleContext, unit: Unit, property: string) =>
   directions.flatMap((name, dir) => context.has(unit, property + name) ? [dir as Direction] : []);
 const samePlane = (context: RuleContext, a: Unit, b: Unit) => context.has(a, 'float') === context.has(b, 'float');
 export const isMap = (level: BabaLevel) => level.metadata.general?.leveltype === '1';
-const cursorPosition = (level: BabaLevel) => ({
+export const cursorPosition = (level: BabaLevel) => ({
   x: Number(level.metadata.general?.selectorx ?? -1),
   y: Number(level.metadata.general?.selectory ?? -1),
 });
+export const canStandOnMapLink = (context: RuleContext, unit: Unit) =>
+  !!unit.link && (unit.state ?? 2) >= 2 && !context.has(unit, 'hide');
+
+export const blockedByWater = (context: RuleContext, x: number, y: number) =>
+  context.at(x, y).some(unit => unit.name === 'water' && context.has(unit, 'stop'));
+
+function addIsland(level: BabaLevel, state: GameState): GameState {
+  if (!level.island || state.island) return state;
+  let nextId = state.nextId;
+  const island = level.island.map(tile => ({ ...tile, id: nextId++ }));
+  return { ...state, units: [...state.units, ...island], nextId, island: true };
+}
 
 export function initialState(level: BabaLevel): GameState {
   const units: Unit[] = level.tiles.map((tile, id) => ({ ...tile, id }));
@@ -47,17 +60,18 @@ export function initialState(level: BabaLevel): GameState {
     const carrier = candidates.find(unit => unit.layer === special.z) ?? candidates.at(-1);
     if (carrier) carrier.link = target.toLowerCase();
   }
-  return { units, nextId: units.length, turn: 0, won: false, waiting: false };
+  return addIsland(level, { units, nextId: units.length, turn: 0, won: false, waiting: false });
 }
 
 export function advance(level: BabaLevel, previous: GameState, input: Move,
-  openPaths = level.paths.filter(path => path.style > 0 && !path.gate)): GameState {
+  openPaths = level.paths.filter(path => path.style > 0 && !path.gate),
+  read = createRuleReader(level.width, level.height)): GameState {
   if (previous.won || previous.conversion) return previous;
   const waiting = input === 'wait';
   const state = { ...previous, units: previous.units.map(unit => ({ ...unit })), turn: previous.turn + 1, waiting };
-  let context = ruleContext(level, state.units, state.turn, waiting);
+  let context = ruleContext(level, state.units, state.turn, waiting, undefined, read);
   let movementRules: RuleContext['rules'] | undefined = context.rules;
-  const update = () => { context = ruleContext(level, state.units, state.turn, waiting, movementRules); };
+  const update = () => { context = ruleContext(level, state.units, state.turn, waiting, movementRules, read); };
   const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < level.width && y < level.height && !level.edges.has(y * level.width + x);
   const spawn = (name: string, origin: Unit) => {
     if (name === 'empty' || (name === 'level' && !origin.link) || !inBounds(origin.x, origin.y) || state.units.length >= 12000) return;
@@ -79,7 +93,7 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     const shifting = mode === 'shift';
     // Evaluate movement conditions against the board at the start of each phase.
     const original = state.units.map(unit => ({ ...unit }));
-    const phase = ruleContext(level, original, state.turn, waiting, movementRules);
+    const phase = ruleContext(level, original, state.turn, waiting, movementRules, read);
     const before = new Map(phase.units.map(unit => [unit.id, unit]));
     const has = (unit: Unit, property: string) => phase.has(before.get(unit.id) ?? unit, property);
     const canFace = (unit: Unit, dir: Direction) => !has(unit, 'still') && !has(unit, 'locked' + directions[dir]);
@@ -230,7 +244,7 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     if (context.has(unit, 'move') || context.has(unit, 'auto')) automatically.push({ unit, dir: unit.dir });
     for (const dir of directionsFor(context, unit, 'nudge')) automatically.push({ unit, dir });
     const feared = context.targets(unit, 'fear', 0);
-    for (const [dir, [dx, dy]] of vectors.entries()) if (context.at(unit.x + dx, unit.y + dy).some(u => feared.includes(u.name))) {
+    for (const [dir, [dx, dy]] of vectors.entries()) if (feared.length && context.at(unit.x + dx, unit.y + dy).some(u => feared.includes(u.name))) {
       automatically.push({ unit, dir: opposite(dir as Direction) }); break;
     }
   }
@@ -274,7 +288,9 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     for (const { unit, targets } of transformations) if (unit.id !== -1) for (const target of targets) spawn(target, unit);
     update();
   }
+  let facingChanged = false;
   for (const unit of state.units) {
+    const original = unit.dir;
     const face = directionsFor(context, unit, '')[0];
     if (face !== undefined) unit.dir = face;
     if (context.has(unit, 'turn')) unit.dir = ((unit.dir + 3) % 4) as Direction;
@@ -285,6 +301,7 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
         Math.abs(a.x - unit.x) + Math.abs(a.y - unit.y) - Math.abs(b.x - unit.x) - Math.abs(b.y - unit.y))[0];
       if (target) unit.dir = Math.abs(target.x - unit.x) >= Math.abs(target.y - unit.y) ? (target.x < unit.x ? 2 : 0) : (target.y < unit.y ? 1 : 3);
     }
+    facingChanged ||= original !== unit.dir;
   }
   const teleports = state.units.filter(unit => context.has(unit, 'tele'));
   const teleported = new Set<number>();
@@ -295,7 +312,7 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
       unit.x = partner.x; unit.y = partner.y; teleported.add(unit.id);
     }
   }
-  update();
+  if (facingChanged || teleported.size) update();
 
   // SHIFT moves its initial riders earlier in the turn and faces the riders it has now.
   const shiftFacings: { unit: Unit; source: Unit }[] = [];
@@ -318,18 +335,20 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     if (falls.every(({ unit }, n) => unit.x === before[n]![0] && unit.y === before[n]![1])) break;
   }
   if (input !== 'wait') {
+    let cursorMoved = false;
     for (const cursor of state.units) {
       if (!selector(context, cursor) || context.has(cursor, 'still')) continue;
       const dir = context.has(cursor, 'reverse') ? opposite(input) : input;
       if (context.has(cursor, 'locked' + directions[dir])) continue;
       const [dx, dy] = vectors[dir];
       const x = cursor.x + dx, y = cursor.y + dy;
-      if (inBounds(x, y) && (openPaths.some(path => path.x === x && path.y === y) ||
-          context.at(x, y).some(unit => unit.link && (unit.state ?? 2) >= 2 && !context.has(unit, 'hide')))) {
+      if (inBounds(x, y) && (!level.island || !blockedByWater(context, x, y)) && (openPaths.some(path => path.x === x && path.y === y) ||
+          context.at(x, y).some(unit => canStandOnMapLink(context, unit)))) {
         cursor.x = x; cursor.y = y; cursor.dir = dir;
+        cursorMoved = true;
       }
     }
-    update();
+    if (cursorMoved) update();
   }
 
   const resolveHazard = (effect: (unit: Unit, touching: Unit[], remove: (target: Unit) => void) => void) => {
@@ -427,32 +446,56 @@ export class Puzzle {
   readonly level: BabaLevel;
   state: GameState;
   context: RuleContext;
-  private past: GameState[] = [];
+  private past: TurnChange[] = [];
+  private future: TurnChange[] = [];
+  private readonly read: RuleReader;
   private appliedConversions = new Map<string, readonly string[]>();
   private readonly campaign: Campaign | undefined;
+  revealedPaths: BabaLevel['paths'];
   openPaths: BabaLevel['paths'];
   get canUndo(): boolean { return this.past.length > 0; }
+  get canRedo(): boolean { return this.future.length > 0; }
   constructor(level: BabaLevel, saved?: GameState, campaign?: Campaign) {
     this.level = level;
+    this.read = createRuleReader(level.width, level.height);
     this.campaign = campaign;
     this.state = saved && saved.units.every(unit => unit.x >= 0 && unit.y >= 0 && unit.x < level.width && unit.y < level.height) ? saved : initialState(level);
-    this.context = ruleContext(level, this.state.units, this.state.turn, this.state.waiting);
-    this.openPaths = level.paths.filter(path => path.style > 0 && !path.gate);
+    if (this.state === saved) {
+      this.state = addIsland(level, this.state);
+      this.appliedConversions = new Map(campaign?.replacements(level.id));
+    }
+    this.context = ruleContext(level, this.state.units, this.state.turn, this.state.waiting, undefined, this.read);
+    this.revealedPaths = level.paths.filter(path => path.style > 0);
+    this.openPaths = this.revealedPaths.filter(path => !path.gate);
     this.refreshMap();
   }
   private change(state: GameState): void {
     this.state = state;
-    this.context = ruleContext(this.level, state.units, state.turn, state.waiting);
+    this.context = ruleContext(this.level, state.units, state.turn, state.waiting, undefined, this.read);
   }
   move(input: Move): void {
     if (this.state.won || this.state.conversion) return;
-    this.past.push(this.state);
+    const next = advance(this.level, this.state, input, this.openPaths, this.read);
+    this.past.push(recordTurn(this.state, next));
     if (this.past.length > 256) this.past.shift();
-    this.change(advance(this.level, this.state, input, this.openPaths));
+    this.future.length = 0;
+    this.change(next);
   }
-  undo(): void { const state = this.past.pop(); if (state) this.change(state); }
+  undo(): void {
+    const turn = this.past.pop();
+    if (!turn) return;
+    this.future.push(turn);
+    this.change(restoreTurn(this.state, turn.before));
+  }
+  redo(): void {
+    const turn = this.future.pop();
+    if (!turn) return;
+    this.past.push(turn);
+    this.change(restoreTurn(this.state, turn.after));
+  }
   reset(): void {
-    this.past = [];
+    this.past.length = 0;
+    this.future.length = 0;
     this.appliedConversions.clear();
     this.change(initialState(this.level));
     this.refreshMap();
@@ -461,6 +504,7 @@ export class Puzzle {
     const access = isMap(this.level) ? this.campaign?.access(this.level) : undefined;
     const pathsChanged = access && (access.paths.length !== this.openPaths.length ||
       access.paths.some((path, index) => path !== this.openPaths[index]));
+    if (access) this.revealedPaths = access.revealedPaths;
     if (pathsChanged) this.openPaths = access.paths;
     let nextId = this.state.nextId;
     let units = this.state.units;
@@ -482,14 +526,15 @@ export class Puzzle {
     }
     if (pathsChanged || units.length !== this.state.units.length || units.some((unit, index) => unit !== this.state.units[index])) {
       this.change({ ...this.state, units, nextId });
-      this.past = [];
+      this.past.length = 0;
+      this.future.length = 0;
     }
   }
   selectedLink(): string | undefined {
     for (const cursor of this.state.units) {
       if (!selector(this.context, cursor)) continue;
       const link = this.context.at(cursor.x, cursor.y).find(unit =>
-        unit.name === 'level' && unit.link && (unit.state ?? 2) >= 2 && !this.context.has(unit, 'hide'))?.link;
+        unit.name === 'level' && canStandOnMapLink(this.context, unit))?.link;
       if (link) return link;
     }
     return undefined;

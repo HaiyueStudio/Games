@@ -1,0 +1,37 @@
+{
+  "name": "Luna",
+  "characterId": "keke",
+  "generator": "OpenAI built-in ImageGen",
+  "reference": "User-supplied Luna character reference, Photo 1",
+  "prompt": "Use case: game asset. Transform the character in the supplied screenshot into a new transparent PNG sprite sheet for a top-down grid-based puzzle game. The reference is for the CHARACTER DESIGN only. Show the same adorable silver-haired, violet-eyed chibi fantasy dragon girl Luna, with two curved ivory horns, a little stray hair curl, pointed ears, a silver rose hair clip, small pale lavender batlike wings, and an ivory and lilac knee-length frilled outfit with matching little shoes. Friendly neutral expression. Crisp 2D anime game sticker style, simple cel shading and strong deep violet outlines that stay clear at 32 pixels. Use an upright standing walk cycle, slight top-down three-quarter game camera, complete head-to-toe silhouettes. A single SQUARE sheet containing EXACTLY 16 separate transparent sprites in an evenly spaced 4-column by 4-row grid, every cell with the same scale and centered stable anchoring, maximum sprite silhouette about 76% of its cell's height and width, keep all horns and wings inside. Row one: facing toward viewer (down/south). Row two: facing left (west) profile, face points left in ALL four frames. Row three: facing right (east) profile, face points right in ALL four frames. Row four: facing away (up/north), draw back of head and wings without eyes or face. Left to right in EVERY row: left foot forward, upright passing pose with feet close, right foot forward, second passing pose with slight bob. Keep the wings open as paired small wings and no mirrored costume details within a row. Preserve the character design in every pose, with readable leg movement, tiny reciprocal arm swing and modest hair bounce. Flat transparent background with genuine alpha, no floor shadows, no backdrop, no subtitles, words, borders, grid lines, labels, watermark, logos or other objects. Place frame centers at 12.5%, 37.5%, 62.5%, 87.5% on both axes.",
+  "atlas": "atlas.png",
+  "layout": {
+    "columns": 4,
+    "rows": 4,
+    "frameWidth": 160,
+    "frameHeight": 160,
+    "origin": "top-left"
+  },
+  "directions": [
+    {
+      "name": "down",
+      "strip": "down.png"
+    },
+    {
+      "name": "left",
+      "strip": "left.png"
+    },
+    {
+      "name": "right",
+      "strip": "right.png"
+    },
+    {
+      "name": "up",
+      "strip": "up.png"
+    }
+  ],
+  "stripLayout": {
+    "frameWidth": 320,
+    "frameHeight": 320
+  }
+}

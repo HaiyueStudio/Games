@@ -84,9 +84,15 @@ for (const game of manifest.entries) {
 
   copyDirectory(source, join(outputGames, game.id), (entry) => {
     if (!entry) return true;
+    if (game.id === 'dafeiyu' && (entry === 'levels/local-official' || entry.startsWith('levels/local-official/'))) return false;
     return !omittedSourceFile.test(entry) && !sourceMap.test(entry);
   });
   const published = join(outputGames, game.id);
+  if (game.id === 'dafeiyu') {
+    const official = join(published, 'levels', 'local-official');
+    mkdirSync(official, { recursive: true });
+    writeFileSync(join(official, 'catalog.json'), '[]\n');
+  }
   for (const file of readdirSync(published, { recursive: true }).filter(file => file.endsWith('.js'))) {
     const path = join(published, file), source = readFileSync(path, 'utf8'), result = publishGameModule(source);
     if (result !== source) writeFileSync(path, result);

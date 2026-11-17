@@ -1,4 +1,5 @@
 import { decodeMetadata, parseHeader, readBabaLevel, readLevelLinks, type BabaLevel } from './baba-format';
+import { islandOverworld } from './island';
 
 export interface PackLevel {
   id: string;
@@ -15,6 +16,9 @@ export interface LevelPack {
   initial: number;
   first?: number;
 }
+export interface OfficialPack extends LevelPack { id: string }
+
+export type OfficialCatalogue = Omit<OfficialPack, 'entries'> & { entries: Omit<PackLevel, 'read'>[] };
 
 export const INTRO = [
   ['first-dive', '初入珊瑚湾', '把推箱规则读成一句话，再走到旗帜。'],
@@ -31,18 +35,41 @@ async function fetchLevel(url: string, signal: AbortSignal): Promise<Response> {
   return response;
 }
 
+async function readHostedLevel(root: string, id: string, signal: AbortSignal): Promise<BabaLevel> {
+  const [bytes, sidecar] = await Promise.all([
+    fetchLevel(root + '.l', signal).then(r => r.arrayBuffer()),
+    fetchLevel(root + '.ld', signal).then(r => r.arrayBuffer()).then(decodeMetadata),
+  ]);
+  return readBabaLevel(bytes, sidecar, id);
+}
+
+export async function officialPacks(signal: AbortSignal): Promise<OfficialPack[]> {
+  const root = './levels/local-official/';
+  try {
+    const response = await fetch(root + 'catalog.json', { signal });
+    if (!response.ok) return [];
+    const catalog = await response.json() as OfficialCatalogue[];
+    if (!Array.isArray(catalog)) return [];
+    return catalog.map(({ entries, ...world }) => ({ ...world, entries: entries.map(entry => ({ ...entry,
+      read: async () => {
+        const level = await readHostedLevel(`${root}${encodeURIComponent(world.id)}/${encodeURIComponent(entry.id)}`, entry.id, signal);
+        return world.id === 'baba' && entry.id === '106level' ? islandOverworld(level, 'steam') : level;
+      },
+    })) }));
+  } catch {
+    signal.throwIfAborted();
+    return [];
+  }
+}
+
 export function builtinPack(signal: AbortSignal): LevelPack {
   return {
     title: '珊瑚湾', initial: INTRO.length,
     entries: [...INTRO, OVERWORLD].map(([id, title]) => ({
       id, title, ...(id === OVERWORLD[0] ? { map: true, children: INTRO.map(([child]) => child) } : { parent: OVERWORLD[0] }),
-      async read() {
-        const root = './levels/' + id;
-        const [bytes, sidecar] = await Promise.all([
-          fetchLevel(root + '.l', signal).then(r => r.arrayBuffer()),
-          fetchLevel(root + '.ld', signal).then(r => r.arrayBuffer()).then(decodeMetadata),
-        ]);
-        return readBabaLevel(bytes, sidecar, id);
+      read: async () => {
+        const level = await readHostedLevel('./levels/' + id, id, signal);
+        return id === OVERWORLD[0] ? islandOverworld(level, 'coral') : level;
       },
     })),
   };

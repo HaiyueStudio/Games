@@ -157,7 +157,7 @@ function probes() {
 const report = { source, map: null, cases: [] };
 const write = () => writeFileSync(resolve(output, 'replays.json'), JSON.stringify(report, null, 2) + '\n');
 const browser = await runChromeWebGpuFixture({
-  root, fixture: 'games/dafeiyu/index.html', query: { verify: 1 }, timeoutMs: 120000,
+  root, fixture: 'games/dafeiyu/index.html', query: { verify: 1, start: 'coral', autoplay: 1 }, timeoutMs: 120000,
   disableDx12InfoCollection: true, visualCapture: { viewportWidth: 1200, viewportHeight: 800 },
   interact: async cdp => {
     const evaluate = async expression => {

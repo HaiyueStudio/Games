@@ -11,10 +11,12 @@ voxelEditor/release-electron/
 bundle.js
 bundle.js.map
 bundle.meta.json
+/games/*/assets/atlas.build.png
 /games/entanglement-path/terrain-raster.worker.js
 /games/entanglement-path/terrain-raster.worker.js.map
 examples/page-turn-book/pdf.worker.min.mjs
 artifacts/
+/games/dafeiyu/levels/local-official/
 animation-spec/corpus/.cache/
 .DS_Store
 desktop.ini
