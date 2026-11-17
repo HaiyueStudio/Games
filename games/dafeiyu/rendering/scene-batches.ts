@@ -14,6 +14,9 @@ interface Draw {
 export class LagoonSpriteBatches {
   private readonly owners = new Map<string, IndexedSpriteRenderer>();
   private readonly pages = new Set<IndexedSpriteRenderer>();
+  private readonly prepared = new Map<IndexedSpriteRenderer, {
+    commands: IndexedSpriteDrawCommand[]; draws: Draw[]; width: number; height: number;
+  }>();
 
   constructor(private readonly engine: IEngine, private readonly label: string) {}
 
@@ -32,6 +35,7 @@ export class LagoonSpriteBatches {
   remove(page: IndexedSpriteRenderer): void {
     for (const [id, owner] of this.owners) if (owner === page) this.owners.delete(id);
     this.pages.delete(page);
+    this.prepared.delete(page);
     page.dispose();
   }
 
@@ -48,9 +52,16 @@ export class LagoonSpriteBatches {
       if (previous?.page === page) previous.end++;
       else runs.push({ page, start: index, end: index + 1 });
     }
+    for (const page of this.prepared.keys()) if (!byPage.has(page)) this.prepared.delete(page);
     // Upload once per atlas. Replay ranges in the original scene order so
     // transparent and stacked tiles keep their existing compositing order.
     for (const [page, batch] of byPage) {
+      const previous = this.prepared.get(page);
+      if (previous?.width === width && previous.height === height && previous.commands.length === batch.commands.length &&
+          batch.commands.every((command, index) => command === previous.commands[index])) {
+        batch.draws = previous.draws;
+        continue;
+      }
       let pipeline: GPURenderPipeline | undefined;
       const bindings: GPUBindGroup[] = [];
       const capture: Pick<GPURenderPassEncoder, 'setBindGroup' | 'setPipeline' | 'draw'> = {
@@ -62,6 +73,7 @@ export class LagoonSpriteBatches {
         },
       };
       page.render(capture as GPURenderPassEncoder, batch.commands, width, height);
+      this.prepared.set(page, { commands: batch.commands, draws: batch.draws, width, height });
     }
     const encoder = this.engine.device.createRenderBundleEncoder({ label: this.label,
       colorFormats: [this.engine.format], sampleCount: this.engine.msaaSamples });
@@ -85,6 +97,7 @@ export class LagoonSpriteBatches {
   }
 
   recover(device: GPUDevice): void {
+    this.prepared.clear();
     for (const page of this.pages) { page.recover(device); page.uploadAll(); }
   }
 
@@ -92,5 +105,6 @@ export class LagoonSpriteBatches {
     for (const page of this.pages) page.dispose();
     this.pages.clear();
     this.owners.clear();
+    this.prepared.clear();
   }
 }

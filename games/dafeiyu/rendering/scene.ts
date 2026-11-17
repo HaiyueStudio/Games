@@ -10,6 +10,7 @@ import { characterLabel } from '../ui/names';
 import { editorLayout, playGrid } from './layout';
 import { mapRoutes } from './map-routes';
 import { LagoonSpriteBatches } from './scene-batches';
+import { ambientFrameId, ambientFrames, ambientFrameTime, animatedTileArt, animatedTiles, canvas, plane, waterNeighbors } from './animated-tiles';
 import type { Direction } from '../levels/baba-format';
 import { editorTile, type Cell } from '../levels/editor';
 
@@ -28,18 +29,6 @@ const spritePixels = 160;
 const stepTime = 160;
 const winTime = 1050;
 
-function canvas(width: number, height: number): CanvasRenderingContext2D {
-  const surface = document.createElement('canvas');
-  surface.width = width;
-  surface.height = height;
-  const ctx = surface.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw Error('Canvas 2D is unavailable');
-  return ctx;
-}
-function plane(id: string, ctx: CanvasRenderingContext2D): IndexedSpritePlaneDescriptor {
-  const {width, height} = ctx.canvas;
-  return { id, width, height, format: 'rgba8', pixels: new Uint8Array(ctx.getImageData(0, 0, width, height).data) };
-}
 function image(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -146,7 +135,7 @@ function islandArt(): IndexedSpritePlaneDescriptor[] {
   swell.beginPath(); swell.moveTo(6, 15); swell.quadraticCurveTo(14, 8, 24, 15);
   swell.quadraticCurveTo(32, 21, 42, 14); swell.quadraticCurveTo(50, 8, 58, 13);
   swell.strokeStyle = '#fff'; swell.lineWidth = 3; swell.lineCap = 'round'; swell.stroke();
-  return [...tiles, plane('island/shallows', shallows), plane('island/swell', swell)];
+  return [...tiles, plane('island/shallows', shallows), plane('island/grass', swell)];
 }
 
 function paintIsland(puzzle: Puzzle, grid: { x: number; y: number; cell: number },
@@ -157,6 +146,7 @@ function paintIsland(puzzle: Puzzle, grid: { x: number; y: number; cell: number 
   const land = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && !sea.has(y * width + x);
   const { x, y, cell } = grid;
   const ground: { x: number; y: number; sides: number; seed: number }[] = [];
+  const waves: GuiRect[] = [];
   for (let row = 0; row < height; row++) for (let col = 0; col < width; col++) {
     const px = x + col * cell, py = y + row * cell;
     const seed = ((row * 374761393) ^ (col * 668265263)) >>> 0;
@@ -166,14 +156,14 @@ function paintIsland(puzzle: Puzzle, grid: { x: number; y: number; cell: number 
       ground.push({ x: px, y: py, sides, seed });
       if (sides) add('island/shallows', { x: px - .7 * cell, y: py - .7 * cell, width: 2.4 * cell, height: 2.4 * cell });
     } else if (seed % 7 === 0) {
-      add('island/swell', { x: px + cell * .12, y: py + cell * ((seed % 5) * .09 + .23), width: cell * .72, height: cell * .36 },
-        tint(0xa4eddf, .34));
+      waves.push({ x: px + cell * .12, y: py + cell * ((seed % 5) * .09 + .23), width: cell * .72, height: cell * .36 });
     }
   }
+  for (const wave of waves) add('island/swell', wave, tint(0xa4eddf, .34));
   for (const plot of ground) {
     add(`island/land/${plot.sides}`, { x: plot.x, y: plot.y, width: cell, height: cell },
       tint(plot.seed % 5 === 0 ? 0xf3f7e9 : 0xffffff));
-    if (!plot.sides && plot.seed % 6 === 0) add('island/swell',
+    if (!plot.sides && plot.seed % 6 === 0) add('island/grass',
       { x: plot.x + .18 * cell, y: plot.y + .51 * cell, width: cell * .28, height: cell * .14 }, tint(0xe2efb8, .49));
   }
 }
@@ -235,17 +225,21 @@ async function loadArt() {
   const { width: tileWidth, height: tileHeight } = tile.canvas;
   const fitted = canvas(spritePixels, spritePixels);
   fitted.imageSmoothingQuality = 'high';
+  let flag: IndexedSpritePlaneDescriptor | undefined;
   for (const [i, id] of icons.entries()) {
+    if (id === 'water') continue;
     tile.clearRect(0, 0, tileWidth, tileHeight);
     tile.drawImage(atlas!.bitmap, atlas!.x + i % 4 * w, atlas!.y + Math.floor(i / 4) * h, w, h, 0, 0, tileWidth, tileHeight);
-    result.push(fitIcon(id, tile, fitted));
+    const icon = fitIcon(id, tile, fitted);
+    if (id === 'flag') flag = icon;
+    else result.push(icon);
   }
   const crate = canvas(box!.width, box!.height);
   drawArt(crate, box!);
   result.push(fitIcon('box', crate, fitted));
   const ruleSheet = canvas(ruleBoxes!.width, ruleBoxes!.height);
   drawArt(ruleSheet, ruleBoxes!);
-  return { planes: result, ruleBoxes: ruleSheet.canvas };
+  return { planes: result, animated: animatedTileArt(flag!), ruleBoxes: ruleSheet.canvas };
 }
 
 export class LagoonScene extends System {
@@ -269,6 +263,9 @@ export class LagoonScene extends System {
   private win: { elapsed: number; points: { x: number; y: number }[] } | undefined;
   private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   private cached: IndexedSpriteDrawCommand[] = [];
+  private readonly ambientDraws: { index: number; spriteId: string }[] = [];
+  private ambientClock = 0;
+  private ambientFrame = 0;
   private dirty = true;
   private width = 0;
   private height = 0;
@@ -286,8 +283,17 @@ export class LagoonScene extends System {
     if (pending) return pending;
     const load = Promise.all([loadBackdrop(home), home ? undefined : loadArt()]).then(([backdrop, art]) => {
       if (this.disposed) return;
-      this.addPlanes([backdrop, ...(art?.planes ?? [])]);
-      if (art) this.ruleBoxes = art.ruleBoxes;
+      const base = [backdrop, ...(art?.planes ?? [])];
+      const renderer = this.addPlanes(base);
+      if (art) {
+        try { this.addPlanes(art.animated); }
+        catch (error) {
+          this.batches.remove(renderer);
+          for (const sprite of base) this.planes.delete(sprite.id);
+          throw error;
+        }
+        this.ruleBoxes = art.ruleBoxes;
+      }
     }).catch(error => { this.modeLoads.delete(home); throw error; });
     this.modeLoads.set(home, load);
     return load;
@@ -301,6 +307,7 @@ export class LagoonScene extends System {
   setHome(home: boolean): void {
     this.home = home;
     this.dirty = true;
+    if (home) this.win = undefined;
     if (home && !this.modeLoads.has(true)) void this.prepare(true).catch(error => {
       if (!this.disposed) console.warn('大肥鱼首页背景读取失败', error);
     });
@@ -331,6 +338,7 @@ export class LagoonScene extends System {
       const id = walker ? `${walker}/${directions[facing]}/1` : name === '@link' || name === '@locked' ? 'flag' : alias(name) ?? name;
       const source = this.planes.get(id) ?? labelPlane(editorTile(name) ?? { name, type: -1 }, true, this.ruleBoxes!);
       draw(source, 0, 0, 96);
+      if (id === 'water') draw(this.planes.get('water/rim/15')!, 0, 0, 96);
       if (name === '@locked') {
         ctx.fillStyle = '#183850';
         ctx.beginPath(); ctx.arc(72, 72, 20, 0, Math.PI * 2); ctx.fill();
@@ -347,12 +355,16 @@ export class LagoonScene extends System {
     if (!previous || this.elapsed === stepTime) this.walkClock = 0;
     this.elapsed = previous && !this.reducedMotion.matches ? 0 : stepTime;
     this.win = undefined;
-    if (previous && !previous.won && puzzle.state.won && !this.reducedMotion.matches) {
-      const controlled = puzzle.state.units.filter(unit => puzzle.context.has(unit, 'you') || puzzle.context.has(unit, 'you2'));
-      const winners = controlled.filter(unit => puzzle.context.at(unit.x, unit.y).some(goal =>
-        puzzle.context.has(goal, 'win') && puzzle.context.has(goal, 'float') === puzzle.context.has(unit, 'float')));
-      const points = [...new Map(winners.map(unit => [unit.y * puzzle.level.width + unit.x, unit])).values()].slice(0, 3);
-      this.win = { elapsed: 0, points: points.length ? points : [controlled[0] ?? { x: (puzzle.level.width - 1) / 2, y: (puzzle.level.height - 1) / 2 }] };
+    if (puzzle.state.won && !previous?.won && (previous || !isMap(puzzle.level))) {
+      let points: { x: number; y: number }[] = [];
+      if (!this.reducedMotion.matches) {
+        const controlled = puzzle.state.units.filter(unit => puzzle.context.has(unit, 'you') || puzzle.context.has(unit, 'you2'));
+        const winners = controlled.filter(unit => puzzle.context.at(unit.x, unit.y).some(goal =>
+          puzzle.context.has(goal, 'win') && puzzle.context.has(goal, 'float') === puzzle.context.has(unit, 'float')));
+        points = [...new Map(winners.map(unit => [unit.y * puzzle.level.width + unit.x, unit])).values()].slice(0, 3);
+        if (!points.length) points.push(controlled[0] ?? { x: (puzzle.level.width - 1) / 2, y: (puzzle.level.height - 1) / 2 });
+      }
+      this.win = { elapsed: 0, points };
     }
     const labels = new Map<string, IndexedSpritePlaneDescriptor>();
     const missing: IndexedSpritePlaneDescriptor[] = [];
@@ -385,30 +397,41 @@ export class LagoonScene extends System {
     }
     this.labelPages.push({ renderer, ids: planes.map(plane => plane.id), bytes: renderer.stats().gpuBytes });
   }
-  tick(delta: number): void {
+  tick(delta: number): boolean {
+    if (this.ambientDraws.length && !this.reducedMotion.matches) {
+      this.ambientClock = (this.ambientClock + delta) % (ambientFrames * ambientFrameTime);
+    }
     if (this.elapsed < stepTime) {
       this.elapsed = Math.min(stepTime, this.elapsed + delta);
       this.walkClock = (this.walkClock + delta) % stepTime;
       this.dirty = true;
     }
-    if (this.win) {
-      this.win.elapsed += delta;
-      if (this.win.elapsed >= winTime) this.win = undefined;
-      this.dirty = true;
-    }
+    if (!this.win) return false;
+    this.win.elapsed += delta;
+    if (this.win.points.length) this.dirty = true;
+    if (this.win.elapsed < winTime) return false;
+    this.win = undefined;
+    return true;
   }
   animationSnapshot() {
     return { whales: this.cached.filter(draw => draw.spriteId.startsWith('whale/')).map(draw => draw.spriteId),
       lunas: this.cached.filter(draw => draw.spriteId.startsWith('luna/')).map(draw => draw.spriteId),
+      ambient: { frame: this.ambientFrame, flags: this.ambientDraws.filter(draw => draw.spriteId === 'flag').length,
+        water: this.ambientDraws.filter(draw => draw.spriteId === 'water').length,
+        sea: this.ambientDraws.filter(draw => draw.spriteId === 'island/swell').length },
       celebrating: !!this.win, sparkles: this.cached.filter(draw => draw.spriteId === 'spark').length };
   }
 
-  private compose(width: number, height: number): IndexedSpriteDrawCommand[] {
+  private compose(width: number, height: number, ambientFrame: number): IndexedSpriteDrawCommand[] {
     const commands: IndexedSpriteDrawCommand[] = [];
+    this.ambientDraws.length = 0;
     const add = (spriteId: string, r: GuiRect, color?: Tint) => {
-      const source = this.planes.get(spriteId);
+      const animated = animatedTiles.has(spriteId);
+      const id = animated ? ambientFrameId(spriteId, ambientFrame) : spriteId;
+      const source = this.planes.get(id);
       if (!source) return;
-      commands.push({ spriteId, x: r.x + r.width / 2, y: r.y + r.height / 2, axisX: source.width / 2, axisY: source.height / 2,
+      if (animated) this.ambientDraws.push({ index: commands.length, spriteId });
+      commands.push({ spriteId: id, x: r.x + r.width / 2, y: r.y + r.height / 2, axisX: source.width / 2, axisY: source.height / 2,
         scaleX: r.width / source.width, scaleY: r.height / source.height,
         sampling: 'linear', blend: 'alpha', priority: commands.length, ...(color ? { tint: color } : {}) });
     };
@@ -502,9 +525,29 @@ export class LagoonScene extends System {
       const count = stack.get(stackId) ?? 0;
       const x = originX + ox * cell, y = originY + oy * cell;
       if (unit.name === 'path' || unit.name === 'tile') { rect(x, y, cell, cell, tint(0x447287, .45)); continue; }
-      if (puzzle.context.has(unit, 'you') || puzzle.context.has(unit, 'you2') || puzzle.context.has(unit, 'select')) {
-        add('halo', { x: x - cell * .13, y: y - cell * .13, width: cell * 1.26, height: cell * 1.26 });
+      const controlled = puzzle.context.has(unit, 'you') || puzzle.context.has(unit, 'you2') || puzzle.context.has(unit, 'select');
+      const art = !isText(unit) && (this.planes.has(unit.name) ? unit.name : alias(unit.name));
+      const glow = controlled ? { x: x - cell * .13, y: y - cell * .13, width: cell * 1.26, height: cell * 1.26 } : undefined;
+      if (art === 'water') {
+        const square = { x, y, width: cell, height: cell };
+        const floating = puzzle.context.has(unit, 'float');
+        let rim = 0;
+        for (const [side, [dx, dy]] of waterNeighbors.entries()) {
+          const joins = puzzle.context.at(unit.x + dx, unit.y + dy).some(neighbor => {
+            if (neighbor.name !== unit.name || isText(neighbor) || puzzle.context.has(neighbor, 'hide') ||
+                puzzle.context.has(neighbor, 'float') !== floating) return false;
+            const prior = this.from.get(neighbor.id);
+            return t === 1 || ((old?.x ?? unit.x) - unit.x === (prior?.x ?? neighbor.x) - neighbor.x &&
+              (old?.y ?? unit.y) - unit.y === (prior?.y ?? neighbor.y) - neighbor.y);
+          });
+          if (!joins) rim |= 1 << side;
+        }
+        add('water', square, unit.name === 'bog' ? tint(0x98cfaa) : undefined);
+        if (rim) add(`water/rim/${rim}`, square);
+        if (glow) add('halo', glow);
+        continue;
       }
+      if (glow) add('halo', glow);
       const walker = walkArt.get(unit.name);
       if (walker) {
         const walking = this.elapsed < stepTime && old && (old.x !== unit.x || old.y !== unit.y);
@@ -521,7 +564,6 @@ export class LagoonScene extends System {
         add('flag', { x, y, width: cell, height: cell }, state < 2 ? tint(0x71859a, .65) : undefined);
         continue;
       }
-      const art = !isText(unit) && (this.planes.has(unit.name) ? unit.name : alias(unit.name));
       const lit = isText(unit) && puzzle.context.active.has(unit.id);
       // Keep the offset stack cue inside the same cell as the bottom word.
       const inset = isText(unit) ? Math.min(.13, count * .08) * cell : 0;
@@ -559,9 +601,16 @@ export class LagoonScene extends System {
     const width = context.view?.displayWidth ?? this.engine.displayWidth;
     const height = context.view?.displayHeight ?? this.engine.displayHeight;
     if (!width || !height || this.disposed) return this;
-    if (this.dirty || this.width !== width || this.height !== height) {
-      this.cached = this.compose(width, height);
+    const frame = this.reducedMotion.matches ? 0 : Math.floor(this.ambientClock / ambientFrameTime);
+    const layoutChanged = this.dirty || this.width !== width || this.height !== height;
+    const frameChanged = this.ambientDraws.length > 0 && frame !== this.ambientFrame;
+    if (layoutChanged) this.cached = this.compose(width, height, frame);
+    else if (frameChanged) for (const { index, spriteId } of this.ambientDraws) {
+      this.cached[index] = { ...this.cached[index]!, spriteId: ambientFrameId(spriteId, frame) };
+    }
+    if (layoutChanged || frameChanged) {
       this.bundle = this.cached.length ? this.batches.prepare(this.cached, width, height) : undefined;
+      this.ambientFrame = frame;
       this.width = width; this.height = height; this.dirty = false;
     }
     const { passEncoder, ownsPass } = beginRenderCommandPass(context);

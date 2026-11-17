@@ -170,9 +170,10 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
       await pick('keke'); await cell(3, 4);
       await pick('flag'); await cell(8, 4);
       await pick('box'); await cell(7, 6);
+      await pick('water'); await cell(4, 5); await cell(5, 5); await cell(5, 6);
       await click('editor-select'); await cell(3, 4);
       await ready(`${text('editor-selection')}?.text === '已选 · Luna' &&
-        __dafeiyu.editor.rooms[2].tiles.length === 3 && __dafeiyu.editor.rooms[2].tiles.some(tile => tile.name === 'box')`);
+        __dafeiyu.editor.rooms[2].tiles.length === 6 && __dafeiyu.editor.rooms[2].tiles.some(tile => tile.name === 'box')`);
       await screenshot('object-palette');
       await click('editor-erase'); await cell(3, 4);
       await ready(`!__dafeiyu.editor.rooms[2].tiles.some(tile => tile.name === 'keke')`);
@@ -186,7 +187,7 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
       for (const [x, name] of [[1, 'text_keke'], [2, 'text_is'], [3, 'text_you'], [8, 'text_flag'], [9, 'text_is'], [10, 'text_win']]) {
         await pick(name); await cell(x, 1);
       }
-      await ready(`__dafeiyu.editor.rooms[2].tiles.length === 9`);
+      await ready(`__dafeiyu.editor.rooms[2].tiles.length === 12`);
       for (const [x, name] of [[2, 'text_baba'], [4, 'text_is'], [6, 'text_push'], [9, 'text_baba']]) {
         await pick(name); await cell(x, 3);
       }
@@ -222,13 +223,23 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         ctx.drawImage(image, 0, 0);
         const { x, y, cell } = __dafeiyu.bounds;
         const brightness = (col, row) => {
-          const [r, g, b] = ctx.getImageData(Math.floor((x + (col + .45) * cell) * image.width / innerWidth),
-            Math.floor((y + (row + .24) * cell) * image.height / innerHeight), 1, 1).data;
+          const [r, g, b] = pixel(col + .45, row + .24);
           return (r + g + b) / 3;
         };
-        return [1, 2, 3].map((col, i) => brightness(col, 1) - brightness(2 + i * 2, 3));
+        const pixel = (col, row) => Array.from(ctx.getImageData(Math.floor((x + col * cell) * image.width / innerWidth),
+          Math.floor((y + row * cell) * image.height / innerHeight), 1, 1).data);
+        const faces = [1, 2, 3].map((col, i) => brightness(col, 1) - brightness(2 + i * 2, 3));
+        const seams = [[4.97, 5.5], [5, 5.5], [5.03, 5.5], [5.5, 5.97], [5.5, 6], [5.5, 6.03]].map(([col, row]) => pixel(col,row));
+        return { faces, seams };
       })()`);
-      assert.ok(faceBrightness.every(diff => diff > 75), `Expected three distinct active/inactive face pairs: ${faceBrightness}`);
+      assert.ok(faceBrightness.faces.every(diff => diff > 75), `Expected three distinct active/inactive face pairs: ${faceBrightness.faces}`);
+      assert.ok(faceBrightness.seams.every(([, green, blue]) => green > 72 && blue > 110),
+        `Horizontal and vertical water seams should show water throughout: ${JSON.stringify(faceBrightness.seams)}`);
+      const terrain = await evalJs('__dafeiyu.animation.ambient');
+      assert.equal(terrain.water, 3);
+      assert.equal(terrain.flags, 1);
+      await ready(`__dafeiyu.animation.ambient.frame !== ${terrain.frame}`);
+      checks.push('animated flag and square water with continuous horizontal and vertical seams');
       checks.push('illustrated rule blocks distinguish active and inactive rules and support stacked words');
       for (const [code, facing, x, y] of [['ArrowDown', 'down', 3, 5], ['ArrowLeft', 'left', 2, 5],
         ['ArrowUp', 'up', 2, 4], ['ArrowRight', 'right', 3, 4]]) {
@@ -240,6 +251,7 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
       await steps('ArrowRight', 5);
       await ready('__dafeiyu.state.won');
       await screenshot('playtest');
+      await ready(`__dafeiyu.mode === 'test' && __dafeiyu.current === 'world'`);
       await click('tool-pause'); await click('退出试玩');
       await ready(`__dafeiyu.mode === 'editor' && __dafeiyu.editing === 'room-2'`);
       assert.equal(await evalJs(`JSON.stringify(__dafeiyu.editor.rooms[2])`), authoredRoom);
@@ -256,10 +268,11 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await ready(`__dafeiyu.current === 'world' && __dafeiyu.selectedLink === 'room-1'`);
         await key('Enter');
         await ready(`__dafeiyu.current === 'room-1'`);
+        await cdp.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
         await steps('ArrowRight', 6);
-        await ready('__dafeiyu.state.won');
-        await key('Enter');
+        await ready('__dafeiyu.state.won && __dafeiyu.animation.sparkles === 0');
         await ready(`__dafeiyu.current === 'world' && __dafeiyu.openPaths.some(path => path[0] === 4 && path[1] === 4)`);
+        await cdp.call('Emulation.setEmulatedMedia', { features: [] });
         await screenshot('world-playtest-routes');
         await steps('ArrowRight', 3);
         await ready(`__dafeiyu.selectedLink === 'room-2'`);
@@ -279,7 +292,7 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await click('编辑器');
         await ready(`__dafeiyu.editor?.rooms.length === 5 && __dafeiyu.slots.filter(Boolean).length === 3`);
         assert.equal(await evalJs(`JSON.stringify(__dafeiyu.editor.rooms[2])`), authoredRoom);
-        checks.push('world unlock, nested map and child rooms, and editor draft recovery');
+        checks.push('automatic world return with reduced motion, world unlock, nested rooms and draft recovery');
         await evalJs(`(() => {
           const click = HTMLAnchorElement.prototype.click;
           HTMLAnchorElement.prototype.click = function () {

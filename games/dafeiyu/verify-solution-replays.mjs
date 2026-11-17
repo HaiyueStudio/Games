@@ -67,8 +67,7 @@ function probes() {
         await until(() => state().state.turn === i + 1, 'replay original first level');
       }
       if (!state().state.won) throw Error('original first level did not win');
-      press('Enter');
-      await until(() => state().current === '106level', 'return from winning child');
+      await until(() => state().current === '106level', 'automatic return from winning child');
       const unlocked = state().state.units.find(unit => unit.link === marker.link);
       const cursorAfterWin = cursor();
       if (unlocked?.state !== 2 || !state().openPaths.some(([x, y]) => x === 11 && y === 16)) throw Error('winning did not unlock the next path');

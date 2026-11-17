@@ -90,6 +90,9 @@ for (const [name, width, height] of layouts) {
       assert.ok(await evalJs(`__dafeiyu.hud.filter(n => n.visible).every(n => n.rect.x >= 0 && n.rect.y >= 0 && n.rect.x + n.rect.width <= ${width + 1} && n.rect.y + n.rect.height <= ${height + 1})`));
       checks.push('native GUI and responsive layout');
       assert.equal(await evalJs('__dafeiyu.audio.state'), 'locked');
+      const mapAnimation = await evalJs('__dafeiyu.animation.ambient');
+      assert.ok(mapAnimation.flags > 0 && mapAnimation.sea > 0);
+      await ready(`__dafeiyu.animation.ambient.frame !== ${mapAnimation.frame}`);
       const initialMap = await save('initial');
       const [sea, land] = await mapPixels(initialMap, [[.5, .5], [4.5, 5.5]]);
       assert.ok(sea[2] > sea[0] && land[1] > sea[1] + 45, 'The island has green land surrounded by blue sea');
@@ -136,10 +139,12 @@ for (const [name, width, height] of layouts) {
       assert.equal(await evalJs('JSON.stringify(__dafeiyu.state)'), prior);
       await click('tool-pause');
       await ready('__dafeiyu.paused');
+      const ambientFrame = await evalJs('__dafeiyu.animation.ambient.frame');
       const choices = await evalJs(`__dafeiyu.hud.filter(n => n.visible && /^pause-(resume|world|home)$/.test(n.id)).map(n => n.text)`);
       assert.deepEqual(choices, ['继续游戏', '返回大世界', '返回首页']);
       await save('pause-menu');
       await key('ArrowRight');
+      assert.equal(await evalJs('__dafeiyu.animation.ambient.frame'), ambientFrame);
       assert.equal(await evalJs('JSON.stringify(__dafeiyu.state)'), prior);
       await click('继续游戏');
       await ready('!__dafeiyu.paused');
@@ -156,15 +161,24 @@ for (const [name, width, height] of layouts) {
       await key('KeyZ');
       assert.equal(await evalJs('__dafeiyu.state.won'), false);
       await ready('!__dafeiyu.animation.celebrating && __dafeiyu.animation.sparkles === 0');
+      await new Promise(resolve => setTimeout(resolve, 1150));
+      assert.equal(await evalJs('__dafeiyu.current'), 'first-dive');
+      await key('KeyY');
+      await ready('__dafeiyu.state.won && __dafeiyu.animation.celebrating');
       await click('tool-restart');
+      await new Promise(resolve => setTimeout(resolve, 1150));
+      assert.equal(await evalJs('__dafeiyu.current'), 'first-dive');
       assert.equal(await evalJs('__dafeiyu.state.turn'), 0);
       for (let i = 0; i < 7; i++) await key('ArrowRight');
       await ready('__dafeiyu.state.won && __dafeiyu.animation.sparkles > 0');
-      await ready('!__dafeiyu.animation.celebrating && __dafeiyu.animation.sparkles === 0');
-      assert.equal(await evalJs('__dafeiyu.audio.played.victory'), 2);
+      assert.equal(await evalJs('__dafeiyu.audio.played.victory'), 3);
       const exits = await evalJs('__dafeiyu.audio.played.exit');
-      await click('返回地图');
-      await ready('__dafeiyu.current === "coral-bay"');
+      await click('tool-pause');
+      await ready('__dafeiyu.paused');
+      await new Promise(resolve => setTimeout(resolve, 1150));
+      assert.ok(await evalJs('__dafeiyu.current === "first-dive" && __dafeiyu.animation.celebrating'));
+      await click('继续游戏');
+      await ready('__dafeiyu.current === "coral-bay" && !__dafeiyu.animation.celebrating && __dafeiyu.animation.sparkles === 0');
       assert.equal(await evalJs('__dafeiyu.audio.played.exit'), exits + 1);
       assert.equal(await evalJs('__dafeiyu.audio.musicStarts'), 1);
       checks.push('one BGM loop and action-driven click, movement, victory and room transition sounds');
@@ -179,7 +193,7 @@ for (const [name, width, height] of layouts) {
       await ready('window.__dafeiyu?.current === "coral-bay" && __dafeiyu.selectedLink === "breakwater"');
       await key('Enter');
       await ready('__dafeiyu.current === "breakwater"');
-      checks.push('win particles, undo and restart, locked map routes, and return to the next native level');
+      checks.push('win particles, pause and restart safety, automatic return to the world and next native level');
       const screenshot = await save('tile-scale');
       const edgeColors = await evalJs(`(async () => {
         const image = new Image();
@@ -251,7 +265,6 @@ for (const [name, width, height] of layouts) {
       const arrows = {r:'ArrowRight', d:'ArrowDown', u:'ArrowUp'};
       for (const direction of 'rrdddrrrrruuu') await key(arrows[direction]);
       await ready('__dafeiyu.state.won');
-      await button(0);
       await ready('__dafeiyu.current === "coral-bay" && __dafeiyu.selectedLink === "breakwater"');
       for (let i = 0; i < 3; i++) await button(12);
       await ready('__dafeiyu.selectedLink === "change-course"');
@@ -267,7 +280,6 @@ for (const [name, width, height] of layouts) {
         await save('imported');
         for (let i = 0; i < 8; i++) await key('ArrowRight');
         await ready('__dafeiyu.state.won === true');
-        await key('KeyL'); await key('ArrowDown'); await key('Enter');
         await ready('__dafeiyu.current === "106level"');
         await key('Enter');
         await ready('__dafeiyu.current === "0level"');
@@ -277,7 +289,6 @@ for (const [name, width, height] of layouts) {
         await ready('__dafeiyu.pack === "Baba Is You" && __dafeiyu.current === "0level"');
         for (let i = 0; i < 8; i++) await key('ArrowRight');
         await ready('__dafeiyu.state.won === true');
-        await key('Enter');
         await ready('__dafeiyu.current === "106level" && __dafeiyu.selectedLink === "0level"');
         checks.push('real Steam directory import with world_data.txt');
         await cdp.call('DOM.setFileInputFiles', { nodeId, files: ['17level.l', '17level.ld'].map(file => resolve(process.env.DAFEIYU_BABA_WORLD, file)) });
@@ -285,11 +296,12 @@ for (const [name, width, height] of layouts) {
         const steamRoom = await save('luna-steam');
         const samples = await evalJs(`['box', 'text_box'].map(name => {
           const { x, y } = __dafeiyu.state.units.find(unit => unit.name === name);
-          return [x + .42, y + .63];
+          return [x + .42, y + (name === 'text_box' ? .28 : .63)];
         })`);
         const [[crateRed, crateGreen, crateBlue], [wordRed, wordGreen, wordBlue]] = await mapPixels(steamRoom, samples);
         assert.ok(crateRed > crateGreen + 35 && crateGreen > crateBlue + 25, 'Physical BOX uses the warm wooden sprite');
-        assert.ok(wordGreen > wordRed + 35 && wordBlue > wordRed + 35, 'The BOX rule word keeps its noun tile');
+        assert.ok(wordGreen > 210 && wordBlue > 210 && wordGreen > wordRed + 20 && wordBlue > wordRed + 20,
+          'The active BOX rule word uses the pale cyan noun tile');
         for (const [facing, x, y] of [['down', 10, 11], ['left', 9, 11], ['up', 9, 10], ['right', 10, 10]]) {
           const frames = await walkFrames(facing, 'lunas', 'luna');
           assert.ok(frames.length >= 2, `The Luna ${facing} walk showed ${frames.join(', ')}`);
@@ -329,7 +341,6 @@ for (const [name, width, height] of layouts) {
         await ready('!window.beforeOfficialReload && window.__dafeiyu?.mode === "home"');
         await click('继续游戏'); await click('存档 2 · Baba Is You');
         await ready('__dafeiyu.current === "0level" && __dafeiyu.state.won');
-        await key('Enter');
         await ready('__dafeiyu.current === "106level" && __dafeiyu.selectedLink === "0level"');
         assert.ok(await evalJs('__dafeiyu.openPaths.some(([x,y]) => x === 11 && y === 16)'));
         assert.ok(await evalJs('__dafeiyu.state.island && __dafeiyu.rules.includes("WATER IS STOP") && __dafeiyu.state.units.some(u => u.name === "water" && u.x === 0 && u.y === 16)'));

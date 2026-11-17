@@ -125,7 +125,10 @@ class LagoonGame {
       }
       const nowPad = !!gamepadFrame();
       if (this.usingPad !== nowPad) { this.usingPad = nowPad; this.refresh(); }
-      if (!this.paused) this.scene?.tick(event.detail.delta);
+      if (!this.paused && !gameSession.paused && !this.library && !this.busy && this.scene?.tick(event.detail.delta)) {
+        const puzzle = this.puzzle;
+        if (puzzle?.state.won && !isMap(puzzle.level) && (this.mode === 'play' || this.mode === 'test')) this.returnToWorld();
+      }
       this.world.update(event.detail.time, event.detail.delta);
     });
     if (params.has('verify')) {
