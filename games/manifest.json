@@ -54,13 +54,89 @@
       "ci": "smoke"
     },
     {
+      "id": "guobiao-mahjong",
+      "thumbnail": "screenshots/guobiao-mahjong.png",
+      "title": "国标雀局 / Mahjong AI Arena",
+      "entry": "guobiao-mahjong/main.ts",
+      "capabilities": [
+        "3d",
+        "gui",
+        "input",
+        "worker",
+        "wasm",
+        "game-workflow",
+        "gamepad",
+        "pbr",
+        "generated-assets",
+        "instancing"
+      ],
+      "assets": [
+        "guobiao-mahjong/assets/mcr.wasm",
+        "guobiao-mahjong/assets/tiles-atlas.png",
+        "guobiao-mahjong/assets/tiles-atlas.json",
+        "guobiao-mahjong/assets/tiles-supplement.svg",
+        "guobiao-mahjong/assets/reference-tiles-clean.png",
+        "guobiao-mahjong/assets/tiles-atlas.provenance.json",
+        "guobiao-mahjong/assets/tiles-normal-v1.png",
+        "guobiao-mahjong/assets/tablecloth-emerald-v1.png",
+        "guobiao-mahjong/assets/wind-beasts-v1.png",
+        "guobiao-mahjong/assets/table-materials.provenance.json",
+        "guobiao-mahjong/ai/mahjong.worker.js",
+        "guobiao-mahjong/ai/tfjs.worker.js",
+        "guobiao-mahjong/ai/tfjs/tf.min.js",
+        "guobiao-mahjong/ai/tfjs/tf-backend-webgpu.min.js",
+        "guobiao-mahjong/ai/tfjs/tf-backend-wasm.min.js",
+        "guobiao-mahjong/ai/tfjs/tfjs-backend-wasm.wasm",
+        "guobiao-mahjong/ai/tfjs/tfjs-backend-wasm-simd.wasm",
+        "guobiao-mahjong/ai/tfjs/tfjs-backend-wasm-threaded-simd.wasm",
+        "guobiao-mahjong/ai/tfjs/LICENSE.txt",
+        "guobiao-mahjong/ai/tfjs/LICENSE.fflate.txt",
+        "guobiao-mahjong/ai/tfjs/provenance.json",
+        "guobiao-mahjong/assets/models/catalog.json",
+        "guobiao-mahjong/assets/models/value-original-v1.json",
+        "guobiao-mahjong/assets/models/joint-candidate-v1.json",
+        "guobiao-mahjong/assets/models/LICENSE.txt",
+        "guobiao-mahjong/assets/ui-backdrop-v1.png",
+        "guobiao-mahjong/assets/ui-drawer-v1.png",
+        "guobiao-mahjong/assets/ui-ranking-v1.png",
+        "guobiao-mahjong/assets/ui-art.provenance.json",
+        "guobiao-mahjong/ai/coach.worker.js"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
+      "performance": null,
+      "ci": "smoke"
+    },
+    {
       "id": "ink-twin",
       "title": "墨白双生 · Ink Twin",
       "entry": "ink-twin/main.ts",
       "thumbnail": "screenshots/ink-twin.png",
-      "capabilities": ["2d", "gui", "input", "gamepad", "save", "animation", "generated-assets", "bitmap-font", "seeded-puzzles", "experimental-render-integration"],
-      "assets": ["ink-twin/style.css", "ink-twin/assets/xuan-paper.png", "ink-twin/assets/brush-digits.png", "ink-twin/assets/brush-digits.fnt.json", "ink-twin/assets/provenance.json"],
-      "screenshot": { "required": false, "baseline": null },
+      "capabilities": [
+        "2d",
+        "gui",
+        "input",
+        "gamepad",
+        "save",
+        "animation",
+        "generated-assets",
+        "bitmap-font",
+        "seeded-puzzles",
+        "experimental-render-integration"
+      ],
+      "assets": [
+        "ink-twin/style.css",
+        "ink-twin/assets/xuan-paper.png",
+        "ink-twin/assets/brush-digits.png",
+        "ink-twin/assets/brush-digits.fnt.json",
+        "ink-twin/assets/provenance.json"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
       "performance": null,
       "ci": "smoke"
     },
@@ -213,9 +289,37 @@
       "thumbnail": "screenshots/glass-rush.png",
       "title": "玻璃疾驰 / Glass Rush",
       "entry": "glass-rush/main.ts",
-      "capabilities": ["3d", "input", "gui", "shader", "geometry", "animation", "audio", "save", "gamepad"],
-      "assets": ["glass-rush/assets/audio/music.wav", "glass-rush/assets/audio/impact.wav", "glass-rush/assets/audio/shatter.wav", "glass-rush/assets/audio/generation.json", "glass-rush/assets/ui/music.svg", "glass-rush/assets/ui/music-off.svg", "glass-rush/assets/ui/pause.svg", "glass-rush/assets/ui/play.svg", "glass-rush/assets/ui/life.svg", "glass-rush/assets/ui/life-empty.svg", "glass-rush/assets/ui/button-icon.svg", "glass-rush/assets/ui/button-primary.svg", "glass-rush/assets/ui/hud-chip.svg", "glass-rush/assets/ui/leaderboard.svg"],
-      "screenshot": { "required": false, "baseline": null },
+      "capabilities": [
+        "3d",
+        "input",
+        "gui",
+        "shader",
+        "geometry",
+        "animation",
+        "audio",
+        "save",
+        "gamepad"
+      ],
+      "assets": [
+        "glass-rush/assets/audio/music.wav",
+        "glass-rush/assets/audio/impact.wav",
+        "glass-rush/assets/audio/shatter.wav",
+        "glass-rush/assets/audio/generation.json",
+        "glass-rush/assets/ui/music.svg",
+        "glass-rush/assets/ui/music-off.svg",
+        "glass-rush/assets/ui/pause.svg",
+        "glass-rush/assets/ui/play.svg",
+        "glass-rush/assets/ui/life.svg",
+        "glass-rush/assets/ui/life-empty.svg",
+        "glass-rush/assets/ui/button-icon.svg",
+        "glass-rush/assets/ui/button-primary.svg",
+        "glass-rush/assets/ui/hud-chip.svg",
+        "glass-rush/assets/ui/leaderboard.svg"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
       "performance": null,
       "ci": "smoke"
     },
@@ -224,9 +328,44 @@
       "thumbnail": "screenshots/valley-of-light.png",
       "title": "谷外之光 · Beyond the Valley",
       "entry": "valley-of-light/main.ts",
-      "capabilities": ["3d", "orthographic", "optical-illusion", "worker", "input", "gui", "gltf", "animation", "game-workflow", "gamepad"],
-      "assets": ["valley-of-light/assets/traveler.gltf", "valley-of-light/maps/switch-garden.json", "valley-of-light/maps/catalog-garden.json", "valley-of-light/maps/decoration-garden.json", "valley-of-light/maps/ladder-garden.json", "valley-of-light/maps/portal-garden.json", "valley-of-light/maps/logic-garden.json", "valley-of-light/maps/checkpoint-garden.json", "valley-of-light/maps/journey-garden.json", "valley-of-light/maps/story-garden.json", "valley-of-light/maps/chapter-two-garden.json", "valley-of-light/maps/mixandjam-monument.json", "valley-of-light/maps/catalog.json", "valley-of-light/maps/split-cube.json", "valley-of-light/maps/seaside-garden.json", "valley-of-light/maps/rotated-seam.json", "valley-of-light/maps/six-surfaces.json", "valley-of-light/maps/arc-surfaces.json", "valley-of-light/maps/map.schema.json", "valley-of-light/maps/compact-map.schema.json"],
-      "screenshot": { "required": false, "baseline": null },
+      "capabilities": [
+        "3d",
+        "orthographic",
+        "optical-illusion",
+        "worker",
+        "input",
+        "gui",
+        "gltf",
+        "animation",
+        "game-workflow",
+        "gamepad"
+      ],
+      "assets": [
+        "valley-of-light/assets/traveler.gltf",
+        "valley-of-light/maps/switch-garden.json",
+        "valley-of-light/maps/catalog-garden.json",
+        "valley-of-light/maps/decoration-garden.json",
+        "valley-of-light/maps/ladder-garden.json",
+        "valley-of-light/maps/portal-garden.json",
+        "valley-of-light/maps/logic-garden.json",
+        "valley-of-light/maps/checkpoint-garden.json",
+        "valley-of-light/maps/journey-garden.json",
+        "valley-of-light/maps/story-garden.json",
+        "valley-of-light/maps/chapter-two-garden.json",
+        "valley-of-light/maps/mixandjam-monument.json",
+        "valley-of-light/maps/catalog.json",
+        "valley-of-light/maps/split-cube.json",
+        "valley-of-light/maps/seaside-garden.json",
+        "valley-of-light/maps/rotated-seam.json",
+        "valley-of-light/maps/six-surfaces.json",
+        "valley-of-light/maps/arc-surfaces.json",
+        "valley-of-light/maps/map.schema.json",
+        "valley-of-light/maps/compact-map.schema.json"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
       "performance": null,
       "ci": "smoke"
     },
@@ -235,32 +374,67 @@
       "thumbnail": "screenshots/tank-battle.png",
       "title": "铁甲前线 · Tank Battle",
       "entry": "tank-battle/main.ts",
-      "capabilities": ["2d", "gui", "game-workflow", "input", "local-coop", "pixel-art", "generated-assets", "gamepad"],
-      "assets": [
-        "tank-battle/assets/atlas.png", "tank-battle/assets/atlas.json",
-        "tank-battle/assets/mobile-atlas.png", "tank-battle/assets/controls.png",
-        "tank-battle/assets/ground.png", "tank-battle/assets/brick.png",
-        "tank-battle/assets/steel.png", "tank-battle/assets/snow.png",
-        "tank-battle/assets/water-0.png", "tank-battle/assets/water-1.png",
-        "tank-battle/assets/forest.png", "tank-battle/assets/base.png", "tank-battle/assets/base-destroyed.png",
-        "tank-battle/assets/p1-0-0.png", "tank-battle/assets/p1-0-1.png",
-        "tank-battle/assets/p1-1-0.png", "tank-battle/assets/p1-1-1.png",
-        "tank-battle/assets/p1-2-0.png", "tank-battle/assets/p1-2-1.png",
-        "tank-battle/assets/p1-3-0.png", "tank-battle/assets/p1-3-1.png",
-        "tank-battle/assets/p2-0-0.png", "tank-battle/assets/p2-0-1.png",
-        "tank-battle/assets/p2-1-0.png", "tank-battle/assets/p2-1-1.png",
-        "tank-battle/assets/p2-2-0.png", "tank-battle/assets/p2-2-1.png",
-        "tank-battle/assets/p2-3-0.png", "tank-battle/assets/p2-3-1.png",
-        "tank-battle/assets/scout-0-0.png", "tank-battle/assets/scout-0-1.png",
-        "tank-battle/assets/runner-0-0.png", "tank-battle/assets/runner-0-1.png",
-        "tank-battle/assets/gunner-0-0.png", "tank-battle/assets/gunner-0-1.png",
-        "tank-battle/assets/heavy-0-0.png", "tank-battle/assets/heavy-0-1.png",
-        "tank-battle/assets/flash-0-0.png", "tank-battle/assets/flash-0-1.png",
-        "tank-battle/assets/item-star.png", "tank-battle/assets/item-shield.png",
-        "tank-battle/assets/item-bomb.png", "tank-battle/assets/item-clock.png",
-        "tank-battle/assets/item-shovel.png", "tank-battle/assets/item-life.png"
+      "capabilities": [
+        "2d",
+        "gui",
+        "game-workflow",
+        "input",
+        "local-coop",
+        "pixel-art",
+        "generated-assets",
+        "gamepad"
       ],
-      "screenshot": { "required": false, "baseline": null },
+      "assets": [
+        "tank-battle/assets/atlas.png",
+        "tank-battle/assets/atlas.json",
+        "tank-battle/assets/mobile-atlas.png",
+        "tank-battle/assets/controls.png",
+        "tank-battle/assets/ground.png",
+        "tank-battle/assets/brick.png",
+        "tank-battle/assets/steel.png",
+        "tank-battle/assets/snow.png",
+        "tank-battle/assets/water-0.png",
+        "tank-battle/assets/water-1.png",
+        "tank-battle/assets/forest.png",
+        "tank-battle/assets/base.png",
+        "tank-battle/assets/base-destroyed.png",
+        "tank-battle/assets/p1-0-0.png",
+        "tank-battle/assets/p1-0-1.png",
+        "tank-battle/assets/p1-1-0.png",
+        "tank-battle/assets/p1-1-1.png",
+        "tank-battle/assets/p1-2-0.png",
+        "tank-battle/assets/p1-2-1.png",
+        "tank-battle/assets/p1-3-0.png",
+        "tank-battle/assets/p1-3-1.png",
+        "tank-battle/assets/p2-0-0.png",
+        "tank-battle/assets/p2-0-1.png",
+        "tank-battle/assets/p2-1-0.png",
+        "tank-battle/assets/p2-1-1.png",
+        "tank-battle/assets/p2-2-0.png",
+        "tank-battle/assets/p2-2-1.png",
+        "tank-battle/assets/p2-3-0.png",
+        "tank-battle/assets/p2-3-1.png",
+        "tank-battle/assets/scout-0-0.png",
+        "tank-battle/assets/scout-0-1.png",
+        "tank-battle/assets/runner-0-0.png",
+        "tank-battle/assets/runner-0-1.png",
+        "tank-battle/assets/gunner-0-0.png",
+        "tank-battle/assets/gunner-0-1.png",
+        "tank-battle/assets/heavy-0-0.png",
+        "tank-battle/assets/heavy-0-1.png",
+        "tank-battle/assets/flash-0-0.png",
+        "tank-battle/assets/flash-0-1.png",
+        "tank-battle/assets/item-star.png",
+        "tank-battle/assets/item-shield.png",
+        "tank-battle/assets/item-bomb.png",
+        "tank-battle/assets/item-clock.png",
+        "tank-battle/assets/item-shovel.png",
+        "tank-battle/assets/item-life.png"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
       "performance": null,
       "ci": "smoke"
     },
@@ -270,10 +444,30 @@
       "title": "2048",
       "entry": "2048/main.ts",
       "capabilities": [
-        "3d", "pbr-workflow", "gui", "input", "audio", "generated-assets", "worker",
-        "game-workflow", "gamepad"
+        "3d",
+        "pbr-workflow",
+        "gui",
+        "input",
+        "audio",
+        "generated-assets",
+        "worker",
+        "game-workflow",
+        "gamepad"
       ],
-      "assets": ["2048/config.json", "2048/rendering/TileTexture.worker.js", "2048/assets/brushed-metal.png", "2048/assets/metal-normal.png", "2048/assets/metal-roughness.png", "2048/assets/metal-panel.png", "2048/assets/metal-title.png", "2048/assets/slide.wav", "2048/assets/fracture.wav", "2048/assets/forge.wav", "2048/assets/new-game.wav", "2048/assets/blocked.wav"],
+      "assets": [
+        "2048/config.json",
+        "2048/rendering/TileTexture.worker.js",
+        "2048/assets/brushed-metal.png",
+        "2048/assets/metal-normal.png",
+        "2048/assets/metal-roughness.png",
+        "2048/assets/metal-panel.png",
+        "2048/assets/metal-title.png",
+        "2048/assets/slide.wav",
+        "2048/assets/fracture.wav",
+        "2048/assets/forge.wav",
+        "2048/assets/new-game.wav",
+        "2048/assets/blocked.wav"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -290,7 +484,9 @@
         "3d",
         "3d-physics",
         "pbr-workflow",
-        "input", "gamepad", "audio"
+        "input",
+        "gamepad",
+        "audio"
       ],
       "assets": [],
       "screenshot": {
@@ -311,7 +507,8 @@
       "capabilities": [
         "2d",
         "2d-physics",
-        "input", "gamepad"
+        "input",
+        "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -330,7 +527,8 @@
         "2d",
         "gui",
         "game-workflow",
-        "input", "gamepad"
+        "input",
+        "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -347,7 +545,9 @@
       "entry": "entanglement-path/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad", "audio"
+        "game-workflow",
+        "gamepad",
+        "audio"
       ],
       "assets": [
         "entanglement-path/assets/bgm.mp3",
@@ -385,10 +585,20 @@
         "3d",
         "input",
         "procedural-geometry",
-        "game-workflow", "gamepad",
-        "gui", "audio"
+        "game-workflow",
+        "gamepad",
+        "gui",
+        "audio"
       ],
-      "assets": ["icosahedron-minesweeper/assets/titanium-albedo.png", "icosahedron-minesweeper/assets/orbit-gui.png", "icosahedron-minesweeper/assets/audio/click.wav", "icosahedron-minesweeper/assets/audio/flag.wav", "icosahedron-minesweeper/assets/audio/explosion.wav", "icosahedron-minesweeper/assets/audio/button.wav", "icosahedron-minesweeper/assets/audio/generation.json"],
+      "assets": [
+        "icosahedron-minesweeper/assets/titanium-albedo.png",
+        "icosahedron-minesweeper/assets/orbit-gui.png",
+        "icosahedron-minesweeper/assets/audio/click.wav",
+        "icosahedron-minesweeper/assets/audio/flag.wav",
+        "icosahedron-minesweeper/assets/audio/explosion.wav",
+        "icosahedron-minesweeper/assets/audio/button.wav",
+        "icosahedron-minesweeper/assets/audio/generation.json"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -408,10 +618,17 @@
         "content-generation",
         "game-workflow",
         "experimental-ray-tracing",
-        "ray-tracing-product-evidence", "gamepad",
-        "gui", "hya-production"
+        "ray-tracing-product-evidence",
+        "gamepad",
+        "gui",
+        "hya-production"
       ],
-      "assets": ["gravity-maze/assets/hya-victory.json","gravity-maze/assets/hya-victory.otf","gravity-maze/assets/HYA-FONT-LICENSE.txt","gravity-maze/assets/hya-victory-provenance.json"],
+      "assets": [
+        "gravity-maze/assets/hya-victory.json",
+        "gravity-maze/assets/hya-victory.otf",
+        "gravity-maze/assets/HYA-FONT-LICENSE.txt",
+        "gravity-maze/assets/hya-victory-provenance.json"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -428,7 +645,8 @@
         "3d",
         "game-workflow",
         "input",
-        "geometry-processing", "gamepad",
+        "geometry-processing",
+        "gamepad",
         "gui"
       ],
       "assets": [],
@@ -453,7 +671,8 @@
         "gui",
         "particles",
         "custom-shader",
-        "procedural-geometry", "gamepad"
+        "procedural-geometry",
+        "gamepad"
       ],
       "assets": [
         "neon-circuit/assets/wraith-raider.glb",
@@ -528,10 +747,21 @@
         "3d",
         "input",
         "procedural-geometry",
-        "game-workflow", "gamepad",
-        "gui", "audio"
+        "game-workflow",
+        "gamepad",
+        "gui",
+        "audio"
       ],
-      "assets": ["minesweeper/config.json", "minesweeper/assets/titanium-albedo.png", "minesweeper/assets/orbit-gui.png", "minesweeper/assets/audio/click.wav", "minesweeper/assets/audio/flag.wav", "minesweeper/assets/audio/explosion.wav", "minesweeper/assets/audio/button.wav", "minesweeper/assets/audio/generation.json"],
+      "assets": [
+        "minesweeper/config.json",
+        "minesweeper/assets/titanium-albedo.png",
+        "minesweeper/assets/orbit-gui.png",
+        "minesweeper/assets/audio/click.wav",
+        "minesweeper/assets/audio/flag.wav",
+        "minesweeper/assets/audio/explosion.wav",
+        "minesweeper/assets/audio/button.wav",
+        "minesweeper/assets/audio/generation.json"
+      ],
       "screenshot": {
         "required": false,
         "baseline": null
@@ -552,7 +782,8 @@
         "pointer-lock",
         "content-generation",
         "game-workflow",
-        "input", "gamepad",
+        "input",
+        "gamepad",
         "gui"
       ],
       "assets": [],
@@ -571,7 +802,8 @@
       "entry": "pad-simulator/main.ts",
       "capabilities": [
         "input",
-        "gui", "gamepad"
+        "gui",
+        "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -589,7 +821,8 @@
       "capabilities": [
         "3d",
         "game-workflow",
-        "input", "gamepad",
+        "input",
+        "gamepad",
         "gui"
       ],
       "assets": [],
@@ -607,7 +840,8 @@
       "entry": "piano/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad",
+        "game-workflow",
+        "gamepad",
         "gui"
       ],
       "assets": [
@@ -632,7 +866,8 @@
         "3d",
         "game-workflow",
         "input",
-        "particles", "gamepad",
+        "particles",
+        "gamepad",
         "gui"
       ],
       "assets": [],
@@ -652,7 +887,8 @@
         "3d",
         "scene-workflow",
         "input",
-        "device-recovery", "gamepad",
+        "device-recovery",
+        "gamepad",
         "gui",
         "audio",
         "generated-assets"
@@ -683,7 +919,8 @@
         "particles",
         "generated-assets",
         "experimental-indexed-sprite",
-        "gui", "gamepad"
+        "gui",
+        "gamepad"
       ],
       "assets": [
         "sky-strike/assets/player-fighter.png",
@@ -810,7 +1047,8 @@
       "capabilities": [
         "2d",
         "gui",
-        "asset-lifecycle", "gamepad"
+        "asset-lifecycle",
+        "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -827,7 +1065,8 @@
       "entry": "sudoku/main.ts",
       "capabilities": [
         "2d",
-        "game-workflow", "gamepad"
+        "game-workflow",
+        "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -843,8 +1082,12 @@
       "title": "tetris",
       "entry": "tetris/main.ts",
       "capabilities": [
-        "3d", "shader", "geometry", "audio",
-        "game-workflow", "gamepad",
+        "3d",
+        "shader",
+        "geometry",
+        "audio",
+        "game-workflow",
+        "gamepad",
         "gui"
       ],
       "assets": [],
@@ -863,7 +1106,8 @@
       "capabilities": [
         "tilemap",
         "2d",
-        "content-generation", "gamepad",
+        "content-generation",
+        "gamepad",
         "gui"
       ],
       "assets": [],
@@ -883,7 +1127,8 @@
         "pbr-workflow",
         "input",
         "gui",
-        "game-workflow", "gamepad"
+        "game-workflow",
+        "gamepad"
       ],
       "assets": [],
       "screenshot": {
@@ -905,7 +1150,8 @@
         "navigation",
         "input",
         "gui",
-        "game-workflow", "gamepad"
+        "game-workflow",
+        "gamepad"
       ],
       "assets": [
         "ak47-range/assets/provenance.json",
@@ -967,7 +1213,8 @@
         "input",
         "game-workflow",
         "generated-assets",
-        "experimental-render-integration", "gamepad",
+        "experimental-render-integration",
+        "gamepad",
         "gui"
       ],
       "assets": [
@@ -996,7 +1243,8 @@
         "gui",
         "game-workflow",
         "generated-assets",
-        "experimental-render-integration", "gamepad"
+        "experimental-render-integration",
+        "gamepad"
       ],
       "assets": [
         "ink-pinball/assets/landscape-plate.png",
@@ -1034,10 +1282,30 @@
       "thumbnail": "screenshots/jigsaw-puzzle.png",
       "title": "拾光拼图 · Jigsaw Studio",
       "entry": "jigsaw-puzzle/main.ts",
-      "capabilities": ["2d", "gui", "input", "save", "audio", "generated-assets", "game-workflow", "gamepad"],
-      "assets": ["jigsaw-puzzle/assets/alpine-lake.svg", "jigsaw-puzzle/assets/wood-ui.png", "jigsaw-puzzle/assets/wood-ui.provenance.json",
-        "jigsaw-puzzle/assets/audio/ui-click.wav", "jigsaw-puzzle/assets/audio/piece-click.wav", "jigsaw-puzzle/assets/audio/snap.wav", "jigsaw-puzzle/assets/audio/complete.wav", "jigsaw-puzzle/assets/audio/generation.json"],
-      "screenshot": { "required": false, "baseline": null },
+      "capabilities": [
+        "2d",
+        "gui",
+        "input",
+        "save",
+        "audio",
+        "generated-assets",
+        "game-workflow",
+        "gamepad"
+      ],
+      "assets": [
+        "jigsaw-puzzle/assets/alpine-lake.svg",
+        "jigsaw-puzzle/assets/wood-ui.png",
+        "jigsaw-puzzle/assets/wood-ui.provenance.json",
+        "jigsaw-puzzle/assets/audio/ui-click.wav",
+        "jigsaw-puzzle/assets/audio/piece-click.wav",
+        "jigsaw-puzzle/assets/audio/snap.wav",
+        "jigsaw-puzzle/assets/audio/complete.wav",
+        "jigsaw-puzzle/assets/audio/generation.json"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
       "performance": null,
       "ci": "smoke"
     },
@@ -1046,9 +1314,40 @@
       "thumbnail": "screenshots/fruit-ninja.png",
       "title": "水果忍者 · Fruit Ninja",
       "entry": "fruit-ninja/main.ts",
-      "capabilities": ["2d", "gui", "input", "particles", "audio", "generated-assets", "game-workflow", "gamepad"],
-      "assets": ["fruit-ninja/assets/fruits.png", "fruit-ninja/assets/fruits-extra.png", "fruit-ninja/assets/items.png", "fruit-ninja/assets/dojo-backdrop.png", "fruit-ninja/assets/dojo-gui.png", "fruit-ninja/assets/provenance.json", "fruit-ninja/assets/fruits-extra.provenance.json", "fruit-ninja/assets/dojo.provenance.json", "fruit-ninja/assets/audio/ui-click.wav", "fruit-ninja/assets/audio/bomb-explosion.wav", "fruit-ninja/assets/audio/fruit-throw-a.wav", "fruit-ninja/assets/audio/fruit-throw-b.wav", "fruit-ninja/assets/audio/fruit-throw-c.wav", "fruit-ninja/assets/audio/fruit-splash-a.wav", "fruit-ninja/assets/audio/fruit-splash-b.wav", "fruit-ninja/assets/audio/fruit-splash-c.wav", "fruit-ninja/assets/audio/game-over.wav", "fruit-ninja/assets/audio/generation.json"],
-      "screenshot": { "required": false, "baseline": null },
+      "capabilities": [
+        "2d",
+        "gui",
+        "input",
+        "particles",
+        "audio",
+        "generated-assets",
+        "game-workflow",
+        "gamepad"
+      ],
+      "assets": [
+        "fruit-ninja/assets/fruits.png",
+        "fruit-ninja/assets/fruits-extra.png",
+        "fruit-ninja/assets/items.png",
+        "fruit-ninja/assets/dojo-backdrop.png",
+        "fruit-ninja/assets/dojo-gui.png",
+        "fruit-ninja/assets/provenance.json",
+        "fruit-ninja/assets/fruits-extra.provenance.json",
+        "fruit-ninja/assets/dojo.provenance.json",
+        "fruit-ninja/assets/audio/ui-click.wav",
+        "fruit-ninja/assets/audio/bomb-explosion.wav",
+        "fruit-ninja/assets/audio/fruit-throw-a.wav",
+        "fruit-ninja/assets/audio/fruit-throw-b.wav",
+        "fruit-ninja/assets/audio/fruit-throw-c.wav",
+        "fruit-ninja/assets/audio/fruit-splash-a.wav",
+        "fruit-ninja/assets/audio/fruit-splash-b.wav",
+        "fruit-ninja/assets/audio/fruit-splash-c.wav",
+        "fruit-ninja/assets/audio/game-over.wav",
+        "fruit-ninja/assets/audio/generation.json"
+      ],
+      "screenshot": {
+        "required": false,
+        "baseline": null
+      },
       "performance": null,
       "ci": "smoke"
     }

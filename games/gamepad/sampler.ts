@@ -20,10 +20,25 @@ const bindings:InputActionMapDescriptor={
 };
 export class GamepadSampler {
   private readonly input:BrowserMultiplayerInput;
+  private devices: ReturnType<Navigator['getGamepads']> = [];
+  private sampling = false;
+  private readonly getGamepads:()=>ReturnType<Navigator['getGamepads']>;
   constructor(getGamepads=()=>navigator.getGamepads(),target:EventTarget=window,visibility:EventTarget & {hidden?:boolean}=document){
-    this.input=new BrowserMultiplayerInput({players:Array.from({length:4},(_,i)=>({id:`P${i+1}`,gamepadIndex:i,bindings})),getGamepads,eventTarget:target,visibilityTarget:visibility,actionThreshold:.25});
+    this.getGamepads=getGamepads;
+    this.input=new BrowserMultiplayerInput({players:Array.from({length:4},(_,i)=>({id:`P${i+1}`,gamepadIndex:i,bindings})),getGamepads:()=>this.devices,eventTarget:target,visibilityTarget:visibility,actionThreshold:.25});
   }
-  sample():PadFrame[]{return this.input.sample(this.input.tick+1).players.map((p,index)=>({index,values:Object.fromEntries(p.actions.map(a=>[a.action,a.value])),pressed:new Set(p.actions.filter(a=>a.pressed).map(a=>a.action)),held:new Set(p.actions.filter(a=>a.held).map(a=>a.action))}));}
+  sample(devices=this.getGamepads()):PadFrame[]{
+    if(this.input.disposed)throw new Error('Gamepad sampler has been disposed.');
+    this.devices=devices;
+    if(this.input.suspended||!devices.some((p,i)=>i<4&&p?.connected)){
+      // No keyboard/pointer bindings exist here. Keep polling for hot-plugging, but avoid
+      // constructing and hashing four neutral simulation snapshots on every idle frame.
+      if(this.sampling){this.input.reset();this.sampling=false;}
+      return [];
+    }
+    this.sampling=true;
+    return this.input.sample(this.input.tick+1).players.map((p,index)=>({index,values:Object.fromEntries(p.actions.map(a=>[a.action,a.value])),pressed:new Set(p.actions.filter(a=>a.pressed).map(a=>a.action)),held:new Set(p.actions.filter(a=>a.held).map(a=>a.action))}));
+  }
   dispose():void{this.input.dispose();}
 }
 

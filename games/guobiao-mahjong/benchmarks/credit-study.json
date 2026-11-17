@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "seeds": [
+    271001,
+    271002,
+    271003,
+    271004
+  ],
+  "captureSeeds": [
+    133901,
+    133902,
+    133903,
+    133904
+  ],
+  "batchMatches": 8,
+  "captureBatchMatches": 2,
+  "arms": [
+    {
+      "id": "joint-reference",
+      "mode": "guarded"
+    },
+    {
+      "id": "joint-round",
+      "mode": "guarded"
+    },
+    {
+      "id": "joint-gae-teacher",
+      "mode": "guarded"
+    },
+    {
+      "id": "joint-gae-student",
+      "mode": "guarded"
+    }
+  ]
+}

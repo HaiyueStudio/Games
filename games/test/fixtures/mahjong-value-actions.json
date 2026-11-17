@@ -1,0 +1,5546 @@
+{
+  "schemaVersion": 1,
+  "source": "Deterministic builtin-depth-1 public positions; seeds 71001 onward, no hidden hands",
+  "cases": [
+    {
+      "name": "discard",
+      "observation": {
+        "protocol": "haiyue.mcr/1",
+        "revision": 373,
+        "seat": 0,
+        "handIndex": 1,
+        "roundWind": 0,
+        "dealer": 1,
+        "turn": 0,
+        "phase": "turn",
+        "wallRemaining": 70,
+        "hand": [
+          5,
+          5,
+          6,
+          8,
+          10,
+          10,
+          12,
+          14,
+          16,
+          18,
+          18,
+          18,
+          18,
+          24
+        ],
+        "drawn": 18,
+        "replacement": false,
+        "last": null,
+        "legalActions": [
+          {
+            "type": "discard",
+            "tile": 5
+          },
+          {
+            "type": "discard",
+            "tile": 6
+          },
+          {
+            "type": "discard",
+            "tile": 8
+          },
+          {
+            "type": "discard",
+            "tile": 10
+          },
+          {
+            "type": "discard",
+            "tile": 12
+          },
+          {
+            "type": "discard",
+            "tile": 14
+          },
+          {
+            "type": "discard",
+            "tile": 16
+          },
+          {
+            "type": "discard",
+            "tile": 18
+          },
+          {
+            "type": "discard",
+            "tile": 24
+          },
+          {
+            "type": "concealed-kong",
+            "tile": 18
+          }
+        ],
+        "players": [
+          {
+            "name": "玩家",
+            "handCount": 14,
+            "flowers": [],
+            "river": [
+              31,
+              0,
+              30
+            ],
+            "fan": 0,
+            "score": -8,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "青竹 AI",
+            "handCount": 10,
+            "flowers": [
+              36,
+              35
+            ],
+            "river": [
+              25,
+              16,
+              19,
+              30
+            ],
+            "fan": 0,
+            "score": -19,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "pung",
+                "from": 3,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  32,
+                  32,
+                  32
+                ]
+              }
+            ]
+          },
+          {
+            "name": "白露 AI",
+            "handCount": 10,
+            "flowers": [
+              40
+            ],
+            "river": [
+              0,
+              0,
+              9,
+              15
+            ],
+            "fan": 0,
+            "score": -8,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  19,
+                  20,
+                  21
+                ]
+              }
+            ]
+          },
+          {
+            "name": "玄玉 AI",
+            "handCount": 7,
+            "flowers": [
+              38,
+              37
+            ],
+            "river": [
+              30,
+              33,
+              9,
+              21,
+              31
+            ],
+            "fan": 11,
+            "score": 35,
+            "wins": 1,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 2,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  6,
+                  7,
+                  8
+                ]
+              },
+              {
+                "kind": "pung",
+                "from": 0,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  28,
+                  28,
+                  28
+                ]
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "index": 0,
+            "hand": 1,
+            "type": "start",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 1,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 2,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 3,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 4,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 5,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 6,
+            "hand": 1,
+            "type": "flower",
+            "seat": 2,
+            "text": "",
+            "tile": 40
+          },
+          {
+            "index": 7,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 8,
+            "hand": 1,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 38
+          },
+          {
+            "index": 9,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 10,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 11,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 12,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 13,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 14,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 15,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 16,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 17,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 18,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 19,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 20,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 21,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 22,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 23,
+            "hand": 1,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 36
+          },
+          {
+            "index": 24,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 25,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 26,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 27,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 28,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 29,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 30,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 31,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 32,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 33,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 34,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 35,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 36,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 37,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 38,
+            "hand": 1,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 37
+          },
+          {
+            "index": 39,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 40,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 41,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 42,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 43,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 44,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 45,
+            "hand": 1,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 35
+          },
+          {
+            "index": 46,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 47,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 48,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 49,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 50,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 51,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 52,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 53,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 54,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 55,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 56,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 57,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 58,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 59,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 25
+          },
+          {
+            "index": 60,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 61,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 62,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 63,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 64,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 65,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 66,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 67,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 16
+          },
+          {
+            "index": 68,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 69,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 70,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 71,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 32
+          },
+          {
+            "index": 72,
+            "hand": 1,
+            "type": "pung",
+            "seat": 1,
+            "text": "",
+            "tile": 32,
+            "tiles": [
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 73,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 19
+          },
+          {
+            "index": 74,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 75,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 7
+          },
+          {
+            "index": 76,
+            "hand": 1,
+            "type": "chow",
+            "seat": 3,
+            "text": "",
+            "tile": 7,
+            "tiles": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "index": 77,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 33
+          },
+          {
+            "index": 78,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 79,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 80,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 81,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 21
+          },
+          {
+            "index": 82,
+            "hand": 1,
+            "type": "chow",
+            "seat": 2,
+            "text": "",
+            "tile": 21,
+            "tiles": [
+              19,
+              20,
+              21
+            ]
+          },
+          {
+            "index": 83,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 84,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 85,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 86,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 87,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 88,
+            "hand": 1,
+            "type": "pung",
+            "seat": 3,
+            "text": "",
+            "tile": 28,
+            "tiles": [
+              28,
+              28,
+              28
+            ]
+          },
+          {
+            "index": 89,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 21
+          },
+          {
+            "index": 90,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 91,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 92,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 93,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 94,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 95,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 15
+          },
+          {
+            "index": 96,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 97,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 98,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          }
+        ],
+        "results": []
+      },
+      "action": {
+        "type": "discard",
+        "tile": 5
+      }
+    },
+    {
+      "name": "chow",
+      "observation": {
+        "protocol": "haiyue.mcr/1",
+        "revision": 73,
+        "seat": 3,
+        "handIndex": 0,
+        "roundWind": 0,
+        "dealer": 0,
+        "turn": 2,
+        "phase": "response",
+        "wallRemaining": 70,
+        "hand": [
+          3,
+          4,
+          5,
+          7,
+          8,
+          12,
+          12,
+          12,
+          18,
+          19,
+          20,
+          25,
+          26
+        ],
+        "drawn": null,
+        "replacement": false,
+        "last": {
+          "seat": 2,
+          "tile": 19,
+          "robKong": false
+        },
+        "legalActions": [
+          {
+            "type": "pass"
+          },
+          {
+            "type": "chow",
+            "tile": 19,
+            "tiles": [
+              18,
+              19,
+              20
+            ]
+          }
+        ],
+        "players": [
+          {
+            "name": "玩家",
+            "handCount": 10,
+            "flowers": [
+              39
+            ],
+            "river": [
+              26,
+              30,
+              6,
+              31
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 3,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  20,
+                  21,
+                  22
+                ]
+              }
+            ]
+          },
+          {
+            "name": "青竹 AI",
+            "handCount": 10,
+            "flowers": [
+              40,
+              41
+            ],
+            "river": [
+              27,
+              15,
+              29,
+              22,
+              28
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 0,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            ]
+          },
+          {
+            "name": "白露 AI",
+            "handCount": 13,
+            "flowers": [],
+            "river": [
+              0,
+              0,
+              14,
+              23,
+              19
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "玄玉 AI",
+            "handCount": 13,
+            "flowers": [
+              38,
+              37
+            ],
+            "river": [
+              28,
+              1,
+              32
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": []
+          }
+        ],
+        "events": [
+          {
+            "index": 0,
+            "hand": 0,
+            "type": "start",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 1,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 2,
+            "hand": 0,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 40
+          },
+          {
+            "index": 3,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 4,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 5,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 6,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 7,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 8,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 9,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 10,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 11,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 12,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 13,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 14,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 15,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 16,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 17,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 18,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 19,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 20,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 21,
+            "hand": 0,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 38
+          },
+          {
+            "index": 22,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 23,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 24,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 25,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 26,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 27,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 28,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 29,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 30,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 31,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 32,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 33,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 34,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 35,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 36,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 37,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 38,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 39,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 40,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 41,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 42,
+            "hand": 0,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 37
+          },
+          {
+            "index": 43,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 44,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 45,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 46,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 47,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 48,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 49,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 50,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 51,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 52,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 53,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 54,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 55,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 56,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 57,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 3
+          },
+          {
+            "index": 58,
+            "hand": 0,
+            "type": "chow",
+            "seat": 1,
+            "text": "",
+            "tile": 3,
+            "tiles": [
+              2,
+              3,
+              4
+            ]
+          },
+          {
+            "index": 59,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 27
+          },
+          {
+            "index": 60,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 61,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 62,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 63,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 64,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 65,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 26
+          },
+          {
+            "index": 66,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 67,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 15
+          },
+          {
+            "index": 68,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 69,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 70,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 71,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 20
+          },
+          {
+            "index": 72,
+            "hand": 0,
+            "type": "chow",
+            "seat": 0,
+            "text": "",
+            "tile": 20,
+            "tiles": [
+              20,
+              21,
+              22
+            ]
+          },
+          {
+            "index": 73,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 74,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 75,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 29
+          },
+          {
+            "index": 76,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 77,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 14
+          },
+          {
+            "index": 78,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 79,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 1
+          },
+          {
+            "index": 80,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 81,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 6
+          },
+          {
+            "index": 82,
+            "hand": 0,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 41
+          },
+          {
+            "index": 83,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 84,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 22
+          },
+          {
+            "index": 85,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 86,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 23
+          },
+          {
+            "index": 87,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 88,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 32
+          },
+          {
+            "index": 89,
+            "hand": 0,
+            "type": "flower",
+            "seat": 0,
+            "text": "",
+            "tile": 39
+          },
+          {
+            "index": 90,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 91,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 92,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 93,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 94,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 95,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 19
+          }
+        ],
+        "results": []
+      },
+      "action": {
+        "type": "chow",
+        "tile": 19,
+        "tiles": [
+          18,
+          19,
+          20
+        ]
+      }
+    },
+    {
+      "name": "pung",
+      "observation": {
+        "protocol": "haiyue.mcr/1",
+        "revision": 534,
+        "seat": 2,
+        "handIndex": 2,
+        "roundWind": 0,
+        "dealer": 2,
+        "turn": 3,
+        "phase": "response",
+        "wallRemaining": 83,
+        "hand": [
+          0,
+          1,
+          4,
+          5,
+          11,
+          13,
+          25,
+          27,
+          27,
+          27,
+          29,
+          33,
+          33
+        ],
+        "drawn": null,
+        "replacement": false,
+        "last": {
+          "seat": 3,
+          "tile": 27,
+          "robKong": false
+        },
+        "legalActions": [
+          {
+            "type": "pass"
+          },
+          {
+            "type": "pung",
+            "tile": 27
+          },
+          {
+            "type": "kong",
+            "tile": 27
+          }
+        ],
+        "players": [
+          {
+            "name": "玩家",
+            "handCount": 10,
+            "flowers": [],
+            "river": [
+              0,
+              28
+            ],
+            "fan": 8,
+            "score": 24,
+            "wins": 1,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 3,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  9,
+                  10,
+                  11
+                ]
+              }
+            ]
+          },
+          {
+            "name": "青竹 AI",
+            "handCount": 13,
+            "flowers": [
+              36
+            ],
+            "river": [
+              30,
+              32
+            ],
+            "fan": 0,
+            "score": -35,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "白露 AI",
+            "handCount": 13,
+            "flowers": [
+              39
+            ],
+            "river": [
+              30
+            ],
+            "fan": 0,
+            "score": -16,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "玄玉 AI",
+            "handCount": 7,
+            "flowers": [],
+            "river": [
+              30,
+              27
+            ],
+            "fan": 11,
+            "score": 27,
+            "wins": 1,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 2,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  23,
+                  24,
+                  25
+                ]
+              },
+              {
+                "kind": "chow",
+                "from": 2,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  6,
+                  7,
+                  8
+                ]
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "index": 0,
+            "hand": 2,
+            "type": "start",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 1,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 2,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 3,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 4,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 5,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 6,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 7,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 8,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 9,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 10,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 11,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 12,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 13,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 14,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 15,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 16,
+            "hand": 2,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 36
+          },
+          {
+            "index": 17,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 18,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 19,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 20,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 21,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 22,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 23,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 24,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 25,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 26,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 27,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 28,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 29,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 30,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 31,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 32,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 33,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 34,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 35,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 36,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 37,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 38,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 39,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 40,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 41,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 42,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 43,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 44,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 45,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 46,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 47,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 48,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 49,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 50,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 51,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 52,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 53,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 54,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 55,
+            "hand": 2,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 23
+          },
+          {
+            "index": 56,
+            "hand": 2,
+            "type": "chow",
+            "seat": 3,
+            "text": "",
+            "tile": 23,
+            "tiles": [
+              23,
+              24,
+              25
+            ]
+          },
+          {
+            "index": 57,
+            "hand": 2,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 58,
+            "hand": 2,
+            "type": "chow",
+            "seat": 0,
+            "text": "",
+            "tile": 9,
+            "tiles": [
+              9,
+              10,
+              11
+            ]
+          },
+          {
+            "index": 59,
+            "hand": 2,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 60,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 61,
+            "hand": 2,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 62,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 63,
+            "hand": 2,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 7
+          },
+          {
+            "index": 64,
+            "hand": 2,
+            "type": "chow",
+            "seat": 3,
+            "text": "",
+            "tile": 7,
+            "tiles": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "index": 65,
+            "hand": 2,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 66,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 67,
+            "hand": 2,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 68,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 69,
+            "hand": 2,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 32
+          },
+          {
+            "index": 70,
+            "hand": 2,
+            "type": "flower",
+            "seat": 2,
+            "text": "",
+            "tile": 39
+          },
+          {
+            "index": 71,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 72,
+            "hand": 2,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 73,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 74,
+            "hand": 2,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 27
+          }
+        ],
+        "results": []
+      },
+      "action": {
+        "type": "pung",
+        "tile": 27
+      }
+    },
+    {
+      "name": "kong",
+      "observation": {
+        "protocol": "haiyue.mcr/1",
+        "revision": 534,
+        "seat": 2,
+        "handIndex": 2,
+        "roundWind": 0,
+        "dealer": 2,
+        "turn": 3,
+        "phase": "response",
+        "wallRemaining": 83,
+        "hand": [
+          0,
+          1,
+          4,
+          5,
+          11,
+          13,
+          25,
+          27,
+          27,
+          27,
+          29,
+          33,
+          33
+        ],
+        "drawn": null,
+        "replacement": false,
+        "last": {
+          "seat": 3,
+          "tile": 27,
+          "robKong": false
+        },
+        "legalActions": [
+          {
+            "type": "pass"
+          },
+          {
+            "type": "pung",
+            "tile": 27
+          },
+          {
+            "type": "kong",
+            "tile": 27
+          }
+        ],
+        "players": [
+          {
+            "name": "玩家",
+            "handCount": 10,
+            "flowers": [],
+            "river": [
+              0,
+              28
+            ],
+            "fan": 8,
+            "score": 24,
+            "wins": 1,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 3,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  9,
+                  10,
+                  11
+                ]
+              }
+            ]
+          },
+          {
+            "name": "青竹 AI",
+            "handCount": 13,
+            "flowers": [
+              36
+            ],
+            "river": [
+              30,
+              32
+            ],
+            "fan": 0,
+            "score": -35,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "白露 AI",
+            "handCount": 13,
+            "flowers": [
+              39
+            ],
+            "river": [
+              30
+            ],
+            "fan": 0,
+            "score": -16,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "玄玉 AI",
+            "handCount": 7,
+            "flowers": [],
+            "river": [
+              30,
+              27
+            ],
+            "fan": 11,
+            "score": 27,
+            "wins": 1,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 2,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  23,
+                  24,
+                  25
+                ]
+              },
+              {
+                "kind": "chow",
+                "from": 2,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  6,
+                  7,
+                  8
+                ]
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "index": 0,
+            "hand": 2,
+            "type": "start",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 1,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 2,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 3,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 4,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 5,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 6,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 7,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 8,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 9,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 10,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 11,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 12,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 13,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 14,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 15,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 16,
+            "hand": 2,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 36
+          },
+          {
+            "index": 17,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 18,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 19,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 20,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 21,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 22,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 23,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 24,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 25,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 26,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 27,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 28,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 29,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 30,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 31,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 32,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 33,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 34,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 35,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 36,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 37,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 38,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 39,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 40,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 41,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 42,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 43,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 44,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 45,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 46,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 47,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 48,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 49,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 50,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 51,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 52,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 53,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 54,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 55,
+            "hand": 2,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 23
+          },
+          {
+            "index": 56,
+            "hand": 2,
+            "type": "chow",
+            "seat": 3,
+            "text": "",
+            "tile": 23,
+            "tiles": [
+              23,
+              24,
+              25
+            ]
+          },
+          {
+            "index": 57,
+            "hand": 2,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 58,
+            "hand": 2,
+            "type": "chow",
+            "seat": 0,
+            "text": "",
+            "tile": 9,
+            "tiles": [
+              9,
+              10,
+              11
+            ]
+          },
+          {
+            "index": 59,
+            "hand": 2,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 60,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 61,
+            "hand": 2,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 62,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 63,
+            "hand": 2,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 7
+          },
+          {
+            "index": 64,
+            "hand": 2,
+            "type": "chow",
+            "seat": 3,
+            "text": "",
+            "tile": 7,
+            "tiles": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "index": 65,
+            "hand": 2,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 66,
+            "hand": 2,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 67,
+            "hand": 2,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 68,
+            "hand": 2,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 69,
+            "hand": 2,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 32
+          },
+          {
+            "index": 70,
+            "hand": 2,
+            "type": "flower",
+            "seat": 2,
+            "text": "",
+            "tile": 39
+          },
+          {
+            "index": 71,
+            "hand": 2,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 72,
+            "hand": 2,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 73,
+            "hand": 2,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 74,
+            "hand": 2,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 27
+          }
+        ],
+        "results": []
+      },
+      "action": {
+        "type": "kong",
+        "tile": 27
+      }
+    },
+    {
+      "name": "concealed-kong",
+      "observation": {
+        "protocol": "haiyue.mcr/1",
+        "revision": 373,
+        "seat": 0,
+        "handIndex": 1,
+        "roundWind": 0,
+        "dealer": 1,
+        "turn": 0,
+        "phase": "turn",
+        "wallRemaining": 70,
+        "hand": [
+          5,
+          5,
+          6,
+          8,
+          10,
+          10,
+          12,
+          14,
+          16,
+          18,
+          18,
+          18,
+          18,
+          24
+        ],
+        "drawn": 18,
+        "replacement": false,
+        "last": null,
+        "legalActions": [
+          {
+            "type": "discard",
+            "tile": 5
+          },
+          {
+            "type": "discard",
+            "tile": 6
+          },
+          {
+            "type": "discard",
+            "tile": 8
+          },
+          {
+            "type": "discard",
+            "tile": 10
+          },
+          {
+            "type": "discard",
+            "tile": 12
+          },
+          {
+            "type": "discard",
+            "tile": 14
+          },
+          {
+            "type": "discard",
+            "tile": 16
+          },
+          {
+            "type": "discard",
+            "tile": 18
+          },
+          {
+            "type": "discard",
+            "tile": 24
+          },
+          {
+            "type": "concealed-kong",
+            "tile": 18
+          }
+        ],
+        "players": [
+          {
+            "name": "玩家",
+            "handCount": 14,
+            "flowers": [],
+            "river": [
+              31,
+              0,
+              30
+            ],
+            "fan": 0,
+            "score": -8,
+            "wins": 0,
+            "melds": []
+          },
+          {
+            "name": "青竹 AI",
+            "handCount": 10,
+            "flowers": [
+              36,
+              35
+            ],
+            "river": [
+              25,
+              16,
+              19,
+              30
+            ],
+            "fan": 0,
+            "score": -19,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "pung",
+                "from": 3,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  32,
+                  32,
+                  32
+                ]
+              }
+            ]
+          },
+          {
+            "name": "白露 AI",
+            "handCount": 10,
+            "flowers": [
+              40
+            ],
+            "river": [
+              0,
+              0,
+              9,
+              15
+            ],
+            "fan": 0,
+            "score": -8,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  19,
+                  20,
+                  21
+                ]
+              }
+            ]
+          },
+          {
+            "name": "玄玉 AI",
+            "handCount": 7,
+            "flowers": [
+              38,
+              37
+            ],
+            "river": [
+              30,
+              33,
+              9,
+              21,
+              31
+            ],
+            "fan": 11,
+            "score": 35,
+            "wins": 1,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 2,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  6,
+                  7,
+                  8
+                ]
+              },
+              {
+                "kind": "pung",
+                "from": 0,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  28,
+                  28,
+                  28
+                ]
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "index": 0,
+            "hand": 1,
+            "type": "start",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 1,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 2,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 3,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 4,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 5,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 6,
+            "hand": 1,
+            "type": "flower",
+            "seat": 2,
+            "text": "",
+            "tile": 40
+          },
+          {
+            "index": 7,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 8,
+            "hand": 1,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 38
+          },
+          {
+            "index": 9,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 10,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 11,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 12,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 13,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 14,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 15,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 16,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 17,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 18,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 19,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 20,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 21,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 22,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 23,
+            "hand": 1,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 36
+          },
+          {
+            "index": 24,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 25,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 26,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 27,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 28,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 29,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 30,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 31,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 32,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 33,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 34,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 35,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 36,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 37,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 38,
+            "hand": 1,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 37
+          },
+          {
+            "index": 39,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 40,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 41,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 42,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 43,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 44,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 45,
+            "hand": 1,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 35
+          },
+          {
+            "index": 46,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 47,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 48,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 49,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 50,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 51,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 52,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 53,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 54,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 55,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 56,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 57,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 58,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 59,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 25
+          },
+          {
+            "index": 60,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 61,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 62,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 63,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 64,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 65,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 66,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 67,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 16
+          },
+          {
+            "index": 68,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 69,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 70,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 71,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 32
+          },
+          {
+            "index": 72,
+            "hand": 1,
+            "type": "pung",
+            "seat": 1,
+            "text": "",
+            "tile": 32,
+            "tiles": [
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 73,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 19
+          },
+          {
+            "index": 74,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 75,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 7
+          },
+          {
+            "index": 76,
+            "hand": 1,
+            "type": "chow",
+            "seat": 3,
+            "text": "",
+            "tile": 7,
+            "tiles": [
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "index": 77,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 33
+          },
+          {
+            "index": 78,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 79,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 80,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 81,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 21
+          },
+          {
+            "index": 82,
+            "hand": 1,
+            "type": "chow",
+            "seat": 2,
+            "text": "",
+            "tile": 21,
+            "tiles": [
+              19,
+              20,
+              21
+            ]
+          },
+          {
+            "index": 83,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 84,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 85,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 86,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 87,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 88,
+            "hand": 1,
+            "type": "pung",
+            "seat": 3,
+            "text": "",
+            "tile": 28,
+            "tiles": [
+              28,
+              28,
+              28
+            ]
+          },
+          {
+            "index": 89,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 21
+          },
+          {
+            "index": 90,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 91,
+            "hand": 1,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 92,
+            "hand": 1,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 93,
+            "hand": 1,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 30
+          },
+          {
+            "index": 94,
+            "hand": 1,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 95,
+            "hand": 1,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 15
+          },
+          {
+            "index": 96,
+            "hand": 1,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 97,
+            "hand": 1,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 98,
+            "hand": 1,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          }
+        ],
+        "results": []
+      },
+      "action": {
+        "type": "concealed-kong",
+        "tile": 18
+      }
+    },
+    {
+      "name": "add-kong",
+      "observation": {
+        "protocol": "haiyue.mcr/1",
+        "revision": 176,
+        "seat": 0,
+        "handIndex": 0,
+        "roundWind": 0,
+        "dealer": 0,
+        "turn": 0,
+        "phase": "turn",
+        "wallRemaining": 50,
+        "hand": [
+          2,
+          4,
+          4,
+          6,
+          7,
+          8,
+          21,
+          22,
+          30,
+          30,
+          32
+        ],
+        "drawn": 32,
+        "replacement": false,
+        "last": null,
+        "legalActions": [
+          {
+            "type": "discard",
+            "tile": 2
+          },
+          {
+            "type": "discard",
+            "tile": 4
+          },
+          {
+            "type": "discard",
+            "tile": 6
+          },
+          {
+            "type": "discard",
+            "tile": 7
+          },
+          {
+            "type": "discard",
+            "tile": 8
+          },
+          {
+            "type": "discard",
+            "tile": 21
+          },
+          {
+            "type": "discard",
+            "tile": 22
+          },
+          {
+            "type": "discard",
+            "tile": 30
+          },
+          {
+            "type": "discard",
+            "tile": 32
+          },
+          {
+            "type": "add-kong",
+            "tile": 32
+          }
+        ],
+        "players": [
+          {
+            "name": "玩家",
+            "handCount": 11,
+            "flowers": [],
+            "river": [
+              33,
+              2,
+              19,
+              6,
+              17,
+              12,
+              26,
+              27,
+              18
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "pung",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  32,
+                  32,
+                  32
+                ]
+              }
+            ]
+          },
+          {
+            "name": "青竹 AI",
+            "handCount": 4,
+            "flowers": [
+              40
+            ],
+            "river": [
+              27,
+              6,
+              26,
+              8,
+              22,
+              28,
+              33
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "pung",
+                "from": 0,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  19,
+                  19,
+                  19
+                ]
+              },
+              {
+                "kind": "pung",
+                "from": 3,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  31,
+                  31,
+                  31
+                ]
+              },
+              {
+                "kind": "chow",
+                "from": 0,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  15,
+                  16,
+                  17
+                ]
+              }
+            ]
+          },
+          {
+            "name": "白露 AI",
+            "handCount": 4,
+            "flowers": [
+              36,
+              37
+            ],
+            "river": [
+              27,
+              8,
+              31,
+              26,
+              11,
+              11,
+              0,
+              18,
+              16,
+              28
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "chow",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  9,
+                  10,
+                  11
+                ]
+              },
+              {
+                "kind": "chow",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  21,
+                  22,
+                  23
+                ]
+              },
+              {
+                "kind": "pung",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  20,
+                  20,
+                  20
+                ]
+              }
+            ]
+          },
+          {
+            "name": "玄玉 AI",
+            "handCount": 10,
+            "flowers": [
+              41,
+              34
+            ],
+            "river": [
+              9,
+              12,
+              26,
+              33,
+              25,
+              29,
+              16,
+              0,
+              29,
+              20
+            ],
+            "fan": 0,
+            "score": 0,
+            "wins": 0,
+            "melds": [
+              {
+                "kind": "pung",
+                "from": 1,
+                "concealed": false,
+                "promoted": false,
+                "tiles": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "index": 0,
+            "hand": 0,
+            "type": "start",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 1,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 2,
+            "hand": 0,
+            "type": "flower",
+            "seat": 1,
+            "text": "",
+            "tile": 40
+          },
+          {
+            "index": 3,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 4,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 5,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 6,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 7,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 8,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 9,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 10,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 11,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 12,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 13,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 14,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 15,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 16,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 17,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 18,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 19,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 20,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 21,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 22,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 23,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 24,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 25,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 26,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 27,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 28,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 29,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 30,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 31,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 32,
+            "hand": 0,
+            "type": "flower",
+            "seat": 2,
+            "text": "",
+            "tile": 36
+          },
+          {
+            "index": 33,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 34,
+            "hand": 0,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 41
+          },
+          {
+            "index": 35,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 36,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 37,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 38,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 39,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 40,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 41,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 42,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 43,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 44,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 45,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 46,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 47,
+            "hand": 0,
+            "type": "flower",
+            "seat": 3,
+            "text": "",
+            "tile": 34
+          },
+          {
+            "index": 48,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 49,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 50,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 51,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 52,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 53,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 54,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 55,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 56,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 57,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 58,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 19
+          },
+          {
+            "index": 59,
+            "hand": 0,
+            "type": "pung",
+            "seat": 1,
+            "text": "",
+            "tile": 19,
+            "tiles": [
+              19,
+              19,
+              19
+            ]
+          },
+          {
+            "index": 60,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 27
+          },
+          {
+            "index": 61,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 62,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 27
+          },
+          {
+            "index": 63,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 64,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 9
+          },
+          {
+            "index": 65,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 66,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 33
+          },
+          {
+            "index": 67,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 68,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 32
+          },
+          {
+            "index": 69,
+            "hand": 0,
+            "type": "pung",
+            "seat": 0,
+            "text": "",
+            "tile": 32,
+            "tiles": [
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 70,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 2
+          },
+          {
+            "index": 71,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 72,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 1
+          },
+          {
+            "index": 73,
+            "hand": 0,
+            "type": "pung",
+            "seat": 3,
+            "text": "",
+            "tile": 1,
+            "tiles": [
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "index": 74,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 12
+          },
+          {
+            "index": 75,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 76,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 19
+          },
+          {
+            "index": 77,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 78,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 10
+          },
+          {
+            "index": 79,
+            "hand": 0,
+            "type": "chow",
+            "seat": 2,
+            "text": "",
+            "tile": 10,
+            "tiles": [
+              9,
+              10,
+              11
+            ]
+          },
+          {
+            "index": 80,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 8
+          },
+          {
+            "index": 81,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 82,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 83,
+            "hand": 0,
+            "type": "pung",
+            "seat": 1,
+            "text": "",
+            "tile": 31,
+            "tiles": [
+              31,
+              31,
+              31
+            ]
+          },
+          {
+            "index": 84,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 6
+          },
+          {
+            "index": 85,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 86,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 31
+          },
+          {
+            "index": 87,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 88,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 26
+          },
+          {
+            "index": 89,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 90,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 15
+          },
+          {
+            "index": 91,
+            "hand": 0,
+            "type": "chow",
+            "seat": 1,
+            "text": "",
+            "tile": 15,
+            "tiles": [
+              15,
+              16,
+              17
+            ]
+          },
+          {
+            "index": 92,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 26
+          },
+          {
+            "index": 93,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 94,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 26
+          },
+          {
+            "index": 95,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 96,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 33
+          },
+          {
+            "index": 97,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 98,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 6
+          },
+          {
+            "index": 99,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 100,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 8
+          },
+          {
+            "index": 101,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 102,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 11
+          },
+          {
+            "index": 103,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 104,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 25
+          },
+          {
+            "index": 105,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 106,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 17
+          },
+          {
+            "index": 107,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 108,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 22
+          },
+          {
+            "index": 109,
+            "hand": 0,
+            "type": "flower",
+            "seat": 2,
+            "text": "",
+            "tile": 37
+          },
+          {
+            "index": 110,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 111,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 11
+          },
+          {
+            "index": 112,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 113,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 29
+          },
+          {
+            "index": 114,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 115,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 12
+          },
+          {
+            "index": 116,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 117,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 21
+          },
+          {
+            "index": 118,
+            "hand": 0,
+            "type": "chow",
+            "seat": 2,
+            "text": "",
+            "tile": 21,
+            "tiles": [
+              21,
+              22,
+              23
+            ]
+          },
+          {
+            "index": 119,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 120,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 121,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 16
+          },
+          {
+            "index": 122,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 123,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 26
+          },
+          {
+            "index": 124,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 125,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 126,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 127,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 18
+          },
+          {
+            "index": 128,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 129,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 0
+          },
+          {
+            "index": 130,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 131,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 27
+          },
+          {
+            "index": 132,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 133,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 20
+          },
+          {
+            "index": 134,
+            "hand": 0,
+            "type": "pung",
+            "seat": 2,
+            "text": "",
+            "tile": 20,
+            "tiles": [
+              20,
+              20,
+              20
+            ]
+          },
+          {
+            "index": 135,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 16
+          },
+          {
+            "index": 136,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 137,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 29
+          },
+          {
+            "index": 138,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          },
+          {
+            "index": 139,
+            "hand": 0,
+            "type": "discard",
+            "seat": 0,
+            "text": "",
+            "tile": 18
+          },
+          {
+            "index": 140,
+            "hand": 0,
+            "type": "draw",
+            "seat": 1,
+            "text": ""
+          },
+          {
+            "index": 141,
+            "hand": 0,
+            "type": "discard",
+            "seat": 1,
+            "text": "",
+            "tile": 33
+          },
+          {
+            "index": 142,
+            "hand": 0,
+            "type": "draw",
+            "seat": 2,
+            "text": ""
+          },
+          {
+            "index": 143,
+            "hand": 0,
+            "type": "discard",
+            "seat": 2,
+            "text": "",
+            "tile": 28
+          },
+          {
+            "index": 144,
+            "hand": 0,
+            "type": "draw",
+            "seat": 3,
+            "text": ""
+          },
+          {
+            "index": 145,
+            "hand": 0,
+            "type": "discard",
+            "seat": 3,
+            "text": "",
+            "tile": 20
+          },
+          {
+            "index": 146,
+            "hand": 0,
+            "type": "draw",
+            "seat": 0,
+            "text": ""
+          }
+        ],
+        "results": []
+      },
+      "action": {
+        "type": "add-kong",
+        "tile": 32
+      }
+    }
+  ]
+}

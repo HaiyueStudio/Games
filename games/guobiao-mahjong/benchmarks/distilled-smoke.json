@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Post-publication smoke replay with explicit student and original model IDs; seeds reused for identity checks only",
+  "seeds": [
+    91001,
+    91002
+  ],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "batchMatches": 8,
+  "enhancedMetrics": true,
+  "baseline": "kd-value-v1",
+  "suites": [
+    {
+      "id": "distilled-value-holdout",
+      "agents": [
+        "kd-distilled",
+        "kd-value-v1",
+        "kd-value-v1",
+        "kd-value-v1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "purpose": "hybrid development against KD Student 0, with KD Student 1 and 2 at the table",
+  "seeds": [3101, 3102],
+  "rotateSeats": true,
+  "concurrency": 2,
+  "parallelProcesses": true,
+  "enhancedMetrics": true,
+  "baseline": "kd-s0",
+  "suites": [{"id": "hybrid-search-development", "agents": ["kd-s0", "kd-search", "kd-s1", "kd-s2"]}]
+}

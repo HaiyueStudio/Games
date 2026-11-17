@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "purpose": "fresh-seed confirmation against three identical Student 0 opponents; do not tune after reading",
+  "seeds": [4101, 4102, 4103, 4104, 4105, 4106, 4107, 4108],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "enhancedMetrics": true,
+  "baseline": "kd-s0",
+  "suites": [{"id": "paired-hybrid-holdout", "agents": ["kd-search", "kd-s0", "kd-s0", "kd-s0"]}]
+}

@@ -1,0 +1,30 @@
+{
+  "repository": "Dannibal/ijcai-mahjong-ckpts-2026",
+  "revision": "5670a37c87890ffe95ea0cc0431cb1c704ec8564",
+  "license": "MIT",
+  "source": "https://huggingface.co/Dannibal/ijcai-mahjong-ckpts-2026",
+  "files": [
+    {
+      "name": "kdens_s0_fp16.npz",
+      "path": "champion/kdens_s0_fp16.npz",
+      "size": 26564407,
+      "sha256": "b2d8bc289b0822e1d3e9d04eba3b6b3c435cd37a941875fc3af638cf84ef6e82"
+    },
+    {
+      "name": "kdens_s1_fp16.npz",
+      "path": "champion/kdens_s1_fp16.npz",
+      "size": 26563317,
+      "sha256": "132e110197f31c05b9d5b39120aa3fe73ac491a55b480314d98abc9fa68319e9"
+    },
+    {
+      "name": "kdens_s2_fp16.npz",
+      "path": "champion/kdens_s2_fp16.npz",
+      "size": 26566330,
+      "sha256": "73483924cedc86fe6bba2fe7d299127899299bddf429f4d0373364daf5565460"
+    }
+  ],
+  "codeSha256": {
+    "numpy_resfused.py": "bf8f070b7a642b10a4208d412bbf3cf4f2ceb3c185f16c0df2237e0b46df7c04",
+    "feature_reference.py": "bad9976fd01b7f595cc6d840d7df91fb61993cf59a8f6131053ac921d58112b6"
+  }
+}

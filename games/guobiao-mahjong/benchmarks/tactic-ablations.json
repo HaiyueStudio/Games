@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Independent single-component kong replacement, rob-kong and eight-fan route ablations",
+  "seeds": [
+    370001,
+    370002,
+    370003,
+    370004
+  ],
+  "baseline": "builtin-tactical",
+  "rotateSeats": true,
+  "depth": 2,
+  "concurrency": 4,
+  "parallelProcesses": true,
+  "enhancedMetrics": true,
+  "suites": [
+    {
+      "id": "builtin-no-replacement",
+      "agents": [
+        "builtin-no-replacement",
+        "builtin-tactical",
+        "builtin-tactical",
+        "builtin-tactical"
+      ]
+    },
+    {
+      "id": "builtin-no-rob-kong",
+      "agents": [
+        "builtin-no-rob-kong",
+        "builtin-tactical",
+        "builtin-tactical",
+        "builtin-tactical"
+      ]
+    },
+    {
+      "id": "builtin-no-eight-fan",
+      "agents": [
+        "builtin-no-eight-fan",
+        "builtin-tactical",
+        "builtin-tactical",
+        "builtin-tactical"
+      ]
+    }
+  ]
+}

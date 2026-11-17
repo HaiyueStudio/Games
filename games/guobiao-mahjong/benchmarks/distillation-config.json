@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "seed": 20261109,
+  "teacherHidden": 128,
+  "studentHidden": 16,
+  "members": 3,
+  "teacherEpochs": 100,
+  "studentEpochs": 200,
+  "teacherPatience": 16,
+  "studentPatience": 24,
+  "temperature": 0.1,
+  "teacherWeight": 0.7,
+  "policyWeight": 0.2,
+  "gates": {"maximumCalibrationQrmse": 0.05,"maximumCalibrationKL": 0.02,"maximumTeacherRegretFan": 0.64,"maximumCalibrationLossRatio": 1.15},
+  "settings": {"minimumPrior": 0.01,"minimumGain": 0.03,"priorWeight": 0.02,"uncertaintyWeight": 2,"maximumPlans": 18}
+}

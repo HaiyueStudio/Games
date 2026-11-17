@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "purpose": "All-full-policy control for matched physical-seat tactic ablations",
+  "seeds": [
+    370001,
+    370002,
+    370003,
+    370004
+  ],
+  "baseline": "builtin-tactical",
+  "rotateSeats": false,
+  "depth": 2,
+  "concurrency": 1,
+  "parallelProcesses": false,
+  "enhancedMetrics": true,
+  "suites": [
+    {
+      "id": "full-control",
+      "agents": [
+        "builtin-tactical",
+        "builtin-tactical",
+        "builtin-tactical",
+        "builtin-tactical"
+      ]
+    }
+  ]
+}

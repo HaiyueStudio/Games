@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "purpose": "isolate the policy change against three identical Student 0 opponents; development seeds only",
+  "seeds": [3101, 3102],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "enhancedMetrics": true,
+  "baseline": "kd-s0",
+  "suites": [{"id": "paired-hybrid-development", "agents": ["kd-search", "kd-s0", "kd-s0", "kd-s0"]}]
+}

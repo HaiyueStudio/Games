@@ -90,6 +90,11 @@ test('real repository has one owner per suite, complete packages and explicit ca
     const pkg = json(`games/${id}/package.json`);
     const outputs = id === 'gravity-maze' ? ['{projectRoot}/dist'] : ['{projectRoot}/bundle.js', '{projectRoot}/bundle.js.map'];
     if (id === 'entanglement-path') outputs.push('{projectRoot}/terrain-raster.worker.js', '{projectRoot}/terrain-raster.worker.js.map');
+    if (id === 'guobiao-mahjong') outputs.push(
+      '{projectRoot}/ai/mahjong.worker.js', '{projectRoot}/ai/mahjong.worker.js.map',
+      '{projectRoot}/ai/tfjs.worker.js', '{projectRoot}/ai/tfjs.worker.js.map', '{projectRoot}/ai/tfjs', '{projectRoot}/assets/models',
+      '{projectRoot}/ai/coach.worker.js', '{projectRoot}/ai/coach.worker.js.map',
+    );
     if (id !== 'gravity-maze' && existsSync(resolve(root, 'games', id, atlasConfigFile))) outputs.push(`{projectRoot}/${atlasOutputFile}`);
     assert.deepEqual(pkg.nx.targets.build.outputs, outputs);
     for (const file of plan.testOwners[id]) assert.ok(pkg.nx.targets.test.inputs.includes(`{workspaceRoot}/${file}`));
@@ -105,4 +110,15 @@ test('real repository has one owner per suite, complete packages and explicit ca
     assert.equal(json('games/ink-pinball/package.json').dependencies['@haiyue/game-pinball'], '0.1.0');
     assert.equal(json('games/pad-simulator/package.json').dependencies['@haiyue/game-sudoku'], '0.1.0');
   }
+});
+
+test('Mahjong worker outputs restore from cache without hashing generated code or local model environments', () => {
+  const root = resolve(import.meta.dirname, '../..');
+  const nx = JSON.parse(readFileSync(resolve(root, 'nx.json'), 'utf8'));
+  for (const file of ['ai/mahjong.worker.js', 'ai/mahjong.worker.js.map', 'ai/tfjs.worker.js', 'ai/tfjs.worker.js.map', 'ai/coach.worker.js', 'ai/coach.worker.js.map', 'ai/tfjs/**/*', 'assets/models/**/*', 'model-service/.venv/**/*', 'model-service/weights/**/*', 'model-service/**/__pycache__/**/*'])
+    assert.ok(nx.namedInputs.default.includes(`!{projectRoot}/${file}`), `Missing exclusion: ${file}`);
+});
+
+test('Mahjong build isolates all three workers before its page and retains strict output markers',async()=>{
+  const {workspaceBuildStages}=await import('../../scripts/workspace-build.mjs'),stages=workspaceBuildStages('guobiao-mahjong');assert.equal(stages.length,4);assert.equal(new Set(stages.map(s=>s.entry)).size,4);assert.ok(stages.slice(0,3).every(s=>s.entry.endsWith('.worker.ts')&&s.outputs.length===1&&s.outputs[0].endsWith('.worker.js')));assert.equal(stages.at(-1).entry,'games/guobiao-mahjong/main.ts');assert.deepEqual(stages.at(-1).outputs,['games/guobiao-mahjong/bundle.js']);assert.deepEqual(workspaceBuildStages('platform'),[{entry:null,outputs:['site']}]);assert.deepEqual(workspaceBuildStages('gravity-maze'),[{entry:null,outputs:['games/gravity-maze/dist']}]);assert.throws(()=>workspaceBuildStages('../escape'));
 });

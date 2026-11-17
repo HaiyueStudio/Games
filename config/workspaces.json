@@ -3,6 +3,7 @@
   "phase": "full",
   "games": [
     "dafeiyu",
+    "guobiao-mahjong",
     "ink-twin",
     "whale-maker",
     "glass-rush",
@@ -47,6 +48,20 @@
       "games/test/2048-rules.test.mjs",
       "games/test/2048-save.test.mjs",
       "games/test/2048-tile-textures.test.mjs"
+    ],
+    "guobiao-mahjong": [
+      "games/test/guobiao-mahjong-advanced.test.mjs",
+      "games/test/guobiao-mahjong-browser-models.test.mjs",
+      "games/test/guobiao-mahjong-candidates.test.mjs",
+      "games/test/guobiao-mahjong-coaching.test.mjs",
+      "games/test/guobiao-mahjong-hybrid.test.mjs",
+      "games/test/guobiao-mahjong-presentation.test.mjs",
+      "games/test/guobiao-mahjong-strength.test.mjs",
+      "games/test/guobiao-mahjong-value.test.mjs",
+      "games/test/guobiao-mahjong.test.mjs"
+    ],
+    "ink-twin": [
+      "games/test/ink-twin.test.mjs"
     ],
     "whale-maker": [
       "games/test/whale-maker-advanced.test.mjs",
@@ -266,9 +281,6 @@
       "games/test/render3d-system-policy.test.mjs",
       "games/test/test-selection.test.mjs",
       "games/test/workspaces-policy.test.mjs"
-    ],
-    "ink-twin": [
-      "games/test/ink-twin.test.mjs"
     ]
   }
 }

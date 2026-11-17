@@ -1,0 +1,5 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "..", "declaration": false, "types": [], "lib": ["ESNext", "WebWorker"] },
+  "include": ["mahjong.worker.ts"]
+}

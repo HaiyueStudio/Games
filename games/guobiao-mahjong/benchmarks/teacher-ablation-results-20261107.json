@@ -1,0 +1,1337 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-07T06:18:25.623Z",
+  "status": "passed",
+  "scope": "Four-stage value-head ablation with frozen KD0 prior, candidates and thresholds",
+  "reportSha256": "5005043fd3876ad60849a58d1ffa200c85965fe47935814dcb579638c025d88d",
+  "validationSha256": "535f4efa8a9e0062b37dff860bd4e6e6f74fd060129bcd11095abe02b814f0ae",
+  "trainingReportSha256": "56b11bbc0cd6d169c556f268ac94abf82f5ed161ed72872abd7a1dee41e1a058",
+  "models": [
+    {
+      "policy": "kd-teacher",
+      "sha256": "eec7b03d85e0044401f82c5d389e30feae29df2a5be46a95c337bb99e249b85d",
+      "hidden": 128
+    },
+    {
+      "policy": "kd-student-fp32",
+      "sha256": "14197f2590bc0ccd54700e17169272f46cd24ecf1010dad52f05672a918d6316",
+      "hidden": 16
+    },
+    {
+      "policy": "kd-student-fp16",
+      "sha256": "169a1df40d1458437ca939b197f58e2a8f4a3af7bc0c76b3bc7ec556d504fbf4",
+      "hidden": 16
+    }
+  ],
+  "publishedFp16Identical": true,
+  "config": {
+    "schemaVersion": 1,
+    "purpose": "Frozen original / offline teacher / pre-quantization student / deployed FP16 student; fresh seeds",
+    "seeds": [
+      101001,
+      101002,
+      101003,
+      101004,
+      101005,
+      101006,
+      101007,
+      101008
+    ],
+    "rotateSeats": true,
+    "concurrency": 1,
+    "batchMatches": 8,
+    "enhancedMetrics": true,
+    "baseline": "kd-value-v1",
+    "suites": [
+      {
+        "id": "teacher-vs-original",
+        "agents": [
+          "kd-teacher",
+          "kd-value-v1",
+          "kd-value-v1",
+          "kd-value-v1"
+        ]
+      },
+      {
+        "id": "fp32-vs-original",
+        "agents": [
+          "kd-student-fp32",
+          "kd-value-v1",
+          "kd-value-v1",
+          "kd-value-v1"
+        ]
+      },
+      {
+        "id": "fp16-vs-original",
+        "agents": [
+          "kd-student-fp16",
+          "kd-value-v1",
+          "kd-value-v1",
+          "kd-value-v1"
+        ]
+      }
+    ]
+  },
+  "summary": [
+    {
+      "id": "teacher-vs-original",
+      "complete": true,
+      "matches": 32,
+      "hands": 512,
+      "drawRate": 0.009765625,
+      "rows": [
+        {
+          "policy": "kd-teacher",
+          "seatGames": 32,
+          "hands": 512,
+          "fan": 1778,
+          "fanPerHand": 3.47265625,
+          "scorePerHand": -0.734375,
+          "winRate": 0.244140625,
+          "dealInRate": 0.19921875,
+          "averagePlace": 2.59375,
+          "decisions": 7533,
+          "choiceMsP50": 121.29999995231628,
+          "choiceMsP95": 150.19999992847443,
+          "forced": 16175,
+          "missedHu": 0,
+          "unqualifiedReady": 108,
+          "faults": 0,
+          "enhancements": 74,
+          "reasonCounts": {
+            "action-value": 87,
+            "legal-win": 127,
+            "model": 1,
+            "value-follow-up": 21,
+            "value-prior": 7297
+          }
+        },
+        {
+          "policy": "kd-value-v1",
+          "seatGames": 96,
+          "hands": 1536,
+          "fan": 5581,
+          "fanPerHand": 3.6334635416666665,
+          "scorePerHand": 0.24479166666666666,
+          "winRate": 0.24869791666666666,
+          "dealInRate": 0.18359375,
+          "averagePlace": 2.46875,
+          "decisions": 22611,
+          "choiceMsP50": 120.69999992847443,
+          "choiceMsP95": 149.5,
+          "forced": 48517,
+          "missedHu": 0,
+          "unqualifiedReady": 313,
+          "faults": 0,
+          "enhancements": 202,
+          "reasonCounts": {
+            "action-value": 222,
+            "legal-win": 389,
+            "model": 4,
+            "value-follow-up": 49,
+            "value-prior": 21947
+          }
+        }
+      ],
+      "paired": [
+        {
+          "policy": "kd-teacher",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.16080729166666663,
+          "fanDelta95": {
+            "low": -0.6712239583333333,
+            "high": 0.29361979166666663,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": -0.9791666666666667,
+          "scoreDelta95": {
+            "low": -3.0989583333333335,
+            "high": 0.8854166666666666,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 101001,
+              "fan": 0.23958333333333348,
+              "score": 1.2916666666666667
+            },
+            {
+              "seed": 101002,
+              "fan": 0.13020833333333348,
+              "score": 0.0625
+            },
+            {
+              "seed": 101003,
+              "fan": 0.8229166666666665,
+              "score": 3.1041666666666665
+            },
+            {
+              "seed": 101004,
+              "fan": -0.07291666666666696,
+              "score": -0.7083333333333334
+            },
+            {
+              "seed": 101005,
+              "fan": 0.4114583333333335,
+              "score": 0.6875
+            },
+            {
+              "seed": 101006,
+              "fan": -1.609375,
+              "score": -7
+            },
+            {
+              "seed": 101007,
+              "fan": -0.6354166666666665,
+              "score": -1.9166666666666667
+            },
+            {
+              "seed": 101008,
+              "fan": -0.5729166666666665,
+              "score": -3.3541666666666665
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fp32-vs-original",
+      "complete": true,
+      "matches": 32,
+      "hands": 512,
+      "drawRate": 0.009765625,
+      "rows": [
+        {
+          "policy": "kd-student-fp32",
+          "seatGames": 32,
+          "hands": 512,
+          "fan": 1746,
+          "fanPerHand": 3.41015625,
+          "scorePerHand": -0.853515625,
+          "winRate": 0.23828125,
+          "dealInRate": 0.189453125,
+          "averagePlace": 2.71875,
+          "decisions": 7571,
+          "choiceMsP50": 122.70000004768372,
+          "choiceMsP95": 159.60000002384186,
+          "forced": 16309,
+          "missedHu": 0,
+          "unqualifiedReady": 104,
+          "faults": 0,
+          "enhancements": 70,
+          "reasonCounts": {
+            "action-value": 79,
+            "legal-win": 123,
+            "model": 1,
+            "value-follow-up": 18,
+            "value-prior": 7350
+          }
+        },
+        {
+          "policy": "kd-value-v1",
+          "seatGames": 96,
+          "hands": 1536,
+          "fan": 5585,
+          "fanPerHand": 3.6360677083333335,
+          "scorePerHand": 0.2845052083333333,
+          "winRate": 0.2506510416666667,
+          "dealInRate": 0.185546875,
+          "averagePlace": 2.4270833333333335,
+          "decisions": 22766,
+          "choiceMsP50": 122.69999992847443,
+          "choiceMsP95": 160.10000002384186,
+          "forced": 48878,
+          "missedHu": 0,
+          "unqualifiedReady": 314,
+          "faults": 0,
+          "enhancements": 202,
+          "reasonCounts": {
+            "action-value": 223,
+            "legal-win": 391,
+            "model": 4,
+            "value-follow-up": 49,
+            "value-prior": 22099
+          }
+        }
+      ],
+      "paired": [
+        {
+          "policy": "kd-student-fp32",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.22591145833333326,
+          "fanDelta95": {
+            "low": -0.6881510416666665,
+            "high": 0.2187500000000001,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": -1.1380208333333335,
+          "scoreDelta95": {
+            "low": -3.3072916666666665,
+            "high": 0.9375,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 101001,
+              "fan": 0.03645833333333348,
+              "score": -0.7083333333333334
+            },
+            {
+              "seed": 101002,
+              "fan": 0.3489583333333335,
+              "score": 1.4375
+            },
+            {
+              "seed": 101003,
+              "fan": 0.15104166666666652,
+              "score": 1.3125
+            },
+            {
+              "seed": 101004,
+              "fan": -0.0625,
+              "score": 0
+            },
+            {
+              "seed": 101005,
+              "fan": 0.7552083333333335,
+              "score": 3.2916666666666665
+            },
+            {
+              "seed": 101006,
+              "fan": -1.239583333333333,
+              "score": -5.75
+            },
+            {
+              "seed": 101007,
+              "fan": -0.7083333333333335,
+              "score": -3.375
+            },
+            {
+              "seed": 101008,
+              "fan": -1.0885416666666665,
+              "score": -5.3125
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fp16-vs-original",
+      "complete": true,
+      "matches": 32,
+      "hands": 512,
+      "drawRate": 0.009765625,
+      "rows": [
+        {
+          "policy": "kd-student-fp16",
+          "seatGames": 32,
+          "hands": 512,
+          "fan": 1746,
+          "fanPerHand": 3.41015625,
+          "scorePerHand": -0.853515625,
+          "winRate": 0.23828125,
+          "dealInRate": 0.189453125,
+          "averagePlace": 2.71875,
+          "decisions": 7571,
+          "choiceMsP50": 118.20000004768372,
+          "choiceMsP95": 137.70000004768372,
+          "forced": 16309,
+          "missedHu": 0,
+          "unqualifiedReady": 104,
+          "faults": 0,
+          "enhancements": 70,
+          "reasonCounts": {
+            "action-value": 79,
+            "legal-win": 123,
+            "model": 1,
+            "value-follow-up": 18,
+            "value-prior": 7350
+          }
+        },
+        {
+          "policy": "kd-value-v1",
+          "seatGames": 96,
+          "hands": 1536,
+          "fan": 5585,
+          "fanPerHand": 3.6360677083333335,
+          "scorePerHand": 0.2845052083333333,
+          "winRate": 0.2506510416666667,
+          "dealInRate": 0.185546875,
+          "averagePlace": 2.4270833333333335,
+          "decisions": 22766,
+          "choiceMsP50": 118.29999995231628,
+          "choiceMsP95": 138,
+          "forced": 48878,
+          "missedHu": 0,
+          "unqualifiedReady": 314,
+          "faults": 0,
+          "enhancements": 202,
+          "reasonCounts": {
+            "action-value": 223,
+            "legal-win": 391,
+            "model": 4,
+            "value-follow-up": 49,
+            "value-prior": 22099
+          }
+        }
+      ],
+      "paired": [
+        {
+          "policy": "kd-student-fp16",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.22591145833333326,
+          "fanDelta95": {
+            "low": -0.6881510416666665,
+            "high": 0.2187500000000001,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": -1.1380208333333335,
+          "scoreDelta95": {
+            "low": -3.3072916666666665,
+            "high": 0.9375,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 101001,
+              "fan": 0.03645833333333348,
+              "score": -0.7083333333333334
+            },
+            {
+              "seed": 101002,
+              "fan": 0.3489583333333335,
+              "score": 1.4375
+            },
+            {
+              "seed": 101003,
+              "fan": 0.15104166666666652,
+              "score": 1.3125
+            },
+            {
+              "seed": 101004,
+              "fan": -0.0625,
+              "score": 0
+            },
+            {
+              "seed": 101005,
+              "fan": 0.7552083333333335,
+              "score": 3.2916666666666665
+            },
+            {
+              "seed": 101006,
+              "fan": -1.239583333333333,
+              "score": -5.75
+            },
+            {
+              "seed": 101007,
+              "fan": -0.7083333333333335,
+              "score": -3.375
+            },
+            {
+              "seed": 101008,
+              "fan": -1.0885416666666665,
+              "score": -5.3125
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "teacherQualified": false,
+  "teacherConclusion": "inconclusive-against-original",
+  "compressionComparisons": [
+    {
+      "policies": [
+        "kd-student-fp32",
+        "kd-teacher"
+      ],
+      "fanDeltaPerHand": -0.06510416666666663,
+      "fanDelta95": {
+        "low": -0.3183593749999999,
+        "high": 0.173828125,
+        "method": "seed-block bootstrap",
+        "blocks": 8,
+        "draws": 10000
+      },
+      "meaning": "Difference of each challenger-versus-original seed deltas; separate matched-wall suites"
+    },
+    {
+      "policies": [
+        "kd-student-fp16",
+        "kd-student-fp32"
+      ],
+      "fanDeltaPerHand": 0,
+      "fanDelta95": {
+        "low": 0,
+        "high": 0,
+        "method": "seed-block bootstrap",
+        "blocks": 8,
+        "draws": 10000
+      },
+      "meaning": "Difference of each challenger-versus-original seed deltas; separate matched-wall suites"
+    }
+  ],
+  "fixedState": {
+    "datasetReportSha256": "59703c2efcc518eda6bd2bdae2e31a75c680822f8231b002de9ad4b51b469a2a",
+    "positions": 192,
+    "checkedFeatures": 624,
+    "measurements": [
+      {
+        "a": "teacher",
+        "b": "original",
+        "category": "all",
+        "positions": 192,
+        "plans": 624,
+        "policyAgreement": 0.9739583333333334,
+        "rawCandidateAgreement": 0.9479166666666666,
+        "valueDifferenceRMSEFan": 0.7883167736852433,
+        "valueDifferenceMAEFan": 0.6147507865771082
+      },
+      {
+        "a": "teacher",
+        "b": "original",
+        "category": "kong",
+        "positions": 39,
+        "plans": 160,
+        "policyAgreement": 0.9743589743589743,
+        "rawCandidateAgreement": 0.9230769230769231,
+        "valueDifferenceRMSEFan": 0.7245287433658425,
+        "valueDifferenceMAEFan": 0.5874626802969528
+      },
+      {
+        "a": "fp32",
+        "b": "teacher",
+        "category": "all",
+        "positions": 192,
+        "plans": 624,
+        "policyAgreement": 0.9895833333333334,
+        "rawCandidateAgreement": 0.9635416666666666,
+        "valueDifferenceRMSEFan": 0.3820192204414685,
+        "valueDifferenceMAEFan": 0.2948624081416905
+      },
+      {
+        "a": "fp32",
+        "b": "teacher",
+        "category": "kong",
+        "positions": 39,
+        "plans": 160,
+        "policyAgreement": 0.9743589743589743,
+        "rawCandidateAgreement": 0.9487179487179487,
+        "valueDifferenceRMSEFan": 0.3512163730677863,
+        "valueDifferenceMAEFan": 0.27367552144020807
+      },
+      {
+        "a": "fp16",
+        "b": "fp32",
+        "category": "all",
+        "positions": 192,
+        "plans": 624,
+        "policyAgreement": 1,
+        "rawCandidateAgreement": 1,
+        "valueDifferenceRMSEFan": 0.0008567328343738515,
+        "valueDifferenceMAEFan": 0.0007985217011075251
+      },
+      {
+        "a": "fp16",
+        "b": "fp32",
+        "category": "kong",
+        "positions": 39,
+        "plans": 160,
+        "policyAgreement": 1,
+        "rawCandidateAgreement": 1,
+        "valueDifferenceRMSEFan": 0.0008396311930110911,
+        "valueDifferenceMAEFan": 0.0007821747460720147
+      },
+      {
+        "a": "teacher",
+        "b": "original",
+        "category": "claim",
+        "positions": 80,
+        "plans": 246,
+        "policyAgreement": 0.975,
+        "rawCandidateAgreement": 0.95,
+        "valueDifferenceRMSEFan": 0.8184775433997903,
+        "valueDifferenceMAEFan": 0.6314736955073825
+      },
+      {
+        "a": "fp32",
+        "b": "teacher",
+        "category": "claim",
+        "positions": 80,
+        "plans": 246,
+        "policyAgreement": 0.9875,
+        "rawCandidateAgreement": 0.9875,
+        "valueDifferenceRMSEFan": 0.4007698214789822,
+        "valueDifferenceMAEFan": 0.30246233042214743
+      },
+      {
+        "a": "fp16",
+        "b": "fp32",
+        "category": "claim",
+        "positions": 80,
+        "plans": 246,
+        "policyAgreement": 1,
+        "rawCandidateAgreement": 1,
+        "valueDifferenceRMSEFan": 0.000814191494491011,
+        "valueDifferenceMAEFan": 0.0007640052972238263
+      },
+      {
+        "a": "teacher",
+        "b": "original",
+        "category": "discard",
+        "positions": 73,
+        "plans": 218,
+        "policyAgreement": 0.9726027397260274,
+        "rawCandidateAgreement": 0.958904109589041,
+        "valueDifferenceRMSEFan": 0.7984882136506556,
+        "valueDifferenceMAEFan": 0.615907948999022
+      },
+      {
+        "a": "fp32",
+        "b": "teacher",
+        "category": "discard",
+        "positions": 73,
+        "plans": 218,
+        "policyAgreement": 1,
+        "rawCandidateAgreement": 0.9452054794520548,
+        "valueDifferenceRMSEFan": 0.3820371646045616,
+        "valueDifferenceMAEFan": 0.3018363576428126
+      },
+      {
+        "a": "fp16",
+        "b": "fp32",
+        "category": "discard",
+        "positions": 73,
+        "plans": 218,
+        "policyAgreement": 1,
+        "rawCandidateAgreement": 1,
+        "valueDifferenceRMSEFan": 0.000914055070745437,
+        "valueDifferenceMAEFan": 0.0008494691697362935
+      }
+    ]
+  },
+  "actionBreakdown": [
+    {
+      "policy": "kd-teacher",
+      "action": "discard",
+      "decisions": 5909,
+      "overrides": 41,
+      "winsAfter": 1422,
+      "dealInsAfter": 1231,
+      "relativeFanAfter": -1219.3333333333371,
+      "meanRelativeFanAfter": -0.20635189259322004,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "discard",
+      "decisions": 53414,
+      "overrides": 223,
+      "winsAfter": 13165,
+      "dealInsAfter": 10153,
+      "relativeFanAfter": 2887.0000000000227,
+      "meanRelativeFanAfter": 0.05404950013105221,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "pass",
+      "decisions": 992,
+      "overrides": 31,
+      "winsAfter": 232,
+      "dealInsAfter": 188,
+      "relativeFanAfter": -370.333333333333,
+      "meanRelativeFanAfter": -0.3733198924731179,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "pass",
+      "decisions": 9018,
+      "overrides": 350,
+      "winsAfter": 2118,
+      "dealInsAfter": 1477,
+      "relativeFanAfter": -1741.6666666666476,
+      "meanRelativeFanAfter": -0.1931322540104954,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "chow",
+      "decisions": 2563,
+      "overrides": 18,
+      "winsAfter": 821,
+      "dealInsAfter": 414,
+      "relativeFanAfter": 3270.3333333333267,
+      "meanRelativeFanAfter": 1.2759786708284537,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "pung",
+      "decisions": 1762,
+      "overrides": 15,
+      "winsAfter": 571,
+      "dealInsAfter": 365,
+      "relativeFanAfter": 1640.0000000000018,
+      "meanRelativeFanAfter": 0.9307604994324642,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "hu",
+      "decisions": 1171,
+      "overrides": 0,
+      "winsAfter": 1152,
+      "dealInsAfter": 0,
+      "relativeFanAfter": 16657.666666666664,
+      "meanRelativeFanAfter": 14.225163677768288,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "chow",
+      "decisions": 290,
+      "overrides": 2,
+      "winsAfter": 94,
+      "dealInsAfter": 51,
+      "relativeFanAfter": 336.66666666666663,
+      "meanRelativeFanAfter": 1.1609195402298849,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "pung",
+      "decisions": 193,
+      "overrides": 0,
+      "winsAfter": 64,
+      "dealInsAfter": 42,
+      "relativeFanAfter": 166.99999999999997,
+      "meanRelativeFanAfter": 0.8652849740932641,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "hu",
+      "decisions": 127,
+      "overrides": 0,
+      "winsAfter": 125,
+      "dealInsAfter": 0,
+      "relativeFanAfter": 1768.6666666666667,
+      "meanRelativeFanAfter": 13.926509186351707,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "concealed-kong",
+      "decisions": 50,
+      "overrides": 0,
+      "winsAfter": 10,
+      "dealInsAfter": 0,
+      "relativeFanAfter": -136,
+      "meanRelativeFanAfter": -2.72,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "concealed-kong",
+      "decisions": 7,
+      "overrides": 0,
+      "winsAfter": 2,
+      "dealInsAfter": 1,
+      "relativeFanAfter": -7.333333333333334,
+      "meanRelativeFanAfter": -1.0476190476190477,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "kong",
+      "decisions": 62,
+      "overrides": 0,
+      "winsAfter": 11,
+      "dealInsAfter": 19,
+      "relativeFanAfter": -56.33333333333334,
+      "meanRelativeFanAfter": -0.9086021505376346,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-value-v1",
+      "action": "add-kong",
+      "decisions": 103,
+      "overrides": 0,
+      "winsAfter": 11,
+      "dealInsAfter": 27,
+      "relativeFanAfter": -443.99999999999994,
+      "meanRelativeFanAfter": -4.310679611650485,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "add-kong",
+      "decisions": 10,
+      "overrides": 0,
+      "winsAfter": 0,
+      "dealInsAfter": 4,
+      "relativeFanAfter": -61.99999999999999,
+      "meanRelativeFanAfter": -6.199999999999999,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-teacher",
+      "action": "kong",
+      "decisions": 5,
+      "overrides": 0,
+      "winsAfter": 0,
+      "dealInsAfter": 2,
+      "relativeFanAfter": -26,
+      "meanRelativeFanAfter": -5.2,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "discard",
+      "decisions": 5951,
+      "overrides": 39,
+      "winsAfter": 1373,
+      "dealInsAfter": 1195,
+      "relativeFanAfter": -1983.6666666666802,
+      "meanRelativeFanAfter": -0.3333333333333356,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "pass",
+      "decisions": 990,
+      "overrides": 27,
+      "winsAfter": 214,
+      "dealInsAfter": 173,
+      "relativeFanAfter": -706.6666666666673,
+      "meanRelativeFanAfter": -0.7138047138047144,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "chow",
+      "decisions": 288,
+      "overrides": 3,
+      "winsAfter": 89,
+      "dealInsAfter": 50,
+      "relativeFanAfter": 299.33333333333314,
+      "meanRelativeFanAfter": 1.0393518518518512,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "hu",
+      "decisions": 123,
+      "overrides": 0,
+      "winsAfter": 122,
+      "dealInsAfter": 0,
+      "relativeFanAfter": 1741.6666666666667,
+      "meanRelativeFanAfter": 14.15989159891599,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "pung",
+      "decisions": 196,
+      "overrides": 1,
+      "winsAfter": 63,
+      "dealInsAfter": 43,
+      "relativeFanAfter": 159.6666666666666,
+      "meanRelativeFanAfter": 0.8146258503401357,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "concealed-kong",
+      "decisions": 7,
+      "overrides": 0,
+      "winsAfter": 2,
+      "dealInsAfter": 1,
+      "relativeFanAfter": -7.333333333333334,
+      "meanRelativeFanAfter": -1.0476190476190477,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "add-kong",
+      "decisions": 11,
+      "overrides": 0,
+      "winsAfter": 1,
+      "dealInsAfter": 3,
+      "relativeFanAfter": -44.33333333333333,
+      "meanRelativeFanAfter": -4.03030303030303,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp32",
+      "action": "kong",
+      "decisions": 5,
+      "overrides": 0,
+      "winsAfter": 0,
+      "dealInsAfter": 2,
+      "relativeFanAfter": -26,
+      "meanRelativeFanAfter": -5.2,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "discard",
+      "decisions": 5951,
+      "overrides": 39,
+      "winsAfter": 1373,
+      "dealInsAfter": 1195,
+      "relativeFanAfter": -1983.6666666666802,
+      "meanRelativeFanAfter": -0.3333333333333356,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "pass",
+      "decisions": 990,
+      "overrides": 27,
+      "winsAfter": 214,
+      "dealInsAfter": 173,
+      "relativeFanAfter": -706.6666666666673,
+      "meanRelativeFanAfter": -0.7138047138047144,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "chow",
+      "decisions": 288,
+      "overrides": 3,
+      "winsAfter": 89,
+      "dealInsAfter": 50,
+      "relativeFanAfter": 299.33333333333314,
+      "meanRelativeFanAfter": 1.0393518518518512,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "hu",
+      "decisions": 123,
+      "overrides": 0,
+      "winsAfter": 122,
+      "dealInsAfter": 0,
+      "relativeFanAfter": 1741.6666666666667,
+      "meanRelativeFanAfter": 14.15989159891599,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "pung",
+      "decisions": 196,
+      "overrides": 1,
+      "winsAfter": 63,
+      "dealInsAfter": 43,
+      "relativeFanAfter": 159.6666666666666,
+      "meanRelativeFanAfter": 0.8146258503401357,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "concealed-kong",
+      "decisions": 7,
+      "overrides": 0,
+      "winsAfter": 2,
+      "dealInsAfter": 1,
+      "relativeFanAfter": -7.333333333333334,
+      "meanRelativeFanAfter": -1.0476190476190477,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "add-kong",
+      "decisions": 11,
+      "overrides": 0,
+      "winsAfter": 1,
+      "dealInsAfter": 3,
+      "relativeFanAfter": -44.33333333333333,
+      "meanRelativeFanAfter": -4.03030303030303,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    },
+    {
+      "policy": "kd-student-fp16",
+      "action": "kong",
+      "decisions": 5,
+      "overrides": 0,
+      "winsAfter": 0,
+      "dealInsAfter": 2,
+      "relativeFanAfter": -26,
+      "meanRelativeFanAfter": -5.2,
+      "interpretation": "Observed hand outcome after this action; descriptive and not causal action value"
+    }
+  ],
+  "limitations": [
+    "Same KD0 backbone, legal candidates, conservative thresholds and current-hand objective for all four heads",
+    "Action breakdown is descriptive; a hand outcome does not causally measure an individual action",
+    "Fresh seed blocks with all four seat rotations; limited opponents, not a universal strength ranking",
+    "Teacher must qualify independently before a new student is promoted; no deployment by this script",
+    "Fixed-state candidate agreement is not a playing-strength metric",
+    "Recovered pre-quantization weights come from deterministic retraining; exported FP16 student is byte-identical to the previously published model"
+  ],
+  "audits": {
+    "checkedDecisions": 90818,
+    "rawMatches": {
+      "fp16-vs-original-101001-0.json": "c87d6cc9b51896e0eb5ec1db2ec5e0411e79fde8db0e47b55966dc560c7f5d86",
+      "fp16-vs-original-101001-1.json": "c78db6908ea5b0938b702ecc040fc491167f6171370dc33bd5876121aa5ca0cb",
+      "fp16-vs-original-101001-2.json": "f58bbeefd13c8d083fa57ff07c7ee29c054353737293d747ddd1adf06245ff18",
+      "fp16-vs-original-101001-3.json": "611f3f180c27773bc1ebdbe9395ca932aa6739683202fac9eac1eb6668826bd8",
+      "fp16-vs-original-101002-0.json": "ef00a65f52536840e74f63f3406d7d54594195323ebfdc17e7f969183ddfefae",
+      "fp16-vs-original-101002-1.json": "a8bfcf063c41f6550235a4464c65883f88daadaa7806a2560b3fdd70d4b257a2",
+      "fp16-vs-original-101002-2.json": "2cbe04130f362ce2aa56c2d486313caaa8e3f5aeb209d86d0fbbb55f0cf26ec0",
+      "fp16-vs-original-101002-3.json": "6a5dc0fb2d51a01c6e8f8fd6cde3f4f9c14ca7551cd43ad39c534db9d79435b2",
+      "fp16-vs-original-101003-0.json": "9d12b2855be9301682e58c435b85dd30ead15360d6f18046dbb04fabdbf7cf4b",
+      "fp16-vs-original-101003-1.json": "401c6f0c01db7d99b9f6d821d4aaab6fe093b21bd1a21927e0ec8cbb9cd450fc",
+      "fp16-vs-original-101003-2.json": "180a41a81d0be5cb9ff4598a463e48f58bb73615d559c481aeb6a73c79ce8949",
+      "fp16-vs-original-101003-3.json": "fcbcbd478bf601aa9e74a4f405a09415f0e478027378dcc52f920b1677864b8a",
+      "fp16-vs-original-101004-0.json": "62c075303da9342adb83504571320f7c7167c9eb070bd043bbe80f9487adc17e",
+      "fp16-vs-original-101004-1.json": "110d73c35a2de5f7b46d5eea8bc21855c49a705d29746680a340d7a6f737041e",
+      "fp16-vs-original-101004-2.json": "e66a140ff3012f0f58a7aca688c82b9e3ddc6d3f2f6801309418423f9ace1b6a",
+      "fp16-vs-original-101004-3.json": "42299d14bfd71d6fa1575dbdc4c69149eb73c11637b6eea07437a25da5a0e6f0",
+      "fp16-vs-original-101005-0.json": "96f984a765da80f198cdfacc6e7132be71e6f38ae2455b73a0be4bbfd735edbc",
+      "fp16-vs-original-101005-1.json": "dec7a09983a67876401462fc9425c582919092f43cf98853a28457b363870be0",
+      "fp16-vs-original-101005-2.json": "36952e71485f124eb0e6ba4a61143ad97b1fa9824d89266c9ccf88722537004f",
+      "fp16-vs-original-101005-3.json": "1c8f1988a5877e8db7ccaffbd5f2b0cc327a62a31750769de36152c7266550b5",
+      "fp16-vs-original-101006-0.json": "d40de66063f38afe29cd1da8a29730a22ef06347302dce15e5432993cf43abb1",
+      "fp16-vs-original-101006-1.json": "56a558b2afc89f77703c826c77956cd94b563c27a4a4cad61cfeb25e593d810c",
+      "fp16-vs-original-101006-2.json": "a2f8b3abcb1156d9732e7a07aa8c201cf92fba3c5bec40c37d12fa106c67974a",
+      "fp16-vs-original-101006-3.json": "d8254ce196927048076ece78d34bca6a5edcf0bb03c432f495fcc425593170ea",
+      "fp16-vs-original-101007-0.json": "d6122db3833461b8138b5d59e3acb866a2fb8ca830744f0d8e63ab5a5b1b90a1",
+      "fp16-vs-original-101007-1.json": "9e5e3c5cbee6c17a6c830baaa2c3005c12f97ee229349bdfd881a0d508839c1e",
+      "fp16-vs-original-101007-2.json": "f959c3d5cf7760c51576f157f677700f5c6e39b4f1803d8cac1f99458f5f5a4d",
+      "fp16-vs-original-101007-3.json": "51441584214a67bf975d20c0a1eb14ab410667448e257b4b960521c6402d7219",
+      "fp16-vs-original-101008-0.json": "9737a51389a0ff8a331cf440abf22c87723097da94179af47415c3408da4ad06",
+      "fp16-vs-original-101008-1.json": "99fd29f843c0458c5e2b3d86a1ba08f93f26f95288806d2b10a3f4ddf5cf5119",
+      "fp16-vs-original-101008-2.json": "f8a6451f1ff63ac367b58c6dd0735471216f530e597c8f3dbe8e8d0814e11268",
+      "fp16-vs-original-101008-3.json": "b3dd70135e8311410de6595928c8bded4b2b156ab81c303f0257667d4d75c6f2",
+      "fp32-vs-original-101001-0.json": "ea0765129317b10aa6d42ec8efd6f30b83d22ea6833e82bf0ec418b3b23cae76",
+      "fp32-vs-original-101001-1.json": "39062bb139ec633ab3e919893a72aac5c72c0bb3b86b9cfa378b0cb945554d53",
+      "fp32-vs-original-101001-2.json": "7c0e31ee8bee81663595a825cd46b9a1621822986d44e85e6cd98ded9b47bc87",
+      "fp32-vs-original-101001-3.json": "0772737965c585e128c5134e3c0ce83ed7e0395ce8289d7badbf41084877cfa6",
+      "fp32-vs-original-101002-0.json": "439228c969a76e9d1dc21f251826ea9d36434b86e9cdb88b12911701b49c7b7b",
+      "fp32-vs-original-101002-1.json": "0bbb0bfde0a31997be4437788a1c5d6f01c75bbf4a2a36aef7333aa912f8d7a5",
+      "fp32-vs-original-101002-2.json": "0ed15e4e905661bf4b9796e1028a41665ff48c26a4c556f6192346bb30b644a9",
+      "fp32-vs-original-101002-3.json": "b8b4f0d9a50c289b3c94db5d76182d8b23e7906666a74ee131bae2eebc363172",
+      "fp32-vs-original-101003-0.json": "45550665e262cde292c1b91a5c0722528f9e3da5a667546a675938aaef9b5d87",
+      "fp32-vs-original-101003-1.json": "122785f757055abe20787a7e053188ef338706f5c1909cc5165dc1e3fd164a13",
+      "fp32-vs-original-101003-2.json": "b0a0cb8faf96ed70c1570cf7404e609e9c857557af34f2eccd7e627656df4817",
+      "fp32-vs-original-101003-3.json": "7d363a281e16e73a4a17c427257ccae2a1c928a6c4694a8cbd09c29628e4d765",
+      "fp32-vs-original-101004-0.json": "b5a16d2f6fe7a242d71fb91e29300e3d76ca6c1821da141b391f0f9f0cb51424",
+      "fp32-vs-original-101004-1.json": "295fd107e8c42267dd04863fe31fed7c1a3044b799921487b0d150596b8fff7c",
+      "fp32-vs-original-101004-2.json": "a6e69bd9a66cc3f6646bbeae7497e7a28ee7be7569e1fb4624162e0468de672b",
+      "fp32-vs-original-101004-3.json": "da5f55c96daaf759f8006b499b458b9c59030ee67e8533787e76629966a87907",
+      "fp32-vs-original-101005-0.json": "e7b99ec262a1f38e9d32576aac9f5bad27cbaa009cd3b8706db41d7b30bb737c",
+      "fp32-vs-original-101005-1.json": "0d38fef8c437ef21f1343f09b6baa66827edbd7fead742e3aacecbcf3dd81964",
+      "fp32-vs-original-101005-2.json": "236f681729046495da8d30e40248182c98641e92bbadd21bf3a4e168bccad2f4",
+      "fp32-vs-original-101005-3.json": "30367dd80e47b704e8e27931bd0bea5282533247a33cecdc0ee89b172664306f",
+      "fp32-vs-original-101006-0.json": "f6f3163f0ba9203f0c44d9f169998ee0ef639bb068f41bb084d2e23a2ef7d809",
+      "fp32-vs-original-101006-1.json": "591579ae3e787ad0376a278b645862bd7882de83eec55e4cbbeac61165884207",
+      "fp32-vs-original-101006-2.json": "add1e3d65c5c62f7fed0f8b8edd019d6116af69a1cf54344545f6e869c24494c",
+      "fp32-vs-original-101006-3.json": "a6f334f624ad03209a0c5fcc9a1e55332a3dc2011447d65bccc601126593034a",
+      "fp32-vs-original-101007-0.json": "885a6cc1294e7280b9bedc65e792f1440cb62e3f14d33e9544ee9528def65c58",
+      "fp32-vs-original-101007-1.json": "27f762de58e5ddf9403ea508e935ef60df35c2be1e9680dd72469de0e9b78b43",
+      "fp32-vs-original-101007-2.json": "885b2f5cf8376904f9ac75b8503d9f41aa0f21e8435e7c35e42c73f09a1392fc",
+      "fp32-vs-original-101007-3.json": "45dd7758c44551d9911cddeb85a6992f855f44c2c0c4dad5114f3be188adaab0",
+      "fp32-vs-original-101008-0.json": "4c04f7f46b7b6fbd764f4b9dd8ce83a88a2086bfcdb739d489cfedbeba8d2f43",
+      "fp32-vs-original-101008-1.json": "9a49e32accc165cf21f98eeacdb24a89a137c5e00ce8aa8ba1cb006f13bcdd63",
+      "fp32-vs-original-101008-2.json": "42565e0c4f1b6620cb6b7f2737cea61c25cac5c6d7660fffc71a88364397c710",
+      "fp32-vs-original-101008-3.json": "a783122d374c8a57e8f2f6b8f2019bd4c71a1eb06b7e6317538edd7ca569c9d0",
+      "teacher-vs-original-101001-0.json": "b4a72226eba3f49b710f9684f9a54af14d3c68f151c335b0532283490539a4eb",
+      "teacher-vs-original-101001-1.json": "604b38e2394e09a8ab7563b63e834b6b6977939209a87d967eade81c23c4c58a",
+      "teacher-vs-original-101001-2.json": "dcc84e2ce34ee00090d5e765ac4b1fa225bfb0e6c15657ec244a9e737953b37f",
+      "teacher-vs-original-101001-3.json": "019ec842e844210efda29feb920b8f077baa0fd74b3c989cdd11a1757b3b116b",
+      "teacher-vs-original-101002-0.json": "f6de613e6543b862078da855563276f999a9b07afae81907822b49bb5d5aefc9",
+      "teacher-vs-original-101002-1.json": "a26794c38e42a2618bea70aa588252c1061a55ecd17d9c138ad4df440261bc2e",
+      "teacher-vs-original-101002-2.json": "d11577fced27af2cce9c6b3077caab4ff9027d4da98d1432a1a8bcb6a941a569",
+      "teacher-vs-original-101002-3.json": "187d7599c30b4ffef28236d51d5ad51f1ccb7228d51ff21f42eb46c679b37767",
+      "teacher-vs-original-101003-0.json": "ea87f667efffbf3abeaa8965178a7d8dad0fe53cfe30614f52a2f9f598d60796",
+      "teacher-vs-original-101003-1.json": "99715c76fcc54c4b71462dc41e63c083199c62117ad6a108c32bf04d110f3ed8",
+      "teacher-vs-original-101003-2.json": "46fc8ae63f712ab0503bdef8e79a3a441c0441afa7806f95a52d0d475379f7b1",
+      "teacher-vs-original-101003-3.json": "bc8287dab0efefd3c4be53c3546b05f94da5fd7637da25ddc3a2941092b72cc8",
+      "teacher-vs-original-101004-0.json": "ac151160da5fb7939bf6762675fe9b9592ae43d4d3e0f4bc30f72e26a138133e",
+      "teacher-vs-original-101004-1.json": "09ddbacd6afe459285edff0d0ffe3e4f8f782a27cbb651cbd411db937a07db25",
+      "teacher-vs-original-101004-2.json": "2a0c5beb1fa6a03455b4b052d48393c2e1a953b5e26e9ebc982d484704bb6bed",
+      "teacher-vs-original-101004-3.json": "07ea5ba0dc28a620c19614ad1d2cfb966da00ede2c447aefeb081fc619950ae5",
+      "teacher-vs-original-101005-0.json": "d771ff2b4dae2b102f62d10653f6cce649910273c4fcae03c90c0103ca7260a0",
+      "teacher-vs-original-101005-1.json": "39fe7393ac1424abc9b6a3d7e4af400cda1b6303180fe089989f57cbfba51c79",
+      "teacher-vs-original-101005-2.json": "a1efed94ae3578458f500bf643e4453ed8348a0125d5d51d624fe2e47be5f14b",
+      "teacher-vs-original-101005-3.json": "c030d46e6bf5ecfb349535d9b6a3813eaadfafb96cace9ca73ccdb7981f8ddcd",
+      "teacher-vs-original-101006-0.json": "c369cdef1aee8ed9b76d2c7a9eb3d4cfbf140f5b3887e40e5bf411754db0e536",
+      "teacher-vs-original-101006-1.json": "22f8ae3ba17bad3d16f93e47378e3299b4d96050c99eabbdbe2f1aca4c2bb5dc",
+      "teacher-vs-original-101006-2.json": "31dfe30f71db6c777c21299844848a7726e0e7616fb2ad3b9436c077c23b0d05",
+      "teacher-vs-original-101006-3.json": "6163eef586ca65bb9e50822ed3a7f58ba9ea6ecc54e37bd553d2bd8a97aa07f7",
+      "teacher-vs-original-101007-0.json": "a433f4b49d8aa70010e9214fecffb797118131c34d8c09f39dee3737ed1416f6",
+      "teacher-vs-original-101007-1.json": "576384c68d6561a97f227b7ffeb7012392633467865b3d71ded12659acfeceda",
+      "teacher-vs-original-101007-2.json": "52d847be787d0e2026f0e960e6e39dee381333d4cf906590a4b3686e73b90613",
+      "teacher-vs-original-101007-3.json": "7a7ee7c2b93036fe0db6c2f7ab740871a932659c3b525eb84ed117f87fe5e001",
+      "teacher-vs-original-101008-0.json": "1f5b901e5dadc8b608f3c562885bc2222d1d8ed3bf46a893274a21080ca03933",
+      "teacher-vs-original-101008-1.json": "eb23132ee1a49ef8716491bb7fd886f438d73a5711aa71e0fce697cd021e1bd6",
+      "teacher-vs-original-101008-2.json": "db2ba75c4785c2675e410e49e883b190886bdbd5ed5b5126073e51434db9fa9d",
+      "teacher-vs-original-101008-3.json": "37a6042cde107fd0ed0c0fbad93d93005ae552429175c7e173204f6f97eebdd3"
+    },
+    "checks": [
+      "all-decision-actions-match-legal-replay",
+      "prior-actions-legal",
+      "override-flags-match-action-changes",
+      "forced-actions-excluded-from-decision-counts"
+    ]
+  },
+  "numpyParity": {
+    "reportSha256": "c3ad41283014c78bbe5b388c5d49c0ff7e20274f1fa170078cdf84dfb0153da7",
+    "rows": 14,
+    "checks": [
+      "FP32 weights representable exactly",
+      "FP16 values consistent with the FP32 rounding cells",
+      "all seven action families"
+    ],
+    "doubleRoundingValues": 1,
+    "maximumDoubleRoundingDifference": 0.0000019073486328125,
+    "quantizationPath": "Training FP64 weights are separately rounded to FP32 and FP16, with shared FP32 normalization"
+  },
+  "quantizedTraceComparison": {
+    "matches": 32,
+    "identicalMatches": 32,
+    "identicalActions": 95524,
+    "pairs": [
+      {
+        "seed": 101001,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3012
+      },
+      {
+        "seed": 101001,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2943
+      },
+      {
+        "seed": 101001,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2999
+      },
+      {
+        "seed": 101001,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3091
+      },
+      {
+        "seed": 101002,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2879
+      },
+      {
+        "seed": 101002,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2832
+      },
+      {
+        "seed": 101002,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2855
+      },
+      {
+        "seed": 101002,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2855
+      },
+      {
+        "seed": 101003,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3199
+      },
+      {
+        "seed": 101003,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3443
+      },
+      {
+        "seed": 101003,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3222
+      },
+      {
+        "seed": 101003,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3279
+      },
+      {
+        "seed": 101004,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2869
+      },
+      {
+        "seed": 101004,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2901
+      },
+      {
+        "seed": 101004,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2774
+      },
+      {
+        "seed": 101004,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3080
+      },
+      {
+        "seed": 101005,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2342
+      },
+      {
+        "seed": 101005,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2407
+      },
+      {
+        "seed": 101005,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2386
+      },
+      {
+        "seed": 101005,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2342
+      },
+      {
+        "seed": 101006,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3073
+      },
+      {
+        "seed": 101006,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3060
+      },
+      {
+        "seed": 101006,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3104
+      },
+      {
+        "seed": 101006,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2965
+      },
+      {
+        "seed": 101007,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3318
+      },
+      {
+        "seed": 101007,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3318
+      },
+      {
+        "seed": 101007,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3437
+      },
+      {
+        "seed": 101007,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3498
+      },
+      {
+        "seed": 101008,
+        "rotation": 0,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2934
+      },
+      {
+        "seed": 101008,
+        "rotation": 1,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 3315
+      },
+      {
+        "seed": 101008,
+        "rotation": 2,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2933
+      },
+      {
+        "seed": 101008,
+        "rotation": 3,
+        "identicalActions": true,
+        "identicalResults": true,
+        "actions": 2859
+      }
+    ]
+  }
+}

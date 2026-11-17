@@ -1,0 +1,686 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "role": "local-experiment",
+  "sourceReport": "artifacts/guobiao-mahjong/credit-v4/study/report.json",
+  "sourceReportSha256": "04ddb531733ab5e9ee4d0c0464e1caa3f22d07aea21db100fbf5936c33e0356f",
+  "capture": {
+    "matches": 4,
+    "hands": 64,
+    "samples": 853,
+    "actions": 12073,
+    "coverage": {
+      "original-0": 4,
+      "original-1": 4,
+      "original-2": 4
+    },
+    "recomputedTrajectories": 853,
+    "criticalRetained": 172,
+    "originalAnchors": 853,
+    "traceSteps": 3015,
+    "maximumFeatureError": 2.220446049250313e-16,
+    "traceKinds": {
+      "policy": 853,
+      "forced": 2069,
+      "last-tile-safe": 1,
+      "joint-follow-up": 79,
+      "legal-win": 13
+    },
+    "byChosenAction": {
+      "discard": 682,
+      "pass": 89,
+      "chow": 51,
+      "pung": 28,
+      "concealed-kong": 1,
+      "add-kong": 2
+    }
+  },
+  "credit": {
+    "gamma": 1.0,
+    "lambda": 0.95,
+    "matches": 4,
+    "steps": 3015,
+    "policySteps": 853,
+    "deterministicSteps": 2162,
+    "handsWithMultiplePolicySteps": 64,
+    "handsWithDifferentAdvantages": 64,
+    "maximumRewardTelescopingError": 2.220446049250313e-16
+  },
+  "gaeVsRound": {
+    "ownFanDeltaPerHand": 0.06640625,
+    "ownFanDelta95": {
+      "low": -0.12890625,
+      "high": 0.2578125,
+      "method": "seed-block bootstrap",
+      "blocks": 4,
+      "draws": 10000
+    }
+  },
+  "studentVsReference": {
+    "ownFanDeltaPerHand": 0.03515625,
+    "ownFanDelta95": {
+      "low": 0,
+      "high": 0.10546875,
+      "method": "seed-block bootstrap",
+      "blocks": 4,
+      "draws": 10000
+    }
+  },
+  "neuralSummary": [
+    {
+      "id": "joint-reference",
+      "learner": {
+        "policy": "joint-reference",
+        "seatGames": 16,
+        "hands": 256,
+        "fan": 896,
+        "fanPerHand": 3.5,
+        "scorePerHand": -0.09765625,
+        "winRate": 0.23828125,
+        "dealInRate": 0.140625,
+        "averagePlace": 2.625,
+        "decisions": 3703,
+        "choiceMsP50": 47,
+        "choiceMsP95": 56.5,
+        "forced": 7820,
+        "missedHu": 0,
+        "unqualifiedReady": null,
+        "faults": 0,
+        "enhancements": 0,
+        "reasonCounts": {
+          "joint-baseline": 3410,
+          "joint-baseline-follow-up": 231,
+          "joint-correction": 1,
+          "legal-win": 61
+        }
+      },
+      "paired": [
+        {
+          "policy": "joint-reference",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.06510416666666663,
+          "fanDelta95": {
+            "low": -0.25520833333333326,
+            "high": 0.16536458333333337,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": -0.13020833333333334,
+          "scoreDelta95": {
+            "low": -0.8125,
+            "high": 0.578125,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 271001,
+              "fan": -0.28125,
+              "score": -0.25
+            },
+            {
+              "seed": 271002,
+              "fan": 0.296875,
+              "score": 0.8541666666666666
+            },
+            {
+              "seed": 271003,
+              "fan": -0.22916666666666652,
+              "score": -1.0625
+            },
+            {
+              "seed": 271004,
+              "fan": -0.046875,
+              "score": -0.0625
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "joint-round",
+      "learner": {
+        "policy": "joint-round",
+        "seatGames": 16,
+        "hands": 256,
+        "fan": 888,
+        "fanPerHand": 3.46875,
+        "scorePerHand": 0.0390625,
+        "winRate": 0.2421875,
+        "dealInRate": 0.13671875,
+        "averagePlace": 2.5625,
+        "decisions": 3702,
+        "choiceMsP50": 47,
+        "choiceMsP95": 56.200000047683716,
+        "forced": 7811,
+        "missedHu": 0,
+        "unqualifiedReady": null,
+        "faults": 0,
+        "enhancements": 0,
+        "reasonCounts": {
+          "joint-baseline": 3403,
+          "joint-baseline-follow-up": 231,
+          "joint-correction": 6,
+          "legal-win": 62
+        }
+      },
+      "paired": [
+        {
+          "policy": "joint-round",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.06640625,
+          "fanDelta95": {
+            "low": -0.20442708333333337,
+            "high": 0.0390625,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": 0.05208333333333334,
+          "scoreDelta95": {
+            "low": -0.3125,
+            "high": 0.453125,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 271001,
+              "fan": -0.28125,
+              "score": -0.25
+            },
+            {
+              "seed": 271002,
+              "fan": 0.02604166666666652,
+              "score": 0.6875
+            },
+            {
+              "seed": 271003,
+              "fan": 0.05208333333333348,
+              "score": 0.14583333333333334
+            },
+            {
+              "seed": 271004,
+              "fan": -0.0625,
+              "score": -0.375
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "joint-gae-teacher",
+      "learner": {
+        "policy": "joint-gae-teacher",
+        "seatGames": 16,
+        "hands": 256,
+        "fan": 905,
+        "fanPerHand": 3.53515625,
+        "scorePerHand": 0.1796875,
+        "winRate": 0.2421875,
+        "dealInRate": 0.13671875,
+        "averagePlace": 2.625,
+        "decisions": 3702,
+        "choiceMsP50": 47.5,
+        "choiceMsP95": 57.39999997615814,
+        "forced": 7813,
+        "missedHu": 0,
+        "unqualifiedReady": null,
+        "faults": 0,
+        "enhancements": 0,
+        "reasonCounts": {
+          "joint-baseline": 3406,
+          "joint-baseline-follow-up": 231,
+          "joint-correction": 3,
+          "legal-win": 62
+        }
+      },
+      "paired": [
+        {
+          "policy": "joint-gae-teacher",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.01432291666666663,
+          "fanDelta95": {
+            "low": -0.1835937499999999,
+            "high": 0.203125,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": 0.23958333333333337,
+          "scoreDelta95": {
+            "low": -0.5833333333333334,
+            "high": 1.0416666666666667,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 271001,
+              "fan": -0.078125,
+              "score": 1.2291666666666667
+            },
+            {
+              "seed": 271002,
+              "fan": 0.296875,
+              "score": 0.8541666666666666
+            },
+            {
+              "seed": 271003,
+              "fan": -0.22916666666666652,
+              "score": -1.0625
+            },
+            {
+              "seed": 271004,
+              "fan": -0.046875,
+              "score": -0.0625
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "joint-gae-student",
+      "learner": {
+        "policy": "joint-gae-student",
+        "seatGames": 16,
+        "hands": 256,
+        "fan": 905,
+        "fanPerHand": 3.53515625,
+        "scorePerHand": 0.1796875,
+        "winRate": 0.2421875,
+        "dealInRate": 0.13671875,
+        "averagePlace": 2.625,
+        "decisions": 3702,
+        "choiceMsP50": 49.800000071525574,
+        "choiceMsP95": 60.699999928474426,
+        "forced": 7813,
+        "missedHu": 0,
+        "unqualifiedReady": null,
+        "faults": 0,
+        "enhancements": 0,
+        "reasonCounts": {
+          "joint-baseline": 3408,
+          "joint-baseline-follow-up": 231,
+          "joint-correction": 1,
+          "legal-win": 62
+        }
+      },
+      "paired": [
+        {
+          "policy": "joint-gae-student",
+          "baseline": "kd-value-v1",
+          "fanDeltaPerHand": -0.01432291666666663,
+          "fanDelta95": {
+            "low": -0.1835937499999999,
+            "high": 0.203125,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": 0.23958333333333337,
+          "scoreDelta95": {
+            "low": -0.5833333333333334,
+            "high": 1.0416666666666667,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 271001,
+              "fan": -0.078125,
+              "score": 1.2291666666666667
+            },
+            {
+              "seed": 271002,
+              "fan": 0.296875,
+              "score": 0.8541666666666666
+            },
+            {
+              "seed": 271003,
+              "fan": -0.22916666666666652,
+              "score": -1.0625
+            },
+            {
+              "seed": 271004,
+              "fan": -0.046875,
+              "score": -0.0625
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "stateValue": {
+    "rows": 1357,
+    "calibrationMSE": 0.28609076320610394,
+    "roundOnlyCalibrationMSE": 0.28609076320610394,
+    "selectedRidge": "round-only"
+  },
+  "studentFidelity": {
+    "train": {
+      "groups": 2179,
+      "policyKL": 0.0006832476459770837,
+      "planAgreement": 0.9802661771454796,
+      "valueRMSE": 0.022867373649987126
+    },
+    "calibration": {
+      "groups": 402,
+      "policyKL": 0.0006620349701084377,
+      "planAgreement": 0.9800995024875622,
+      "valueRMSE": 0.02334816444739314
+    },
+    "test": {
+      "groups": 192,
+      "policyKL": 0.0005409815911022808,
+      "planAgreement": 0.9895833333333334,
+      "valueRMSE": 0.02537197381673835
+    }
+  },
+  "export": {
+    "schemaVersion": 1,
+    "status": "passed",
+    "role": "experimental-offline-candidate",
+    "liveAssetUpdated": false,
+    "assetSha256": "a635cff32cf170434c24e1e25a7fb6d79a940968ecfe13653e5e7a1118b68889",
+    "sourceBytes": 57056,
+    "networkPayloadBytes": 35928,
+    "beliefSha256": "101c5f2679c65e19687089d7ad70bd65f14f1e695a558ecef9d77dcda84f3801",
+    "studentSha256": "b3ed8d42d92414bfd7f5eb6469d63cfb169f51b56121aa2812d7941ac19c682b",
+    "teacherSha256": "7b8ca91f13c6d05bf02e6ccb4c0c88d6c9fd47d9ea0c07bf152d6ed1d867b9fb",
+    "fixtureSha256": "91dc12005624986ca5d80695d9e2001db8451f8573df2e2fa27c5acd55f366bf",
+    "parityMaximumLogitQuantizationError": 0.0008891854578445546,
+    "parityPlanAgreement": 1.0,
+    "limitation": "Quantization parity is not a playing-strength qualification; original/default model remains available"
+  },
+  "liveModelPromoted": false,
+  "limitations": [
+    "Local pilot, four fresh evaluation walls and four capture matches; insufficient for stable strength qualification",
+    "Frozen critic and lambda returns introduce approximation bias",
+    "Round and GAE arms share full trajectories and corrected pretraining; guard thresholds are unchanged",
+    "No automatic live model promotion; browser Worker/WASM/WebGPU schema remains unchanged"
+  ],
+  "rejectedZeroPriorPilot": {
+    "report": "artifacts/guobiao-mahjong/credit-v4/builtin-evaluation/report.json",
+    "reportSha256": "cb12281e28de628fdf5663cd73419dee3f37546bafce80036d03c6c7ff759fbf",
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-08T12:44:57.865Z",
+      "status": "passed",
+      "runKey": "6d5ccaf04792a909829a7f3ebc560fba03b3d902c01c96a8df31ed1795d5869b",
+      "reportSha256": "cb12281e28de628fdf5663cd73419dee3f37546bafce80036d03c6c7ff759fbf",
+      "matches": 16,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 256,
+      "decisions": 53684,
+      "faults": 0
+    },
+    "seeds": [
+      261001,
+      261002,
+      261003,
+      261004
+    ],
+    "summary": [
+      {
+        "id": "route-score-v4",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.0234375,
+        "rows": [
+          {
+            "policy": "builtin-tactical",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 838,
+            "fanPerHand": 3.2734375,
+            "scorePerHand": -0.9765625,
+            "winRate": 0.22265625,
+            "dealInRate": 0.15625,
+            "averagePlace": 2.75,
+            "decisions": 4183,
+            "choiceMsP50": 15.377547999989474,
+            "choiceMsP95": 233.2710689999949,
+            "forced": 9240,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {}
+          },
+          {
+            "policy": "builtin-v3",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2891,
+            "fanPerHand": 3.7643229166666665,
+            "scorePerHand": 0.3255208333333333,
+            "winRate": 0.2513020833333333,
+            "dealInRate": 0.15234375,
+            "averagePlace": 2.4166666666666665,
+            "decisions": 12478,
+            "choiceMsP50": 15.739609999989625,
+            "choiceMsP95": 241.2339079999947,
+            "forced": 27783,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {}
+          }
+        ],
+        "paired": [
+          {
+            "policy": "builtin-tactical",
+            "baseline": "builtin-v3",
+            "fanDeltaPerHand": -0.49088541666666674,
+            "fanDelta95": {
+              "low": -0.9635416666666669,
+              "high": -0.03645833333333326,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": -1.3020833333333335,
+            "scoreDelta95": {
+              "low": -3.369791666666667,
+              "high": 0.4479166666666667,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 261001,
+                "fan": -0.16666666666666652,
+                "score": 0.9375
+              },
+              {
+                "seed": 261002,
+                "fan": 0.09375,
+                "score": -0.041666666666666664
+              },
+              {
+                "seed": 261003,
+                "fan": -1.229166666666667,
+                "score": -4.479166666666667
+              },
+              {
+                "seed": 261004,
+                "fan": -0.6614583333333335,
+                "score": -1.625
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "consistentBuiltin": {
+    "report": "artifacts/guobiao-mahjong/credit-v4/builtin-consistent-evaluation/report.json",
+    "reportSha256": "f96e5b3730b1dc099e1d095ea039d041932c8c7926c7258b8bf99938cdcdd144",
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-08T12:54:27.992Z",
+      "status": "passed",
+      "runKey": "c5fbb9fd6b057f9f83bdc70f9d34951fb0d84b2a0b0581c872f8ca806c6b01da",
+      "reportSha256": "f96e5b3730b1dc099e1d095ea039d041932c8c7926c7258b8bf99938cdcdd144",
+      "matches": 16,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 256,
+      "decisions": 53514,
+      "faults": 0
+    },
+    "seeds": [
+      281001,
+      281002,
+      281003,
+      281004
+    ],
+    "summary": [
+      {
+        "id": "consistent-route-score",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.046875,
+        "rows": [
+          {
+            "policy": "builtin-tactical",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 845,
+            "fanPerHand": 3.30078125,
+            "scorePerHand": -0.21875,
+            "winRate": 0.23828125,
+            "dealInRate": 0.20703125,
+            "averagePlace": 2.4375,
+            "decisions": 4189,
+            "choiceMsP50": 17.67583699998795,
+            "choiceMsP95": 256.49007899999924,
+            "forced": 9191,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {}
+          },
+          {
+            "policy": "builtin-v3",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2554,
+            "fanPerHand": 3.3255208333333335,
+            "scorePerHand": 0.07291666666666667,
+            "winRate": 0.23828125,
+            "dealInRate": 0.18229166666666666,
+            "averagePlace": 2.5208333333333335,
+            "decisions": 12576,
+            "choiceMsP50": 17.857606000005035,
+            "choiceMsP95": 264.1033139999781,
+            "forced": 27558,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {}
+          }
+        ],
+        "paired": [
+          {
+            "policy": "builtin-tactical",
+            "baseline": "builtin-v3",
+            "fanDeltaPerHand": -0.02473958333333337,
+            "fanDelta95": {
+              "low": -0.7513020833333333,
+              "high": 0.4687499999999999,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": -0.29166666666666663,
+            "scoreDelta95": {
+              "low": -3.458333333333333,
+              "high": 2.010416666666667,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 281001,
+                "fan": -1.1041666666666665,
+                "score": -4.895833333333333
+              },
+              {
+                "seed": 281002,
+                "fan": 0.5885416666666665,
+                "score": 2.5833333333333335
+              },
+              {
+                "seed": 281003,
+                "fan": 0.3072916666666665,
+                "score": 0.2916666666666667
+              },
+              {
+                "seed": 281004,
+                "fan": 0.109375,
+                "score": 0.8541666666666666
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "checks": {
+    "rootTypecheck": "35 projects passed",
+    "rootTest": "35 projects passed; 170 Mahjong tests",
+    "rootBuild": "33 games and platform passed",
+    "python": [
+      "hierarchical/parent-anchor/PPO/value gradients",
+      "shared supervised objective and distillation confidence",
+      "source-balanced sampling",
+      "frozen round value and telescoping",
+      "decision GAE endpoints, complete rewards, hidden-input independence and corruption rejection"
+    ],
+    "realBrowser": {
+      "status": "passed",
+      "report": "artifacts/guobiao-mahjong/credit-v4/browser/report.json",
+      "reportSha256": "643fab284ce305ebb12f59f1ec8b0695ed2156d029f1f0c054cf1eea73ee7ecf",
+      "checks": [
+        "WebGPU",
+        "WASM",
+        "fallback",
+        "quantized model parity",
+        "builtin Worker parity",
+        "tensor stability",
+        "cancellation/reset",
+        "release"
+      ]
+    }
+  },
+  "interpretation": "Scoring consistency and full decision credit are implemented. Final builtin matches prior full-search scoring while applying its prior uniformly; zero-prior pilot rejected. Neural candidate remains offline: held-out fan differences and rank do not qualify stable strength."
+}

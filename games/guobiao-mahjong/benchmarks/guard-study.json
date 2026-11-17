@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "seeds": [221001, 221002, 221003, 221004],
+  "captureSeeds": [131901, 131902],
+  "batchMatches": 8,
+  "arms": [
+    {"id":"joint-previous","mode":"explore"},
+    {"id":"joint-guarded","mode":"guarded"},
+    {"id":"joint-balanced-teacher","mode":"guarded"},
+    {"id":"joint-balanced-student","mode":"guarded"}
+  ]
+}

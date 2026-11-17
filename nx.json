@@ -14,7 +14,20 @@
       "!{projectRoot}/terrain-raster.worker.js.map",
       "!{projectRoot}/dist/**/*",
       "!{projectRoot}/node_modules/**/*",
-      "!{projectRoot}/artifacts/**/*"
+      "!{projectRoot}/artifacts/**/*",
+      "!{projectRoot}/ai/mahjong.worker.js",
+      "!{projectRoot}/ai/mahjong.worker.js.map",
+      "!{projectRoot}/model-service/.venv/**/*",
+      "!{projectRoot}/model-service/weights/**/*",
+      "!{projectRoot}/model-service/**/__pycache__/**/*",
+      "!{projectRoot}/ai/tfjs.worker.js",
+      "!{projectRoot}/ai/tfjs.worker.js.map",
+      "!{projectRoot}/ai/tfjs/**/*",
+      "!{projectRoot}/assets/models/**/*",
+      "!{projectRoot}/ai/coach.worker.js",
+      "!{projectRoot}/ai/coach.worker.js.map",
+      "!{projectRoot}/benchmarks/gpu-arena.worker.js",
+      "!{projectRoot}/benchmarks/gpu-arena.worker.js.map"
     ],
     "production": [
       "default",

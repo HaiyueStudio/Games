@@ -1,0 +1,685 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "generatedAt": "2026-11-08T10:07:44.614Z",
+  "scope": [
+    "Adaptive paired all-action labels with uncertainty-aware training",
+    "Frozen public round-value TD increments and original parent-policy anchoring",
+    "Builtin kong replacement, rob-kong hazard and pre-tenpai legal-eight-fan routes"
+  ],
+  "evidenceClass": "Local experiment; not formal clean-runner release evidence",
+  "artifactDirectory": "artifacts/guobiao-mahjong/advanced-v3",
+  "adaptiveLabels": {
+    "freshRoots": 9,
+    "freshPlans": 83,
+    "freshCompleteHandSimulations": 5312,
+    "worldsPerRoot": [
+      64,
+      64,
+      64,
+      64,
+      64,
+      64,
+      64,
+      64,
+      64
+    ],
+    "effectiveSampleSizes": [
+      63.857725048981635,
+      63.877405141039574,
+      63.803191699368746,
+      63.9374856653886,
+      63.97931563771131,
+      63.80813581760408,
+      63.970681835470934,
+      63.85886562432912,
+      37.70343738600687
+    ],
+    "earlyStops": 0,
+    "budget": {
+      "stages": [
+        8,
+        16,
+        32,
+        64
+      ],
+      "ordinaryMinimum": 16,
+      "tacticalMinimum": 32,
+      "closeFan": 0.5,
+      "confidenceZ": 1.96,
+      "dangerThreshold": 0.2,
+      "parallelTrials": 32
+    },
+    "uncertainty": {
+      "pairedDifferences": true,
+      "valueAndGroupWeights": true,
+      "policyAdvantageShrinkage": true,
+      "sampleSupport": "min(1, ESS/32)",
+      "minimumWeight": 0.1,
+      "formalConfidenceGuarantee": false
+    },
+    "continuations": "All KD0, all frozen original-value, and two mixed strong-table families with rotations",
+    "mergedRoots": 81,
+    "mergedPlans": 788,
+    "mergedNewAndArchivedRollouts": 10952,
+    "validation": {
+      "schemaVersion": 1,
+      "status": "passed",
+      "groups": 81,
+      "plans": 788,
+      "rollouts": 10952,
+      "maximumFeatureError": 1.6653345369377348e-16,
+      "checks": [
+        "public-observations",
+        "complete-legal-plans",
+        "all-features-recomputed",
+        "paired-world-counts-and-weights",
+        "uncertainty-recomputed",
+        "zero-sum-outcomes"
+      ],
+      "groupsSha256": "7d6bf896aa8249b628d28cb4a327d2e7db9a16fc9ca0d39401c0018f3931df81",
+      "auditorSha256": "36c1df7919fae4d6affc85ad39cdb5a6328147760707f6b23218179d9b1f6400",
+      "auditor": "auditor.mjs"
+    },
+    "supervisedSources": {
+      "train": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 51,
+          "legacy": 1485
+        }
+      },
+      "calibration": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 15,
+          "legacy": 177
+        }
+      },
+      "test": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 15,
+          "legacy": 177
+        }
+      }
+    }
+  },
+  "roundValue": {
+    "schemaVersion": 1,
+    "status": "passed",
+    "modelSha256": "5ca6893ed170a29a316fac904b49686cb238d99fd606e1eb29393626ba66a3a5",
+    "inputs": {
+      "artifacts/guobiao-mahjong/league/generation-0/episodes.json": "460f8b614f8741bec271713463228eadb6fc4494a89e8fc43befdf89baed8fb9",
+      "artifacts/guobiao-mahjong/league/generation-1/episodes.json": "270ebf0690b27dbeb5a6b1967954b4afba2e9af129567f03000b05dc68f59d60"
+    },
+    "sourceSha256": "540ad8f48e78eb143ddb2c5e4eddc7f4537d7412fe4e77efc81ebdb1609a9e7c",
+    "featureNames": [
+      "remaining",
+      "remaining-squared",
+      "fan-0",
+      "fan-1",
+      "fan-2",
+      "fan-3",
+      "score-0",
+      "score-1",
+      "score-2",
+      "score-3",
+      "fan-gap-1",
+      "fan-gap-2",
+      "fan-gap-3",
+      "remaining-gap-1",
+      "remaining-gap-2",
+      "remaining-gap-3",
+      "rank",
+      "leader-gap"
+    ],
+    "hiddenInputs": false,
+    "rows": 2048,
+    "folds": {
+      "train": [
+        121001,
+        121002,
+        121003,
+        121101,
+        121102,
+        121103
+      ],
+      "calibration": [
+        121004,
+        121104
+      ]
+    },
+    "calibrationMSE": 0.24165373161050321,
+    "constantCalibrationMSE": 0.4466840193337864,
+    "selection": [
+      {
+        "ridge": 1,
+        "calibrationMSE": 0.24725587237858934
+      },
+      {
+        "ridge": 10,
+        "calibrationMSE": 0.24567315607696297
+      },
+      {
+        "ridge": 100,
+        "calibrationMSE": 0.24165373161050321
+      }
+    ],
+    "limitations": [
+      "Frozen approximate round value can introduce bootstrap bias",
+      "Calibration loss and return variance are not playing-strength evidence"
+    ]
+  },
+  "training": {
+    "capture": {
+      "eligibleDecisions": 465,
+      "retained": 161,
+      "criticalRetained": 97,
+      "ordinaryRetained": 64,
+      "representedDecisions": 465.0,
+      "originalAnchors": 161,
+      "declinedCritical": 57
+    },
+    "captureReplay": {
+      "matches": 2,
+      "hands": 32,
+      "samples": 161,
+      "actions": 6401,
+      "coverage": {
+        "original-0": 2,
+        "original-1": 2,
+        "original-2": 2
+      },
+      "recomputedTrajectories": 161,
+      "criticalRetained": 97,
+      "originalAnchors": 161,
+      "maximumFeatureError": 2.220446049250313e-16
+    },
+    "frozenOriginalParentAnchorWeight": 0.05,
+    "originalParentSmoothing": 0.02,
+    "originalAnchorScope": "fresh public-state original-value decision, parent only; no forced child anchor",
+    "ppoClip": 0.2,
+    "maximumCalibrationKL": 0.03,
+    "ppoHistory": [
+      {
+        "epoch": 1,
+        "calibrationKL": 1.520612303855347e-05
+      },
+      {
+        "epoch": 2,
+        "calibrationKL": 3.349151601773086e-05
+      },
+      {
+        "epoch": 3,
+        "calibrationKL": 7.363424029681461e-05
+      },
+      {
+        "epoch": 4,
+        "calibrationKL": 0.0001514471729241862
+      },
+      {
+        "epoch": 5,
+        "calibrationKL": 0.00026867049539205175
+      },
+      {
+        "epoch": 6,
+        "calibrationKL": 0.0004376762788156088
+      }
+    ],
+    "returnDiagnostics": {
+      "train": {
+        "rows": 81,
+        "mcAdvantageVariance": 0.382000187651725,
+        "trainingAdvantageVariance": 0.025531901630533236
+      },
+      "calibration": {
+        "rows": 80,
+        "mcAdvantageVariance": 0.2877504612013095,
+        "trainingAdvantageVariance": 0.0669037882920407
+      }
+    },
+    "calibrationVarianceReductionFraction": 0.7674937235105421,
+    "studentFidelity": {
+      "train": {
+        "groups": 1617,
+        "policyKL": 0.00018394724419654854,
+        "planAgreement": 0.9833024118738405,
+        "valueRMSE": 0.0146092334090851
+      },
+      "calibration": {
+        "groups": 272,
+        "policyKL": 0.00020804883112373078,
+        "planAgreement": 0.9301470588235294,
+        "valueRMSE": 0.014785490689647874
+      },
+      "test": {
+        "groups": 192,
+        "policyKL": 0.00013125597823434188,
+        "planAgreement": 0.9739583333333334,
+        "valueRMSE": 0.014612722772744892
+      }
+    },
+    "sourceMix": {
+      "train": {
+        "mass": {
+          "expanded": 0.2,
+          "league": 0.3,
+          "legacy": 0.5
+        },
+        "groups": {
+          "expanded": 51,
+          "league": 81,
+          "legacy": 1485
+        }
+      },
+      "calibration": {
+        "mass": {
+          "expanded": 0.2,
+          "league": 0.3,
+          "legacy": 0.5
+        },
+        "groups": {
+          "expanded": 15,
+          "league": 80,
+          "legacy": 177
+        }
+      },
+      "test": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 15,
+          "league": 0,
+          "legacy": 177
+        }
+      }
+    },
+    "teacherModelSha256": "9bad02ea1a38321958bdd19b2e5936b7e9235f7d7c568c76fa3ae6d29694a78a",
+    "studentModelSha256": "6ccbe69824955dc584b28fb81e9ee777eae78fc3bbb00cea2e9862ffa447078e",
+    "packedAssetBytes": 57056,
+    "packedNetworkBytes": 35928,
+    "quantizedFixturePlanAgreement": 1.0,
+    "packedTypeScriptDecode": "passed"
+  },
+  "jointEvaluation": {
+    "matches": 64,
+    "hands": 1024,
+    "actionsReplayed": 193242,
+    "seeds": [
+      231001,
+      231002,
+      231003,
+      231004
+    ],
+    "allSeatRotations": true,
+    "rows": [
+      {
+        "policy": "joint-previous",
+        "hands": 256,
+        "fanPerHand": 2.90625,
+        "baselineFanPerHand": 3.9778645833333335,
+        "averagePlace": 3,
+        "baselineAveragePlace": 2.3333333333333335,
+        "dealInRate": 0.2265625,
+        "fanDelta95": {
+          "low": -1.3372395833333335,
+          "high": -0.8333333333333334,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "decisions": 3867,
+        "reasonCounts": {
+          "joint-follow-up": 257,
+          "joint-policy": 3559,
+          "legal-win": 51
+        },
+        "faults": 0,
+        "missedHu": 0
+      },
+      {
+        "policy": "joint-guarded",
+        "hands": 256,
+        "fanPerHand": 4.23046875,
+        "baselineFanPerHand": 3.75,
+        "averagePlace": 2.0625,
+        "baselineAveragePlace": 2.6458333333333335,
+        "dealInRate": 0.18359375,
+        "fanDelta95": {
+          "low": 0.15625,
+          "high": 0.8046875000000002,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "decisions": 3805,
+        "reasonCounts": {
+          "joint-baseline": 3492,
+          "joint-baseline-follow-up": 239,
+          "joint-correction": 2,
+          "legal-win": 72
+        },
+        "faults": 0,
+        "missedHu": 0
+      },
+      {
+        "policy": "joint-balanced-teacher",
+        "hands": 256,
+        "fanPerHand": 4.23046875,
+        "baselineFanPerHand": 3.75,
+        "averagePlace": 2.0625,
+        "baselineAveragePlace": 2.6458333333333335,
+        "dealInRate": 0.18359375,
+        "fanDelta95": {
+          "low": 0.15625,
+          "high": 0.8046875000000002,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "decisions": 3805,
+        "reasonCounts": {
+          "joint-baseline": 3494,
+          "joint-baseline-follow-up": 239,
+          "legal-win": 72
+        },
+        "faults": 0,
+        "missedHu": 0
+      },
+      {
+        "policy": "joint-balanced-student",
+        "hands": 256,
+        "fanPerHand": 4.23046875,
+        "baselineFanPerHand": 3.75,
+        "averagePlace": 2.0625,
+        "baselineAveragePlace": 2.6458333333333335,
+        "dealInRate": 0.18359375,
+        "fanDelta95": {
+          "low": 0.15625,
+          "high": 0.8046875000000002,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "decisions": 3805,
+        "reasonCounts": {
+          "joint-baseline": 3493,
+          "joint-baseline-follow-up": 239,
+          "joint-correction": 1,
+          "legal-win": 72
+        },
+        "faults": 0,
+        "missedHu": 0
+      }
+    ],
+    "qualification": [
+      {
+        "policy": "joint-previous",
+        "qualified": false,
+        "fanDeltaPerHand": -1.0716145833333335,
+        "fanDelta95": {
+          "low": -1.3372395833333335,
+          "high": -0.8333333333333334,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      },
+      {
+        "policy": "joint-guarded",
+        "qualified": true,
+        "fanDeltaPerHand": 0.4804687500000001,
+        "fanDelta95": {
+          "low": 0.15625,
+          "high": 0.8046875000000002,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      },
+      {
+        "policy": "joint-balanced-teacher",
+        "qualified": true,
+        "fanDeltaPerHand": 0.4804687500000001,
+        "fanDelta95": {
+          "low": 0.15625,
+          "high": 0.8046875000000002,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      },
+      {
+        "policy": "joint-balanced-student",
+        "qualified": true,
+        "fanDeltaPerHand": 0.4804687500000001,
+        "fanDelta95": {
+          "low": 0.15625,
+          "high": 0.8046875000000002,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      }
+    ],
+    "comparisonsAgainstExistingGuard": {
+      "joint-balanced-teacher": {
+        "actionsDifferentFromExistingGuard": 3,
+        "allFinalHandResultsIdentical": false,
+        "allScoringOutcomesIdentical": true
+      },
+      "joint-balanced-student": {
+        "actionsDifferentFromExistingGuard": 2,
+        "allFinalHandResultsIdentical": true,
+        "allScoringOutcomesIdentical": true
+      }
+    },
+    "interpretation": "New teacher and student have the same aggregate scores and per-hand scoring outcomes as the existing guarded checkpoint on these walls; some actions/final concealed tiles differ. No additional learned scoring strength demonstrated.",
+    "precisionScope": "Joint policy head uses FP16 weights; arena shares the fixed FP32 belief model across arms. Full packed belief+joint bundle is separately decoded and checked; it is not a full-browser tournament."
+  },
+  "builtinEvaluation": {
+    "config": {
+      "schemaVersion": 1,
+      "purpose": "New builtin kong/fan tactics against the frozen previous builtin; local strength experiment",
+      "seeds": [
+        241001,
+        241002,
+        241003,
+        241004
+      ],
+      "baseline": "builtin-reference",
+      "rotateSeats": true,
+      "depth": 2,
+      "concurrency": 1,
+      "enhancedMetrics": true,
+      "suites": [
+        {
+          "id": "tactical-vs-reference",
+          "agents": [
+            "builtin-tactical",
+            "builtin-reference",
+            "builtin-reference",
+            "builtin-reference"
+          ]
+        }
+      ]
+    },
+    "actualBackend": "JavaScript builtin policies and MCR WASM scorer; no neural NumPy model pipe",
+    "collectorLabelCorrection": "Raw report retains the shared collector legacy NumPy label; corrected interpretation is in builtin-evaluation/analysis.json",
+    "summary": [
+      {
+        "id": "tactical-vs-reference",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.01171875,
+        "rows": [
+          {
+            "policy": "builtin-tactical",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 957,
+            "fanPerHand": 3.73828125,
+            "scorePerHand": 0.53125,
+            "winRate": 0.25390625,
+            "dealInRate": 0.1484375,
+            "averagePlace": 2.625,
+            "decisions": 4059,
+            "choiceMsP50": 21.77777500000957,
+            "choiceMsP95": 306.41293200000655,
+            "forced": 8900,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {}
+          },
+          {
+            "policy": "builtin-reference",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2703,
+            "fanPerHand": 3.51953125,
+            "scorePerHand": -0.17708333333333334,
+            "winRate": 0.24479166666666666,
+            "dealInRate": 0.16145833333333334,
+            "averagePlace": 2.4583333333333335,
+            "decisions": 12220,
+            "choiceMsP50": 12.276843000028748,
+            "choiceMsP95": 172.7968810000457,
+            "forced": 26656,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0,
+            "enhancements": 0,
+            "reasonCounts": {}
+          }
+        ],
+        "paired": [
+          {
+            "policy": "builtin-tactical",
+            "baseline": "builtin-reference",
+            "fanDeltaPerHand": 0.2187500000000001,
+            "fanDelta95": {
+              "low": -0.953125,
+              "high": 1.3906250000000002,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 0.7083333333333333,
+            "scoreDelta95": {
+              "low": -3.260416666666667,
+              "high": 4.635416666666667,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 241001,
+                "fan": -0.5,
+                "score": -1.0833333333333333
+              },
+              {
+                "seed": 241002,
+                "fan": 1.8645833333333335,
+                "score": 6.25
+              },
+              {
+                "seed": 241003,
+                "fan": 0.916666666666667,
+                "score": 3.0208333333333335
+              },
+              {
+                "seed": 241004,
+                "fan": -1.40625,
+                "score": -5.354166666666667
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "validation": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-08T09:51:10.755Z",
+      "status": "passed",
+      "runKey": "c069f1149d31ad3ad2392fa0a011f6b5c3a4a730c4c3e4008f6ad88aa7764ea7",
+      "reportSha256": "760afb6635fb0ea7f8eea8cba6b4329faa741135f09378f5c0bd3496aa5e6ecf",
+      "matches": 16,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 256,
+      "decisions": 51835,
+      "faults": 0
+    },
+    "qualified": false,
+    "interpretation": "Positive sample mean fan; uncertainty interval crosses zero and average place is worse, so stable strength improvement is unproven",
+    "latencyScope": "Measured while real GPU label generation also ran on this host; local cost indicators, not isolated performance evidence"
+  },
+  "validation": {
+    "rootTypecheck": "passed (35 workspaces; final rerun)",
+    "rootTests": "passed (35 projects, including all 167 MCR tests; final rerun)",
+    "rootBuild": "passed (33 games plus platform; final rerun)",
+    "focusedAdvancedTests": 10,
+    "roundValuePublicInputsAndTelescoping": "passed",
+    "hierarchicalActorAndParentAnchorFiniteDifferences": "passed",
+    "sourceBalanceAndInclusionWeights": "passed",
+    "jointWebGPUAndWASM": "passed with retained live bundle; new FP16 joint head also ran in the browser offline arena",
+    "actualBuiltinWorkerCases": 6,
+    "jointAndBuiltinFullRefereeReplay": "passed"
+  },
+  "deployment": {
+    "jointWeightsPromoted": false,
+    "liveJointWeightSha256": "e3c6d608b5dbccef1016275769365f45cb8633bba5fdf98969747037f105c5c9",
+    "liveJointWeightsUnchanged": true,
+    "builtinTacticsImplementedInDefaultDecide": true,
+    "builtinStableStrengthQualified": false,
+    "originalBuiltinRetainedForOfflineComparison": true
+  },
+  "limitations": [
+    "Only nine roots received fresh high-budget labels; larger default 128-world campaign remains separate",
+    "All nine adaptive pilot roots reached 64-world maximum; no real early-stop saving observed",
+    "New supervised training still retains 80% legacy limited-candidate source mass and 20% full-action source mass",
+    "Frozen round value is approximate and TD bootstrapping can introduce bias; lower variance is not strength evidence",
+    "Rob-kong hazard and bounded fan-route support are heuristic references, not calibrated win or rob probabilities",
+    "Four independent wall blocks per strength experiment and one frozen opponent family; seat rotations/hands do not create additional independent blocks",
+    "Guarded joint teacher/student add no scoring improvement on top of the existing guarded baseline in this experiment"
+  ],
+  "evidenceSha256": {
+    "adaptive-v1/report.json": "0ecd8f013fefb98247e46b361dd3c46b10ec10c708a094789de4049ca0912e2b",
+    "joint-data-v1/report.json": "6db5990a0d32dde5b6855925ea7d5a48d06688f30071c3a3009ec09e4647dac1",
+    "joint-data-v1/validation.json": "1b2100a94983d11a4f813c90f0e26c1a58628c1f5dba43790e28c1eaf52e53e4",
+    "round-value/report.json": "5687a860824ac72a4b9d144a945f4345c1f8e8feeea5ed7b76716858ac03bfbd",
+    "study/report.json": "85f54d7d4e50cb6f6602263e115379180c3dba66f387c6ea0e46810be9585cee",
+    "study/capture/report.json": "b6fda31ded9971578420cf26e64803db594e2fc924bc3299aba1d0ecab0f06c6",
+    "teacher-g0/report.json": "b2e39c7575d1fa1e410fe51fdacd6a129b5152460959c93416a3085058d7fd38",
+    "teacher-g1/report.json": "c9aec10cb459abaf69aa6845802100d76c9039c852369e7bbaf3b98a690ae94d",
+    "student-v1/report.json": "34dffbe1161271001fd2433af3d3afabeeec530f20fe84c484c399832d42be0f",
+    "export-v1/report.json": "96caf29edc7d6ae8175fb0e28212b895106dfbe0e2f5a5cde5433ebe25c15866",
+    "builtin-evaluation/report.json": "760afb6635fb0ea7f8eea8cba6b4329faa741135f09378f5c0bd3496aa5e6ecf",
+    "builtin-evaluation/analysis.json": "ac21f81343b713c820c23c9acf6eaa53a49e83782bb1d9dd90fcd24c8b5a0d25",
+    "builtin-evaluation/validation.json": "a64f835ef590cbec2a9decee49a32b5b883b4630ced2be1820de665d5fee6008",
+    "browser/report.json": "b0779373be47d433f9ebed486109e7cd330b358943a519c8cc33fa82feb8b462"
+  }
+}

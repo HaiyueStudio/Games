@@ -1,0 +1,27 @@
+{
+  "generator": "built-in image_gen",
+  "generatedOn": "2026-11-06",
+  "assets": [
+    {
+      "path": "tablecloth-emerald-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: square flat base-color texture for a 3D Chinese mahjong tabletop. Primary request: a tasteful emerald green woven felt tablecloth with an elegant continuous decorative border around all four edges. Orthographic straight top-down, full image is fabric only, no perspective. Dark jade green quiet center, fine subtle felt fibers, muted warm brass-gold and jade embroidered geometric meander / traditional auspicious cloud border, refined rounded corner flourishes. Border occupies the outer 4–9 percent, leaving the central 80 percent very quiet and uniformly green for readable tiles and a separate circular wind emblem. Clean symmetric balanced pattern, restrained contrast. No objects, no mahjong tiles, no table frame, no bevel, no shadows or baked directional lighting, no text, no symbols in the central area, no watermark. Square 1024 by 1024 texture."
+    },
+    {
+      "path": "wind-beasts-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent 2 by 2 sprite atlas of four Chinese celestial beast medallions for a mahjong tabletop texture. Exact layout: four equally sized square cells, top left Qinglong Azure Dragon, top right Zhuque Vermilion Bird phoenix, bottom left Baihu White Tiger, bottom right Xuanwu Black Tortoise entwined with a snake. Each cell contains one complete circular embroidered emblem centered with generous identical 12 percent transparent padding. The animal is clearly recognizable, composed inside a thin elegant muted gold circular border, no animal extends outside its ring. Dragon teal and gold; phoenix vermilion and gold; tiger ivory and gold; tortoise slate jade and gold. Refined traditional Chinese silk embroidery motifs rendered as clean legible flat game art, restrained detail readable at small sizes, matched ring diameter and line weight in all four cells. Transparent outside and inside the animal linework, no rectangular background. No text, no letters, no labels, no watermark. Flat orthographic atlas, square 1024 by 1024.",
+      "transparent": true,
+      "layout": [
+        "青龙 / 东",
+        "朱雀 / 南",
+        "白虎 / 西",
+        "玄武 / 北"
+      ]
+    },
+    {
+      "path": "tiles-normal-v1.png",
+      "prompt": "Use case: precise-object-edit. Asset type: tangent-space normal map matching the attached existing mahjong texture atlas. Transform this exact atlas into a production normal map only. Preserve EXACT original canvas proportions, all 8 columns by 6 rows, every individual tile, glyph position, flower shape, tile back, padding and blank area. Do not rearrange, redraw or add any content. Output a standard OpenGL tangent-space RGB normal texture: flat surfaces and all unused areas neutral RGB(128,128,255), blue positive Z; very subtle engraved incised recesses precisely following the existing black/red/green Chinese glyphs, bamboo and dot outlines and flower petals, with narrow cyan/magenta slopes at groove edges and a flat neutral-blue groove floor. Tile faces remain mostly neutral blue. Remove all original albedo colors, baked highlights and shadows. No grayscale height map, no beauty render, no text overlays, no border, no watermark. Exact square atlas alignment is crucial. Preserve the 1152 by 1152 source dimensions if possible.",
+      "reference": "tiles-atlas.png",
+      "encoding": "OpenGL tangent-space RGB, linear data"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "purpose": "Mahjong native GUI backdrop, nine-slice drawer skin and ranking emblem",
+  "files": [
+    {
+      "name": "ui-backdrop-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: production background texture for a Chinese Mahjong game UI, landscape 16:9. Create an understated premium dark emerald and black jade silk background, faint woven texture with subtle cloud-and-wave ornament only near the far outer corners, soft warm muted gold edge accents, very dark quiet central 80 percent so a 3D Mahjong table can be rendered over it. Flat front facing image, no perspective objects, no table, no tiles, no text, no buttons, no logo, no watermark. Elegant modern Chinese game art, subtle texture, restrained contrast and luxurious lighting.",
+      "transparent": false,
+      "width": 1672,
+      "height": 941,
+      "sha256": "766329a23a522a0b6d452511c5be0e3d3f509ba9ce71ff61ad345af82b37e2d1"
+    },
+    {
+      "name": "ui-drawer-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: production portrait background texture for a Chinese Mahjong game side drawer, portrait 2:3. Flat front-facing dark emerald jade and ink-black lacquer panel, delicate fine warm gold hairline frame inset evenly from all four edges, tiny restrained traditional Chinese cloud corner ornament, slightly brighter soft jade glow near top and bottom, center 80 percent nearly plain dark green to place readable interface labels over. Premium modern game UI material. The entire panel is opaque, edge-to-edge. No text, letters, numbers, symbols, buttons, objects, logo, watermark or perspective.",
+      "transparent": false,
+      "width": 1024,
+      "height": 1536,
+      "sha256": "a08a6e17e25679a7c6c15489123b174d2f120128d4f65df4e6979512754ba608"
+    },
+    {
+      "name": "ui-ranking-v1.png",
+      "prompt": "Use case: logo-brand. Asset type: small game UI ranking button icon on a genuinely transparent background. A single centered clean gold ranking emblem: three rounded podium bars of ascending different heights with a tiny five-point star above the center tallest bar, framed by a very simple open circular jade-and-gold laurel. Modern Chinese Mahjong game UI style, warm champagne gold and deep jade, strong readable silhouette, broad consistent strokes, minimal dimensional shading. Icon fills 75 percent of square canvas, transparent background, no text, no letters, no numerals, no watermark. Must be clearly legible when displayed at 32 pixels.",
+      "transparent": true,
+      "width": 1254,
+      "height": 1254,
+      "sha256": "4e6da42f3bbc3abaf550762fad3adb6f4cfe164977e1d10da0d772e625eb4865"
+    }
+  ]
+}

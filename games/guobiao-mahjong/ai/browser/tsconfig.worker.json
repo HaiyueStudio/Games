@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.worker.json",
+  "include": ["tfjs.worker.ts"]
+}

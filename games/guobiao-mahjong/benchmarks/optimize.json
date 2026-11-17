@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "purpose": "development A/B; rule corrections, score-gated routes and unconditional one-draw lookahead",
+  "seeds": [1101, 1102, 1103, 1104],
+  "rotateSeats": true,
+  "concurrency": 1,
+  "suites": [{"id": "v2-development", "agents": ["v2", "v1", "v1", "v1"]}]
+}

@@ -1,0 +1,930 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-07",
+  "scope": "Local diagnostic strength study, not a general LLM or universal model ranking",
+  "rules": "Game referee; four winds, sixteen hands, eight-fan minimum excluding flowers; rank by accumulated fan including flowers",
+  "modelBackend": "Production NumPy CPU adapter, temperature 0",
+  "weightsRevision": "5670a37c87890ffe95ea0cc0431cb1c704ec8564",
+  "weights": [
+    {
+      "name": "kdens_s0_fp16.npz",
+      "sha256": "b2d8bc289b0822e1d3e9d04eba3b6b3c435cd37a941875fc3af638cf84ef6e82"
+    },
+    {
+      "name": "kdens_s1_fp16.npz",
+      "sha256": "132e110197f31c05b9d5b39120aa3fe73ac491a55b480314d98abc9fa68319e9"
+    },
+    {
+      "name": "kdens_s2_fp16.npz",
+      "sha256": "73483924cedc86fe6bba2fe7d299127899299bddf429f4d0373364daf5565460"
+    }
+  ],
+  "baseline": {
+    "name": "Frozen pre-change built-in depth=2",
+    "source": "benchmarks/strategy-v1.ts",
+    "sha256": "eecac644aeb061223f6f69262952762c75e645af02670373b05ebd574d27f93b"
+  },
+  "modelComparison": {
+    "seeds": [
+      1101,
+      1102,
+      1103,
+      1104
+    ],
+    "rotateSeats": true,
+    "lineup": "One target KD policy against three identical baseline agents, independently for each model",
+    "hands": 1024,
+    "summary": [
+      {
+        "id": "student0",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.03515625,
+        "rows": [
+          {
+            "policy": "kd-s0",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 1438,
+            "fanPerHand": 5.6171875,
+            "scorePerHand": 8.4765625,
+            "winRate": 0.37890625,
+            "dealInRate": 0.109375,
+            "averagePlace": 1.4375,
+            "decisions": 4220,
+            "choiceMsP50": 80.05927800000063,
+            "choiceMsP95": 324.15231699997094,
+            "forced": 8996,
+            "missedHu": 0,
+            "unqualifiedReady": 86,
+            "faults": 0
+          },
+          {
+            "policy": "v1",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2135,
+            "fanPerHand": 2.7799479166666665,
+            "scorePerHand": -2.8255208333333335,
+            "winRate": 0.1953125,
+            "dealInRate": 0.16796875,
+            "averagePlace": 2.8541666666666665,
+            "decisions": 12387,
+            "choiceMsP50": 10.38237800000934,
+            "choiceMsP95": 136.87903700000606,
+            "forced": 27228,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-s0",
+            "baseline": "v1",
+            "fanDeltaPerHand": 2.8372395833333335,
+            "fanDelta95": {
+              "low": 1.5794270833333335,
+              "high": 4.4765625,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 11.302083333333332,
+            "scoreDelta95": {
+              "low": 7.026041666666666,
+              "high": 15.848958333333334,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 1101,
+                "fan": 5.229166666666666,
+                "score": 17.875
+              },
+              {
+                "seed": 1102,
+                "fan": 1.2083333333333335,
+                "score": 5.270833333333333
+              },
+              {
+                "seed": 1103,
+                "fan": 2.21875,
+                "score": 9.770833333333334
+              },
+              {
+                "seed": 1104,
+                "fan": 2.6927083333333335,
+                "score": 12.291666666666666
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "student1",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.046875,
+        "rows": [
+          {
+            "policy": "kd-s1",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 1384,
+            "fanPerHand": 5.40625,
+            "scorePerHand": 8.01953125,
+            "winRate": 0.37890625,
+            "dealInRate": 0.1484375,
+            "averagePlace": 1.4375,
+            "decisions": 4258,
+            "choiceMsP50": 91.36337699997239,
+            "choiceMsP95": 382.77495200000703,
+            "forced": 9091,
+            "missedHu": 0,
+            "unqualifiedReady": 75,
+            "faults": 0
+          },
+          {
+            "policy": "v1",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2063,
+            "fanPerHand": 2.6861979166666665,
+            "scorePerHand": -2.6731770833333335,
+            "winRate": 0.19140625,
+            "dealInRate": 0.15885416666666666,
+            "averagePlace": 2.8541666666666665,
+            "decisions": 12514,
+            "choiceMsP50": 12.0288559999899,
+            "choiceMsP95": 158.3233659999678,
+            "forced": 27503,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-s1",
+            "baseline": "v1",
+            "fanDeltaPerHand": 2.7200520833333335,
+            "fanDelta95": {
+              "low": 1.8294270833333335,
+              "high": 3.903645833333333,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 10.692708333333332,
+            "scoreDelta95": {
+              "low": 7.958333333333334,
+              "high": 14.484375,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 1101,
+                "fan": 4.401041666666666,
+                "score": 16.208333333333332
+              },
+              {
+                "seed": 1102,
+                "fan": 2.4114583333333335,
+                "score": 9.3125
+              },
+              {
+                "seed": 1103,
+                "fan": 2.4427083333333335,
+                "score": 9.958333333333334
+              },
+              {
+                "seed": 1104,
+                "fan": 1.625,
+                "score": 7.291666666666667
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "student2",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.03515625,
+        "rows": [
+          {
+            "policy": "kd-s2",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 1345,
+            "fanPerHand": 5.25390625,
+            "scorePerHand": 7.26953125,
+            "winRate": 0.37109375,
+            "dealInRate": 0.10546875,
+            "averagePlace": 1.8125,
+            "decisions": 4187,
+            "choiceMsP50": 76.95517000020482,
+            "choiceMsP95": 327.01052200002596,
+            "forced": 8922,
+            "missedHu": 0,
+            "unqualifiedReady": 84,
+            "faults": 0
+          },
+          {
+            "policy": "v1",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2125,
+            "fanPerHand": 2.7669270833333335,
+            "scorePerHand": -2.4231770833333335,
+            "winRate": 0.19791666666666666,
+            "dealInRate": 0.17447916666666666,
+            "averagePlace": 2.7291666666666665,
+            "decisions": 12324,
+            "choiceMsP50": 10.385657999897376,
+            "choiceMsP95": 139.2980150000658,
+            "forced": 26990,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kd-s2",
+            "baseline": "v1",
+            "fanDeltaPerHand": 2.4869791666666665,
+            "fanDelta95": {
+              "low": 1.3893229166666665,
+              "high": 4.225260416666667,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 9.692708333333334,
+            "scoreDelta95": {
+              "low": 6.333333333333334,
+              "high": 15.729166666666668,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 1101,
+                "fan": 5.036458333333334,
+                "score": 18.75
+              },
+              {
+                "seed": 1102,
+                "fan": 1.7916666666666665,
+                "score": 7.354166666666667
+              },
+              {
+                "seed": 1103,
+                "fan": 1.9010416666666665,
+                "score": 6.666666666666667
+              },
+              {
+                "seed": 1104,
+                "fan": 1.21875,
+                "score": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ensemble",
+        "complete": true,
+        "matches": 16,
+        "hands": 256,
+        "drawRate": 0.03125,
+        "rows": [
+          {
+            "policy": "kdens3",
+            "seatGames": 16,
+            "hands": 256,
+            "fan": 1423,
+            "fanPerHand": 5.55859375,
+            "scorePerHand": 8.12109375,
+            "winRate": 0.38671875,
+            "dealInRate": 0.12109375,
+            "averagePlace": 1.625,
+            "decisions": 4248,
+            "choiceMsP50": 132.9991690001916,
+            "choiceMsP95": 372.12448500003666,
+            "forced": 9035,
+            "missedHu": 0,
+            "unqualifiedReady": 70,
+            "faults": 0
+          },
+          {
+            "policy": "v1",
+            "seatGames": 48,
+            "hands": 768,
+            "fan": 2126,
+            "fanPerHand": 2.7682291666666665,
+            "scorePerHand": -2.70703125,
+            "winRate": 0.19401041666666666,
+            "dealInRate": 0.17057291666666666,
+            "averagePlace": 2.7916666666666665,
+            "decisions": 12483,
+            "choiceMsP50": 10.751968000084162,
+            "choiceMsP95": 141.2097879999783,
+            "forced": 27343,
+            "missedHu": 0,
+            "unqualifiedReady": 0,
+            "faults": 0
+          }
+        ],
+        "paired": [
+          {
+            "policy": "kdens3",
+            "baseline": "v1",
+            "fanDeltaPerHand": 2.7903645833333335,
+            "fanDelta95": {
+              "low": 1.678385416666667,
+              "high": 4.578125,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "scoreDeltaPerHand": 10.828125000000002,
+            "scoreDelta95": {
+              "low": 6.489583333333334,
+              "high": 16.640625,
+              "method": "seed-block bootstrap",
+              "blocks": 4,
+              "draws": 10000
+            },
+            "seedDeltas": [
+              {
+                "seed": 1101,
+                "fan": 5.427083333333334,
+                "score": 19.291666666666668
+              },
+              {
+                "seed": 1102,
+                "fan": 1.5052083333333335,
+                "score": 5.3125
+              },
+              {
+                "seed": 1103,
+                "fan": 2.1979166666666665,
+                "score": 8.6875
+              },
+              {
+                "seed": 1104,
+                "fan": 2.03125,
+                "score": 10.020833333333334
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "experimental": {
+    "source": "benchmarks/strategy-experimental-v2.ts",
+    "sha256": "d2607946b12f3e2969a07df24243dd100a470c36aaf4abdb527b215ac307b651",
+    "defaultEnabled": false,
+    "development": {
+      "id": "v2-development",
+      "complete": true,
+      "matches": 16,
+      "hands": 256,
+      "drawRate": 0.05078125,
+      "rows": [
+        {
+          "policy": "v2",
+          "seatGames": 16,
+          "hands": 256,
+          "fan": 939,
+          "fanPerHand": 3.66796875,
+          "scorePerHand": 2.16015625,
+          "winRate": 0.26953125,
+          "dealInRate": 0.15234375,
+          "averagePlace": 2.1875,
+          "decisions": 4496,
+          "choiceMsP50": 10.489826000004541,
+          "choiceMsP95": 142.74041099999886,
+          "forced": 9787,
+          "missedHu": 0,
+          "unqualifiedReady": 0,
+          "faults": 0
+        },
+        {
+          "policy": "v1",
+          "seatGames": 48,
+          "hands": 768,
+          "fan": 2502,
+          "fanPerHand": 3.2578125,
+          "scorePerHand": -0.7200520833333334,
+          "winRate": 0.2265625,
+          "dealInRate": 0.17057291666666666,
+          "averagePlace": 2.6041666666666665,
+          "decisions": 13446,
+          "choiceMsP50": 9.915716000003158,
+          "choiceMsP95": 150.41928199999893,
+          "forced": 29372,
+          "missedHu": 0,
+          "unqualifiedReady": 0,
+          "faults": 0
+        }
+      ],
+      "paired": [
+        {
+          "policy": "v2",
+          "baseline": "v1",
+          "fanDeltaPerHand": 0.41015625,
+          "fanDelta95": {
+            "low": -0.48567708333333326,
+            "high": 1.5234375,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": 2.8802083333333335,
+          "scoreDelta95": {
+            "low": -0.8385416666666669,
+            "high": 6.833333333333334,
+            "method": "seed-block bootstrap",
+            "blocks": 4,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 1101,
+              "fan": 0.4322916666666665,
+              "score": 4.208333333333333
+            },
+            {
+              "seed": 1102,
+              "fan": -0.7916666666666665,
+              "score": -2.5208333333333335
+            },
+            {
+              "seed": 1103,
+              "fan": 2.046875,
+              "score": 8.75
+            },
+            {
+              "seed": 1104,
+              "fan": -0.046875,
+              "score": 1.0833333333333333
+            }
+          ]
+        }
+      ]
+    },
+    "holdout": {
+      "id": "v2-holdout",
+      "complete": true,
+      "matches": 32,
+      "hands": 512,
+      "drawRate": 0.052734375,
+      "rows": [
+        {
+          "policy": "v2",
+          "seatGames": 32,
+          "hands": 512,
+          "fan": 1578,
+          "fanPerHand": 3.08203125,
+          "scorePerHand": -0.73046875,
+          "winRate": 0.234375,
+          "dealInRate": 0.173828125,
+          "averagePlace": 2.71875,
+          "decisions": 8796,
+          "choiceMsP50": 11.565249999985099,
+          "choiceMsP95": 141.32694800011814,
+          "forced": 19255,
+          "missedHu": 0,
+          "unqualifiedReady": 0,
+          "faults": 0
+        },
+        {
+          "policy": "v1",
+          "seatGames": 96,
+          "hands": 1536,
+          "fan": 5274,
+          "fanPerHand": 3.43359375,
+          "scorePerHand": 0.24348958333333334,
+          "winRate": 0.23763020833333334,
+          "dealInRate": 0.16796875,
+          "averagePlace": 2.4270833333333335,
+          "decisions": 26468,
+          "choiceMsP50": 10.22206699999515,
+          "choiceMsP95": 151.5914069999999,
+          "forced": 57680,
+          "missedHu": 0,
+          "unqualifiedReady": 0,
+          "faults": 0
+        }
+      ],
+      "paired": [
+        {
+          "policy": "v2",
+          "baseline": "v1",
+          "fanDeltaPerHand": -0.3515624999999999,
+          "fanDelta95": {
+            "low": -0.8912760416666665,
+            "high": 0.23372395833333343,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "scoreDeltaPerHand": -0.9739583333333334,
+          "scoreDelta95": {
+            "low": -3.309895833333333,
+            "high": 1.3619791666666665,
+            "method": "seed-block bootstrap",
+            "blocks": 8,
+            "draws": 10000
+          },
+          "seedDeltas": [
+            {
+              "seed": 2101,
+              "fan": -0.015625,
+              "score": 1.1666666666666667
+            },
+            {
+              "seed": 2102,
+              "fan": -0.10416666666666652,
+              "score": -0.9375
+            },
+            {
+              "seed": 2103,
+              "fan": 1.3177083333333335,
+              "score": 5.208333333333333
+            },
+            {
+              "seed": 2104,
+              "fan": -0.19791666666666652,
+              "score": -1.9375
+            },
+            {
+              "seed": 2105,
+              "fan": -0.828125,
+              "score": -1.3541666666666667
+            },
+            {
+              "seed": 2106,
+              "fan": -1.5729166666666665,
+              "score": -6.5
+            },
+            {
+              "seed": 2107,
+              "fan": -1.1041666666666665,
+              "score": -4.708333333333333
+            },
+            {
+              "seed": 2108,
+              "fan": -0.3072916666666665,
+              "score": 1.2708333333333333
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "production": {
+    "source": "ai/strategy.ts",
+    "sha256": "7b07d6c4856b90eb77d185630e068219bc5c0d49e813028d89407e815538f751",
+    "changes": [
+      "Recognize ron-only eight-fan waits",
+      "Count planned discards and exposed melds for last-copy flags",
+      "Deplete a hypothetical draw before counting future outs",
+      "Do not treat a fourth visible suited tile as zero risk when sequence waits remain",
+      "Bounded hand-shape cache; public availability, fan and risk always recomputed"
+    ]
+  },
+  "cache": {
+    "positions": 160,
+    "identical": true,
+    "capacity": 10000,
+    "uncached": {
+      "meanMs": 38.744941637499984,
+      "p50": 11.675106000000596,
+      "p95": 177.468791
+    },
+    "cached": {
+      "meanMs": 31.494912999999986,
+      "p50": 8.97643699999935,
+      "p95": 164.56685800000014
+    },
+    "meanReduction": 0.1871219398220213,
+    "measurement": "160 consecutive real choice observations; alternating order; same policy; CPU diagnostics under concurrent tournament load"
+  },
+  "validation": {
+    "development": {
+      "reportSha256": "f24131cce540a8dcad084587d98cdf7b29664c709ed0fa53a5a0f0e1e3cc99c5",
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-06T23:15:43.878Z",
+      "status": "passed",
+      "runKey": "7aee5d2f06c55d57cf8f1deffc6c6cb541784c5b76f6a86f98984772d0081d97",
+      "matches": 64,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 1024,
+      "decisions": 211729,
+      "faults": 0
+    },
+    "optimization": {
+      "reportSha256": "fb2c08ca2734b552f143b41e2fa8344faca765fcd2e522df3e8abc526336a0b1",
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-06T23:01:32.158Z",
+      "status": "passed",
+      "runKey": "1724e3c3eff740857793cd32ea090df57540cf854c0fd3b80bc7091dd0412e78",
+      "matches": 16,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 256,
+      "decisions": 57101,
+      "faults": 0
+    },
+    "holdout": {
+      "reportSha256": "1fabc9134373019d3d9b498fbc706afa721f5dd0e9ae21004f249009803bc613",
+      "schemaVersion": 1,
+      "generatedAt": "2026-11-06T23:11:23.119Z",
+      "status": "passed",
+      "runKey": "f0c1c43fbcef68b75852ce932182a66e49acab9353076f3cc38527b2a5244a78",
+      "matches": 32,
+      "checks": [
+        "complete-seed-seat-coverage",
+        "zero-provider-faults",
+        "normalized-metrics",
+        "source-fingerprints",
+        "all-replayed-actions-legal",
+        "eight-fan-wins",
+        "zero-sum-settlement"
+      ],
+      "hands": 512,
+      "decisions": 112199,
+      "faults": 0
+    }
+  },
+  "notes": [
+    "Only four independent model-comparison seeds; intervals resample whole seeds, not individual hands",
+    "Separate baseline exposure normalized per seat per hand; baseline rows face different target policies",
+    "Do not infer a stable order among KD variants from these small differences",
+    "The experimental heuristic changes failed the independent holdout and are opt-in only",
+    "Concurrent CPU latencies are not browser WebGPU latency or an equal-compute strength comparison",
+    "Raw matches and matching source archives are under artifacts/guobiao-mahjong/strength/"
+  ],
+  "device": {
+    "platform": "darwin",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz",
+    "node": "v24.19.0"
+  },
+  "evaluationSources": {
+    "models": {
+      "benchmarks/run.mjs": "3508a66ecf4046cdf8e621ea313a13d87d68758d8aedb170932739cd8754d8aa",
+      "benchmarks/statistics.mjs": "76d31ac88e1a6700de252d1cbe50e97d780d781d388c244cbd9f7aacb2be72f7",
+      "benchmarks/model-pipe.py": "ea4ba410d993ceb19521f466e07924649749480c8d380c848487ad9484f13c06",
+      "benchmarks/strategy-v1.ts": "eecac644aeb061223f6f69262952762c75e645af02670373b05ebd574d27f93b",
+      "api/tournament.ts": "513485567e2eca61911004432fdeccc1e7f4fd358a77936742535a0241bb295e",
+      "api/agents.ts": "b7d3217724d2e02fd30b6e68f9dc1d705b2c45a31242b6015faa0d21d3cef4ba",
+      "rules/scorer.ts": "02c3587854f1e2bfc2f5d2c7d6ef84e7ff0b51ff69444ac7b5e8311ff1184842",
+      "rules/match.ts": "08659058eea852108b89646e7657ea943f11c1627c1ec7f315c7c85925b351b3",
+      "rules/types.ts": "22756879e7fb0dc9e75c9890dec20d0b8d0e6082d058bdebe91f936322279cbb",
+      "rules/replay.ts": "685006f2546710b4e0b288c11101c4c769cb3dd262e935bc5d18aef9ee132061",
+      "ai/coaching/publicAnalysis.ts": "371cb5259d48a864ab6a8fc6864988a4a252284a1b3541cb409b8a1366ed50cd",
+      "assets/mcr.wasm": "54f7d7d5caa6869aa12bd15fe4f06768b125524501ddc7bbaa0bc0769ecf46a1",
+      "model-service/runtime.py": "9ad226228eb2f36427e0d94613389a09723e113a4ce01472cb160ebeca3eaaea",
+      "model-service/adapter.py": "431dbf1526add2cc1c931d2c6130fe6ed3c45cb3c3c9ff366b2603f95ad0cf24",
+      "model-service/models.lock.json": "c5837335c3eb541b3a187a656a621e41d3d2523cad99641e8ce05d5ce173a520",
+      "model-service/vendor/numpy_resfused.py": "bf8f070b7a642b10a4208d412bbf3cf4f2ceb3c185f16c0df2237e0b46df7c04"
+    },
+    "experimental": {
+      "benchmarks/run.mjs": "3508a66ecf4046cdf8e621ea313a13d87d68758d8aedb170932739cd8754d8aa",
+      "benchmarks/statistics.mjs": "76d31ac88e1a6700de252d1cbe50e97d780d781d388c244cbd9f7aacb2be72f7",
+      "benchmarks/model-pipe.py": "ea4ba410d993ceb19521f466e07924649749480c8d380c848487ad9484f13c06",
+      "benchmarks/strategy-v1.ts": "eecac644aeb061223f6f69262952762c75e645af02670373b05ebd574d27f93b",
+      "api/tournament.ts": "513485567e2eca61911004432fdeccc1e7f4fd358a77936742535a0241bb295e",
+      "api/agents.ts": "b7d3217724d2e02fd30b6e68f9dc1d705b2c45a31242b6015faa0d21d3cef4ba",
+      "rules/scorer.ts": "02c3587854f1e2bfc2f5d2c7d6ef84e7ff0b51ff69444ac7b5e8311ff1184842",
+      "rules/match.ts": "08659058eea852108b89646e7657ea943f11c1627c1ec7f315c7c85925b351b3",
+      "rules/types.ts": "22756879e7fb0dc9e75c9890dec20d0b8d0e6082d058bdebe91f936322279cbb",
+      "rules/replay.ts": "685006f2546710b4e0b288c11101c4c769cb3dd262e935bc5d18aef9ee132061",
+      "ai/coaching/publicAnalysis.ts": "371cb5259d48a864ab6a8fc6864988a4a252284a1b3541cb409b8a1366ed50cd",
+      "assets/mcr.wasm": "54f7d7d5caa6869aa12bd15fe4f06768b125524501ddc7bbaa0bc0769ecf46a1",
+      "model-service/runtime.py": "9ad226228eb2f36427e0d94613389a09723e113a4ce01472cb160ebeca3eaaea",
+      "model-service/adapter.py": "431dbf1526add2cc1c931d2c6130fe6ed3c45cb3c3c9ff366b2603f95ad0cf24",
+      "model-service/models.lock.json": "c5837335c3eb541b3a187a656a621e41d3d2523cad99641e8ce05d5ce173a520",
+      "model-service/vendor/numpy_resfused.py": "bf8f070b7a642b10a4208d412bbf3cf4f2ceb3c185f16c0df2237e0b46df7c04",
+      "ai/strategy.ts": "d2607946b12f3e2969a07df24243dd100a470c36aaf4abdb527b215ac307b651"
+    }
+  },
+  "kdPairwise": [
+    {
+      "a": "kd-s0",
+      "b": "kd-s1",
+      "metric": "paired target accumulated fan per hand across the same seeds and seat rotations",
+      "difference": 0.2109375,
+      "interval95": {
+        "low": -0.3828125,
+        "high": 0.8046875,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "seedDeltas": [
+        {
+          "seed": 1101,
+          "delta": 0.75
+        },
+        {
+          "seed": 1102,
+          "delta": -0.671875
+        },
+        {
+          "seed": 1103,
+          "delta": -0.09375
+        },
+        {
+          "seed": 1104,
+          "delta": 0.859375
+        }
+      ]
+    },
+    {
+      "a": "kd-s0",
+      "b": "kd-s2",
+      "metric": "paired target accumulated fan per hand across the same seeds and seat rotations",
+      "difference": 0.36328125,
+      "interval95": {
+        "low": -0.26953125,
+        "high": 1,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "seedDeltas": [
+        {
+          "seed": 1101,
+          "delta": 0.34375
+        },
+        {
+          "seed": 1102,
+          "delta": -0.484375
+        },
+        {
+          "seed": 1103,
+          "delta": 0.375
+        },
+        {
+          "seed": 1104,
+          "delta": 1.21875
+        }
+      ]
+    },
+    {
+      "a": "kd-s0",
+      "b": "kdens3",
+      "metric": "paired target accumulated fan per hand across the same seeds and seat rotations",
+      "difference": 0.05859375,
+      "interval95": {
+        "low": -0.1640625,
+        "high": 0.3515625,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "seedDeltas": [
+        {
+          "seed": 1101,
+          "delta": -0.140625
+        },
+        {
+          "seed": 1102,
+          "delta": -0.1875
+        },
+        {
+          "seed": 1103,
+          "delta": 0.046875
+        },
+        {
+          "seed": 1104,
+          "delta": 0.515625
+        }
+      ]
+    },
+    {
+      "a": "kd-s1",
+      "b": "kd-s2",
+      "metric": "paired target accumulated fan per hand across the same seeds and seat rotations",
+      "difference": 0.15234375,
+      "interval95": {
+        "low": -0.21484375,
+        "high": 0.4140625,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "seedDeltas": [
+        {
+          "seed": 1101,
+          "delta": -0.40625
+        },
+        {
+          "seed": 1102,
+          "delta": 0.1875
+        },
+        {
+          "seed": 1103,
+          "delta": 0.46875
+        },
+        {
+          "seed": 1104,
+          "delta": 0.359375
+        }
+      ]
+    },
+    {
+      "a": "kd-s1",
+      "b": "kdens3",
+      "metric": "paired target accumulated fan per hand across the same seeds and seat rotations",
+      "difference": -0.15234375,
+      "interval95": {
+        "low": -0.6328125,
+        "high": 0.3125,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "seedDeltas": [
+        {
+          "seed": 1101,
+          "delta": -0.890625
+        },
+        {
+          "seed": 1102,
+          "delta": 0.484375
+        },
+        {
+          "seed": 1103,
+          "delta": 0.140625
+        },
+        {
+          "seed": 1104,
+          "delta": -0.34375
+        }
+      ]
+    },
+    {
+      "a": "kd-s2",
+      "b": "kdens3",
+      "metric": "paired target accumulated fan per hand across the same seeds and seat rotations",
+      "difference": -0.3046875,
+      "interval95": {
+        "low": -0.609375,
+        "high": 0.1015625,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "seedDeltas": [
+        {
+          "seed": 1101,
+          "delta": -0.484375
+        },
+        {
+          "seed": 1102,
+          "delta": 0.296875
+        },
+        {
+          "seed": 1103,
+          "delta": -0.328125
+        },
+        {
+          "seed": 1104,
+          "delta": -0.703125
+        }
+      ]
+    }
+  ]
+}

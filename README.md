@@ -14,6 +14,7 @@ without a local build. A modern desktop browser with WebGPU enabled is recommend
 
 | Game | Type | Online preview |
 | --- | --- | --- |
+| 国标雀局 / Mahjong AI Arena | 144 张国标麻将 · 8 番起胡 / 四圈 / 原生 GUI / AI 与大模型接口 | [Local build](games/guobiao-mahjong/README.md) |
 | 墨白双生 · Ink Twin | 2D puzzle · 灰色宣纸 / 水墨双线 / 数字 bitmapfont | [Local build](games/ink-twin/README.md) |
 | 鲸屿制造 / Whale Maker | 2D 平台跳跃 · 鲸鱼娘 / 粉团 · 关卡编辑器 / Engine GUI | [Local build](games/whale-maker/README.md) |
 | 玻璃疾驰 / Glass Rush | 霓虹弯曲隧道生存 · 玻璃球 / Engine GUI / 本机 TOP 5 | [Local build](games/glass-rush/README.md) |

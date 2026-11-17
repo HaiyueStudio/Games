@@ -45,6 +45,12 @@
       "revision": "d58835a9d14c711f26374c5eed00851f4e4649c2",
       "dirty": false,
       "windowsQualificationRevision": "95ffbb4b1cacdfdde21e8be6be50961619bcc3df"
+    },
+    "haiyue-engine-0.2.3.tgz": {
+      "sha256": "28700e200183f769bd9d7d87b38c6535f8d11d9a10d0a5d46cd6100c642d68e1",
+      "source": "Engine/engine public npm pack",
+      "revision": "829d3ca2624649172e659b21d990355ee2cf063d",
+      "dirty": false
     }
   }
 }

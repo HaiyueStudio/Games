@@ -1,6 +1,7 @@
 // Presentation metadata only; playable entries and assets come from the manifest.
 const entries = [
   ['dafeiyu', '大肥鱼', 'puzzle', '推动字块，改写珊瑚湾的规则。谁能移动、什么会挡路、哪里算终点，都由棋盘上的句子决定。', '鱼'],
+  ['guobiao-mahjong', '国标雀局', 'cards', '八番起胡，东南西北四圈。与智能算法对弈，或接入大模型举办 AI 麻将比赛。', '雀'],
   ['ink-twin', '墨白双生', 'puzzle', '在灰色宣纸上分别连起黑白数字。两笔各走各路，让延伸的水墨双线铺满整张纸。', '双'],
   ['whale-maker', '鲸屿制造', 'sandbox', '鲸鱼娘与粉团的 1-1～1-4 连续冒险：珍珠海岸、地窟、月夜云台和喷火尖刺龟吊桥。支持成长、火球、抱壳与关卡编辑器。', '鲸'],
   ['glass-rush', '玻璃疾驰', 'arcade', '驾驭易碎玻璃球，穿越蜿蜒霓虹隧道。躲开障碍，在不断加速中挑战生存纪录。', '◇'],

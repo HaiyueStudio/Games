@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {hash,json,write,assetURL,runOffline} from './offline-runner.mjs';
+import {pinnedJson} from './offline-inputs.mjs';
+import {summarizeComparison} from './statistics.mjs';
+import {validateLeagueEpisodes,independentEvaluationSeeds} from './league-validation.mjs';
+const base=resolve(process.argv[3]??'artifacts/guobiao-mahjong/league'),output=resolve(process.argv[2]??resolve(base,'evaluation-v1')),league=json(resolve(base,'generation-0/report.json')).config,used=new Set();
+for(const dir of ['bootstrap-v1','joint-data-v1'])for(const g of json(resolve(base,dir,'groups.json')))used.add(g.seed);
+for(const dir of Array.from({length:league.generations},(_,i)=>'generation-'+i))for(const g of json(resolve(base,dir,'episodes.json')))used.add(g.seed);
+const beliefData=json(resolve(base,'belief-data-v1/report.json'));for(const values of Object.values(beliefData.folds))for(const seed of values)used.add(seed);
+independentEvaluationSeeds(league,used);
+const beliefPath=resolve(base,'export-v1/belief-quantized.json'),belief={id:'belief-fp16',url:assetURL(beliefPath),sha256:hash(readFileSync(beliefPath))},joints=[['joint-teacher',`teacher-g${league.generations}/model.json`],['joint-student','export-v1/joint-quantized.json']].map(([id,path])=>{const p=resolve(base,path);return {id,url:assetURL(p),sha256:hash(readFileSync(p))}});
+const config={schemaVersion:1,baseline:'kd-value-v1',seeds:league.evaluationSeeds,rotateSeats:true,concurrency:1,batchMatches:8,suites:joints.map(m=>({id:m.id+'-vs-original',agents:[m.id,'kd-value-v1','kd-value-v1','kd-value-v1']}))};pinnedJson(resolve(output,'config.json'),{config,belief,joints});
+const jobs=config.suites.flatMap(s=>config.seeds.flatMap(seed=>Array.from({length:4},(_,rotation)=>({suite:s.id,seed,rotation,training:false,capturePerHand:2,fold:'test',policies:Array.from({length:4},(_,i)=>{const index=(i+rotation)%4,id=s.agents[index];return {id,key:index===0?'learner':'original-'+index,...(index===0?{learner:true}:{}),temperature:0,style:'balanced'}})})))),records=[];let runKey;
+const result=await runOffline(output,[],async({call,fingerprints})=>{
+  runKey=hash(JSON.stringify({config,belief,joints,fingerprints,script:hash(readFileSync(import.meta.filename)),validator:hash(readFileSync(resolve(import.meta.dirname,'league-validation.mjs')))}));await call({kind:'learning-assets',belief,joints});
+  for(let at=0;at<jobs.length;at+=8){const batch=jobs.slice(at,at+8),file=j=>resolve(output,'matches',`${j.suite}-${j.seed}-${j.rotation}.json`),missing=batch.filter(j=>!existsSync(file(j)));if(missing.length){const reply=await call({kind:'league',leagueJobs:missing});assert.equal(reply.runtime.actualBackend,'webgpu');validateLeagueEpisodes(reply.matches,{training:false});for(const g of reply.matches)write(file(g),{runKey,...g});}
+    for(const j of batch){const g=json(file(j));assert.equal(g.runKey,runKey);records.push(g);console.log(`[${records.length}/${jobs.length}] ${g.suite} ${g.seed}/${g.rotation} `+g.seats.map(p=>p.fan).join('/'));}
+  }return validateLeagueEpisodes(records,{training:false});
+});
+const normalized=records.map(g=>({...g,draws:g.results.filter(r=>r.winner===null).length,seats:g.seats.map((p,i)=>({...p,hands:16,reasonCounts:p.reasons,forced:g.replay.actions.filter(a=>a.seat===i).length-p.latencyMs.length}))})),summary=summarizeComparison(normalized,config),qualification=summary.map(s=>{const p=s.paired[0],target=s.rows.find(r=>r.policy===p.policy),baseline=s.rows.find(r=>r.policy===config.baseline);return {policy:p.policy,qualified:p.fanDelta95.low>0&&target.averagePlace<=baseline.averagePlace&&s.rows.every(r=>!r.faults&&!r.missedHu),fanDeltaPerHand:p.fanDeltaPerHand,fanDelta95:p.fanDelta95};});
+write(resolve(output,'report.json'),{schemaVersion:1,status:'passed',generatedAt:new Date().toISOString(),runKey,config,belief,joints,validation:result.details,completed:records.length,expected:jobs.length,summary,qualification,promote:qualification.every(p=>p.qualified),fingerprints:result.fingerprints,scriptSha256:hash(readFileSync(import.meta.filename)),validatorSha256:hash(readFileSync(resolve(import.meta.dirname,'league-validation.mjs'))),preparation:result.preparation,browser:result.browser.browserEvidence,limitations:['Four fresh wall blocks with all seat rotations; limited opponent pool','Teacher and FP16 student play separate matched-wall suites','Whole-match fan is primary; statistical uncertainty is resampled by original wall, not individual hands','A completed run does not automatically promote the experimental model']});console.log(JSON.stringify({qualification,summary},null,2));

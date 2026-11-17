@@ -1,0 +1,423 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "generatedAt": "2026-11-08T08:38:28.129Z",
+  "scope": "KD baseline protection and critical-action/source-balanced training data",
+  "evidenceClass": "local experimental run; no automatic promotion",
+  "artifactDirectory": "artifacts/guobiao-mahjong/guarded-v2",
+  "decisionProtection": {
+    "defaultMode": "guarded",
+    "trainingMode": "explore",
+    "freshKDAfterClaim": true,
+    "unconditionalLiveFollowUps": false,
+    "minimumPolicyMargin": 0.25,
+    "minimumExpectedRelativeFanGain": 1,
+    "nonWorseningShanten": true,
+    "rejectDeadLegalWaits": true,
+    "thresholdInterpretation": "Conservative heuristic margins, not calibrated confidence probabilities"
+  },
+  "labels": {
+    "roots": 72,
+    "plans": 705,
+    "completeHandSimulations": 5640,
+    "worldsPerPlan": 8,
+    "trainingFullActionRootsBefore": 3,
+    "trainingFullActionRootsAfter": 48,
+    "supervisedSources": {
+      "train": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 48,
+          "legacy": 1488
+        }
+      },
+      "calibration": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 12,
+          "legacy": 180
+        }
+      },
+      "test": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 12,
+          "legacy": 180
+        }
+      }
+    },
+    "groupsSha256": "053bf3ac26fb041713dcd058e23251983c8b5847902f8f829fdca8366dd23391"
+  },
+  "capture": {
+    "eligibleDecisions": 465,
+    "retained": 172,
+    "criticalRetained": 108,
+    "ordinaryRetained": 64,
+    "estimatedDecisionMass": 465.0,
+    "criticalDeclined": 60,
+    "criticalChosenActions": {
+      "pung": 17,
+      "add-kong": 5,
+      "pass": 59,
+      "discard": 1,
+      "chow": 25,
+      "kong": 1
+    },
+    "ordinaryWeightRange": [
+      3,
+      10
+    ],
+    "refereeReplay": {
+      "matches": 2,
+      "hands": 32,
+      "samples": 172,
+      "actions": 6364,
+      "coverage": {
+        "original-0": 2,
+        "original-1": 2,
+        "original-2": 2
+      },
+      "recomputedTrajectories": 172,
+      "criticalRetained": 108,
+      "maximumFeatureError": 4.440892098500626e-16
+    },
+    "offeredActions": {
+      "pass": 102,
+      "pung": 39,
+      "discard": 70,
+      "add-kong": 6,
+      "chow": 67,
+      "kong": 4
+    },
+    "limits": "No concealed-kong opportunity occurred in these two capture matches; two full-action concealed-kong training roots and dedicated unit cases cover that path"
+  },
+  "training": {
+    "teacherPretrainModelSha256": "365de15463441901d3637a203b0c0a827d74d0b217f0434b46ffb12a88c13ef8",
+    "teacherUpdatedModelSha256": "803da38e2c99a0ed903a0b865cf8cc58a626f4134b8777148abe29de56ad2339",
+    "studentModelSha256": "728615f5cd2fc3a126f914d4b99411de03af9563270986d01e83973b7ce1de3e",
+    "distillationSources": {
+      "train": {
+        "mass": {
+          "expanded": 0.2,
+          "league": 0.3,
+          "legacy": 0.5
+        },
+        "groups": {
+          "expanded": 48,
+          "league": 93,
+          "legacy": 1488
+        }
+      },
+      "calibration": {
+        "mass": {
+          "expanded": 0.2,
+          "league": 0.3,
+          "legacy": 0.5
+        },
+        "groups": {
+          "expanded": 12,
+          "league": 79,
+          "legacy": 180
+        }
+      },
+      "test": {
+        "mass": {
+          "expanded": 0.2,
+          "legacy": 0.8
+        },
+        "groups": {
+          "expanded": 12,
+          "league": 0,
+          "legacy": 180
+        }
+      }
+    },
+    "studentFidelity": {
+      "train": {
+        "groups": 1629,
+        "policyKL": 0.0005050939809070203,
+        "planAgreement": 0.9846531614487416,
+        "valueRMSE": 0.018194907214785574
+      },
+      "calibration": {
+        "groups": 271,
+        "policyKL": 0.0005537527860457869,
+        "planAgreement": 0.981549815498155,
+        "valueRMSE": 0.01794192666549329
+      },
+      "test": {
+        "groups": 192,
+        "policyKL": 0.0003795566187480653,
+        "planAgreement": 0.9895833333333334,
+        "valueRMSE": 0.018905696616434212
+      }
+    },
+    "ppoCalibrationKL": [
+      {
+        "epoch": 1,
+        "calibrationKL": 6.905480348590629e-05
+      },
+      {
+        "epoch": 2,
+        "calibrationKL": 0.00025658278587417606
+      },
+      {
+        "epoch": 3,
+        "calibrationKL": 0.0005370820601867075
+      },
+      {
+        "epoch": 4,
+        "calibrationKL": 0.0008396778506476707
+      },
+      {
+        "epoch": 5,
+        "calibrationKL": 0.0011526788689824145
+      },
+      {
+        "epoch": 6,
+        "calibrationKL": 0.0015056373541883267
+      }
+    ],
+    "calibrationKLMaximum": 0.03,
+    "calibrationAggregation": "inverse-inclusion weighted mean",
+    "packedAssetBytes": 57055,
+    "packedNetworkBytes": 35928,
+    "quantizedFixturePlanAgreement": 1.0,
+    "packedTypeScriptDecode": "passed"
+  },
+  "evaluation": {
+    "seeds": [
+      221001,
+      221002,
+      221003,
+      221004
+    ],
+    "allSeatRotations": true,
+    "matches": 64,
+    "hands": 1024,
+    "actionsReplayed": 198593,
+    "opponents": "Three frozen original action-value agents",
+    "rows": [
+      {
+        "policy": "joint-previous",
+        "matches": 16,
+        "hands": 256,
+        "fanPerHand": 3.18359375,
+        "baselineFanPerHand": 3.8515625,
+        "averagePlace": 2.4375,
+        "baselineAveragePlace": 2.5208333333333335,
+        "winRate": 0.21875,
+        "dealInRate": 0.18359375,
+        "fanDelta95": {
+          "low": -1.4505208333333335,
+          "high": 0.08203125000000011,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "changedDecisions": 267,
+        "decisions": 3956,
+        "reasonCounts": {
+          "joint-follow-up": 222,
+          "joint-policy": 3677,
+          "legal-win": 57
+        },
+        "faults": 0,
+        "missedHu": 0
+      },
+      {
+        "policy": "joint-guarded",
+        "matches": 16,
+        "hands": 256,
+        "fanPerHand": 3.62890625,
+        "baselineFanPerHand": 3.3893229166666665,
+        "averagePlace": 2.375,
+        "baselineAveragePlace": 2.5416666666666665,
+        "winRate": 0.2578125,
+        "dealInRate": 0.1640625,
+        "fanDelta95": {
+          "low": -0.09375000000000011,
+          "high": 0.5026041666666667,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "changedDecisions": 0,
+        "decisions": 3918,
+        "reasonCounts": {
+          "joint-baseline": 3644,
+          "joint-baseline-follow-up": 206,
+          "legal-win": 68
+        },
+        "faults": 0,
+        "missedHu": 0
+      },
+      {
+        "policy": "joint-balanced-teacher",
+        "matches": 16,
+        "hands": 256,
+        "fanPerHand": 3.62890625,
+        "baselineFanPerHand": 3.3893229166666665,
+        "averagePlace": 2.375,
+        "baselineAveragePlace": 2.5416666666666665,
+        "winRate": 0.2578125,
+        "dealInRate": 0.1640625,
+        "fanDelta95": {
+          "low": -0.09375000000000011,
+          "high": 0.5026041666666667,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "changedDecisions": 0,
+        "decisions": 3918,
+        "reasonCounts": {
+          "joint-baseline": 3644,
+          "joint-baseline-follow-up": 206,
+          "legal-win": 68
+        },
+        "faults": 0,
+        "missedHu": 0
+      },
+      {
+        "policy": "joint-balanced-student",
+        "matches": 16,
+        "hands": 256,
+        "fanPerHand": 3.62890625,
+        "baselineFanPerHand": 3.3893229166666665,
+        "averagePlace": 2.375,
+        "baselineAveragePlace": 2.5416666666666665,
+        "winRate": 0.2578125,
+        "dealInRate": 0.1640625,
+        "fanDelta95": {
+          "low": -0.09375000000000011,
+          "high": 0.5026041666666667,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        },
+        "changedDecisions": 0,
+        "decisions": 3918,
+        "reasonCounts": {
+          "joint-baseline": 3644,
+          "joint-baseline-follow-up": 206,
+          "legal-win": 68
+        },
+        "faults": 0,
+        "missedHu": 0
+      }
+    ],
+    "guardVsPrevious": {
+      "relativeFanDeltaPerHand": 0.9075520833333334,
+      "relativeFanDelta95": {
+        "low": 0.13932291666666674,
+        "high": 1.7994791666666665,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      },
+      "ownFanDeltaPerHand": 0.4453125,
+      "ownFanDelta95": {
+        "low": -0.2109375,
+        "high": 1.15625,
+        "method": "seed-block bootstrap",
+        "blocks": 4,
+        "draws": 10000
+      }
+    },
+    "qualification": [
+      {
+        "policy": "joint-previous",
+        "qualified": false,
+        "fanDeltaPerHand": -0.66796875,
+        "fanDelta95": {
+          "low": -1.4505208333333335,
+          "high": 0.08203125000000011,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      },
+      {
+        "policy": "joint-guarded",
+        "qualified": false,
+        "fanDeltaPerHand": 0.23958333333333337,
+        "fanDelta95": {
+          "low": -0.09375000000000011,
+          "high": 0.5026041666666667,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      },
+      {
+        "policy": "joint-balanced-teacher",
+        "qualified": false,
+        "fanDeltaPerHand": 0.23958333333333337,
+        "fanDelta95": {
+          "low": -0.09375000000000011,
+          "high": 0.5026041666666667,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      },
+      {
+        "policy": "joint-balanced-student",
+        "qualified": false,
+        "fanDeltaPerHand": 0.23958333333333337,
+        "fanDelta95": {
+          "low": -0.09375000000000011,
+          "high": 0.5026041666666667,
+          "method": "seed-block bootstrap",
+          "blocks": 4,
+          "draws": 10000
+        }
+      }
+    ],
+    "guardedNewTeacherAndStudentAllReplayActionsIdentical": true,
+    "interpretation": [
+      "Guarded strategies had higher sample mean fan and a better margin against same-table opponents than the old unguarded joint candidate",
+      "The own-fan change interval versus the old candidate crosses zero; the relative-to-opponents margin change interval is positive in these four blocks",
+      "Guarded teacher/student made zero model corrections on the evaluated decisions: this run shows baseline fallback, not additional learned strength",
+      "No candidate established a positive lower confidence bound versus the original algorithm; four wall blocks and one opponent family remain limited"
+    ]
+  },
+  "validation": {
+    "rootTypecheck": "passed (35 workspaces)",
+    "rootTests": "passed (including all 157 MCR tests)",
+    "rootBuild": "passed (all games and platform)",
+    "samplingAndInclusionWeights": "passed",
+    "actorPPOAndValueFiniteDifferences": "passed",
+    "jointWorkerWebGPUAndWASM": "passed",
+    "originalBrowserModelsAndLifecycle": "passed",
+    "fullRefereeReplay": "passed"
+  },
+  "publication": {
+    "promoted": false,
+    "liveJointWeightSha256": "e3c6d608b5dbccef1016275769365f45cb8633bba5fdf98969747037f105c5c9",
+    "liveJointWeightsUnchanged": true,
+    "originalAndDefaultModelsRetained": true
+  },
+  "evidenceSha256": {
+    "joint-data-v1/report.json": "b5da57d7f8a31cbf24714d6a0cb0a12eb934ba2d620a3152852a3a57fbdd6c95",
+    "study/report.json": "53662771d154406ec6147b51f3fd68a0d24b848543ac507478edad515815707a",
+    "study/capture/report.json": "9d128212e009b73e339059197b3e6c6317e2f8c3b6a8561b9eeddb1cb8348a9e",
+    "study/capture/episodes.json": "e672bcbf614d99174975ac2dd6f734837675c29926f69595164e7f55cb1c0e3c",
+    "teacher-g0/report.json": "80ea554c232b9bdb07f1b6914c7096ac27a8bd17fc9f9aace4a2c55aaad7d7ff",
+    "teacher-g1/report.json": "a3d118e31c8bd3d34a22d55486267683579078b9ac7938d998a6ce042e99b485",
+    "student-v1/report.json": "5dac85d78c5d61d228ef2518244f9b7c098312b5b96b90060531a545c6dc06e8",
+    "export-v1/report.json": "05df8fe358e8c0fd54ad2aa9543017371e3f09102aea0be1429849e5cd278255",
+    "browser/report.json": "7904f6531804faeef9516c19f2234ea74569274fb6e11cf9b8b8196686533297",
+    "browser-regression/report.json": "1c8adc3f0cfcb1efd6c9f9ea6668929495252718e6edc7315125577771e06163"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion":1,
+  "seeds":[231001,231002,231003,231004],
+  "captureSeeds":[132901,132902],
+  "batchMatches":8,
+  "anchorOriginal":true,
+  "roundValue":"round-value/model.json",
+  "historicalEvaluationReports":["artifacts/guobiao-mahjong/guarded-v2/study/report.json"],
+  "arms":[
+    {"id":"joint-previous","mode":"explore"},
+    {"id":"joint-guarded","mode":"guarded"},
+    {"id":"joint-balanced-teacher","mode":"guarded"},
+    {"id":"joint-balanced-student","mode":"guarded"}
+  ]
+}

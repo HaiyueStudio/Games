@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {registerHooks} from 'node:module';
+import {createHash} from 'node:crypto';
+import {pathToFileURL} from 'node:url';
+import {validateLearningSplit} from './learning-validation.mjs';
+import {valueFeatureError} from './value-parity.mjs';
+registerHooks({resolve(s,c,next){return next(/^\.{1,2}\//.test(s)&&!/\.[a-z0-9]+$/i.test(s)?s+'.ts':s,c)}});
+const out=resolve(process.argv[2]??'artifacts/guobiao-mahjong/value/adaptive-pilot-v1'),hash=b=>createHash('sha256').update(b).digest('hex'),json=p=>JSON.parse(readFileSync(p)),reportPath=resolve(out,'report.json'),report=json(reportPath),groupBytes=readFileSync(resolve(out,'groups.json')),groups=JSON.parse(groupBytes);
+assert.equal(report.status,'passed');assert.equal(report.adaptive,true);assert.equal(report.worlds,null);assert.equal(hash(groupBytes),report.groupsSha256);assert.equal(hash(readFileSync(resolve(out,'positions.json'))),report.positionsSha256);validateLearningSplit(report.config.folds);
+for(const [path,sha] of Object.entries(report.fingerprints))assert.equal(hash(readFileSync(resolve(out,'source',path))),sha);
+const archived=p=>import(pathToFileURL(resolve(out,'source',p))),{createScorer}=await archived('rules/scorer.ts'),{actionPlans}=await archived('ai/value/actions.ts'),{actionValueFeatures}=await archived('ai/value/features.ts'),{budgetDecision,validateAdaptiveBudget}=await archived('benchmarks/adaptive-values.ts'),{sampleWorld,simulationSeed}=await archived('ai/value/simulation.ts');
+const scorer=await createScorer(readFileSync(resolve(out,'source/assets/mcr.wasm'))),budget=report.config.budget;validateAdaptiveBudget(budget);let plans=0,simulations=0,actions=0,maximumFeatureError=0;const ids=new Set();
+for(const g of groups){assert.ok(!ids.has(g.id));ids.add(g.id);assert.ok(report.config.folds[g.fold].includes(g.seed));assert.deepEqual(g.rows.map(r=>r.plan),actionPlans(g.observation,g.prior,scorer));const n=g.sampling.worlds;assert.ok(budget.stages.includes(n));assert.equal(g.sampling.stages.at(-1).worlds,n);assert.equal(g.sampling.stages.at(-1).stop,true);
+  for(const [i,stage] of g.sampling.stages.entries()){assert.equal(stage.worlds,budget.stages[i]);assert.deepEqual(stage,budgetDecision(g.rows.map(r=>({outcomes:r.outcomes.slice(0,stage.worlds)})),stage.minimum,budget));if(i<g.sampling.stages.length-1)assert.equal(stage.stop,false);}
+  for(const row of g.rows){plans++;assert.equal(row.outcomes.length,n);maximumFeatureError=Math.max(maximumFeatureError,valueFeatureError(actionValueFeatures(g.observation,row.plan,g.prior,scorer),row.features));
+    for(const o of row.outcomes){simulations++;actions+=o.actions;assert.equal(o.scores.reduce((a,b)=>a+b,0),0);assert.equal(o.fans.length,4);assert.ok(o.fans.every(n=>Number.isInteger(n)&&n>=0));if(o.winner!==null){assert.ok(o.winner>=0&&o.winner<4);assert.ok(o.fans[o.winner]>=8);}else assert.ok(o.fans.every(n=>n===0));}
+  }
+  // Reconstruct common worlds from stored public positions; there is no hidden wall input.
+  for(const sample of [0,n-1]){const world=sampleWorld(g.observation,simulationSeed(g.seed,g.observation.revision,sample));assert.equal(world.wall.length,g.observation.wallRemaining);}
+}
+assert.equal(groups.length,report.groups);assert.equal(simulations,report.simulations);
+const validation={schemaVersion:1,status:'passed',generatedAt:new Date().toISOString(),reportSha256:hash(readFileSync(reportPath)),groups:groups.length,plans,simulations,simulatedActions:actions,maximumFeatureError,featureTolerance:1e-12,checks:['source-fingerprints','whole-wall-fold-separation','public-feature-parity','candidate-coverage','paired-world-counts','adaptive-budget-recalculation','legal-eight-fan-outcomes','zero-sum-settlement'],limitations:['Outcome aggregates do not contain a full action replay for every rollout','Budget confidence is descriptive under adaptive stopping']};writeFileSync(resolve(out,'validation.json'),JSON.stringify(validation,null,2)+'\n');
+const stageEffects=groups.map(g=>{const old=report.labelComparisons.find(r=>r.id===g.id),first=g.sampling.stages[0],last=g.sampling.stages.at(-1),mean=v=>v.reduce((a,b)=>a+b,0)/v.length;return {id:g.id,fold:g.fold,category:g.category,weakFirst8Values:old.oldValues,strongFirst8Values:first.means,strongFinalValues:last.means,sameWorldPolicyValueChangeFan:mean(first.means.map((v,i)=>Math.abs(v-old.oldValues[i]))),additionalBudgetValueChangeFan:mean(last.means.map((v,i)=>Math.abs(v-first.means[i]))),stages:g.sampling.stages.map(s=>({worlds:s.worlds,bestPlan:s.bestPlan,reason:s.reason,meanPairedSE:s.comparisons.length?mean(s.comparisons.map(c=>c.pairedSE)):0}))};});
+const summaryPath=resolve(process.argv[3]??resolve(out,'summary.json'));writeFileSync(summaryPath,JSON.stringify({schemaVersion:1,status:'passed',generatedAt:new Date().toISOString(),config:report.config,counts:report.counts,simulations,simulatedActions:actions,actionCounts:report.actionCounts,worldDistribution:report.worldDistribution,labelComparisons:report.labelComparisons,stageEffects,reportSha256:validation.reportSha256,validationSha256:hash(readFileSync(resolve(out,'validation.json'))),limitations:report.limitations},null,2)+'\n');console.log(JSON.stringify({...validation,summaryPath},null,2));

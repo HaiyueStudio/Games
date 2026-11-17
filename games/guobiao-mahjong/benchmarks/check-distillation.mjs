@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {runtimeBoundary} from './runtime-boundary.mjs';
+import {validateLearningSplit} from './learning-validation.mjs';
+import {valueFeatureError} from './value-parity.mjs';
+registerHooks({resolve(s,c,next){return next(/^\.{1,2}\//.test(s)&&!/\.[a-z0-9]+$/i.test(s)?s+'.ts':s,c)}});
+const {createScorer}=await import('../rules/scorer.ts'),{actionValueFeatures}=await import('../ai/value/features.ts'),{predictActionValue}=await import('../ai/value/model.ts'),{decodePackedActionValueModel}=await import('../ai/value/packed.ts');
+const args=process.argv.slice(2).filter(v=>!v.startsWith('--')),candidateOnly=process.argv.includes('--candidate-only'),game=resolve(import.meta.dirname,'..'),data=resolve(args[0]??'artifacts/guobiao-mahjong/value/data-v2'),out=resolve(args[1]??'artifacts/guobiao-mahjong/distillation/model-v1'),hash=b=>createHash('sha256').update(b).digest('hex'),report=JSON.parse(readFileSync(resolve(out,'training-report.json'))),dataset=JSON.parse(readFileSync(resolve(data,'report.json'))),groups=JSON.parse(readFileSync(resolve(data,'groups.json')));
+assert.equal(report.status,'passed');assert.equal(hash(readFileSync(resolve(data,'report.json'))),report.dataReportSha256);assert.equal(hash(readFileSync(resolve(data,'groups.json'))),report.groupsSha256);assert.equal(hash(readFileSync(resolve(data,'source/manifest.json'))),report.sourceArchiveSha256);validateLearningSplit(report.folds);
+for(const [name,sha] of Object.entries(dataset.fingerprints))assert.equal(hash(readFileSync(resolve(data,'source',name))),sha);
+for(const [name,key] of [['teacher.json','teacherSha256'],['student.json','studentSha256'],['packed.json','packedSha256'],['parity.json','paritySha256']])assert.equal(hash(readFileSync(resolve(out,name))),report[key]);
+for(const [name,key] of [['train-distillation.py','trainerSha256'],['train-values.py','helperSha256']]){const archived=resolve(out,'source/benchmarks',name);assert.equal(hash(readFileSync(existsSync(archived)?archived:resolve(game,'benchmarks',name))),report[key]);}
+const teacher=JSON.parse(readFileSync(resolve(out,'teacher.json'))),packed=JSON.parse(readFileSync(resolve(out,'packed.json'))),student=decodePackedActionValueModel(packed);if(!candidateOnly)assert.deepEqual((await import('../ai/value/distilledWeights.ts')).distilledValueModel,student);assert.deepEqual(student,JSON.parse(readFileSync(resolve(out,'student.json'))));assert.equal(hash(Buffer.from(packed.payload,'base64')),report.payloadSha256);
+const scorer=await createScorer(readFileSync(resolve(game,'assets/mcr.wasm'))),sum=v=>v.reduce((a,b)=>a+b,0),mean=v=>sum(v)/v.length,predict=(f,m)=>{const rows=predictActionValue(f,m);return [0,1,2,3].map(k=>mean(rows.map(r=>r[k])))},soft=z=>{const max=Math.max(...z),p=z.map(v=>Math.exp(v-max)),total=sum(p);return p.map(v=>v/total)},metrics={};let checkedFeatures=0,maximumFeatureError=0;
+for(const fold of ['train','calibration','test']){
+  const fanLoss={teacher:[],student:[]},pairLoss={teacher:[],student:[]},rmse=[],kl=[],agree=[],regret=[],mae=[];let positions=0,plans=0;
+  for(const g of groups.filter(g=>g.fold===fold)){positions++;const estimates=[],truth=[];
+    for(const row of g.rows){const f=actionValueFeatures(g.observation,row.plan,g.prior,scorer);maximumFeatureError=Math.max(maximumFeatureError,valueFeatureError(f,row.features));checkedFeatures++;plans++;const t=predict(f,teacher),s=predict(f,student),y=[mean(row.outcomes.map(r=>r.fans[0]/32)),mean(row.outcomes.map(r=>sum(r.fans.slice(1))/96))],tq=t[0]-t[1],sq=s[0]-s[1],prior=g.prior[row.plan.index],anchor=prior>=report.config.settings.minimumPrior?report.config.settings.priorWeight*Math.log(Math.max(1e-12,prior)):-1e6;estimates.push({teacher:tq,student:sq,teacherScore:tq+anchor,studentScore:sq+anchor});truth.push(y[0]-y[1]);rmse.push((sq-tq)**2);mae.push(Math.abs(s[0]-y[0])*32);for(let k=0;k<2;k++){fanLoss.teacher.push((t[k]-y[k])**2);fanLoss.student.push((s[k]-y[k])**2);}}
+    const targetMean=mean(truth);for(const name of ['teacher','student']){const center=mean(estimates.map(r=>r[name]));pairLoss[name].push(...estimates.map((r,i)=>((r[name]-center)-(truth[i]-targetMean))**2));}
+    const ts=estimates.map(r=>r.teacherScore),ss=estimates.map(r=>r.studentScore),tp=soft(ts.map(v=>v/report.config.temperature)),sp=soft(ss.map(v=>v/report.config.temperature)),ti=ts.indexOf(Math.max(...ts)),si=ss.indexOf(Math.max(...ss));agree.push(+(ti===si));regret.push((ts[ti]-ts[si])*32);kl.push(sum(tp.map((v,i)=>v*(Math.log(Math.max(1e-15,v))-Math.log(Math.max(1e-15,sp[i]))))));
+  }
+  metrics[fold]={groups:positions,plans,teacherLoss:mean(fanLoss.teacher)+mean(pairLoss.teacher),studentLoss:mean(fanLoss.student)+mean(pairLoss.student),teacherQrmse:Math.sqrt(mean(rmse)),policyKL:mean(kl),planAgreement:mean(agree),teacherRegretFan:mean(regret),ownFanMAE:mean(mae)};
+  for(const [key,value] of Object.entries(metrics[fold]))assert.ok(Math.abs(value-report.metrics[fold][key])<1e-9,fold+' '+key+' differs from NumPy');
+}
+const boundary=runtimeBoundary(game),compiled=process.argv.includes('--bundle');let bundleBytes=null;
+if(compiled){const bytes=readFileSync(resolve(game,'ai/tfjs.worker.js')),text=bytes.toString();for(const marker of ['function sampleWorld','Simulation did not terminate','teacher.json','class Adam','const actionValueModel = {'])assert.ok(!text.includes(marker),'Offline code in Worker: '+marker);bundleBytes=bytes.length;}
+const validation={schemaVersion:1,status:'passed',generatedAt:new Date().toISOString(),studentSha256:report.studentSha256,packedSha256:report.packedSha256,checkedFeatures,maximumFeatureError,featureTolerance:1e-12,boundary,candidateOnly,compiledWorkerChecked:compiled,workerBytes:bundleBytes,metrics};writeFileSync(resolve(out,candidateOnly?'candidate-validation.json':'validation.json'),JSON.stringify(validation,null,2)+'\n');console.log(JSON.stringify(validation,null,2));

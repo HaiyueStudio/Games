@@ -1,0 +1,1 @@
+{"extends":"../ai/tsconfig.worker.json","include":["gpu-arena.worker.ts"]}

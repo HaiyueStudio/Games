@@ -13,7 +13,7 @@ are `^22.22.2 || ^24.15.0 || ^26.0.0`.
 | `@haiyue/games-platform` | `games/launcher` | Lobby, host, shared runtime, input, save, session and simulator |
 | `@haiyue/games-tooling` | `packages/tooling` | Repository policy and infrastructure tests; no build output |
 
-The final workspace set contains 31 games and these two support packages. Shared
+The current workspace set contains 33 games and these two support packages. Shared
 sources remain in their original directories: the existing session, input and
 launcher references form a single platform task rather than circular packages.
 All games depend on that package. Ink Pinball also depends on Pinball, and Pad
@@ -74,7 +74,7 @@ miss. Imported game dependencies are included through dependency inputs.
 Generated bundles, maps, lazy chunks, artifacts and cache files are excluded.
 
 Outputs are per-game `bundle.js` and its map, Entanglement Path's additional
-`terrain-raster.worker.js` and its map, Gravity Maze's `dist` directory
+`terrain-raster.worker.js` and its map, Mahjong's `ai/mahjong.worker.js` and its map, Gravity Maze's `dist` directory
 (including lazy chunks), and the platform's host, lobby, simulator and shared core
 chunks. Repeating a task replays the cached result; deleting these generated
 outputs restores them from cache. No source or art is restored over working edits.

@@ -41,4 +41,23 @@ const terrainWorkers = games.filter(entry => entry.id === 'entanglement-path').m
   output: { file: 'games/entanglement-path/terrain-raster.worker.js', format: 'iife', sourcemap: true, inlineDynamicImports: true },
   plugins: haiyuePlugins({ declaration: false, tsconfig: existsSync('games/entanglement-path/tsconfig.build.json') ? './games/entanglement-path/tsconfig.build.json' : './tsconfig.rollup.json' }),
 }));
-export default process.env.GAME_FILTER ? [...terrainWorkers, ...configs] : [...lobby, ...terrainWorkers, ...configs];
+// Publish the Mahjong strategy worker before the GUI bundle that creates it.
+const mahjongWorkers = games.filter(entry => entry.id === 'guobiao-mahjong').map(() => ({
+  input: 'games/guobiao-mahjong/ai/mahjong.worker.ts',
+  output: { file: 'games/guobiao-mahjong/ai/mahjong.worker.js', format: 'es', sourcemap: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/tsconfig.worker.json' }),
+}));
+const mahjongModelWorkers = games.filter(entry => entry.id === 'guobiao-mahjong').map(() => ({
+  input: 'games/guobiao-mahjong/ai/browser/tfjs.worker.ts',
+  output: { file: 'games/guobiao-mahjong/ai/tfjs.worker.js', format: 'iife', sourcemap: true, inlineDynamicImports: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/browser/tsconfig.worker.json' }),
+}));
+const mahjongCoachWorkers = games.filter(entry => entry.id === 'guobiao-mahjong').map(() => ({
+  input: 'games/guobiao-mahjong/ai/coach.worker.ts',
+  output: { file: 'games/guobiao-mahjong/ai/coach.worker.js', format: 'es', sourcemap: true },
+  plugins: haiyuePlugins({ declaration: false, tsconfig: './games/guobiao-mahjong/ai/coaching/tsconfig.worker.json' }),
+}));
+const selected = process.env.GAME_FILTER ? [...terrainWorkers, ...mahjongWorkers, ...mahjongModelWorkers, ...mahjongCoachWorkers, ...configs] : [...lobby, ...terrainWorkers, ...mahjongWorkers, ...mahjongModelWorkers, ...mahjongCoachWorkers, ...configs];
+const stageEntry = process.env.GAME_BUILD_ENTRY;
+if(stageEntry&&(!process.env.GAME_FILTER||!selected.some(c=>c.input===stageEntry)))throw Error('Unknown scoped game build entry: '+stageEntry);
+export default stageEntry?selected.filter(c=>c.input===stageEntry):selected;
