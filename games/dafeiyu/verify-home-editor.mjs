@@ -25,12 +25,14 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         }
       };
       const screenshot = async label => {
+        await ready('!__dafeiyu.transition');
         await frame();
         const { result } = await cdp.call('Page.captureScreenshot', { format: 'png' });
         writeFileSync(resolve(output, `${name}-${label}.png`), Buffer.from(result.data, 'base64'));
         return result.data;
       };
       const tap = async (x, y) => {
+        await ready('!__dafeiyu.transition');
         await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
         await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
         await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
@@ -56,6 +58,7 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await tap(x + cell * (col + .5), y + cell * (row + .5));
       };
       const key = async code => {
+        await ready('!__dafeiyu.transition');
         await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', code, key: code });
         await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', code, key: code });
         await frame();
@@ -158,6 +161,13 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
       await screenshot('world-editor-routes');
 
       if (name === 'desktop') {
+        await click('editor-flower-up');
+        await click('editor-select'); await cell(4, 4);
+        await click('editor-gate-type'); await click('editor-gate-type');
+        await click('editor-gate-up'); await click('editor-gate-down');
+        await ready(`__dafeiyu.editor.rooms[0].clearCount === 1 &&
+          __dafeiyu.editor.rooms[0].paths.some(path => path.x === 4 && path.condition?.gate === 2 && path.condition.requirement === 1)`);
+        await screenshot('world-editor-gate');
         await click('新地图');
         await pick('@link'); await cell(2, 6);
         await pick('@path'); await cell(2, 5);
@@ -182,12 +192,17 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
       await pick('wall'); await cell(6, 6);
       await click('editor-undo');
       await ready(`!__dafeiyu.editor.rooms[2].tiles.some(tile => tile.name === 'wall')`);
+      for (let page = 0; page < 8 && !await evalJs("__dafeiyu.editorPalette.includes('fungus')"); page++) {
+        await click('editor-palette-next');
+      }
+      await pick('fungus'); await cell(10, 6);
+      await screenshot('fungus-palette');
       await click('规则字块');
       await pick('text_baba');
       for (const [x, name] of [[1, 'text_keke'], [2, 'text_is'], [3, 'text_you'], [8, 'text_flag'], [9, 'text_is'], [10, 'text_win']]) {
         await pick(name); await cell(x, 1);
       }
-      await ready(`__dafeiyu.editor.rooms[2].tiles.length === 12`);
+      await ready(`__dafeiyu.editor.rooms[2].tiles.length === 13`);
       for (const [x, name] of [[2, 'text_baba'], [4, 'text_is'], [6, 'text_push'], [9, 'text_baba']]) {
         await pick(name); await cell(x, 3);
       }
@@ -210,6 +225,7 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
       await click('editor-run');
       await ready(`__dafeiyu.mode === 'test' && __dafeiyu.current === 'room-2' && __dafeiyu.rules.includes('KEKE IS YOU')`);
       assert.ok(await evalJs(`__dafeiyu.state.units.some(unit => unit.name === 'box' && unit.x === 7 && unit.y === 6)`));
+      assert.ok(await evalJs(`__dafeiyu.state.units.some(unit => unit.name === 'fungus' && unit.x === 10 && unit.y === 6)`));
       const image = process.env.DAFEIYU_LOOSE_ART ? 'box.png' : 'atlas.build.png';
       assert.ok(await evalJs(`performance.getEntriesByType('resource').some(entry => new URL(entry.name).pathname.endsWith('/assets/' + ${JSON.stringify(image)}))`));
       const ruleBoxes = await screenshot('rule-boxes');
@@ -230,11 +246,15 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
           Math.floor((y + row * cell) * image.height / innerHeight), 1, 1).data);
         const faces = [1, 2, 3].map((col, i) => brightness(col, 1) - brightness(2 + i * 2, 3));
         const seams = [[4.97, 5.5], [5, 5.5], [5.03, 5.5], [5.5, 5.97], [5.5, 6], [5.5, 6.03]].map(([col, row]) => pixel(col,row));
-        return { faces, seams };
+        const [r, g, b] = pixel(10.5, 6.42);
+        return { faces, seams, fungus: [r, g, b] };
       })()`);
       assert.ok(faceBrightness.faces.every(diff => diff > 75), `Expected three distinct active/inactive face pairs: ${faceBrightness.faces}`);
       assert.ok(faceBrightness.seams.every(([, green, blue]) => green > 72 && blue > 110),
         `Horizontal and vertical water seams should show water throughout: ${JSON.stringify(faceBrightness.seams)}`);
+      const [red, green, blue] = faceBrightness.fungus;
+      assert.ok(red > green + 28 && blue > green + 28, `Fungus should draw its purple cap: ${faceBrightness.fungus}`);
+      checks.push('generated fungus sprite appears in editor palette and on the board');
       const terrain = await evalJs('__dafeiyu.animation.ambient');
       assert.equal(terrain.water, 3);
       assert.equal(terrain.flags, 1);
@@ -266,12 +286,14 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await ready(`__dafeiyu.editing === 'world'`);
         await click('editor-run');
         await ready(`__dafeiyu.current === 'world' && __dafeiyu.selectedLink === 'room-1'`);
+        await cdp.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
         await key('Enter');
         await ready(`__dafeiyu.current === 'room-1'`);
-        await cdp.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+        assert.equal(await evalJs('__dafeiyu.transition'), undefined);
         await steps('ArrowRight', 6);
         await ready('__dafeiyu.state.won && __dafeiyu.animation.sparkles === 0');
         await ready(`__dafeiyu.current === 'world' && __dafeiyu.openPaths.some(path => path[0] === 4 && path[1] === 4)`);
+        assert.equal(await evalJs('__dafeiyu.transition'), undefined);
         await cdp.call('Emulation.setEmulatedMedia', { features: [] });
         await screenshot('world-playtest-routes');
         await steps('ArrowRight', 3);
@@ -285,7 +307,9 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await key('Enter');
         await ready(`__dafeiyu.current === 'room-3' && __dafeiyu.selectedLink === 'room-4'`);
         await key('Enter'); await ready(`__dafeiyu.current === 'room-4'`);
-        await click('tool-pause'); await click('返回大世界');
+        await click('tool-pause'); await click('返回上一级地图');
+        await ready(`__dafeiyu.mode === 'test' && __dafeiyu.current === 'room-3' && __dafeiyu.selectedLink === 'room-4'`);
+        await click('tool-pause'); await click('返回上一级地图');
         await ready(`__dafeiyu.mode === 'test' && __dafeiyu.current === 'world' && !__dafeiyu.paused`);
         await click('tool-pause'); await click('退出试玩');
         await reload();
@@ -303,9 +327,12 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await click('editor-export');
         const exported = await evalJs('window.exportedWorld');
         assert.equal(exported.rooms.length, 5);
+        assert.equal(exported.rooms[0].clearCount, 1);
+        assert.deepEqual(exported.rooms[0].paths.find(path => path.x === 4).condition, { gate: 2, requirement: 1 });
         assert.equal(JSON.stringify(exported.rooms[2]), authoredRoom);
         exported.rooms[0].title = 'Imported Reef';
-        exported.rooms[1].tiles.push({ name: 'skull', x: 4, y: 4, dir: 0 }, { name: 'wall', x: 2, y: 4, dir: 0 });
+        exported.rooms[1].tiles.push(...[['skull', 4, 4], ['wall', 2, 4], ['baba', 3, 5], ['wall', 2, 5], ['skull', 5, 5]]
+          .map(([name, x, y]) => ({ name, x, y, dir: 0 })));
         for (const [row, words] of [[6, ['skull', 'is', 'defeat']], [7, ['wall', 'is', 'stop']]]) {
           exported.rooms[1].tiles.push(...words.map((word, i) => ({ name: 'text_' + word, x: 3 + i, y: row, dir: 0 })));
         }
@@ -319,20 +346,33 @@ for (const [name, width, height] of [['desktop', 1200, 800], ['portrait', 390, 8
         await click('editor-run');
         await ready(`__dafeiyu.current === 'world' && __dafeiyu.selectedLink === 'room-1'`);
         await key('Enter');
-        await ready(`__dafeiyu.current === 'room-1' && __dafeiyu.rules.includes('SKULL IS DEFEAT') && __dafeiyu.audio.buffers === 7`);
+        await ready(`__dafeiyu.current === 'room-1' && __dafeiyu.rules.includes('SKULL IS DEFEAT') && __dafeiyu.audio.buffers === 8`);
         const moves = await evalJs('__dafeiyu.audio.played.move ?? 0');
         await key('ArrowLeft');
         await ready('__dafeiyu.state.turn === 1');
         assert.equal(await evalJs('__dafeiyu.audio.played.move ?? 0'), moves);
         await key('ArrowRight');
-        await ready('__dafeiyu.audio.played.failure === 1 && __dafeiyu.state.turn === 2');
+        await ready(`__dafeiyu.audio.played.defeat === 1 && __dafeiyu.state.turn === 2 &&
+          __dafeiyu.state.units.filter(unit => unit.name === 'baba').length === 1`);
+        assert.deepEqual(await evalJs('__dafeiyu.animation.defeats'), [[4, 4]]);
+        assert.equal(await evalJs('__dafeiyu.audio.played.failure ?? 0'), 0);
+        await screenshot('defeat');
+        await ready('__dafeiyu.animation.defeats.length === 0');
+        await key('ArrowRight');
+        await ready('__dafeiyu.audio.played.defeat === 2 && __dafeiyu.audio.played.failure === 1 && __dafeiyu.state.turn === 3');
+        assert.deepEqual(await evalJs('__dafeiyu.animation.defeats'), [[5, 5]]);
         await key('Space');
-        await ready('__dafeiyu.state.turn === 3');
-        assert.equal(await evalJs('__dafeiyu.audio.played.failure'), 1);
-        await key('KeyZ'); await key('KeyZ');
+        await ready('__dafeiyu.state.turn === 4');
+        assert.equal(await evalJs('__dafeiyu.audio.played.defeat'), 2);
+        await steps('KeyZ', 3);
         await ready('__dafeiyu.state.turn === 1');
+        assert.deepEqual(await evalJs('__dafeiyu.animation.defeats'), []);
+        assert.equal(await evalJs('__dafeiyu.state.units.filter(unit => unit.name === "baba").length'), 2);
+        await key('KeyY');
+        await ready('__dafeiyu.state.turn === 2 && __dafeiyu.audio.played.defeat === 3');
+        assert.deepEqual(await evalJs('__dafeiyu.animation.defeats'), [[4, 4]]);
         assert.equal(await evalJs('__dafeiyu.audio.played.failure'), 1);
-        checks.push('blocked movement is quiet and losing control plays one failure sound with undo recovery');
+        checks.push('defeat animates at impact, plays a sound even with a survivor, and replays after undo');
         const setHidden = hidden => evalJs(`(() => {
           Object.defineProperty(document, 'hidden', { configurable: true, value: ${hidden} });
           document.dispatchEvent(new Event('visibilitychange'));

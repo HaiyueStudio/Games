@@ -64,18 +64,44 @@ function chunk(type, data) {
   return result;
 }
 
-export function encodePng({ width, height, data }) {
+export function encodePng({ width, height, data }, adaptive = false) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width); header.writeUInt32BE(height, 4);
   header[8] = 8; header[9] = 6;
   const stride = width * 4, scanlines = Buffer.allocUnsafe((stride + 1) * height);
+  const alternate = adaptive ? Buffer.allocUnsafe(scanlines.length) : undefined;
+  const rows = adaptive ? Array.from({ length: 5 }, () => Buffer.allocUnsafe(stride)) : [];
   for (let y = 0; y < height; y++) {
-    scanlines[y * (stride + 1)] = 4;
+    const start = y * (stride + 1);
+    const scores = [0, 0, 0, 0, 0];
+    scanlines[start] = 4;
     for (let x = 0; x < stride; x++) {
       const i = y * stride + x;
-      scanlines[i + y + 1] = data[i] - paeth(x >= 4 ? data[i - 4] : 0, y ? data[i - stride] : 0,
-        y && x >= 4 ? data[i - stride - 4] : 0);
+      const left = x >= 4 ? data[i - 4] : 0, up = y ? data[i - stride] : 0;
+      const diagonal = y && x >= 4 ? data[i - stride - 4] : 0;
+      const predicted = paeth(left, up, diagonal), value = data[i];
+      scanlines[start + x + 1] = value - predicted;
+      if (!alternate) continue;
+      rows[0][x] = value;
+      rows[1][x] = value - left;
+      rows[2][x] = value - up;
+      rows[3][x] = value - ((left + up) >> 1);
+      rows[4][x] = value - predicted;
+      for (let filter = 0; filter < rows.length; filter++) {
+        const residual = rows[filter][x];
+        scores[filter] += Math.min(residual, 256 - residual);
+      }
     }
+    if (!alternate) continue;
+    let best = 4;
+    for (let filter = 0; filter < 4; filter++) if (scores[filter] < scores[best]) best = filter;
+    alternate[start] = best;
+    rows[best].copy(alternate, start + 1);
   }
-  return Buffer.concat([signature, chunk('IHDR', header), chunk('IDAT', deflateSync(scanlines, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+  let compressed = deflateSync(scanlines, { level: 9 });
+  if (alternate) {
+    const candidate = deflateSync(alternate, { level: 9 });
+    if (candidate.length < compressed.length) compressed = candidate;
+  }
+  return Buffer.concat([signature, chunk('IHDR', header), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))]);
 }

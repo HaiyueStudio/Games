@@ -12,7 +12,7 @@ interface RouteSegment {
   open: boolean;
 }
 
-export function mapRoutes(puzzle: Puzzle) {
+export function mapRoutes(puzzle: Puzzle, preview = false) {
   const { level, context } = puzzle;
   const { width, height, edges } = level;
   const points = new Map<number, RoutePoint>();
@@ -27,7 +27,7 @@ export function mapRoutes(puzzle: Puzzle) {
   const open = new Set(puzzle.openPaths);
   const revealed = new Set(puzzle.revealedPaths);
   for (const path of level.paths) {
-    place(path, open.has(path), true, path.gate > 0 && revealed.has(path));
+    place(path, open.has(path), true, path.gate > 0 && (preview || revealed.has(path)));
   }
   for (const unit of puzzle.state.units) {
     if (!unit.link || context.has(unit, 'hide')) continue;

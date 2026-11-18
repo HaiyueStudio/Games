@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runChromeWebGpuFixture } from '../../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
 
@@ -27,8 +27,19 @@ for (const [name, width, height] of layouts) {
         }
       };
       const frame = () => evalJs('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-      const save = async suffix => {
-        await frame();
+      const idle = () => ready('!__dafeiyu.transition');
+      const watchPortal = () => evalJs(`(() => {
+        window.portalFrames = [];
+        const start = performance.now();
+        const watch = () => {
+          const { current, transition } = __dafeiyu;
+          if (transition) portalFrames.push([transition, current]);
+          if ((transition || !portalFrames.length) && performance.now() - start < 12000) requestAnimationFrame(watch);
+        };
+        requestAnimationFrame(watch);
+      })()`);
+      const save = async (suffix, duringTransition = false) => {
+        if (!duringTransition) { await idle(); await frame(); }
         const { result } = await cdp.call('Page.captureScreenshot', { format: 'png' });
         writeFileSync(resolve(output, name + '-' + suffix + '.png'), Buffer.from(result.data, 'base64'));
         return result.data;
@@ -53,12 +64,17 @@ for (const [name, width, height] of layouts) {
         assert.ok([first, second].every(pixel => !isOpenRoute(pixel) && pixel[2] > gap[2] + 30),
           `Unopened route should show pale dashes separated by a gap: ${[first, gap, second]}`);
       };
-      const key = async code => {
+      const sendKey = async code => {
         await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key: code, code });
         await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key: code, code });
+      };
+      const key = async code => {
+        await idle();
+        await sendKey(code);
         await frame();
       };
       const walkFrames = async (facing, sprites, atlas) => {
+        await idle();
         const code = 'Arrow' + facing[0].toUpperCase() + facing.slice(1);
         const prefix = JSON.stringify(`${atlas}/${facing}/`);
         return evalJs(`(async () => {
@@ -72,6 +88,7 @@ for (const [name, width, height] of layouts) {
         })()`);
       };
       const click = async label => {
+        await idle();
         const value = JSON.stringify(label);
         const x = await evalJs(`__dafeiyu.hud.find(n => n.visible && (n.text === ${value} || n.id === ${value}))?.rect`);
         assert.ok(x && x.width > 0);
@@ -92,6 +109,7 @@ for (const [name, width, height] of layouts) {
       assert.equal(await evalJs('__dafeiyu.audio.state'), 'locked');
       const mapAnimation = await evalJs('__dafeiyu.animation.ambient');
       assert.ok(mapAnimation.flags > 0 && mapAnimation.sea > 0);
+      assert.equal(await evalJs('__dafeiyu.animation.clearedMarkers'), 0);
       await ready(`__dafeiyu.animation.ambient.frame !== ${mapAnimation.frame}`);
       const initialMap = await save('initial');
       const [sea, land] = await mapPixels(initialMap, [[.5, .5], [4.5, 5.5]]);
@@ -106,9 +124,21 @@ for (const [name, width, height] of layouts) {
       await key('ArrowUp'); await key('Enter');
       assert.ok(await evalJs('__dafeiyu.library && __dafeiyu.message === "未解锁"'));
       await key('KeyL');
-      await key('Enter');
+      await watchPortal();
+      const started = await evalJs(`(() => {
+        const send = code => document.getElementById('lagoon').dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+        send('Enter');
+        const started = [__dafeiyu.transition, __dafeiyu.current];
+        send('ArrowRight');
+        return started;
+      })()`);
+      assert.deepEqual(started, ['closing', 'coral-bay']);
+      await ready('portalFrames.some(([phase, room]) => phase === "opening" && room === "first-dive")');
+      await save('portal-enter', true);
+      await idle();
       await ready('__dafeiyu.current === "first-dive"');
-      await ready('__dafeiyu.audio.musicStarts === 1 && __dafeiyu.audio.buffers === 7 && __dafeiyu.audio.played.click >= 1 && __dafeiyu.audio.played.enter >= 1');
+      assert.equal(await evalJs('__dafeiyu.state.turn'), 0, 'movement during the wipe does not affect the arriving room');
+      await ready('__dafeiyu.audio.musicStarts === 1 && __dafeiyu.audio.buffers === 8 && __dafeiyu.audio.played.click >= 1 && __dafeiyu.audio.played.enter >= 1');
       await frame();
       assert.deepEqual(await evalJs('__dafeiyu.rules.slice().sort()'), ['BABA IS YOU', 'FLAG IS WIN', 'ROCK IS PUSH']);
       assert.ok(await evalJs(`__dafeiyu.bounds.cell * 13 > ${width * (width > height ? .86 : .95)}`));
@@ -121,7 +151,7 @@ for (const [name, width, height] of layouts) {
       const artFiles = await evalJs(`performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)
         .filter(path => path.includes('/assets/') && (path.endsWith('.png') || path.endsWith('.webp'))).map(path => path.split('/assets/').at(-1)).sort()`);
       assert.deepEqual(artFiles, process.env.DAFEIYU_LOOSE_ART ?
-        ['box.png', 'lagoon.png', 'luna-walk/atlas.png', 'rule-boxes.png', 'tiles.png', 'whale-walk/atlas.png'] :
+        ['box.png', 'brick.png', 'fungus.png', 'lagoon.png', 'luna-walk/atlas.png', 'pillar.png', 'rule-boxes.png', 'tiles.png', 'whale-walk/atlas.png'] :
         ['atlas.build.png', 'lagoon.webp']);
       checks.push('startup only fetches the expected image sources');
       for (const facing of ['right', 'down', 'left', 'up']) {
@@ -141,7 +171,7 @@ for (const [name, width, height] of layouts) {
       await ready('__dafeiyu.paused');
       const ambientFrame = await evalJs('__dafeiyu.animation.ambient.frame');
       const choices = await evalJs(`__dafeiyu.hud.filter(n => n.visible && /^pause-(resume|world|home)$/.test(n.id)).map(n => n.text)`);
-      assert.deepEqual(choices, ['继续游戏', '返回大世界', '返回首页']);
+      assert.deepEqual(choices, ['继续游戏', '返回上一级地图', '返回首页']);
       await save('pause-menu');
       await key('ArrowRight');
       assert.equal(await evalJs('__dafeiyu.animation.ambient.frame'), ambientFrame);
@@ -150,11 +180,14 @@ for (const [name, width, height] of layouts) {
       await ready('!__dafeiyu.paused');
       assert.equal(await evalJs('JSON.stringify(__dafeiyu.state)'), prior);
       await key('Escape'); await ready('__dafeiyu.paused');
-      await click('返回大世界');
-      await ready('!__dafeiyu.paused && __dafeiyu.current === "coral-bay" && __dafeiyu.selectedLink === "first-dive"');
+      await watchPortal();
+      await click('返回上一级地图');
+      await ready('portalFrames.some(([phase, room]) => phase === "opening" && room === "coral-bay")');
+      assert.ok(await evalJs('!__dafeiyu.paused && __dafeiyu.selectedLink === "first-dive"'));
+      await save('portal-return', true);
       await click('进入');
       await ready('__dafeiyu.current === "first-dive" && __dafeiyu.state.turn === 0');
-      checks.push('full viewport grid, native icons, exact redo, pause isolation and world navigation');
+      checks.push('full viewport grid, native icons, exact redo, pause isolation and bidirectional portal navigation');
       for (let i = 0; i < 7; i++) await key('ArrowRight');
       await ready('__dafeiyu.state.won && __dafeiyu.animation.celebrating && __dafeiyu.animation.sparkles > 0');
       await save('clear');
@@ -184,16 +217,25 @@ for (const [name, width, height] of layouts) {
       checks.push('one BGM loop and action-driven click, movement, victory and room transition sounds');
       assert.deepEqual(await evalJs('__dafeiyu.openPaths'), [[3, 6], [4, 6]]);
       assert.ok(await evalJs('__dafeiyu.state.units.some(unit => unit.link === "first-dive" && unit.state === 3)'));
+      await ready('__dafeiyu.animation.clearedMarkers === 1');
       const openedMap = await save('map-unlocked');
+      const [cleared, available] = await evalJs(`['first-dive', 'breakwater'].map(id => {
+        const { x, y } = __dafeiyu.state.units.find(unit => unit.link === id);
+        return [x + .8075, y + .77];
+      })`);
+      const [check, next] = await mapPixels(openedMap, [cleared, available]);
+      assert.ok(check.slice(0, 3).every(value => value > 220) && next.some(value => value < 210),
+        `Only the cleared flag should have a bright check mark: ${check} / ${next}`);
       assert.ok((await mapPixels(openedMap, coralSeams)).every(isOpenRoute), 'Coral Bay route crosses all three cell seams');
       await assertDashedRoute(openedMap, [[5.5, 4.75], [5.5, 5], [5.5, 5.25]]);
       for (let i = 0; i < 3; i++) await key('ArrowRight');
       await ready('__dafeiyu.selectedLink === "breakwater"');
       await cdp.call('Page.reload');
       await ready('window.__dafeiyu?.current === "coral-bay" && __dafeiyu.selectedLink === "breakwater"');
+      await ready('__dafeiyu.animation.clearedMarkers === 1');
       await key('Enter');
       await ready('__dafeiyu.current === "breakwater"');
-      checks.push('win particles, pause and restart safety, automatic return to the world and next native level');
+      checks.push('win particles, automatic world return, persisted check badge and next native level');
       const screenshot = await save('tile-scale');
       const edgeColors = await evalJs(`(async () => {
         const image = new Image();
@@ -234,6 +276,7 @@ for (const [name, width, height] of layouts) {
       })()`);
       await ready('__dafeiyu.gamepad');
       const button = async index => {
+        await idle();
         const code = { 0: 'Space', 1: 'KeyZ', 3: 'KeyL', 5: 'KeyY', 12: 'ArrowUp', 15: 'ArrowRight' }[index];
         await evalJs(`new Promise((resolve, reject) => {
           const finish = (error) => {
@@ -272,6 +315,7 @@ for (const [name, width, height] of layouts) {
       await ready('__dafeiyu.current === "change-course"');
       checks.push('simulated standard gamepad');
       if (process.env.DAFEIYU_BABA_WORLD && name === 'desktop') {
+        await idle();
         const { result: { root: doc } } = await cdp.call('DOM.getDocument');
         const { result: { nodeId } } = await cdp.call('DOM.querySelector', { nodeId: doc.nodeId, selector: '#level-pair' });
         await cdp.call('DOM.setFileInputFiles', { nodeId, files: ['0level.l','0level.ld','106level.l','106level.ld'].map(file => resolve(process.env.DAFEIYU_BABA_WORLD, file)) });
@@ -283,6 +327,7 @@ for (const [name, width, height] of layouts) {
         await ready('__dafeiyu.current === "106level"');
         await key('Enter');
         await ready('__dafeiyu.current === "0level"');
+        await idle();
         checks.push('real Steam .l/.ld file import and map navigation');
         const { result: { nodeId: folderId } } = await cdp.call('DOM.querySelector', { nodeId: doc.nodeId, selector: '#level-pack' });
         await cdp.call('DOM.setFileInputFiles', { nodeId: folderId, files: [resolve(process.env.DAFEIYU_BABA_WORLD)] });
@@ -290,6 +335,7 @@ for (const [name, width, height] of layouts) {
         for (let i = 0; i < 8; i++) await key('ArrowRight');
         await ready('__dafeiyu.state.won === true');
         await ready('__dafeiyu.current === "106level" && __dafeiyu.selectedLink === "0level"');
+        await idle();
         checks.push('real Steam directory import with world_data.txt');
         await cdp.call('DOM.setFileInputFiles', { nodeId, files: ['17level.l', '17level.ld'].map(file => resolve(process.env.DAFEIYU_BABA_WORLD, file)) });
         await ready('__dafeiyu.current === "17level" && __dafeiyu.rules.includes("KEKE IS YOU") && __dafeiyu.animation.lunas.length === 1');
@@ -308,6 +354,106 @@ for (const [name, width, height] of layouts) {
           assert.ok(await evalJs(`__dafeiyu.state.units.some(unit => unit.name === 'keke' && unit.x === ${x} && unit.y === ${y})`));
         }
         checks.push('Luna displays and animates as Keke in a real Steam room');
+        await cdp.call('DOM.setFileInputFiles', { nodeId, files: ['4level.l', '4level.ld'].map(file => resolve(process.env.DAFEIYU_BABA_WORLD, file)) });
+        await ready('__dafeiyu.current === "4level" && __dafeiyu.rules.includes("WALL IS STOP")');
+        const coords = name => evalJs(`__dafeiyu.state.units.filter(unit => unit.name === ${JSON.stringify(name)}).map(({x, y}) => x + "," + y).sort()`);
+        const [walls, bricks, pillars] = await Promise.all(['wall', 'brick', 'pillar'].map(coords));
+        assert.deepEqual([walls.length, bricks.length, pillars.length], [15, 34, 6]);
+        const yard = await save('pillar-yard');
+        const floorPoint = [4.56, 6.23];
+        const [floor, pebble, wall, pillar] = await mapPixels(yard, [floorPoint, [4.16, 6.16], [7.33, 6.19], [19.48, 2.14]]);
+        assert.ok(floor[2] > floor[1] + 10 && floor[1] > floor[0] + 15 && pebble[1] > floor[1] + 20,
+          `Expected cool blue ground with lighter pebbles: ${floor} / ${pebble}`);
+        assert.ok(wall[1] > wall[0] + 25, `WALL keeps its teal masonry: ${wall}`);
+        assert.ok(pillar[0] > 200 && pillar[1] > 185 && pillar[2] > 155, `Expected an ivory pillar capital: ${pillar}`);
+        for (const samples of [
+          [[4.98, 5.5], [5, 5.5], [5.02, 5.5]],
+          [[4.5, 5.98], [4.5, 6], [4.5, 6.02]],
+        ]) {
+          const greens = (await mapPixels(yard, samples)).map(([, green]) => green);
+          assert.ok(Math.min(...greens) > 80 && Math.max(...greens) - Math.min(...greens) < 20,
+            `Pebbles should cross the tile seam continuously: ${greens}`);
+        }
+        await key('ArrowUp'); await key('ArrowUp');
+        assert.ok(await evalJs('__dafeiyu.state.units.some(unit => unit.name === "baba" && unit.x === 7 && unit.y === 7)'));
+        await key('KeyR');
+        const directions = { r: 'ArrowRight', l: 'ArrowLeft', u: 'ArrowUp', d: 'ArrowDown' };
+        // Push PILLAR and IS beside the existing WALL word in the original room.
+        for (const move of 'rrruuuuuulllldlddrrullluldddrurruuurdurrddllllllulddd') await key(directions[move]);
+        await ready('__dafeiyu.rules.includes("WALL IS PILLAR")');
+        assert.deepEqual(await coords('wall'), []);
+        assert.deepEqual(await coords('rock'), []);
+        assert.deepEqual(await coords('brick'), bricks);
+        const converted = await coords('pillar');
+        assert.equal(converted.length, 21);
+        assert.ok(walls.every(cell => converted.includes(cell)));
+        const transformed = await save('pillar-yard-transformed');
+        const [originalFloor, newPillar] = await mapPixels(transformed, [floorPoint, [7.48, 6.14]]);
+        assert.deepEqual(originalFloor, floor);
+        assert.ok(newPillar.slice(0, 3).every((value, channel) => Math.abs(value - pillar[channel]) < 12),
+          `Transformed walls use the same ivory column as original pillars: ${newPillar} / ${pillar}`);
+        await key('ArrowRight'); await key('ArrowRight');
+        assert.ok(await evalJs(`['baba', 'brick'].every(name => __dafeiyu.state.units.some(unit =>
+          unit.name === name && unit.x === 4 && unit.y === 6))`));
+        checks.push('Steam Pillar Yard renders continuous pebble paving separately from WALL and all converted walls as PILLAR');
+      }
+      if (name === 'desktop') {
+        const folder = resolve(output, 'flower-campaign');
+        mkdirSync(folder, { recursive: true });
+        writeFileSync(resolve(folder, 'world_data.txt'), '[general]\nname=Flower Campaign\nstart=a-world\n');
+        const maps = {
+          'a-world': '[general]\nname=Flower Bay\nleveltype=1\nselectorx=2\nselectory=6\nlevels=2\npaths=1\n' +
+            '[levels]\n0file=b-zone\n0x=2\n0y=6\n0state=2\n1file=d-locked\n1x=4\n1y=6\n1state=1\n' +
+            '[paths]\n0x=3\n0y=6\n0style=1\n0gate=2\n0requirement=1\n',
+          'b-zone': '[general]\nname=Test Reef\nleveltype=1\nselectorx=2\nselectory=6\nlevels=2\npaths=0\nunlockcount=1\n' +
+            '[levels]\n0file=c-dive\n0x=2\n0y=6\n0state=2\n1file=a-world\n1x=3\n1y=6\n1state=2\n',
+        };
+        for (const [id, sidecar] of Object.entries(maps)) {
+          copyFileSync(resolve(root, 'games/dafeiyu/levels/coral-bay.l'), resolve(folder, id + '.l'));
+          writeFileSync(resolve(folder, id + '.ld'), sidecar);
+        }
+        for (const id of ['c-dive', 'd-locked']) for (const suffix of ['l', 'ld']) {
+          copyFileSync(resolve(root, 'games/dafeiyu/levels/first-dive.' + suffix), resolve(folder, id + '.' + suffix));
+        }
+        const { result: { root: doc } } = await cdp.call('DOM.getDocument');
+        const { result: { nodeId } } = await cdp.call('DOM.querySelector', { nodeId: doc.nodeId, selector: '#level-pack' });
+        await cdp.call('DOM.setFileInputFiles', { nodeId, files: [folder] });
+        await ready(`__dafeiyu.current === 'a-world' && __dafeiyu.selectedLink === 'b-zone'`);
+        await ready(`__dafeiyu.hud.some(node => node.id === 'map-gate-condition' && node.visible && node.text === '0/1')`);
+        await save('flower-gate-locked');
+        await key('ArrowRight');
+        assert.equal(await evalJs('__dafeiyu.selectedLink'), 'b-zone', 'Cannot cross a flower gate before its requirement');
+        await key('Enter');
+        await ready(`__dafeiyu.current === 'b-zone' && __dafeiyu.flower.required === 1`);
+        await key('Enter');
+        await ready(`__dafeiyu.current === 'c-dive'`);
+        await click('tool-pause');
+        assert.ok(await evalJs(`__dafeiyu.hud.some(node => node.id === 'pause-destination' && node.visible && node.text.includes('Test Reef'))`));
+        await click('返回上一级地图');
+        await ready(`__dafeiyu.current === 'b-zone' && __dafeiyu.selectedLink === 'c-dive'`);
+        await key('Enter');
+        await ready(`__dafeiyu.current === 'c-dive'`);
+        for (let i = 0; i < 7; i++) await key('ArrowRight');
+        await ready(`__dafeiyu.current === 'b-zone' && __dafeiyu.collectingPetal && __dafeiyu.flower.petals === 1 && __dafeiyu.flower.flowers === 1`);
+        await ready(`__dafeiyu.hud.some(node => node.id === 'collect-petal' && node.visible)`);
+        await save('flower-petal-flight');
+        await ready('!__dafeiyu.collectingPetal');
+        await save('flower-collected');
+        await key('Enter');
+        await ready(`__dafeiyu.current === 'c-dive'`);
+        for (let i = 0; i < 7; i++) await key('ArrowRight');
+        await ready(`__dafeiyu.current === 'b-zone'`);
+        assert.equal(await evalJs('__dafeiyu.collectingPetal'), false, 'Repeating a clear does not award another petal');
+        await key('ArrowRight');
+        await ready(`__dafeiyu.selectedLink === 'a-world'`);
+        await key('Enter');
+        await ready(`__dafeiyu.current === 'a-world' && __dafeiyu.selectedLink === 'b-zone'`);
+        assert.deepEqual(await evalJs('__dafeiyu.parents'), [], 'visiting an ancestor reuses its original map state');
+        assert.ok(await evalJs(`__dafeiyu.openPaths.some(([x,y]) => x === 3 && y === 6) &&
+          __dafeiyu.state.units.some(unit => unit.link === 'b-zone' && unit.state === 3)`));
+        await key('ArrowRight'); await key('ArrowRight');
+        await ready(`__dafeiyu.selectedLink === 'd-locked'`);
+        checks.push('nested map returns preserve entrance, first clear collects a petal, area bloom opens a native flower gate');
       }
       if (name === 'desktop') {
         await evalJs(`(async () => {

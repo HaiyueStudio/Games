@@ -1,3 +1,4 @@
+import {playerBodies,visitPlayers} from './coop-state';
 import {overlaps as overlap} from './geometry';
 import {disguised} from './p2-wearables';
 import type { Enemy, State } from './model';
@@ -73,7 +74,7 @@ export function updateP1Enemy(s:State,e:Enemy,dt:number,svc:Services):boolean {
 }
 export function advanceEnemyProjectiles(s:State,dt:number,svc:Services):void {
     for(const b of s.enemyProjectiles){if(b.transit)continue;b.age+=dt;const old={...b};b.vy+=dt*(b.kind==='fire'?12:26);const hit=svc.move(s,b,dt,false,b.kind==='spike-ball');if(hit.floor)b.vy=b.kind==='fire'?-4:0;if(hit.wall){b.age=99;if(b.kind==='spike-ball'){const x=Math.floor(b.vx>0?b.x+b.w+.01:b.x-.01),y=Math.floor(b.y+b.h/2);svc.hitBlock(s,x,y,s.level.cells[y*s.level.width+x]!);}}
-        if(overlap(b,s.player)){svc.hurt(s,old.y<s.player.y?'top':'side');b.age=99;}
+        visitPlayers(s,()=>{if(b.age<99&&overlap(b,s.player)){svc.hurt(s,old.y<s.player.y?'top':'side');b.age=99;}});
         if(b.kind==='spike-ball')for(const e of s.enemies)if(e.alive&&e!==(b.source??s.enemies[b.owner])&&overlap(b,e)){svc.defeat(s,e,'shell',b);b.age=99;break;}
-    }s.enemyProjectiles=s.enemyProjectiles.filter(b=>b.w>0&&(b.transit||b.age<6)&&b.y<s.level.height+2&&b.x> -2&&b.x<s.level.width+2&&Math.abs(b.x-s.player.x)<34);
+    }const players=playerBodies(s);s.enemyProjectiles=s.enemyProjectiles.filter(b=>b.w>0&&(b.transit||b.age<6)&&b.y<s.level.height+2&&b.x> -2&&b.x<s.level.width+2&&players.some(p=>Math.abs(b.x-p.x)<34));
 }

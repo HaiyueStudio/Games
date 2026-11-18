@@ -1,11 +1,12 @@
 import type { BabaLevel, Direction, Tile } from './baba-format';
 import { slots, wordTypes } from './catalog';
 import type { LevelPack } from './pack';
+import { gateName, type GateCondition, type GateType } from './gates';
 
 export interface Cell { x: number; y: number }
 interface DraftTile extends Cell { name: string; dir: Direction }
 interface DraftLink extends Cell { target: string; unlocked: boolean }
-interface DraftPath extends Cell { open: boolean }
+interface DraftPath extends Cell { open: boolean; condition?: GateCondition }
 export interface DraftRoom {
   id: string;
   title: string;
@@ -16,6 +17,7 @@ export interface DraftRoom {
   links: DraftLink[];
   paths: DraftPath[];
   spawn: Cell;
+  clearCount?: number;
 }
 export interface WorldDraft { format: 'dafeiyu-world'; version: 1; rooms: DraftRoom[] }
 
@@ -62,10 +64,13 @@ export function isWorldDraft(value: unknown): value is WorldDraft {
     const extent = { width: room.width, height: room.height };
     if (!inside(extent, room.spawn) || !Array.isArray(room.tiles) || room.tiles.length > 6000 || !Array.isArray(room.links) ||
       room.links.length > 128 || !Array.isArray(room.paths) || room.paths.length > room.width * room.height ||
+      (room.clearCount !== undefined && (!room.map || !numberIn(room.clearCount, 1, 127))) ||
       (!room.map && (room.links.length || room.paths.length))) return false;
     if (room.tiles.some(tile => !inside(extent, tile) || !catalog.has(tile.name) || tile.name === 'cursor' || tile.name === 'level' || !numberIn(tile.dir, 0, 3)) ||
       room.links.some(link => !inside(extent, link) || typeof link.target !== 'string' || typeof link.unlocked !== 'boolean') ||
-      room.paths.some(path => !inside(extent, path) || typeof path.open !== 'boolean')) return false;
+      room.paths.some(path => !inside(extent, path) || typeof path.open !== 'boolean' ||
+        (path.condition !== undefined && (!record(path.condition) || !numberIn(path.condition.gate, 1, 4) ||
+          !numberIn(path.condition.requirement, 1, 999))))) return false;
     ids.add(room.id);
   }
   const [root] = value.rooms;
@@ -80,15 +85,18 @@ export function levelFromDraft(room: DraftRoom): BabaLevel {
   }
   return { id, title, subtitle: '', width, height, edges, catalog, unknown: [], specials: [],
     tiles: room.tiles.map(tile => ({ ...catalog.get(tile.name)!, x: tile.x, y: tile.y, dir: tile.dir })),
-    links: room.links.map(({ target, x, y, unlocked }, i) => ({ id: target, x, y, dir: 0, state: unlocked ? 2 : 1, style: 2, number: String(i + 1) })),
-    paths: room.paths.map(({ x, y, open }) => ({ x, y, dir: 0, name: 'path', type: -1, layer: 2, style: open ? 1 : 0, gate: 0, requirement: 0 })),
+    links: room.links.map(({ target, x, y, unlocked }, i) => ({
+      id: target, entrance: `cell:${x},${y}`, x, y, dir: 0, state: unlocked ? 2 : 1, style: 2, number: String(i + 1),
+    })),
+    paths: room.paths.map(({ x, y, open, condition }) => ({ x, y, dir: 0, name: 'path', type: -1, layer: 2, style: open ? 1 : 0,
+      gate: condition?.gate ?? 0, requirement: condition?.requirement ?? 0 })),
     metadata: { general: { leveltype: room.map ? '1' : '0', selectorx: String(room.spawn.x), selectory: String(room.spawn.y) } } };
 }
 
 export function packFromDraft(draft: WorldDraft): LevelPack {
   const levels = draft.rooms.map(levelFromDraft);
-  return { title: levels[0]!.title, initial: 0, entries: levels.map(level => ({ id: level.id, title: level.title,
-    map: level.metadata.general!.leveltype === '1', children: level.links.map(link => link.id), read: async () => level })) };
+  return { title: levels[0]!.title, initial: 0, entries: levels.map((level, i) => ({ id: level.id, title: level.title,
+    map: draft.rooms[i]!.map, clearCount: draft.rooms[i]!.clearCount ?? 0, children: level.links.map(link => link.id), read: async () => level })) };
 }
 
 export class WorldEditor {
@@ -103,6 +111,9 @@ export class WorldEditor {
   constructor(project: WorldDraft) { this.project = project; }
   get room() { return this.project.rooms[this.index]!; }
   get canUndo() { return this.past.length > 0; }
+  get selectedPath(): DraftPath | undefined {
+    return this.room.paths.find(path => sameCell(path, this.cursor));
+  }
   get selectedElement(): string | undefined {
     const room = this.room;
     const atCursor = (cell: Cell) => sameCell(cell, this.cursor);
@@ -116,8 +127,15 @@ export class WorldEditor {
     return undefined;
   }
   private checkpoint(): void {
-    this.past.push({ project: structuredClone(this.project), index: this.index });
+    this.past.push({ project: this.project, index: this.index });
     if (this.past.length > 60) this.past.shift();
+    this.project = { ...this.project, rooms: [...this.project.rooms] };
+  }
+  private editRoom(): DraftRoom {
+    this.checkpoint();
+    const next = structuredClone(this.room);
+    this.project.rooms[this.index] = next;
+    return next;
   }
   select(index: number): void {
     this.index = Math.max(0, Math.min(this.project.rooms.length - 1, index));
@@ -150,14 +168,35 @@ export class WorldEditor {
   rename(title: string): boolean {
     title = title.trim().slice(0, 48);
     if (!title || title === this.room.title) return false;
-    this.checkpoint(); this.room.title = title; return true;
+    this.editRoom().title = title;
+    return true;
   }
   resize(width: number, height: number): boolean {
     const room = this.room;
     if (!numberIn(width, 7, 32) || !numberIn(height, 6, 24)) return false;
     const extent = { width, height };
     if ([room.spawn, ...room.tiles, ...room.links, ...room.paths].some(cell => !inside(extent, cell))) return false;
-    this.checkpoint(); room.width = width; room.height = height; this.moveCursor(0, 0); return true;
+    const edited = this.editRoom();
+    edited.width = width; edited.height = height;
+    this.moveCursor(0, 0);
+    return true;
+  }
+  setClearCount(value: number): boolean {
+    if (!this.room.map || !numberIn(value, 0, 127) || value === (this.room.clearCount ?? 0)) return false;
+    const room = this.editRoom();
+    if (value) room.clearCount = value;
+    else delete room.clearCount;
+    return true;
+  }
+  setPathGate(gate: 0 | GateType, requirement = 1): boolean {
+    const selected = this.selectedPath;
+    if (!selected || (gate !== 0 && (!gateName(gate) || !numberIn(requirement, 1, 999))) ||
+        (gate === (selected.condition?.gate ?? 0) && (gate === 0 || requirement === selected.condition?.requirement))) return false;
+    const index = this.room.paths.indexOf(selected);
+    const path = this.editRoom().paths[index]!;
+    if (gate) path.condition = { gate, requirement };
+    else delete path.condition;
+    return true;
   }
   undo(): boolean {
     const previous = this.past.pop();
@@ -176,28 +215,26 @@ export class WorldEditor {
     const tile = room.tiles.findLastIndex(matches), link = room.links.findIndex(matches), path = room.paths.findIndex(matches);
     if (brush === '@erase') {
       if (tile < 0 && link < 0 && path < 0) return false;
-      this.checkpoint();
-      if (tile >= 0) room.tiles.splice(tile, 1);
-      else if (link >= 0) room.links.splice(link, 1);
-      else room.paths.splice(path, 1);
+      const edited = this.editRoom();
+      if (tile >= 0) edited.tiles.splice(tile, 1);
+      else if (link >= 0) edited.links.splice(link, 1);
+      else edited.paths.splice(path, 1);
     } else if (brush === '@spawn' && room.map) {
       if (matches(room.spawn)) return false;
-      this.checkpoint(); room.spawn = { ...at };
+      this.editRoom().spawn = { ...at };
     } else if ((brush === '@link' || brush === '@locked') && room.map) {
       const target = this.project.rooms[this.target]?.id;
       if (!target || target === room.id || target === 'world') return false;
       const unlocked = brush === '@link';
       if (room.links[link]?.target === target && room.links[link]?.unlocked === unlocked) return false;
-      this.checkpoint();
-      room.links.splice(link >= 0 ? link : room.links.length, link >= 0 ? 1 : 0, { ...at, target, unlocked });
+      this.editRoom().links.splice(link >= 0 ? link : room.links.length, link >= 0 ? 1 : 0, { ...at, target, unlocked });
     } else if ((brush === '@path' || brush === '@secret') && room.map) {
       const open = brush === '@path';
       if (room.paths[path]?.open === open) return false;
-      this.checkpoint();
-      room.paths.splice(path >= 0 ? path : room.paths.length, path >= 0 ? 1 : 0, { ...at, open });
+      this.editRoom().paths.splice(path >= 0 ? path : room.paths.length, path >= 0 ? 1 : 0, { ...room.paths[path], ...at, open });
     } else if (catalog.has(brush) && room.tiles.length < 6000) {
       if (!multiple && room.tiles.some(item => matches(item) && item.name === brush && item.dir === this.facing)) return false;
-      this.checkpoint(); room.tiles.push({ ...at, name: brush, dir: this.facing });
+      this.editRoom().tiles.push({ ...at, name: brush, dir: this.facing });
     } else return false;
     return true;
   }

@@ -15,11 +15,15 @@ import type { Direction } from '../levels/baba-format';
 import { editorTile, type Cell } from '../levels/editor';
 
 const icons = ['flag', 'rock', 'wall', 'water', 'lava', 'key', 'door', 'shell', 'algae', 'crab', 'jelly', 'star', 'love', 'ice', 'skull', 'coral'];
-const aliases: Record<string, string> = { brick: 'wall', cliff: 'wall', grass: 'algae', foliage: 'algae', hedge: 'algae',
-  reed: 'algae', kelp: 'algae', tree: 'algae', flower: 'coral', fungi: 'coral', bog: 'water', fire: 'lava', crystal: 'ice', gem: 'ice',
-  rubble: 'rock', pillar: 'rock', gate: 'door', lock: 'door', husk: 'shell', husks: 'shell', level: 'flag' };
+const aliases: Record<string, string> = { cliff: 'wall', grass: 'algae', foliage: 'algae', hedge: 'algae',
+  reed: 'algae', kelp: 'algae', tree: 'algae', flower: 'coral', fungi: 'fungus', bog: 'water', fire: 'lava', crystal: 'ice', gem: 'ice',
+  rubble: 'rock', gate: 'door', lock: 'door', husk: 'shell', husks: 'shell', level: 'flag' };
 const alias = (name: string) => Object.hasOwn(aliases, name) ? aliases[name] : undefined;
 type Tint = readonly [number, number, number, number];
+interface SpriteDraws {
+  commands: IndexedSpriteDrawCommand[];
+  ambient: { index: number; spriteId: string }[];
+}
 const tint = (rgb: number, a = 1): Tint => [(rgb >> 16) / 255, ((rgb >> 8) & 255) / 255, (rgb & 255) / 255, a];
 const walkRows = ['down', 'left', 'right', 'up'] as const;
 const walkSheets = [['whale', 'whale-walk/atlas.png'], ['luna', 'luna-walk/atlas.png']] as const;
@@ -28,6 +32,9 @@ const walkFrames = 4;
 const spritePixels = 160;
 const stepTime = 160;
 const winTime = 1050;
+const defeatTime = 420;
+const reducedDefeatTime = 180;
+const maxDefeats = 12;
 
 function image(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -184,7 +191,10 @@ async function loadBackdrop(home: boolean): Promise<IndexedSpritePlaneDescriptor
 }
 
 async function loadArt() {
-  const [atlas, box, ruleBoxes, ...walkers] = await artImages(['tiles.png', 'box.png', 'rule-boxes.png', ...walkSheets.map(([, file]) => file)]);
+  const looseSprites = ['box', 'fungus', 'brick', 'pillar'];
+  const [atlas, ruleBoxes, ...sprites] = await artImages([
+    'tiles.png', 'rule-boxes.png', ...looseSprites.map(id => id + '.png'), ...walkSheets.map(([, file]) => file),
+  ]);
   const shape = canvas(2, 2);
   shape.fillStyle = '#fff'; shape.fillRect(0, 0, 2, 2);
   const routeDisc = canvas(40, 40);
@@ -196,6 +206,13 @@ async function loadArt() {
   lock.strokeStyle = '#fff'; lock.lineWidth = 5; lock.stroke();
   lock.beginPath(); lock.roundRect(8, 21, 32, 22, 5);
   lock.fillStyle = '#fff'; lock.fill(); lock.clearRect(22, 28, 4, 8);
+  const cleared = canvas(48, 48);
+  cleared.beginPath(); cleared.arc(24, 24, 22, 0, Math.PI * 2);
+  cleared.fillStyle = '#12493e'; cleared.fill();
+  cleared.strokeStyle = '#adffd3'; cleared.lineWidth = 3; cleared.stroke();
+  cleared.beginPath(); cleared.moveTo(13, 24); cleared.lineTo(21, 32); cleared.lineTo(35, 16);
+  cleared.strokeStyle = '#effff0'; cleared.lineWidth = 5;
+  cleared.lineCap = 'round'; cleared.lineJoin = 'round'; cleared.stroke();
   const halo = canvas(96, 96);
   const aura = halo.createRadialGradient(48, 48, 10, 48, 48, 47);
   aura.addColorStop(0, '#63edeb9a'); aura.addColorStop(.72, '#4adadb58'); aura.addColorStop(1, '#4adadb00');
@@ -207,17 +224,20 @@ async function loadArt() {
   spark.beginPath(); spark.moveTo(20, 0); spark.quadraticCurveTo(23, 17, 40, 20);
   spark.quadraticCurveTo(23, 23, 20, 40); spark.quadraticCurveTo(17, 23, 0, 20);
   spark.quadraticCurveTo(17, 17, 20, 0); spark.fillStyle = '#fff'; spark.fill();
-  const result = [plane('white', shape), plane('halo', halo),
-    plane('ring', ring), plane('spark', spark), plane('route-disc', routeDisc), plane('route-lock', lock), ...islandArt()];
+  const board = [plane('board/white', shape), plane('board/ring', ring), plane('board/disc', routeDisc),
+    plane('route-lock', lock), ...islandArt()];
+  const actors = [plane('white', shape), plane('halo', halo), plane('ring', ring), plane('spark', spark),
+    plane('route-disc', routeDisc), plane('stage-clear', cleared)];
+  const objects: IndexedSpritePlaneDescriptor[] = [];
   const hero = canvas(spritePixels, spritePixels);
   for (const [index, [name]] of walkSheets.entries()) {
-    const sheet = walkers[index]!;
+    const sheet = sprites[looseSprites.length + index]!;
     const frameWidth = sheet.width / walkFrames, frameHeight = sheet.height / walkRows.length;
     for (const [row, facing] of walkRows.entries()) for (let frame = 0; frame < walkFrames; frame++) {
       hero.clearRect(0, 0, spritePixels, spritePixels);
       hero.drawImage(sheet.bitmap, sheet.x + frame * frameWidth, sheet.y + row * frameHeight, frameWidth, frameHeight,
         0, 0, spritePixels, spritePixels);
-      result.push(plane(`${name}/${facing}/${frame}`, hero));
+      actors.push(plane(`${name}/${facing}/${frame}`, hero));
     }
   }
   const w = atlas!.width / 4, h = atlas!.height / 4;
@@ -232,14 +252,17 @@ async function loadArt() {
     tile.drawImage(atlas!.bitmap, atlas!.x + i % 4 * w, atlas!.y + Math.floor(i / 4) * h, w, h, 0, 0, tileWidth, tileHeight);
     const icon = fitIcon(id, tile, fitted);
     if (id === 'flag') flag = icon;
-    else result.push(icon);
+    else objects.push(icon);
   }
-  const crate = canvas(box!.width, box!.height);
-  drawArt(crate, box!);
-  result.push(fitIcon('box', crate, fitted));
+  for (const [index, id] of looseSprites.entries()) {
+    const art = sprites[index]!;
+    const source = canvas(art.width, art.height);
+    drawArt(source, art);
+    objects.push(fitIcon(id, source, fitted));
+  }
   const ruleSheet = canvas(ruleBoxes!.width, ruleBoxes!.height);
   drawArt(ruleSheet, ruleBoxes!);
-  return { planes: result, animated: animatedTileArt(flag!), ruleBoxes: ruleSheet.canvas };
+  return { board, actors, objects, animated: animatedTileArt(flag!), ruleBoxes: ruleSheet.canvas };
 }
 
 export class LagoonScene extends System {
@@ -261,9 +284,14 @@ export class LagoonScene extends System {
   private elapsed = stepTime;
   private walkClock = 0;
   private win: { elapsed: number; points: { x: number; y: number }[] } | undefined;
+  private defeats: { unit: Unit; elapsed: number }[] = [];
   private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   private cached: IndexedSpriteDrawCommand[] = [];
-  private readonly ambientDraws: { index: number; spriteId: string }[] = [];
+  private ambientDraws: SpriteDraws['ambient'] = [];
+  private board: SpriteDraws | undefined;
+  private boardSignature = '';
+  private orderedUnits: Unit[] = [];
+  private readonly stationaryUnits = new Map<number, SpriteDraws>();
   private ambientClock = 0;
   private ambientFrame = 0;
   private dirty = true;
@@ -283,17 +311,16 @@ export class LagoonScene extends System {
     if (pending) return pending;
     const load = Promise.all([loadBackdrop(home), home ? undefined : loadArt()]).then(([backdrop, art]) => {
       if (this.disposed) return;
-      const base = [backdrop, ...(art?.planes ?? [])];
-      const renderer = this.addPlanes(base);
-      if (art) {
-        try { this.addPlanes(art.animated); }
-        catch (error) {
-          this.batches.remove(renderer);
-          for (const sprite of base) this.planes.delete(sprite.id);
-          throw error;
-        }
-        this.ruleBoxes = art.ruleBoxes;
+      const pages = art ? [[backdrop, ...art.board], art.actors, art.objects, art.animated] : [[backdrop]];
+      const added: IndexedSpriteRenderer[] = [];
+      try {
+        for (const sprites of pages) added.push(this.addPlanes(sprites));
+      } catch (error) {
+        for (const renderer of added) this.batches.remove(renderer);
+        for (const sprites of pages) for (const sprite of sprites) this.planes.delete(sprite.id);
+        throw error;
       }
+      if (art) this.ruleBoxes = art.ruleBoxes;
     }).catch(error => { this.modeLoads.delete(home); throw error; });
     this.modeLoads.set(home, load);
     return load;
@@ -301,18 +328,27 @@ export class LagoonScene extends System {
   private addPlanes(planes: IndexedSpritePlaneDescriptor[]): IndexedSpriteRenderer {
     const renderer = this.batches.add(planes);
     for (const plane of planes) this.planes.set(plane.id, plane);
+    this.board = undefined;
     this.dirty = true;
     return renderer;
   }
   setHome(home: boolean): void {
+    if (this.home !== home) this.board = undefined;
     this.home = home;
     this.dirty = true;
-    if (home) this.win = undefined;
+    if (home) { this.win = undefined; this.defeats.length = 0; }
     if (home && !this.modeLoads.has(true)) void this.prepare(true).catch(error => {
       if (!this.disposed) console.warn('大肥鱼首页背景读取失败', error);
     });
   }
-  setEditorCursor(cursor?: Cell): void { this.editorCursor = cursor; this.dirty = true; }
+  setEditorCursor(cursor?: Cell): void {
+    if (!!this.editorCursor !== !!cursor) {
+      this.board = undefined;
+      this.stationaryUnits.clear();
+    }
+    this.editorCursor = cursor;
+    this.dirty = true;
+  }
 
   editorPreview(name: string, facing: Direction): HTMLCanvasElement {
     const walker = walkArt.get(name === '@spawn' ? 'cursor' : name);
@@ -350,10 +386,36 @@ export class LagoonScene extends System {
   }
 
   setPuzzle(puzzle: Puzzle, previous?: GameState): void {
+    if (puzzle === this.puzzle && previous && puzzle.state.turn > previous.turn) {
+      if (puzzle.defeated.length) {
+        const byCell = new Map(this.defeats.map(burst => [burst.unit.y * puzzle.level.width + burst.unit.x, burst]));
+        for (const unit of puzzle.defeated) {
+          const key = unit.y * puzzle.level.width + unit.x;
+          byCell.delete(key);
+          byCell.set(key, { unit, elapsed: 0 });
+        }
+        this.defeats = [...byCell.values()].slice(-maxDefeats);
+      }
+    } else this.defeats.length = 0;
+    const signature = isMap(puzzle.level) ? JSON.stringify([
+      puzzle.openPaths.map(path => [path.x, path.y]),
+      puzzle.revealedPaths.map(path => [path.x, path.y]),
+      puzzle.state.units.filter(unit => unit.link || puzzle.level.island && unit.name === 'water').map(unit =>
+        [unit.x, unit.y, unit.name, unit.link, unit.state, puzzle.context.has(unit, 'hide'),
+          unit.name === 'water' && puzzle.context.has(unit, 'stop')]),
+    ]) : '';
+    if (this.puzzle?.level !== puzzle.level || signature !== this.boardSignature) this.board = undefined;
+    this.boardSignature = signature;
     this.puzzle = puzzle;
+    this.orderedUnits = [...puzzle.state.units].sort((a, b) => a.layer - b.layer || a.y - b.y || a.id - b.id);
+    this.stationaryUnits.clear();
     this.from = new Map(previous?.units.map(unit => [unit.id, unit]));
     if (!previous || this.elapsed === stepTime) this.walkClock = 0;
-    this.elapsed = previous && !this.reducedMotion.matches ? 0 : stepTime;
+    const moved = puzzle.state.units.some(unit => {
+      const old = this.from.get(unit.id);
+      return old && (old.x !== unit.x || old.y !== unit.y);
+    });
+    this.elapsed = moved && !this.reducedMotion.matches ? 0 : stepTime;
     this.win = undefined;
     if (puzzle.state.won && !previous?.won && (previous || !isMap(puzzle.level))) {
       let points: { x: number; y: number }[] = [];
@@ -406,6 +468,12 @@ export class LagoonScene extends System {
       this.walkClock = (this.walkClock + delta) % stepTime;
       this.dirty = true;
     }
+    if (this.defeats.length) {
+      const duration = this.reducedMotion.matches ? reducedDefeatTime : defeatTime;
+      for (const burst of this.defeats) burst.elapsed += delta;
+      this.defeats = this.defeats.filter(burst => burst.elapsed < duration);
+      this.dirty = true;
+    }
     if (!this.win) return false;
     this.win.elapsed += delta;
     if (this.win.points.length) this.dirty = true;
@@ -419,40 +487,53 @@ export class LagoonScene extends System {
       ambient: { frame: this.ambientFrame, flags: this.ambientDraws.filter(draw => draw.spriteId === 'flag').length,
         water: this.ambientDraws.filter(draw => draw.spriteId === 'water').length,
         sea: this.ambientDraws.filter(draw => draw.spriteId === 'island/swell').length },
-      celebrating: !!this.win, sparkles: this.cached.filter(draw => draw.spriteId === 'spark').length };
+      celebrating: !!this.win, sparkles: this.cached.filter(draw => draw.spriteId === 'spark').length,
+      defeats: this.defeats.map(({ unit: { x, y } }) => [x, y]),
+      clearedMarkers: this.cached.filter(draw => draw.spriteId === 'stage-clear').length };
   }
 
-  private compose(width: number, height: number, ambientFrame: number): IndexedSpriteDrawCommand[] {
-    const commands: IndexedSpriteDrawCommand[] = [];
-    this.ambientDraws.length = 0;
-    const add = (spriteId: string, r: GuiRect, color?: Tint) => {
-      const animated = animatedTiles.has(spriteId);
-      const id = animated ? ambientFrameId(spriteId, ambientFrame) : spriteId;
-      const source = this.planes.get(id);
-      if (!source) return;
-      if (animated) this.ambientDraws.push({ index: commands.length, spriteId });
-      commands.push({ spriteId: id, x: r.x + r.width / 2, y: r.y + r.height / 2, axisX: source.width / 2, axisY: source.height / 2,
-        scaleX: r.width / source.width, scaleY: r.height / source.height,
-        sampling: 'linear', blend: 'alpha', priority: commands.length, ...(color ? { tint: color } : {}) });
-    };
-    const rect = (x: number, y: number, w: number, h: number, color: Tint) => add('white', { x, y, width: w, height: h }, color);
+  private drawSprite(draws: SpriteDraws, frame: number, spriteId: string, r: GuiRect, color?: Tint): void {
+    const animated = animatedTiles.has(spriteId);
+    const id = animated ? ambientFrameId(spriteId, frame) : spriteId;
+    const source = this.planes.get(id);
+    if (!source) return;
+    if (animated) draws.ambient.push({ index: draws.commands.length, spriteId });
+    draws.commands.push({ spriteId: id, x: r.x + r.width / 2, y: r.y + r.height / 2, axisX: source.width / 2, axisY: source.height / 2,
+      scaleX: r.width / source.width, scaleY: r.height / source.height,
+      sampling: 'linear', blend: 'alpha', ...(color ? { tint: color } : {}) });
+  }
+
+  private appendDraws(target: SpriteDraws, source: SpriteDraws, frame: number): void {
+    const offset = target.commands.length;
+    for (const { index, spriteId } of source.ambient) {
+      const id = ambientFrameId(spriteId, frame);
+      if (source.commands[index]!.spriteId !== id) source.commands[index] = { ...source.commands[index]!, spriteId: id };
+      target.ambient.push({ index: offset + index, spriteId });
+    }
+    for (const command of source.commands) target.commands.push(command);
+  }
+
+  private composeBoard(width: number, height: number, frame: number): SpriteDraws {
+    const draws: SpriteDraws = { commands: [], ambient: [] };
+    const add = (id: string, r: GuiRect, color?: Tint) => this.drawSprite(draws, frame, id, r, color);
+    const rect = (x: number, y: number, w: number, h: number, color: Tint) => add('board/white', { x, y, width: w, height: h }, color);
     const background = this.home ? 'home' : 'lagoon';
     const art = this.planes.get(background);
-    if (!art) { this.bounds.cell = 0; return commands; }
+    if (!art) { this.bounds.cell = 0; return draws; }
     const cover = Math.max(width / art.width, height / art.height);
     const bgWidth = art.width * cover, bgHeight = art.height * cover;
     const anchor = this.home ? .75 : .5;
     add(background, { x: (width - bgWidth) * anchor, y: (height - bgHeight) / 2, width: bgWidth, height: bgHeight });
     if (this.home) {
       this.bounds.cell = 0;
-      return commands;
+      return draws;
     }
     rect(0, 0, width, height, tint(0x041426, this.editorCursor ? .37 : .48));
     const puzzle = this.puzzle;
-    if (!puzzle) return commands;
+    if (!puzzle) return draws;
     const { width: cols, height: rows, edges, island } = puzzle.level;
     const overworld = isMap(puzzle.level);
-    let { x: originX, y: originY, cell } = playGrid(width, height, cols, rows);
+    let { x: originX, y: originY, cell } = playGrid(width, height, cols, rows, overworld);
     if (this.editorCursor) {
       const { board } = editorLayout(width, height, puzzle.level);
       rect(board.x, board.y + 4, board.width, board.height, tint(0x021021, .64));
@@ -480,7 +561,7 @@ export class LagoonScene extends System {
     const centered = (id: string, x: number, y: number, size: number, color?: Tint) =>
       add(id, { x: x - size / 2, y: y - size / 2, width: size, height: size }, color);
     if (overworld) {
-      const routes = mapRoutes(puzzle);
+      const routes = mapRoutes(puzzle, !!this.editorCursor);
       const center = ({ x, y }: Cell) => [originX + (x + .5) * cell, originY + (y + .5) * cell] as const;
       const line = (from: Cell, to: Cell, size: number, color: Tint, start = 0, end = 1) => {
         const [x, y] = center(from), [tx, ty] = center(to);
@@ -499,34 +580,44 @@ export class LagoonScene extends System {
         for (const { from, to } of openSegments) line(from, to, size, color);
         for (const path of openPaths) {
           const [x, y] = center(path);
-          centered('route-disc', x, y, cell * size, color);
+          centered('board/disc', x, y, cell * size, color);
         }
       }
       for (const path of routes.paths) {
         const [x, y] = center(path);
-        if (!path.open && !path.gate) centered('route-disc', x, y, cell * .13, dashed);
+        if (!path.open && !path.gate) centered('board/disc', x, y, cell * .13, dashed);
         if (path.gate) {
-          centered('route-disc', x, y, cell * .73, tint(0x081e30));
-          centered('ring', x, y, cell * .74, tint(0xc49b68));
+          centered('board/disc', x, y, cell * .73, tint(0x081e30));
+          centered('board/ring', x, y, cell * .74, tint(0xc49b68));
           centered('route-lock', x, y, cell * .5, tint(0xffd79a));
         }
       }
     } else for (const path of puzzle.openPaths) {
       if (path.x >= 0 && path.x < cols && path.y >= 0 && path.y < rows) dot(path.x, path.y, .15, tint(0x52a9b3));
     }
+    return draws;
+  }
+
+  private compose(width: number, height: number, frame: number): SpriteDraws {
+    const draws: SpriteDraws = { commands: [], ambient: [] };
+    this.board ??= this.composeBoard(width, height, frame);
+    this.appendDraws(draws, this.board, frame);
+    const puzzle = this.puzzle;
+    if (!puzzle || this.home || !this.bounds.cell) return draws;
+    const { x: originX, y: originY, cell } = this.bounds;
+    const { width: cols, island } = puzzle.level;
+    const overworld = isMap(puzzle.level);
+    let target = draws;
+    const add = (id: string, r: GuiRect, color?: Tint) => this.drawSprite(target, frame, id, r, color);
+    const rect = (x: number, y: number, w: number, h: number, color: Tint) => add('white', { x, y, width: w, height: h }, color);
+    const centered = (id: string, x: number, y: number, size: number, color?: Tint) =>
+      add(id, { x: x - size / 2, y: y - size / 2, width: size, height: size }, color);
     const stack = new Map<number, number>();
+    const clearedMarkers: Cell[] = [];
     const t = 1 - (1 - this.elapsed / stepTime) ** 3;
-    for (const unit of [...puzzle.state.units].sort((a, b) => a.layer - b.layer || a.y - b.y || a.id - b.id)) {
-      if (island && unit.name === 'water' || puzzle.context.has(unit, 'hide') || unit.name === 'level' && unit.state === 0) continue;
-      const old = this.from.get(unit.id);
-      const ox = old ? old.x + (unit.x - old.x) * t : unit.x;
-      const oy = old ? old.y + (unit.y - old.y) * t : unit.y;
-      const stackId = unit.y * cols + unit.x;
-      const count = stack.get(stackId) ?? 0;
-      const x = originX + ox * cell, y = originY + oy * cell;
-      if (unit.name === 'path' || unit.name === 'tile') { rect(x, y, cell, cell, tint(0x447287, .45)); continue; }
+    const drawUnit = (unit: Unit, old: Unit | undefined, x: number, y: number, count: number, art: string | false | undefined) => {
+      if (unit.name === 'path' || unit.name === 'tile') { rect(x, y, cell, cell, tint(0x447287, .45)); return; }
       const controlled = puzzle.context.has(unit, 'you') || puzzle.context.has(unit, 'you2') || puzzle.context.has(unit, 'select');
-      const art = !isText(unit) && (this.planes.has(unit.name) ? unit.name : alias(unit.name));
       const glow = controlled ? { x: x - cell * .13, y: y - cell * .13, width: cell * 1.26, height: cell * 1.26 } : undefined;
       if (art === 'water') {
         const square = { x, y, width: cell, height: cell };
@@ -545,7 +636,7 @@ export class LagoonScene extends System {
         add('water', square, unit.name === 'bog' ? tint(0x98cfaa) : undefined);
         if (rim) add(`water/rim/${rim}`, square);
         if (glow) add('halo', glow);
-        continue;
+        return;
       }
       if (glow) add('halo', glow);
       const walker = walkArt.get(unit.name);
@@ -554,7 +645,7 @@ export class LagoonScene extends System {
         const frame = walking ? Math.floor(this.walkClock / (stepTime / walkFrames)) : 1;
         const sprite = `${walker}/${directions[unit.dir]}/${frame}`;
         add(sprite, { x, y, width: cell, height: cell });
-        continue;
+        return;
       }
       if (overworld && unit.marker && unit.name === 'level') {
         const state = unit.state ?? 0;
@@ -562,20 +653,63 @@ export class LagoonScene extends System {
         centered('halo', x + cell / 2, y + cell / 2, cell, color);
         centered('ring', x + cell / 2, y + cell / 2, cell * .92, color);
         add('flag', { x, y, width: cell, height: cell }, state < 2 ? tint(0x71859a, .65) : undefined);
-        continue;
+        return;
       }
       const lit = isText(unit) && puzzle.context.active.has(unit.id);
       // Keep the offset stack cue inside the same cell as the bottom word.
       const inset = isText(unit) ? Math.min(.13, count * .08) * cell : 0;
       add(art || tileId(unit, lit), { x: x + inset, y, width: cell - inset, height: cell - inset },
         unit.name === 'level' && unit.state === 1 ? tint(0x8c9da7) : undefined);
-      if (isText(unit)) stack.set(stackId, count + 1);
+    };
+    for (const unit of this.orderedUnits) {
+      if (island && unit.name === 'water' || puzzle.context.has(unit, 'hide') || unit.name === 'level' && unit.state === 0) continue;
+      const old = this.from.get(unit.id);
+      const x = originX + (old ? old.x + (unit.x - old.x) * t : unit.x) * cell;
+      const y = originY + (old ? old.y + (unit.y - old.y) * t : unit.y) * cell;
+      const stackId = unit.y * cols + unit.x;
+      const count = stack.get(stackId) ?? 0;
+      const text = isText(unit);
+      if (text) stack.set(stackId, count + 1);
+      const art = !text && (this.planes.has(unit.name) ? unit.name : alias(unit.name));
+      const moving = this.elapsed < stepTime && (art === 'water' || old && (old.x !== unit.x || old.y !== unit.y));
+      if (moving) drawUnit(unit, old, x, y, count, art);
+      else {
+        let cached = this.stationaryUnits.get(unit.id);
+        if (!cached) {
+          cached = { commands: [], ambient: [] };
+          target = cached;
+          drawUnit(unit, old, x, y, count, art);
+          target = draws;
+          this.stationaryUnits.set(unit.id, cached);
+        }
+        this.appendDraws(draws, cached, frame);
+      }
+      if (overworld && unit.marker && unit.name === 'level' && (unit.state ?? 0) >= 3) clearedMarkers.push({ x, y });
     }
+    for (const { x, y } of clearedMarkers) centered('stage-clear', x + cell * .77, y + cell * .77, cell * .45);
     if (this.editorCursor) {
       const x = originX + this.editorCursor.x * cell, y = originY + this.editorCursor.y * cell;
       const stroke = Math.max(1, cell * .04), color = tint(0xacefe3, .95);
       rect(x, y, cell, stroke, color); rect(x, y + cell - stroke, cell, stroke, color);
       rect(x, y, stroke, cell, color); rect(x + cell - stroke, y, stroke, cell, color);
+    }
+    const reduced = this.reducedMotion.matches;
+    for (const { unit, elapsed } of this.defeats) {
+      const progress = Math.min(1, elapsed / (reduced ? reducedDefeatTime : defeatTime));
+      const opacity = 1 - progress;
+      const x = originX + (unit.x + .5) * cell, y = originY + (unit.y + .5) * cell;
+      const spread = reduced ? 0 : 1 - opacity ** 2;
+      const walker = walkArt.get(unit.name);
+      const id = walker ? `${walker}/${directions[unit.dir]}/1` :
+        !isText(unit) && (alias(unit.name) ?? (this.planes.has(unit.name) ? unit.name : undefined)) || tileId(unit, false);
+      centered(id, x, y, cell * (1 - .72 * spread), tint(0xffedf9, opacity ** 2));
+      centered('ring', x, y, cell * (.62 + .66 * spread), tint(0xe6b1ff, .85 * opacity));
+      if (!reduced) for (let i = 0; i < 6; i++) {
+        const angle = i * Math.PI / 3;
+        const radius = cell * (.25 + .42 * spread);
+        centered('route-disc', x + Math.cos(angle) * radius, y + Math.sin(angle) * radius - cell * .13 * spread,
+          cell * (.07 + i % 2 * .04) * (1 - .5 * progress), tint(i % 2 ? 0xf5bcf3 : 0xc6e8ff, opacity));
+      }
     }
     if (this.win && this.win.elapsed >= 90) {
       const progress = (this.win.elapsed - 90) / (winTime - 90);
@@ -595,16 +729,25 @@ export class LagoonScene extends System {
         }
       }
     }
-    return commands;
+    return draws;
   }
   record(_world: World, context: RenderCommandContext): this {
     const width = context.view?.displayWidth ?? this.engine.displayWidth;
     const height = context.view?.displayHeight ?? this.engine.displayHeight;
     if (!width || !height || this.disposed) return this;
     const frame = this.reducedMotion.matches ? 0 : Math.floor(this.ambientClock / ambientFrameTime);
-    const layoutChanged = this.dirty || this.width !== width || this.height !== height;
+    const resized = this.width !== width || this.height !== height;
+    if (resized) {
+      this.board = undefined;
+      this.stationaryUnits.clear();
+    }
+    const layoutChanged = this.dirty || resized;
     const frameChanged = this.ambientDraws.length > 0 && frame !== this.ambientFrame;
-    if (layoutChanged) this.cached = this.compose(width, height, frame);
+    if (layoutChanged) {
+      const draws = this.compose(width, height, frame);
+      this.cached = draws.commands;
+      this.ambientDraws = draws.ambient;
+    }
     else if (frameChanged) for (const { index, spriteId } of this.ambientDraws) {
       this.cached[index] = { ...this.cached[index]!, spriteId: ambientFrameId(spriteId, frame) };
     }

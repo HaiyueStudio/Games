@@ -6,13 +6,15 @@ import { GamepadSampler, NeutralGate, type PadFrame } from './sampler';
 import { GAMEPAD_PROFILES, keyboardKey } from './profiles';
 import type { GameBridge } from '../host/types';
 let current:PadFrame|undefined;
+let currentPads:readonly PadFrame[]=[];
 let pointerMode=false;
 export const gamepadFrame=():PadFrame|undefined=>pointerMode?undefined:current;
+export const gamepadFrames=():readonly PadFrame[]=>currentPads;
 export const isGamepadPointerMode=():boolean=>pointerMode;
 export const gamepadPointer=():{x:number;y:number}|null=>controllerOverlay.visible&&controllerOverlay.cursor?{x:controllerOverlay.x,y:controllerOverlay.y}:null;
 const VIRTUAL_POINTER=9000;
 /** Compatibility adapter for existing game input handlers. Physical sampling stays in Engine. */
-export function installGamepad(id:string):()=>void {
+export function installGamepad(id:string,directInput?:()=>boolean):()=>void {
   const profile=GAMEPAD_PROFILES[id];if(!profile)throw new Error(`Missing gamepad profile: ${id}`);
   const lifetime=new AbortController(),sampler=new GamepadSampler(),gate=new NeutralGate();
   const connections = monitorGamepadConnections(gamepadConnections, undefined, () => !!sessionEngine());
@@ -56,7 +58,7 @@ export function installGamepad(id:string):()=>void {
     }
     target=null;button=-1;
   };
-  const release=()=>{for(const code of heldKeys.keys())emitKey(code,false);heldKeys.clear();releasePointer(true);current=undefined;lookActive=false;delete document.body.dataset.gamepadActive;};
+  const release=()=>{for(const code of heldKeys.keys())emitKey(code,false);heldKeys.clear();releasePointer(true);current=undefined;currentPads=[];lookActive=false;delete document.body.dataset.gamepadActive;};
   const returnMenu = new GameReturnController(() => { release(); physicalKeys.clear(); gate.reset(); });
   const listen=(el:EventTarget,type:string,fn:EventListener)=>el.addEventListener(type,fn,{signal:lifetime.signal});
   listen(window,'keydown',e=>{if(e.isTrusted)physicalKeys.add((e as KeyboardEvent).code);});
@@ -96,6 +98,7 @@ export function installGamepad(id:string):()=>void {
     }
     pointerMode=localPointer;
     current=p;
+    currentPads=active;
     document.body.dataset.gamepadActive='true';
     controllerOverlay.visible = true; controllerOverlay.text=profile.engineHud?'':`${profile.pointerOnly?profile.help:localPointer?'指针模式 · 摇杆移动 · A 点选/拖拽 · B 右键 · LB/RB 滚动':profile.help+(profile.direct?'':' · 右摇杆/RT 操作菜单')} · Back 返回首页${profile.pointerOnly?'':' · R3 切换指针'} · R3+LB/RB 切游戏`;
     const rx=p.values.rx??0,ry=p.values.ry??0;
@@ -131,7 +134,7 @@ export function installGamepad(id:string):()=>void {
       }
     }
     const next=new Set<string>();
-    if(!profile.native)active.slice(0,profile.second?2:1).forEach((pad,i)=>{
+    if(!profile.native&&!directInput?.())active.slice(0,profile.second?2:1).forEach((pad,i)=>{
       const mapping=i===0?profile.buttons:profile.second!,directions=i===0?profile.directions:profile.secondDirections;
       if(directions&&!localPointer){const [up,right,down,left]=directions;if((pad.values.y??0)<-.25||pad.held.has('b12'))next.add(up);if((pad.values.y??0)>.25||pad.held.has('b13'))next.add(down);if((pad.values.x??0)>.25||pad.held.has('b15'))next.add(right);if((pad.values.x??0)<-.25||pad.held.has('b14'))next.add(left);}
       for(const [b,key] of Object.entries(mapping))if((!localPointer||!['0','1','4','5','6','7'].includes(b))&&pad.held.has(`b${b}`))next.add(key);

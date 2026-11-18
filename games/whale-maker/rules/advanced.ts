@@ -1,3 +1,4 @@
+import {nearestPlayer,visitPlayers} from './coop-state';
 import {effect,type Effect} from './effects';
 export {effect} from './effects';
 import {overlaps as overlap} from './geometry';
@@ -40,9 +41,10 @@ export function initAdvanced(l:Level):AdvancedState {
     l.cells.forEach((t,id)=>{if(t!=='cannon')return;const h=l.properties?.[id]?.height??2;turrets.push({kind:'cannon',id,props:structuredClone(l.properties?.[id]??{}),x:id%l.width,y:Math.floor(id/l.width)-h+1,w:1,h,vx:0,vy:0,content:l.contents?.[id]??'cannonball',wait:1});for(const n of cannonCells(l,id))l.cells[n]='.';});
     return {shellHelmet:null,boneTime:0,bonePound:false,turrets,effects:[],redOn:true,score:0,riding:null,swimKickAge:1,pound:'none',poundAge:0,jumpChain:0,chainWindow:0,springWindow:0,springBoosted:false};
 }
-export function advancedTimers(s:State,dt:number):void {
+export function advancedTimers(s:State,dt:number,shared=true):void {
     s.boneTime=Math.max(0,s.boneTime-dt);if(s.boneTime<1e-8)s.boneTime=0;
     s.swimKickAge=Math.min(1,s.swimKickAge+dt);s.chainWindow=Math.max(0,s.chainWindow-dt);s.springWindow=Math.max(0,s.springWindow-dt);
+    if(!shared)return;
     for(const fx of s.effects){fx.age+=dt;if(fx.kind==='helmet'||fx.kind==='stone'){fx.vy+=18*dt;fx.x+=fx.vx*dt;fx.y+=fx.vy*dt;}}
     s.effects=s.effects.filter(fx=>fx.age<(fx.kind==='stone'?.8:fx.kind==='helmet'?.65:.4));
 }
@@ -85,10 +87,10 @@ export function updateTurrets(s:State,dt:number,svc:Services):void {
         const old={...cannon};cannon.vy=Math.min(18,cannon.vy+26*dt);svc.move(s,cannon,dt);
         if(cannon.y>old.y+.0001){
             for(const e of s.enemies)if(e.alive&&!e.held&&overlap(e,cannon)&&old.y+old.h<=e.y+.2)svc.defeat(s,e,'block');
-            if(!s.pipe&&overlap(s.player,cannon)&&old.y+old.h<=s.player.y+.2){if(hasHelmet(s)){cannon.y=old.y;bonkTurret(s,cannon);}else svc.crush(s);}
+            visitPlayers(s,()=>{if(!s.pipe&&overlap(s.player,cannon)&&old.y+old.h<=s.player.y+.2){if(hasHelmet(s)){cannon.y=old.y;bonkTurret(s,cannon);}else svc.crush(s);}});
         }
         cannon.wait-=dt;const props=cannon.props??{},radius=props.radius??28,source=cannon.id??Math.floor(cannon.y)*s.level.width+Math.floor(cannon.x),count=[...s.enemies.filter(e=>e.alive),...s.items.filter(e=>e.alive),...s.rewards].filter(e=>e.generatorId===source&&Math.hypot(e.x-cannon.x,e.y-cannon.y)<radius).length;
-        if(cannon.wait<=0&&Math.abs(cannon.x-s.player.x)<radius&&count<(props.count??8)){emit(s,'cannon',cannon.x);cannon.wait=props.period??2.4;const dir=s.player.x+s.player.w/2<cannon.x+cannon.w/2?-1:1,created=payload(s,cannon.content,cannon.x+(dir<0?-.9:1.1),cannon.y+.1,dir);if(created){created.generatorId=source;if(props.ammoSpeed!==undefined)created.vx=dir*props.ammoSpeed;}}
+        if(cannon.wait<=0)nearestPlayer(s,cannon,()=>{if(Math.abs(cannon.x-s.player.x)<radius&&count<(props.count??8)){emit(s,'cannon',cannon.x);cannon.wait=props.period??2.4;const dir=s.player.x+s.player.w/2<cannon.x+cannon.w/2?-1:1,created=payload(s,cannon.content,cannon.x+(dir<0?-.9:1.1),cannon.y+.1,dir);if(created){created.generatorId=source;if(props.ammoSpeed!==undefined)created.vx=dir*props.ammoSpeed;}}});
     }
     s.turrets=s.turrets.filter(c=>c.y<s.level.height+2);
 }

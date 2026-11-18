@@ -15,7 +15,7 @@ export interface TurnChange {
 const noUnits: Unit[] = [];
 const sameUnit = (a: Unit, b: Unit) => a.id === b.id && a.name === b.name && a.type === b.type &&
   a.layer === b.layer && a.x === b.x && a.y === b.y && a.dir === b.dir &&
-  a.link === b.link && a.state === b.state && a.marker === b.marker && a.holder === b.holder;
+  a.link === b.link && a.entrance === b.entrance && a.state === b.state && a.marker === b.marker && a.holder === b.holder;
 
 export function recordTurn(before: GameState, after: GameState): TurnChange {
   const old: Frame = { state: { ...before, units: noUnits }, units: new Map() };

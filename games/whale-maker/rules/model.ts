@@ -15,7 +15,9 @@ import {areaTravel,respawnP2} from './p2-areas';
 import {advanceP2Camera,cameraCrush} from './p2-camera';
 import {advanceLiquid} from './p2-liquid';
 import {initP2Mechanisms,advanceP2Mechanisms} from './p2-mechanisms';
-import {driveCar,seatPlayer} from './p2-vehicle';
+import {driveCar,seatPlayer,syncVehicleToPlayer} from './p2-vehicle';
+import {asPlayer,isRecovering,limitCoopAxis,nearestPlayer,playerBodies,startCoop,visitPlayers,type CoopState} from './coop-state';
+import {advanceCoopRecovery,hasFloorBelow} from './coop-recovery';
 import {initP2Bosses,updateP2Bosses} from './p2-bosses';
 import { bullyContact, advanceMagic } from './p2-enemies';
 import { initP2, type P2State } from './p2';
@@ -181,6 +183,7 @@ export interface Input {
 export interface Reward extends Body { kind: Exclude<BlockContent, 'auto' | 'empty'>; age: number; originY: number;bumpUntil?:number;persistent?:boolean;charges?:number }
 export interface Defeated extends Body { kind: Enemy['kind']; cause: 'stomp' | 'shot' | 'shell' | 'block' | 'pow' | 'star' | 'slide' | 'pound' | 'lava' | 'sand' | 'claw' | 'boomerang' | 'hammer'; lavaY?:number;bombFuse?:number; age: number; angle: number }
 export interface State extends AdvancedState, FortressState, WorkshopState, P1State, P2State {
+    coop?:CoopState;
     events:GameEvent[];
     eventSerial:number;
     level: Level;
@@ -417,11 +420,22 @@ function positionHeld(s:State):void {
     s.held.y=Math.min(p.y+p.h-s.held.h-.03,p.y+p.h-(s.power?.8:.45)-s.held.h/2);
 }
 function finish(s: State,x:number,y:number,autoCastle=false) {
+    if(!s.coop){startGoal(s,x,y,autoCastle,true);return;}
+    const coop=s.coop;
+    coop.arrivals[coop.active]={x,y};
+    s.player.vx=s.player.vy=0;
+    if(coop.arrivals.some(a=>!a))return;
+    // Shared scores, flag bonuses and the goal cue are awarded once.
+    for(const [index,arrival] of coop.arrivals.entries())asPlayer(s,index,()=>startGoal(s,arrival!.x,arrival!.y,false,index===0));
+}
+function startGoal(s: State,x:number,y:number,autoCastle:boolean,award:boolean) {
+    if(award){
     finishProgress(s,y*s.level.width+x);emit(s,'goal',x+.5);
-    const points=s.level.finish==='castle'?100:goalPoints(s,y);s.score+=points;
+    }
+    const points=s.level.finish==='castle'?100:goalPoints(s,y);if(award)s.score+=points;
     s.phase = 'won';
     s.victory = { age:0,baseY:y-s.player.h,settleAge:0,ready:false,stage:'slide',poleX:x+.5,castleX:Math.min(s.level.width-s.player.w-.01,x+4),points,startY:s.player.y,flagTarget:Math.max(y-poleHeight(s,x,y),Math.min(y-1,s.player.y)),flagProgress:0 };
-    if(s.level.finish==='castle'){s.victory.stage='cheer';s.victory.ready=true;s.victory.baseY=y+1-s.player.h;s.victory.castleX=x+.5-s.player.w/2;if(autoCastle){s.victory.stage='approach';s.victory.ready=false;s.victory.baseY=s.player.y;s.victory.autoCastle=true;}else{s.player.y=s.victory.baseY;emit(s,'victory');}}
+    if(s.level.finish==='castle'){s.victory.stage='cheer';s.victory.ready=true;s.victory.baseY=y+1-s.player.h;s.victory.castleX=x+.5-s.player.w/2;if(autoCastle){s.victory.stage='approach';s.victory.ready=false;s.victory.baseY=s.player.y;s.victory.autoCastle=true;}else{s.player.y=s.victory.baseY;if(award)emit(s,'victory');}}
     s.player.vx = 0; s.player.vy = 0;
     s.spinning = false; s.crouching = false; s.crouchAge = 0;s.climbing=false;
     s.running = s.skidding = s.turning = false;s.springDrift=false; s.dust = []; s.dustWait = 0;
@@ -499,7 +513,9 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
     const obstacles=s.phase==='won'&&s.victory?.autoCastle?[]:switchObstacles(s,b,player,minX,maxX);
     let floor = false, wall = 0;
     const belt=!player&&s.enemies.includes(b as Enemy)&&b.vy>=0?surface(s,b).boost:1;
-    b.x += b.vx * dt * belt;
+    const nextX=b.x+b.vx*dt*belt;
+    b.x=player?limitCoopAxis(s,b,'x',nextX):nextX;
+    const teamEdgeX=b.x!==nextX;
     // Follow the surface before testing the solid fill under the next ramp.
     let slope=resolveSlope(s,b,oldY,oldX,dt,(t,time)=>solid(t,time,s.redOn));
     if(slope!==null)floor=true;
@@ -528,7 +544,15 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
     const edgeX=Math.max(bounds.left,Math.min(Math.max(bounds.left,bounds.right-b.w),b.x));
     if(player&&edgeX!==b.x){wall=0;b.vx=0;}
     b.x=edgeX;
-    b.y += b.vy * dt;
+    if(teamEdgeX)b.vx=0;
+    const nextY=b.y+b.vy*dt;
+    b.y=player?limitCoopAxis(s,b,'y',nextY):nextY;
+    if(b.y!==nextY){
+        if(b.y<nextY&&!s.swimming&&!s.climbing&&s.motion!=='climb'&&!hasFloorBelow(s,b,services)){
+            killPlayer(s,'fall');if(isRecovering(s))return {floor:false,wall,slope:0};
+        }
+        b.vy=0;
+    }
     if(player&&b.y<0){b.y=0;b.vy=Math.max(0,b.vy);}
     if(resolveGlassAxis(s.level,b,'y',oldY)){floor=b.vy>0;b.vy=0;return {floor,wall,slope:0};}
     if (b.vy < 0) {
@@ -595,12 +619,14 @@ function moveBody(s: State, b: Body, dt: number, player = false, breakSideBricks
     return { floor, wall, slope:slope??0 };
 }
 export function respawn(s: State) {
-    if(respawnP2(s,create))return;
+    const coop=s.coop;delete s.coop;
+    if(respawnP2(s,create)){if(coop)configureCoop(s,coop.players.length,coop.viewport.w,coop.viewport.h);return;}
     const pink=retryPinkCoins(s),checkpoint: [number,number] = [...s.checkpoint], deaths = s.deaths, litCheckpoints = { ...s.litCheckpoints };
     Object.assign(s,create(s.startLevel));s.pinkProgress=pink;syncPinkCoins(s);
     s.checkpoint = checkpoint; s.player.x = checkpoint[0]; s.player.y = checkpoint[1];
     s.litCheckpoints = litCheckpoints;
     s.deaths = deaths; s.invincible = 2; s.notice = '重新出发！';
+    if(coop)configureCoop(s,coop.players.length,coop.viewport.w,coop.viewport.h);
 }
 function collectCoin(s: State,x: number,y: number,count=1) {
     if(s.phase!=='playing') return;
@@ -622,25 +648,165 @@ function activateCheckpoint(s: State, x: number, y: number) {
 }
 export function step(s:State,i:Input,dt=1/120):void {
     advanceFrame(s,i,dt);
+    clampCourse(s);
+}
+function clampCourse(s:State):void {
     // Also cover authored transfers, riding and powered flight that position the
     // player directly instead of going through the ordinary movement solver.
     const {left,right}=courseBounds(s.level,s.player),x=Math.max(left,Math.min(Math.max(left,right-s.player.w),s.player.x));
     const delta=x-s.player.x;
     if(delta){s.player.x=x;s.player.vx=0;s.wall=s.wallGrace=0;if(s.vehicle){s.vehicle.x+=delta;s.vehicle.vx=0;}if(s.riding){s.riding.x+=delta;s.riding.vx=0;}}
 }
-function advanceFrame(s: State, i: Input, dt: number) {
+interface CoopFrame {shared:boolean;enemyPrevious?:ReadonlyMap<Enemy,Body>}
+
+/** Start from the same authored checkpoint while keeping all forms and controls independent. */
+export function configureCoop(s:State,count:number,w:number,h:number):void {
+    if(count<2){delete s.coop;return;}
+    startCoop(s,Math.min(count,4),w,h);
+    const spawn={...s.player},used=[spawn.x];
+    for(let index=1;index<s.coop!.players.length;index++)asPlayer(s,index,()=>{
+        for(const offset of [1,-1,2,-2,3,-3]){
+            const x=spawn.x+offset;
+            if(used.includes(x)||x<0||x+spawn.w>courseBounds(s.level,spawn).right)continue;
+            s.player.x=x;
+            if(fitsHeight(s,spawn.h)&&[x+.05,x+spawn.w-.05].every(px=>solid(tile(s.level,px,spawn.y+spawn.h+.02),s.pTime,s.redOn))){used.push(x);return;}
+        }
+        s.player.x=spawn.x;
+    });
+}
+
+export function stepCoop(s:State,inputs:readonly Input[],dt=1/120):void {
+    const coop=s.coop;
+    if(!coop){step(s,inputs[0]??EMPTY_INPUT,dt);return;}
+    if(s.phase==='dead'){
+        asPlayer(s,Math.max(0,coop.failed),()=>advanceFrame(s,EMPTY_INPUT,dt));
+        return;
+    }
+    if(s.phase==='won'){
+        advanceFrame(s,EMPTY_INPUT,dt);
+        for(let i=1;i<coop.players.length;i++)asPlayer(s,i,()=>{if(s.victory)updateGoal(s,dt,move,false);});
+        return;
+    }
+    const frame:CoopFrame={shared:true};
+    for(let i=0;i<coop.players.length&&s.phase==='playing';i++){
+        if(coop.arrivals[i]||coop.recovery[i]||coop.traveler>=0&&coop.traveler!==i)continue;
+        let transferred=false;
+        asPlayer(s,i,()=>{
+            const oldArea=s.currentArea,oldTravel=!!(s.pipe||s.door);
+            const previous={...s.player};
+            if(s.held&&!s.held.alive)s.held=null;
+            advanceFrame(s,inputs[i]??EMPTY_INPUT,dt,frame);
+            if(isRecovering(s))return;
+            clampCourse(s);
+            const traveling=!!(s.pipe||s.door);
+            if(s.phase==='playing'&&(traveling||oldTravel||oldArea!==s.currentArea)){
+                moveCoopParty(s,i,oldArea);
+                coop.traveler=traveling?i:-1;
+                transferred=true;
+            }else if(s.phase==='playing'){
+                const x=limitCoopAxis(s,s.player,'x',s.player.x,previous.x);
+                const y=limitCoopAxis(s,s.player,'y',s.player.y,previous.y);
+                if(x!==s.player.x||y!==s.player.y){
+                    if(x!==s.player.x)s.player.vx=0;
+                    if(y!==s.player.y)s.player.vy=0;
+                    s.player.x=x;s.player.y=y;syncVehicleToPlayer(s);positionHeld(s);
+                }
+            }
+        });
+        frame.shared=false;
+        if(transferred)break;
+    }
+    if(frame.enemyPrevious&&s.phase==='playing')updateFireballs(s,dt);
+    // Players who reached the flag can still be the only survivors waiting to rescue a teammate.
+    if(frame.shared&&s.phase==='playing'){
+        const survivor=coop.recovery.findIndex(r=>!r);
+        if(survivor>=0)asPlayer(s,survivor,()=>{s.time+=dt;progressStep(s,dt,services);advanceWorldEffects(s,dt);});
+    }
+    advanceCoopRecovery(s,dt,services);
+}
+
+function moveCoopParty(s:State,leader:number,oldArea:string):void {
+    const coop=s.coop!,p=s.player,pipe=s.pipe,door=s.door;
+    for(let i=0;i<coop.players.length;i++)if(i!==leader&&!coop.recovery[i])asPlayer(s,i,()=>{
+        if(oldArea!==s.currentArea){
+            const area=s.areaMemory[oldArea];
+            for(const b of [s.held,s.riding,s.vehicle])if(b){
+                if('thrown'in b){if(area)area.items=area.items.filter(item=>item!==b);if(!s.items.includes(b))s.items.push(b);}
+                else{if(area)area.enemies=area.enemies.filter(e=>e!==b);if(!s.enemies.includes(b))s.enemies.push(b);}
+            }
+            s.boomerangs=[];
+        }
+        const q=s.player,center=p.x+(p.w-q.w)/2,feet=p.y+p.h;
+        q.x=center;q.y=feet-q.h;q.vx=q.vy=0;
+        // Each form needs its own clearance at the far end of a transfer.
+        if(!pipe&&!door&&!fitsHeight(s,q.h)){
+            const {left,right}=courseBounds(s.level,p);
+            for(const [dx,dy]of [[-.5,0],[.5,0],[-1,0],[1,0],[0,-1],[0,-2]] as const){
+                q.x=Math.max(left,Math.min(right-q.w,center+dx));q.y=feet-q.h+dy;
+                if(q.y>=0&&fitsHeight(s,q.h))break;
+                q.x=center;q.y=feet-q.h;
+            }
+        }
+        s.grounded=false;s.jumpSustain=s.jumpCut=false;s.wall=s.wallGrace=s.buffer=0;s.climbing=false;
+        s.pipe=pipe;s.door=door;s.doorWait=s.pipeWait=.5;
+        s.invincible=Math.max(.8,s.invincible);s.scoreChain.stomp=0;
+        syncVehicleToPlayer(s);positionHeld(s);
+    });
+}
+
+function advanceFrame(s: State, i: Input, dt: number, frame?:CoopFrame) {
+    const shared=frame?.shared??true;
     const physicalInput=i;
-    advancedTimers(s,dt);p1Timers(s,dt);wearTimers(s,dt);progressStep(s,dt,services);
-    for(const pop of s.scorePops)pop.age+=dt;s.scorePops=s.scorePops.filter(p=>p.age<1);
+    advancedTimers(s,dt,shared);p1Timers(s,dt,shared);wearTimers(s,dt);if(shared)progressStep(s,dt,services);
     for(const puff of s.dust)puff.age+=dt;
     s.dust=s.dust.filter(puff=>puff.age<DUST_DURATION);
     s.dustWait=Math.max(0,s.dustWait-dt);
     s.eatAge = Math.min(EAT_DURATION,s.eatAge+dt);
     s.cheerAge = Math.min(CHEER_DURATION, s.cheerAge + dt);
-    for (const wave of s.flagWaves) wave.age += dt;
-    s.flagWaves = s.flagWaves.filter(wave => wave.age < FLAG_WOBBLE_DURATION);
     for(const bite of s.bites) bite.age += dt;
     s.bites = s.bites.filter(b=>b.age<.38);
+    if(shared)advanceWorldEffects(s,dt);
+    if (s.phase === 'dead') {
+        s.deathAge += dt;
+        if (s.deathAge > .18 && s.deathAge < 1.6) { s.player.vy += 23 * dt; s.player.y += s.player.vy * dt; }
+        s.previous = { ...i }; return;
+    }
+    if(s.phase==='won'&&s.victory){updateFortress(s,dt,services);updateGoal(s,dt,move);s.previous={...i};return;}
+    if (s.phase !== 'playing') return;
+    if(s.stun>0)i={...i,axis:0,jump:false,spin:false,down:false,fire:false,special:false,build:false,interact:false};
+    i=shellInput(s,i);
+    const p = s.player;
+    expansionTimers(s,dt,services,shared);
+    advanceAdventure(s,dt,shared);
+    if(shared){s.time+=dt;if(!s.coop)advanceP2Camera(s,dt);advanceLiquid(s,dt);}
+    if(isRecovering(s))return;
+    if(!s.coop)cameraCrush(s,services);
+    if(areaTravel(s,i,dt,create,shared)){positionHeld(s);s.previous={...i};return;}
+    if(shared){advanceWorkshop(s,dt,services);advanceFrost(s,dt);advanceP2Mechanisms(s,dt,services);}
+    if(isRecovering(s))return;
+    driveCar(s,i,dt,services,shared);
+    if(shared){advanceDevices(s,dt,services);advancePipeObjects(s,dt,services);advanceEnemyProjectiles(s,dt,services);advanceCannonShots(s,dt,services);advanceMagic(s,dt,services);for(const hit of s.pipeHits)freezeEnemy(s,hit.enemy);s.pipeHits=[];}
+    if(!isRecovering(s))warpBoxes(s,i);
+    if(shared){advancePlatforms(s,dt,services);updateFortress(s,dt,services);updateP2Bosses(s,dt,services);}
+    if(s.coop&&(s.phase!=='playing'||isRecovering(s))){s.previous={...i};return;}
+    if(doorStep(s,i,dt)){s.running=s.skidding=s.turning=false;positionHeld(s);s.previous={...i};return;}
+    s.pipeWait = Math.max(0, s.pipeWait - dt);
+    if (s.pipe) {
+        s.running=s.skidding=s.turning=false;
+        if(s.pipe.glass&&s.pipe.path){advanceGlassPipe(s,dt,(t,time)=>solid(t,time,s.redOn),()=>crush(s));if(isRecovering(s))return;positionHeld(s);worldEnemies(s,dt);updateTurrets(s,dt,services);updateItems(s,{...EMPTY_INPUT},dt,-Infinity,services);updateFireballs(s,dt);s.previous={...i};return;}
+        advanceOrdinaryPipe(s,dt);
+        positionHeld(s);
+        s.previous = { ...physicalInput }; return;
+    }
+    if(enterGlassPipe(s,i,(t,time)=>solid(t,time,s.redOn))){s.running=s.skidding=s.turning=false;positionHeld(s);s.previous={...i};return;}
+    if(enterOrdinaryPipe(s,i)){s.shootAge=SHOT_DURATION;s.cheerAge=CHEER_DURATION;positionHeld(s);s.previous={...i};return;}
+    if(shared){updateStones(s,dt,services);updateTurrets(s,dt,services);}
+    if(s.phase!=='playing'||isRecovering(s)){s.previous={...i};return;}
+    advancePlayerMovement(s,i,dt,p,physicalInput,frame);
+}
+function advanceWorldEffects(s:State,dt:number):void {
+    for(const pop of s.scorePops)pop.age+=dt;s.scorePops=s.scorePops.filter(p=>p.age<1);
+    for(const wave of s.flagWaves)wave.age+=dt;s.flagWaves=s.flagWaves.filter(wave=>wave.age<FLAG_WOBBLE_DURATION);
     for (const e of s.defeated) {
         e.age += dt;
         if(e.cause==='lava'||e.cause==='sand'){e.y+=dt*(e.h+.35)/.65;e.angle=0;}
@@ -652,41 +818,9 @@ function advanceFrame(s: State, i: Input, dt: number) {
     s.bumps = s.bumps.filter(b => b.age < .24);
     for (const f of s.fragments) { f.age += dt; f.vy += 24 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.angle += f.vx * dt; }
     s.fragments = s.fragments.filter(f => f.age < .8);
-    if (s.phase === 'dead') {
-        s.deathAge += dt;
-        if (s.deathAge > .18 && s.deathAge < 1.6) { s.player.vy += 23 * dt; s.player.y += s.player.vy * dt; }
-        s.previous = { ...i }; return;
-    }
-    if(s.phase==='won'&&s.victory){updateFortress(s,dt,services);updateGoal(s,dt,move);s.previous={...i};return;}
-    if (s.phase !== 'playing') {
-        s.previous = { ...i };
-        return;
-    }
-    if(s.stun>0)i={...i,axis:0,jump:false,spin:false,down:false,fire:false,special:false,build:false,interact:false};
-    i=shellInput(s,i);
-    const p = s.player;
-    expansionTimers(s,dt,services);
-    advanceAdventure(s,dt);
-    s.time += dt;advanceP2Camera(s,dt);advanceLiquid(s,dt);cameraCrush(s,services);
-    if(areaTravel(s,i,dt,create)){positionHeld(s);s.previous={...i};return;}
-    advanceWorkshop(s,dt,services);
-    advanceFrost(s,dt);advanceP2Mechanisms(s,dt,services);driveCar(s,i,dt,services);advanceDevices(s,dt,services);advancePipeObjects(s,dt,services);advanceEnemyProjectiles(s,dt,services);advanceCannonShots(s,dt,services);advanceMagic(s,dt,services);for(const hit of s.pipeHits)freezeEnemy(s,hit.enemy);s.pipeHits=[];warpBoxes(s,i);
-    advancePlatforms(s,dt,services);
-    updateFortress(s,dt,services);updateP2Bosses(s,dt,services);
-    if(doorStep(s,i,dt)){s.running=s.skidding=s.turning=false;positionHeld(s);s.previous={...i};return;}
-    s.pipeWait = Math.max(0, s.pipeWait - dt);
-    if (s.pipe) {
-        s.running=s.skidding=s.turning=false;
-        if(s.pipe.glass&&s.pipe.path){advanceGlassPipe(s,dt,(t,time)=>solid(t,time,s.redOn),()=>crush(s));positionHeld(s);worldEnemies(s,dt);updateTurrets(s,dt,services);updateItems(s,{...EMPTY_INPUT},dt,-Infinity,services);updateFireballs(s,dt);s.previous={...i};return;}
-        advanceOrdinaryPipe(s,dt);
-        positionHeld(s);
-        s.previous = { ...physicalInput }; return;
-    }
-    if(enterGlassPipe(s,i,(t,time)=>solid(t,time,s.redOn))){s.running=s.skidding=s.turning=false;positionHeld(s);s.previous={...i};return;}
-    if(enterOrdinaryPipe(s,i)){s.shootAge=SHOT_DURATION;s.cheerAge=CHEER_DURATION;positionHeld(s);s.previous={...i};return;}
-    updateStones(s,dt,services);
-    updateTurrets(s,dt,services);
-    if(s.phase!=='playing'){s.previous={...i};return;}
+}
+function advancePlayerMovement(s:State,i:Input,dt:number,p:Body,physicalInput:Input,frame?:CoopFrame):void {
+    const shared=!frame?.enemyPrevious;
     s.invincible = Math.max(0, s.invincible - dt);
     s.fireWait -= dt;
     s.shootAge = Math.min(SHOT_DURATION, s.shootAge + dt);
@@ -769,7 +903,9 @@ function advanceFrame(s: State, i: Input, dt: number) {
     if(s.boneTime>0)p.vx=0;
     const intendedVx=p.vx;p.pushVx=intendedVx;
     if(braking)p.vx=brakingVelocity(horizontalBefore,p.vx,acceleration*traction,dt);
-    const wasGrounded=s.grounded,playerPrevious={...p},before = p.y + p.h,oldX=p.x,result = move(s, p, dt, true);afterWearMove(s,result.wall);seatPlayer(s);
+    const wasGrounded=s.grounded,playerPrevious={...p},before = p.y + p.h,oldX=p.x,result = move(s, p, dt, true);
+    if(isRecovering(s))return;
+    afterWearMove(s,result.wall);seatPlayer(s);
     if(braking&&!result.wall)p.vx=intendedVx;
     if(ridingBoneShell(s)){if(floatShell(s,p,before,.15,Number(i.down)-Number(!!i.interact)))result.floor=true;else if(p.vy<0)result.floor=false;}
     s.grounded = result.floor;
@@ -810,6 +946,7 @@ function advanceFrame(s: State, i: Input, dt: number) {
             }
             if(t==='pink-coin')collectPinkCoin(s,id);
             if(t==='lava'&&!(s.level.liquid?.kind==='lava'&&s.level.liquidSurface!==undefined&&p.y+p.h<s.level.liquidSurface))crush(s);
+            if(isRecovering(s))return;
             if(t==='bridge-bell')releaseBridge(s,y*s.level.width+x);
             if(t==='spike-all')hurt(s,y+.5<p.y+.2?'top':'side');
             if (t === 'C') {
@@ -819,7 +956,8 @@ function advanceFrame(s: State, i: Input, dt: number) {
     // Contents emerge harmlessly from behind the used block before activation.
     for (const reward of s.rewards) {
         if(reward.transit)continue;
-        reward.age += dt;
+        if(shared)reward.age+=dt;
+        else if(reward.age<.4||reward.kind==='coin'||ITEM_KINDS.includes(reward.kind)||EXTRA_ENEMIES.includes(reward.kind)||reward.kind==='duck'||reward.kind==='turtle')continue;
         if (reward.age < .4) { reward.y = reward.originY - (reward.kind==='giant-pearl'?2:1)*Math.min(1, reward.age / .4); continue; }
         if (reward.kind === 'coin') {
             reward.y = reward.originY - 1 - Math.sin(Math.min(1, (reward.age - .4) / .35) * Math.PI) * .7;
@@ -832,10 +970,12 @@ function advanceFrame(s: State, i: Input, dt: number) {
             s.enemies.push({ ...reward, kind: reward.kind, vx: -1.5, vy: 0, alive: true, held: false, cooldown: .35 });
             reward.w = 0;
         } else {
-            reward.vy = Math.min(18, reward.vy + 26 * dt);
-            const old={...reward},vx = reward.vx, r = move(s, reward, dt);if(reward.w<=0)continue;
-            if (r.wall) reward.vx = -vx;
-            bounceVerticalSpring(s,reward,old);bounceHorizontalSpring(s,reward,old);if(reward.kind==='growth')pressPSwitch(s,reward,old);
+            if(shared){
+                reward.vy=Math.min(18,reward.vy+26*dt);
+                const old={...reward},vx=reward.vx,r=move(s,reward,dt);if(reward.w<=0)continue;
+                if(r.wall)reward.vx=-vx;
+                bounceVerticalSpring(s,reward,old);bounceHorizontalSpring(s,reward,old);if(reward.kind==='growth')pressPSwitch(s,reward,old);
+            }
             if(overlaps(p,reward)&&progressReward(s,reward,services))continue;
             if (overlaps(p, reward)&&isWearable(reward.kind)){equipWearable(s,reward.kind,reward.charges??3);reward.w=0;continue;}
             if (overlaps(p, reward)) { grantPower(s,reward.kind==='cat-bell'?5:reward.kind==='boomerang-flower'?6:reward.kind==='hammer-suit'?7:reward.kind==='ice-flower'?4:reward.kind==='fire'?2:s.power||1); reward.w = 0; s.notice = reward.kind==='cat-bell'?'猫铃铛！J 爪击，空中 K 扑击，贴墙 ↑ 攀爬':reward.kind==='boomerang-flower'?'回旋镖花！J 投出并接回':reward.kind==='hammer-suit'?'建造锤！J 锤击，L 造箱，最多五个':reward.kind==='ice-flower'?'冰花！按 J 发射冰弹':reward.kind === 'fire' ? '火珊瑚！按 J 发射火球' : '成长！现在能撞碎贝壳砖'; }
@@ -844,7 +984,7 @@ function advanceFrame(s: State, i: Input, dt: number) {
     s.rewards = s.rewards.filter(r => r.w > 0 && (r.persistent||r.age < 60) && r.y < s.level.height + 2);
     positionHeld(s);
     const usedThrow=heldAction(s,i);
-    if(!usedThrow)abilities(s,i,dt,services);updateItems(s,i,dt,before,services);
+    if(!usedThrow)abilities(s,i,dt,services);updateItems(s,i,dt,before,services,shared);
     if (!usedThrow&&!s.held&&i.fire && !s.previous.fire && (s.power===2||s.power===4) && s.fireWait <= 0 && s.shots.length < 12) {
         s.shootAge = 0; s.shootFacing = s.facing; s.pendingShot = true;
         s.fireWait = SHOT_DURATION;
@@ -856,10 +996,12 @@ function advanceFrame(s: State, i: Input, dt: number) {
         });}
         s.pendingShot = false;
     }
-    const enemyPrevious=worldEnemies(s,dt);
+    const enemyPrevious=shared?worldEnemies(s,dt):frame?.enemyPrevious;
+    if(frame&&enemyPrevious)frame.enemyPrevious=enemyPrevious;
     let stomped = false;
     for(const e of s.enemies){
-        if(!enemyPrevious.has(e))continue;
+        if(isRecovering(s))break;
+        if(!enemyPrevious?.has(e))continue;
         if(!e.alive||e.transit||e.downAge!==undefined||e.kind==='plant'&&Math.min(e.w,e.h)<.08&&!e.frozen||e.kind==='fire-jumper'&&e.flamePhase==='wait')continue;
         if(bonkWithHelmet(s,e,playerPrevious,enemyPrevious.get(e)!))continue;
         if(heldSnowContact(s,e,services))continue;
@@ -933,13 +1075,15 @@ function advanceFrame(s: State, i: Input, dt: number) {
         else
             hurt(s,e.y+e.h<p.y+.3?'top':'side');
     }
-    updateFireballs(s,dt);
+    // The last player's shot can join the same shared update without advancing other shots twice.
+    if(!frame)updateFireballs(s,dt);
     const room=s.level.rooms?.find(r=>p.x+p.w>r.x&&p.x<r.x+r.w&&p.y>=r.y);
     if (s.boneTime===0&&p.y > (room?room.y+room.h:s.level.playHeight??s.level.height) + 2) {
         killPlayer(s,'fall');
     }
+    if(isRecovering(s))return;
     advanceClearRun(s);
-    if(s.phase==='playing'&&conditionProgress(s).done&&s.level.finish==='castle'&&s.bridgeCollapse&&s.bridgeCollapse.removed===s.bridgeCollapse.cells.length&&s.bosses.length>0&&s.bosses.every(b=>b.health<=0)){const id=s.level.cells.indexOf('E');if(id>=0){finish(s,id%s.level.width,Math.floor(id/s.level.width),true);s.previous={...i};return;}}
+    if(!s.coop&&s.phase==='playing'&&conditionProgress(s).done&&s.level.finish==='castle'&&s.bridgeCollapse&&s.bridgeCollapse.removed===s.bridgeCollapse.cells.length&&s.bosses.length>0&&s.bosses.every(b=>b.health<=0)){const id=s.level.cells.indexOf('E');if(id>=0){finish(s,id%s.level.width,Math.floor(id/s.level.width),true);s.previous={...i};return;}}
     const goal=goalAt(s);if(goal&&!conditionProgress(s).done)s.notice='尚未满足通关条件：'+conditionProgress(s).text;
     if(goal&&!(s.power===5&&i.interact&&s.catStamina>0&&p.y+p.h>Math.max(0,goal.y-poleHeight(s,goal.x,goal.y))+.25)&&conditionProgress(s).done&&s.phase==='playing'&&(s.level.finish!=='castle'||!s.bosses.some(b=>b.health>0))){finish(s,goal.x,goal.y);s.previous={...i};return;}
     s.previous = { ...physicalInput };
@@ -947,13 +1091,13 @@ function advanceFrame(s: State, i: Input, dt: number) {
 const crush=crushPlayer;
 export const services:Services={move,hurt,defeat,solid,crush,coin:collectCoin,hitBlock,activatePow:(state,item)=>detonatePow(state,item,services)};
 
-function worldEnemies(s:State,dt:number){const p=s.player;
+function worldEnemies(s:State,dt:number){const players=playerBodies(s);
     // Contact at the start of a rising movement still counts as touching lava.
     drownEnemies(s);
     for(const e of s.enemies)ironWake(s,e,dt);
     const enemyPrevious=new Map<Enemy,Body>();
     for (const e of s.enemies) {
-        if (!e.alive || e.held || e.transit || (e.x > p.x + 28 || e.x < p.x - 32)&&!(e.kind==='bomb'&&e.bombFuse!==undefined))
+        if (!e.alive || e.held || e.transit || !players.some(p=>e.x<=p.x+28&&e.x>=p.x-32)&&!(e.kind==='bomb'&&e.bombFuse!==undefined))
             continue;
         enemyPrevious.set(e,{...e});
         updateSpringLaunch(e,dt);
@@ -963,7 +1107,7 @@ function worldEnemies(s:State,dt:number){const p=s.player;
         if(e.frozen){updateFrozen(s,e,dt,services);if(!e.alive)continue;}
         else if(e.springAir){e.vy=Math.min(18,e.vy+26*dt);const r=move(s,e,dt);e.grounded=r.floor;if(r.wall)e.vx=-vx;if(r.floor||e.vy>0&&(e.kind==='fish'||e.kind==='squid')&&inWater(s.level,e))e.springAir=false;}
         else if(e.flight){const [top,bottom]=e.flight;e.age=(e.age??0)+dt;e.vx=0;e.vy=0;e.y=top+(bottom-top)*(.5+.5*Math.sin(e.age*2));}
-        else if(!updateSpecialEnemy(s,e,dt,services)){
+        else if(!nearestPlayer(s,e,()=>updateSpecialEnemy(s,e,dt,services))){
             e.vy = Math.min(18, e.vy + 26 * dt);
             const r = move(s, e, dt, false, e.kind === 'shell' && Math.abs(vx) > 5);
             if(e.smart&&r.floor&&e.kind==='turtle'){const edge=vx>0?e.x+e.w+.15:e.x-.15,under=tile(s.level,edge,e.y+e.h+.15);if(!solid(under,s.pTime,s.redOn)&&under!=='=')e.vx=-vx;}
@@ -979,7 +1123,7 @@ function worldEnemies(s:State,dt:number){const p=s.player;
             }
         }
         if(!e.alive)continue;
-        if((e.kind==='fire-brother'||e.kind==='hammer-otter')&&(e.modifiers?.shockwave??e.modifiers?.large)&&e.grounded&&!(enemyPrevious.get(e) as Enemy).grounded&&enemyPrevious.get(e)!.vy>2){s.shake=Math.max(s.shake,.3);emit(s,'stone',e.x);if(s.grounded&&!s.starTime&&Math.abs(s.player.x-e.x)<12)s.stun=Math.max(s.stun,.5);}
+        if((e.kind==='fire-brother'||e.kind==='hammer-otter')&&(e.modifiers?.shockwave??e.modifiers?.large)&&e.grounded&&!(enemyPrevious.get(e) as Enemy).grounded&&enemyPrevious.get(e)!.vy>2){s.shake=Math.max(s.shake,.3);emit(s,'stone',e.x);visitPlayers(s,()=>{if(s.grounded&&!s.starTime&&Math.abs(s.player.x-e.x)<12)s.stun=Math.max(s.stun,.5);});}
         if((e.frozen||e.kind!=='plant'&&e.kind!=='fire-jumper'&&e.kind!=='ghost')&&!e.flight){
             if(bounceVerticalSpring(s,e,enemyPrevious.get(e)!)&&['fish','squid','cannonball'].includes(e.kind)){
                 e.springAir=true;
@@ -1023,5 +1167,5 @@ function updateFireballs(s:State,dt:number){
   for(const boss of s.bosses)if(b.w>0&&boss.health>0&&overlaps(b,boss)&&bossAttackResult(b.kind==='ice'?'ice':'fire')==='damage'){damageBoss(s,boss,b.kind==='ice'?'ice':'fire');b.w=0;}
   if(b.w===0){if(b.kind==='ice')frostEffect(s,b.x+old.w/2,b.y+b.h/2);else effect(s,'fire',b.x+old.w/2,b.y+b.h/2);}
  }
- s.shots=s.shots.filter(b=>b.w>0&&(b.transit||b.x>0&&b.x<s.level.width-b.w&&b.y<s.level.height&&Math.abs(b.x-s.player.x)<24));
+ const players=playerBodies(s);s.shots=s.shots.filter(b=>b.w>0&&(b.transit||b.x>0&&b.x<s.level.width-b.w&&b.y<s.level.height&&players.some(p=>Math.abs(b.x-p.x)<24)));
 }

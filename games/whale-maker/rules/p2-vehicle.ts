@@ -1,8 +1,10 @@
 import type { Input, State } from './model';
 import type { Services } from './services';
 import { emit } from './events';
-export function driveCar(s:State,i:Input,dt:number,svc:Services):void {
-    for(const car of s.items)if(car.alive&&car.kind==='koopa-car'&&car!==s.vehicle){car.age+=dt;car.vy=Math.min(18,car.vy+26*dt);svc.move(s,car,dt);car.vx*=Math.exp(-7*dt);if(car.y>s.level.height+2)car.alive=false;
+import { playerAt } from './coop-state';
+export function driveCar(s:State,i:Input,dt:number,svc:Services,shared=true):void {
+    for(const car of s.items)if(car.alive&&car.kind==='koopa-car'&&car!==s.vehicle&&!s.coop?.players.some((_,index)=>playerAt(s,index).vehicle===car)){
+        if(shared){car.age+=dt;car.vy=Math.min(18,car.vy+26*dt);svc.move(s,car,dt);car.vx*=Math.exp(-7*dt);if(car.y>s.level.height+2)car.alive=false;}
         if(!s.vehicle&&!s.held&&!s.riding&&!s.pipe&&!s.door&&i.interact&&!s.previous.interact&&Math.abs(s.player.x+s.player.w/2-car.x-car.w/2)<1.4&&Math.abs(s.player.y+s.player.h-car.y-car.h)<2){s.vehicle=car;if(s.wearable)s.wearable.active=false;emit(s,'grab',car.x);}}
     const car=s.vehicle;if(!car)return;if(s.door){syncVehicleToPlayer(s);return;}if(!car.alive||s.pipe||i.interact&&!s.previous.interact&&i.grab){s.vehicle=null;car.vx=0;s.player.vy=-8;emit(s,'jump',car.x);return;}
     const wasGrounded=Math.abs(car.vy)<.01;car.vx+=(i.axis*10-car.vx)*Math.min(1,dt*5);if(i.axis)s.facing=i.axis;if(i.jump&&!s.previous.jump&&wasGrounded){car.vy=-12;emit(s,'jump',car.x);}car.vy=Math.min(18,car.vy+26*dt);svc.move(s,car,dt);if(car.y>s.level.height+2){car.alive=false;s.vehicle=null;svc.crush(s);return;}

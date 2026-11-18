@@ -1,3 +1,4 @@
+import {playerBodies,visitPlayers} from './coop-state';
 import {overlaps as overlap} from './geometry';
 import {hasHelmet} from './player-equipment';
 import type { Body, Input, Level, State } from './model';
@@ -37,8 +38,9 @@ export function collectKey(s:State,x:number,y:number):void {
     emit(s,'key',x);
     if(s.keys.length<32)s.keys.push({x,y,age:0});s.notice='获得钥匙！跟在身后，可开启上锁的门';
 }
-export function advanceAdventure(s:State,dt:number):void {
+export function advanceAdventure(s:State,dt:number,shared=true):void {
     s.climbWait=Math.max(0,s.climbWait-dt);
+    if(!shared)return;
     const p=s.player;s.keyTrail.unshift({x:p.x+p.w/2-s.facing*.8,y:p.y+p.h*.35});s.keyTrail=s.keyTrail.slice(0,160);
     for(const [n,key]of s.keys.entries()){
         key.age+=dt;const target=s.keyTrail[Math.min(s.keyTrail.length-1,12+n*8)]!;
@@ -73,15 +75,14 @@ function approach(stone:Stone,p:Body):number|null {
     return stone.direction==='left'?(dx<0?Math.abs(dy):null):(dx>0?Math.abs(dy):null);
 }
 export function updateStones(s:State,dt:number,svc:Services):void {
-    const p=s.player;
+    const players=playerBodies(s);
     for(const stone of s.stones){
         const old={...stone};stone.age=(stone.age??0)+dt;
         if(stone.winged&&(stone.phase==='idle'||stone.phase==='alert')){const x=stone.origin[0]+Math.sin(stone.age*2)*.65,dx=x-stone.x;stone.vx=dx/dt;stone.vy=0;svc.move(s,stone,dt);stone.vx=0;}
-        const standing=Math.abs(p.y+p.h-stone.y)<.04&&p.vy>=0&&p.x+p.w>stone.x+.01&&p.x<stone.x+stone.w-.01;
         stone.timer=Math.max(0,stone.timer-dt);
         if(stone.phase==='idle'||stone.phase==='alert'){
-            const gap=approach(stone,p);stone.phase=gap!==null&&gap<=3?'alert':'idle';
-            if(gap!==null&&gap<=2){stone.phase='charge';stone.vx=stone.direction==='left'?-18:stone.direction==='right'?18:0;stone.vy=stone.direction==='down'?14.4:0;}
+            const gap=Math.min(...players.map(p=>approach(stone,p)??Infinity));stone.phase=gap<=3?'alert':'idle';
+            if(gap<=2){stone.phase='charge';stone.vx=stone.direction==='left'?-18:stone.direction==='right'?18:0;stone.vy=stone.direction==='down'?14.4:0;}
         }
         if(stone.phase==='pause'){stone.vx=stone.vy=0;if(stone.timer===0)stone.phase='return';}
         if(stone.phase==='return'){
@@ -118,10 +119,12 @@ export function updateStones(s:State,dt:number,svc:Services):void {
         if(dy>0)for(const enemy of s.enemies)if(enemy.alive&&!enemy.held&&Math.min(enemy.w,enemy.h)>.08&&
             enemy.x<stone.x+stone.w&&enemy.x+enemy.w>stone.x&&old.y+old.h<=enemy.y+.2&&stone.y+stone.h>=enemy.y)
             svc.defeat(s,enemy,'block');
+        visitPlayers(s,()=>{
+        const p=s.player,standing=Math.abs(p.y+p.h-old.y)<.04&&p.vy>=0&&p.x+p.w>old.x+.01&&p.x<old.x+old.w-.01;
         if(standing&&(dx||dy)){
             const carried={...p,vx:dx/dt,vy:dy/dt},hit=svc.move(s,carried,dt,true);p.x=carried.x;p.y=carried.y;if(hit.wall||hit.floor&&dy>0)s.climbing=false;
         }
-        if(!overlap(p,stone))continue;
+        if(!overlap(p,stone))return;
         if(hasHelmet(s)){
             stone.x=old.x;stone.y=old.y;
             if(old.y+old.h<=p.y+.12||p.y>=stone.y+stone.h-.25)bonkStone(s,stone);
@@ -136,5 +139,6 @@ export function updateStones(s:State,dt:number,svc:Services):void {
             if(stone.direction==='down'){if(p.y>=stone.y+stone.h/2)p.y=stone.y+stone.h;else p.y=stone.y-p.h;}
             else p.x=stone.direction==='left'?stone.x-p.w:stone.x+stone.w;
         }
+        });
     }
 }

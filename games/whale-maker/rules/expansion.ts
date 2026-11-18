@@ -1,4 +1,6 @@
 import {pressSwitch,pressPSwitch,P_SWITCH_VANISH_TIME} from './p-switch';
+import {isRecovering} from './coop-state';
+import {firebarPoints} from './firebar';
 import {effect} from './effects';
 import {inWater} from './water';
 import {syncVehicleToPlayer} from './p2-vehicle';
@@ -45,18 +47,7 @@ export function initExpansion(l:Level):Pick<State,'items'|'starTime'|'helmet'|'p
 }
 export {inWater} from './water';
 import {slopeAt} from './terrain';
-export {slopeAt} from './terrain';
-/** Test only the filled triangle, leaving the air above the diagonal traversable. */
-export function slopeIntersects(t:Tile,x:number,y:number,b:Body):boolean {
-    if(t!=='slope-up'&&t!=='slope-down'&&!String(t).startsWith('gentle-'))return false;
-    const left=Math.max(x,b.x),right=Math.min(x+1,b.x+b.w);
-    if(right-left<.00001||b.y>=y+1-.00001||b.y+b.h<=y+.00001)return false;
-    const gentle=String(t).startsWith('gentle-'),up=t==='slope-up'||String(t).startsWith('gentle-up'),offset=String(t).endsWith('-body')?1:0;
-    const surface=gentle?y+(up?1-((right-x)+offset)/2:((left-x)+offset)/2):up?y+1-(right-x):y+(left-x);
-    // Surface following samples 0.001 tiles inside each foot edge. Leave that
-    // contact tolerance here so a standing body never catches on its own ramp.
-    return b.y+b.h>surface+.003;
-}
+export {slopeAt,slopeIntersects} from './terrain';
 export function resolveSlope(s:State,b:Body,oldY:number,oldX:number,dt:number,isSolid:(t:Tile,pTime?:number)=>boolean):number|null {
     if(b.vy<0)return null;
     const oldFeet=oldY+b.h,feet=b.y+b.h;
@@ -74,9 +65,11 @@ export function resolveSlope(s:State,b:Body,oldY:number,oldX:number,dt:number,is
     if(!best)return null;b.y=best.height-b.h;b.vy=0;return best.grade;
 }
 export {triggerP,pressSwitch,pressPSwitch,P_SWITCH_VANISH_TIME} from './p-switch';
-export function expansionTimers(s:State,dt:number,svc?:Services):void {
-    s.starTime=Math.max(0,s.starTime-dt);s.shake=Math.max(0,s.shake-dt);s.powFlash=Math.max(0,s.powFlash-dt);s.doorWait=Math.max(0,s.doorWait-dt);s.slideTime=Math.max(0,s.slideTime-dt);
+export function expansionTimers(s:State,dt:number,svc?:Services,shared=true):void {
+    s.starTime=Math.max(0,s.starTime-dt);s.doorWait=Math.max(0,s.doorWait-dt);s.slideTime=Math.max(0,s.slideTime-dt);
     if(s.starTime===0)s.scoreChain.star=0;
+    if(!shared)return;
+    s.shake=Math.max(0,s.shake-dt);s.powFlash=Math.max(0,s.powFlash-dt);
     for(const fx of s.springEffects)fx.age+=dt;s.springEffects=s.springEffects.filter(f=>f.age<.32);
     // Keep the pressed pose briefly, then retire it even during door/pipe travel.
     for(const item of s.items)if(item.kind==='p-switch'&&item.spent){item.pressedAge=(item.pressedAge??0)+dt;if(item.pressedAge>=P_SWITCH_VANISH_TIME)item.alive=false;}
@@ -100,10 +93,7 @@ export function doorStep(s:State,i:Input,dt:number):boolean {
         emit(s,'door');s.climbing=false;const ex=exit%s.level.width,ey=Math.floor(exit/s.level.width);s.door={age:0,from:[p.x,p.y],to:[ex+.5-p.w/2,ey+1-p.h-(s.vehicle?s.vehicle.h-.35:0)],source:id,target:exit};s.cheerAge=.8;s.notice='正在穿过门';return true;
     }return false;
 }
-export function firebarPoints(l:Level,x:number,y:number,time:number):{x:number;y:number}[]{
-    const props=l.properties?.[y*l.width+x]??{},n=props.length??4,angle=(props.phase??0)+time*(props.speed??1.5);
-    return Array.from({length:n},(_,j)=>({x:x+.5+Math.cos(angle)*(j+1)*.55,y:y+.5+Math.sin(angle)*(j+1)*.55}));
-}
+export {firebarPoints} from './firebar';
 export {triggerPow,detonatePow} from './pow';
 /** Swept AABB picks the first enemy along the actual throw, independent of list order. */
 function throwContact(from:Body,to:Body,target:Body):number|null {
@@ -120,19 +110,26 @@ export function springEffect(s:State,x:number,y:number,kind:'spring-h'|'spring-v
     emit(s,'spring',x+.4);
     s.springEffects=s.springEffects.filter(f=>f.x!==x||f.y!==y);s.springEffects.push({x,y,age:0,kind});s.springEffects=s.springEffects.slice(-32);
 }
-export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services):void {
+export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services,shared=true):void {
     const p=s.player;
     for(const item of s.items){
+        if(isRecovering(s))break;
         if(!item.alive||item.transit||item.kind==='koopa-car')continue;
-        if((item.kind==='snowball'||item.kind==='snowball-large')){updateSnowball(s,item,i,dt,svc);continue;}
-        if(item.kind==='wood-crate'){updateCrate(s,item,i,dt,svc);continue;}
+        if((item.kind==='snowball'||item.kind==='snowball-large')){updateSnowball(s,item,i,dt,svc,shared);continue;}
+        if(item.kind==='wood-crate'){updateCrate(s,item,i,dt,svc,shared);continue;}
         if(item.kind==='p-switch'&&item.spent)continue;
-        if(item.compression!==undefined)item.compression=Math.max(0,item.compression-dt);
+        if(shared&&item.compression!==undefined)item.compression=Math.max(0,item.compression-dt);
         if(item.held)continue;
+        if(!shared&&(item.kind==='coin'||item.kind==='key')){
+            if(overlap(p,item)&&(item.kind==='key'||item.cooldown===0)){if(item.kind==='coin')svc.coin(s,item.x+item.w/2,item.y);else collectKey(s,item.x+item.w/2,item.y+item.h/2);item.alive=false;}
+            continue;
+        }
         if(item.kind==='coin'){const old={...item};item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);item.vy=Math.min(18,item.vy+26*dt);const hit=svc.move(s,item,dt);if(!item.alive||item.y>s.level.height+2){item.alive=false;continue;}if(hit.floor&&item.sandSurface===undefined){item.vy=-2;item.vx*=.8;}bounceVerticalSpring(s,item,old);bounceHorizontalSpring(s,item,old);if(overlap(p,item)&&item.cooldown===0){svc.coin(s,item.x+item.w/2,item.y);item.alive=false;}continue;}
         if(item.kind==='key'){item.age+=dt;item.vy=Math.min(18,item.vy+26*dt);svc.move(s,item,dt);if(item.y>s.level.height+2)item.alive=false;if(!item.alive||item.transit)continue;if(overlap(p,item)){collectKey(s,item.x+item.w/2,item.y+item.h/2);item.alive=false;}continue;}
+        const old={...item};let onFloor=item.vy===0;
+        if(shared){
         item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);
-        const old={...item},vx=item.vx;item.vy=Math.min(18,item.vy+26*dt);if(item.kind==='bone-shell')shellBuoyancy(s,item);const impactVy=item.vy;
+        const vx=item.vx;item.vy=Math.min(18,item.vy+26*dt);if(item.kind==='bone-shell')shellBuoyancy(s,item);const impactVy=item.vy;
         const r=svc.move(s,item,dt,false,['basin','shell-helmet','spike-shell-helmet','bone-shell'].includes(item.kind)&&Math.abs(vx)>5);if(!item.alive||item.transit)continue;
         if(item.kind==='bone-shell'&&floatShell(s,item,old.y+old.h)){r.floor=true;item.vx*=Math.exp(-3*dt);}
         if(r.wall&&item.kind==='bone-shell'){item.alive=false;effect(s,'stone',item.x,item.y,0,-3);continue;}
@@ -167,6 +164,9 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
         }
         if(['basin','shell-helmet','spike-shell-helmet','bone-shell'].includes(item.kind)&&Math.abs(item.vx)>5)for(const e of s.enemies)if(e.alive&&!e.held&&overlap(item,e))svc.defeat(s,e,'shell',item);
         if(item.kind==='spring-h'){if(r.floor)item.vx=0;continue;}
+        onFloor=r.floor;
+        }
+        if(item.kind==='spring-h')continue;
         if(item.cooldown>0||!(['p-switch','basin','pow','red-pow','bone-shell'].includes(item.kind)?touchingSwitch(p,item):overlap(p,item)))continue;
         if(item.kind==='shell-helmet'||item.kind==='spike-shell-helmet'){
             if(!i.grab&&p.vy<0&&p.y>=old.y+old.h-.18){equipShellHelmet(s,item.kind);item.alive=false;continue;}
@@ -180,7 +180,7 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
         const stomp=p.vy>=0&&before<=item.y+.2;
         if(item.kind==='p-switch'&&stomp&&!item.spent){pressSwitch(s,item);p.y=item.y-p.h;p.vy=-4;s.grounded=false;s.coyote=0;continue;}
         if(item.kind==='spring-v'&&stomp&&!i.grab){p.y=item.y-p.h;p.vy=i.jump||i.spin?-Math.sqrt(40*(13.5**2/40+(16**2/60-2))):-Math.sqrt(60*(16**2/60-2));s.springWindow=.22;s.springBoosted=!!(i.jump||i.spin);s.grounded=false;s.spinning=i.spin;s.jumpSustain=!!(i.jump||i.spin);s.jumpCut=false;s.coyote=0;s.buffer=0;springEffect(s,item.x,item.y,'spring-v');item.cooldown=.18;continue;}
-        if(i.grab&&!s.held&&!s.riding&&!item.spent&&(item.kind!=='basin'||r.floor&&Math.abs(item.vx)<.1&&Math.abs(item.vy)<.1)){emit(s,'grab',item.x);item.held=true;item.vx=item.vy=0;if(item.kind==='p-switch')item.thrown=false;if(item.kind==='spring-v'){item.thrown=false;item.springBounces=0;item.compression=0;}s.held=item;continue;}
+        if(i.grab&&!s.held&&!s.riding&&!item.spent&&(item.kind!=='basin'||onFloor&&Math.abs(item.vx)<.1&&Math.abs(item.vy)<.1)){emit(s,'grab',item.x);item.held=true;item.vx=item.vy=0;if(item.kind==='p-switch')item.thrown=false;if(item.kind==='spring-v'){item.thrown=false;item.springBounces=0;item.compression=0;}s.held=item;continue;}
         if(item.kind==='basin'){
             if(stomp){emit(s,'metal',item.x);p.y=item.y-p.h;p.vy=-7;item.vx=Math.abs(item.vx)>5?0:s.facing*12;}
             else if(Math.abs(item.vx)<1){

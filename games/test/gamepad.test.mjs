@@ -62,6 +62,6 @@ test('every playable manifest entry has an explicit controller profile and boots
     let source = readFileSync(entryUrl, 'utf8');
     const bootstrap = /export \* from '([^']+)'/.exec(source);
     if (bootstrap) source += readFileSync(new URL(`${bootstrap[1]}.ts`, entryUrl), 'utf8');
-    assert.ok(source.includes(`installGamepad('${game.id}')`), game.id);
+    assert.match(source, new RegExp(`\\binstallGamepad\\(\\s*'${game.id}'\\s*[,)]`), game.id);
   }
 });

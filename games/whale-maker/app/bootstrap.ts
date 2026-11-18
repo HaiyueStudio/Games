@@ -1,3 +1,4 @@
+import { loadArtwork, loadImage } from './artwork';
 import {PLAYER_FORMS} from '../rules/player-body';
 import {p2Level,P2_DEMOS,P2_HELP} from '../rules/p2-levels';
 import { P1Editor, P1_EDITOR_CHARS, movePathNode } from '../editor/p1';
@@ -10,15 +11,21 @@ import { elementFits } from '../editor/p1-geometry';
 import { P1_TOOLS, P1_NAMES, CONTAINER_TILES, PATH_TILES } from '../rules/p1-schema';
 import { p1Level, P1_DEMOS, P1_HELP } from '../rules/p1-levels';
 import { conditionProgress } from '../rules/p1';
-import { drawP1, drawP1Tile, drawP1Enemy, drawModifiers, drawP1Overlay } from '../rendering/p1';
+import { drawP1,drawP1Player, drawP1Tile, drawP1Enemy, drawModifiers, drawP1Overlay } from '../rendering/p1';
 import { Entity, World } from '@haiyue/engine';
 import { GuiRoot, GuiSystem, GuiElement, GuiImage, GuiLabel, GuiButton, GuiDirtyFlags, type GuiRect } from '@haiyue/engine/gui';
 import { RenderIntegration } from '@haiyue/engine/experimental';
 import { InputMap } from '@haiyue/engine/input';
 import { GameEngine } from '../../session/GameEngine';
 import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
-import { installGamepad } from '../../gamepad/runtime';
-import { create, demo, validate, step, respawn, blockOffset, tile, TOOLS, NAMES, CONTENTS, CONTENT_NAMES, SHOT_DURATION, SHOT_WINDUP, type BlockContent, type Level, type Tile, type Input } from '../rules/model';
+import { gamepadFrames, installGamepad, isGamepadPointerMode } from '../../gamepad/runtime';
+import {NeutralGate,type PadFrame} from '../../gamepad/sampler';
+import {ACTIONS,defaultSettings,keyLabel,playerInput,validSettings,type Action,type CoopSettings} from './coop-controls';
+import {COOP_CHARS,CoopSettingsPanel} from './coop-settings';
+import {asPlayer,coopCamera,playerAt} from '../rules/coop-state';
+import {drawPlayerNumber} from '../rendering/coop';
+import {BUBBLE_RADIUS} from '../rules/coop-recovery';
+import { configureCoop,create, demo, validate, stepCoop, respawn, blockOffset, tile, TOOLS, NAMES, CONTENTS, CONTENT_NAMES, SHOT_DURATION, SHOT_WINDUP, type BlockContent, type Level, type State, type Tile, type Input } from '../rules/model';
 import { objectCells, selectBox, clearCells, moveSelection, stampSelection, pasteStamp, type EditorTool, type Stamp } from '../editor/selection';
 import { placePipe } from '../rules/levels';
 import { isPipe, pipeShape, rotatePipe } from '../rules/pipes';
@@ -92,6 +99,13 @@ class WhaleMaker {
     level = modernLevel(classicLevel());
     campaignActive=true;
     state = create(this.level);
+    controls=defaultSettings();
+    private readonly controlSave=new SingleSlotGameSave<CoopSettings>({gameId:'whale-maker-controls',name:'鲸屿制造控制设置',validateData:validSettings});
+    settingsPanel!:CoopSettingsPanel;
+    private readonly mainUi=new GuiElement({pointerFilter:'ignore'});
+    private readonly actionEdges=Array.from({length:4},()=>new Set<Action>());
+    private readonly padGate=new NeutralGate();
+    private lastPadCommands:PadFrame|undefined;
     editing = false;
     paused = false;
     selected: Tile = '#';
@@ -203,38 +217,36 @@ class WhaleMaker {
     }
     async init() {
         const audioLoad=this.audioBackend.load(this.abort.signal);
-        const load = async (src: string) => { const i = new Image(); i.src = src; await i.decode(); return i; };
-        [this.characters, this.terrain, this.expansion, this.coins, this.tokens, this.shell, this.checkpointArt] = await Promise.all([load('./assets/runtime/characters.png'), load('./assets/runtime/world.png'), load('./assets/runtime/expansion.png'), load('./assets/runtime/coins.png'), load('./assets/runtime/tokens.png'), load('./assets/runtime/shell.png'), load('./assets/runtime/checkpoint.png')]);
-        this.frames = await fetch('./assets/runtime/frames.json').then(r => { if (!r.ok)
-            throw Error('Atlas metadata unavailable'); return r.json(); });
+        const controlLoad=this.controlSave.load();
+        const {images,frames,sourceSizes}=await loadArtwork();
+        const {characters,world,expansion,coins,tokens,shell,checkpoint,...extraImages}=images;
+        this.characters=characters!;this.terrain=world!;this.expansion=expansion!;this.coins=coins!;
+        this.tokens=tokens!;this.shell=shell!;this.checkpointArt=checkpoint!;
+        this.frames=frames;this.extraImages=extraImages;
         this.extraImages['slope-icons']=await loadSlopeIcons(this.terrain,this.frames.world![0]!);
         this.frames['slope-icons']=[[0,0,.5,1],[.5,0,.5,1]];
         {const plane=tornadoPlanes()[0]!,canvas=document.createElement('canvas');canvas.width=plane.width;canvas.height=plane.height;
             canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(plane.pixels),plane.width,plane.height),0,0);
-            this.extraImages['tornado-icon']=await load(canvas.toDataURL());this.frames['tornado-icon']=[[0,0,1,1]];}
-        await Promise.all(['shell-equipment','gadgets','creatures','environment','clear','adventure','mechanics','squid2','devices','backdrops','iron-parts','pearls','goal-flags','reef-boss','reef-bridge','night-coast','firebar-anchor','frost','lava','whale-small','whale-tall','whale-fire','whale-ice','workshop','hammer-otter','p1-creatures','p1-costumes','p1-special','p1-actions','p2-wearables','p2-enemies','p2-bosses','p2-bills'].map(async name=>{this.extraImages[name]=await load(`./assets/runtime/${name}.png`);}));
-        const iconSvg=await fetch('./assets/desert-icons.svg').then(r=>{if(!r.ok)throw Error('Desert icons unavailable');return r.text();}),iconUrl=URL.createObjectURL(new Blob([iconSvg],{type:'image/svg+xml'}));
-        try{this.extraImages['desert-icons']=await load(iconUrl);}finally{URL.revokeObjectURL(iconUrl);}
-        this.frames['desert-icons']=Array.from({length:4},(_,n)=>[n/4,0,1/4,1]);
-        {const svg=await fetch('./assets/p1-icons.svg').then(r=>r.text()),url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));try{this.extraImages['p1-icons']=await load(url);}finally{URL.revokeObjectURL(url);}this.frames['p1-icons']=Array.from({length:30},(_,n)=>{const crop=[0,3,4,5,6,8,9,20,21,22].includes(n)?[10,10,76,76]:n===2?[4,22,88,52]:[0,0,96,96];return [(n%8*96+crop[0]!)/768,(Math.floor(n/8)*96+crop[1]!)/384,crop[2]!/768,crop[3]!/384];});}
-        {const svg=await fetch('./assets/p2-icons.svg').then(r=>r.text()),url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));try{this.extraImages['p2-icons']=await load(url);}finally{URL.revokeObjectURL(url);}this.frames['p2-icons']=Array.from({length:15},(_,n)=>[n%8/8,Math.floor(n/8)/2,1/8,1/2]);}
+            this.extraImages['tornado-icon']=await loadImage(canvas.toDataURL());this.frames['tornado-icon']=[[0,0,1,1]];}
 
         for(let frame=0;frame<4;frame++)for(let stage=1;stage<=8;stage++){const [u,v,w,h]=this.frames.creatures![frame]!;this.frames.creatures!.push([u!,v!,w!,h!*stage/8]);}
         for(let stage=1;stage<=8;stage++){const [u,v,w,h]=this.frames.pearls![1]!;this.frames.pearls!.push([u!,v!,w!,h!*stage/8]);}
         {const rim=this.frames.gadgets![0]!,shaft=this.frames.gadgets![1]!;this.frames.gadgets!.push([rim[0]!,rim[1]!,rim[2]!,rim[3]!*.45],[shaft[0]!+shaft[2]!*.04,shaft[1]!+shaft[3]!*.26,shaft[2]!*.92,shaft[3]!*.46]);}
         for(const [u,v,w,h]of this.frames.environment!.slice(4,8))this.frames.environment!.push([u!+w!*.035,v!+h!*.12,w!*.93,h!*.84]);
         for(const [u,v,w]of this.frames.backdrops!.slice())this.frames.backdrops!.push([u!,v!+8/this.extraImages.backdrops!.naturalHeight,w!,2/this.extraImages.backdrops!.naturalHeight]);
-        await Promise.all([this.engine.init(),audioLoad]);
+        const [, ,settings]=await Promise.all([this.engine.init(),audioLoad,controlLoad]);
         if (this.disposed) {
             this.engine.destroy();
             return;
         }
+        if(settings)this.controls=settings;
+        this.syncTeam();
         this.scene = new WhaleScene2D(this.engine, { characters: this.characters, world: this.terrain, expansion: this.expansion, coins: this.coins, tokens: this.tokens, shell: this.shell, checkpoint: this.checkpointArt, ...this.extraImages }, this.frames,
-            { x: VIEW.x, y: VIEW.y, width: VIEW.w, height: VIEW.h });
+            { x: VIEW.x, y: VIEW.y, width: VIEW.w, height: VIEW.h }, sourceSizes);
         this.world.addSystem(this.scene);
         this.world.addEntity(new Entity('Whale interface').addComponent(this.ui));
         // Gameplay owns arrows and Space even after a GUI button receives focus.
-        this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'load', font: { chars: [...new Set(COPY + CLASSIC_COPY + P2_NAMES.join('') + P2_DEMOS.join('') + P2_HELP.join('') + '龟壳帽尖刺骨头漂浮水面岩浆五秒自动复原顶起炮台改变起点落定盔保留'+ '水中持续主区域副区穿戴装备炮箱蓄力松开发射旋桨上升三次落地恢复俯冲安静行走伪装跳跃攻击暴露鲸弹推进结束方向升降红脉冲箱向下从方撞击发动生命珍珠耐久获得条用尽重新开始计时奖励时间到抵达参数范围不存在嵌套新增最多八个尺寸清除空副区域仅能删除还没有放置元素的副区创建并进入区域出口全部本金残余上升风力触发预警秒数复位环绕半径检查点形态旗杆高度顶端有限循环跟随人物自动镜头模式滚屏液体最低最高行' + P1_EDITOR_CHARS + P1_NAMES.join('') + P1_DEMOS.join('') + P1_HELP.join('') + '技造尚未满足普通形态规则不能与检查点组合未知受困开始结束伸展回缩' + CONTENT_NAMES.join('') + '透明管道出口被挡住了正在内穿梭穿出末端延长转弯撤去末段管线格双向超出地图或发生重叠已更新入口朝上可放食人花‹›−有无反转方向配置选中机关场景翻页已经戴着铁盆挡住了头顶伤害戴好了可抵挡来自一次被地面敌人震飞P开关启动秒路径变化时间结束P门需要先踩下开关请给两扇门设置相同连接编号游泳机关试验海岸' + NAMES.join('') + Object.values(PLAYER_FORMS).map(form=>form.label+form.hudLabel).join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
+        this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'load', font: { chars: [...new Set(COPY + CLASSIC_COPY + COOP_CHARS + '等待复活已泡泡碰触救援队友救出了全队倒下了生命用尽' + P2_NAMES.join('') + P2_DEMOS.join('') + P2_HELP.join('') + '龟壳帽尖刺骨头漂浮水面岩浆五秒自动复原顶起炮台改变起点落定盔保留'+ '水中持续主区域副区穿戴装备炮箱蓄力松开发射旋桨上升三次落地恢复俯冲安静行走伪装跳跃攻击暴露鲸弹推进结束方向升降红脉冲箱向下从方撞击发动生命珍珠耐久获得条用尽重新开始计时奖励时间到抵达参数范围不存在嵌套新增最多八个尺寸清除空副区域仅能删除还没有放置元素的副区创建并进入区域出口全部本金残余上升风力触发预警秒数复位环绕半径检查点形态旗杆高度顶端有限循环跟随人物自动镜头模式滚屏液体最低最高行' + P1_EDITOR_CHARS + P1_NAMES.join('') + P1_DEMOS.join('') + P1_HELP.join('') + '技造尚未满足普通形态规则不能与检查点组合未知受困开始结束伸展回缩' + CONTENT_NAMES.join('') + '透明管道出口被挡住了正在内穿梭穿出末端延长转弯撤去末段管线格双向超出地图或发生重叠已更新入口朝上可放食人花‹›−有无反转方向配置选中机关场景翻页已经戴着铁盆挡住了头顶伤害戴好了可抵挡来自一次被地面敌人震飞P开关启动秒路径变化时间结束P门需要先踩下开关请给两扇门设置相同连接编号游泳机关试验海岸' + NAMES.join('') + Object.values(PLAYER_FORMS).map(form=>form.label+form.hudLabel).join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
         this.system.priority = 1000;
         this.world.addSystem(this.system);
         const render = new RenderIntegration(this.engine, { label: 'WhaleMaker.Scene2D+HUD' });
@@ -243,6 +255,7 @@ class WhaleMaker {
         const plaque = new GuiImage({ source: this.terrain, uv: this.frames.world![10]! as [number, number, number, number] });
         this.ui.add(this.rect(plaque, { x: 24, y: 12, width: 52, height: 48 }));
         this.label('鲸屿制造  /  WHALE MAKER', 90, 18, 380, 40);
+        this.button('设置',405,20,78,()=>{this.clearControls();this.settingsPanel.show(this.controls);});
         this.status = this.label('', 532, 21, 724);
         this.musicButton=this.button('音乐开',1088,20,80,()=>this.audio.toggleMusic());
         this.effectsButton=this.button('音效开',1176,20,80,()=>this.audio.toggleEffects());
@@ -278,8 +291,13 @@ class WhaleMaker {
                     delete this.touch[key as keyof Input]; }, onPointerCancel: () => { this.touch = {}; } });
             this.ui.add(this.rect(b, { x, y: input.special||input.build?684:738, width: 66, height: 48 }));
             const prior = b.layout.bind(b);
-            b.layout = p => { prior(p); b.setVisible(!this.editing); };
+            b.layout = p => { prior(p); b.setVisible(!this.editing&&!this.settingsPanel?.open); };
         }
+        // Keep ordinary labels and controls below the modal in the GUI paint order.
+        for(const node of [...this.ui.root.children]){this.ui.remove(node);this.mainUi.add(node);}
+        this.ui.add(this.mainUi);
+        this.mainUi.layout=area=>{Object.assign(this.mainUi.rect,area);for(const node of this.mainUi.children)node.layout(area);};
+        this.settingsPanel=new CoopSettingsPanel(this,settings=>this.applyControls(settings));
         const opt = { signal: this.abort.signal };
         const unlockAudio=()=>{if(!document.hidden&&!gameSession.paused){this.background=false;this.audio.unlock();}};
         this.canvas.addEventListener('pointerdown',unlockAudio,{...opt,capture:true});
@@ -316,6 +334,7 @@ class WhaleMaker {
         if (this.editing) { this.editCamera = 0; this.editY = Math.max(0,this.level.height-EDIT_VIEW.h/36); return; }
         if (this.state.phase === 'dead') respawn(this.state);
         else this.state = this.testState();
+        this.syncTeam();
         this.audio.reset(this.state);
         this.paused = false;
         this.accumulator = 0;
@@ -326,13 +345,28 @@ class WhaleMaker {
     clearControls() {
         this.keys.clear(); this.touch = {};
         this.pendingJump = this.pendingSpin = this.pendingFire = this.pendingSpecial = this.pendingBuild = false;
+        this.actionEdges.forEach(edges=>edges.clear());
+        this.padGate.reset();
     }
-    key(e: KeyboardEvent, down: boolean) { if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyZ', 'KeyX'].includes(e.code))
+    private syncTeam():void {
+        if((this.state.coop?.players.length??1)!==this.controls.count)configureCoop(this.state,this.controls.count,VIEW.w/S,VIEW.h/S);
+    }
+    private applyControls(settings:CoopSettings):void {
+        const changed=this.controls.count!==settings.count;
+        this.controls=settings;this.controlSave.save(settings);this.clearControls();
+        if(changed&&!this.editing){this.state.phase='playing';this.restart();}
+    }
+    key(e: KeyboardEvent, down: boolean) {
+        if(this.settingsPanel?.open){if(down)this.settingsPanel.key(e);return;}
+        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyZ', 'KeyX'].includes(e.code)||!this.editing&&this.controls.players.slice(0,this.controls.count).some(p=>p.keys.includes(e.code)))
         e.preventDefault(); if (down) {
         if (!e.repeat && !this.keys.has(e.code) && !this.editing && !this.paused) {
-            if (e.code === 'Space' || e.code === 'KeyZ') this.pendingJump = true;
-            if (e.code === 'KeyX') this.pendingSpin = true;
-            if (e.code === 'KeyJ') this.pendingFire = true;if(e.code==='KeyK')this.pendingSpecial=true;if(e.code==='KeyL')this.pendingBuild=true;
+            for(let index=0;index<this.controls.count;index++){
+                const profile=this.controls.players[index]!,action=ACTIONS[profile.keys.indexOf(e.code)];
+                if(action&&['jump','spin','fire','special','build','interact'].includes(action))this.actionEdges[index]!.add(action);
+            }
+            const primary=this.controls.players[0]!;
+            if(e.code==='KeyZ'&&this.controls.count===1&&primary.keys[4]==='Space'&&!primary.keys.includes(e.code))this.actionEdges[0]!.add('jump');
         }
         this.keys.add(e.code);
         if (!e.repeat) {
@@ -357,9 +391,31 @@ class WhaleMaker {
     }
     else
         this.keys.delete(e.code); }
-    input(): Input { const k = this.keys; const input = { ...{ axis: Number(k.has('KeyD') || k.has('ArrowRight')) - Number(k.has('KeyA') || k.has('ArrowLeft')), jump: k.has('Space') || k.has('KeyZ'), spin: k.has('KeyX'), down: k.has('KeyS') || k.has('ArrowDown'), grab: k.has('ShiftLeft') || k.has('ShiftRight'), fire: k.has('KeyJ'), interact:k.has('KeyW')||k.has('ArrowUp'),special:k.has('KeyK'),build:k.has('KeyL') }, ...this.touch }; input.jump ||= this.pendingJump; input.spin ||= this.pendingSpin; input.fire ||= this.pendingFire;input.special ||=this.pendingSpecial;input.build ||=this.pendingBuild; return input; }
+    input(index=0,pads=isGamepadPointerMode()?[]:gamepadFrames()): Input {
+        const input=playerInput(this.controls,index,this.keys,pads,this.actionEdges[index]!);
+        if(index!==0)return input;
+        Object.assign(input,this.touch);
+        input.jump||=this.pendingJump;input.spin||=this.pendingSpin;input.fire||=this.pendingFire;input.special||=this.pendingSpecial;input.build||=this.pendingBuild;
+        return input;
+    }
+    private gamepadCommands(pads:readonly PadFrame[]):void {
+        const profile=this.controls.players[0]!,pad=pads.find(p=>p.index===profile.device);
+        if(pad===this.lastPadCommands)return;
+        this.lastPadCommands=pad;
+        if(!pad||this.editing||this.background||gameSession.paused)return;
+        const pressed=(key:string)=>pad.pressed.has(key)&&!profile.pad.includes(key);
+        if(pressed('b9')){this.paused=!this.paused;this.clearControls();}
+        else if(pressed('b3'))this.toggle();
+        else if(pressed('b5'))this.restart();
+    }
     tick(dt: number) {
-        this.audio.update(this.state,{paused:this.paused,editing:this.editing,hidden:document.hidden||this.background,sessionPaused:gameSession.paused},dt);
+        const pads=gamepadFrames(),settingsOpen=this.settingsPanel.open;
+        this.mainUi.setVisible(!settingsOpen);
+        this.audio.update(this.state,{paused:this.paused||settingsOpen,editing:this.editing,hidden:document.hidden||this.background,sessionPaused:gameSession.paused},dt);
+        if(settingsOpen){this.lastPadCommands=pads.find(p=>p.index===this.controls.players[0]!.device);this.settingsPanel.update(pads);return;}
+        const gameplayPads=this.padGate.filter(isGamepadPointerMode()?[]:pads);
+        this.gamepadCommands(gameplayPads);
+        this.syncTeam();
         if (this.editing) {
         this.editTime += dt;
         const dx=Number(this.keys.has('ArrowRight'))-Number(this.keys.has('ArrowLeft')),dy=Number(this.keys.has('ArrowDown'))-Number(this.keys.has('ArrowUp'));
@@ -368,18 +424,24 @@ class WhaleMaker {
         return;
     } if (this.paused)
         return; this.accumulator += dt; while (this.accumulator >= 1 / 120) {
-        if (this.pendingJump) this.state.previous.jump = false;
-        if (this.pendingSpin) this.state.previous.spin = false;
-        if (this.pendingFire) this.state.previous.fire = false;
-        if(this.pendingSpecial)this.state.previous.special=false;if(this.pendingBuild)this.state.previous.build=false;
         this.state.view={x:this.camera,y:this.cameraY,w:VIEW.w/S,h:VIEW.h/S};
-        step(this.state, this.input());
+        const inputs=Array.from({length:this.controls.count},(_,index)=>{
+            const previous=playerAt(this.state,index).previous,edges=this.actionEdges[index]!;
+            for(const action of ['jump','spin','fire','special','build','interact'] as const)if(edges.has(action))previous[action]=false;
+            if(index===0){
+                if(this.pendingJump)previous.jump=false;if(this.pendingSpin)previous.spin=false;if(this.pendingFire)previous.fire=false;
+                if(this.pendingSpecial)previous.special=false;if(this.pendingBuild)previous.build=false;
+            }
+            return this.input(index,gameplayPads);
+        });
+        stepCoop(this.state,inputs);
         this.audio.events(this.state);
         this.pendingJump = this.pendingSpin = this.pendingFire = this.pendingSpecial = this.pendingBuild = false;
+        this.actionEdges.forEach(edges=>edges.clear());
         this.accumulator -= 1 / 120;
     }
         if(this.campaignActive){const next=nextClassic(this.state);if(next){this.state=next;this.level=structuredClone(next.startLevel);this.selectedLevel=4+next.startLevel.classicStage!;this.camera=0;this.cameraY=4;this.accumulator=0;this.clearControls();this.audio.reset(this.state);}}
-        const camera=cameraFor(this.state,centeredCamera(this.state.level,this.state.player,VIEW.w/S,VIEW.h/S),VIEW.w/S,VIEW.h/S);
+        const camera=this.state.coop?coopCamera(this.state):cameraFor(this.state,centeredCamera(this.state.level,this.state.player,VIEW.w/S,VIEW.h/S),VIEW.w/S,VIEW.h/S);
         this.camera=camera.x;this.cameraY=camera.y;
     }
     toggle() { this.campaignActive=false;if (this.editing) {
@@ -406,6 +468,7 @@ class WhaleMaker {
         return x >= 0 && x < this.level.width && y >= 0 && y < this.level.height ? [x,y] : null;
     }
     down(e: PointerEvent) {
+        if(this.settingsPanel.open)return;
         if (!this.editing) return;
         const cell = this.cellPoint(e); if (!cell) return;
         const [x,y] = cell, id = y*this.level.width+x;
@@ -652,11 +715,41 @@ class WhaleMaker {
         return;
     } void file.text().then(text => { if (this.disposed)
         return; const level = validate(JSON.parse(text));upgradeGlassPipes(level); this.record();this.editAreaId='main';this.areaRoot=undefined; this.level = level; this.state = create(level); this.editCamera = 0; this.editY = 0; this.selection.clear(); this.notice = '关卡已导入'; }).catch(e => { this.notice = String(e); }); }; input.click(); }
-    sprite(atlas: HTMLImageElement, index: number, x: number, y: number, w: number, h: number, flip = false) {
-        this.scene.sprite(atlas === this.characters ? 'characters' : 'world', index, x, y, w, h, flip);
-    }
     coin(x: number, feet: number, size: number, time: number, offset=0, opacity=1) {
         this.scene.actor('tokens',coinFrame(time,offset),x,feet,size,false,0,0,opacity);
+    }
+    private drawActor(s:State,cam:number,cy:number,z:number,v:{x:number;y:number},coinTime:number){
+        if(s.coop?.active){drawDust(this.scene,s.dust,cam,cy,z,v);drawP1Player(this.scene,s,cam,cy,z,v);}
+        const p = s.player, victory = s.victory, winAge = victory?.age ?? 0;
+        const celebrating = s.phase === 'won' && victory?.stage==='cheer' && victory?.ready && winAge > .14 && winAge < 1.4;
+        const traveling=!!(s.pipe?.glass&&s.pipe.path),travelAngle=s.pipe?.angle??0,travelFlip=s.pipe?.flip??false,travelRotation=travelAngle-(travelFlip?Math.PI:0);
+        const shooting=s.phase==='playing'&&!traveling&&s.shootAge<SHOT_DURATION;
+        const phase=s.coop&&s.phase==='dead'&&s.coop.failed!==s.coop.active?'playing':s.phase;
+        const art=playerArt(phase===s.phase?s:{...s,phase}),{atlas,frame,reference}=art,actorSize=art.size,cheerLift=art.lift*art.size/48;
+        const flip=traveling?travelFlip:art.flip;
+        const recoil = shooting ? -s.shootFacing * Math.sin(s.shootAge / SHOT_DURATION * Math.PI) * 3 : 0;
+        const goalOpacity=s.victory?.stage==='done'?0:s.victory?.stage==='walk'?Math.min(1,Math.max(0,(s.victory.castleX-p.x)/.7)):1;
+        const pipeOpacity = goalOpacity*(s.door?Math.abs(s.door.age-.35)/.35:s.pipe&&!s.pipe.glass ? Math.abs(s.pipe.age - .45) / .45 : 1);
+        let playerRect;
+        if (traveling||phase !== 'playing' || s.invincible <= 0 || Math.floor(s.time * 12) % 2 === 0)
+            playerRect=traveling?this.scene.centeredActor(atlas,frame,v.x+(p.x+p.w/2-cam)*z,v.y+(p.y+p.h/2-cy)*z,actorSize,reference,travelRotation,1,travelFlip):this.scene.actor(atlas,frame,v.x + (p.x + p.w / 2 - cam) * z + recoil,v.y + (p.y + p.h - cy) * z+cheerLift,actorSize,flip,
+                reference,s.pound==='flip'?s.poundAge/.22*Math.PI*2:phase === 'dead' ? Math.sin(s.deathAge * 9) * .15 : celebrating ? Math.sin(winAge * 15) * .08 : 0,pipeOpacity,s.starTime>0?[1,.8+.2*Math.sin(s.time*12),.85+.15*Math.cos(s.time*10),1]:undefined);
+        if(s.boneTime===0)drawWearable(this.scene,s,cam,cy,z,v);
+        if((s.helmet||s.shellHelmet)&&s.boneTime===0&&playerRect){const hatAtlas=s.shellHelmet?'shell-equipment':'gadgets',hatFrame=s.shellHelmet==='shell-helmet'?0:s.shellHelmet==='spike-shell-helmet'?1:7;if(traveling)this.scene.centeredActor(hatAtlas,hatFrame,v.x+(p.x+p.w/2-cam)*z+(Math.cos(travelAngle)*.22+Math.sin(travelRotation)*.12)*actorSize,v.y+(p.y+p.h/2-cy)*z+(Math.sin(travelAngle)*.22-Math.cos(travelRotation)*.12)*actorSize,actorSize*.55,hatFrame,travelRotation,1,travelFlip);else this.scene.actor(hatAtlas,hatFrame,playerRect.x+playerRect.width/2+(flip?-1:1)*actorSize*.15,playerRect.y+actorSize*.27,actorSize*.66,flip,hatFrame);}
+        if(s.phase==='playing') for(const bite of s.bites) {
+            const bodySize=actorSize/S,mouth={x:p.x+p.w/2+(flip?-1:1)*bodySize*.22,
+                y:p.y+p.h-bodySize*(s.crouching?.40:.48)};
+            const flight=biteFlight(bite,mouth,bite.age),size=40*flight.size;
+            if(flight.opacity>0) this.coin(v.x+(flight.x-cam)*z,v.y+(flight.y-cy)*z+size/2,size,coinTime,0,flight.opacity);
+        }
+        if (shooting && s.shootAge >= SHOT_WINDUP && s.shootAge < .12) {
+            const flash = (s.shootAge - SHOT_WINDUP) / (.12 - SHOT_WINDUP);
+            this.scene.actor(s.power===4?'frost':'characters',s.power===4?9:15,v.x+(p.x+p.w/2+s.shootFacing*.62-cam)*z,
+                v.y+(p.y+p.h-(s.crouching?.3:.6)-cy)*z+10,12+flash*14,false,s.power===4?9:15,flash*2,1-flash);
+        }
+        if(traveling&&s.held&&'frozen'in s.held&&s.held.frozen)drawFrozenEnemy(this.scene,s.held,v.x+(s.held.x+s.held.w/2-cam)*z,v.y+(s.held.y+s.held.h-cy)*z,z);
+        if(traveling&&s.held?.kind==='shell'&&!s.held.frozen)this.scene.centeredActor('shell',0,v.x+(s.held.x+s.held.w/2-cam)*z,v.y+(s.held.y+s.held.h/2-cy)*z,44,0,travelRotation,1,travelFlip);
+        return playerRect;
     }
     draw() {
         const v=this.editing?EDIT_VIEW:VIEW,z=this.editing?36:S;
@@ -664,7 +757,7 @@ class WhaleMaker {
         this.scene.begin();
         this.scene.fill({ x: v.x, y: v.y, width: v.w, height: v.h }, !this.state.level.classicStage&&this.state.player.x>220&&!!this.state.level.warps?.some(w=>w.to[0]>=221)&&!this.editing ? [.12, .25, .36, 1] : [180 / 255, 232 / 255, 228 / 255, 1]);
         const s = this.state, l = this.editing ? {...this.level,endZone:findEndZone(this.level)} : s.level;
-        const shaking=!this.editing?s.shake:0;
+        const shaking=!this.editing&&!s.coop?s.shake:0;
         const cam=(this.editing?this.editCamera:this.camera)+Math.sin(s.time*91)*shaking*.18,cy=(this.editing?this.editY:this.cameraY)+Math.cos(s.time*109)*shaking*.1;
         const coinTime = this.editing ? this.editTime : s.time + (s.victory?.age ?? (s.phase==='dead'?s.deathAge:0));
         this.hudCoin.setVisible(!this.editing);
@@ -693,7 +786,7 @@ class WhaleMaker {
         }
         if(l.classicStage===2)this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.01,.03,.10,.5]);
         if (!bonusRoom&&!coinRoom&&backdrop!=='night'&&backdrop!=='desert'&&l.classicStage!==2) for (let i = 0; i < 4; i++)
-            this.sprite(this.terrain, 14, v.x + ((i * 760 - cam * 9) % 3000 + 3000) % 3000 - 200, v.y + 25 + (i % 3) * 45, 160, 100);
+            this.scene.sprite('world', 14, v.x + ((i * 760 - cam * 9) % 3000 + 3000) % 3000 - 200, v.y + 25 + (i % 3) * 45, 160, 100);
         for(let y=Math.max(0,Math.floor(cy)-2);y<Math.min(l.height,cy+v.h/z+2);y++)for(let x=Math.max(0,Math.floor(cam)-3);x<Math.min(l.width,cam+v.w/z+3);x++)if(l.cells[y*l.width+x]==='smile-cloud')this.scene.sprite('world',14,v.x+(x-cam-.9)*z,v.y+(y-cy-.4)*z,2.8*z,1.7*z);
         if (this.editing) for (let i = 0; i < 42; i++) {
             const vertical=i<25,offset=vertical?i:i-25;
@@ -740,15 +833,15 @@ class WhaleMaker {
                     else if (t === 'C') {
                         const frame=checkpointFrame(coinTime,!this.editing&&!!s.litCheckpoints[y*l.width+x]);
                         const wave=!this.editing?s.flagWaves.find(w=>w.x===x&&w.y===y):undefined;
-                        const angle=wave?flagWobble(wave.age,wave.direction):0,uv=this.frames.checkpoint![frame]!;
-                        const rect=checkpointRect({width:Math.round(uv[2]!*this.checkpointArt.naturalWidth),height:Math.round(uv[3]!*this.checkpointArt.naturalHeight)},px+z/2,py+z,72*z/S,angle);
+                        const angle=wave?flagWobble(wave.age,wave.direction):0;
+                        const rect=checkpointRect(this.scene.sourceSize('checkpoint',frame),px+z/2,py+z,72*z/S,angle);
                         this.scene.sprite('checkpoint',frame,rect.x,rect.y,rect.width,rect.height,false,angle);
                     }
                     else if (t === 'U') this.scene.sprite('expansion',14,px,py,z,z);
                     else if (t === 'Q' || t === 'p' || t === 'q') { /* Complete pipe drawn from its P cell. */ }
                     else if(t==='E'){if(l.finish!=='castle')drawGoal(this.scene,s,x,y,px,py,z,coinTime,this.editing);}
                     else if (art !== undefined)
-                        this.sprite(this.terrain, art, px, py, z, z);
+                        this.scene.sprite('world', art, px, py, z, z);
                     else if(t==='o') this.coin(px+z/2,py+z,40*z/S,coinTime);
                     else if (t === 'G' || t === 'F' || t === 'T' || t === 'J')
                         this.scene.actor('characters',t==='G'?12:t==='F'?13:t==='T'?9:8,px+z/2,py+z,44*z/S);
@@ -812,44 +905,33 @@ class WhaleMaker {
                 }
             }
             for(const b of s.shots)this.scene.actor(b.kind==='ice'?'frost':'mechanics',b.kind==='ice'?8:4+Math.floor(s.time*12)%2,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h-cy)*z,24,false,b.kind==='ice'?8:4,b.kind==='ice'?s.time*9:0);
-            const p = s.player, victory = s.victory, winAge = victory?.age ?? 0;
-            const celebrating = s.phase === 'won' && victory?.stage==='cheer' && victory?.ready && winAge > .14 && winAge < 1.4;
-            const traveling=!!(s.pipe?.glass&&s.pipe.path),travelAngle=s.pipe?.angle??0,travelFlip=s.pipe?.flip??false,travelRotation=travelAngle-(travelFlip?Math.PI:0);
-            const shooting=s.phase==='playing'&&!traveling&&s.shootAge<SHOT_DURATION;
-            const art=playerArt(s),{atlas,frame,reference}=art,actorSize=art.size,cheerLift=art.lift*art.size/48;
-            const flip=traveling?travelFlip:art.flip;
-            const recoil = shooting ? -s.shootFacing * Math.sin(s.shootAge / SHOT_DURATION * Math.PI) * 3 : 0;
-            const goalOpacity=s.victory?.stage==='done'?0:s.victory?.stage==='walk'?Math.min(1,Math.max(0,(s.victory.castleX-p.x)/.7)):1;
-            const pipeOpacity = goalOpacity*(s.door?Math.abs(s.door.age-.35)/.35:s.pipe&&!s.pipe.glass ? Math.abs(s.pipe.age - .45) / .45 : 1);
-            let playerRect;
-            if (traveling||s.phase !== 'playing' || s.invincible <= 0 || Math.floor(s.time * 12) % 2 === 0)
-                playerRect=traveling?this.scene.centeredActor(atlas,frame,v.x+(p.x+p.w/2-cam)*z,v.y+(p.y+p.h/2-cy)*z,actorSize,reference,travelRotation,1,travelFlip):this.scene.actor(atlas,frame,v.x + (p.x + p.w / 2 - cam) * z + recoil,v.y + (p.y + p.h - cy) * z+cheerLift,actorSize,flip,
-                    reference,s.pound==='flip'?s.poundAge/.22*Math.PI*2:s.phase === 'dead' ? Math.sin(s.deathAge * 9) * .15 : celebrating ? Math.sin(winAge * 15) * .08 : 0,pipeOpacity,s.starTime>0?[1,.8+.2*Math.sin(s.time*12),.85+.15*Math.cos(s.time*10),1]:undefined);
+            const p=s.player,victory=s.victory,winAge=victory?.age??0;
+            const actors=(s.coop?.players??[s]).map((_,index)=>playerAt(s,index));
+            const playerRects=actors.map((_,index)=>asPlayer(s,index,()=>{
+                const recovery=s.coop?.recovery[index];
+                if(recovery&&s.phase==='dead'&&s.coop?.failed!==index)return undefined;
+                if(s.phase!=='playing')return this.drawActor(s,cam,cy,z,v,coinTime);
+                if(recovery?.kind==='waiting')return undefined;
+                if(recovery?.kind==='bubble'){
+                    const q=s.player,x=v.x+(q.x+q.w/2-cam)*z,y=v.y+(q.y+q.h/2-cy)*z;
+                    this.scene.rescueBubble(x,y,BUBBLE_RADIUS*z);
+                    return this.scene.centeredActor('whale-small',0,x,y,z*.73);
+                }
+                return this.drawActor(s,cam,cy,z,v,coinTime);
+            }));
+            for(const pop of s.coop?.pops??[])this.scene.rescueBubble(v.x+(pop.x-cam)*z,v.y+(pop.y-cy)*z,(BUBBLE_RADIUS+pop.age*2)*z,Math.max(0,1-pop.age/.28));
+            const traveling=(s.coop?.players??[s]).some((_,index)=>!!playerAt(s,index).pipe?.glass);
             for(const item of s.items)if(item.alive){
-                if(traveling&&item.held){const art=extraArt(item.kind,s.time)!;this.scene.centeredActor(art.atlas,art.frame,v.x+(item.x+item.w/2-cam)*z,v.y+(item.y+item.h/2-cy)*z,44,art.frame,travelRotation,1,travelFlip);}
-                else{const floating=item===s.riding&&item.kind==='bone-shell'&&s.grounded&&['water','lava'].includes(tile(s.level,p.x+p.w/2,p.y+p.h+.2));const feet=item===s.riding?p.y+p.h+(floating?.15:.02):item.y+item.h;drawItem(this.scene,s,item,v.x+(item.x+item.w/2-cam)*z,v.y+(feet-cy)*z,z);}
+                const owner=actors.find(a=>a.held===item||a.riding===item);
+                if(owner?.pipe?.glass&&item.held){const art=extraArt(item.kind,s.time)!;this.scene.centeredActor(art.atlas,art.frame,v.x+(item.x+item.w/2-cam)*z,v.y+(item.y+item.h/2-cy)*z,44,art.frame,(owner.pipe.angle??0)-(owner.pipe.flip?Math.PI:0),1,!!owner.pipe.flip);}
+                else{const rider=owner?.riding===item?owner:undefined,q=rider?.player;const floating=q&&item.kind==='bone-shell'&&rider.grounded&&['water','lava'].includes(tile(s.level,q.x+q.w/2,q.y+q.h+.2));const feet=q?q.y+q.h+(floating?.15:.02):item.y+item.h;drawItem(this.scene,s,item,v.x+(item.x+item.w/2-cam)*z,v.y+(feet-cy)*z,z);}
             }
-            if(traveling&&s.held&&'frozen'in s.held&&s.held.frozen)drawFrozenEnemy(this.scene,s.held,v.x+(s.held.x+s.held.w/2-cam)*z,v.y+(s.held.y+s.held.h-cy)*z,z);
-            if(traveling&&s.held?.kind==='shell'&&!s.held.frozen)this.scene.centeredActor('shell',0,v.x+(s.held.x+s.held.w/2-cam)*z,v.y+(s.held.y+s.held.h/2-cy)*z,44,0,travelRotation,1,travelFlip);
-            if(s.boneTime===0)drawWearable(this.scene,s,cam,cy,z,v);
-            if((s.helmet||s.shellHelmet)&&s.boneTime===0&&playerRect){const hatAtlas=s.shellHelmet?'shell-equipment':'gadgets',hatFrame=s.shellHelmet==='shell-helmet'?0:s.shellHelmet==='spike-shell-helmet'?1:7;if(traveling)this.scene.centeredActor(hatAtlas,hatFrame,v.x+(p.x+p.w/2-cam)*z+(Math.cos(travelAngle)*.22+Math.sin(travelRotation)*.12)*actorSize,v.y+(p.y+p.h/2-cy)*z+(Math.sin(travelAngle)*.22-Math.cos(travelRotation)*.12)*actorSize,actorSize*.55,hatFrame,travelRotation,1,travelFlip);else this.scene.actor(hatAtlas,hatFrame,playerRect.x+playerRect.width/2+(flip?-1:1)*actorSize*.15,playerRect.y+actorSize*.27,actorSize*.66,flip,hatFrame);}
             drawFrostEffects(this.scene,s,cam,cy,z,v);
             for(const fx of s.effects){if(fx.kind==='frost'||fx.kind==='snow'||fx.kind==='cactus')continue;if(drawWorkshopEffect(this.scene,fx,v.x+(fx.x-cam)*z,v.y+(fx.y-cy)*z,z))continue;if(fx.kind==='stone'){this.scene.actor('adventure',3,v.x+(fx.x-cam)*z,v.y+(fx.y-cy)*z,2*z,false,3,fx.age*4,Math.max(0,1-fx.age/.8));continue;}const opacity=Math.max(0,1-fx.age/(fx.kind==='helmet'?.65:.4)),atlas=fx.kind==='helmet'?(fx.headgear?'shell-equipment':'gadgets'):'mechanics',frame=fx.kind==='helmet'?(fx.headgear==='shell-helmet'?0:fx.headgear==='spike-shell-helmet'?1:7):fx.kind==='fire'?6+Math.min(3,Math.floor(fx.age*10)):fx.age<.13?10:fx.age<.26?11:15;this.scene.actor(atlas,frame,v.x+(fx.x-cam)*z,v.y+(fx.y-cy)*z,(fx.kind==='helmet'?44:fx.kind==='ice'?58:32)*z/S,false,frame,fx.kind==='helmet'?fx.age*4:0,opacity);}
-            drawClearFlag(this.scene,s,v.x+(p.x+p.w/2-cam)*z,playerRect?.y??v.y+(p.y-cy)*z,z,coinTime,v.y);
+            if(!s.coop?.recovery[0])drawClearFlag(this.scene,s,v.x+(p.x+p.w/2-cam)*z,playerRects[0]?.y??v.y+(p.y-cy)*z,z,coinTime,v.y);
             drawEnvironmentWind(this.scene,l,coinTime,cam,cy,z,v);
             if((s.areaFade??0)>0)this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.03,.09,.14,(s.areaFade??0)/.5]);
             if(traveling)drawGlassRoutes(this.scene,l,cam,cy,z,v,.22);
-            if(s.phase==='playing') for(const bite of s.bites) {
-                const bodySize=actorSize/S,mouth={x:p.x+p.w/2+(flip?-1:1)*bodySize*.22,
-                    y:p.y+p.h-bodySize*(s.crouching?.40:.48)};
-                const flight=biteFlight(bite,mouth,bite.age),size=40*flight.size;
-                if(flight.opacity>0) this.coin(v.x+(flight.x-cam)*z,v.y+(flight.y-cy)*z+size/2,size,coinTime,0,flight.opacity);
-            }
-            if (shooting && s.shootAge >= SHOT_WINDUP && s.shootAge < .12) {
-                const flash = (s.shootAge - SHOT_WINDUP) / (.12 - SHOT_WINDUP);
-                this.scene.actor(s.power===4?'frost':'characters',s.power===4?9:15,v.x+(p.x+p.w/2+s.shootFacing*.62-cam)*z,
-                    v.y+(p.y+p.h-(s.crouching?.3:.6)-cy)*z+10,12+flash*14,false,s.power===4?9:15,flash*2,1-flash);
-            }
             if (s.phase === 'won' && victory?.ready && winAge > .14 && winAge < 1.6) {
                 const progress = (winAge - .14) / 1.46;
                 for (let n = 0; n < 10; n++) {
@@ -860,6 +942,14 @@ class WhaleMaker {
             }
             for (const f of s.fragments) this.scene.actor('world', 1, v.x + (f.x - cam) * z, v.y + (f.y - cy) * z, 18, false, 1, f.angle, Math.max(0, 1 - f.age / .8));
             drawQuicksand(this.scene,l,cam,cy,z,v,coinTime);drawDesertEffects(this.scene,s,cam,cy,z,v);
+            if(s.coop)for(let i=0;i<s.coop.players.length;i++){
+                if(s.coop.recovery[i]&&(s.phase==='dead'?s.coop.failed!==i:s.coop.recovery[i]?.kind==='waiting'))continue;
+                const actor=playerAt(s,i);if(actor.victory?.stage==='done')continue;
+                const q=actor.player,x=q.x+q.w/2;
+                const crowded=s.coop.players.some((_,j)=>{const b=playerAt(s,j).player;return i!==j&&Math.abs(x-b.x-b.w/2)<.45&&Math.abs(q.y-b.y)<.7;});
+                const tagX=v.x+(x-cam)*z+(crowded?(i-(s.coop.players.length-1)/2)*17:0);
+                drawPlayerNumber(this.scene,i,Math.min(v.x+v.w-9,Math.max(v.x+9,tagX)),Math.max(v.y+16,playerRects[i]?.y??v.y+(q.y-cy)*z-4),!!s.coop.arrivals[i]);
+            }
             if(s.powFlash>0)this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.8,.95,1,s.powFlash*.8]);
             if (s.phase === 'dead') {
                 const shade = Math.min(.65, Math.max(0, (s.deathAge - .65) * .65));
@@ -868,11 +958,11 @@ class WhaleMaker {
         }
         if(this.editing){drawEnvironmentWind(this.scene,l,coinTime,cam,cy,z,v);drawP1Overlay(this.scene,l,this.selection,cam,cy,z,v,this.p1Editor.preview);if(this.p1Editor.preview&&[...this.selection].some(id=>l.properties?.[id]?.area))drawAreaEntryPreview(this.scene,this.editAreaId==='main'?l:this.areaRoot??l,l,this.selection,v);}
         drawCourseEdge(this.scene,l,this.editing?l.endZone?.right??l.width:courseBounds(l,s.player).right,cam,z,v,this.editing);
-        const winFinished=s.phase==='won'&&s.victory?.stage==='done';
+        const winFinished=s.phase==='won'&&s.victory?.stage==='done'&&(!s.coop||s.coop.players.every((_,i)=>playerAt(s,i).victory?.stage==='done'));
         this.banner.setVisible(!this.editing && (winFinished || (s.phase === 'dead' && s.deathAge > .9)));
         const bannerAge = s.phase === 'dead' ? s.deathAge - .9 : (s.victory?.age ?? 0) - 1.5;
         this.rect(this.banner, { x: 360, y: 340 + 24 * Math.max(0,1-bannerAge/.25), width: 560, height: 100 });
-        this.banner.setText(s.phase === 'won' ? (this.campaignActive?(l.classicStage===4?'1-1 → 1-4 闯关完成！  E 制造关卡':'准备进入下一关……'):'抵达星海！  R 重新出发 / E 制造关卡') : '任务失败  ·  R 从检查点重试');
+        this.banner.setText(s.phase==='dead'&&s.coop?(s.gameOver?'生命用尽 · R 重新开始':s.timeRemaining===0&&s.level.progress?.timeLimit?'时间到 · R 全队重试':'全队倒下了 · R 从检查点重试'):s.phase === 'won' ? (this.campaignActive?(l.classicStage===4?'1-1 → 1-4 闯关完成！  E 制造关卡':'准备进入下一关……'):'抵达星海！  R 重新出发 / E 制造关卡') : '任务失败  ·  R 从检查点重试');
         this.mode.setText(this.editing ? '试玩  E' : '编辑器  E');
         this.pause.setText(this.paused ? '继续 P' : '暂停 P');
         this.pause.setVisible(!this.editing);
@@ -914,14 +1004,14 @@ class WhaleMaker {
         if(this.scoreBanner.style.color!==clearColor||this.scoreBanner.style.backgroundColor!==clearBackground)this.scoreBanner.setStyle({color:clearColor,backgroundColor:clearBackground,radius:8});
         this.scoreBanner.setVisible(!this.editing&&(!!lastScore||hasCondition));this.scoreBanner.setText([hasCondition?`${clear.failed?'条件失败':clear.done?'条件达成':'通关条件'} · ${clear.text}`:'',lastScore?`${lastScore.chain>1?'连击 ×'+lastScore.chain+'  ':''}${lastScore.oneUp?'1UP':'+'+lastScore.points}`:''].filter(Boolean).join('  |  '));
         this.status.setText(this.editing ? `LEVEL LAB  /  ${l.name}  /  ${Math.floor(cam)} m` : `得分 ${s.score}  金币 ${s.coins.toString().padStart(3, '0')}    ${PLAYER_FORMS[s.power].hudLabel}    ${s.level.progress?.timeLimit?'剩余 '+Math.ceil(s.timeRemaining)+'s':Math.floor(s.time)+'s'}  ${s.pTime>0?'P '+Math.ceil(s.pTime)+'s  ':''}${s.starTime>0?'★ '+Math.ceil(s.starTime)+'s  ':''}${s.redOn?'红 ': '蓝 '}${s.boneTime>0?'骨头 '+Math.ceil(s.boneTime)+'s  ':s.riding?.kind==='bone-shell'?'骨头龟壳  ':''}${s.shellHelmet==='shell-helmet'?'龟壳帽  ':s.shellHelmet==='spike-shell-helmet'?'尖刺龟壳帽  ':s.helmet?'铁盆  ':''}${s.keys.length?'钥匙 '+s.keys.length+'  ':''}${s.phase === 'won' ? '抵达星海！' : s.phase === 'dead' ? '按 R 重试' : this.paused ? '暂停' : l.name}`);
-        const entry=[...this.selection].map(id=>l.properties?.[id]).find(p=>p?.area);const wear=s.wearable;this.p2Hud.setVisible(this.editing||!!(wear||s.level.progress?.lives||s.rootLevel?.areas||s.level.areas));this.p2Hud.setText(this.editing?`${this.editAreaId==='main'?'主区域':this.editAreaId} · ${l.width} × ${l.height}${entry?' → '+entry.area+' ('+(entry.targetX??2)+', '+(entry.targetY??2)+')':''}`:[s.level.progress?.lives?'生命 '+s.lives:'',wear?P2_NAMES[P2_TOOLS.indexOf(wear.kind)]+(wear.kind==='propeller-box'||wear.kind==='pow-box'?' '+wear.uses+' 次':wear.kind==='cannon-box'?' 蓄力 '+Math.round(wear.charge*100)+'%':wear.kind==='bullet-mask'&&wear.active?s.swimming?' 水中持续':' '+Math.ceil(wear.flight)+'s':wear.kind==='goomba-mask'?wear.exposed>0?' 已暴露':' 伪装中':''):'',s.currentArea!=='main'?'副区 '+s.level.name:s.level.areas?'主区域':''].filter(Boolean).join(' · '));
-        this.hint.setText(this.notice || (this.editing ? '元素翻页 · 单选拖拽 · 框选组合 · 点击配置机关 · 方向键平移 / Shift 滚轮垂直 · Ctrl C / V 复制粘贴 · E 试玩' : 'A D 移动 · Shift 抱物/松开轻放 · S 蹲/砸地/坐盆 · Space/Z 跳/游泳 · X 旋转跳 · W/↑ 门 · J 发射/投掷  |  ' + s.notice));
+        const entry=[...this.selection].map(id=>l.properties?.[id]).find(p=>p?.area);const wear=s.wearable;const recoveryText=s.phase==='playing'?s.coop?.recovery.flatMap((r,i)=>r?[`P${i+1} ${r.kind==='bubble'?'泡泡待救':'等待复活'}`]:[]).join(' · '):'';this.p2Hud.setVisible(this.editing||!!(s.coop||wear||s.level.progress?.lives||s.rootLevel?.areas||s.level.areas));this.p2Hud.setText(this.editing?`${this.editAreaId==='main'?'主区域':this.editAreaId} · ${l.width} × ${l.height}${entry?' → '+entry.area+' ('+(entry.targetX??2)+', '+(entry.targetY??2)+')':''}`:[s.coop?`协作 ${s.coop.players.length} 人 · 到达 ${s.coop.arrivals.filter(Boolean).length}/${s.coop.players.length}`:'',recoveryText,s.level.progress?.lives?'生命 '+s.lives:'',wear?P2_NAMES[P2_TOOLS.indexOf(wear.kind)]+(wear.kind==='propeller-box'||wear.kind==='pow-box'?' '+wear.uses+' 次':wear.kind==='cannon-box'?' 蓄力 '+Math.round(wear.charge*100)+'%':wear.kind==='bullet-mask'&&wear.active?s.swimming?' 水中持续':' '+Math.ceil(wear.flight)+'s':wear.kind==='goomba-mask'?wear.exposed>0?' 已暴露':' 伪装中':''):'',s.currentArea!=='main'?'副区 '+s.level.name:s.level.areas?'主区域':''].filter(Boolean).join(' · '));
+        this.hint.setText(this.notice || (this.editing ? '元素翻页 · 单选拖拽 · 框选组合 · 点击配置机关 · 方向键平移 / Shift 滚轮垂直 · Ctrl C / V 复制粘贴 · E 试玩' : (s.coop?'全员抵达终点即可通关 · 在设置中配置每位玩家的键盘和手柄  |  ':`${this.controls.players[0]!.keys.map(keyLabel).slice(0,2).join(' / ')} 移动 · ${keyLabel(this.controls.players[0]!.keys[4]!)} 跳跃 · ${keyLabel(this.controls.players[0]!.keys[6]!)} 抱物 · ${keyLabel(this.controls.players[0]!.keys[7]!)} 发射 / 投掷  |  `) + s.notice));
     }
     destroy() { if (this.disposed)
         return; this.disposed = true;this.removeAudioSession?.();this.audio.dispose(); this.abort.abort(); this.resize?.disconnect(); this.engine.stop(); this.world.destroy(); this.engine.destroy(); }
 }
-const disposeGamepad = installGamepad('whale-maker');
 const game = new WhaleMaker(document.getElementById('whale-board') as HTMLCanvasElement);
+const disposeGamepad = installGamepad('whale-maker',()=>!game.editing||!!game.settingsPanel?.open);
 window.addEventListener('pagehide', e => { if (!e.persisted) {
     disposeGamepad();
     game.destroy();

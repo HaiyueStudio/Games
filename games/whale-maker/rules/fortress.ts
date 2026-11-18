@@ -1,3 +1,4 @@
+import {asPlayerBody,nearestPlayer,playerBodies,visitPlayers} from './coop-state';
 import {overlaps} from './geometry';
 import {hitP2Boss} from './p2-bosses';
 import type { Body, Level, State } from './model';
@@ -41,8 +42,8 @@ export function advancePlatforms(s:State,dt:number,svc:Services):void {
         platform[key]=next;const dx=platform.x-old.x,dy=platform.y-old.y;
         platform.vx=dx/dt;platform.vy=dy/dt;
         if(Math.abs(dx)+Math.abs(dy)>1)continue; // Elevator recycling never teleports riders.
-        for(const b of [s.player,...s.enemies,...s.items])if(b.vy>=0&&Math.abs(b.y+b.h-old.y)<.045&&b.x<old.x+old.w&&b.x+b.w>old.x){
-            const vx=b.vx,vy=b.vy;b.vx=dx/dt;b.vy=dy/dt;svc.move(s,b,dt);b.vx=vx;b.vy=vy;
+        for(const b of [...playerBodies(s),...s.enemies,...s.items])if(b.vy>=0&&Math.abs(b.y+b.h-old.y)<.045&&b.x<old.x+old.w&&b.x+b.w>old.x){
+            const vx=b.vx,vy=b.vy;b.vx=dx/dt;b.vy=dy/dt;asPlayerBody(s,b,player=>svc.move(s,b,dt,player&&!!s.coop));b.vx=vx;b.vy=vy;
         }
     }
 }
@@ -82,10 +83,10 @@ export function updateFortress(s:State,dt:number,svc:Services):void {
         b.age+=dt;b.hurt=Math.max(0,b.hurt-dt);
         if(b.phase==='fall'){b.vy+=18*dt;b.y+=b.vy*dt;if(b.age>2||b.y>s.level.height+3)b.phase='gone';continue;}
         if(b.brain)continue;
-        if(s.phase!=='playing'||Math.abs(s.player.x-b.x)>30)continue;
+        if(s.phase!=='playing'||!playerBodies(s).some(p=>Math.abs(p.x-b.x)<=30))continue;
         const feet=Math.floor(b.y+b.h+.03);
         if(b.y>s.level.height+2||collapse&&collapse.link===b.link&&(collapse.removed===collapse.cells.length||[Math.floor(b.x),Math.floor(b.x+1)].some(x=>collapse.cells.includes(feet*s.level.width+x)&&tile(s.level,x,feet)!=='bridge'))){dropBoss(s,b);continue;}
-        b.cycle+=dt;b.facing=s.player.x+s.player.w/2<b.x+1?-1:1;
+        b.cycle+=dt;b.facing=nearestPlayer(s,b,()=>s.player.x+s.player.w/2<b.x+1?-1:1);
         b.phase=b.cycle>=b.fireAt-.65?'breath':'walk';
         if(b.cycle>=b.fireAt-.28&&!b.fired){
             if(s.bossFire.length<24)s.bossFire.push({x:b.x+(b.facing<0?-.9:1.9),y:b.y+1.1,w:1,h:.45,vx:b.facing*5.2,vy:0,age:0});
@@ -96,16 +97,16 @@ export function updateFortress(s:State,dt:number,svc:Services):void {
         b.vx=pace*1.05;b.vy=Math.min(16,b.vy+22*dt);const r=svc.move(s,b,dt);
         if(r.wall)b.vx=-pace*1.05;
         if(r.floor&&b.jumpAt<=0){b.vy=-8.3;b.jumpAt=3.4;}
-        if(overlaps(s.player,b)&&!s.pipe){
+        visitPlayers(s,()=>{if(b.health>0&&overlaps(s.player,b)&&!s.pipe){
             if(s.bonePound&&s.pound==='fall'&&s.player.vy>=0&&s.player.y+s.player.h<=b.y+.6){damageBoss(s,b,'bone-pound');s.player.vy=-5;s.grounded=false;}else if(s.starTime>0)damageBoss(s,b);
             else if(s.spinning&&s.player.vy>=0&&s.player.y+s.player.h<b.y+.55){s.player.y=b.y-s.player.h;s.player.vy=-11;s.grounded=false;s.spinAge=0;emit(s,'stomp',b.x);}
             else svc.hurt(s);
-        }
+        }});
     }
     for(const f of s.bossFire){
         f.age+=dt;f.x+=f.vx*dt;
-        if(!s.pipe&&overlaps(s.player,f)){svc.hurt(s);f.age=9;}
+        visitPlayers(s,()=>{if(f.age<8&&!s.pipe&&overlaps(s.player,f)){svc.hurt(s);f.age=9;}});
         for(let y=Math.floor(f.y);y<=Math.floor(f.y+f.h-.001);y++)for(let x=Math.floor(f.x);x<=Math.floor(f.x+f.w-.001);x++)if(svc.solid(tile(s.level,x,y),s.pTime,s.redOn))f.age=9;
     }
-    s.bossFire=s.bossFire.filter(f=>f.age<8&&Math.abs(f.x-s.player.x)<34&&f.x>=0);
+    const players=playerBodies(s);s.bossFire=s.bossFire.filter(f=>f.age<8&&players.some(p=>Math.abs(f.x-p.x)<34)&&f.x>=0);
 }

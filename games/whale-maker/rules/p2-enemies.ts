@@ -1,3 +1,4 @@
+import {visitPlayers} from './coop-state';
 import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, State } from './model';
 import type { Services } from './services';
@@ -46,7 +47,7 @@ export function updateP2Enemy(s:State,e:Enemy,dt:number,svc:Services):boolean {
     }return true;
 }
 export function advanceMagic(s:State,dt:number,svc:Services):void {
-    for(const b of s.magicShots){if(b.transit)continue;b.age+=dt;b.x+=b.vx*dt;b.y+=b.vy*dt;if(overlap(s.player,b)&&!s.pipe){svc.hurt(s);b.age=9;}
+    for(const b of s.magicShots){if(b.transit)continue;b.age+=dt;b.x+=b.vx*dt;b.y+=b.vy*dt;visitPlayers(s,()=>{if(b.age<9&&overlap(s.player,b)&&!s.pipe){svc.hurt(s);b.age=9;}});
         const x=Math.floor(b.x+b.w/2),y=Math.floor(b.y+b.h/2),id=y*s.level.width+x,t=s.level.cells[id];if(svc.solid(t!,s.pTime,s.redOn)){
             const root=s.rootLevel??s.startLevel,original=s.currentArea==='main'?root:root.areas?.[s.currentArea],owner=b.owner as Enemy|undefined;
             if(b.kind==='magic'&&t==='B'&&original?.cells[id]==='B'&&!s.pConversions[id]&&!b.converted&&owner&&(owner.magicCount??0)<8){owner.magicCount=(owner.magicCount??0)+1;setCell(s.level,id,'.');spawnContent(s,owner.magicCount%3===0?'coin':owner.magicCount%2?'duck':'turtle',x+.1,y);b.converted=true;emit(s,'reward',x);}b.age=9;

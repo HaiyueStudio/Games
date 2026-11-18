@@ -8,7 +8,7 @@ export interface Services {
     hurt(s:State,direction?:HitDirection):void;
     defeat(s:State,e:Enemy,cause:Defeated['cause'],source?:Body):void;
     solid(t:Tile,pTime?:number,redOn?:boolean):boolean;
-    crush(s:State):void;
+    crush(s:State,timeout?:boolean):void;
     hitBlock(s:State,x:number,y:number,t:Tile,down?:boolean):void;
     coin(s:State,x:number,y:number,count?:number):void;
 }

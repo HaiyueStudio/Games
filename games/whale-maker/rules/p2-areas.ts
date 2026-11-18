@@ -24,8 +24,8 @@ export function changeArea(s:State,id:string,create:Factory,position?:[number,nu
     if(s.vehicle){const car=s.vehicle;car.x=s.player.x+s.player.w/2-car.w/2;car.y=s.player.y+s.player.h-car.h;seatPlayer(s);}syncPinkCoins(s);
     s.litCheckpoints={...(s.checkpointMemory[id]??s.litCheckpoints)};s.invincible=Math.max(.7,s.invincible);emit(s,'door',s.player.x);s.notice='抵达'+(id==='main'?'主区域':s.level.name);return true;
 }
-export function areaTravel(s:State,i:Input,dt:number,create:Factory):boolean {
-    s.areaCooldown=Math.max(0,s.areaCooldown-dt);if(s.areaCooldown>0||s.pipe||s.door)return false;
+export function areaTravel(s:State,i:Input,dt:number,create:Factory,shared=true):boolean {
+    if(shared)s.areaCooldown=Math.max(0,s.areaCooldown-dt);if(s.areaCooldown>0||s.pipe||s.door)return false;
     const p=s.player;for(const [key,props] of Object.entries(s.level.properties??{})){
         const id=Number(key),x=id%s.level.width,y=Math.floor(id/s.level.width),t=s.level.cells[id];if(!props.area||!['door','locked-door','p-door','P','warp-box','locked-warp'].includes(t!))continue;
         if((t==='warp-box'||t==='locked-warp')&&s.usedWarps[id])continue;

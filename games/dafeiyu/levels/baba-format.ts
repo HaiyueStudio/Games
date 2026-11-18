@@ -14,6 +14,7 @@ export interface PlacedTile extends Tile {
 }
 export interface LevelLink {
   id: string;
+  entrance?: string;
   x: number;
   y: number;
   dir: Direction;
@@ -21,6 +22,7 @@ export interface LevelLink {
   state: number;
   number: string;
 }
+export const entranceId = (link: LevelLink, index: number): string => link.entrance ?? `index:${index}`;
 export interface LevelSpecial {
   x: number;
   y: number;
@@ -193,7 +195,7 @@ export function readLevelLinks(metadata: Metadata): LevelLink[] {
   return indexed(levels, metadata.general?.levels).flatMap(index => {
     const value = (key: string) => levels[index + key];
     const child = value('file');
-    return child ? [{ id: child.toLowerCase(), x: integer(value('x'), -1), y: integer(value('y'), -1),
+    return child ? [{ id: child.toLowerCase(), entrance: `native:${index}`, x: integer(value('x'), -1), y: integer(value('y'), -1),
       dir: dir(integer(value('dir'), 0)), style: integer(value('style'), 0),
       state: integer(value('state'), 0), number: value('number') ?? '' }] : [];
   });

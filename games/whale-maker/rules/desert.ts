@@ -77,8 +77,8 @@ function snowBrickImpact(s:State,item:Item,wall:number,ceiling:boolean,floor:boo
     for(const id of targets)if(id>=0&&id<s.level.cells.length)svc.hitBlock(s,id%s.level.width,Math.floor(id/s.level.width),s.level.cells[id]!,floor);
     breakSnowball(s,item);
 }
-export function updateSnowball(s:State,item:Item,i:Input,dt:number,svc:Services):void {
-    item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);if(item.held||item.transit)return;
+export function updateSnowball(s:State,item:Item,i:Input,dt:number,svc:Services,shared=true):void {
+    if(shared){item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);}if(item.held||item.transit)return;
     const p=s.player,side=p.y<item.y+item.h-.05&&p.y+p.h>item.y+.05;
     const near=side&&p.x<item.x+item.w+.04&&p.x+p.w>item.x-.04;
     if(near&&i.grab&&item.kind!=='snowball-large'&&!item.large&&!s.held&&item.cooldown===0){item.held=true;item.vx=item.vy=0;item.thrown=false;s.held=item;emit(s,'grab',item.x);return;}
@@ -86,6 +86,7 @@ export function updateSnowball(s:State,item:Item,i:Input,dt:number,svc:Services)
     if(onTop&&item.cooldown===0){item.vx=0;item.thrown=false;item.cooldown=.2;}
     const pushing=near&&!item.thrown&&i.axis!==0&&(item.x+item.w/2-p.x-p.w/2)*i.axis>0;
     if(pushing)item.vx=p.pushVx??p.vx;
+    if(!shared)return;
     const old={...item},impactVy=item.vy+26*dt,vx=item.vx;item.vy=Math.min(18,impactVy);
     const hit=svc.move(s,item,dt);if(!item.alive)return;const sprung=bounceVerticalSpring(s,item,old);bounceHorizontalSpring(s,item,old);
     const ceiling=impactVy<0&&item.vy===0;

@@ -1,12 +1,51 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import {registerHooks} from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { buildGameImageAtlas, gameImageAtlasPlugin } from '../../scripts/game-image-atlas.mjs';
+import { decodePng, encodePng } from '../../scripts/png-rgba.mjs';
 registerHooks({resolve(specifier,context,next){try{return next(specifier,context);}catch(error){if(specifier.startsWith('.')&&context.parentURL?.includes('/whale-maker/'))return next(specifier+'.ts',context);throw error;}}});
 const {create,demo,step,validate,EMPTY_INPUT,respawn,blockOffset,tile,CHEER_DURATION,FLAG_WOBBLE_DURATION}=await import('../whale-maker/rules/model.ts');
 const {objectCells,selectBox,clearCells,moveSelection,stampSelection,pasteStamp}=await import('../whale-maker/editor/selection.ts');
 const {placePipe}=await import('../whale-maker/rules/levels.ts');
 const {actorRect,walkFrame,spinFrame,shootFrame,coinFrame,eatFrame,biteFlight,checkpointFrame,flagWobble,checkpointRect,cheerFrame,cheerOffset}=await import('../whale-maker/rendering/poses.ts');
 const tick=(s,input={},n=1)=>{for(let j=0;j<n;j++)step(s,{...EMPTY_INPUT,...input});};
+test('release art rescales and deduplicates frames, keeps pose sizes and pads neighboring art', t => {
+    const root = mkdtempSync(join(tmpdir(), 'whale-image-atlas-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const assets = join(root, 'assets');
+    mkdirSync(assets);
+    const width = 12, height = 4, data = Buffer.alloc(width * height * 4);
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        data.set(x < 8 ? [220, 45, 120, 255] : [8, 72, 240, 255], (y * width + x) * 4);
+    }
+    const sheet = { width, height, data };
+    const source = encodePng(sheet, true);
+    assert.ok(source.length <= encodePng(sheet).length);
+    assert.deepEqual(decodePng(source), sheet);
+    writeFileSync(join(assets, 'test.png'), source);
+    writeFileSync(join(assets, 'frames.json'), JSON.stringify({ test: [0, 1, 2].map(i => [i / 3, 0, 1 / 3, 1]) }));
+    writeFileSync(join(assets, 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const config = join(root, 'atlas.config.json');
+    writeFileSync(config, JSON.stringify({ maxSize: 16, frameMap: 'frames.json', inlineSvg: ['icon.svg'],
+        images: [{ source: 'test.png', frameEdges: { 0: 2, 1: 2 } }] }));
+    const dev = gameImageAtlasPlugin(config, true);
+    const id = dev.resolveId('virtual:game-sprite-atlas');
+    assert.equal(dev.load.call({ addWatchFile() {}, emitFile: () => assert.fail() }, id), 'export default null;');
+    const { png, info } = buildGameImageAtlas(config);
+    const atlas = decodePng(png);
+    const first = info.frames['test:0'], last = info.frames['test:2'];
+    assert.equal(info.frameCounts.test, 3);
+    assert.deepEqual(info.frames['test:1'], first);
+    assert.deepEqual([first.width, first.height, first.sourceSize], [2, 2, [4, 4]]);
+    assert.deepEqual([last.width, last.height, last.sourceSize], [4, 4, undefined]);
+    const pixel = (x, y) => [...atlas.data.subarray((y * atlas.width + x) * 4, (y * atlas.width + x) * 4 + 4)];
+    assert.deepEqual(pixel(first.x - 1, first.y - 1), [220, 45, 120, 255]);
+    assert.deepEqual(pixel(last.x + last.width, last.y + last.height), [8, 72, 240, 255]);
+    assert.match(info.svg['icon.svg'], /^<svg/);
+});
 test('whale maker deterministic fixed-step movement and jump',()=>{const a=create(demo()),b=create(demo());tick(a,{},120);tick(b,{},120);assert.deepEqual(a,b);assert.equal(a.grounded,true);const y=a.player.y;tick(a,{jump:true},10);assert.ok(a.player.y<y-.4);});
 test('growth and fire collectible change power; fire produces bounded projectiles',()=>{const s=create(demo(1));s.player.x=5;s.player.y=14;tick(s);assert.equal(s.power,1);s.player.x=17;s.player.y=9;tick(s);assert.equal(s.power,2);tick(s,{fire:true});assert.equal(s.pendingShot,true);assert.equal(s.shots.length,0);tick(s,{fire:true},8);assert.equal(s.shots.length,1);tick(s,{fire:true},20);assert.ok(s.shots.length<=1);});
 test('turtle stomp makes shell, holding and firing throws it',()=>{const s=create(demo());s.enemies=[{x:3,y:14.2,w:.8,h:.8,vx:0,vy:0,kind:'turtle',alive:true,held:false,cooldown:0}];s.player.x=3;s.player.y=13.35;s.player.vy=5;tick(s,{},5);const e=s.enemies[0];assert.equal(e.kind,'shell');e.cooldown=0;s.player.x=e.x-.3;s.player.y=e.y;s.player.vy=0;tick(s,{grab:true});assert.equal(s.held,e);tick(s,{fire:true});assert.equal(s.held,null);assert.ok(Math.abs(e.vx)>5);});

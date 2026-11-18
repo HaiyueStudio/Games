@@ -83,10 +83,13 @@ export function drawP1(scene:WhaleScene2D,s:State,cam:number,cy:number,z:number,
         if(d.kind==='path-blue'&&d.phase==='done')continue;
         const a=p1Art(d.kind)!;scene.sprite(a.atlas,a.frame,x,y,d.w*z,d.h*z,false,0,d.kind==='trampoline-on'&&!s.redOn?.3:1);
     }
+    drawP1Player(scene,s,cam,cy,z,v);
+    for(const b of s.enemyProjectiles)scene.centeredActor(b.kind==='fire'?'mechanics':'p1-icons',b.kind==='fire'?4:10,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h/2-cy)*z,b.w*z,b.kind==='fire'?4:10,s.time*6);
+}
+export function drawP1Player(scene:WhaleScene2D,s:State,cam:number,cy:number,z:number,v:{x:number;y:number}):void {
     if(s.motion==='claw'&&s.motionAge<.22)scene.actor('p1-icons',26,v.x+(s.player.x+s.player.w/2+s.facing*.9-cam)*z,v.y+(s.player.y+s.player.h-.1-cy)*z,1.2*z,s.facing<0,26,0,1-s.motionAge/.22);
     if(s.motion==='hammer'&&s.motionAge>.08&&s.motionAge<.28)scene.actor('p1-icons',27,v.x+(s.player.x+s.player.w/2+s.facing*1.1-cam)*z,v.y+(s.player.y+s.player.h-.1-cy)*z,z,false,27,0,1-(s.motionAge-.08)/.2);
     for(const b of s.boomerangs)scene.centeredActor('p1-icons',15,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h/2-cy)*z,z*.75,15,s.time*20);
-    for(const b of s.enemyProjectiles)scene.centeredActor(b.kind==='fire'?'mechanics':'p1-icons',b.kind==='fire'?4:10,v.x+(b.x+b.w/2-cam)*z,v.y+(b.y+b.h/2-cy)*z,b.w*z,b.kind==='fire'?4:10,s.time*6);
 }
 export function drawP1Overlay(scene:WhaleScene2D,l:Level,selected:Iterable<number>,cam:number,cy:number,z:number,v:{x:number;y:number},preview:boolean):void {
     const line=(x:number,y:number,w:number,h:number)=>{const c=[.93,.87,.38,.9] as const;for(const r of [{x,y,width:w,height:2},{x,y:y+h-2,width:w,height:2},{x,y,width:2,height:h},{x:x+w-2,y,width:2,height:h}])scene.fill(r,c);};

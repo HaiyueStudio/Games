@@ -17,6 +17,7 @@ const { Puzzle } = await import('../dafeiyu/rules/game.ts');
 const { readRules } = await import('../dafeiyu/rules/syntax.ts');
 const { WorldEditor, isWorldDraft, newDraft, packFromDraft } = await import('../dafeiyu/levels/editor.ts');
 const { mapRoutes } = await import('../dafeiyu/rendering/map-routes.ts');
+const { LatestAutosave } = await import('../dafeiyu/app/autosave.ts');
 hook.deregister();
 
 const buffer = bytes => Uint8Array.from(bytes).buffer;
@@ -27,15 +28,38 @@ async function fixture(id) {
 const sequences = ['rrrrrrr', 'rrdddrrrrruuu', 'rrrdrdd', 'rrrrrrrr', 'rrrrrrrduur'];
 const direction = { r: 0, u: 1, l: 2, d: 3, '.': 'wait' };
 
+test('autosave coalesces active writes and flushes the newest checkpoint', async () => {
+  const writes = [];
+  let release;
+  const saver = new LatestAutosave(async value => {
+    writes.push(value);
+    if (value === 1) await new Promise(resolve => { release = resolve; });
+  }, 10000);
+  saver.checkpoint(1);
+  saver.schedule(2);
+  saver.schedule(3);
+  saver.checkpoint(4);
+  saver.schedule(5);
+  assert.deepEqual(writes, [1], 'a running write is not duplicated');
+  release();
+  await saver.flush();
+  assert.deepEqual(writes, [1, 5]);
+  saver.schedule(6);
+  saver.schedule(7);
+  await saver.flush();
+  assert.deepEqual(writes, [1, 5, 7]);
+});
+
 test('the release image atlas fits the sprite sheets with transparent separation', async () => {
   const config = resolve(import.meta.dirname, '../dafeiyu/atlas.config.json');
   const { png, info } = buildGameImageAtlas(config);
   const { width, height, data } = decodePng(png);
-  assert.ok(width <= 1536 && height <= 1536);
+  assert.ok(width <= 1600 && height <= 1600);
   assert.match(info.url, /^\.\/assets\/atlas\.build\.png\?v=[a-f0-9]{16}$/);
   const loose = await Promise.all(Object.keys(info.frames).map(file => readFile(new URL('../dafeiyu/assets/' + file, import.meta.url))));
   assert.ok(png.length < loose.reduce((sum, file) => sum + file.length, 0));
-  const dimensions = { 'tiles.png': [768, 768], 'box.png': [224, 224], 'rule-boxes.png': [384, 256],
+  const dimensions = { 'tiles.png': [768, 768], 'box.png': [224, 224], 'fungus.png': [224, 224], 'rule-boxes.png': [384, 256],
+    'brick.png': [160, 160], 'pillar.png': [160, 160],
     'whale-walk/atlas.png': [640, 640], 'luna-walk/atlas.png': [640, 640] };
   const entries = Object.entries(info.frames);
   assert.deepEqual(Object.keys(info.frames).sort(), Object.keys(dimensions).sort());
@@ -256,7 +280,7 @@ test('native map counts bound entries and winning opens paths without bypassing 
 test('map routes preview cardinal connections and become solid as rooms and gates unlock', async () => {
   const base = await fixture(OVERWORLD[0]);
   const path = (x, y, style = 0, gate = 0) => ({ ...base.paths[0], x, y, style, gate, requirement: 2 });
-  const link = (id, x, y, state) => ({ ...base.links[0], id, x, y, state });
+  const link = (id, x, y, state) => ({ ...base.links[0], id, entrance: `test:${x},${y}`, x, y, state });
   const level = { ...base, width: 10, height: 8, tiles: [], edges: new Set([26]),
     metadata: { general: { leveltype: '1', selectorx: '2', selectory: '2' } },
     links: [link('intro', 2, 2, 2), link('adjacent', 2, 1, 0), link('bend', 4, 4, 1), link('east', 7, 3, 0)],
@@ -287,6 +311,83 @@ test('map routes preview cardinal connections and become solid as rooms and gate
   assert.equal(mapRoutes(map).paths.some(point => point.gate), false);
   for (let i = 0; i < 3; i++) map.move(direction.r);
   assert.equal(map.selectedLink(), 'east');
+});
+
+test('native flower thresholds award one area flower and gate types use their own progress totals', async () => {
+  const base = await fixture(OVERWORLD[0]);
+  const link = (id, x, state = 2) => ({ ...base.links[0], id, entrance: `test:${x}`, x, y: 4, state });
+  const gate = (type, x) => ({ ...base.paths[0], x, y: 4, style: 1, gate: type, requirement: 2 });
+  const region = { ...base, id: 'region', links: [link('one', 2), link('two', 4), link('one', 5), link('optional-map', 6)], paths: [] };
+  const root = { ...base, id: 'root', links: [link('region', 2), link('far', 4, 1)],
+    paths: [gate(2, 3), gate(1, 7), gate(3, 8)] };
+  region.paths = [gate(4, 3)];
+  const pack = { title: 'Test campaign', initial: 0, entries: [
+    { id: 'root', map: true, children: ['region', 'far'] },
+    { id: 'region', map: true, children: ['one', 'two', 'one', 'optional-map'], clearCount: 2 },
+    { id: 'optional-map', map: true, children: ['other'], clearCount: 1 },
+  ] };
+  const campaign = new Campaign(pack);
+  ['one', 'optional-map'].forEach(id => campaign.completed.add(id));
+  campaign.bonuses.set('one', 1);
+  assert.deepEqual(campaign.access(region).flower, { petals: 1, totalPetals: 1, required: 2, flowers: 0 });
+  assert.deepEqual(campaign.access(region).gates.map(({ path, collected }) => [path.gate, collected]), [[4, 1]]);
+  assert.deepEqual(campaign.access(root).gates.map(({ path, collected }) => [path.gate, collected]), [[2, 0], [1, 1], [3, 1]]);
+  campaign.completed.add('two');
+  const reopened = new Campaign(pack, campaign.progress());
+  const firstFlower = reopened.access(root);
+  assert.deepEqual(firstFlower.states, [3, 1]);
+  assert.deepEqual(firstFlower.gates.map(({ path, collected }) => [path.gate, collected]), [[2, 1], [3, 1]]);
+  assert.deepEqual(reopened.access(region).gates, []);
+  reopened.completed.add('other');
+  const secondFlower = reopened.access(root);
+  assert.deepEqual(secondFlower.states, [3, 2]);
+  assert.equal(secondFlower.flower.flowers, 2);
+  assert.deepEqual(secondFlower.gates.map(({ path }) => path.gate), [3]);
+});
+
+test('duplicate room links retain independent entrances after restoring a legacy map', async () => {
+  const level = await fixture(OVERWORLD[0]);
+  const [origin] = level.links;
+  level.links = [{ ...origin, id: 'shared', entrance: 'near', state: 2 },
+    { ...origin, id: 'shared', entrance: 'far', x: origin.x + 3, state: 1 }];
+  level.paths = [];
+  const pack = { title: 'Test', initial: 0, entries: [{ id: level.id, map: true, children: ['shared'] }, { id: 'shared' }] };
+  const campaign = new Campaign(pack);
+  const old = new Puzzle(level, undefined, campaign).state;
+  for (const unit of old.units) delete unit.entrance;
+  const map = new Puzzle(level, old, campaign);
+  assert.equal(map.selectedEntrance().entrance, 'near');
+  assert.deepEqual(map.state.units.filter(unit => unit.marker).map(({ entrance, state }) => [entrance, state]), [['near', 2], ['far', 1]]);
+  campaign.replace(level.id, 'shared', ['rock'], 'near');
+  const reloadedCampaign = new Campaign(pack, campaign.progress());
+  const reloaded = new Puzzle(level, undefined, reloadedCampaign);
+  assert.deepEqual(reloaded.state.units.filter(unit => unit.marker).map(({ entrance, name }) => [entrance, name]),
+    [['near', 'rock'], ['far', 'level']]);
+});
+
+test('editing a gate and flower count preserves the old draft and uses native progression in playtest', async () => {
+  const editor = new WorldEditor(newDraft());
+  const original = editor.project;
+  assert.ok(editor.setClearCount(1));
+  assert.ok(editor.paint({ x: 3, y: 4 }, '@path'));
+  assert.ok(editor.setPathGate(2, 1));
+  assert.equal(original.rooms[0].clearCount, undefined);
+  assert.equal(original.rooms[0].paths.length, 0);
+  assert.equal(editor.project.rooms[1], original.rooms[1], 'untouched room is shared');
+  const authored = JSON.parse(JSON.stringify(editor.project));
+  assert.equal(isWorldDraft(authored), true);
+  const pack = packFromDraft(authored);
+  const campaign = new Campaign(pack);
+  const puzzle = new Puzzle(await pack.entries[pack.initial].read(), undefined, campaign);
+  assert.equal(puzzle.openPaths.length, 0);
+  assert.equal(puzzle.gates[0].path.requirement, 1);
+  campaign.completed.add('room-1');
+  puzzle.refreshMap();
+  assert.equal(puzzle.flower.flowers, 1);
+  assert.equal(puzzle.openPaths.length, 1);
+  assert.ok(editor.undo());
+  assert.equal(editor.room.paths[0].condition, undefined);
+  assert.deepEqual(authored.rooms[0].paths[0].condition, { gate: 2, requirement: 1 });
 });
 
 test('whole-room conversion replaces its own map marker and survives resetting the map', async () => {
@@ -344,6 +445,30 @@ async function movementBoard(sentences, pieces) {
   return { ...level, width: 14, height: 12, edges: new Set(),
     tiles: [...words, ...pieces.map(([name, x, y, dir = 0]) => ({ name, x, y, dir, type: -1, layer: 16 }))] };
 }
+
+test('defeat reports only units it destroys at their impact cells and replays the event on redo', async () => {
+  const level = await movementBoard([[1, 1, 'baba is you'], [5, 1, 'keke is you and safe'], [1, 2, 'skull is defeat'],
+    [5, 2, 'water is sink'], [1, 3, 'baba has fungus']], [
+    ['baba', 3, 5], ['skull', 4, 5], ['keke', 3, 6], ['skull', 4, 6], ['baba', 3, 7], ['water', 4, 7],
+  ]);
+  const puzzle = new Puzzle(level);
+  puzzle.move(0);
+  const expected = [['baba', 4, 5]];
+  const impacts = () => puzzle.defeated.map(({ name, x, y }) => [name, x, y]);
+  assert.deepEqual(impacts(), expected);
+  assert.ok(puzzle.state.units.some(unit => unit.name === 'fungus' && unit.x === 4 && unit.y === 5));
+  assert.ok(puzzle.state.units.some(unit => unit.name === 'keke' && unit.x === 4 && unit.y === 6));
+  assert.ok(!puzzle.state.units.some(unit => unit.name === 'baba'));
+  assert.deepEqual(new Puzzle(level, puzzle.state).defeated, []);
+  puzzle.undo();
+  assert.deepEqual(impacts(), []);
+  puzzle.redo();
+  assert.deepEqual(impacts(), expected);
+  puzzle.move('wait');
+  assert.deepEqual(impacts(), []);
+  puzzle.reset();
+  assert.deepEqual(impacts(), []);
+});
 
 test('a shift enters a cell vacated by a perpendicular shift and faces the arriving units', async () => {
   const level = await movementBoard([[1, 1, 'belt is shift'], [5, 1, 'skull and rock is push'], [1, 2, 'wall is stop']], [

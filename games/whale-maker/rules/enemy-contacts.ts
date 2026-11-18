@@ -1,6 +1,7 @@
 import {overlaps as overlap} from './geometry';
 import type { Body, Enemy, State } from './model';
 import type { Services } from './services';
+import { playerBodies } from './coop-state';
 
 const exposed=(e:Enemy)=>e.alive&&!e.held&&!e.transit&&e.downAge===undefined&&(!['ghost','ring-ghost','lava-dragon'].includes(e.kind)||!!e.frozen)&&e.kind!=='fire-jumper'&&(e.kind!=='plant'||Math.min(e.w,e.h)>=.08);
 
@@ -9,7 +10,7 @@ const movable=(e:Enemy,axis:'x'|'y')=>(e.frozen?(axis==='x'?Math.abs(e.vx)>.01:!
 
 /** Enemy contact responses are separate from player stomps and damage. */
 export function resolveEnemyContacts(s:State,previous:ReadonlyMap<Enemy,Body>,svc:Services):void {
-    const bodies=s.enemies.filter(e=>exposed(e)&&e.x>s.player.x-34&&e.x<s.player.x+30);
+    const players=playerBodies(s),bodies=s.enemies.filter(e=>exposed(e)&&players.some(p=>e.x>p.x-34&&e.x<p.x+30));
     const translate=(e:Enemy,axis:'x'|'y',distance:number)=>{
         if(Math.abs(distance)<1e-8)return;
         // Resolve separation against the level too: a crowd cannot push through

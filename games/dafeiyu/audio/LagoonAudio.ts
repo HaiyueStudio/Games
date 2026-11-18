@@ -8,15 +8,31 @@ const slices = {
   click: [0, .095], move: [.195, .16], victory: [.455, 1.188],
   failure: [1.743, .73], enter: [2.573, .598], exit: [3.271, .598],
 } as const;
-type Cue = keyof typeof slices;
+type Cue = keyof typeof slices | 'defeat';
 const options = {
   click: { channel: 'ui', volume: .46, priority: 1 },
   move: { channel: 'move', volume: .42, priority: 1 },
+  defeat: { channel: 'move', volume: .68, priority: 2 },
   enter: { channel: 'transition', volume: .67, priority: 2 },
   exit: { channel: 'transition', volume: .57, priority: 2 },
   victory: { channel: 'result', volume: .81, priority: 3 },
   failure: { channel: 'result', volume: .69, priority: 3 },
 } as const;
+
+function defeatPop(context: AudioContext): AudioBuffer {
+  const { sampleRate } = context;
+  const clip = context.createBuffer(1, Math.round(.24 * sampleRate), sampleRate);
+  const samples = clip.getChannelData(0);
+  let phase = 0;
+  // A rounded bubble pop with a fast descending pitch and a short hollow tail.
+  for (let i = 0; i < samples.length; i++) {
+    const t = i / sampleRate;
+    phase += 2 * Math.PI * (155 + 690 * Math.exp(-38 * t)) / sampleRate;
+    const envelope = Math.min(1, t / .003) * Math.exp(-21 * t) * (1 - i / samples.length);
+    samples[i] = (.53 * Math.sin(phase) + .19 * Math.sin(phase * 1.7) * Math.exp(-24 * t)) * envelope;
+  }
+  return clip;
+}
 
 export class LagoonAudio {
   private readonly mixer = new OwnerSafeAudioMixer({ contextFactory: () => {
@@ -112,6 +128,7 @@ export class LagoonAudio {
         }
         this.mixer.installBuffer(cue, clip);
       }
+      this.mixer.installBuffer('defeat', defeatPop(this.context));
       this.loaded = true;
       this.flush();
     } catch (error) { this.assetError('effects', error); }

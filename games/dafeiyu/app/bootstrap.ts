@@ -8,13 +8,16 @@ import { LagoonAudio } from '../audio/LagoonAudio';
 import { builtinPack, localPacks, officialPacks, type LevelPack } from '../levels/pack';
 import { isWorldDraft, levelFromDraft, newDraft, packFromDraft, palettes, sameCell, WorldEditor, type Cell, type WorldDraft } from '../levels/editor';
 import type { Direction } from '../levels/baba-format';
+import type { GateType } from '../levels/gates';
 import { LagoonScene } from '../rendering/scene';
+import { LagoonPortal, type PortalFocus } from '../rendering/portal';
 import { Campaign } from '../rules/campaign';
 import { isMap, Puzzle, type Move } from '../rules/game';
 import { player, vectors, type RuleContext } from '../rules/properties';
 import { isOfficialProgress, isProgress, isSlotProgress, type OfficialProgress, type SlotProgress } from '../rules/progress';
 import { copy, LagoonHud, pauseActions, rowsPerPage, type HudAction } from '../ui/hud';
 import { editorMapTools, palettePageSize, screenCopy, ScreenHud, type EditorCommand, type HomeView, type PaletteTab } from '../ui/screens';
+import { LatestAutosave } from './autosave';
 
 const moves = new Map<string, Move>([
   ['ArrowRight', 0], ['KeyD', 0], ['ArrowUp', 1], ['KeyW', 1],
@@ -24,7 +27,9 @@ const actions = new Map<string, HudAction>([
   ['KeyZ', 'undo'], ['Backspace', 'undo'], ['KeyY', 'redo'], ['KeyR', 'restart'], ['KeyL', 'library'],
   ['Escape', 'pause'], ['KeyM', 'pause'], ['Enter', 'next'], ['KeyI', 'files'], ['KeyF', 'folder'],
 ]);
-type Room = { index: number; puzzle: Puzzle };
+type Room = { index: number; puzzle: Puzzle; entrance?: string | undefined };
+type OpenOptions = { keepLibrary?: boolean; parents?: Room[]; conversion?: { child: string; targets: string[] };
+  intro?: boolean; returning?: { child: string; petal: boolean }; entering?: PortalFocus | undefined };
 
 class LagoonGame {
   private readonly lifetime = new AbortController();
@@ -39,10 +44,12 @@ class LagoonGame {
   private readonly packs = [builtinPack(this.lifetime.signal)];
   private readonly saves = [1, 2, 3].map(index => new SingleSlotGameSave<SlotProgress>({ gameId: 'dafeiyu-slot-' + index,
     name: `${screenCopy.slot} ${index}`, validateData: isSlotProgress }));
+  private readonly autosaves = this.saves.map(store => new LatestAutosave<SlotProgress>(data => store.saveNow(data)));
   private readonly draftSave = new SingleSlotGameSave<WorldDraft>({ gameId: 'dafeiyu-workshop', name: screenCopy.editor, validateData: isWorldDraft,
     onStatus: status => { if (status === 'error' && this.mode === 'editor' && !this.lifetime.signal.aborted) {
       this.message = screenCopy.storageError; this.refresh();
     } } });
+  private readonly draftAutosave = new LatestAutosave<WorldDraft>(data => this.draftSave.saveNow(data));
   private readonly packKeys = new Map<LevelPack, string>([[this.packs[0]!, 'coral']]);
   private campaigns = new WeakMap<LevelPack, Campaign>();
   private parked = new WeakMap<LevelPack, { room: Room; parents: Room[] }>();
@@ -51,7 +58,10 @@ class LagoonGame {
   private hud: LagoonHud | undefined;
   private screens: ScreenHud | undefined;
   private scene: LagoonScene | undefined;
+  private portal: LagoonPortal | undefined;
+  private running = false;
   private puzzle: Puzzle | null = null;
+  private earnedPetal: Puzzle | undefined;
   private pack = this.packs[0]!;
   private index = 0;
   private selected = 0;
@@ -100,17 +110,22 @@ class LagoonGame {
     this.lifetime.signal.throwIfAborted();
     const scene = this.scene = new LagoonScene(this.engine);
     this.world.addSystem(this.scene);
+    const portal = this.portal = new LagoonPortal(this.engine);
+    this.world.addSystem(portal);
     this.hud = new LagoonHud(this.engine, this.world, action => this.act(action), row => {
       const target = Math.floor(this.selected / rowsPerPage) * rowsPerPage + row;
-      if (!this.busy && this.canOpen(target)) { this.audio.play('click'); void this.open(this.pack, target); }
+      if (!this.busy && !this.portal?.phase && this.canOpen(target)) { this.audio.play('click'); this.openListedRoom(target); }
     });
     this.screens = new ScreenHud(index => this.homeAction(index), command => this.editorAction(command), index => this.pickBrush(index),
       value => this.finishName(value), (name, facing) => scene.editorPreview(name, facing));
     this.world.addEntity(new Entity('大肥鱼菜单').addComponent(this.screens.root));
     const integration = new RenderIntegration(this.engine, { label: '大肥鱼 2D + GUI' });
     this.world.addRuntimeIntegration(integration);
-    integration.registerAll(this.world, system => system === this.scene ? { pass: 'isolated', loadOp: 'clear', depth: false, sort: 10 } :
-      { pass: 'shared', loadOp: 'load', sort: 1000 });
+    integration.registerAll(this.world, system => {
+      if (system === scene) return { pass: 'isolated', loadOp: 'clear', depth: false, sort: 10 };
+      if (system === portal) return { pass: 'isolated', loadOp: 'load', depth: false, sort: 1100 };
+      return { pass: 'shared', loadOp: 'load', sort: 1000 };
+    });
     this.bind();
     this.fit();
     if (params.has('verify') && params.get('autoplay') === '1') await this.beginSlot(0, !this.slots[0]);
@@ -125,9 +140,12 @@ class LagoonGame {
       }
       const nowPad = !!gamepadFrame();
       if (this.usingPad !== nowPad) { this.usingPad = nowPad; this.refresh(); }
-      if (!this.paused && !gameSession.paused && !this.library && !this.busy && this.scene?.tick(event.detail.delta)) {
-        const puzzle = this.puzzle;
-        if (puzzle?.state.won && !isMap(puzzle.level) && (this.mode === 'play' || this.mode === 'test')) this.returnToWorld();
+      const transitioning = !!portal.phase;
+      if (!gameSession.paused) portal.tick(event.detail.delta);
+      if (!transitioning && !this.paused && !gameSession.paused && !this.library && !this.busy) {
+        if (this.scene?.tick(event.detail.delta) && this.puzzle?.state.won && !isMap(this.puzzle.level) &&
+            (this.mode === 'play' || this.mode === 'test')) this.returnToMap();
+        if (this.mode === 'play' || this.mode === 'test') this.hud?.tick(event.detail.delta);
       }
       this.world.update(event.detail.time, event.detail.delta);
     });
@@ -135,6 +153,7 @@ class LagoonGame {
       Object.defineProperty(window, '__dafeiyu', { configurable: true, get: () => this.snapshot() });
     }
     document.body.dataset.renderStatus = 'ready';
+    this.running = true;
     this.engine.run();
   }
   private fit(): void {
@@ -159,45 +178,84 @@ class LagoonGame {
       return;
     }
     this.screens.hide();
+    const parentMap = this.parentMapIndex();
     this.hud.update({ puzzle: this.puzzle, pack: this.pack, active: this.selected,
       library: this.library, paused: this.paused, pauseIndex: this.pauseIndex, busy: this.busy, message: this.message,
-      canGoBack: this.parents.length > 0, canReturnWorld: this.paused && this.worldIndex() >= 0,
+      canGoBack: this.parents.length > 0 || parentMap >= 0,
+      returnMap: this.paused ? this.pack.entries[parentMap]?.title : undefined,
       selectedLink: this.puzzle?.selectedLink(),
       completed: this.campaigns.get(this.pack)?.completed ?? new Set(),
       locked: this.library ? new Set(this.pack.entries.filter((_, index) => !this.canOpen(index)).map(entry => entry.id)) : new Set(),
       playtest: this.mode === 'test' });
   }
-  private save(): void {
+  private save(checkpoint = true): void {
     const puzzle = this.puzzle;
     const campaign = this.campaigns.get(this.pack);
     if (!puzzle || !campaign) return;
-    if (puzzle.state.won) campaign.completed.add(puzzle.level.id);
+    if (puzzle.state.won && !campaign.completed.has(puzzle.level.id)) {
+      campaign.completed.add(puzzle.level.id);
+      if (!isMap(puzzle.level)) this.earnedPetal = puzzle;
+    }
     if (puzzle.state.bonus) {
       campaign.bonuses.set(puzzle.level.id, Math.max(puzzle.state.bonus, campaign.bonuses.get(puzzle.level.id) ?? 0));
     }
+    checkpoint ||= puzzle.state.won || !!puzzle.state.conversion;
     if (this.pack === this.packs[0] && puzzle.state.won) this.overworld?.refreshMap();
     const key = this.packKeys.get(this.pack);
     if (this.mode !== 'play' || !key || !this.profile || this.slot < 0) return;
-    const rooms = [...this.parents.slice(-31).map(({ puzzle }) => puzzle), puzzle];
-    const progress = { campaign: campaign.progress(), rooms: rooms.map(room => ({ id: room.level.id, state: room.state })) };
+    const rooms = [...this.parents.slice(-31), { index: this.index, puzzle }];
+    const progress = { campaign: campaign.progress(), rooms: rooms.map(({ puzzle, entrance }) => ({
+      id: puzzle.level.id, state: puzzle.state, ...(entrance === undefined ? {} : { entrance }),
+    })) };
     this.profile = { active: key, packs: { ...this.profile.packs, [key]: progress } };
     this.slots[this.slot] = this.profile;
-    this.saves[this.slot]!.save(this.profile);
+    const autosave = this.autosaves[this.slot]!;
+    if (checkpoint) autosave.checkpoint(this.profile);
+    else autosave.schedule(this.profile);
+  }
+  private flushAutosaves(): void {
+    for (const store of this.autosaves) void store.flush();
+    void this.draftAutosave.flush();
   }
   private canOpen(index: number): boolean {
     const entry = this.pack.entries[index];
-    return !!entry && (this.pack !== this.packs[0] || index === this.pack.initial ||
-      !!this.overworld?.state.units.some(unit => unit.marker && unit.link === entry.id && (unit.state ?? 0) >= 2));
+    if (!entry) return false;
+    // Imported packs keep their room browser for direct testing. Saved campaigns unlock rooms from their maps.
+    if (!this.packKeys.has(this.pack) || index === this.index) return true;
+    if (this.pack === this.packs[0]) return index === this.pack.initial ||
+      !!this.overworld?.state.units.some(unit => unit.marker && unit.link === entry.id && (unit.state ?? 0) >= 2);
+    if (this.campaigns.get(this.pack)?.completed.has(entry.id)) return true;
+    return [this.puzzle, ...this.parents.map(room => room.puzzle)].some(puzzle => puzzle && isMap(puzzle.level) &&
+      (puzzle.level.id === entry.id || puzzle.state.units.some(unit => unit.marker && unit.link === entry.id &&
+        (unit.state ?? 0) >= 2 && !puzzle.context.has(unit, 'hide'))));
   }
-  private builtinParent(id: string): { index: number; puzzle: Puzzle } {
-    const map = this.overworld!;
-    const node = map.state.units.find(unit => unit.marker && unit.link === id && (unit.state ?? 0) >= 2);
-    const cursor = map.state.units.find(unit => unit.name === 'cursor');
+  private openListedRoom(index: number): void {
+    if (this.revisitMap(index)) return;
+    const id = this.pack.entries[index]!.id;
+    const stack = this.puzzle ? [...this.parents, { index: this.index, puzzle: this.puzzle }] : [...this.parents];
+    const ancestor = stack.findLastIndex(room => room.index !== index && isMap(room.puzzle.level) &&
+      room.puzzle.level.links.some(link => link.id === id));
+    if (ancestor < 0) { void this.open(this.pack, index); return; }
+    const room = stack[ancestor]!;
+    const puzzle = this.atMapLink(room.puzzle, id, this.campaigns.get(this.pack));
+    if (this.overworld === room.puzzle) this.overworld = puzzle;
+    void this.open(this.pack, index, { parents: [...stack.slice(0, ancestor),
+      { index: room.index, puzzle, entrance: puzzle.selectedEntrance()?.entrance }] });
+  }
+  private builtinParent(id: string): Room {
+    this.overworld = this.atMapLink(this.overworld!, id, this.campaigns.get(this.packs[0]!));
+    return { index: this.packs[0]!.initial, puzzle: this.overworld, entrance: this.overworld.selectedEntrance()?.entrance };
+  }
+  private atMapLink(map: Puzzle, id: string, campaign: Campaign | undefined): Puzzle {
+    const selected = map.selectedEntrance();
+    const node = selected?.link === id ? selected : map.state.units.find(unit => unit.marker && unit.link === id &&
+      (unit.state ?? 0) >= 2 && !map.context.has(unit, 'hide'));
+    const cursor = map.state.units.find(unit => map.context.has(unit, 'select'));
     if (node && cursor && (node.x !== cursor.x || node.y !== cursor.y)) {
       const units = map.state.units.map(unit => unit === cursor ? { ...unit, x: node.x, y: node.y } : unit);
-      this.overworld = new Puzzle(map.level, { ...map.state, units }, this.campaigns.get(this.packs[0]!));
+      return new Puzzle(map.level, { ...map.state, units }, campaign);
     }
-    return { index: this.packs[0]!.initial, puzzle: this.overworld! };
+    return map;
   }
   private packForKey(key: string): LevelPack | undefined {
     return this.packs.find(pack => this.packKeys.get(pack) === key);
@@ -221,6 +279,8 @@ class LagoonGame {
     }
   }
   private homeScreen(): void {
+    this.flushAutosaves();
+    this.earnedPetal = undefined;
     if (this.mode === 'play' && this.puzzle) this.audio.play('exit');
     this.mode = 'home';
     this.homePage = 'main';
@@ -266,6 +326,7 @@ class LagoonGame {
     this.busy = true;
     this.refresh();
     try {
+      await this.autosaves[slot]!.flush();
       const draft = fresh ? undefined : this.slots[slot];
       const pack = (draft && this.packForKey(draft.active)) || this.preferred;
       this.slot = slot;
@@ -301,6 +362,7 @@ class LagoonGame {
     this.busy = true;
     this.refresh();
     try {
+      await this.draftAutosave.flush();
       const [draft] = await Promise.all([this.editor ? undefined : this.draftSave.load(), this.scene?.prepare(false)]);
       this.lifetime.signal.throwIfAborted();
       this.editor ??= new WorldEditor(draft ?? newDraft());
@@ -313,6 +375,7 @@ class LagoonGame {
     }
   }
   private editScreen(): void {
+    this.earnedPetal = undefined;
     if (this.mode === 'test' && this.puzzle) this.audio.play('exit');
     this.mode = 'editor';
     this.naming = false;
@@ -344,7 +407,7 @@ class LagoonGame {
     if (!editor.room.map && this.tab === 'map') this.chooseTab('objects');
     this.scene?.setEditorCursor(editor.cursor);
     this.scene?.setPuzzle(new Puzzle(levelFromDraft(editor.room)));
-    if (persist) this.draftSave.save(structuredClone(editor.project));
+    if (persist) this.draftAutosave.schedule(editor.project);
     this.refresh();
   }
   private paint(at: Cell, erase = false, stack?: boolean): void {
@@ -367,6 +430,17 @@ class LagoonGame {
     if (action === 'export') { this.exportDraft(editor.project); return; }
     if (action === 'import') { this.projectPicker.click(); return; }
     if (action === 'rename') { this.renameEditor(); return; }
+    if (action === 'flower-down' || action === 'flower-up') {
+      if (editor.setClearCount((editor.room.clearCount ?? 0) + (action === 'flower-up' ? 1 : -1))) this.redrawEditor(true);
+      return;
+    }
+    if (action === 'gate-type' || action === 'gate-down' || action === 'gate-up') {
+      const current = editor.selectedPath?.condition;
+      const gate = action === 'gate-type' ? ((current?.gate ?? 0) + 1) % 5 as GateType | 0 : current?.gate;
+      const count = (current?.requirement ?? 1) + (action === 'gate-up' ? 1 : action === 'gate-down' ? -1 : 0);
+      if (gate !== undefined && editor.setPathGate(gate, count)) this.redrawEditor(true);
+      return;
+    }
     if (action === 'add' || action === 'map') {
       if (editor.addRoom(action === 'map')) {
         if (editor.brush === '@locked') this.chooseTab('map');
@@ -450,6 +524,7 @@ class LagoonGame {
   }
   private async playtest(): Promise<void> {
     if (!this.editor || this.busy) return;
+    void this.draftAutosave.flush();
     const pack = packFromDraft(this.editor.project);
     this.campaigns.set(pack, new Campaign(pack));
     this.mode = 'test';
@@ -533,6 +608,7 @@ class LagoonGame {
         return;
       }
       if (!action && move === undefined) return;
+      if (this.portal?.phase) { event.preventDefault(); return; }
       if (this.paused) {
         event.preventDefault();
         if (action === 'pause' || action === 'undo') { if (!event.repeat) this.act('resume'); }
@@ -540,7 +616,7 @@ class LagoonGame {
         else if (move !== undefined) {
           const delta = move === 1 || move === 2 ? -1 : 1;
           do { this.pauseIndex = (this.pauseIndex + pauseActions.length + delta) % pauseActions.length; }
-          while (pauseActions[this.pauseIndex] === 'world' && this.worldIndex() < 0);
+          while (pauseActions[this.pauseIndex] === 'world' && this.parentMapIndex() < 0);
           this.refresh();
         }
         return;
@@ -557,7 +633,7 @@ class LagoonGame {
     window.addEventListener('blur', () => { this.pending = undefined; }, options);
     document.addEventListener('visibilitychange', () => {
       this.audio.visibility(document.hidden);
-      if (document.hidden) this.pending = undefined;
+      if (document.hidden) { this.pending = undefined; this.flushAutosaves(); }
     }, options);
     for (const input of [this.picker, this.folder]) input.addEventListener('change', () => {
       const files = Array.from(input.files ?? []);
@@ -575,7 +651,7 @@ class LagoonGame {
     this.resize.observe(this.canvas);
   }
   private move(move: Move): void {
-    if (this.busy || this.paused) return;
+    if (this.busy || this.paused || this.portal?.phase) return;
     if (this.library) {
       if (move === 1 || move === 3) this.select(this.selected + (move === 1 ? -1 : 1));
       else if (move === 0 || move === 2) this.select(this.selected + (move === 2 ? -rowsPerPage : rowsPerPage));
@@ -588,12 +664,14 @@ class LagoonGame {
     if (this.puzzle.state !== before) this.turnSound(context, this.puzzle, move !== 'wait');
     this.scene?.setPuzzle(this.puzzle, before);
     this.message = '';
-    this.save();
+    this.save(false);
     this.refresh();
     if (this.puzzle.state.conversion) void this.convertRoom(this.puzzle, this.puzzle.state.conversion);
   }
   private turnSound(before: RuleContext, puzzle: Puzzle, directional: boolean): void {
     if (!this.audio.active) return;
+    const defeated = puzzle.defeated.length > 0;
+    if (defeated) this.audio.play('defeat');
     if (puzzle.state.won) { this.audio.play('victory'); return; }
     if (puzzle.state.conversion) return;
     if (!isMap(puzzle.level) && !puzzle.context.units.some(unit => player(puzzle.context, unit)) &&
@@ -601,7 +679,7 @@ class LagoonGame {
       this.audio.play('failure');
       return;
     }
-    if (!directional) return;
+    if (defeated || !directional) return;
     const controlled = new Map(before.units.filter(unit => unit.id >= 0 && (player(before, unit) || before.has(unit, 'select')))
       .map(unit => [unit.id, unit]));
     if (puzzle.state.units.some(unit => {
@@ -614,7 +692,7 @@ class LagoonGame {
     this.refresh();
   }
   private act(action: HudAction): void {
-    if (this.busy || gameSession.paused) return;
+    if (this.busy || this.portal?.phase || gameSession.paused) return;
     const puzzle = this.puzzle;
     if (action === 'pause') {
       if (!puzzle || this.library) return;
@@ -634,7 +712,7 @@ class LagoonGame {
     }
     this.message = '';
     if (action === 'world') {
-      this.returnToWorld();
+      this.returnToMap();
       return;
     } else if (action === 'home' || this.mode === 'test' && action === 'library') {
       if (this.mode === 'test') this.editScreen();
@@ -654,12 +732,13 @@ class LagoonGame {
         void this.openStart(pack, true);
       }
       if (action === 'next') {
-        if (this.canOpen(this.selected)) void this.open(this.pack, this.selected);
+        if (this.canOpen(this.selected)) this.openListedRoom(this.selected);
         else this.message = copy.locked;
       }
     } else if (puzzle) {
       if (action === 'undo' || action === 'redo' || action === 'restart') {
         if (action === 'restart') {
+          this.earnedPetal = undefined;
           puzzle.reset();
           this.scene?.setPuzzle(puzzle);
         } else {
@@ -672,44 +751,85 @@ class LagoonGame {
             this.scene?.setPuzzle(puzzle, previous);
           }
         }
-        this.save();
+        this.save(action === 'restart');
       } else if (action === 'next') {
-        if (puzzle.state.won && this.parents.length) {
-          this.returnToParent();
-        } else if (puzzle.selectedLink()) {
-          const id = puzzle.selectedLink()!.toLowerCase();
+        if (puzzle.state.won && this.parentMapIndex() >= 0) {
+          this.returnToMap();
+        } else if (puzzle.selectedEntrance()?.link) {
+          const entrance = puzzle.selectedEntrance()!;
+          const id = entrance.link!.toLowerCase();
           const target = this.pack.entries.findIndex(entry => entry.id === id);
           if (target === -1) this.message = copy.missingLink;
-          else void this.open(this.pack, target, false, { index: this.index, puzzle });
+          else if (target !== this.index && !this.revisitMap(target)) {
+            void this.open(this.pack, target, {
+              parents: [...this.parents, { index: this.index, puzzle, entrance: entrance.entrance }],
+              entering: this.mapFocus(puzzle, entrance),
+            });
+          }
         } else if (this.parents.length) this.returnToParent();
       }
     }
     this.refresh();
   }
-  private worldIndex(): number {
-    if (this.pack.entries[this.pack.initial]?.map) return this.pack.initial;
-    const top = this.parents.find(room => isMap(room.puzzle.level));
-    if (top) return top.index;
-    if (!this.puzzle) return -1;
-    if (isMap(this.puzzle.level)) return this.index;
-    return this.campaigns.get(this.pack)?.parentOf(this.puzzle.level.id) ?? -1;
+  private parentMapIndex(): number {
+    const parent = this.parents.findLast(room => isMap(room.puzzle.level));
+    if (parent) return parent.index;
+    if (!this.puzzle || this.index === this.pack.initial && isMap(this.puzzle.level)) return -1;
+    const index = this.campaigns.get(this.pack)?.parentOf(this.puzzle.level.id) ?? -1;
+    return index === this.index ? -1 : index;
   }
-  private returnToWorld(): void {
-    const index = this.worldIndex();
-    if (index < 0) return;
-    this.paused = false;
+  private revisitMap(index: number): boolean {
+    const ancestor = this.parents.findLastIndex(room => room.index === index && isMap(room.puzzle.level));
+    if (ancestor < 0) return false;
+    void this.restoreMap(ancestor);
+    return true;
+  }
+  private returnToMap(): void {
+    const current = this.puzzle;
+    const index = this.parentMapIndex();
+    if (!current || index < 0) return;
+    const child = current.level.id;
+    const petal = current.state.won && this.earnedPetal === current;
+    const ancestor = this.parents.findLastIndex(room => isMap(room.puzzle.level));
+    if (ancestor < 0) { void this.open(this.pack, index, { returning: { child, petal } }); return; }
+    void this.restoreMap(ancestor, petal ? child : undefined);
+  }
+  private mapFocus(puzzle: Puzzle | null, cell?: Cell): PortalFocus | undefined {
+    if (!puzzle || !isMap(puzzle.level)) return;
+    const at = cell ?? puzzle.selectedEntrance() ?? puzzle.state.units.find(unit => puzzle.context.has(unit, 'select'));
+    if (at) return { x: at.x, y: at.y, cols: puzzle.level.width, rows: puzzle.level.height };
+  }
+  private cover(focus?: PortalFocus): Promise<void> | undefined {
+    if (!this.running) return;
     this.pending = undefined;
-    if (index === this.index) { this.refresh(); return; }
-    const world = this.parents.find(room => room.index === index);
-    if (!world) { void this.open(this.pack, index); return; }
-    world.puzzle.refreshMap();
-    this.show(this.pack, world, [], false);
+    return this.portal?.cover(focus);
+  }
+  private async restoreMap(ancestor: number, petal?: string): Promise<void> {
+    const map = this.parents[ancestor]!;
+    const cover = this.cover(this.mapFocus(this.puzzle));
+    if (cover) await cover;
+    if (this.lifetime.signal.aborted) return;
+    map.puzzle.refreshMap();
+    this.show(this.pack, map, this.parents.slice(0, ancestor), false);
     this.save();
     this.refresh();
+    if (petal) this.collectPetal(map.puzzle, petal, map.entrance);
+    if (cover) this.portal?.reveal(this.mapFocus(map.puzzle));
+  }
+  private collectPetal(map: Puzzle, child: string, entrance?: string): void {
+    const link = map.state.units.find(unit => unit.link === child && (entrance === undefined || unit.entrance === entrance) &&
+      !map.context.has(unit, 'hide'));
+    const from = link ?? map.state.units.find(unit => map.context.has(unit, 'select'));
+    const flower = map.flower;
+    if (from && flower) this.hud?.collectPetal(from, { local: !!link,
+      bloom: !!link && flower.required > 0 && flower.petals === flower.required });
   }
   private returnToParent(): void {
-    const parent = this.parents.pop();
+    const parent = this.parents.at(-1);
     if (!parent) return;
+    if (isMap(parent.puzzle.level)) { void this.restoreMap(this.parents.length - 1); return; }
+    this.parents.pop();
+    this.earnedPetal = undefined;
     this.pending = undefined;
     parent.puzzle.refreshMap();
     this.puzzle = parent.puzzle;
@@ -725,12 +845,12 @@ class LagoonGame {
     const id = puzzle.level.id;
     const parent = this.parents.at(-1);
     if (parent) {
-      campaign.replace(parent.puzzle.level.id, id, targets);
+      campaign.replace(parent.puzzle.level.id, id, targets, parent.entrance);
       this.returnToParent();
     } else {
       const index = campaign.parentOf(id);
       if (index < 0) { this.message = copy.missingLink; this.refresh(); return; }
-      await this.open(this.pack, index, false, undefined, { child: id, targets });
+      await this.open(this.pack, index, { conversion: { child: id, targets } });
     }
   }
   private async openStart(pack: LevelPack, keepLibrary = false): Promise<void> {
@@ -748,7 +868,7 @@ class LagoonGame {
         const indices = saved.rooms.map(room => pack.entries.findIndex(entry => entry.id === room.id));
         if (indices.every(index => index >= 0)) {
           const builtin = pack === this.packs[0];
-          const rooms = await Promise.all(indices.map(async (index, slot) => ({ index,
+          const rooms: Room[] = await Promise.all(indices.map(async (index, slot) => ({ index, entrance: saved.rooms[slot]!.entrance,
             puzzle: builtin && index === pack.initial && this.overworld ? this.overworld :
               new Puzzle(await pack.entries[index]!.read(), saved.rooms[slot]!.state, campaign) })));
           if (this.lifetime.signal.aborted) return;
@@ -770,7 +890,7 @@ class LagoonGame {
     const first = pack.first;
     const intro = first !== undefined && first !== pack.initial &&
       !this.campaigns.get(pack)?.completed.has(pack.entries[first]!.id);
-    return this.open(pack, intro ? first : pack.initial, keepLibrary, undefined, undefined, intro);
+    return this.open(pack, intro ? first : pack.initial, { keepLibrary, intro });
   }
   private show(pack: LevelPack, { index, puzzle }: Room, parents: Room[], keepLibrary: boolean): void {
     const leaving = this.puzzle && pack === this.pack && (parents.length < this.parents.length ||
@@ -779,6 +899,7 @@ class LagoonGame {
     this.parked.delete(pack);
     this.pending = undefined;
     this.paused = false;
+    this.earnedPetal = undefined;
     this.scene?.setPuzzle(puzzle);
     this.index = this.selected = index;
     this.pack = pack;
@@ -787,36 +908,46 @@ class LagoonGame {
     this.parents.splice(0, this.parents.length, ...parents);
     this.audio.play(leaving ? 'exit' : 'enter');
   }
-  private async open(pack: LevelPack, index: number, keepLibrary = false, parent?: Room,
-    conversion?: { child: string; targets: string[] }, intro = false): Promise<void> {
+  private async open(pack: LevelPack, index: number,
+    { keepLibrary = false, parents = [], conversion, intro, returning: destination, entering }: OpenOptions = {}): Promise<void> {
     this.busy = true;
     this.pending = undefined;
     this.refresh();
+    const cover = entering || destination || conversion && pack.entries[index]?.map ? this.cover(entering) : undefined;
     try {
       const builtin = pack === this.packs[0];
       const returning = builtin && index === pack.initial ? this.overworld : undefined;
-      const [level, start] = await Promise.all([returning?.level ?? pack.entries[index]!.read(), intro ? pack.entries[pack.initial]!.read() : undefined]);
+      const [level, start] = await Promise.all([returning?.level ?? pack.entries[index]!.read(),
+        intro ? pack.entries[pack.initial]!.read() : undefined, cover]);
       if (this.lifetime.signal.aborted) return;
       const campaign = this.campaigns.get(pack);
       if (conversion) campaign?.replace(level.id, conversion.child, conversion.targets);
-      const puzzle = returning ?? new Puzzle(level, undefined, campaign);
-      const parents = parent ? [...this.parents, parent] : [];
-      if (!parent && builtin && index !== pack.initial) parents.push(this.builtinParent(level.id));
-      if (!parent && start) parents.push({ index: pack.initial, puzzle: new Puzzle(start, undefined, campaign) });
+      let puzzle = returning ?? new Puzzle(level, undefined, campaign);
+      if (!parents.length && builtin && index !== pack.initial) parents.push(this.builtinParent(level.id));
+      if (!parents.length && start) parents.push({ index: pack.initial, puzzle: new Puzzle(start, undefined, campaign) });
+      if (destination) puzzle = this.atMapLink(puzzle, destination.child, campaign);
       this.show(pack, { index, puzzle }, parents, keepLibrary);
       this.save();
+      if (destination?.petal) {
+        this.refresh();
+        this.collectPetal(puzzle, destination.child);
+      }
     } catch (error) {
+      if (cover) await cover;
       if (!this.lifetime.signal.aborted) {
         this.message = copy.failed;
         console.warn('大肥鱼关卡读取失败', error);
       }
     } finally {
       this.busy = false;
-      if (!this.lifetime.signal.aborted) this.refresh();
+      if (!this.lifetime.signal.aborted) {
+        if (cover) this.portal?.reveal(this.mapFocus(this.puzzle));
+        this.refresh();
+      }
     }
   }
   private async import(files: File[]): Promise<void> {
-    if (this.busy) return;
+    if (this.busy || this.portal?.phase) return;
     this.library = true;
     this.busy = true;
     this.message = copy.load;
@@ -851,9 +982,11 @@ class LagoonGame {
       editing: this.mode === 'editor' ? this.editor?.room.id : undefined, brush: this.mode === 'editor' ? this.editor?.brush : undefined,
       editorPalette: this.mode === 'editor' ? this.choices().slice(this.brushPage * palettePageSize, (this.brushPage + 1) * palettePageSize) : undefined,
       current: this.puzzle?.level.id, title: this.puzzle?.level.title, state: this.puzzle?.state,
+      parents: this.parents.map(({ puzzle, entrance }) => ({ id: puzzle.level.id, entrance })),
+      transition: this.portal?.phase,
       rules: this.puzzle?.context.rules.map(rule => rule.label), library: this.library, paused: this.paused, active: this.selected,
       pack: this.pack.title, gamepad: this.usingPad, bounds: this.scene?.bounds, message: this.message,
-      animation: this.scene?.animationSnapshot(),
+      animation: this.scene?.animationSnapshot(), flower: this.puzzle?.flower, collectingPetal: this.hud?.collecting,
       audio: this.audio.snapshot(),
       openPaths: this.puzzle?.openPaths.map(({ x, y }) => [x, y]), selectedLink: this.puzzle?.selectedLink(),
       hud: nodes?.map(node => ({ id: node.id, text: 'text' in node ? node.text : '', value: 'value' in node ? node.value : undefined,
@@ -861,6 +994,7 @@ class LagoonGame {
   }
   dispose(): void {
     if (this.lifetime.signal.aborted) return;
+    this.flushAutosaves();
     this.lifetime.abort();
     this.audio.dispose();
     this.resize.disconnect();

@@ -6,22 +6,30 @@ export function playLayout(width: number, height: number) {
   const gap = 6;
   const widthOfToolbar = 4 * button + 3 * gap;
   const toolbar = { x: width - margin - widthOfToolbar, y: margin, width: widthOfToolbar, height: button };
+  const mapHudWidth = Math.min(324, width - 2 * margin);
+  const mapHudX = margin + 148;
+  const mapHud = toolbar.x >= mapHudX + mapHudWidth + gap
+    ? { x: mapHudX, y: margin, width: mapHudWidth, height: button }
+    : { x: margin, y: margin + button + gap, width: mapHudWidth, height: button };
   const centered = (w: number, h: number): GuiRect => ({ x: (width - w) / 2, y: (height - h) / 2, width: w, height: h });
-  return { margin, button, gap, toolbar,
+  return { margin, button, gap, toolbar, mapHud,
     library: centered(Math.min(width - 2 * margin, 540), Math.min(height - 2 * margin, 482)),
     pause: centered(Math.min(width - 2 * margin, 338), Math.min(height - 2 * margin, 278)),
   };
 }
 
-export function playGrid(width: number, height: number, cols: number, rows: number) {
-  const { toolbar } = playLayout(width, height);
+export function playGrid(width: number, height: number, cols: number, rows: number, map = false) {
+  const { toolbar, mapHud } = playLayout(width, height);
   const inset = Math.min(8, width * .018, height * .018);
   const fit = (top: number) => {
     const cell = Math.max(.1, Math.min((width - 2 * inset) / cols, (height - top - inset) / rows));
     return { x: (width - cols * cell) / 2, y: top + (height - top - inset - rows * cell) / 2, cell };
   };
   const grid = fit(inset);
-  const crossesControls = grid.x + cols * grid.cell > toolbar.x - 4;
+  const right = grid.x + cols * grid.cell;
+  const underMapHud = map && grid.x < mapHud.x + mapHud.width && right > mapHud.x && grid.y < mapHud.y + mapHud.height + 5;
+  if (underMapHud) return fit(mapHud.y + mapHud.height + 5);
+  const crossesControls = right > toolbar.x - 4;
   return crossesControls && grid.y < toolbar.y + toolbar.height + 5 ? fit(toolbar.y + toolbar.height + 5) : grid;
 }
 

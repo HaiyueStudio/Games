@@ -33,11 +33,15 @@ function probes() {
     const unit = state().state.units.find(unit => unit.name === 'cursor');
     return unit ? [unit.x, unit.y] : null;
   };
-  const pressAndRender = async code => { press(code); await frame(); await frame(); };
+  const pressAndRender = async code => {
+    await until(() => !state().transition, 'finish room transition');
+    press(code); await frame(); await frame();
+  };
   const moves = { r: 'ArrowRight', u: 'ArrowUp', l: 'ArrowLeft', d: 'ArrowDown', w: 'Space' };
   const serialize = () => JSON.stringify({ state: state().state, rules: state().rules });
   window.solutionProbes = {
     async open(id, index) {
+      await until(() => !state().transition, 'finish room transition');
       if (!state().library) { press('KeyL'); await until(() => state().library, 'open library'); }
       while (state().active !== index) {
         const active = state().active;
@@ -46,7 +50,7 @@ function probes() {
         await until(() => state().active !== active, 'select row');
       }
       press('Enter');
-      await until(() => state().current === id && !state().library, 'load room ' + id);
+      await until(() => state().current === id && !state().library && !state().transition, 'load room ' + id);
       await frame();
     },
     async checkMap(mapIndex) {
@@ -61,7 +65,7 @@ function probes() {
       if (cursor().join() !== initialCursor.join() || state().selectedLink !== '0level') throw Error('cursor advanced onto hidden path');
       await pressAndRender('KeyZ');
       press('Enter');
-      await until(() => state().current === '0level', 'enter original first level');
+      await until(() => state().current === '0level' && !state().transition, 'enter original first level');
       for (let i = 0; i < 8; i++) {
         press('ArrowRight');
         await until(() => state().state.turn === i + 1, 'replay original first level');
@@ -74,7 +78,7 @@ function probes() {
       for (const code of ['ArrowRight', 'ArrowUp', 'ArrowUp']) await pressAndRender(code);
       if (state().selectedLink !== '1level') throw Error('the next room is unreachable');
       press('Enter');
-      await until(() => state().current === '1level', 'enter newly unlocked room');
+      await until(() => state().current === '1level' && !state().transition, 'enter newly unlocked room');
       return { map: map.current, initialCursor, cursorAfterWin, importedMarkers: markers.length,
         marker: { id: marker.link, originalState: marker.state, unlockedState: unlocked.state } };
     },
@@ -135,7 +139,7 @@ function probes() {
         }
       }
       if (expected === 'map-transform' && (firstMapRule !== null || state().state.conversion)) {
-        await until(() => state().current !== id, 'apply room conversion');
+        await until(() => state().current !== id && !state().transition, 'apply room conversion');
       }
       const final = state();
       const convertedMarker = snapshot => snapshot.state.units.some(unit =>

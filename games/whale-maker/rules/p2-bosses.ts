@@ -1,3 +1,4 @@
+import {nearestPlayer,playerBodies,visitPlayers} from './coop-state';
 import {overlaps as overlap} from './geometry';
 import type { Level, State } from './model';
 import type { TurtleBoss } from './fortress';
@@ -27,8 +28,8 @@ export function hitP2Boss(s:State,b:TurtleBoss,attack:string):void {
     b.health-=damage;b.hurt=.7;a.mode='vulnerable';a.timer=1.1;emit(s,'hit',b.x);if(b.health<=0)defeatP2Boss(s,b);
 }
 export function updateP2Bosses(s:State,dt:number,svc:Services):void {
-    for(const b of s.bosses){const a=b.brain;if(!a||b.health<=0||Math.abs(s.player.x-b.x)>40)continue;
-        b.age+=dt;b.hurt=Math.max(0,b.hurt-dt);a.timer-=dt;const p=s.player,old={...b};b.facing=p.x+p.w/2<b.x+b.w/2?-1:1;
+    for(const b of s.bosses){const a=b.brain;if(!a||b.health<=0||!playerBodies(s).some(p=>Math.abs(p.x-b.x)<=40))continue;
+        b.age+=dt;b.hurt=Math.max(0,b.hurt-dt);a.timer-=dt;const p=nearestPlayer(s,b,()=>s.player),old={...b};b.facing=p.x+p.w/2<b.x+b.w/2?-1:1;
         if(a.kind==='boom-boss'){
             if(a.timer<=0){a.cycle++;a.mode=a.mode==='walk'?'telegraph':a.mode==='telegraph'?'shell':a.mode==='shell'?'vulnerable':'walk';a.timer=a.mode==='shell'?2:a.mode==='telegraph'?.5:1.3;}
             b.vx=a.mode==='shell'?b.facing*7:a.mode==='walk'?b.facing*2:0;b.vy=Math.min(18,b.vy+26*dt);const r=svc.move(s,b,dt);if(r.wall){b.vx=-b.vx;a.mode='vulnerable';a.timer=1;}if(r.floor&&a.mode==='telegraph')b.vy=-8;
@@ -48,6 +49,6 @@ export function updateP2Bosses(s:State,dt:number,svc:Services):void {
             else{if(a.mode!=='pounce')b.vx=a.mode==='walk'?b.facing:0;b.vy=Math.min(20,b.vy+24*dt);const r=svc.move(s,b,dt);if(r.floor&&a.mode==='pounce'){a.mode='vulnerable';a.timer=1.8;s.shake=.5;emit(s,'stone',b.x);}}
             if(a.mode==='vulnerable'&&a.timer>1.45&&!b.fired){b.fired=true;if(s.bossFire.length<24)s.bossFire.push({x:b.x+b.w/2,y:b.y+1,w:1,h:.5,vx:b.facing*6,vy:0,age:0});}if(a.mode==='climb')b.fired=false;
         }
-        if(a.mode!=='hidden'&&overlap(p,b)&&!s.pipe){if(s.bonePound&&s.pound==='fall'&&p.vy>=0&&p.y+p.h<=old.y+.6){hitP2Boss(s,b,'bone-pound');p.vy=-5;s.grounded=false;}else if(s.starTime>0)hitP2Boss(s,b,'star');else if(p.vy>=0&&p.y+p.h<=old.y+.5&&a.mode!=='shell'&&a.kind!=='cat-boss'){hitP2Boss(s,b,s.pound==='fall'?'pound':'stomp');p.y=b.y-p.h;p.vy=-12;s.grounded=false;s.pound='none';emit(s,'stomp',b.x);}else svc.hurt(s);}
+        visitPlayers(s,()=>{const p=s.player;if(b.health>0&&a.mode!=='hidden'&&overlap(p,b)&&!s.pipe){if(s.bonePound&&s.pound==='fall'&&p.vy>=0&&p.y+p.h<=old.y+.6){hitP2Boss(s,b,'bone-pound');p.vy=-5;s.grounded=false;}else if(s.starTime>0)hitP2Boss(s,b,'star');else if(p.vy>=0&&p.y+p.h<=old.y+.5&&a.mode!=='shell'&&a.kind!=='cat-boss'){hitP2Boss(s,b,s.pound==='fall'?'pound':'stomp');p.y=b.y-p.h;p.vy=-12;s.grounded=false;s.pound='none';emit(s,'stomp',b.x);}else svc.hurt(s);}});
     }
 }

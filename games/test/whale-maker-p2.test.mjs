@@ -1,6 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
 registerHooks({resolve(s,c,n){try{return n(s,c);}catch(e){if(s.startsWith('.')&&c.parentURL?.includes('/whale-maker/'))return n(s+'.ts',c);throw e;}}});
-const {create,step,EMPTY_INPUT,validate,respawn,services,tile}=await import('../whale-maker/rules/model.ts');
+const {create,step,stepCoop,configureCoop,EMPTY_INPUT,validate,respawn,services,tile}=await import('../whale-maker/rules/model.ts');
+const {asPlayer,playerAt,coopCamera}=await import('../whale-maker/rules/coop-state.ts');
+const {defaultSettings,changeBinding,assignDevice,validSettings,playerInput}=await import('../whale-maker/app/coop-controls.ts');
 const {REFERENCE_RULES}=await import('../whale-maker/rules/profile.ts');
 const {makeEnemy,makeItem,modifyEnemy}=await import('../whale-maker/rules/body-factory.ts');
 const {equipWearable,wearCeiling,advanceCannonShots,disguised}=await import('../whale-maker/rules/p2-wearables.ts');
@@ -223,4 +225,152 @@ test('unsatisfied clear conditions gray the goal flag and display a world-space 
  const {drawGoal}=await import('../whale-maker/rendering/goal.ts');const s=create(level());s.level.condition={kind:'coins',amount:1};
  const sprites=[],fills=[],scene={sprite(...args){sprites.push(args);},fill(...args){fills.push(args);},dustParticle(){}};
  drawGoal(scene,s,94,19,100,500,48,0,false);assert.ok(sprites.find(a=>a[0]==='goal-flags')[9]);const locked=fills.length;s.coins=1;sprites.length=fills.length=0;drawGoal(scene,s,94,19,100,500,48,0,false);assert.equal(sprites.find(a=>a[0]==='goal-flags')[9],undefined);assert.ok(fills.length<locked);
+});
+
+function coopLevel(count=4){
+ const l=level(100,72,60);l.progress={lives:true,initialLives:3,timeLimit:100};
+ l.spawn=[24,59.2];l.cells[59*l.width+27]='G';
+ const s=create(l);configureCoop(s,count,1232/48,12);return s;
+}
+const teamTick=(s,inputs=[],n=1)=>{for(let frame=0;frame<n;frame++)stepCoop(s,inputs.map(i=>({...EMPTY_INPUT,...i})));};
+const bodies=s=>s.coop.players.map((_,i)=>playerAt(s,i).player);
+
+test('co-op walks, jumps and picks up independently while the shared world advances once',()=>{
+ const s=coopLevel();const enemy=makeEnemy('duck',20,59);enemy.vx=0;s.enemies.push(enemy);
+ teamTick(s);
+ const start=bodies(s).map(p=>p.x);const t=s.time;
+ teamTick(s,[{},{axis:1,jump:true},{},{}],8);
+ assert.equal(s.player.x,start[0]);assert.ok(bodies(s)[1].x>start[1]);assert.ok(bodies(s)[1].y<bodies(s)[0].y);
+ assert.deepEqual(bodies(s).slice(2).map(p=>p.x),start.slice(2));
+ assert.ok(Math.abs(s.time-t-8/120)<1e-8);assert.ok(Math.abs(s.timeRemaining-100+9/120)<1e-8);
+ assert.ok(Math.abs(enemy.age-9/120)<1e-8);
+ asPlayer(s,1,()=>{Object.assign(s.player,{x:27,y:59.2,vx:0,vy:0});});
+ teamTick(s);
+ assert.equal(playerAt(s,1).power,1);assert.equal(s.power,0);
+ assert.ok(s.rewards.every(r=>r.kind!=='growth'));
+});
+
+test('co-op tethers an outlier horizontally and vertically around the mean camera',()=>{
+ const s=coopLevel();s.rewards=[];
+ const onScreen=()=>{
+  const camera=coopCamera(s),p=bodies(s),bounds=s.coop.viewport;
+  assert.ok(Math.abs(camera.x+bounds.w/2-p.reduce((sum,b)=>sum+b.x+b.w/2,0)/4)<1e-8);
+  for(const b of p){assert.ok(b.x>=camera.x-1e-6&&b.x+b.w<=camera.x+bounds.w+1e-6);assert.ok(b.y>=camera.y-1e-6&&b.y+b.h<=camera.y+bounds.h+1e-6);}
+ };
+ teamTick(s,[{axis:1}],600);onScreen();
+ const edge=s.player.x;
+ teamTick(s,[{axis:1}],120);assert.ok(Math.abs(s.player.x-edge)<1e-7);
+ teamTick(s,[{axis:1},{axis:1},{axis:1},{axis:1}],240);onScreen();assert.ok(s.player.x>edge+5);
+ const high=coopLevel();high.rewards=[];high.player.y=50;high.player.vy=-12;high.grounded=false;
+ for(let f=0;f<100;f++)teamTick(high);
+ assert.equal(high.phase,'playing');
+ assert.ok(Math.max(...bodies(high).map(p=>p.y+p.h))-Math.min(...bodies(high).map(p=>p.y))<=high.coop.viewport.h+1e-6);
+});
+
+test('an early arrival waits and only the fourth arrival starts victory for the whole team',()=>{
+ const s=coopLevel();s.rewards=[];
+ const id=s.goalCells[0],goalX=id%s.level.width,goalY=Math.floor(id/s.level.width);
+ for(let i=0;i<4;i++)asPlayer(s,i,()=>{s.player.x=goalX-4-i;s.player.y=goalY-.8;});
+ for(let i=0;i<4;i++){
+  asPlayer(s,i,()=>{s.player.x=goalX;s.player.y=goalY-.8;});
+  teamTick(s);
+  assert.equal(s.coop.arrivals.filter(Boolean).length,i+1);
+  assert.equal(s.phase,i===3?'won':'playing');
+  assert.equal(s.events.filter(e=>e.kind==='goal').length,i===3?1:0);
+ }
+ teamTick(s,[],500);assert.ok(s.coop.players.every((_,i)=>playerAt(s,i).victory?.stage==='done'));
+});
+
+test('a teammate can take the group through a long door and revive without resetting the world',()=>{
+ const l=level(100,72,60);l.progress={lives:true,initialLives:3};l.cells[59*l.width+8]='door';l.cells[59*l.width+48]='door';
+ const s=create(l);configureCoop(s,2,1232/48,12);
+ asPlayer(s,1,()=>{s.player.x=8;grantPower(s,1);});
+ teamTick(s,[{},{interact:true}],95);
+ assert.equal(s.coop.traveler,-1);assert.ok(bodies(s).every(p=>p.x>46));assert.equal(playerAt(s,1).power,1);assert.equal(s.power,0);
+ asPlayer(s,1,()=>services.crush(s));teamTick(s);
+ assert.equal(s.coop.recovery[1].kind,'waiting');assert.equal(s.lives,2);assert.equal(s.phase,'playing');
+ const previousX=s.player.x;s.coins=9;teamTick(s,[{axis:1}],90);
+ assert.ok(s.player.x>previousX+1);assert.equal(s.coins,9);assert.equal(s.coop.recovery[1],null);
+ assert.equal(s.lives,2);assert.equal(playerAt(s,1).power,0);assert.ok(playerAt(s,1).invincible>0);
+ assert.ok(Math.abs(playerAt(s,1).player.x-s.player.x)<.1);
+});
+
+test('co-op control remaps isolate all four keyboard and gamepad assignments',()=>{
+ const settings=defaultSettings();settings.count=4;
+ assert.equal(changeBinding(settings,1,'keys',4,'KeyA'),true);
+ assert.equal(settings.players[0].keys[0],'Enter');
+ assert.equal(changeBinding(settings,2,'pad',4,'b3'),true);
+ assert.equal(changeBinding(settings,0,'keys',3,'KeyP'),false);
+ assignDevice(settings,2,3);
+ assert.equal(validSettings(JSON.parse(JSON.stringify(settings))),true);
+ const pad={index:3,values:{x:.8},held:new Set(['b3']),pressed:new Set(['b3'])};
+ const inputs=settings.players.map((_,i)=>playerInput(settings,i,new Set(['KeyA']),[pad],new Set()));
+ assert.deepEqual(inputs.map(i=>i.jump),[false,true,true,false]);
+ assert.deepEqual(inputs.map(i=>i.axis),[0,0,1,0]);
+});
+
+test('cross-area doors move the whole team and preserve a companion’s held object',()=>{
+ const s=create(withAreas());configureCoop(s,3,1232/48,12);
+ const crate=makeItem('wood-crate',3,19);crate.held=true;s.items.push(crate);s.held=crate;
+ asPlayer(s,1,()=>{s.player.x=6;});
+ teamTick(s,[{grab:true},{interact:true}]);
+ assert.equal(s.currentArea,'sub');assert.ok(bodies(s).every(p=>Math.abs(p.x-5)<1));
+ assert.equal(s.held,crate);assert.equal(s.items.filter(i=>i===crate).length,1);assert.equal(s.areaMemory.main.items.includes(crate),false);
+});
+
+function rescueCourse(pitLeft,pitRight){
+ const l=level(100,72,60);l.spawn=[25,59.2];l.progress={lives:true,initialLives:5};
+ for(let y=60;y<l.height;y++)for(let x=pitLeft;x<pitRight;x++)l.cells[y*l.width+x]='.';
+ const s=create(l);configureCoop(s,3,1232/48,12);return s;
+}
+function placeCoopPlayer(s,index,x,y=59.2){asPlayer(s,index,()=>{Object.assign(s.player,{x,y,vx:0,vy:0});s.grounded=false;});}
+
+test('revival searches the nearest safe dry ground when the surviving camera is centered over a pit',()=>{
+ const s=rescueCourse(31,37);placeCoopPlayer(s,0,28);placeCoopPlayer(s,1,40);placeCoopPlayer(s,2,34);
+ const stepBefore=s.time;
+ for(let f=0;f<200&&!s.coop.recovery[2];f++)teamTick(s);
+ assert.equal(s.phase,'playing');assert.equal(s.coop.recovery[2]?.kind,'waiting');assert.equal(s.lives,4);
+ const camera=coopCamera(s);assert.ok(Math.abs(camera.x+s.coop.viewport.w/2-34.45)<1e-8);
+ const time=s.time;assert.ok(time>stepBefore);
+ teamTick(s,[],90);const q=playerAt(s,2).player;
+ assert.equal(s.coop.recovery[2],null);assert.ok(s.time>time+.7);
+ assert.ok(q.x+q.w<=31.002||q.x>=36.998);assert.ok(Math.abs(q.y+q.h-60)<1e-8);assert.equal(s.lives,4);
+});
+
+test('when neither side of the camera center has nearby ground, a bubble needs a teammate touch',()=>{
+ const s=rescueCourse(26,41);placeCoopPlayer(s,0,23);placeCoopPlayer(s,1,43);placeCoopPlayer(s,2,33);
+ asPlayer(s,2,()=>services.crush(s));teamTick(s,[{},{},{axis:1,jump:true}],91);
+ const bubble=playerAt(s,2).player;
+ assert.equal(s.coop.recovery[2]?.kind,'bubble');assert.ok(Math.abs(bubble.x-33)<.12);assert.equal(s.coop.arrivals[2],null);
+ teamTick(s,[{},{},{axis:1,jump:true,fire:true}],45);
+ assert.equal(s.coop.recovery[2]?.kind,'bubble');assert.equal(s.shots.length,0);
+ // The bubble drifts into the nearer player on the ledge. Recovery occurs only with physical contact.
+ for(let f=0;f<600&&s.coop.recovery[2];f++)teamTick(s);
+ assert.equal(s.phase,'playing');assert.equal(s.coop.recovery[2],null);assert.equal(s.coop.pops.length,1);
+ const view=coopCamera(s);
+ assert.ok(bodies(s).every(p=>p.x>=view.x-.001&&p.x+p.w<=view.x+s.coop.viewport.w+.001));
+ assert.ok(Math.abs(playerAt(s,2).player.x-s.player.x)<3.1||Math.abs(playerAt(s,2).player.x-playerAt(s,1).player.x)<3.1);
+ assert.equal(s.lives,4);
+});
+
+test('a wipe, exhausted lives and timeouts end the team run once and clear recovery on retry',()=>{
+ const s=coopLevel(2);
+ services.crush(s);asPlayer(s,1,()=>services.crush(s));
+ assert.equal(s.phase,'dead');assert.equal(s.lives,1);assert.equal(s.deaths,2);
+ teamTick(s,[],40);assert.equal(s.lives,1);respawn(s);assert.deepEqual(s.coop.recovery,[null,null]);assert.equal(s.lives,1);
+ services.crush(s);assert.equal(s.phase,'dead');assert.equal(s.gameOver,true);assert.equal(s.lives,0);
+ respawn(s);assert.equal(s.lives,3);assert.equal(s.phase,'playing');assert.deepEqual(s.coop.recovery,[null,null]);
+ s.timeRemaining=.001;teamTick(s);assert.equal(s.phase,'dead');assert.equal(s.lives,2);
+ teamTick(s);assert.equal(s.lives,2);
+});
+
+test('a teammate already at the goal keeps the run alive and can wait for the final player to revive',()=>{
+ const s=coopLevel(2),id=s.goalCells[0],x=id%s.level.width,y=Math.floor(id/s.level.width);
+ placeCoopPlayer(s,0,x,y-.8);placeCoopPlayer(s,1,x-3,y+.2);teamTick(s);
+ assert.ok(s.coop.arrivals[0]);assert.equal(s.coop.arrivals[1],null);
+ asPlayer(s,1,()=>{services.crush(s);services.crush(s);});
+ assert.equal(s.phase,'playing');assert.equal(s.lives,2);
+ const time=s.time;teamTick(s,[],92);
+ assert.ok(s.time>time+.7);assert.equal(s.coop.recovery[1],null);assert.ok(s.coop.arrivals[0]);assert.equal(s.phase,'playing');
+ placeCoopPlayer(s,1,x,y-.8);teamTick(s);assert.equal(s.phase,'won');
 });

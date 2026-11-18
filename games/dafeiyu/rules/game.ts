@@ -1,5 +1,5 @@
-import type { BabaLevel, Direction } from '../levels/baba-format';
-import type { Campaign } from './campaign';
+import { entranceId, type BabaLevel, type Direction } from '../levels/baba-format';
+import type { Campaign, EntranceConversion, FlowerProgress, GateProgress } from './campaign';
 import { directions, isUniversal, opposite, player, ruleContext, textName, typeOf, vectors, type RuleContext } from './properties';
 import { createRuleReader, isText, type RuleReader, type Unit } from './syntax';
 import { recordTurn, restoreTurn, type TurnChange } from './history';
@@ -44,9 +44,10 @@ function addIsland(level: BabaLevel, state: GameState): GameState {
 export function initialState(level: BabaLevel): GameState {
   const units: Unit[] = level.tiles.map((tile, id) => ({ ...tile, id }));
   if (isMap(level)) {
-    for (const link of level.links) if (link.x >= 0 && link.y >= 0 && link.x < level.width && link.y < level.height) {
+    for (const [index, link] of level.links.entries()) if (link.x >= 0 && link.y >= 0 && link.x < level.width && link.y < level.height) {
       const { id: target, x, y, dir, state } = link;
-      units.push({ x, y, dir, state, marker: true, link: target, name: 'level', type: -1, id: units.length, layer: 18 });
+      units.push({ x, y, dir, state, marker: true, link: target, entrance: entranceId(link, index),
+        name: 'level', type: -1, id: units.length, layer: 18 });
     }
     const { x, y } = cursorPosition(level);
     if (x >= 0 && y >= 0 && x < level.width && y < level.height && !units.some(u => u.name === 'cursor')) {
@@ -65,7 +66,7 @@ export function initialState(level: BabaLevel): GameState {
 
 export function advance(level: BabaLevel, previous: GameState, input: Move,
   openPaths = level.paths.filter(path => path.style > 0 && !path.gate),
-  read = createRuleReader(level.width, level.height)): GameState {
+  read = createRuleReader(level.width, level.height), defeated?: Unit[]): GameState {
   if (previous.won || previous.conversion) return previous;
   const waiting = input === 'wait';
   const state = { ...previous, units: previous.units.map(unit => ({ ...unit })), turn: previous.turn + 1, waiting };
@@ -77,7 +78,10 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     if (name === 'empty' || (name === 'level' && !origin.link) || !inBounds(origin.x, origin.y) || state.units.length >= 12000) return;
     const type = typeOf(level, name);
     state.units.push({ name, type, x: origin.x, y: origin.y, dir: origin.dir, id: state.nextId++,
-      ...(origin.link ? { link: origin.link, marker: origin.marker, state: origin.state } : {}),
+      ...(origin.link ? { link: origin.link } : {}),
+      ...(origin.entrance === undefined ? {} : { entrance: origin.entrance }),
+      ...(origin.marker === undefined ? {} : { marker: origin.marker }),
+      ...(origin.state === undefined ? {} : { state: origin.state }),
       layer: level.catalog.get(name)?.layer ?? (type >= 0 ? 20 : 16) });
   };
   const destroy = (units: ReadonlySet<Unit>, rules = context) => {
@@ -234,7 +238,7 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     const actors = context.units.filter(unit => player(context, unit) && !context.has(unit, 'sleep'));
     walk(actors.map(unit => ({ unit, dir: input })));
   } else {
-    const levelUnit = context.units.find(unit => unit.id === -1);
+    const levelUnit = context.room;
     if (levelUnit && player(context, levelUnit) && context.has(levelUnit, 'win')) state.won = true;
   }
 
@@ -359,33 +363,37 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
       effect(unit, touching, remove);
     }
     destroy(hazard);
+    return hazard;
   };
-  resolveHazard((unit, touching, remove) => {
+  if (context.hasProperty('sink')) resolveHazard((unit, touching, remove) => {
     if (context.has(unit, 'sink') && touching.some(other => !context.has(other, 'safe'))) {
       remove(unit); touching.forEach(remove);
     }
   });
-  resolveHazard((unit, touching, remove) => {
+  if (context.hasProperty('boom')) resolveHazard((unit, touching, remove) => {
     if (!context.has(unit, 'boom')) return;
     remove(unit);
     for (const [dx, dy] of vectors) for (const other of context.at(unit.x + dx, unit.y + dy)) remove(other);
     touching.forEach(remove);
   });
-  resolveHazard((unit, touching, remove) => {
+  if (context.hasProperty('weak')) resolveHazard((unit, touching, remove) => {
     if (touching.length && context.has(unit, 'weak')) remove(unit);
   });
-  resolveHazard((unit, touching, remove) => {
-    const wholeRoom = context.units.find(candidate => candidate.id === -1);
+  if (context.hasProperty('hot') && context.hasProperty('melt')) resolveHazard((unit, touching, remove) => {
+    const wholeRoom = context.room;
     if (wholeRoom && context.has(wholeRoom, 'hot') && context.has(unit, 'melt') && samePlane(context, unit, wholeRoom)) remove(unit);
     if (context.has(unit, 'hot')) for (const other of touching) if (context.has(other, 'melt')) remove(other);
   });
-  resolveHazard((unit, touching, remove) => {
-    const levelUnit = context.units.find(candidate => candidate.id === -1);
-    if (player(context, unit) && (context.has(unit, 'defeat') || (levelUnit && context.has(levelUnit, 'defeat')) ||
-      touching.some(other => context.has(other, 'defeat') && (!context.has(other, 'weak') || context.has(other, 'safe'))))) {
-      remove(unit);
-    }
-  });
+  if (context.hasProperty('defeat')) {
+    const levelUnit = context.room;
+    const defeats = resolveHazard((unit, touching, remove) => {
+      if (player(context, unit) && (context.has(unit, 'defeat') || (levelUnit && context.has(levelUnit, 'defeat')) ||
+        touching.some(other => context.has(other, 'defeat') && (!context.has(other, 'weak') || context.has(other, 'safe'))))) {
+        remove(unit);
+      }
+    });
+    if (defeated) for (const unit of defeats) defeated.push(unit);
+  }
   const unlocked = new Set<Unit>();
   for (const lock of state.units) {
     if (!context.has(lock, 'shut')) continue;
@@ -406,11 +414,11 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
     }
   }
   destroy(unlocked);
-  resolveHazard((unit, touching, remove) => {
+  if (context.hasVerb('eat')) resolveHazard((unit, touching, remove) => {
     const eats = context.targets(unit, 'eat', 0);
     for (const other of touching) if (eats.includes(other.name)) remove(other);
   });
-  const levelUnit = context.units.find(unit => unit.id === -1);
+  const levelUnit = context.room;
   const pending: { name: string; origin: Unit }[] = [];
   for (const unit of context.units) {
     for (const noun of context.targets(unit, 'make', 0)) {
@@ -442,23 +450,37 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
   return state;
 }
 
+type PuzzleTurn = TurnChange & { defeated?: readonly Unit[] };
+
 export class Puzzle {
   readonly level: BabaLevel;
   state: GameState;
   context: RuleContext;
-  private past: TurnChange[] = [];
-  private future: TurnChange[] = [];
+  private past: PuzzleTurn[] = [];
+  private future: PuzzleTurn[] = [];
+  private lastDefeats: readonly Unit[] = [];
   private readonly read: RuleReader;
-  private appliedConversions = new Map<string, readonly string[]>();
+  private appliedConversions = new Map<string, EntranceConversion>();
   private readonly campaign: Campaign | undefined;
+  private readonly entrances: ReadonlyMap<string, number>;
+  private readonly entrancesByChild = new Map<string, number[]>();
   revealedPaths: BabaLevel['paths'];
   openPaths: BabaLevel['paths'];
+  flower: FlowerProgress | undefined;
+  gates: readonly GateProgress[] = [];
   get canUndo(): boolean { return this.past.length > 0; }
   get canRedo(): boolean { return this.future.length > 0; }
+  get defeated(): readonly Unit[] { return this.lastDefeats; }
   constructor(level: BabaLevel, saved?: GameState, campaign?: Campaign) {
     this.level = level;
     this.read = createRuleReader(level.width, level.height);
     this.campaign = campaign;
+    this.entrances = new Map(level.links.map((link, index) => [entranceId(link, index), index]));
+    level.links.forEach(({ id }, index) => {
+      const entries = this.entrancesByChild.get(id);
+      if (entries) entries.push(index);
+      else this.entrancesByChild.set(id, [index]);
+    });
     this.state = saved && saved.units.every(unit => unit.x >= 0 && unit.y >= 0 && unit.x < level.width && unit.y < level.height) ? saved : initialState(level);
     if (this.state === saved) {
       this.state = addIsland(level, this.state);
@@ -469,17 +491,21 @@ export class Puzzle {
     this.openPaths = this.revealedPaths.filter(path => !path.gate);
     this.refreshMap();
   }
-  private change(state: GameState): void {
+  private change(state: GameState, defeated: readonly Unit[] = []): void {
     this.state = state;
+    this.lastDefeats = defeated;
     this.context = ruleContext(this.level, state.units, state.turn, state.waiting, undefined, this.read);
   }
   move(input: Move): void {
     if (this.state.won || this.state.conversion) return;
-    const next = advance(this.level, this.state, input, this.openPaths, this.read);
-    this.past.push(recordTurn(this.state, next));
+    const defeated: Unit[] = [];
+    const next = advance(this.level, this.state, input, this.openPaths, this.read, defeated);
+    const turn: PuzzleTurn = recordTurn(this.state, next);
+    if (defeated.length) turn.defeated = defeated;
+    this.past.push(turn);
     if (this.past.length > 256) this.past.shift();
     this.future.length = 0;
-    this.change(next);
+    this.change(next, defeated);
   }
   undo(): void {
     const turn = this.past.pop();
@@ -491,7 +517,7 @@ export class Puzzle {
     const turn = this.future.pop();
     if (!turn) return;
     this.past.push(turn);
-    this.change(restoreTurn(this.state, turn.after));
+    this.change(restoreTurn(this.state, turn.after), turn.defeated);
   }
   reset(): void {
     this.past.length = 0;
@@ -504,20 +530,34 @@ export class Puzzle {
     const access = isMap(this.level) ? this.campaign?.access(this.level) : undefined;
     const pathsChanged = access && (access.paths.length !== this.openPaths.length ||
       access.paths.some((path, index) => path !== this.openPaths[index]));
-    if (access) this.revealedPaths = access.revealedPaths;
+    if (access) {
+      this.revealedPaths = access.revealedPaths;
+      this.flower = access.flower;
+      this.gates = access.gates;
+    }
     if (pathsChanged) this.openPaths = access.paths;
     let nextId = this.state.nextId;
     let units = this.state.units;
     if (access) units = units.map(unit => {
       if (!unit.marker) return unit;
-      const index = this.level.links.findIndex(link => link.id === unit.link);
+      // Older saves identify a marker by its destination and position.
+      const entrances = unit.link ? this.entrancesByChild.get(unit.link) : undefined;
+      const index = unit.entrance !== undefined ? this.entrances.get(unit.entrance) :
+        entrances?.length === 1 ? entrances[0] : entrances?.find(index => {
+          const link = this.level.links[index]!;
+          return link.x === unit.x && link.y === unit.y;
+        });
+      if (index === undefined) return unit;
       const state = access.states[index];
-      return state === undefined || state === unit.state ? unit : { ...unit, state };
+      const entrance = entranceId(this.level.links[index]!, index);
+      return state === undefined || state === unit.state && entrance === unit.entrance ? unit : { ...unit, state, entrance };
     });
-    for (const [link, targets] of this.campaign?.replacements(this.level.id) ?? []) {
-      if (this.appliedConversions.get(link) === targets) continue;
-      this.appliedConversions.set(link, targets);
-      units = units.flatMap(unit => unit.link !== link ? [unit] : targets.flatMap((name, index) => {
+    for (const [key, conversion] of this.campaign?.replacements(this.level.id) ?? []) {
+      if (this.appliedConversions.get(key) === conversion) continue;
+      this.appliedConversions.set(key, conversion);
+      const { child, targets, entrance } = conversion;
+      units = units.flatMap(unit => unit.link !== child || entrance !== undefined && unit.entrance !== entrance ?
+        [unit] : targets.flatMap((name, index) => {
         if (name === 'empty') return [];
         const type = typeOf(this.level, name);
         return [{ ...unit, id: index ? nextId++ : unit.id, name, type,
@@ -530,13 +570,14 @@ export class Puzzle {
       this.future.length = 0;
     }
   }
-  selectedLink(): string | undefined {
+  selectedEntrance(): Unit | undefined {
     for (const cursor of this.state.units) {
       if (!selector(this.context, cursor)) continue;
       const link = this.context.at(cursor.x, cursor.y).find(unit =>
-        unit.name === 'level' && canStandOnMapLink(this.context, unit))?.link;
+        unit.name === 'level' && canStandOnMapLink(this.context, unit));
       if (link) return link;
     }
     return undefined;
   }
+  selectedLink(): string | undefined { return this.selectedEntrance()?.link; }
 }

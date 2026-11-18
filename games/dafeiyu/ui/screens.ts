@@ -1,6 +1,7 @@
 import { GuiButton, GuiElement, GuiInput, GuiLabel, GuiRoot, GuiTooltip, type GuiRect, type GuiStyle } from '@haiyue/engine/gui';
 import type { Direction } from '../levels/baba-format';
 import type { WorldEditor } from '../levels/editor';
+import { gateName } from '../levels/gates';
 import { editorLayout } from '../rendering/layout';
 import { characterLabel } from './names';
 import { editorIcon, type EditorIcon } from './editor-icons';
@@ -16,6 +17,7 @@ export const screenCopy = {
   widthDown: '减小宽度', widthUp: '增加宽度', heightDown: '减小高度', heightUp: '增加高度',
   badImport: '无法读取世界草稿', editHelp: '点按或空格放置 · 右键擦除 · R 试玩',
   selectHelp: '点按选中 · Delete 擦除', eraseHelp: '点按或拖动擦除',
+  flowerGoal: '成花花瓣', pathGate: '路径门锁', noGate: '无', pickPath: '先选中路径格', required: '需要数量',
   added: '选好位置，放置入口', roomAdded: '已创建房间', name: '命名',
   directions: ['右', '上', '左', '下'],
 };
@@ -27,7 +29,8 @@ export const palettePageSize = 12;
 export type PaletteTab = 'objects' | 'text' | 'map';
 export type EditorCommand = 'home' | 'run' | 'undo' | 'export' | 'import' | 'rename' | 'add' | 'map' |
   'room-prev' | 'room-next' | 'world' | 'target-prev' | 'target-next' | 'objects' | 'text' | 'map-tools' |
-  'palette-prev' | 'palette-next' | 'select' | 'erase' | 'stack' | 'rotate' | 'width-down' | 'width-up' | 'height-down' | 'height-up';
+  'palette-prev' | 'palette-next' | 'select' | 'erase' | 'stack' | 'rotate' | 'width-down' | 'width-up' | 'height-down' | 'height-up' |
+  'flower-down' | 'flower-up' | 'gate-type' | 'gate-down' | 'gate-up';
 export const editorMapTools = mapTools;
 const panelStyle: GuiStyle = { backgroundColor: '#081f39ef', borderColor: '#43879da8', radius: 15 };
 const normal: GuiStyle = { backgroundColor: '#173d5bf2', hoverBackgroundColor: '#2a5c76', borderColor: '#568ba4', color: '#eaf9ff', radius: 8, padding: 2 };
@@ -48,6 +51,7 @@ const actionText: [EditorCommand, string][] = [
   ['target-prev', '‹'], ['target-next', '›'], ['palette-prev', '‹'], ['palette-next', '›'],
   ['stack', screenCopy.stack], ['rotate', screenCopy.direction],
   ['width-down', ''], ['width-up', ''], ['height-down', ''], ['height-up', ''],
+  ['flower-down', '−'], ['flower-up', '+'], ['gate-type', ''], ['gate-down', '−'], ['gate-up', '+'],
 ];
 type HomePage = 'main' | 'new' | 'continue' | 'overwrite';
 export interface HomeView { page: HomePage; selected: number; slots: (string | null)[]; busy: boolean; message: string }
@@ -76,6 +80,8 @@ export class ScreenHud {
   private readonly width = this.label('', 14, '#d5f1f7', 'center', 'editor-width');
   private readonly height = this.label('', 14, '#d5f1f7', 'center', 'editor-height');
   private readonly selection = this.label('', 14, '#d5f1f7', 'left', 'editor-selection');
+  private readonly flowerGoal = this.label('', 13, '#d5f1f7', 'center', 'editor-flower-goal');
+  private readonly gateCount = this.label('', 13, '#d5f1f7', 'center', 'editor-gate-count');
   private readonly homeButtons: GuiButton[];
   private readonly commands: Map<EditorCommand, GuiButton>;
   private readonly palette: GuiButton[];
@@ -219,7 +225,8 @@ export class ScreenHud {
       items.forEach((action, i) => this.place(this.commands.get(action)!, x + i * (size + gap), y, size, h));
     };
     const x = panel.x + 9, w = panel.width - 18;
-    const step = Math.max(12, Math.min(35, (panel.height - 12) / 11));
+    const mapTools = editor.room.map && tab === 'map';
+    const step = Math.max(12, Math.min(35, (panel.height - 12) / (mapTools ? 14 : 11)));
     const rh = step - 3;
     let y = panel.y + 6;
     const emit = (items: readonly EditorCommand[]) => { row(items, x, y, w, rh); y += step; };
@@ -241,9 +248,25 @@ export class ScreenHud {
     this.target.setText(`${screenCopy.target} · ${targetName.slice(0, 16)}`);
     const label = (node: GuiLabel, text: string, left: number, wide: number) => { node.setText(text); this.place(node, left, y, wide, rh); };
     const control = (action: EditorCommand, left: number, wide: number) => this.place(this.commands.get(action)!, left, y, wide, rh);
-    if (editor.room.map && tab === 'map') {
+    if (mapTools) {
       control('target-prev', x, 26); control('target-next', x + w - 26, 26);
       this.place(this.target, x + 34, y, w - 68, rh);
+      y += step;
+      const count = editor.room.clearCount ?? 0;
+      const condition = editor.selectedPath?.condition;
+      control('flower-down', x, 32); control('flower-up', x + w - 32, 32);
+      label(this.flowerGoal, `${screenCopy.flowerGoal} · ${count || screenCopy.noGate}`, x + 36, w - 72);
+      this.commands.get('flower-down')!.setDisabled(count === 0);
+      this.commands.get('flower-up')!.setDisabled(count === 127);
+      y += step;
+      const gate = this.commands.get('gate-type')!;
+      gate.setText(editor.selectedPath ? `${screenCopy.pathGate} · ${gateName(condition?.gate ?? 0) ?? screenCopy.noGate}` : screenCopy.pickPath);
+      gate.setDisabled(!editor.selectedPath);
+      emit(['gate-type']);
+      control('gate-down', x, 32); control('gate-up', x + w - 32, 32);
+      label(this.gateCount, `${screenCopy.required} · ${condition?.requirement ?? '—'}`, x + 36, w - 72);
+      this.commands.get('gate-down')!.setDisabled(!condition || condition.requirement === 1);
+      this.commands.get('gate-up')!.setDisabled(!condition || condition.requirement === 999);
       y += step;
     } else {
       control('palette-prev', x, 26); control('palette-next', x + w - 26, 26);

@@ -1,23 +1,29 @@
 import { Entity, type World } from '@haiyue/engine';
 import { InputMap } from '@haiyue/engine/input';
-import { GuiButton, GuiElement, GuiLabel, GuiRoot, GuiSystem, GuiTooltip, type GuiRect, type GuiStyle } from '@haiyue/engine/gui';
+import { GuiButton, GuiElement, GuiImage, GuiLabel, GuiRoot, GuiSystem, GuiTooltip, type GuiRect, type GuiStyle } from '@haiyue/engine/gui';
 import type { IEngine } from '@haiyue/engine/extension-authoring';
 import { INTRO, OVERWORLD, type LevelPack } from '../levels/pack';
 import { isMap, type Puzzle } from '../rules/game';
 import { player } from '../rules/properties';
-import { playLayout } from '../rendering/layout';
+import { playGrid, playLayout } from '../rendering/layout';
 import { screenCopy } from './screens';
+import { flowerIcon, petalIcon } from './flower';
+import type { Cell } from '../levels/editor';
+import { gateName, gateNames } from '../levels/gates';
 
 export const copy = {
   title: '大肥鱼', undo: '撤销', redo: '重做', restart: '重开', pause: '暂停',
-  paused: '游戏暂停', resume: '继续游戏', world: '返回大世界', home: '返回首页', editBack: '退出试玩',
+  paused: '游戏暂停', resume: '继续游戏', world: '返回上一级地图', home: '返回首页', editBack: '退出试玩',
   library: '关卡', enter: '进入', mapBack: '返回地图', cleared: '过关！', stuck: '没有可以控制的角色',
   choose: '选择关卡', files: '导入文件', folder: '导入关卡包', changePack: '切换关卡包', close: '关闭',
   load: '正在读取关卡…', failed: '关卡读取失败', noPair: '请同时选择同名的 .l 和 .ld 文件',
   choosePair: '选择 .l 和 .ld，或导入含 world_data.txt 的文件夹',
   unknown: '关卡包含未识别的对象', missingLink: '目标关卡不在当前关卡包', locked: '未解锁',
+  petals: '花瓣', parentMap: '上一级 · ',
+  gate: '解锁 · ', route: '路线未开放', routeHint: '通关相连关卡后开放', unknownGate: '特殊条件',
 };
-const glyphs = [...new Set([...Object.values(copy).join(''), ...Object.values(screenCopy).flat().join(''), ...INTRO.flat().join(''), ...OVERWORLD.join(''),
+const glyphs = [...new Set([...Object.values(copy).join(''), ...Object.values(screenCopy).flat().join(''), ...Object.values(gateNames).join(''),
+  ...INTRO.flat().join(''), ...OVERWORLD.join(''),
   ...Array.from({length: 95}, (_, i) => String.fromCharCode(i + 32)), ...'·×‹›↑↓←→「」—✓éèüöñ−第子间到'])].join('');
 const pane: GuiStyle = { backgroundColor: '#0b2439f5', borderColor: '#3a788bd6', radius: 16 };
 const mint = '#a4f2e8';
@@ -43,7 +49,7 @@ export interface HudData {
   busy: boolean;
   message: string;
   canGoBack: boolean;
-  canReturnWorld: boolean;
+  returnMap: string | undefined;
   selectedLink: string | undefined;
   completed: ReadonlySet<string>;
   locked: ReadonlySet<string>;
@@ -102,9 +108,22 @@ export class LagoonHud {
   private readonly libraryButtons: Record<'library' | 'older' | 'newer' | 'files' | 'folder' | 'pack', GuiButton>;
   private readonly rows: GuiButton[];
   private readonly page = this.label('', 14, mint, 'page', 'center');
+  private readonly flowerPanel = this.panel('flower-card');
+  private readonly flowerImage = this.place(new GuiImage({ id: 'flower-icon', pointerFilter: 'ignore' }));
+  private readonly petals = this.label('', 14, '#fff0bb', 'flower-petals');
+  private readonly flowers = this.label('', 12, dim, 'flower-count');
+  private readonly gatePanel = this.panel('map-gate');
+  private readonly gateTitle = this.label('', 14, '#fff0bb', 'map-gate-title');
+  private readonly gateHint = this.label('', 12, dim, 'map-gate-condition');
+  private readonly petal = this.place(new GuiImage({ id: 'collect-petal', source: petalIcon(), pointerFilter: 'ignore' }));
+  private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  private readonly flowerIcons = new Map<string, HTMLCanvasElement>();
+  private flight: { from: Cell; elapsed: number; local: boolean; bloom: boolean } | undefined;
+  get collecting(): boolean { return !!this.flight; }
   private readonly pausePanel = this.panel('pause-panel');
   private readonly pauseTitle = this.label(copy.paused, 26, mint, 'pause-heading', 'center');
   private readonly pauseRoom = this.label('', 14, dim, 'pause-room', 'center');
+  private readonly pauseDestination = this.label('', 12, dim, 'pause-destination', 'center');
   private readonly pauseButtons = new Map<PauseAction, GuiButton>();
   private readonly libraryNodes: GuiElement[];
   private readonly pauseNodes: GuiElement[];
@@ -128,7 +147,7 @@ export class LagoonHud {
     this.rows = Array.from({length: rowsPerPage}, (_, row) => this.button('room-' + row, '', () => select(row)));
     for (const action of pauseActions) this.pauseButtons.set(action, this.button('pause-' + action, copy[action], () => callback(action)));
     this.libraryNodes = [this.book, this.bookTitle, this.bookHelp, ...Object.values(this.libraryButtons), ...this.rows, this.page];
-    this.pauseNodes = [this.pausePanel, this.pauseTitle, this.pauseRoom, ...this.pauseButtons.values()];
+    this.pauseNodes = [this.pausePanel, this.pauseTitle, this.pauseRoom, ...this.pauseButtons.values(), this.pauseDestination];
     for (const node of [this.shade, ...this.libraryNodes, ...this.pauseNodes]) {
       this.root.remove(node);
       this.root.add(node);
@@ -157,7 +176,7 @@ export class LagoonHud {
   }
   resize(width: number, height: number): void {
     this.size = { width, height };
-    const { margin, button, gap, toolbar, library, pause } = playLayout(width, height);
+    const { margin, button, gap, toolbar, library, pause, mapHud } = playLayout(width, height);
     this.root.theme.fontSize = width < 600 ? 14 : 16;
     for (const [i, action] of toolbarActions.entries()) {
       const tool = this.buttons.get(action)!;
@@ -172,6 +191,15 @@ export class LagoonHud {
     const hasNext = !!this.data?.selectedLink || this.data?.puzzle?.state.won && this.data.canGoBack;
     const statusOffset = (mapBook ? 64 : 0) + (hasNext ? 84 : 0);
     this.put(this.status, margin + statusOffset, margin, Math.max(1, toolbar.x - margin - statusOffset - 9), button);
+    const cardWidth = Math.min(127, mapHud.width * .46);
+    this.put(this.flowerPanel, mapHud.x, mapHud.y, cardWidth, button);
+    this.put(this.petals, mapHud.x + 40, mapHud.y + 3, cardWidth - 44, 20);
+    this.put(this.flowers, mapHud.x + 40, mapHud.y + 21, cardWidth - 44, 17);
+    const gateX = mapHud.x + cardWidth + gap;
+    const gateWidth = mapHud.width - cardWidth - gap;
+    this.put(this.gatePanel, gateX, mapHud.y, gateWidth, button);
+    this.put(this.gateTitle, gateX + 10, mapHud.y + 3, gateWidth - 20, 20);
+    this.put(this.gateHint, gateX + 10, mapHud.y + 21, gateWidth - 20, 17);
     this.put(this.shade, 0, 0, width, height);
     this.put(this.book, library.x, library.y, library.width, library.height);
     this.put(this.pausePanel, pause.x, pause.y, pause.width, pause.height);
@@ -183,6 +211,7 @@ export class LagoonHud {
     for (const [i, action] of pauseActions.entries()) {
       this.put(this.pauseButtons.get(action)!, px, pause.y + heading + 47 + i * (row + 7), pw, row);
     }
+    this.put(this.pauseDestination, px, pause.y + heading + 49 + 3 * (row + 7), pw, 17);
 
     const mx = library.x + 17, my = library.y, mw = library.width - 34;
     this.put(this.bookTitle, mx, my + 9, mw - 80, 30);
@@ -202,13 +231,14 @@ export class LagoonHud {
     this.apply(pw);
   }
   update(data: HudData): void {
+    if (data.puzzle !== this.data?.puzzle) this.flight = undefined;
     this.data = data;
     this.resize(this.size.width, this.size.height);
   }
   private apply(pauseWidth: number): void {
     const data = this.data;
     if (!data) return;
-    const { puzzle, pack, active, library, paused, pauseIndex, canGoBack, canReturnWorld, busy, message, selectedLink, completed, locked, playtest } = data;
+    const { puzzle, pack, active, library, paused, pauseIndex, canGoBack, returnMap, busy, message, selectedLink, completed, locked, playtest } = data;
     const overlay = library || paused;
     const map = !!puzzle && isMap(puzzle.level);
     const won = puzzle?.state.won ?? false;
@@ -224,6 +254,8 @@ export class LagoonHud {
       puzzle?.level.unknown.length ? copy.unknown : '');
     this.status.setText(display(note, this.rects.get(this.status)!.width, 14));
     this.status.setVisible(!overlay && !!note && (!map || !!message || busy));
+    this.updateFlower();
+    this.updateGate(map && !overlay && !busy && !message ? puzzle : null);
     for (const [action, button] of this.buttons) {
       button.setVisible(!overlay);
       const available = action === 'undo' ? puzzle?.canUndo : action === 'redo' ? puzzle?.canRedo : !!puzzle;
@@ -234,11 +266,13 @@ export class LagoonHud {
     for (const node of this.pauseNodes) node.setVisible(paused);
     if (paused) {
       this.pauseRoom.setText(display(puzzle?.level.title ?? '', pauseWidth, 14));
+      this.pauseDestination.setText(display(returnMap ? copy.parentMap + returnMap : '', pauseWidth, 12));
+      this.pauseDestination.setVisible(!!returnMap);
       this.pauseButtons.get('home')!.setText(playtest ? copy.editBack : copy.home);
       for (const [i, action] of pauseActions.entries()) {
         const button = this.pauseButtons.get(action)!;
         button.setStyle(i === pauseIndex ? primary : regular);
-        button.setDisabled(busy || action === 'world' && !canReturnWorld);
+        button.setDisabled(busy || action === 'world' && returnMap === undefined);
       }
     }
     for (const node of this.libraryNodes) node.setVisible(library);
@@ -260,6 +294,79 @@ export class LagoonHud {
       const number = entry.map ? '' : String(row + 1).padStart(2, '0') + '    ';
       const status = completed.has(entry.id) ? '  ✓' : locked.has(entry.id) ? '  · ' + copy.locked : '';
       button.setText(display(number + entry.title + status, this.rects.get(button)!.width - 9, 16));
+    }
+  }
+
+  collectPetal(from: Cell, { local, bloom }: { local: boolean; bloom: boolean }): void {
+    if (this.reducedMotion.matches) return;
+    this.flight = { from, elapsed: 0, local, bloom };
+    this.updateFlower();
+  }
+
+  tick(delta: number): void {
+    if (!this.flight) return;
+    this.flight.elapsed += delta;
+    if (this.flight.elapsed >= (this.flight.bloom ? 1080 : 820)) this.flight = undefined;
+    this.updateFlower();
+  }
+
+  private updateFlower(): void {
+    const data = this.data;
+    const puzzle = data?.puzzle;
+    const flower = puzzle?.flower;
+    const visible = !!data && !!flower && !data.library && !data.paused && !data.message;
+    for (const node of [this.flowerPanel, this.flowerImage, this.petals, this.flowers]) node.setVisible(visible);
+    this.petal.setVisible(false);
+    if (!visible || !flower || !puzzle) return;
+    const { width, height } = this.size;
+    const { mapHud, button } = playLayout(width, height);
+    const flight = this.flight;
+    const inFlight = !!flight && flight.elapsed < 620;
+    const goal = flower.required;
+    const slots = goal >= 3 ? Math.min(12, goal) : 6;
+    const petals = Math.max(0, (goal ? flower.petals : flower.totalPetals) - (inFlight && (!goal || flight.local) ? 1 : 0));
+    const flowers = Math.max(0, flower.flowers - (inFlight && flight.bloom ? 1 : 0));
+    const filled = goal ? Math.floor(slots * Math.min(goal, petals) / goal) : flowers > 0 ? slots : 0;
+    const key = `${slots}/${filled}`;
+    let icon = this.flowerIcons.get(key);
+    if (!icon) { icon = flowerIcon(slots, filled); this.flowerIcons.set(key, icon); }
+    this.flowerImage.setSource(icon);
+    this.petals.setText(copy.petals + ' ' + (goal ? `${petals}/${goal}` : petals));
+    this.flowers.setText('花朵 ' + flowers);
+    const beat = flight && !inFlight ? Math.sin(Math.PI * Math.min(1, (flight.elapsed - 620) / (flight.bloom ? 460 : 200))) : 0;
+    const size = 30 + beat * (flight?.bloom ? 12 : 6);
+    const cx = mapHud.x + 20, cy = mapHud.y + button / 2;
+    this.put(this.flowerImage, cx - size / 2, cy - size / 2, size, size);
+    if (flight && inFlight) {
+      const grid = playGrid(width, height, puzzle.level.width, puzzle.level.height, true);
+      const x = grid.x + (flight.from.x + .5) * grid.cell;
+      const y = grid.y + (flight.from.y + .5) * grid.cell;
+      const t = flight.elapsed / 620;
+      const ease = t * t * (3 - 2 * t);
+      const s = 27 + 12 * Math.sin(Math.PI * t) - 10 * t;
+      this.put(this.petal, x + (cx - x) * ease - s / 2,
+        Math.max(0, y + (cy - y) * ease - 34 * Math.sin(Math.PI * t) - s / 2), s, s);
+      this.petal.setVisible(true);
+    }
+    this.root.root.markDirty();
+  }
+
+  private updateGate(puzzle: Puzzle | null): void {
+    const cursors = puzzle?.state.units.filter(unit => puzzle.context.has(unit, 'select')) ?? [];
+    const nearby = ({ x, y }: Cell) => cursors.some(cursor => Math.abs(x - cursor.x) + Math.abs(y - cursor.y) <= 1);
+    const gate = puzzle?.gates.find(({ path }) => nearby(path));
+    const route = puzzle && (puzzle.state.units.some(unit => unit.marker && unit.link && unit.state === 1 &&
+      !puzzle.context.has(unit, 'hide') && nearby(unit)) ||
+      puzzle.level.paths.some(path => !path.gate && !puzzle.openPaths.includes(path) && nearby(path)));
+    for (const node of [this.gatePanel, this.gateTitle, this.gateHint]) node.setVisible(!!gate || !!route);
+    if (gate) {
+      const { path, collected } = gate;
+      const kind = gateName(path.gate);
+      this.gateTitle.setText(copy.gate + (kind ?? copy.unknownGate));
+      this.gateHint.setText(`${collected}/${path.requirement}`);
+    } else {
+      this.gateTitle.setText(copy.route);
+      this.gateHint.setText(copy.routeHint);
     }
   }
 }

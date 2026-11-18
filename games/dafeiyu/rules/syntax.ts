@@ -4,6 +4,7 @@ import type { PlacedTile } from '../levels/baba-format';
 export interface Unit extends PlacedTile {
   id: number;
   link?: string;
+  entrance?: string;
   state?: number;
   marker?: boolean;
   holder?: number;

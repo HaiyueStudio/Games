@@ -1,5 +1,5 @@
 {
-  "maxSize": 1536,
+  "maxSize": 1600,
   "backgrounds": {
     "home-lagoon.png": "c96d2a8c6a857ba372af18d9f304f44fdcb93ae6fa54d88a7379ef49000e75bb",
     "lagoon.png": "d62967ec3b46cf98c516f8a9e43adeb376eaa21574be18ea2420f1e8da34005c"
@@ -9,6 +9,9 @@
     { "source": "luna-walk/atlas.png", "width": 640 },
     { "source": "tiles.png", "width": 768 },
     { "source": "box.png", "width": 224 },
+    { "source": "fungus.png", "width": 224 },
+    { "source": "brick.png" },
+    { "source": "pillar.png" },
     { "source": "rule-boxes.png" }
   ]
 }

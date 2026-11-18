@@ -66,7 +66,7 @@ export function builtinPack(signal: AbortSignal): LevelPack {
   return {
     title: '珊瑚湾', initial: INTRO.length,
     entries: [...INTRO, OVERWORLD].map(([id, title]) => ({
-      id, title, ...(id === OVERWORLD[0] ? { map: true, children: INTRO.map(([child]) => child) } : { parent: OVERWORLD[0] }),
+      id, title, ...(id === OVERWORLD[0] ? { map: true, children: INTRO.map(([child]) => child), clearCount: INTRO.length } : { parent: OVERWORLD[0] }),
       read: async () => {
         const level = await readHostedLevel('./levels/' + id, id, signal);
         return id === OVERWORLD[0] ? islandOverworld(level, 'coral') : level;
@@ -105,8 +105,9 @@ export async function localPacks(files: readonly LocalFile[]): Promise<LevelPack
       const text = decodeMetadata(await meta.arrayBuffer());
       const { title, metadata } = parseHeader(text, id);
       const general = metadata.general;
+      const threshold = Number(general?.unlockcount);
       entries.push({ id, title, children: readLevelLinks(metadata).map(link => link.id),
-        clearCount: general?.notcompleteable === '1' ? 0 : Number(general?.unlockcount) || 0,
+        clearCount: general?.notcompleteable !== '1' && Number.isSafeInteger(threshold) && threshold > 0 ? threshold : 0,
         ...(general?.customparent ? { parent: general.customparent.toLowerCase() } : {}), map: general?.leveltype === '1',
         read: async () => readBabaLevel(await binary.arrayBuffer(), text, id) });
     }

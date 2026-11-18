@@ -11,7 +11,7 @@ export interface Progress {
 
 export interface OfficialProgress {
   campaign: CampaignProgress;
-  rooms: { id: string; state: GameState }[];
+  rooms: { id: string; state: GameState; entrance?: string }[];
 }
 
 export interface SlotProgress {
@@ -33,9 +33,10 @@ export function isOfficialProgress(value: unknown): value is OfficialProgress {
   const { completed, bonuses, conversions } = value.campaign;
   return Array.isArray(completed) && completed.every(isName) &&
     Array.isArray(bonuses) && bonuses.every(item => Array.isArray(item) && item.length === 2 && isName(item[0]) && isNonNegativeInteger(item[1])) &&
-    Array.isArray(conversions) && conversions.every(item => Array.isArray(item) && item.length === 3 && isName(item[0]) &&
-      isName(item[1]) && Array.isArray(item[2]) && item[2].every(isName)) &&
-    value.rooms.every(room => isRecord(room) && isName(room.id) && isGameState(room.state));
+    Array.isArray(conversions) && conversions.every(item => Array.isArray(item) && (item.length === 3 || item.length === 4 && isName(item[3])) &&
+      isName(item[0]) && isName(item[1]) && Array.isArray(item[2]) && item[2].every(isName)) &&
+    value.rooms.every(room => isRecord(room) && isName(room.id) &&
+      (room.entrance === undefined || isName(room.entrance)) && isGameState(room.state));
 }
 
 export function isProgress(value: unknown): value is Progress {
@@ -54,6 +55,7 @@ function isGameState(state: unknown): state is GameState {
   const occupiedIds = new Set<number>();
   for (const unit of state.units) {
     if (!isRecord(unit) || !isNonNegativeInteger(unit.id) || Number(unit.id) >= Number(state.nextId) || occupiedIds.has(Number(unit.id)) ||
+        (unit.entrance !== undefined && !isName(unit.entrance)) ||
         !isNonNegativeInteger(unit.x) || !isNonNegativeInteger(unit.y) || !isNonNegativeInteger(unit.dir) || Number(unit.dir) > 3 ||
         !Number.isSafeInteger(unit.type) || !Number.isSafeInteger(unit.layer) || typeof unit.name !== 'string' || unit.name.length > 128) return false;
     occupiedIds.add(Number(unit.id));

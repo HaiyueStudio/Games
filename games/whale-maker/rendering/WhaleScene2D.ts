@@ -1,33 +1,41 @@
 import { System, type World } from '@haiyue/engine';
 import { beginRenderCommandPass, type IEngine, type RenderCommandContext } from '@haiyue/engine/extension-authoring';
-import { IndexedSpriteRenderer, type IndexedSpriteDrawCommand, type IndexedSpritePlaneDescriptor } from '@haiyue/extensions/experimental/indexed-sprite';
+import { DEFAULT_INDEXED_SPRITE_ATLAS_LIMITS, IndexedSpriteRenderer, type IndexedSpriteDrawCommand, type IndexedSpritePlaneDescriptor } from '@haiyue/extensions/experimental/indexed-sprite';
 import { actorRect } from './poses';
 import { terrainPlanes } from './terrain';
 import { tornadoPlanes } from './wind';
+import { rescueBubblePlane } from './coop';
+import type { SpriteSourceSizes } from '../app/artwork';
 
 export interface SceneRect { x: number; y: number; width: number; height: number }
 type Draw = { id: string; rect: SceneRect; flip: boolean; rotation?: number; opacity?: number; tint?: readonly [number, number, number, number] };
+type Size = { width: number; height: number };
 
 /** Ordinary textured 2D rendering. No GUI elements, layout callbacks or GUI dirtiness. */
 export class WhaleScene2D extends System {
     readonly rendererKind = 'engine-indexed-sprite-2d';
     readonly draws: Draw[] = [];
-    readonly commands: IndexedSpriteDrawCommand[] = [];
-    private readonly sources = new Map<string, { width: number; height: number }>();
+    private readonly renderCommands: IndexedSpriteDrawCommand[] = [];
+    private readonly sources = new Map<string, Size>();
+    private readonly textures = new Map<string, Size & { packedId: string }>();
     private readonly renderer: IndexedSpriteRenderer;
     private readonly unregisterRecovery: (() => void) | undefined;
     private disposed = false;
     get stats() { return this.renderer.stats(); }
+    get commands(): IndexedSpriteDrawCommand[] {
+        return this.renderCommands.map(command => ({ ...command, spriteId: command.spriteId.slice(command.spriteId.indexOf(':') + 1) }));
+    }
     readonly recoveryLabel = 'WhaleMaker.Sprite2D';
     readonly recoverySource = { kind: 'render-system', system: 'WhaleScene2D' };
     get renderPipelineOptions() { return { pass: 'isolated' as const, loadOp: 'clear' as const, depth: false, sort: 10 }; }
 
-    constructor(private readonly engine: IEngine, atlases: Record<string, HTMLImageElement>, frames: Record<string, number[][]>, readonly board: SceneRect) {
+    constructor(private readonly engine: IEngine, atlases: Record<string, HTMLImageElement>, frames: Record<string, number[][]>, readonly board: SceneRect, sourceSizes: SpriteSourceSizes) {
         super(() => false);
         this.name = 'WhaleScene2D';
         this.priority = 10;
         const planes: IndexedSpritePlaneDescriptor[] = [{ id: 'white', width: 1, height: 1, format: 'rgba8', pixels: new Uint8Array([255, 255, 255, 255]) }];
         this.sources.set('white', { width: 1, height: 1 });
+        const bubble=rescueBubblePlane();planes.push(bubble);this.sources.set(bubble.id,{width:bubble.width,height:bubble.height});
         for(const plane of tornadoPlanes()){planes.push(plane);this.sources.set(plane.id,{width:plane.width,height:plane.height});}
         // A soft circular particle material, kept in the same recoverable GPU batch.
         const diameter=32,pixels=new Uint8Array(diameter*diameter*4);
@@ -47,13 +55,18 @@ export class WhaleScene2D extends System {
             }
             planes.push({id,width:side,height:side,format:'rgba8',pixels:rgba});this.sources.set(id,{width:side,height:side});
         }
+        const contexts = new Map<HTMLImageElement, CanvasRenderingContext2D>();
         for (const [name, image] of Object.entries(atlases)) {
-            // Read the generated atlas once on load. All frame rendering is WebGPU.
-            const canvas = document.createElement('canvas');
-            canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (!ctx) throw Error('Unable to decode sprite atlas');
-            ctx.drawImage(image, 0, 0);
+            let ctx = contexts.get(image);
+            if (!ctx) {
+                const canvas = document.createElement('canvas');
+                canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+                ctx = canvas.getContext('2d', { willReadFrequently: true }) ?? undefined;
+                if (!ctx) throw Error('Unable to decode sprite atlas');
+                ctx.drawImage(image, 0, 0);
+                contexts.set(image, ctx);
+            }
+            const { canvas } = ctx;
             for (const [index, frame] of frames[name]!.entries()) {
                 const [u, v, w, h] = frame as [number, number, number, number];
                 const x = Math.round(u * canvas.width), y = Math.round(v * canvas.height);
@@ -63,14 +76,23 @@ export class WhaleScene2D extends System {
                 const id = `${name}:${index}`;
                 const plane:IndexedSpritePlaneDescriptor={ id, width, height, format: 'rgba8', pixels: new Uint8Array(ctx.getImageData(x, y, width, height).data) };
                 planes.push(plane);
-                this.sources.set(id, { width, height });
+                const original = sourceSizes.get(id);
+                this.sources.set(id, original ? { width: original[0], height: original[1] } : { width, height });
                 if(name==='world'&&index===0)for(const terrain of terrainPlanes(plane)){planes.push(terrain);this.sources.set(terrain.id,{width:terrain.width,height:terrain.height});}
             }
         }
-        this.renderer = new IndexedSpriteRenderer(engine.device, planes, [], { targetFormat: engine.format, sampleCount: engine.msaaSamples, label: 'WhaleMaker.Sprite2D' });
+        // The renderer shelf-packs by ID. Rank taller and wider planes first to reduce unused space.
+        const packedPlanes = planes.sort((a, b) => b.height - a.height || b.width - a.width).map((plane, index) => {
+            const packedId = `${String(index).padStart(4, '0')}:${plane.id}`;
+            this.textures.set(plane.id, { width: plane.width, height: plane.height, packedId });
+            return { ...plane, id: packedId };
+        });
+        const limits = { ...DEFAULT_INDEXED_SPRITE_ATLAS_LIMITS, maxTextureDimension2D: Math.min(4096, engine.device.limits.maxTextureDimension2D) };
+        this.renderer = new IndexedSpriteRenderer(engine.device, packedPlanes, [], { limits, targetFormat: engine.format, sampleCount: engine.msaaSamples, label: 'WhaleMaker.Sprite2D' });
         this.renderer.uploadAll();
         this.unregisterRecovery = engine.registerDeviceRecoveryParticipant?.(this);
     }
+    sourceSize(atlas: string, frame: number): Size { return this.sources.get(`${atlas}:${frame}`)!; }
     begin(): void { this.draws.length = 0; }
     sprite(atlas: string, frame: number, x: number, y: number, width: number, height: number, flip = false, rotation = 0, opacity = 1, tint?:readonly[number,number,number,number]): void {
         if (x + width <= this.board.x || x >= this.board.x + this.board.width || y + height <= this.board.y || y >= this.board.y + this.board.height) return;
@@ -87,6 +109,9 @@ export class WhaleScene2D extends System {
     dustParticle(x:number,y:number,radius:number,opacity:number,tint:readonly[number,number,number,number]):void {
         if(radius<=0||opacity<=0)return;
         this.draws.push({id:'dust',rect:{x:x-radius,y:y-radius,width:radius*2,height:radius*2},flip:false,opacity,tint});
+    }
+    rescueBubble(x:number,y:number,radius:number,opacity=1):void {
+        this.draws.push({id:'rescue-bubble',rect:{x:x-radius,y:y-radius,width:radius*2,height:radius*2},flip:false,opacity});
     }
     fitActor(atlas:string,frame:number,centerX:number,feetY:number,width:number,height:number,flip=false,reference=frame):SceneRect|undefined {
         const source=this.sources.get(`${atlas}:${frame}`)!,ref=this.sources.get(`${atlas}:${reference}`)!;
@@ -105,10 +130,10 @@ export class WhaleScene2D extends System {
         const physicalHeight = context.view?.height ?? this.engine.height;
         const scale = Math.min(width / 1280, height / 800);
         const offsetX = (width - 1280 * scale) / 2, offsetY = (height - 800 * scale) / 2;
-        this.commands.length = 0;
+        this.renderCommands.length = 0;
         for (const [order, draw] of this.draws.entries()) {
-            const source = this.sources.get(draw.id)!;
-            this.commands.push({ spriteId: draw.id, x: offsetX + (draw.rect.x + draw.rect.width / 2) * scale, y: offsetY + (draw.rect.y + draw.rect.height / 2) * scale,
+            const source = this.textures.get(draw.id)!;
+            this.renderCommands.push({ spriteId: source.packedId, x: offsetX + (draw.rect.x + draw.rect.width / 2) * scale, y: offsetY + (draw.rect.y + draw.rect.height / 2) * scale,
                 axisX: source.width / 2, axisY: source.height / 2,
                 scaleX: draw.rect.width * scale / source.width, scaleY: draw.rect.height * scale / source.height,
                 flipX: draw.flip, rotationRadians: draw.rotation ?? 0, opacity: draw.opacity ?? 1, sampling: 'linear', blend: 'alpha', priority: order, ...(draw.tint ? { tint: draw.tint } : {}) });
@@ -120,7 +145,7 @@ export class WhaleScene2D extends System {
         const right = Math.min(physicalWidth, Math.ceil((offsetX + (this.board.x + this.board.width) * scale) * pixelRatioX));
         const bottom = Math.min(physicalHeight, Math.ceil((offsetY + (this.board.y + this.board.height) * scale) * pixelRatioY));
         passEncoder.setScissorRect(x, y, Math.max(1, right - x), Math.max(1, bottom - y));
-        this.renderer.render(passEncoder, this.commands, width, height);
+        this.renderer.render(passEncoder, this.renderCommands, width, height);
         passEncoder.setScissorRect(0, 0, physicalWidth, physicalHeight);
         if (ownsPass) passEncoder.end();
         return this;
@@ -133,7 +158,7 @@ export class WhaleScene2D extends System {
         if (this.disposed) return this;
         this.disposed = true;
         this.unregisterRecovery?.();
-        this.renderer.dispose(); this.draws.length = 0; this.commands.length = 0;
+        this.renderer.dispose(); this.draws.length = 0; this.renderCommands.length = 0;
         return super.destroy();
     }
 }

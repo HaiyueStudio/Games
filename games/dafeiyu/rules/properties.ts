@@ -14,6 +14,9 @@ export interface RuleContext {
   active: Set<number>;
   at(x: number, y: number): Unit[];
   has(unit: Unit, name: string): boolean;
+  hasProperty(name: string): boolean;
+  hasVerb(name: string): boolean;
+  room: Unit | undefined;
   propertyRules(unit: Unit, name: string): Rule[];
   targets(unit: Unit, verb: string, type?: number): string[];
   matches(unit: Unit, term: Term): boolean;
@@ -183,8 +186,11 @@ export function ruleContext(level: BabaLevel, units: Unit[], turn: number, waiti
   const needsLevel = effective.some(r => r.subject.name === 'level');
   const all = units.slice();
   if (needsEmpty) for (let y = 0; y < level.height; y++) for (let x = 0; x < level.width; x++) all.push(...virtualEmpty(x, y));
-  if (needsLevel) all.push({ id: -1, name: 'level', x: -1, y: -1, dir: 0, type: -1, layer: -1 });
-  return { rules, active, at, has, propertyRules, targets, matches, units: all };
+  const room: Unit | undefined = needsLevel ? { id: -1, name: 'level', x: -1, y: -1, dir: 0, type: -1, layer: -1 } : undefined;
+  if (room) all.push(room);
+  return { rules, active, at, has, propertyRules, targets, matches, units: all, room,
+    hasProperty: name => isTargets.get(name)?.some(rule => rule.targetType === 2) ?? false,
+    hasVerb: name => byVerb.has(name) };
 }
 
 export function typeOf(level: BabaLevel, name: string): number {

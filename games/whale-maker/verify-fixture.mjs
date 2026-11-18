@@ -14,12 +14,12 @@ export function makeCourse({width=100,height=32,floor=20,goal=width-6,spawn=[3,f
         rules:{revision:1,rewards:'score',freezing:'timed',pipes:'reference'},...options};
 }
 
-export async function verifyCourse(outputName,checkCourse) {
+export async function verifyCourse(outputName,checkCourse,visualCapture={viewportWidth:1280,viewportHeight:860}) {
     const output=resolve(root,'artifacts',outputName);
     mkdirSync(output,{recursive:true});
     const checks=[];
     const result=await runChromeWebGpuFixture({root,fixture:'games/whale-maker/index.html',query:{verify:1},
-        timeoutMs:150000,disableDx12InfoCollection:true,visualCapture:{viewportWidth:1280,viewportHeight:860},
+        timeoutMs:150000,disableDx12InfoCollection:true,visualCapture,
         interact:async cdp=>{
             const evaluate=async expression=>{
                 const {result}=await cdp.call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
@@ -47,7 +47,7 @@ export async function verifyCourse(outputName,checkCourse) {
                 await delay(200);
             }
             assert.equal(await evaluate('document.body.dataset.renderStatus'),'passed');
-            await checkCourse({state,load,advance,capture,checks,delay});
+            await checkCourse({state,load,advance,capture,checks,delay,cdp});
             assert.equal(await state(g=>g.scene.draws.every(draw=>g.scene.sources.has(draw.id))),true);
             assert.equal(await evaluate('document.querySelectorAll("button,img,aside").length'),0);
             await state((g,checks)=>{

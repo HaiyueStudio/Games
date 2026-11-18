@@ -1,3 +1,4 @@
+import {asPlayerBody,playerBodies,visitPlayers} from './coop-state';
 import {overlaps as overlap} from './geometry';
 import {pathBlocked} from './p1-mechanisms';
 import { rulesFor } from './profile';
@@ -26,23 +27,23 @@ export function initWorkshop(l:Level):WorkshopState{
 }
 function carryBy(s:State,old:Body,block:Body,dt:number,svc:Services,carried:Set<Body>):void{
     const dx=block.x-old.x,dy=block.y-old.y;
-    for(const body of [s.player,...s.enemies.filter(e=>e.alive&&!e.held),...s.items.filter(i=>i.alive&&!i.held)]){
+    for(const body of [...playerBodies(s),...s.enemies.filter(e=>e.alive&&!e.held),...s.items.filter(i=>i.alive&&!i.held)]){
         const riding=body.vy>=0&&Math.abs(body.y+body.h-old.y)<.04&&body.x<old.x+old.w-.001&&body.x+body.w>old.x+.001;
         if(riding&&carried.has(body))continue;
         if(!riding&&!overlap(body,block))continue;
         const vx=body.vx,vy=body.vy;
         const pushX=riding?dx:dx>0?block.x+block.w-body.x:dx<0?block.x-body.x-body.w:0;
         const pushY=riding?dy:dy>0?block.y+block.h-body.y:dy<0?block.y-body.y-body.h:0;
-        body.vx=pushX/dt;body.vy=pushY/dt;svc.move(s,body,dt,body===s.player);body.vx=vx;body.vy=vy;
+        body.vx=pushX/dt;body.vy=pushY/dt;asPlayerBody(s,body,player=>svc.move(s,body,dt,player));body.vx=vx;body.vy=vy;
         if(riding)carried.add(body);
-        if(overlap(body,block)&&!riding){if(body===s.player)svc.crush(s);else if('kind'in body&&'cooldown'in body&&s.enemies.includes(body as Enemy))svc.defeat(s,body as Enemy,'block');else (body as Item).alive=false;}
+        if(overlap(body,block)&&!riding){asPlayerBody(s,body,player=>{if(player)svc.crush(s);else if('kind'in body&&'cooldown'in body&&s.enemies.includes(body as Enemy))svc.defeat(s,body as Enemy,'block');else (body as Item).alive=false;});}
     }
 }
 export function advanceWorkshop(s:State,dt:number,svc:Services):void{
     const carried=new Set<Body>();
     for(const route of s.snakes){
         if(route.done)continue;
-        if(!route.active){route.active=[s.player,...s.enemies,...s.items].some(b=>b.vy>=0&&route.blocks.some(q=>Math.abs(b.y+b.h-q.y)<.05&&b.x<q.x+1&&b.x+b.w>q.x));if(!route.active)continue;}
+        if(!route.active){route.active=[...playerBodies(s),...s.enemies,...s.items].some(b=>b.vy>=0&&route.blocks.some(q=>Math.abs(b.y+b.h-q.y)<.05&&b.x<q.x+1&&b.x+b.w>q.x));if(!route.active)continue;}
         const span=Math.max(0,route.length-route.blocks.length+1);let travel=route.travel+route.direction*dt*(route.speed??1);
         if(travel>span){if(!route.loop){travel=span;route.done=true;}else{travel=span-(travel-span);route.direction=-1;}}if(travel<0){travel=-travel;route.direction=1;}if(span===0)travel=0;route.travel=travel;
         const old=route.blocks.map(b=>({...b}));
@@ -52,14 +53,16 @@ export function advanceWorkshop(s:State,dt:number,svc:Services):void{
     }
     // Fuses continue while carried, travelling through doors/pipes, or off-screen.
     for(const e of s.enemies)if(e.alive&&e.kind==='bomb'&&e.bombFuse!==undefined&&!e.frozen){e.bombFuse=Math.max(0,e.bombFuse-dt);if(e.bombFuse<1e-8)explodeBomb(s,e,svc);}
-    for(const h of s.hammers){h.age+=dt;h.vy+=20*dt;h.x+=h.vx*dt;h.y+=h.vy*dt;h.angle+=Math.sign(h.vx)*14*dt;if(overlap(h,s.player))svc.hurt(s,h.y<s.player.y?'top':'side');}
-    s.hammers=s.hammers.filter(h=>h.age<4&&h.y<s.level.height+2&&h.x> -2&&h.x<s.level.width+2&&Math.abs(h.x-s.player.x)<34);
+    for(const h of s.hammers){h.age+=dt;h.vy+=20*dt;h.x+=h.vx*dt;h.y+=h.vy*dt;h.angle+=Math.sign(h.vx)*14*dt;visitPlayers(s,()=>{if(overlap(h,s.player))svc.hurt(s,h.y<s.player.y?'top':'side');});}
+    const players=playerBodies(s);s.hammers=s.hammers.filter(h=>h.age<4&&h.y<s.level.height+2&&h.x> -2&&h.x<s.level.width+2&&players.some(p=>Math.abs(h.x-p.x)<34));
 }
 export function woodEffect(s:State,item:Body):void{emit(s,'break',item.x);s.effects.push({kind:'wood',x:item.x+item.w/2,y:item.y+item.h/2,w:1,h:1,vx:0,vy:0,age:0});s.effects=s.effects.slice(-64);}
 export function breakCrate(s:State,item:Item):void{if(!item.alive)return;releaseContent(s,item);item.alive=false;item.held=false;if(s.held===item)s.held=null;woodEffect(s,item);}
-export function updateCrate(s:State,item:Item,i:Input,dt:number,svc:Services):void{
-    item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);if(item.held||item.transit)return;
-    const old={...item};item.vy=Math.min(18,item.vy+26*dt);const vx=item.vx,hit=svc.move(s,item,dt);if(!item.alive)return;
+export function updateCrate(s:State,item:Item,i:Input,dt:number,svc:Services,shared=true):void{
+    if(shared){item.age+=dt;item.cooldown=Math.max(0,item.cooldown-dt);}if(item.held||item.transit)return;
+    const vx=item.vx;
+    if(shared){
+    const old={...item};item.vy=Math.min(18,item.vy+26*dt);const hit=svc.move(s,item,dt);if(!item.alive)return;
     // The upper edge of the first water cell is the buoyant resting surface.
     const x=item.x+item.w/2;let waterY:number|undefined;
     for(let y=Math.max(0,Math.floor(old.y));y<=Math.min(s.level.height-1,Math.ceil(item.y+item.h));y++)if(['water','lava'].includes(cell(s.level,x,y))&&!['water','lava'].includes(cell(s.level,x,y-1))){waterY=y;break;}
@@ -75,6 +78,7 @@ export function updateCrate(s:State,item:Item,i:Input,dt:number,svc:Services):vo
     if(item.thrown&&hit.wall){breakCrate(s,item);return;}
     if(hit.floor||waterY!==undefined&&item.y+item.h>=waterY){item.vx=Math.sign(item.vx)*Math.max(0,Math.abs(item.vx)-18*dt);if(Math.abs(item.vx)<.1)item.thrown=false;}
     if(item.y>s.level.height+2)item.alive=false;
+    }
     if(item.alive&&item.cooldown===0&&i.grab&&!s.held&&Math.abs(vx)<5&&s.player.x<item.x+item.w+.035&&s.player.x+s.player.w>item.x-.035&&s.player.y<item.y+item.h&&s.player.y+s.player.h>item.y-.035){item.held=true;item.vx=item.vy=0;item.thrown=false;s.held=item;emit(s,'grab',item.x);}
 }
 export function armBomb(s:State,e:Enemy):void{if(e.bombFuse!==undefined)return;e.bombFuse=5;e.vx=e.vy=0;e.bombThrown=false;e.cooldown=.15;emit(s,'switch',e.x);}
@@ -90,7 +94,7 @@ export function explodeBomb(s:State,e:Enemy,svc:Services):void{
     s.fragments=s.fragments.slice(-128);
     for(const item of s.items)if(item.alive&&item.kind==='wood-crate'&&overlap(blast,item))breakCrate(s,item);
     for(const other of s.enemies)if(other!==e&&other.alive&&other.kind!=='ghost'&&other.kind!=='fire-jumper'&&overlap(blast,other))svc.defeat(s,other,'pow');
-    if(overlap(blast,s.player))svc.hurt(s);
+    visitPlayers(s,()=>{if(s.held===e)s.held=null;if(overlap(blast,s.player))svc.hurt(s);});
     s.effects.push({kind:'blast',x:cx+.5,y:cy+.5,w:3,h:3,vx:0,vy:0,age:0});s.effects=s.effects.slice(-64);s.shake=Math.max(s.shake,.25);emit(s,'pow',cx+.5);
 }
 /** Armed bombs are harmless to touch and can be picked up from the boundary. */
