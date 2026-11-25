@@ -79,11 +79,15 @@ test('engine autosave persists the latest independent snapshot and replaces the 
   assert.equal((await backend.list('jigsaw-puzzle')).length, 1);
 });
 
-test('engine rejects and clears an invalid saved partition instead of restoring a broken board', async () => {
+test('engine rejects an invalid saved partition and retains it until an explicit reset', async () => {
   const backend = new MemorySaveBackend();
   const options = { gameId: 'jigsaw-puzzle', name: '拼图测试', backend, validateData: isJigsawSaveData };
   const bad = save(); bad.groups.pop();
   await new SingleSlotGameSave({ ...options, validateData: () => true }).saveNow(bad);
-  assert.equal(await new SingleSlotGameSave(options).load(), null);
+  const saves = new SingleSlotGameSave(options);
+  await assert.rejects(saves.load());
+  assert.equal((await backend.list('jigsaw-puzzle')).length, 1);
+  await assert.rejects(saves.saveNow(save()), 'a fallback board must not overwrite the unread partition');
+  await saves.clear();
   assert.equal((await backend.list('jigsaw-puzzle')).length, 0);
 });

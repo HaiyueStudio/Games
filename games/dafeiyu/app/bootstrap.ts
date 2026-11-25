@@ -3,7 +3,7 @@ import { RenderIntegration } from '@haiyue/engine/experimental';
 import { gamepadFrame, installGamepad } from '../../gamepad/runtime';
 import { GameEngine } from '../../session/GameEngine';
 import { gameSession } from '../../session/SessionPause';
-import { SingleSlotGameSave } from '../../save/SingleSlotGameSave';
+import { SingleSlotGameSave, type AutoSaveStatus } from '../../save/SingleSlotGameSave';
 import { LagoonAudio } from '../audio/LagoonAudio';
 import { builtinPack, localPacks, officialPacks, type LevelPack } from '../levels/pack';
 import { isWorldDraft, levelFromDraft, newDraft, packFromDraft, palettes, sameCell, WorldEditor, type Cell, type WorldDraft } from '../levels/editor';
@@ -13,11 +13,17 @@ import { LagoonScene } from '../rendering/scene';
 import { LagoonPortal, type PortalFocus } from '../rendering/portal';
 import { Campaign } from '../rules/campaign';
 import { isMap, Puzzle, type Move } from '../rules/game';
+import { RuleComplexityError } from '../rules/syntax';
+import { LevelCapacityError } from '../levels/limits';
 import { player, vectors, type RuleContext } from '../rules/properties';
 import { isOfficialProgress, isProgress, isSlotProgress, type OfficialProgress, type SlotProgress } from '../rules/progress';
 import { copy, LagoonHud, pauseActions, rowsPerPage, type HudAction } from '../ui/hud';
 import { editorMapTools, palettePageSize, screenCopy, ScreenHud, type EditorCommand, type HomeView, type PaletteTab } from '../ui/screens';
 import { LatestAutosave } from './autosave';
+import { restoreRooms, type Room } from './restore';
+
+const puzzleError = (error: unknown): string => error instanceof RuleComplexityError ? copy.complexRules :
+  error instanceof LevelCapacityError ? copy.capacity : copy.failed;
 
 const moves = new Map<string, Move>([
   ['ArrowRight', 0], ['KeyD', 0], ['ArrowUp', 1], ['KeyW', 1],
@@ -27,7 +33,6 @@ const actions = new Map<string, HudAction>([
   ['KeyZ', 'undo'], ['Backspace', 'undo'], ['KeyY', 'redo'], ['KeyR', 'restart'], ['KeyL', 'library'],
   ['Escape', 'pause'], ['KeyM', 'pause'], ['Enter', 'next'], ['KeyI', 'files'], ['KeyF', 'folder'],
 ]);
-type Room = { index: number; puzzle: Puzzle; entrance?: string | undefined };
 type OpenOptions = { keepLibrary?: boolean; parents?: Room[]; conversion?: { child: string; targets: string[] };
   intro?: boolean; returning?: { child: string; petal: boolean }; entering?: PortalFocus | undefined };
 
@@ -42,13 +47,19 @@ class LagoonGame {
   private readonly projectPicker: HTMLInputElement;
   private readonly resize: ResizeObserver;
   private readonly packs = [builtinPack(this.lifetime.signal)];
+  private readonly unreadSlots = new Set<number>();
+  private readonly saveFailures = new Set<number>();
+  private draftSaveFailed = false;
+  private legacyChecked = false;
   private readonly saves = [1, 2, 3].map(index => new SingleSlotGameSave<SlotProgress>({ gameId: 'dafeiyu-slot-' + index,
-    name: `${screenCopy.slot} ${index}`, validateData: isSlotProgress }));
+    name: `${screenCopy.slot} ${index}`, validateData: isSlotProgress, onStatus: status => this.saveStatus(index - 1, status) }));
   private readonly autosaves = this.saves.map(store => new LatestAutosave<SlotProgress>(data => store.saveNow(data)));
   private readonly draftSave = new SingleSlotGameSave<WorldDraft>({ gameId: 'dafeiyu-workshop', name: screenCopy.editor, validateData: isWorldDraft,
-    onStatus: status => { if (status === 'error' && this.mode === 'editor' && !this.lifetime.signal.aborted) {
-      this.message = screenCopy.storageError; this.refresh();
-    } } });
+    onStatus: status => {
+      if (status === 'saving') return;
+      this.draftSaveFailed = status === 'error';
+      if (!this.lifetime.signal.aborted) this.refresh();
+    } });
   private readonly draftAutosave = new LatestAutosave<WorldDraft>(data => this.draftSave.saveNow(data));
   private readonly packKeys = new Map<LevelPack, string>([[this.packs[0]!, 'coral']]);
   private campaigns = new WeakMap<LevelPack, Campaign>();
@@ -97,16 +108,18 @@ class LagoonGame {
   }
   async init(): Promise<void> {
     const params = new URLSearchParams(location.search);
-    const [, official, saved] = await Promise.all([this.engine.init(), officialPacks(this.lifetime.signal),
-      Promise.all(this.saves.map(store => store.load()))]);
+    const [, official] = await Promise.all([this.engine.init(), officialPacks(this.lifetime.signal),
+      Promise.allSettled(this.saves.map((_, index) => this.loadSlot(index)))]);
     this.lifetime.signal.throwIfAborted();
-    this.slots = saved;
     for (const pack of official) {
       this.packs.push(pack);
       this.packKeys.set(pack, pack.id);
     }
     this.preferred = params.get('start') === 'coral' ? this.packs[0]! : official[0] ?? this.packs[0]!;
-    if (!this.slots[0]) await this.migrate();
+    if (!this.slots[0] && !this.unreadSlots.has(0)) {
+      try { await this.migrate(); }
+      catch { this.unreadSlots.add(0); }
+    }
     this.lifetime.signal.throwIfAborted();
     const scene = this.scene = new LagoonScene(this.engine);
     this.world.addSystem(this.scene);
@@ -128,7 +141,7 @@ class LagoonGame {
     });
     this.bind();
     this.fit();
-    if (params.has('verify') && params.get('autoplay') === '1') await this.beginSlot(0, !this.slots[0]);
+    if (params.has('verify') && params.get('autoplay') === '1') await this.beginSlot(0, !this.slots[0] && !this.unreadSlots.has(0));
     else await scene.prepare(true);
     this.lifetime.signal.throwIfAborted();
     this.refresh();
@@ -165,28 +178,52 @@ class LagoonGame {
   private refresh(): void {
     if (!this.hud || !this.screens) return;
     const { displayWidth: width, displayHeight: height } = this.engine;
+    const message = this.statusMessage();
     const playing = this.mode === 'play' || this.mode === 'test';
     this.hud.root.root.setVisible(playing);
     if (this.mode === 'home') {
-      this.screens.home(width, height, { page: this.homePage, selected: this.homeIndex, busy: this.busy, message: this.message,
-        slots: this.slots.map(save => save ? this.packForKey(save.active)?.title ?? screenCopy.continue : null) });
+      this.screens.home(width, height, { page: this.homePage, selected: this.homeIndex, busy: this.busy, message,
+        slots: this.slots.map((save, index) => this.unreadSlots.has(index) ? screenCopy.unreadSlot :
+          save ? this.packForKey(save.active)?.title ?? screenCopy.continue : null) });
       return;
     }
     if (this.mode === 'editor' && this.editor) {
-      this.screens.editor(width, height, { editor: this.editor, tab: this.tab, page: this.brushPage, choices: this.choices(), message: this.message,
+      this.screens.editor(width, height, { editor: this.editor, tab: this.tab, page: this.brushPage, choices: this.choices(), message,
         naming: this.naming });
       return;
     }
     this.screens.hide();
     const parentMap = this.parentMapIndex();
     this.hud.update({ puzzle: this.puzzle, pack: this.pack, active: this.selected,
-      library: this.library, paused: this.paused, pauseIndex: this.pauseIndex, busy: this.busy, message: this.message,
+      library: this.library, paused: this.paused, pauseIndex: this.pauseIndex, busy: this.busy, message,
       canGoBack: this.parents.length > 0 || parentMap >= 0,
       returnMap: this.paused ? this.pack.entries[parentMap]?.title : undefined,
       selectedLink: this.puzzle?.selectedLink(),
       completed: this.campaigns.get(this.pack)?.completed ?? new Set(),
       locked: this.library ? new Set(this.pack.entries.filter((_, index) => !this.canOpen(index)).map(entry => entry.id)) : new Set(),
       playtest: this.mode === 'test' });
+  }
+  private statusMessage(): string {
+    if (this.message) return this.message;
+    if (this.mode === 'editor') return this.draftSaveFailed ? screenCopy.storageError : '';
+    if (this.mode === 'home' && this.unreadSlots.size) return screenCopy.loadError;
+    return (this.mode === 'home' ? this.saveFailures.size > 0 : this.mode === 'play' && this.saveFailures.has(this.slot)) ?
+      screenCopy.saveError : '';
+  }
+  private saveStatus(slot: number, status: AutoSaveStatus): void {
+    if (status === 'saving') return;
+    if (status === 'error') this.saveFailures.add(slot);
+    else this.saveFailures.delete(slot);
+    if (!this.lifetime.signal.aborted) this.refresh();
+  }
+  private async loadSlot(slot: number): Promise<void> {
+    try {
+      this.slots[slot] = await this.saves[slot]!.load();
+      this.unreadSlots.delete(slot);
+    } catch (error) {
+      this.unreadSlots.add(slot);
+      throw error;
+    }
   }
   private save(checkpoint = true): void {
     const puzzle = this.puzzle;
@@ -214,8 +251,9 @@ class LagoonGame {
     else autosave.schedule(this.profile);
   }
   private flushAutosaves(): void {
-    for (const store of this.autosaves) void store.flush();
-    void this.draftAutosave.flush();
+    // Save status callbacks keep the failure visible; the dirty snapshot stays queued.
+    for (const store of this.autosaves) void store.flush().catch(() => {});
+    void this.draftAutosave.flush().catch(() => {});
   }
   private canOpen(index: number): boolean {
     const entry = this.pack.entries[index];
@@ -274,9 +312,11 @@ class LagoonGame {
     const preferred = this.packKeys.get(this.preferred)!;
     const active = packs[preferred] ? preferred : Object.keys(packs)[0];
     if (active && !this.lifetime.signal.aborted) {
-      this.slots[0] = { active, packs };
-      this.saves[0]!.save(this.slots[0]);
+      const migrated = { active, packs };
+      await this.saves[0]!.saveNow(migrated);
+      this.slots[0] = migrated;
     }
+    this.legacyChecked = true;
   }
   private homeScreen(): void {
     this.flushAutosaves();
@@ -306,17 +346,18 @@ class LagoonGame {
     this.message = '';
     if (this.homePage === 'main') {
       if (index === 2) { void this.startEditor(); return; }
-      if (index === 0 || index === 1 && this.slots.some(Boolean)) {
+      if (index === 0 || index === 1 && (this.slots.some(Boolean) || this.unreadSlots.size)) {
         this.homePage = index === 0 ? 'new' : 'continue';
-        this.homeIndex = index === 0 ? Math.max(0, this.slots.indexOf(null)) : this.slots.findIndex(Boolean);
+        this.homeIndex = index === 0 ? Math.max(0, this.slots.findIndex((save, slot) => !save && !this.unreadSlots.has(slot))) :
+          this.slots.findIndex((save, slot) => save || this.unreadSlots.has(slot));
       }
     } else if (this.homePage === 'overwrite') {
       if (index === 0) { void this.beginSlot(this.overwrite, true); return; }
       this.homeBack();
     } else if (index === 3) this.homeBack();
     else if (index >= 0 && index < this.slots.length) {
-      if (this.homePage === 'continue') { if (this.slots[index]) void this.beginSlot(index, false); }
-      else if (this.slots[index]) { this.overwrite = index; this.homePage = 'overwrite'; this.homeIndex = 1; }
+      if (this.homePage === 'continue') { if (this.slots[index] || this.unreadSlots.has(index)) void this.beginSlot(index, false); }
+      else if (this.slots[index] || this.unreadSlots.has(index)) { this.overwrite = index; this.homePage = 'overwrite'; this.homeIndex = 1; }
       else void this.beginSlot(index, true);
     }
     this.refresh();
@@ -327,8 +368,14 @@ class LagoonGame {
     this.refresh();
     try {
       await this.autosaves[slot]!.flush();
+      await this.loadSlot(slot);
+      if (slot === 0 && !this.slots[0] && !this.legacyChecked) {
+        try { await this.migrate(); }
+        catch (error) { this.unreadSlots.add(0); throw error; }
+      }
       const draft = fresh ? undefined : this.slots[slot];
-      const pack = (draft && this.packForKey(draft.active)) || this.preferred;
+      const pack = draft ? this.packForKey(draft.active) : this.preferred;
+      if (!pack) throw Error('The saved level pack is unavailable');
       this.slot = slot;
       this.profile = draft ?? { active: this.packKeys.get(pack)!, packs: {} };
       this.parked = new WeakMap();
@@ -350,7 +397,8 @@ class LagoonGame {
     } catch (error) {
       if (this.lifetime.signal.aborted) return;
       this.homeScreen();
-      this.message = copy.failed;
+      this.message = error instanceof RuleComplexityError || error instanceof LevelCapacityError ? puzzleError(error) :
+        this.unreadSlots.has(slot) ? screenCopy.loadError : this.saveFailures.has(slot) ? screenCopy.saveError : copy.failed;
       console.warn('大肥鱼存档启动失败', error);
     } finally {
       this.busy = false;
@@ -406,7 +454,13 @@ class LagoonGame {
     if (!editor) return;
     if (!editor.room.map && this.tab === 'map') this.chooseTab('objects');
     this.scene?.setEditorCursor(editor.cursor);
-    this.scene?.setPuzzle(new Puzzle(levelFromDraft(editor.room)));
+    const level = levelFromDraft(editor.room);
+    try { this.scene?.setPuzzle(new Puzzle(level)); }
+    catch (error) {
+      if (!(error instanceof RuleComplexityError)) throw error;
+      this.scene?.setPuzzle(Puzzle.preview(level));
+      this.message = copy.complexRules;
+    }
     if (persist) this.draftAutosave.schedule(editor.project);
     this.refresh();
   }
@@ -524,7 +578,7 @@ class LagoonGame {
   }
   private async playtest(): Promise<void> {
     if (!this.editor || this.busy) return;
-    void this.draftAutosave.flush();
+    void this.draftAutosave.flush().catch(() => {});
     const pack = packFromDraft(this.editor.project);
     this.campaigns.set(pack, new Campaign(pack));
     this.mode = 'test';
@@ -660,7 +714,13 @@ class LagoonGame {
     if (!this.puzzle || this.puzzle.state.won) return;
     const before = this.puzzle.state;
     const context = this.puzzle.context;
-    this.puzzle.move(move);
+    try { this.puzzle.move(move); }
+    catch (error) {
+      if (!(error instanceof RuleComplexityError || error instanceof LevelCapacityError)) throw error;
+      this.message = puzzleError(error);
+      this.refresh();
+      return;
+    }
     if (this.puzzle.state !== before) this.turnSound(context, this.puzzle, move !== 'wait');
     this.scene?.setPuzzle(this.puzzle, before);
     this.message = '';
@@ -729,7 +789,12 @@ class LagoonGame {
       if (action === 'pack') {
         const current = this.packs.indexOf(this.pack);
         const pack = this.packs[(current + 1) % this.packs.length]!;
-        void this.openStart(pack, true);
+        void this.openStart(pack, true).catch(error => {
+          if (this.lifetime.signal.aborted) return;
+          this.message = puzzleError(error);
+          console.warn('大肥鱼关卡包恢复失败', error);
+          this.refresh();
+        });
       }
       if (action === 'next') {
         if (this.canOpen(this.selected)) this.openListedRoom(this.selected);
@@ -845,7 +910,15 @@ class LagoonGame {
     const id = puzzle.level.id;
     const parent = this.parents.at(-1);
     if (parent) {
-      campaign.replace(parent.puzzle.level.id, id, targets, parent.entrance);
+      const rollback = campaign.replace(parent.puzzle.level.id, id, targets, parent.entrance);
+      try { parent.puzzle.refreshMap(); }
+      catch (error) {
+        rollback();
+        if (!(error instanceof LevelCapacityError || error instanceof RuleComplexityError)) throw error;
+        this.message = puzzleError(error);
+        this.refresh();
+        return;
+      }
       this.returnToParent();
     } else {
       const index = campaign.parentOf(id);
@@ -865,23 +938,15 @@ class LagoonGame {
       this.pending = undefined;
       this.refresh();
       try {
-        const indices = saved.rooms.map(room => pack.entries.findIndex(entry => entry.id === room.id));
-        if (indices.every(index => index >= 0)) {
-          const builtin = pack === this.packs[0];
-          const rooms: Room[] = await Promise.all(indices.map(async (index, slot) => ({ index, entrance: saved.rooms[slot]!.entrance,
-            puzzle: builtin && index === pack.initial && this.overworld ? this.overworld :
-              new Puzzle(await pack.entries[index]!.read(), saved.rooms[slot]!.state, campaign) })));
-          if (this.lifetime.signal.aborted) return;
-          const active = rooms.pop()!;
-          if (builtin && active.index !== pack.initial && !rooms.length) rooms.push(this.builtinParent(active.puzzle.level.id));
-          this.show(pack, active, rooms, keepLibrary);
-          if (active.puzzle.state.conversion) await this.convertRoom(active.puzzle, active.puzzle.state.conversion);
-          this.save();
-          return;
-        }
-      } catch (error) {
-        if (this.lifetime.signal.aborted) return;
-        console.warn('大肥鱼存档读取失败', error);
+        const builtin = pack === this.packs[0];
+        const rooms = await restoreRooms(pack, saved, campaign, this.lifetime.signal,
+          index => builtin && index === pack.initial ? this.overworld : undefined);
+        const active = rooms.pop()!;
+        if (builtin && active.index !== pack.initial && !rooms.length) rooms.push(this.builtinParent(active.puzzle.level.id));
+        this.show(pack, active, rooms, keepLibrary);
+        if (active.puzzle.state.conversion) await this.convertRoom(active.puzzle, active.puzzle.state.conversion);
+        this.save();
+        return;
       } finally {
         this.busy = false;
         if (!this.lifetime.signal.aborted) this.refresh();
@@ -921,8 +986,12 @@ class LagoonGame {
         intro ? pack.entries[pack.initial]!.read() : undefined, cover]);
       if (this.lifetime.signal.aborted) return;
       const campaign = this.campaigns.get(pack);
-      if (conversion) campaign?.replace(level.id, conversion.child, conversion.targets);
-      let puzzle = returning ?? new Puzzle(level, undefined, campaign);
+      const rollback = conversion ? campaign?.replace(level.id, conversion.child, conversion.targets) : undefined;
+      let puzzle: Puzzle;
+      try {
+        puzzle = returning ?? new Puzzle(level, undefined, campaign);
+        if (conversion && returning) puzzle.refreshMap();
+      } catch (error) { rollback?.(); throw error; }
       if (!parents.length && builtin && index !== pack.initial) parents.push(this.builtinParent(level.id));
       if (!parents.length && start) parents.push({ index: pack.initial, puzzle: new Puzzle(start, undefined, campaign) });
       if (destination) puzzle = this.atMapLink(puzzle, destination.child, campaign);
@@ -935,7 +1004,7 @@ class LagoonGame {
     } catch (error) {
       if (cover) await cover;
       if (!this.lifetime.signal.aborted) {
-        this.message = copy.failed;
+        this.message = puzzleError(error);
         console.warn('大肥鱼关卡读取失败', error);
       }
     } finally {
@@ -969,7 +1038,7 @@ class LagoonGame {
         }
       }
     } catch (error) {
-      this.message = copy.failed;
+      this.message = puzzleError(error);
       console.warn('大肥鱼关卡包读取失败', error);
     } finally {
       this.busy = false;
@@ -985,7 +1054,8 @@ class LagoonGame {
       parents: this.parents.map(({ puzzle, entrance }) => ({ id: puzzle.level.id, entrance })),
       transition: this.portal?.phase,
       rules: this.puzzle?.context.rules.map(rule => rule.label), library: this.library, paused: this.paused, active: this.selected,
-      pack: this.pack.title, gamepad: this.usingPad, bounds: this.scene?.bounds, message: this.message,
+      pack: this.pack.title, gamepad: this.usingPad, bounds: this.scene?.bounds, message: this.statusMessage(),
+      unreadSlots: [...this.unreadSlots], saveErrors: [...this.saveFailures],
       animation: this.scene?.animationSnapshot(), flower: this.puzzle?.flower, collectingPetal: this.hud?.collecting,
       audio: this.audio.snapshot(),
       openPaths: this.puzzle?.openPaths.map(({ x, y }) => [x, y]), selectedLink: this.puzzle?.selectedLink(),

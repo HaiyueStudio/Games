@@ -1,5 +1,6 @@
 import { wordTypes } from '../levels/catalog';
 import type { PlacedTile } from '../levels/baba-format';
+import { levelLimits } from '../levels/limits';
 
 export interface Unit extends PlacedTile {
   id: number;
@@ -30,6 +31,13 @@ export const spelling = (name: string): string => name.replace(/^(text|letter)_/
 const TERM = 0, VERB = 1, PROPERTY = 2, PREFIX = 3, NOT = 4, LETTER = 5, AND = 6, CONDITION = 7;
 const termLabel = (term: Term): string => (term.not ? 'not ' : '') + term.name;
 const defaultLexicon = Object.entries(wordTypes).map(([name, type]) => [spelling(name), type] as const);
+
+export class RuleComplexityError extends Error {
+  constructor() {
+    super('Rule parsing exceeded the supported branch budget');
+    this.name = 'RuleComplexityError';
+  }
+}
 
 function parse(words: Word[], emit: (rule: Rule) => void): void {
   const conditions: Condition[] = [];
@@ -97,7 +105,9 @@ export function readRules(units: readonly Unit[], width: number, height: number,
     if (type !== LETTER) lexicon?.set(name, type);
     const word = { name, type, ids: [unit.id] };
     const stack = cells.get(index);
-    if (stack) stack.push(word);
+    const equivalent = stack?.find(candidate => candidate.name === name && candidate.type === type);
+    if (equivalent) equivalent.ids.push(unit.id);
+    else if (stack) stack.push(word);
     else cells.set(index, [word]);
   }
   const prefixes = lexicon && new Set([...lexicon.keys()].flatMap(word => Array.from({ length: word.length }, (_, i) => word.slice(0, i + 1))));
@@ -117,7 +127,7 @@ export function readRules(units: readonly Unit[], width: number, height: number,
       const collected: Word[] = [];
       let branches = 0;
       const visit = (at: number) => {
-        if (++branches > 768) return;
+        if (++branches > levelLimits.ruleBranches) throw new RuleComplexityError();
         const stack = valid(at, start) ? cells.get(at) : undefined;
         if (!stack) {
           parse(collected, emit);
@@ -130,7 +140,7 @@ export function readRules(units: readonly Unit[], width: number, height: number,
           collected.pop();
         };
         const readLetters = (position: number, word: string, ids: number[]): void => {
-          if (++branches > 768) return;
+          if (++branches > levelLimits.ruleBranches) throw new RuleComplexityError();
           const type = lexicon?.get(word);
           if (type !== undefined && type !== LETTER) use({ name: word, type, ids }, position);
           if (!prefixes?.has(word) || !valid(position, start)) return;

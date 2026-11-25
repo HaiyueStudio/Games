@@ -21,6 +21,7 @@
     "typecheck": "node scripts/run-workspaces.mjs typecheck",
     "test": "node scripts/test-games.mjs",
     "test:all": "node scripts/test-games.mjs all",
+    "verify:dafeiyu": "node games/dafeiyu/verify-smoke.mjs",
     "workspaces:sync": "node scripts/sync-workspaces.mjs",
     "workspaces:check": "node scripts/sync-workspaces.mjs --check",
     "workspaces:verify-cache": "node scripts/verify-workspaces-cache.mjs",

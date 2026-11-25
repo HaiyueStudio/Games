@@ -19,6 +19,7 @@ export class SingleSlotGameSave<T> {
   private readonly options: SingleSlotGameSaveOptions<T>;
   private writeRevision = 0;
   private pendingWrite: Promise<void> = Promise.resolve();
+  private readFailure: { error: unknown } | undefined;
 
   constructor(options: SingleSlotGameSaveOptions<T>) {
     this.options = options;
@@ -35,16 +36,15 @@ export class SingleSlotGameSave<T> {
     await this.flush();
     try {
       const data = (await this.service.load(SINGLE_SLOT_SAVE_ID))?.data ?? null;
+      this.readFailure = undefined;
       this.options.onStatus?.(data ? 'saved' : 'idle');
       return data;
     } catch (error) {
-      this.report('读取存档失败，存档槽将被清理。', error);
-      try {
-        await this.service.delete(SINGLE_SLOT_SAVE_ID);
-      } catch (deleteError) {
-        this.report('清理损坏存档失败。', deleteError);
-      }
-      return null;
+      this.readFailure = { error };
+      this.options.onStatus?.('error');
+      this.report('读取存档失败，已保留原存档。', error);
+      // A failed read is not an empty slot. Only an explicit clear may delete it.
+      throw error;
     }
   }
 
@@ -53,6 +53,9 @@ export class SingleSlotGameSave<T> {
   async saveNow(data: T): Promise<void> { await this.enqueue(data); }
 
   private enqueue(data: T): Promise<void> {
+    // Callers that recover by starting a default game must not overwrite an
+    // unread slot. A successful load or an explicit clear unlocks writes.
+    if (this.readFailure) return Promise.reject(this.readFailure.error);
     const revision = ++this.writeRevision;
     this.options.onStatus?.('saving');
     const write = this.pendingWrite.then(() => this.write(data)).then(() => {
@@ -68,6 +71,7 @@ export class SingleSlotGameSave<T> {
   async clear(): Promise<void> {
     await this.flush();
     await this.service.delete(SINGLE_SLOT_SAVE_ID);
+    this.readFailure = undefined;
   }
 
   async flush(): Promise<void> {

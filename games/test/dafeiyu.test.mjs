@@ -6,6 +6,7 @@ import { deflateSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import { buildGameImageAtlas, gameImageAtlasPlugin } from '../../scripts/game-image-atlas.mjs';
 import { decodePng } from '../../scripts/png-rgba.mjs';
+import { installSceneRenderProbe } from '../dafeiyu/verification/render-probe.mjs';
 const hook = registerHooks({ resolve(specifier, context, next) {
   return next(/^\.{1,2}\//.test(specifier) && !/\.[a-z0-9]+$/i.test(specifier) ? specifier + '.ts' : specifier, context);
 } });
@@ -14,10 +15,15 @@ const { INTRO, OVERWORLD, builtinPack, localPacks } = await import('../dafeiyu/l
 const { islandOverworld } = await import('../dafeiyu/levels/island.ts');
 const { Campaign } = await import('../dafeiyu/rules/campaign.ts');
 const { Puzzle } = await import('../dafeiyu/rules/game.ts');
-const { readRules } = await import('../dafeiyu/rules/syntax.ts');
+const { readRules, RuleComplexityError } = await import('../dafeiyu/rules/syntax.ts');
 const { WorldEditor, isWorldDraft, newDraft, packFromDraft } = await import('../dafeiyu/levels/editor.ts');
 const { mapRoutes } = await import('../dafeiyu/rendering/map-routes.ts');
 const { LatestAutosave } = await import('../dafeiyu/app/autosave.ts');
+const { restoreRooms } = await import('../dafeiyu/app/restore.ts');
+const { RetryAudioAsset } = await import('../dafeiyu/audio/retry-asset.ts');
+const { levelLimits, LevelCapacityError } = await import('../dafeiyu/levels/limits.ts');
+const { slots } = await import('../dafeiyu/levels/catalog.ts');
+const { isOfficialProgress } = await import('../dafeiyu/rules/progress.ts');
 hook.deregister();
 
 const buffer = bytes => Uint8Array.from(bytes).buffer;
@@ -27,6 +33,139 @@ async function fixture(id) {
 }
 const sequences = ['rrrrrrr', 'rrdddrrrrruuu', 'rrrdrdd', 'rrrrrrrr', 'rrrrrrrduur'];
 const direction = { r: 0, u: 1, l: 2, d: 3, '.': 'wait' };
+
+test('the render probe observes cached scene bundles only after their own command buffer is submitted', async () => {
+  class Pass { setPipeline() {} draw() {} executeBundles() {} }
+  class Encoder { beginRenderPass() { return new Pass(); } finish() { return {}; } }
+  class Queue { submit() {} async onSubmittedWorkDone() {} }
+  const mocks = { GPURenderPassEncoder: Pass, GPUCommandEncoder: Encoder, GPUQueue: Queue };
+  const original = Object.fromEntries(Object.keys(mocks).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const nativeSubmit = Queue.prototype.submit;
+  Object.assign(globalThis, mocks);
+  const probe = installSceneRenderProbe();
+  try {
+    const queue = new Queue(), cached = { label: 'Dafeiyu 2D puzzle' };
+    const record = bundle => {
+      const encoder = new Encoder(); encoder.beginRenderPass().executeBundles([bundle]); return encoder.finish();
+    };
+    const sceneBuffer = record(cached);
+    assert.equal(probe.stats().sceneSubmissions, 0, 'encoding alone is not a rendered frame');
+    queue.submit([record({ label: 'GUI' })]);
+    assert.equal(probe.stats().sceneSubmissions, 0, 'an unrelated submission is not a scene frame');
+    queue.submit([sceneBuffer]);
+    assert.equal(probe.stats().sceneSubmissions, 1);
+    queue.submit([record(cached)]);
+    assert.equal(probe.stats().sceneSubmissions, 2, 'the same cached bundle still renders on its next submission');
+    const encoder = new Encoder(), pass = encoder.beginRenderPass();
+    pass.setPipeline({ label: 'Dafeiyu 2D puzzle.pipeline.main' }); pass.draw(6);
+    queue.submit([encoder.finish()]);
+    await probe.completed();
+    assert.deepEqual(probe.stats(), { sceneSubmissions: 3, bundles: 2, draws: 1 });
+  } finally {
+    probe.dispose();
+    assert.equal(Queue.prototype.submit, nativeSubmit);
+    for (const [key, descriptor] of Object.entries(original)) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
+});
+
+test('audio retries are bounded, coalesce concurrent requests and keep successful assets', async () => {
+  let now = 0, attempts = 0, release;
+  const errors = [];
+  const asset = new RetryAudioAsset(() => {
+    attempts++;
+    if (attempts === 1) throw Error('HTTP 503');
+    return new Promise(resolve => { release = resolve; });
+  }, error => errors.push(error.message), () => now);
+  await asset.prepare();
+  for (let i = 0; i < 30; i++) asset.prepare();
+  assert.equal(attempts, 1, 'gestures during the cooldown cannot spam the endpoint');
+  assert.deepEqual(errors, ['HTTP 503']);
+  now = 1000;
+  const next = asset.prepare();
+  assert.equal(asset.prepare(), next, 'one in-flight request');
+  release(); await next;
+  now = 50000; await asset.prepare();
+  assert.equal(attempts, 2, 'a successful asset is not fetched on every resume');
+  assert.deepEqual(asset.snapshot(), { status: 'ready', attempts: 2 });
+});
+
+test('disposing pending audio prevents retries and late failure reporting', async () => {
+  let reject, now = 0;
+  const errors = [];
+  const asset = new RetryAudioAsset(() => new Promise((_, fail) => { reject = fail; }), error => errors.push(error), () => now);
+  const job = asset.prepare();
+  asset.dispose(); reject(Error('aborted')); await job;
+  now = 50000; assert.equal(asset.prepare(), undefined);
+  assert.equal(asset.snapshot().attempts, 1);
+  assert.deepEqual(errors, []);
+});
+
+function denseRoom(counts) {
+  const word = n => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
+  const dword = n => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const code = slots.find(([, , name]) => name === 'baba')[1];
+  const layers = Buffer.concat([word(counts.length), ...counts.map(count => {
+    const grid = Buffer.alloc(128 * 128 * 2, 255);
+    for (let i = 0; i < count; i++) grid.writeUInt16LE(code, i * 2);
+    const compressed = deflateSync(grid);
+    return Buffer.concat([dword(128), dword(128), Buffer.alloc(33), Buffer.from('MAIN'), dword(compressed.length), compressed]);
+  })]);
+  return buffer(Buffer.concat([Buffer.from('ACHTUNG!'), word(0x0105), Buffer.from('LAYR'), dword(layers.length), layers]));
+}
+
+test('small compressed and multilayer imports cannot expand past the shared unit budget', async () => {
+  const tiny = denseRoom([16384]);
+  assert.ok(tiny.byteLength < 256);
+  await assert.rejects(readBabaLevel(tiny, '[general]\n', 'dense'), LevelCapacityError);
+  await assert.rejects(readBabaLevel(denseRoom([6001, 6000]), '[general]\n', 'layered'), LevelCapacityError);
+  const level = await readBabaLevel(denseRoom([levelLimits.units]), '[general]\n', 'boundary');
+  const puzzle = new Puzzle(level);
+  assert.equal(puzzle.state.units.length, levelLimits.units);
+  const saved = { campaign: { completed: [], bonuses: [], conversions: [] }, rooms: [{ id: level.id, state: puzzle.state }] };
+  assert.ok(isOfficialProgress(saved), 'an accepted board also fits the persistence contract');
+  const oversized = { ...level, tiles: [...level.tiles, level.tiles[0]] };
+  assert.throws(() => new Puzzle(oversized), LevelCapacityError, 'programmatic levels cannot bypass import validation');
+  const map = { ...level, metadata: { general: { leveltype: '1', selectorx: '1', selectory: '1' } }, links: [
+    { id: 'child', x: 1, y: 1, dir: 0, state: 2, style: 2, number: '1' },
+  ] };
+  assert.throws(() => new Puzzle(map), LevelCapacityError, 'markers and the selector need room too');
+});
+
+test('a turn that would exceed the unit budget preserves the board and its history', async () => {
+  const base = await fixture('first-dive');
+  const words = ['baba', 'is', 'more'].map((word, x) => ({ ...base.catalog.get('text_' + word), x: x + 1, y: 1, dir: 0 }));
+  const level = { ...base, tiles: [...words, { name: 'baba', type: -1, layer: 16, x: 3, y: 4, dir: 0 },
+    ...Array.from({ length: levelLimits.units - 4 }, () => ({ name: 'rock', type: -1, layer: 16, x: 8, y: 6, dir: 0 }))] };
+  const puzzle = new Puzzle(level), before = puzzle.state;
+  assert.throws(() => puzzle.move('wait'), LevelCapacityError);
+  assert.equal(puzzle.state, before);
+  assert.equal(puzzle.canUndo || puzzle.canRedo, false);
+});
+
+test('an oversized map conversion can be rolled back and retried without losing earlier replacements', async () => {
+  const base = await fixture('first-dive');
+  const level = { ...base, metadata: { general: { leveltype: '1', selectorx: '1', selectory: '1' } },
+    tiles: Array.from({ length: levelLimits.units - 3 }, () => ({ name: 'rock', type: -1, layer: 16, x: 8, y: 6, dir: 0 })),
+    links: ['a', 'b'].map((id, i) => ({ id, x: 2 + i, y: 4, dir: 0, state: 2, style: 2, number: String(i) })) };
+  const campaign = new Campaign({ title: 'test', initial: 0, entries: [{ id: level.id, title: 'map', map: true, children: ['a', 'b'] }] });
+  const puzzle = new Puzzle(level, undefined, campaign), before = puzzle.state, paths = puzzle.openPaths;
+  campaign.replace(level.id, 'a', ['rock']);
+  const prior = campaign.progress();
+  const rollback = campaign.replace(level.id, 'b', ['flag', 'flag']);
+  assert.throws(() => puzzle.refreshMap(), LevelCapacityError);
+  assert.equal(puzzle.state, before);
+  assert.equal(puzzle.openPaths, paths);
+  rollback();
+  assert.deepEqual(campaign.progress(), prior);
+  campaign.replace(level.id, 'b', ['flag']);
+  puzzle.refreshMap();
+  assert.ok(puzzle.state.units.some(unit => unit.link === 'a' && unit.name === 'rock'));
+  assert.ok(puzzle.state.units.some(unit => unit.link === 'b' && unit.name === 'flag'));
+  assert.equal(puzzle.state.units.length, levelLimits.units);
+});
 
 test('autosave coalesces active writes and flushes the newest checkpoint', async () => {
   const writes = [];
@@ -48,6 +187,95 @@ test('autosave coalesces active writes and flushes the newest checkpoint', async
   saver.schedule(7);
   await saver.flush();
   assert.deepEqual(writes, [1, 5, 7]);
+});
+
+test('autosave retains failed progress for explicit retry without a background loop', async () => {
+  const writes = [];
+  let fail = true;
+  const error = new Error('quota');
+  const saver = new LatestAutosave(async data => { writes.push(data); if (fail) throw error; });
+  saver.checkpoint(50);
+  await assert.rejects(saver.flush(), error);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.deepEqual(writes, [50], 'failure stops background retries');
+  fail = false;
+  await saver.flush();
+  assert.deepEqual(writes, [50, 50], 'retry needs no new edit');
+  await saver.flush();
+  assert.deepEqual(writes, [50, 50], 'a durable snapshot is not written again');
+});
+
+test('autosave retries the newest queued snapshot after failure and accepts later edits', async () => {
+  const writes = [];
+  let reject;
+  const saver = new LatestAutosave(data => {
+    writes.push(data);
+    return data === 1 ? new Promise((_, fail) => { reject = fail; }) : Promise.resolve();
+  });
+  saver.checkpoint(1);
+  saver.schedule(2);
+  const flush = saver.flush();
+  reject(new Error('storage unavailable'));
+  await assert.rejects(flush, /storage unavailable/);
+  await saver.flush();
+  assert.deepEqual(writes, [1, 2]);
+  saver.schedule(3);
+  await saver.flush();
+  assert.deepEqual(writes, [1, 2, 3]);
+});
+
+test('autosave also retains a snapshot when the writer throws synchronously', async () => {
+  let fail = true, value;
+  const saver = new LatestAutosave(data => {
+    if (fail) throw Error('unavailable');
+    value = data;
+    return Promise.resolve();
+  });
+  saver.checkpoint(4);
+  await assert.rejects(saver.flush(), /unavailable/);
+  fail = false;
+  await saver.flush();
+  assert.equal(value, 4);
+});
+
+test('saved room restoration rejects partial loads and retries the original nested board', async () => {
+  const level = await fixture('first-dive');
+  const parent = { ...level, id: 'map', metadata: { general: { leveltype: '1' } } };
+  const puzzle = new Puzzle(level);
+  puzzle.move(0);
+  const saved = { campaign: { completed: [], bonuses: [], conversions: [] }, rooms: [
+    { id: 'map', state: new Puzzle(parent).state, entrance: 'nested-entrance' },
+    { id: level.id, state: { ...puzzle.state, turn: 50 } },
+  ] };
+  const original = structuredClone(saved);
+  for (const unavailable of [parent.id, level.id]) {
+    let fail = true;
+    const pack = { title: 'test', initial: 0, entries: [parent, level].map(room => ({
+      id: room.id, title: room.title, read: async () => {
+        if (fail && room.id === unavailable) throw Error('HTTP 503');
+        return room;
+      },
+    })) };
+    const campaign = new Campaign(pack, saved.campaign), signal = new AbortController().signal;
+    await assert.rejects(restoreRooms(pack, saved, campaign, signal), /HTTP 503/);
+    assert.deepEqual(saved, original);
+    fail = false;
+    const rooms = await restoreRooms(pack, saved, campaign, signal);
+    assert.deepEqual(rooms.map(room => room.puzzle.level.id), ['map', level.id]);
+    assert.equal(rooms[0].entrance, 'nested-entrance');
+    assert.deepEqual(rooms[1].puzzle.state, original.rooms[1].state);
+  }
+});
+
+test('saved room restoration never substitutes an initial board for missing or incompatible rooms', async () => {
+  const level = await fixture('first-dive');
+  const pack = { title: 'test', initial: 0, entries: [{ id: level.id, title: level.title, read: async () => level }] };
+  const campaign = new Campaign(pack), signal = new AbortController().signal;
+  const saved = { campaign: campaign.progress(), rooms: [{ id: 'removed', state: new Puzzle(level).state }] };
+  await assert.rejects(restoreRooms(pack, saved, campaign, signal), /missing/);
+  saved.rooms[0].id = level.id;
+  saved.rooms[0].state.units[0].x = level.width;
+  await assert.rejects(restoreRooms(pack, saved, campaign, signal), /does not fit/);
 });
 
 test('the release image atlas fits the sprite sheets with transparent separation', async () => {
@@ -555,6 +783,65 @@ test('orthogonal and stacked words, conjunctions, NOT, and spelled words produce
     assert.ok(rules.some(rule => rule.label === label), label);
   }
   assert.equal(rules.find(rule => rule.label === 'BABA IS YOU').ids.length, 3);
+});
+
+test('duplicate stacked words preserve every subject, rule and source ID regardless of order', () => {
+  const words = ['baba', 'is', 'you', 'and', 'push', 'and', 'stop', 'and', 'win', 'and', 'float'];
+  const types = { baba: 0, rock: 0, is: 1, you: 2, and: 6, push: 2, stop: 2, win: 2, float: 2 };
+  let id = 0;
+  const units = words.flatMap((word, x) => (x ? [word, word] : ['baba', 'rock']).map(name =>
+    ({ id: id++, name: 'text_' + name, type: types[name], x, y: 1, dir: 0, layer: 20 })));
+  const expected = ['BABA', 'ROCK'].flatMap(subject => ['YOU', 'PUSH', 'STOP', 'WIN', 'FLOAT'].map(target => `${subject} IS ${target}`)).sort();
+  for (const order of [units, units.toReversed()]) {
+    const rules = readRules(order, 14, 4);
+    assert.deepEqual(rules.map(rule => rule.label).sort(), expected);
+    for (const rule of rules) {
+      assert.deepEqual(rule.ids.toSorted((a, b) => a - b),
+        units.filter(unit => unit.x || unit.name === 'text_' + rule.subject.name).map(unit => unit.id));
+    }
+  }
+});
+
+test('genuinely excessive rule branches reject the board instead of returning partial rules', async () => {
+  const level = await fixture('first-dive');
+  const rows = ['baba', 'is', ...Array.from({ length: 10 }, () => ['you', 'and']).flat().slice(0, -1)];
+  const units = rows.flatMap((word, x) => (word === 'you' ? ['you', 'push'] : [word]).map(name =>
+    ({ ...level.catalog.get('text_' + name), x, y: 1, dir: 0 }))).map((tile, id) => ({ ...tile, id }));
+  const complex = { ...level, width: 30, tiles: units };
+  assert.throws(() => readRules(units, 30, level.height), RuleComplexityError);
+  assert.throws(() => new Puzzle(complex), RuleComplexityError);
+  const preview = Puzzle.preview(complex);
+  assert.equal(preview.state.units.length, units.length, 'the editor can still render and erase every tile');
+  assert.deepEqual(preview.context.rules, []);
+});
+
+test('a rejected rule update leaves the board and undo/redo history intact', async () => {
+  const level = await fixture('first-dive');
+  let fail = false;
+  const puzzle = new Puzzle(level, undefined, undefined, (units, extra) => {
+    if (fail) throw new RuleComplexityError();
+    return readRules(units, level.width, level.height, extra);
+  });
+  puzzle.move(0);
+  const saved = structuredClone(puzzle.state);
+  puzzle.undo();
+  const before = puzzle.state, context = puzzle.context;
+  fail = true;
+  assert.throws(() => puzzle.redo(), RuleComplexityError);
+  assert.equal(puzzle.state, before);
+  assert.equal(puzzle.context, context);
+  assert.equal(puzzle.canUndo, false);
+  assert.equal(puzzle.canRedo, true);
+  assert.throws(() => puzzle.move(0), RuleComplexityError);
+  assert.equal(puzzle.state, before);
+  assert.equal(puzzle.canRedo, true);
+  fail = false;
+  puzzle.redo();
+  assert.deepEqual(puzzle.state, saved);
+  fail = true;
+  assert.throws(() => puzzle.undo(), RuleComplexityError);
+  assert.deepEqual(puzzle.state, saved);
+  assert.equal(puzzle.canUndo, true);
 });
 
 test('mimic copies an object rule and a negative property overrides the copied grant', async () => {

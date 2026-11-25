@@ -1,5 +1,6 @@
 import { OwnerSafeAudioMixer } from '@haiyue/engine/experimental/audio';
 import { gameSession } from '../../session/SessionPause';
+import { RetryAudioAsset } from './retry-asset';
 
 const owner = 'dafeiyu';
 const music = 'coral-bay-music';
@@ -39,13 +40,13 @@ export class LagoonAudio {
     return this.context = new AudioContext({ latencyHint: 'interactive' });
   }, maxVoicesTotal: 5, maxVoicesPerOwner: 5 });
   private readonly unregister: () => void;
-  private readonly effects: Promise<ArrayBuffer | undefined>;
+  private readonly assetsLifetime = new AbortController();
+  private readonly effectsAsset = new RetryAudioAsset(() => this.loadEffects(), error => this.assetError('effects', error));
+  private readonly musicAsset = new RetryAudioAsset(() => this.loadMusic(), error => this.assetError('coral-bay', error));
   private readonly pending = new Map<Cue, number>();
   private readonly played: Partial<Record<Cue, number>> = {};
   private context: AudioContext | undefined;
   private job: Promise<void> | undefined;
-  private effectsJob: Promise<void> | undefined;
-  private musicJob: Promise<void> | undefined;
   private requested = false;
   private hidden = false;
   private loaded = false;
@@ -58,7 +59,6 @@ export class LagoonAudio {
     this.mixer.setMasterVolume(.78);
     this.mixer.setBusVolume('music', .47);
     this.unregister = gameSession.register({ pause: () => this.sync(), resume: () => this.sync() });
-    this.effects = this.read('effects');
   }
 
   get active(): boolean {
@@ -97,51 +97,49 @@ export class LagoonAudio {
     });
   }
 
-  private async read(name: string): Promise<ArrayBuffer | undefined> {
-    try {
-      const response = await fetch(`./assets/audio/${name}.ogg`, { signal: this.signal });
-      if (!response.ok) throw Error(`HTTP ${response.status}`);
-      return await response.arrayBuffer();
-    } catch (error) { this.assetError(name, error); }
+  private async read(name: string): Promise<ArrayBuffer> {
+    const response = await fetch(`./assets/audio/${name}.ogg`, {
+      signal: AbortSignal.any([this.signal, this.assetsLifetime.signal]),
+    });
+    if (!response.ok) throw Error(`HTTP ${response.status}`);
+    return response.arrayBuffer();
   }
 
   private prepare(): void {
-    this.effectsJob ??= this.loadEffects();
-    this.musicJob ??= this.loadMusic();
+    if (this.disposed || this.unavailable || this.signal.aborted) return;
+    void this.effectsAsset.prepare();
+    void this.musicAsset.prepare();
     this.flush();
   }
 
   private async loadEffects(): Promise<void> {
-    try {
-      const data = await this.effects;
-      if (!data || this.disposed || this.unavailable || !this.context) return;
-      const bank = await this.context.decodeAudioData(data);
-      if (this.disposed || this.unavailable) return;
-      const { sampleRate, numberOfChannels } = bank;
-      for (const [cue, [start, duration]] of Object.entries(slices)) {
-        const offset = Math.round(start * sampleRate);
-        const length = Math.round(duration * sampleRate);
-        if (offset + length > bank.length) throw Error('Sound effect bank is truncated');
-        const clip = this.context.createBuffer(numberOfChannels, length, sampleRate);
-        for (let channel = 0; channel < numberOfChannels; channel++) {
-          clip.getChannelData(channel).set(bank.getChannelData(channel).subarray(offset, offset + length));
-        }
-        this.mixer.installBuffer(cue, clip);
+    const data = await this.read('effects');
+    if (this.disposed || this.unavailable || this.signal.aborted || !this.context) return;
+    const bank = await this.context.decodeAudioData(data);
+    if (this.disposed || this.unavailable || this.signal.aborted) return;
+    const { sampleRate, numberOfChannels } = bank;
+    for (const [cue, [start, duration]] of Object.entries(slices)) {
+      const offset = Math.round(start * sampleRate);
+      const length = Math.round(duration * sampleRate);
+      if (offset + length > bank.length) throw Error('Sound effect bank is truncated');
+      const clip = this.context.createBuffer(numberOfChannels, length, sampleRate);
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        clip.getChannelData(channel).set(bank.getChannelData(channel).subarray(offset, offset + length));
       }
-      this.mixer.installBuffer('defeat', defeatPop(this.context));
-      this.loaded = true;
-      this.flush();
-    } catch (error) { this.assetError('effects', error); }
+      this.mixer.installBuffer(cue, clip);
+    }
+    this.mixer.installBuffer('defeat', defeatPop(this.context));
+    this.loaded = true;
+    this.flush();
   }
 
   private async loadMusic(): Promise<void> {
-    try {
-      const data = await this.read('coral-bay');
-      if (!data || this.disposed || this.unavailable) return;
-      await this.mixer.decodeAndInstall(music, data);
-      this.musicReady = true;
-      this.flush();
-    } catch (error) { this.assetError('coral-bay', error); }
+    const data = await this.read('coral-bay');
+    if (this.disposed || this.unavailable || this.signal.aborted) return;
+    await this.mixer.decodeAndInstall(music, data);
+    if (this.disposed || this.unavailable || this.signal.aborted) return;
+    this.musicReady = true;
+    this.flush();
   }
 
   private flush(): void {
@@ -185,10 +183,14 @@ export class LagoonAudio {
     console.warn('大肥鱼音频不可用', error);
   }
 
-  snapshot() { return { ...this.mixer.stats, musicStarts: this.musicStarts, played: { ...this.played } }; }
+  snapshot() { return { ...this.mixer.stats, musicStarts: this.musicStarts, played: { ...this.played },
+    assets: { effects: this.effectsAsset.snapshot(), music: this.musicAsset.snapshot() } }; }
 
   dispose(): void {
     this.disposed = true;
+    this.effectsAsset.dispose();
+    this.musicAsset.dispose();
+    this.assetsLifetime.abort();
     this.unregister();
     this.pending.clear();
     this.mixer.dispose();

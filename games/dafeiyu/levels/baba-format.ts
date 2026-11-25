@@ -1,4 +1,5 @@
 import { slots, wordTypes } from './catalog';
+import { assertUnitCapacity, levelLimits } from './limits';
 
 export type Direction = 0 | 1 | 2 | 3;
 export type Metadata = Record<string, Record<string, string>>;
@@ -52,7 +53,7 @@ export interface BabaLevel {
 }
 
 const fail = () => new Error('Invalid Baba Is You .l file');
-const MAX_BYTES = 16 * 1024 * 1024;
+const MAX_BYTES = levelLimits.bytes;
 
 class Reader {
   readonly view: DataView;
@@ -192,9 +193,11 @@ function indexed(section: Record<string, string>, declared: string | undefined):
 const dir = (value: number): Direction => value >= 0 && value <= 3 ? value as Direction : 0;
 export function readLevelLinks(metadata: Metadata): LevelLink[] {
   const levels = metadata.levels ?? {};
+  let count = 0;
   return indexed(levels, metadata.general?.levels).flatMap(index => {
     const value = (key: string) => levels[index + key];
     const child = value('file');
+    if (child) assertUnitCapacity(++count);
     return child ? [{ id: child.toLowerCase(), entrance: `native:${index}`, x: integer(value('x'), -1), y: integer(value('y'), -1),
       dir: dir(integer(value('dir'), 0)), style: integer(value('style'), 0),
       state: integer(value('state'), 0), number: value('number') ?? '' }] : [];
@@ -224,7 +227,7 @@ export async function readBabaLevel(source: ArrayBuffer, sidecar: string, id: st
   if (size > r.end - r.pos) throw fail();
   r.end = r.pos + size;
   const count = r.u16();
-  if (count === 0 || count > 32) throw fail();
+  if (count === 0 || count > levelLimits.layers) throw fail();
   const header = parseHeader(sidecar, id);
   const { byCode, byName, resolved } = buildCatalog(header.metadata);
   const tiles: PlacedTile[] = [];
@@ -236,17 +239,24 @@ export async function readBabaLevel(source: ArrayBuffer, sidecar: string, id: st
     const w = r.u32();
     const h = r.u32();
     if (!layer) { width = w; height = h; }
-    if (w < 1 || h < 1 || w > 256 || h > 256) throw fail();
+    if (w < 1 || h < 1 || w > levelLimits.side || h > levelLimits.side) throw fail();
     r.take(33);
     r.tag('MAIN');
     const grid = await inflate(r.slice(r.u32()), w * h * 2);
     if (grid.length !== w * h * 2) throw fail();
     const units = new DataView(grid.buffer);
+    // Count this layer before allocating its placed tile objects. Compression
+    // size and layer dimensions alone do not bound the live object count.
+    let occupied = tiles.length;
+    for (let i = 0; i < w * h; i++) {
+      const code = units.getUint16(i * 2, true);
+      if (code !== 0 && code !== 0xffff) assertUnitCapacity(++occupied);
+    }
     let facing: Uint8Array | undefined;
     if (r.has('DATA')) {
       r.tag('DATA');
       const planes = r.u32();
-      if (planes > 32) throw fail();
+      if (planes > levelLimits.layers) throw fail();
       for (let p = 0; p < planes; p++) {
         const kind = r.u8();
         const plane = r.slice(r.u32());
@@ -275,6 +285,11 @@ export async function readBabaLevel(source: ArrayBuffer, sidecar: string, id: st
   }
   if (r.pos !== r.end) throw fail();
   const links = readLevelLinks(header.metadata);
+  const map = header.metadata.general?.leveltype === '1';
+  const markerCount = map ? links.filter(link => link.x >= 0 && link.y >= 0 && link.x < width && link.y < height).length : 0;
+  const selectorX = Number(header.metadata.general?.selectorx ?? -1), selectorY = Number(header.metadata.general?.selectory ?? -1);
+  const selector = map && selectorX >= 0 && selectorY >= 0 && selectorX < width && selectorY < height && !tiles.some(tile => tile.name === 'cursor');
+  assertUnitCapacity(tiles.length + markerCount + Number(selector));
   const path = header.metadata.paths ?? {};
   const paths = indexed(path, header.metadata.general?.paths).map(i => ({
     ...(resolved.get(path[i + 'object'] ?? '') ?? { name: 'path', type: -1, layer: 2 }),

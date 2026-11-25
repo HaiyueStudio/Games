@@ -9,6 +9,7 @@ import { playGrid, playLayout } from '../rendering/layout';
 import { screenCopy } from './screens';
 import { flowerIcon, petalIcon } from './flower';
 import type { Cell } from '../levels/editor';
+import { levelLimits } from '../levels/limits';
 import { gateName, gateNames } from '../levels/gates';
 
 export const copy = {
@@ -17,6 +18,8 @@ export const copy = {
   library: '关卡', enter: '进入', mapBack: '返回地图', cleared: '过关！', stuck: '没有可以控制的角色',
   choose: '选择关卡', files: '导入文件', folder: '导入关卡包', changePack: '切换关卡包', close: '关闭',
   load: '正在读取关卡…', failed: '关卡读取失败', noPair: '请同时选择同名的 .l 和 .ld 文件',
+  complexRules: '规则过于复杂，请调整字块后重试',
+  capacity: `关卡物件过多，最多支持${levelLimits.units}个`,
   choosePair: '选择 .l 和 .ld，或导入含 world_data.txt 的文件夹',
   unknown: '关卡包含未识别的对象', missingLink: '目标关卡不在当前关卡包', locked: '未解锁',
   petals: '花瓣', parentMap: '上一级 · ',

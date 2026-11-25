@@ -76,10 +76,17 @@ export class Campaign {
           entrance === undefined ? [parent, child, [...targets]] : [parent, child, [...targets], entrance])) };
   }
 
-  replace(parent: string, child: string, targets: readonly string[], entrance?: string): void {
+  replace(parent: string, child: string, targets: readonly string[], entrance?: string): () => void {
     let changes = this.conversions.get(parent);
     if (!changes) { changes = new Map(); this.conversions.set(parent, changes); }
-    changes.set(entrance === undefined ? `room:${child}` : `entrance:${entrance}`, { child, targets, entrance });
+    const entries = changes;
+    const key = entrance === undefined ? `room:${child}` : `entrance:${entrance}`;
+    const previous = entries.get(key);
+    entries.set(key, { child, targets, entrance });
+    return () => {
+      if (previous) entries.set(key, previous);
+      else entries.delete(key);
+    };
   }
 
   replacements(parent: string): ReadonlyMap<string, EntranceConversion> | undefined { return this.conversions.get(parent); }

@@ -1,4 +1,5 @@
 import { entranceId, type BabaLevel, type Direction } from '../levels/baba-format';
+import { assertUnitCapacity } from '../levels/limits';
 import type { Campaign, EntranceConversion, FlowerProgress, GateProgress } from './campaign';
 import { directions, isUniversal, opposite, player, ruleContext, textName, typeOf, vectors, type RuleContext } from './properties';
 import { createRuleReader, isText, type RuleReader, type Unit } from './syntax';
@@ -36,12 +37,18 @@ export const blockedByWater = (context: RuleContext, x: number, y: number) =>
 
 function addIsland(level: BabaLevel, state: GameState): GameState {
   if (!level.island || state.island) return state;
+  assertUnitCapacity(state.units.length + level.island.length);
   let nextId = state.nextId;
   const island = level.island.map(tile => ({ ...tile, id: nextId++ }));
   return { ...state, units: [...state.units, ...island], nextId, island: true };
 }
 
 export function initialState(level: BabaLevel): GameState {
+  const map = isMap(level);
+  const links = map ? level.links.filter(link => link.x >= 0 && link.y >= 0 && link.x < level.width && link.y < level.height) : [];
+  const { x, y } = cursorPosition(level);
+  const cursor = map && x >= 0 && y >= 0 && x < level.width && y < level.height && !level.tiles.some(tile => tile.name === 'cursor');
+  assertUnitCapacity(level.tiles.length + links.length + Number(cursor) + (level.island?.length ?? 0));
   const units: Unit[] = level.tiles.map((tile, id) => ({ ...tile, id }));
   if (isMap(level)) {
     for (const [index, link] of level.links.entries()) if (link.x >= 0 && link.y >= 0 && link.x < level.width && link.y < level.height) {
@@ -68,6 +75,7 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
   openPaths = level.paths.filter(path => path.style > 0 && !path.gate),
   read = createRuleReader(level.width, level.height), defeated?: Unit[]): GameState {
   if (previous.won || previous.conversion) return previous;
+  assertUnitCapacity(previous.units.length);
   const waiting = input === 'wait';
   const state = { ...previous, units: previous.units.map(unit => ({ ...unit })), turn: previous.turn + 1, waiting };
   let context = ruleContext(level, state.units, state.turn, waiting, undefined, read);
@@ -75,7 +83,8 @@ export function advance(level: BabaLevel, previous: GameState, input: Move,
   const update = () => { context = ruleContext(level, state.units, state.turn, waiting, movementRules, read); };
   const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < level.width && y < level.height && !level.edges.has(y * level.width + x);
   const spawn = (name: string, origin: Unit) => {
-    if (name === 'empty' || (name === 'level' && !origin.link) || !inBounds(origin.x, origin.y) || state.units.length >= 12000) return;
+    if (name === 'empty' || (name === 'level' && !origin.link) || !inBounds(origin.x, origin.y)) return;
+    assertUnitCapacity(state.units.length + 1);
     const type = typeOf(level, name);
     state.units.push({ name, type, x: origin.x, y: origin.y, dir: origin.dir, id: state.nextId++,
       ...(origin.link ? { link: origin.link } : {}),
@@ -471,9 +480,11 @@ export class Puzzle {
   get canUndo(): boolean { return this.past.length > 0; }
   get canRedo(): boolean { return this.future.length > 0; }
   get defeated(): readonly Unit[] { return this.lastDefeats; }
-  constructor(level: BabaLevel, saved?: GameState, campaign?: Campaign) {
+  /** Render an editable board even when its rules exceed the play budget. */
+  static preview(level: BabaLevel): Puzzle { return new Puzzle(level, undefined, undefined, () => []); }
+  constructor(level: BabaLevel, saved?: GameState, campaign?: Campaign, read = createRuleReader(level.width, level.height)) {
     this.level = level;
-    this.read = createRuleReader(level.width, level.height);
+    this.read = read;
     this.campaign = campaign;
     this.entrances = new Map(level.links.map((link, index) => [entranceId(link, index), index]));
     level.links.forEach(({ id }, index) => {
@@ -482,6 +493,7 @@ export class Puzzle {
       else this.entrancesByChild.set(id, [index]);
     });
     this.state = saved && saved.units.every(unit => unit.x >= 0 && unit.y >= 0 && unit.x < level.width && unit.y < level.height) ? saved : initialState(level);
+    assertUnitCapacity(this.state.units.length);
     if (this.state === saved) {
       this.state = addIsland(level, this.state);
       this.appliedConversions = new Map(campaign?.replacements(level.id));
@@ -492,9 +504,10 @@ export class Puzzle {
     this.refreshMap();
   }
   private change(state: GameState, defeated: readonly Unit[] = []): void {
+    const context = ruleContext(this.level, state.units, state.turn, state.waiting, undefined, this.read);
     this.state = state;
     this.lastDefeats = defeated;
-    this.context = ruleContext(this.level, state.units, state.turn, state.waiting, undefined, this.read);
+    this.context = context;
   }
   move(input: Move): void {
     if (this.state.won || this.state.conversion) return;
@@ -502,42 +515,39 @@ export class Puzzle {
     const next = advance(this.level, this.state, input, this.openPaths, this.read, defeated);
     const turn: PuzzleTurn = recordTurn(this.state, next);
     if (defeated.length) turn.defeated = defeated;
+    this.change(next, defeated);
     this.past.push(turn);
     if (this.past.length > 256) this.past.shift();
     this.future.length = 0;
-    this.change(next, defeated);
   }
   undo(): void {
-    const turn = this.past.pop();
+    const turn = this.past.at(-1);
     if (!turn) return;
-    this.future.push(turn);
     this.change(restoreTurn(this.state, turn.before));
+    this.past.pop();
+    this.future.push(turn);
   }
   redo(): void {
-    const turn = this.future.pop();
+    const turn = this.future.at(-1);
     if (!turn) return;
-    this.past.push(turn);
     this.change(restoreTurn(this.state, turn.after), turn.defeated);
+    this.future.pop();
+    this.past.push(turn);
   }
   reset(): void {
+    this.change(initialState(this.level));
     this.past.length = 0;
     this.future.length = 0;
     this.appliedConversions.clear();
-    this.change(initialState(this.level));
     this.refreshMap();
   }
   refreshMap(): void {
     const access = isMap(this.level) ? this.campaign?.access(this.level) : undefined;
     const pathsChanged = access && (access.paths.length !== this.openPaths.length ||
       access.paths.some((path, index) => path !== this.openPaths[index]));
-    if (access) {
-      this.revealedPaths = access.revealedPaths;
-      this.flower = access.flower;
-      this.gates = access.gates;
-    }
-    if (pathsChanged) this.openPaths = access.paths;
     let nextId = this.state.nextId;
     let units = this.state.units;
+    const applied = new Map(this.appliedConversions);
     if (access) units = units.map(unit => {
       if (!unit.marker) return unit;
       // Older saves identify a marker by its destination and position.
@@ -553,9 +563,11 @@ export class Puzzle {
       return state === undefined || state === unit.state && entrance === unit.entrance ? unit : { ...unit, state, entrance };
     });
     for (const [key, conversion] of this.campaign?.replacements(this.level.id) ?? []) {
-      if (this.appliedConversions.get(key) === conversion) continue;
-      this.appliedConversions.set(key, conversion);
+      if (applied.get(key) === conversion) continue;
       const { child, targets, entrance } = conversion;
+      const matched = units.filter(unit => unit.link === child && (entrance === undefined || unit.entrance === entrance)).length;
+      assertUnitCapacity(units.length + matched * (targets.filter(name => name !== 'empty').length - 1));
+      applied.set(key, conversion);
       units = units.flatMap(unit => unit.link !== child || entrance !== undefined && unit.entrance !== entrance ?
         [unit] : targets.flatMap((name, index) => {
         if (name === 'empty') return [];
@@ -568,6 +580,13 @@ export class Puzzle {
       this.change({ ...this.state, units, nextId });
       this.past.length = 0;
       this.future.length = 0;
+    }
+    this.appliedConversions = applied;
+    if (access) {
+      this.revealedPaths = access.revealedPaths;
+      this.flower = access.flower;
+      this.gates = access.gates;
+      if (pathsChanged) this.openPaths = access.paths;
     }
   }
   selectedEntrance(): Unit | undefined {

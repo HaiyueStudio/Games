@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runChromeWebGpuFixture } from '../../../Engine/scripts/webgpu-gate/chrome-runner.mjs';
+import { installSceneRenderProbe } from './verification/render-probe.mjs';
 
 const worldsPath = process.argv[2];
 if (!worldsPath) throw new Error('Usage: node games/dafeiyu/verify-web-corpus.mjs <Baba Is You/Data/Worlds>');
@@ -20,7 +21,7 @@ const expected = packs.reduce((total, pack) => total + pack.levels.length, 0);
 mkdirSync(output, { recursive: true });
 
 // Evaluated in the real game page. Use the same keyboard routes as a player.
-function installProbes() {
+function installProbes(createRenderProbe) {
   const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
   const state = () => window.__dafeiyu;
   const key = code => document.querySelector('#lagoon').dispatchEvent(
@@ -36,29 +37,11 @@ function installProbes() {
     const { current, library, active, message } = state();
     throw Error(`${label} timed out at ${current} (list ${library}, row ${active}, ${message})`);
   };
-  const passes = new WeakSet();
-  const proto = GPURenderPassEncoder.prototype;
-  const setPipeline = proto.setPipeline;
-  const draw = proto.draw;
-  let sceneDraws = 0;
-  let submissions = 0;
-  const submit = GPUQueue.prototype.submit;
-  proto.setPipeline = function (pipeline) {
-    if (pipeline.label.startsWith('Dafeiyu 2D puzzle.pipeline.')) passes.add(this);
-    else passes.delete(this);
-    return setPipeline.call(this, pipeline);
-  };
-  proto.draw = function (vertices, ...args) {
-    if (passes.has(this) && vertices > 0) sceneDraws++;
-    return draw.call(this, vertices, ...args);
-  };
-  GPUQueue.prototype.submit = function (commandBuffers) {
-    submissions++;
-    return submit.call(this, commandBuffers);
-  };
+  const render = createRenderProbe();
   const waitRender = async () => {
-    const drawCount = sceneDraws, submitCount = submissions;
-    await until(() => sceneDraws > drawCount && submissions > submitCount, 'WebGPU draw and submit');
+    const before = render.stats().sceneSubmissions;
+    await until(() => render.stats().sceneSubmissions > before, 'WebGPU scene submission');
+    await render.completed();
   };
   const require = (condition, message) => { if (!condition) throw Error(message); };
 
@@ -76,7 +59,7 @@ function installProbes() {
         await until(() => state().active !== active, 'select level row');
       }
       key('Enter');
-      await until(() => !state().library && state().current === id, 'open selected level');
+      await until(() => !state().library && state().current === id && !state().transition, 'open selected level');
       const openMs = performance.now() - started;
       await waitRender();
       const initial = state();
@@ -109,7 +92,7 @@ function installProbes() {
         await waitRender();
       }
       return { id, title: initial.title, units: initial.state.units.length, rules: initial.rules.length,
-        openMs: Math.round(openMs), moveMs: Math.round(moveMs), replayed: !!route };
+        openMs: Math.round(openMs), moveMs: Math.round(moveMs), replayed: !!route, render: render.stats() };
     },
   };
 }
@@ -117,7 +100,7 @@ function installProbes() {
 const report = { expected, checked: 0, passed: 0, failed: 0, packs: [], gpuDiagnostics: [], browserDiagnostics: null };
 const updateReport = () => writeFileSync(resolve(output, 'results.json'), JSON.stringify(report, null, 2) + '\n');
 const browser = await runChromeWebGpuFixture({
-  root, fixture: 'games/dafeiyu/index.html', query: { verify: 1, autoplay: 1 }, timeoutMs: 45000,
+  root, fixture: 'games/dafeiyu/index.html', query: { verify: 1, autoplay: 1, start: 'coral' }, timeoutMs: 45000,
   disableDx12InfoCollection: true, visualCapture: { viewportWidth: 1000, viewportHeight: 680 },
   interact: async cdp => {
     let active = null;
@@ -140,7 +123,7 @@ const browser = await runChromeWebGpuFixture({
       }
     };
     await ready('window.__dafeiyu?.bounds.cell > 0', 'booted browser game');
-    await evaluate(`(${installProbes.toString()})()`);
+    await evaluate(`(${installProbes.toString()})(${installSceneRenderProbe.toString()})`);
     const { result: { root: doc } } = await cdp.call('DOM.getDocument');
     const { result: { nodeId } } = await cdp.call('DOM.querySelector', { nodeId: doc.nodeId, selector: '#level-pack' });
     for (const pack of packs) {

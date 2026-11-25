@@ -2,6 +2,7 @@ import type { BabaLevel, Direction, Tile } from './baba-format';
 import { slots, wordTypes } from './catalog';
 import type { LevelPack } from './pack';
 import { gateName, type GateCondition, type GateType } from './gates';
+import { levelLimits } from './limits';
 
 export interface Cell { x: number; y: number }
 interface DraftTile extends Cell { name: string; dir: Direction }
@@ -62,7 +63,7 @@ export function isWorldDraft(value: unknown): value is WorldDraft {
       typeof room.title !== 'string' || !numberIn(room.title.length, 1, 48) || typeof room.map !== 'boolean' ||
       !numberIn(room.width, 7, 32) || !numberIn(room.height, 6, 24)) return false;
     const extent = { width: room.width, height: room.height };
-    if (!inside(extent, room.spawn) || !Array.isArray(room.tiles) || room.tiles.length > 6000 || !Array.isArray(room.links) ||
+    if (!inside(extent, room.spawn) || !Array.isArray(room.tiles) || room.tiles.length > levelLimits.editorTiles || !Array.isArray(room.links) ||
       room.links.length > 128 || !Array.isArray(room.paths) || room.paths.length > room.width * room.height ||
       (room.clearCount !== undefined && (!room.map || !numberIn(room.clearCount, 1, 127))) ||
       (!room.map && (room.links.length || room.paths.length))) return false;
@@ -232,7 +233,7 @@ export class WorldEditor {
       const open = brush === '@path';
       if (room.paths[path]?.open === open) return false;
       this.editRoom().paths.splice(path >= 0 ? path : room.paths.length, path >= 0 ? 1 : 0, { ...room.paths[path], ...at, open });
-    } else if (catalog.has(brush) && room.tiles.length < 6000) {
+    } else if (catalog.has(brush) && room.tiles.length < levelLimits.editorTiles) {
       if (!multiple && room.tiles.some(item => matches(item) && item.name === brush && item.dir === this.facing)) return false;
       this.editRoom().tiles.push({ ...at, name: brush, dir: this.facing });
     } else return false;

@@ -63,14 +63,22 @@ node games/dafeiyu/levels/install-official.mjs "<Baba Is You 安装目录>/Data/
 ```powershell
 node --experimental-strip-types --test games/test/dafeiyu.test.mjs
 npm run build:target -- game:dafeiyu
+npm run verify:dafeiyu
 node games/dafeiyu/verify-browser.mjs
+node games/dafeiyu/verify-save-recovery.mjs
 ```
 
 浏览器验证使用仓库的 Chrome WebGPU runner。通过 `CHROME_PATH` 可指定 Chromium。设置 `DAFEIYU_BABA_WORLD` 为原版安装的 `Data/Worlds/baba` 目录后，浏览器会额外从磁盘导入原版第一关和地图，并回放第一关的解法。安装本地官方关卡包后，设置 `DAFEIYU_OFFICIAL=1` 可追加验证默认启动、官方存档、地图解锁和关卡包切换。
 
+`npm run verify:dafeiyu` 是供具备原生 WebGPU 的验证机器运行的小型冒烟任务，检查缓存 RenderBundle 所属命令缓冲的实际提交及 GPU 完成、GUI、移动、撤销、重做和重开，并注入音频 HTTP 与解码失败，验证后续操作及后台恢复能重新加载失败资源。音效与 BGM 分别缓存成功结果；失败重试间隔至少一秒，不会每次输入都重新下载，也不创建后台重试计时器。自动验证保持静音，不包含人工听感检查。报告在 `artifacts/dafeiyu/smoke/`。
+
+资源预算集中在 `levels/limits.ts`：每个运行中棋盘最多 12,000 个单位，包括地图入口、光标和海岛补充物件；编辑器保留每房间 6,000 个放置物件的限制；规则解析每起点最多 768 个分支。原版容器的 32 图层、每边 256 格及 16 MiB 源文件限制保持不变。解码先统计每层物件，再分配对象；多层累计、运行时生成、地图转换和存档校验使用同一单位上限。超限会明确拒绝加载或撤回本次变化，不会只运行一部分关卡。需要支持更大规模时应配套专用模拟 worker，而非仅调高数字。
+
+`verify-save-recovery.mjs` 在隔离存储中注入读取失败、写入配额不足及关卡 HTTP 503，检查原存档保留、GUI 错误提示，以及重试后恢复棋盘和父地图。结果保存在 `artifacts/dafeiyu/save-recovery/`。读取异常不会清槽，也不会当成空存档自动覆盖；写入失败保留最新快照，后续操作或继续游戏时可重试。叠放的相同规则字块会合并解析并保留高亮来源；规则仍超出计算预算时提示调整字块，保留上一个有效回合，编辑器仍可显示和修改整个棋盘。
+
 用 `node games/dafeiyu/verify-corpus.mjs "<Baba Is You 安装目录>/Data/Worlds"` 重新扫描原版关卡文件。
 
-用 `node games/dafeiyu/verify-web-corpus.mjs "<Baba Is You 安装目录>/Data/Worlds"` 在 Chromium 中逐关验证。脚本通过关卡菜单打开每一关，并检查 WebGPU 绘制、移动回合、撤销和重开。逐关结果和每个关卡包的截图写入 `artifacts/dafeiyu/web-corpus/`。
+用 `node games/dafeiyu/verify-web-corpus.mjs "<Baba Is You 安装目录>/Data/Worlds"` 在 Chromium 中逐关验证。脚本通过关卡菜单打开每一关，并检查 WebGPU 绘制、移动回合、撤销和重开。它与冒烟任务共用 `verification/render-probe.mjs`，识别 RenderBundle 的执行及其所属命令缓冲提交，兼容跨帧复用的批次，并等待 GPU 完成。逐关结果和每个关卡包的截图写入 `artifacts/dafeiyu/web-corpus/`。
 
 用 `node games/dafeiyu/verify-solution-replays.mjs "<Baba Is You 安装目录>/Data/Worlds/baba"` 回归地图入口、首关解锁与 10 个原版解谜场景。报告和截图写入 `artifacts/dafeiyu/solution-audit/`。
 

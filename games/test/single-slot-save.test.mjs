@@ -108,3 +108,48 @@ test('autosave status follows the newest queued write and recovers after a stora
     validateData: value => isRecord(value) && isNonNegativeInteger(value.turn) });
   assert.deepEqual(await reopened.load(), { turn: 3 });
 });
+
+test('a transient read failure preserves the slot and can be retried', async () => {
+  const { MemorySaveBackend } = await import('@haiyue/engine/save');
+  const { SingleSlotGameSave } = await import('../save/SingleSlotGameSave.ts');
+  const backend = new MemorySaveBackend();
+  const statuses = [];
+  const save = new SingleSlotGameSave({ gameId: 'read-retry', name: 'test', backend,
+    validateData: value => isRecord(value) && isNonNegativeInteger(value.turn), onStatus: status => statuses.push(status) });
+  await save.saveNow({ turn: 50 });
+  const read = backend.read.bind(backend), remove = backend.delete.bind(backend);
+  let deletes = 0, attempts = 0;
+  backend.delete = async (...args) => { deletes++; return remove(...args); };
+  backend.read = async (...args) => {
+    if (!attempts++) throw new Error('temporary read failure');
+    return read(...args);
+  };
+  statuses.length = 0;
+  await assert.rejects(save.load(), /temporary read failure/);
+  await assert.rejects(save.saveNow({ turn: 0 }), /temporary read failure/, 'a fallback cannot overwrite an unread slot');
+  assert.deepEqual(statuses, ['error']);
+  assert.equal(deletes, 0);
+  assert.deepEqual(await save.load(), { turn: 50 });
+  assert.equal(deletes, 0);
+  assert.deepEqual(statuses, ['error', 'saved']);
+});
+
+test('an invalid envelope is retained until explicitly cleared', async () => {
+  const { MemorySaveBackend } = await import('@haiyue/engine/save');
+  const { SingleSlotGameSave } = await import('../save/SingleSlotGameSave.ts');
+  const backend = new MemorySaveBackend();
+  const save = new SingleSlotGameSave({ gameId: 'invalid-read', name: 'test', backend,
+    validateData: value => isRecord(value) && isNonNegativeInteger(value.turn) });
+  await save.saveNow({ turn: 50 });
+  const read = backend.read.bind(backend), remove = backend.delete.bind(backend);
+  let deletes = 0;
+  backend.read = async (...args) => ({ ...await read(...args), data: { turn: -1 } });
+  backend.delete = async (...args) => { deletes++; return remove(...args); };
+  await assert.rejects(save.load());
+  assert.equal(deletes, 0);
+  backend.read = read;
+  assert.deepEqual(await save.load(), { turn: 50 });
+  await save.clear();
+  assert.equal(deletes, 1);
+  assert.equal(await save.load(), null);
+});

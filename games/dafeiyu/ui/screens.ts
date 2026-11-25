@@ -14,6 +14,7 @@ export const screenCopy = {
   selection: '已选', noSelection: '空格', brush: '当前素材',
   direction: '朝向', path: '开放路径', hidden: '隐藏路径', spawn: '地图起点', node: '开放入口', locked: '锁定入口',
   width: '宽', height: '高', noEdit: '无法调整大小', storageError: '草稿保存失败', save: '保存', cancel: '取消',
+  saveError: '进度保存失败，已保留待保存进度', loadError: '存档读取失败，已保留原存档，请重试', unreadSlot: '读取失败，请重试',
   widthDown: '减小宽度', widthUp: '增加宽度', heightDown: '减小高度', heightUp: '增加高度',
   badImport: '无法读取世界草稿', editHelp: '点按或空格放置 · 右键擦除 · R 试玩',
   selectHelp: '点按选中 · Delete 擦除', eraseHelp: '点按或拖动擦除',

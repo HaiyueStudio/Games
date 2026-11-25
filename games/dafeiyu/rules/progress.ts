@@ -2,6 +2,7 @@ import { isNonNegativeInteger, isRecord } from '../../save/SingleSlotGameSave';
 import type { CampaignProgress } from './campaign';
 import type { GameState } from './game';
 import { INTRO } from '../levels/pack';
+import { levelLimits } from '../levels/limits';
 
 export interface Progress {
   stage: number;
@@ -47,7 +48,7 @@ export function isProgress(value: unknown): value is Progress {
 function isGameState(state: unknown): state is GameState {
   if (!isRecord(state)) return false;
   if (!isNonNegativeInteger(state.nextId) || !isNonNegativeInteger(state.turn) || typeof state.won !== 'boolean' ||
-      typeof state.waiting !== 'boolean' || !Array.isArray(state.units) || state.units.length > 12000) return false;
+      typeof state.waiting !== 'boolean' || !Array.isArray(state.units) || state.units.length > levelLimits.units) return false;
   if (state.bonus !== undefined && !isNonNegativeInteger(state.bonus)) return false;
   if (state.island !== undefined && state.island !== true) return false;
   if (state.conversion !== undefined && (!Array.isArray(state.conversion) ||
