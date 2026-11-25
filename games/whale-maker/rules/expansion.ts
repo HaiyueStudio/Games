@@ -1,3 +1,4 @@
+import {updateClassicEnemy} from './classic-features';
 import {pressSwitch,pressPSwitch,P_SWITCH_VANISH_TIME} from './p-switch';
 import {isRecovering} from './coop-state';
 import {firebarPoints} from './firebar';
@@ -199,6 +200,7 @@ export function updateItems(s:State,i:Input,dt:number,before:number,svc:Services
 }
 export function updateSpecialEnemy(s:State,e:Enemy,dt:number,svc:Services):boolean {
     e.age=(e.age??0)+dt;
+    if(updateClassicEnemy(s,e,dt))return true;
     if(e.kind==='cactus'){e.cactusDrop=Math.max(0,(e.cactusDrop??0)-dt);return false;}
     if(updateP2Enemy(s,e,dt,svc))return true;
     if(updateP1Enemy(s,e,dt,svc))return true;

@@ -39,7 +39,7 @@ export function advanceFrost(s:State,dt:number):void {
 export const FIRE_JUMP_GRAVITY=20;
 export function initFlowers(l:Level):Reward[]{
     const rewards:Reward[]=[];
-    l.cells.forEach((t,id)=>{if(!['G','F','ice-flower','cat-bell','boomerang-flower','hammer-suit','one-up','coin-10','coin-30','coin-50',...WEARABLES].includes(t))return;const x=id%l.width,y=Math.floor(id/l.width);rewards.push({kind:t==='G'?'growth':t==='F'?'fire':t as Reward['kind'],x:x+.1,y:y+.1,w:.8,h:.8,vx:t==='G'?2:0,vy:0,age:.4,originY:y+1,persistent:true,...(l.properties?.[id]?.charges!==undefined?{charges:l.properties[id]!.charges}: {})});l.cells[id]=l.properties?.[id]?.liquid??'.';});
+    l.cells.forEach((t,id)=>{if(!['G','F','ice-flower','cat-bell','boomerang-flower','hammer-suit','one-up','coin-10','coin-30','coin-50','poison-pearl',...WEARABLES].includes(t))return;const x=id%l.width,y=Math.floor(id/l.width);rewards.push({kind:t==='G'?'growth':t==='F'?'fire':t as Reward['kind'],x:x+.1,y:y+.1,w:.8,h:.8,vx:t==='G'||t==='poison-pearl'?2:0,vy:0,age:.4,originY:y+1,persistent:true,...(l.properties?.[id]?.charges!==undefined?{charges:l.properties[id]!.charges}: {})});l.cells[id]=l.properties?.[id]?.liquid??'.';});
     return rewards;
 }
 export function frostEffect(s:State,x:number,y:number):void {

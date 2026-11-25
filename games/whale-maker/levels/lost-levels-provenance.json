@@ -1,0 +1,23 @@
+{
+  "retrieved": "2026-11-24",
+  "levelCount": 52,
+  "sources": [
+    {
+      "url": "https://github.com/threecreepio/smb2j-disassembly/blob/master/sm2main.asm",
+      "sha256": "08e591e1da5dc8740ec3fbf3adecf008c2c113f2058fe3711cb2f989cf756b4d"
+    },
+    {
+      "url": "https://github.com/threecreepio/smb2j-disassembly/blob/master/sm2data2.asm",
+      "sha256": "622ba56a073be0786c5056d8f3b89096e45b46354c4adec00823308ea5b024ad"
+    },
+    {
+      "url": "https://github.com/threecreepio/smb2j-disassembly/blob/master/sm2data3.asm",
+      "sha256": "1940938da3926693b74b517f97651aa7822081385972b0bf7d00d80e8c6daf0a"
+    },
+    {
+      "url": "https://github.com/threecreepio/smb2j-disassembly/blob/master/sm2data4.asm",
+      "sha256": "cb5667af50717cee71cf86e092d60be20ac0038b84c12de89c71117db7cdbf4f"
+    }
+  ],
+  "conversion": "Area objects and enemies translated to Whale Maker tiles, four-tile vertical origin, existing Whale Maker physics and artwork"
+}

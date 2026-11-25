@@ -1,3 +1,6 @@
+import {compactEnemies} from './entity-lifecycle';
+import {enterCoursePortal, validCourseDestination, COURSE_PORTALS, type CourseDestination} from './course-travel';
+import { initClassicFeatures, validClassicFeatures, advanceClassicMaze, advanceClassicSpawners, type ClassicFeatures, type ClassicRuntime } from './classic-features';
 import {cellAt as tile} from './terrain';
 import {courseBounds,findEndZone} from './course-bounds';
 import {validWind,windVelocity} from './wind';
@@ -64,9 +67,9 @@ import { initFortress, advancePlatforms, updateFortress, damageBoss, releaseBrid
 export type Tile = '.' | '#' | 'B' | '?' | '=' | '^' | 'o' | 'G' | 'F' | 'C' | 'E' | 'T' | 'J' | 'P' | 'Q' | 'p' | 'q' | 'U' | ExtraTile;
 export const TOOLS: Tile[] = ['#', 'B', '?', '=', '^', 'o', 'G', 'F', 'C', 'E', 'T', 'J', 'P', '.', ...EXTRA_TOOLS];
 export const NAMES = ['珊瑚地面', '贝壳砖', '宝物方块', '单向云台', '尖刺', 'Token金币', '成长珍珠', '火珊瑚', '检查点', '终点', '龟龟', '咕咕嘎嘎', '管道', '橡皮擦', ...EXTRA_NAMES];
-export const CONTENTS = ['auto', 'coin', 'growth', 'fire', 'duck', 'turtle', 'empty','spring-v','basin','pow','p-switch','star','plant','fish','squid','spiky','key','cannonball','iron-turtle','ghost','giant-pearl','ice-flower','fire-jumper','wood-crate','bomb','hammer-otter','spring-h','snowball','cactus','cat-bell','boomerang-flower','hammer-suit','red-pow','snowball-large',...P1_ENEMIES,...WEARABLES,...P2_ENEMIES,'one-up','coin-10','coin-30','coin-50',...SHELL_TOOLS] as const;
+export const CONTENTS = ['auto', 'coin', 'growth', 'fire', 'duck', 'turtle', 'empty','spring-v','basin','pow','p-switch','star','plant','fish','squid','spiky','key','cannonball','iron-turtle','ghost','giant-pearl','ice-flower','fire-jumper','wood-crate','bomb','hammer-otter','spring-h','snowball','cactus','cat-bell','boomerang-flower','hammer-suit','red-pow','snowball-large',...P1_ENEMIES,...WEARABLES,...P2_ENEMIES,'one-up','coin-10','coin-30','coin-50',...SHELL_TOOLS,'poison-pearl'] as const;
 export type BlockContent = typeof CONTENTS[number];
-export const CONTENT_NAMES = ['自动成长', 'Token金币', '成长珍珠', '火珊瑚', '咕咕嘎嘎', '龟龟', '空方块','纵向弹簧','铁盆','POW块','P开关','无敌星','食人花','鱼','鱿鱼','尖刺龟','钥匙','可爱炮弹','铁壳龟','害羞幽灵','巨型珍珠','冰花','跳跃火焰','木箱','炸弹小怪','投锤海獭','横向弹簧','雪球','仙人球','猫铃铛','回旋镖花','建造锤','红POW','大雪球',...P1_NAMES.slice(24,35),...P2_NAMES.slice(0,15),'生命珍珠','十枚金币','三十金币','五十金币',...SHELL_NAMES];
+export const CONTENT_NAMES = ['自动成长', 'Token金币', '成长珍珠', '火珊瑚', '咕咕嘎嘎', '龟龟', '空方块','纵向弹簧','铁盆','POW块','P开关','无敌星','食人花','鱼','鱿鱼','尖刺龟','钥匙','可爱炮弹','铁壳龟','害羞幽灵','巨型珍珠','冰花','跳跃火焰','木箱','炸弹小怪','投锤海獭','横向弹簧','雪球','仙人球','猫铃铛','回旋镖花','建造锤','红POW','大雪球',...P1_NAMES.slice(24,35),...P2_NAMES.slice(0,15),'生命珍珠','十枚金币','三十金币','五十金币',...SHELL_NAMES,'毒珍珠'];
 export interface Warp { from: [number, number]; to: [number, number] }
 export interface Level {
     /** Runtime-only derived bounds. Recomputed from cells at create(). */
@@ -84,7 +87,9 @@ export interface Level {
     rules?:RuleOptions;
     name: string;
     backdrop?: 'coast'|'castle'|'mountains'|'plains'|'night'|'desert';
+    nextCourse?:CourseDestination;
     classicStage?:number;
+    classicFeatures?:ClassicFeatures;
     finish?:'flag'|'castle';
     playHeight?:number;
     rooms?:{x:number;y:number;w:number;h:number}[];
@@ -117,6 +122,8 @@ export interface Body {
     transitWait?:number;
 }
 export interface Enemy extends Body {
+    classicFlight?:boolean;
+    lakitu?:{start:number;end:number;y:number;wait:number};
     kind: 'turtle' | 'duck' | 'shell' | 'plant' | 'fish' | 'squid' | 'spiky' | 'cannonball' | 'iron-turtle' | 'ghost' | 'fire-jumper' | 'bomb' | 'hammer-otter' | 'cactus' | import('./p1-schema').P1EnemyKind | import('./p2-schema').P2EnemyKind;
     alive: boolean;
     held: boolean;
@@ -183,6 +190,8 @@ export interface Input {
 export interface Reward extends Body { kind: Exclude<BlockContent, 'auto' | 'empty'>; age: number; originY: number;bumpUntil?:number;persistent?:boolean;charges?:number }
 export interface Defeated extends Body { kind: Enemy['kind']; cause: 'stomp' | 'shot' | 'shell' | 'block' | 'pow' | 'star' | 'slide' | 'pound' | 'lava' | 'sand' | 'claw' | 'boomerang' | 'hammer'; lavaY?:number;bombFuse?:number; age: number; angle: number }
 export interface State extends AdvancedState, FortressState, WorkshopState, P1State, P2State {
+    classicRuntime:ClassicRuntime;
+    courseDestination:CourseDestination|null;
     coop?:CoopState;
     events:GameEvent[];
     eventSerial:number;
@@ -338,15 +347,17 @@ export function validate(value: unknown,child=false,main?:Level): Level {
     if(l?.wind!==undefined&&!validWind(l.wind))throw Error('环境风配置无效');
     if(l?.rules!==undefined&&!validRules(l.rules))throw Error('关卡规则配置无效');
     if(l?.backdrop!==undefined&&!['coast','castle','mountains','plains','night','desert'].includes(l.backdrop))throw Error('远景配置无效');
-    if(l?.classicStage!==undefined&&(!Number.isInteger(l.classicStage)||l.classicStage<1||l.classicStage>4))throw Error('闯关编号无效');
+    if(l?.classicStage!==undefined&&(!Number.isInteger(l.classicStage)||l.classicStage<1||l.classicStage>32))throw Error('闯关编号无效');
+    if(l?.classicFeatures!==undefined&&!validClassicFeatures(l.classicFeatures,l))throw Error('初代机关配置无效');
+    if(l?.nextCourse!==undefined&&!validCourseDestination(l.nextCourse))throw Error('通关目标关卡无效');
     if(l?.finish!==undefined&&!['flag','castle'].includes(l.finish))throw Error('终点配置无效');
     if(l?.playHeight!==undefined&&(!Number.isInteger(l.playHeight)||l.playHeight<10||l.playHeight>l.height))throw Error('主场景高度无效');
     if(l?.rooms!==undefined&&(!Array.isArray(l.rooms)||l.rooms.length>16||!l.rooms.every(r=>r&&[r.x,r.y,r.w,r.h].every(Number.isInteger)&&r.x>=0&&r.y>=0&&r.w>=1&&r.h>=1&&r.x+r.w<=l.width&&r.y+r.h<=l.height)))throw Error('房间配置无效');
-    if (!l || l.version !== 1 || !Number.isInteger(l.width) || l.width < 20 || l.width > 240 || !Number.isInteger(l.height) || l.height < 10 || l.height > 256 || !Array.isArray(l.cells) || l.cells.length !== l.width * l.height || !l.cells.every(c => TOOLS.includes(c) || ['Q','p','q','U','glass-right','glass-left-shaft','glass-right-shaft','glass-body','stone-body','cannon-body','boss-body','cactus-body','gentle-up-body','gentle-down-body'].includes(c)) || !Array.isArray(l.spawn) || l.spawn.length !== 2 || !l.spawn.every(Number.isFinite) || l.spawn[0] < 0 || l.spawn[0] >= l.width || l.spawn[1] < 0 || l.spawn[1] >= l.height || typeof l.name !== 'string')
-        throw Error('关卡格式无效（20–240 列，10–256 行（坐标0–255））');
+    if (!l || l.version !== 1 || !Number.isInteger(l.width) || l.width < 20 || l.width > 512 || !Number.isInteger(l.height) || l.height < 10 || l.height > 256 || !Array.isArray(l.cells) || l.cells.length !== l.width * l.height || !l.cells.every(c => TOOLS.includes(c) || ['Q','p','q','U','glass-right','glass-left-shaft','glass-right-shaft','glass-body','stone-body','cannon-body','boss-body','cactus-body','gentle-up-body','gentle-down-body'].includes(c)) || !Array.isArray(l.spawn) || l.spawn.length !== 2 || !l.spawn.every(Number.isFinite) || l.spawn[0] < 0 || l.spawn[0] >= l.width || l.spawn[1] < 0 || l.spawn[1] >= l.height || typeof l.name !== 'string')
+        throw Error('关卡格式无效（20–512 列，10–256 行（坐标0–255））');
     if (l.warps !== undefined && (!Array.isArray(l.warps) || l.warps.length > 32 || !l.warps.every(w => w && [w.from,w.to].every(v => Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && v[0] >= 0 && v[0] < l.width && v[1] >= 0 && v[1] < l.height)))) throw Error('管道出口格式无效');
     if (l.contents !== undefined && (!l.contents || typeof l.contents !== 'object' || Array.isArray(l.contents) || !Object.entries(l.contents).every(([key, value]) => /^(0|[1-9]\d*)$/.test(key) && Number(key) < l.cells.length && CONTAINER_TILES.has(l.cells[Number(key)]!) && CONTENTS.includes(value)))) throw Error('宝物方块内容无效');
-    if(l.properties!==undefined&&(!l.properties||typeof l.properties!=='object'||Array.isArray(l.properties)||!Object.entries(l.properties).every(([key,p])=>/^(0|[1-9]\d*)$/.test(key)&&Number(key)<l.cells.length&&l.cells[Number(key)]!=='.'&&p&&typeof p==='object'&&!Array.isArray(p)&&Object.entries(p).every(([k,v])=>P2_PROPERTY_KEYS.has(k)?validP2Property(k,v):P1_PROPERTIES.has(k)?validP1Property(k,v):k==='drop'?['coin','key'].includes(String(v))&&(l.cells[Number(key)]==='J'||l.cells[Number(key)]==='T'||EXTRA_ENEMIES.includes(l.cells[Number(key)]!)):k==='link'?Number.isInteger(v)&&Number(v)>=1&&Number(v)<=99:k==='length'?Number.isInteger(v)&&Number(v)>=1&&Number(v)<=16:k==='speed'?typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=6:k==='rotation'?[0,90,180,270].includes(Number(v))&&typeof v==='number':k==='phase'?typeof v==='number'&&Number.isFinite(v):k==='mode'?v==='fixed'||v==='pipe':k==='jumpHeight'?typeof v==='number'&&Number.isFinite(v)&&v>=1&&v<=16:k==='period'?typeof v==='number'&&Number.isFinite(v)&&v>=.25&&v<=30:k==='axis'?v==='x'||v==='y':k==='range'||k==='flight'?Array.isArray(v)&&v.length===2&&v.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=(k==='flight'||p.axis==='y'?l.height:l.width))&&v[0]<v[1]:k==='slippery'?typeof v==='boolean':k==='loop'||k==='smart'?typeof v==='boolean':k==='plant'||k==='endPlant'?typeof v==='boolean':k==='height'?Number.isInteger(v)&&Number(v)>=1&&Number(v)<=8:k==='direction'?['left','right','down'].includes(String(v)):k==='path'?(PATH_TILES.has(l.cells[Number(key)]!)?validSnakePath(l,Number(key),v):l.cells[Number(key)]==='glass-pipe'&&validGlassPath(l,Number(key),v)):false))))throw Error('机关配置无效');
+    if(l.properties!==undefined&&(!l.properties||typeof l.properties!=='object'||Array.isArray(l.properties)||!Object.entries(l.properties).every(([key,p])=>/^(0|[1-9]\d*)$/.test(key)&&Number(key)<l.cells.length&&l.cells[Number(key)]!=='.'&&p&&typeof p==='object'&&!Array.isArray(p)&&Object.entries(p).every(([k,v])=>P2_PROPERTY_KEYS.has(k)?validP2Property(k,v):P1_PROPERTIES.has(k)?validP1Property(k,v):k==='drop'?['coin','key'].includes(String(v))&&(l.cells[Number(key)]==='J'||l.cells[Number(key)]==='T'||EXTRA_ENEMIES.includes(l.cells[Number(key)]!)):k==='link'?Number.isInteger(v)&&Number(v)>=1&&Number(v)<=99:k==='length'?Number.isInteger(v)&&Number(v)>=1&&Number(v)<=16:k==='speed'?typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=6:k==='rotation'?[0,90,180,270].includes(Number(v))&&typeof v==='number':k==='phase'?typeof v==='number'&&Number.isFinite(v):k==='destination'?validCourseDestination(v)&&COURSE_PORTALS.has(l.cells[Number(key)]!)&&p.area===undefined:k==='platformMode'?v==='fall'||v==='balance':k==='mode'?v==='fixed'||v==='pipe':k==='jumpHeight'?typeof v==='number'&&Number.isFinite(v)&&v>=1&&v<=16:k==='period'?typeof v==='number'&&Number.isFinite(v)&&v>=.25&&v<=30:k==='axis'?v==='x'||v==='y':k==='range'||k==='flight'?Array.isArray(v)&&v.length===2&&v.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=(k==='flight'||p.axis==='y'?l.height:l.width))&&v[0]<v[1]:k==='slippery'?typeof v==='boolean':k==='loop'||k==='smart'?typeof v==='boolean':k==='plant'||k==='endPlant'?typeof v==='boolean':k==='height'?Number.isInteger(v)&&Number(v)>=1&&Number(v)<=8:k==='direction'?['left','right','down'].includes(String(v)):k==='path'?(PATH_TILES.has(l.cells[Number(key)]!)?validSnakePath(l,Number(key),v):l.cells[Number(key)]==='glass-pipe'&&validGlassPath(l,Number(key),v)):false))))throw Error('机关配置无效');
     const cannonOwned=new Set<number>();
     l.cells.forEach((t,id)=>{if(t!=='cannon')return;const h=l.properties?.[id]?.height??2;if(Math.floor(id/l.width)-h+1<0)throw Error('炮塔高度超出地图');for(let n=0;n<h;n++){const cell=id-n*l.width;if(l.cells[cell]!== (n?'cannon-body':'cannon')||cannonOwned.has(cell))throw Error('炮塔需要完整的空间');cannonOwned.add(cell);}});
     if(l.cells.some((t,id)=>t==='cannon-body'&&!cannonOwned.has(id)))throw Error('炮塔需要完整的空间');
@@ -364,11 +375,13 @@ export function validate(value: unknown,child=false,main?:Level): Level {
     const glassOwned=new Set<number>();
     for(const [key,p]of Object.entries(l.properties??{}))if(p.path&&l.cells[Number(key)]==='glass-pipe')for(const id of glassCells(l,Number(key),p.path)){if(l.cells[id]!== (id===Number(key)?'glass-pipe':'glass-body'))throw Error('透明管道路径格式无效');glassOwned.add(id);}
     if(l.cells.some((t,id)=>t==='glass-body'&&!glassOwned.has(id)))throw Error('透明管道路径格式无效');
-    if (!l.cells.includes('E')&&!child)
+    if (!l.cells.includes('E')&&!child&&!Object.values(l.areas??{}).some(area=>area.cells?.includes('E')))
         throw Error('请放置至少一个终点');
     const issues=[...levelIssues(l),...p2Issues(l,main??l)];if(issues.length)throw Error(issues[0]!.message);
     if(!child&&l.areas)for(const [id,area]of Object.entries(l.areas)){if((area as Level)?.areas)throw Error('副区域不能嵌套');try{validate({...area,areas:l.areas},true,l);}catch(e){throw Error(`副区 ${id}：${(e as Error).message}`,{cause:e});}}
-    return structuredClone(l);
+    // Recursive checks discard the return value. Clone only the requested root,
+    // rather than copying the complete sibling-area dictionary for every child.
+    return child?l:structuredClone(l);
 }
 export function create(level: Level): State {
     const copy = structuredClone(level), enemies: Enemy[] = [],initialBody=playerDimensions({power:0,riding:null,crouching:false});
@@ -386,7 +399,7 @@ export function create(level: Level): State {
         const x=i%copy.width;copy.cells[i]=props?.liquid??((x>0&&copy.cells[i-1]==='lava'||x+1<copy.width&&copy.cells[i+1]==='lava')?'lava':'.');
     } });
     for(const e of enemies)if(e.grounded===undefined)e.grounded=solid(tile(copy,e.x+e.w/2,e.y+e.h+.03),0,true);
-    return { ...p2, ...advanced, ...extra, ...adventure,...fortress,...workshop,...p1,scoreChain:initialScore(),scorePops:[],events:[],eventSerial:0, level: copy, startLevel: structuredClone(level), player: { x: level.spawn[0], y: level.spawn[1], ...initialBody, vx: 0, vy: 0 }, enemies, shots: [], rewards: flowers, coinPops:[],defeated: [], power: 0, fallPeak:level.spawn[1]+initialBody.h,giantBounce:false, facing: 1, grounded: false, crouching: false, crouchAge: 0, running: false, skidding: false, skidDecel:WALK_CROUCH_DECEL,turning:false,turnAge:0,springDrift:false, stride: 0, dust: [], dustWait: 0, wall: 0, wallGrace: 0, wallDirection: 0, wallKick: 0, bufferedSpin: false, coyote: 0, buffer: 0, spinning: false, spinAge: 0, jumpSustain: false, jumpCut: false, held: null, invincible: 0, fireWait: 0, shootAge: SHOT_DURATION, shootFacing: 1, pendingShot: false, eatAge: EAT_DURATION, eatFacing: 1, bites: [], coins: 0, deaths: 0, time: 0, phase: 'playing', checkpoint: [...level.spawn], litCheckpoints: {}, flagWaves: [], cheerAge: CHEER_DURATION, cheerFacing: 1, previous: { ...EMPTY_INPUT }, notice: '顶宝物块获得成长珍珠 · 发光管道上按下进入', deathAge: 0, victory: null, bumps: [], fragments: [], pipeWait: 0, pipe: null };
+    return { courseDestination:null, classicRuntime:initClassicFeatures(level), ...p2, ...advanced, ...extra, ...adventure,...fortress,...workshop,...p1,scoreChain:initialScore(),scorePops:[],events:[],eventSerial:0, level: copy, startLevel: structuredClone(level), player: { x: level.spawn[0], y: level.spawn[1], ...initialBody, vx: 0, vy: 0 }, enemies, shots: [], rewards: flowers, coinPops:[],defeated: [], power: 0, fallPeak:level.spawn[1]+initialBody.h,giantBounce:false, facing: 1, grounded: false, crouching: false, crouchAge: 0, running: false, skidding: false, skidDecel:WALK_CROUCH_DECEL,turning:false,turnAge:0,springDrift:false, stride: 0, dust: [], dustWait: 0, wall: 0, wallGrace: 0, wallDirection: 0, wallKick: 0, bufferedSpin: false, coyote: 0, buffer: 0, spinning: false, spinAge: 0, jumpSustain: false, jumpCut: false, held: null, invincible: 0, fireWait: 0, shootAge: SHOT_DURATION, shootFacing: 1, pendingShot: false, eatAge: EAT_DURATION, eatFacing: 1, bites: [], coins: 0, deaths: 0, time: 0, phase: 'playing', checkpoint: [...level.spawn], litCheckpoints: {}, flagWaves: [], cheerAge: CHEER_DURATION, cheerFacing: 1, previous: { ...EMPTY_INPUT }, notice: '顶宝物块获得成长珍珠 · 发光管道上按下进入', deathAge: 0, victory: null, bumps: [], fragments: [], pipeWait: 0, pipe: null };
 }
 export {cellAt as tile} from './terrain';
 
@@ -472,7 +485,7 @@ function hitBlock(s: State, x: number, y: number, t: Tile,down=false): void {
         const content = s.level.contents?.[id] ?? 'auto';
         if (s.level.contents) delete s.level.contents[id];
         const kind = content === 'auto' ? (s.power === 0 ? 'growth' : 'fire') : content;
-        if (kind !== 'empty') {const giant=kind==='giant-pearl';s.rewards.push({ kind, x: giant?x-.5:x+.1, y: giant?y:y+.1, originY:giant?y:y+.1, w:giant?2:.8, h:giant?2:.8, vx:kind==='growth'?2:0,vy:0,age:0 });}
+        if (kind !== 'empty') {const giant=kind==='giant-pearl';s.rewards.push({ kind, x: giant?x-.5:x+.1, y: giant?y:y+.1, originY:giant?y:y+.1, w:giant?2:.8, h:giant?2:.8, vx:kind==='growth'||kind==='poison-pearl'?2:0,vy:0,age:0 });}
         if(kind!=='empty')emit(s,'reward',x+.5);
         s.rewards = s.rewards.slice(-64);
         s.notice = '宝物出现了！';
@@ -648,7 +661,7 @@ function activateCheckpoint(s: State, x: number, y: number) {
 }
 export function step(s:State,i:Input,dt=1/120):void {
     advanceFrame(s,i,dt);
-    clampCourse(s);
+    clampCourse(s);compactEnemies(s);
 }
 function clampCourse(s:State):void {
     // Also cover authored transfers, riding and powered flight that position the
@@ -722,7 +735,7 @@ export function stepCoop(s:State,inputs:readonly Input[],dt=1/120):void {
         const survivor=coop.recovery.findIndex(r=>!r);
         if(survivor>=0)asPlayer(s,survivor,()=>{s.time+=dt;progressStep(s,dt,services);advanceWorldEffects(s,dt);});
     }
-    advanceCoopRecovery(s,dt,services);
+    advanceCoopRecovery(s,dt,services);compactEnemies(s);
 }
 
 function moveCoopParty(s:State,leader:number,oldArea:string):void {
@@ -778,9 +791,10 @@ function advanceFrame(s: State, i: Input, dt: number, frame?:CoopFrame) {
     const p = s.player;
     expansionTimers(s,dt,services,shared);
     advanceAdventure(s,dt,shared);
-    if(shared){s.time+=dt;if(!s.coop)advanceP2Camera(s,dt);advanceLiquid(s,dt);}
+    if(shared){advanceClassicSpawners(s,dt);s.time+=dt;if(!s.coop)advanceP2Camera(s,dt);advanceLiquid(s,dt);}
     if(isRecovering(s))return;
     if(!s.coop)cameraCrush(s,services);
+    if(enterCoursePortal(s,i)){positionHeld(s);s.previous={...i};return;}
     if(areaTravel(s,i,dt,create,shared)){positionHeld(s);s.previous={...i};return;}
     if(shared){advanceWorkshop(s,dt,services);advanceFrost(s,dt);advanceP2Mechanisms(s,dt,services);}
     if(isRecovering(s))return;
@@ -976,6 +990,7 @@ function advancePlayerMovement(s:State,i:Input,dt:number,p:Body,physicalInput:In
                 if(r.wall)reward.vx=-vx;
                 bounceVerticalSpring(s,reward,old);bounceHorizontalSpring(s,reward,old);if(reward.kind==='growth')pressPSwitch(s,reward,old);
             }
+            if(overlaps(p,reward)&&reward.kind==='poison-pearl'){hurt(s);reward.w=0;continue;}
             if(overlaps(p,reward)&&progressReward(s,reward,services))continue;
             if (overlaps(p, reward)&&isWearable(reward.kind)){equipWearable(s,reward.kind,reward.charges??3);reward.w=0;continue;}
             if (overlaps(p, reward)) { grantPower(s,reward.kind==='cat-bell'?5:reward.kind==='boomerang-flower'?6:reward.kind==='hammer-suit'?7:reward.kind==='ice-flower'?4:reward.kind==='fire'?2:s.power||1); reward.w = 0; s.notice = reward.kind==='cat-bell'?'猫铃铛！J 爪击，空中 K 扑击，贴墙 ↑ 攀爬':reward.kind==='boomerang-flower'?'回旋镖花！J 投出并接回':reward.kind==='hammer-suit'?'建造锤！J 锤击，L 造箱，最多五个':reward.kind==='ice-flower'?'冰花！按 J 发射冰弹':reward.kind === 'fire' ? '火珊瑚！按 J 发射火球' : '成长！现在能撞碎贝壳砖'; }
@@ -1084,6 +1099,7 @@ function advancePlayerMovement(s:State,i:Input,dt:number,p:Body,physicalInput:In
     if(isRecovering(s))return;
     advanceClearRun(s);
     if(!s.coop&&s.phase==='playing'&&conditionProgress(s).done&&s.level.finish==='castle'&&s.bridgeCollapse&&s.bridgeCollapse.removed===s.bridgeCollapse.cells.length&&s.bosses.length>0&&s.bosses.every(b=>b.health<=0)){const id=s.level.cells.indexOf('E');if(id>=0){finish(s,id%s.level.width,Math.floor(id/s.level.width),true);s.previous={...i};return;}}
+    if(advanceClassicMaze(s)){s.previous={...i};return;}
     const goal=goalAt(s);if(goal&&!conditionProgress(s).done)s.notice='尚未满足通关条件：'+conditionProgress(s).text;
     if(goal&&!(s.power===5&&i.interact&&s.catStamina>0&&p.y+p.h>Math.max(0,goal.y-poleHeight(s,goal.x,goal.y))+.25)&&conditionProgress(s).done&&s.phase==='playing'&&(s.level.finish!=='castle'||!s.bosses.some(b=>b.health>0))){finish(s,goal.x,goal.y);s.previous={...i};return;}
     s.previous = { ...physicalInput };

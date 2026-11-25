@@ -13,10 +13,10 @@ export function inheritArea(root:Level,id:string):Level{return id==='main'?root:
 export function areaBlueprint(s:State,id=s.currentArea):Level{return inheritArea(rootLevel(s),id);}
 /** Cache each area's live scene exactly once. Inventory is moved, not cloned. */
 export function changeArea(s:State,id:string,create:Factory,position?:[number,number]):boolean {
-    const root=rootLevel(s);if(id===s.currentArea||id!=='main'&&!root.areas?.[id])return false;
+    const root=rootLevel(s);if(id===s.currentArea||id!=='main'&&(!root.areas||!Object.hasOwn(root.areas,id)))return false;
     const carry=[s.held,s.riding,s.vehicle].filter((b,n,a)=>b&&a.indexOf(b)===n),enemies=new Set(s.enemies),global:Partial<State>={};for(const key of GLOBAL)(global as Record<string,unknown>)[key]=s[key];
     const cache=s.areaMemory,old=s.currentArea;s.items=s.items.filter(i=>!carry.includes(i));s.enemies=s.enemies.filter(e=>!carry.includes(e));s.shots=[];s.boomerangs=[];s.cannonShots=[];s.pendingShot=false;
-    cache[old]={...s,vehicle:null,areaMemory:{}};const next=cache[id]??create(inheritArea(root,id));delete cache[id];Object.assign(s,next,global);
+    Object.defineProperty(cache,old,{value:{...s,vehicle:null,areaMemory:{}},writable:true,enumerable:true,configurable:true});const next=Object.hasOwn(cache,id)?cache[id]!:create(inheritArea(root,id));delete cache[id];Object.assign(s,next,global);
     s.scoreChain.stomp=0;
     s.rootLevel=root;s.startLevel=root;s.currentArea=id;s.areaMemory=cache;s.phase='playing';s.areaCooldown=.8;s.areaFade=.5;if(s.wearable){s.wearable.active=false;s.wearable.charge=0;s.wearable.boost=0;}s.pipe=s.door=null;s.motion='none';s.grounded=false;s.climbing=false;s.cameraHold=null;
     const at=position??(id==='main'?root.spawn:root.areas![id]!.spawn);const {w:width,h:height}=playerDimensions(s,false);s.player={x:Math.max(0,Math.min(s.level.width-width,at[0])),y:Math.max(0,Math.min(s.level.height-height,at[1])),w:width,h:height,vx:0,vy:0};
@@ -31,7 +31,7 @@ export function areaTravel(s:State,i:Input,dt:number,create:Factory,shared=true)
         if((t==='warp-box'||t==='locked-warp')&&s.usedWarps[id])continue;
         if(t==='P'){const shape=pipeShape(s.level,id)!,n=shape.normal,cx=p.x+p.w/2,cy=p.y+p.h/2,pressing=n[0]===1?i.axis<0:n[0]===-1?i.axis>0:n[1]===-1?i.down:!!i.interact,tangent=n[0]?Math.abs(cy-shape.mouth[1]):Math.abs(cx-shape.mouth[0]),gap=(cx-shape.mouth[0])*n[0]+(cy-shape.mouth[1])*n[1]-(n[0]?p.w:p.h)/2;if(!pressing||tangent>.55||gap<-.04||gap>.1)continue;}
         if(isWarp(t)){if(!touchesWarp(s,id))continue;}else if(t!=='P'&&(!i.interact||s.previous.interact||p.x+p.w<=x||p.x>=x+1||p.y+p.h<y+.5||p.y>y+1))continue;
-        if(t==='p-door'&&s.pTime<=0)continue;if(props.area===s.currentArea||props.area!=='main'&&!rootLevel(s).areas?.[props.area])continue;const locked=t==='locked-door'||t==='locked-warp';if(locked&&!s.keys.length){s.notice='需要钥匙才能进入副区';return false;}if(locked)s.keys.shift();const oneUse=t==='warp-box'||t==='locked-warp';if(oneUse)s.usedWarps[id]=true;
+        if(t==='p-door'&&s.pTime<=0)continue;if(props.area===s.currentArea||props.area!=='main'&&(!rootLevel(s).areas||!Object.hasOwn(rootLevel(s).areas!,props.area)))continue;const locked=t==='locked-door'||t==='locked-warp';if(locked&&!s.keys.length){s.notice='需要钥匙才能进入副区';return false;}if(locked)s.keys.shift();const oneUse=t==='warp-box'||t==='locked-warp';if(oneUse)s.usedWarps[id]=true;
         const at:[number,number]=[props.targetX??2,props.targetY??2],destination=inheritArea(rootLevel(s),props.area),targetId=Math.floor(at[1])*destination.width+Math.floor(at[0]);if(oneUse&&isWarp(destination.cells[targetId])){const size=playerDimensions(s,false);at[0]=Math.floor(at[0])+.5-size.w/2;at[1]=Math.floor(at[1])+1-size.h;}
         if(!changeArea(s,props.area,create,at))return false;
         if(oneUse)for(const destination of touchingWarps(s))s.usedWarps[destination]=true;return true;

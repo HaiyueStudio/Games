@@ -69,6 +69,7 @@ export function editProperty(level:Level,ids:readonly number[],key:string,value:
         if(key==='height'&&t==='cannon'){const owned=new Set(cannonCells(draft,id));if(y-Number(value)+1<0||Array.from({length:Number(value)},(_,n)=>id-n*draft.width).some(n=>!owned.has(n)&&draft.cells[n]!=='.'))return false;placeCannon(draft,x,y,Number(value));continue;}
         if(key==='rotation'&&t==='P'){for(let n=0;n<4&&pipeShape(draft,id)?.rotation!==value;n++)if(!rotatePipe(draft,id))return false;continue;}
         const p=(draft.properties??={})[id]??={};if(value===undefined)delete (p as Record<string,unknown>)[key];else (p as Record<string,unknown>)[key]=value;
+        if(key==='area'&&value!==undefined)delete p.destination;
     }
     if(!ids.every(id=>elementFits(draft,draft.cells[id]!,id%draft.width,Math.floor(id/draft.width),draft.properties?.[id])))return false;
     Object.assign(level,draft);
@@ -88,6 +89,7 @@ export class P1Editor {
     enabled:boolean|undefined=undefined;active=false;page=0;preview=false;switchOn=true;
     readonly nodes:GuiElement[]=[];
     readonly inputs:GuiInput[]=[];
+    private readonly rowNodes=new Set<GuiElement>();
     private rows:{label:GuiLabel;input:GuiInput;button:GuiButton;key:string}[]=[];
     private signature='';
     routeMode=false;
@@ -98,7 +100,7 @@ export class P1Editor {
         this.toggle=h.button('高级 / 条件',1064,704,186,()=>{this.enabled=!this.active;this.signature='';h.draw();});
         for(let n=0;n<4;n++){
             const y=250+n*83,label=h.label('',1064,y,186,25),input=new GuiInput({value:'',inputType:'number',onSubmit:value=>this.commit(n,Number(value)),style:{backgroundColor:'#123d4e',color:'#e6fbff',borderColor:'#56c7c7',radius:8,padding:8}});
-            h.ui.add(h.rect(input,{x:1064,y:y+27,width:186,height:35}));const button=h.button('',1064,y+27,186,()=>this.cycle(n));this.inputs.push(input);this.rows.push({label,input,button,key:''});this.nodes.push(label,input,button);
+            h.ui.add(h.rect(input,{x:1064,y:y+27,width:186,height:35}));const button=h.button('',1064,y+27,186,()=>this.cycle(n));this.inputs.push(input);this.rows.push({label,input,button,key:''});this.nodes.push(label,input,button);this.rowNodes.add(label).add(input).add(button);
         }
         this.nodes.push(h.button('上一页',1064,590,86,()=>{this.page=Math.max(0,this.page-1);this.signature='';}),h.button('下一页',1164,590,86,()=>{this.page++;this.signature='';}),h.button('路径编辑',1064,633,86,()=>{this.routeMode=!this.routeMode;}),h.button('轮廓范围',1164,633,86,()=>{this.preview=!this.preview;}),h.button('开关预览',1064,671,86,()=>{this.switchOn=!this.switchOn;}),h.button('定位错误',1164,671,86,()=>this.locate()));
         this.routeNodes.push(h.label('末端延长 / 转弯',1064,250,186,30));for(const [text,x,y,dx,dy]of [['↑',1114,295,0,-1],['←',1064,340,-1,0],['→',1164,340,1,0],['↓',1114,385,0,1]] as const)this.routeNodes.push(h.button(text,x,y,86,()=>this.route(dx,dy)));
@@ -124,8 +126,8 @@ export class P1Editor {
     update():boolean {
         const h=this.h,ids=this.ids(),fresh=ids.some(id=>([...P1_TOOLS,...P2_TOOLS] as readonly string[]).includes(h.level.cells[id]!)||['C','E'].includes(h.level.cells[id]!)),active=h.editing&&(this.enabled??fresh),keys=this.keys();this.page=Math.min(this.page,Math.max(0,Math.ceil(keys.length/4)-1));
         if(!ids.some(id=>PATH_TILES.has(h.level.cells[id]!)||h.level.cells[id]==='glass-pipe'))this.routeMode=false;
-        this.active=active;this.toggle.setText(active?'内容 / 基础':'高级 / 条件');this.toggle.setVisible(h.editing);this.nodes.forEach(n=>n.setVisible(active));
-        const signature=JSON.stringify([ids,keys,this.page,keys.map(k=>this.value(k))]);if(signature!==this.signature){this.signature=signature;for(let n=0;n<4;n++){const row=this.rows[n]!,key=keys[this.page*4+n]??'';row.key=key;row.label.setText(key?labels[key]??key:'');const value=this.value(key),enumKey=key in choices||key==='target'||key==='area';row.input.setValue(String(value??''));row.button.setText(key==='target'&&this.h.level.condition?.kind==='power'?playerPowerLabel(Number(value)):words[String(value)]??String(value??'无'));row.input.setVisible(active&&!!key&&!enumKey);row.button.setVisible(active&&!!key&&enumKey);}}
+        this.active=active;this.toggle.setText(active?'内容 / 基础':'高级 / 条件');this.toggle.setVisible(h.editing);this.nodes.forEach(n=>{if(!this.rowNodes.has(n))n.setVisible(active);});
+        const signature=JSON.stringify([ids,keys,this.page,keys.map(k=>this.value(k))]);if(signature!==this.signature){this.signature=signature;for(let n=0;n<4;n++){const row=this.rows[n]!,key=keys[this.page*4+n]??'';row.key=key;row.label.setText(key?labels[key]??key:'');const value=this.value(key);row.input.setValue(String(value??''));row.button.setText(key==='target'&&this.h.level.condition?.kind==='power'?playerPowerLabel(Number(value)):words[String(value)]??String(value??'无'));}}
         for(const row of this.rows){const enumKey=row.key in choices||row.key==='target'||row.key==='area';row.label.setVisible(active&&!this.routeMode&&!!row.key);row.input.setVisible(active&&!this.routeMode&&!!row.key&&!enumKey);row.button.setVisible(active&&!this.routeMode&&!!row.key&&enumKey);}this.routeNodes.forEach(n=>n.setVisible(active&&this.routeMode));return active;
     }
 }

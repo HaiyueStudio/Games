@@ -1,6 +1,12 @@
+import {prepareDocument,saveDocument,isDocumentSave,validDocumentSave,type DocumentIdentity,type CompatibleDocumentSave} from './document-session';
+import {indexEditorLevel,editorVisibleCells,type EditorIndex} from '../editor/query';
+import { MapPackPanel } from './map-pack-panel';
+import { MapPackLibrary } from '../editor/map-pack-library';
+import { COURSE_PORTALS, cancelCourseTravel, type CourseDestination } from '../rules/course-travel';
+import { MAP_PACK_CHARS } from '../rules/map-packs';
 import { loadArtwork, loadImage } from './artwork';
 import {PLAYER_FORMS} from '../rules/player-body';
-import {p2Level,P2_DEMOS,P2_HELP} from '../rules/p2-levels';
+import {P2_DEMOS,P2_HELP} from '../rules/p2-levels';
 import { P1Editor, P1_EDITOR_CHARS, movePathNode } from '../editor/p1';
 import { P2_TOOLS, P2_NAMES } from '../rules/p2-schema';
 import { emptySubArea } from '../editor/p2-settings';
@@ -9,7 +15,7 @@ import { cameraFor } from '../rules/p2-camera';
 import { p2Art, drawP2Tile, drawP2Enemy, drawP2World, drawWearable, drawAreaEntryPreview } from '../rendering/p2';
 import { elementFits } from '../editor/p1-geometry';
 import { P1_TOOLS, P1_NAMES, CONTAINER_TILES, PATH_TILES } from '../rules/p1-schema';
-import { p1Level, P1_DEMOS, P1_HELP } from '../rules/p1-levels';
+import { P1_DEMOS, P1_HELP } from '../rules/p1-levels';
 import { conditionProgress } from '../rules/p1';
 import { drawP1,drawP1Player, drawP1Tile, drawP1Enemy, drawModifiers, drawP1Overlay } from '../rendering/p1';
 import { Entity, World } from '@haiyue/engine';
@@ -25,15 +31,13 @@ import {COOP_CHARS,CoopSettingsPanel} from './coop-settings';
 import {asPlayer,coopCamera,playerAt} from '../rules/coop-state';
 import {drawPlayerNumber} from '../rendering/coop';
 import {BUBBLE_RADIUS} from '../rules/coop-recovery';
-import { configureCoop,create, demo, validate, stepCoop, respawn, blockOffset, tile, TOOLS, NAMES, CONTENTS, CONTENT_NAMES, SHOT_DURATION, SHOT_WINDUP, type BlockContent, type Level, type State, type Tile, type Input } from '../rules/model';
+import { configureCoop,create, validate, stepCoop, respawn, blockOffset, tile, TOOLS, NAMES, CONTENTS, CONTENT_NAMES, SHOT_DURATION, SHOT_WINDUP, type BlockContent, type Level, type State, type Tile, type Input } from '../rules/model';
 import { objectCells, selectBox, clearCells, moveSelection, stampSelection, pasteStamp, type EditorTool, type Stamp } from '../editor/selection';
 import { placePipe } from '../rules/levels';
 import { isPipe, pipeShape, rotatePipe } from '../rules/pipes';
 import { drawPipe, drawPipePlant } from '../rendering/pipes';
 import { drawDesertBackground, drawQuicksand, drawCactus, drawSnowball, drawDesertEffects } from '../rendering/desert';
 import { placeCactus } from '../rules/desert';
-import { desertLevel } from '../rules/desert-level';
-import { p0Level } from '../rules/p0-level';
 import { modernLevel, rulesFor, REFERENCE_RULES, LEGACY_RULES, elementOrigin } from '../rules/profile';
 import { EXTRA_ENEMIES } from '../rules/catalog';
 import { coinFrame, biteFlight, ENEMY_SIZE, checkpointFrame, flagWobble, checkpointRect } from '../rendering/poses';
@@ -43,8 +47,6 @@ import {drawSinkingEnemies,drawLavaSplashes} from '../rendering/lava';
 import { playerArt } from '../rendering/player';
 import { drawWorkshopTile, drawWorkshop, drawWorkshopEnemy, drawWorkshopEffect } from '../rendering/workshop';
 import { editSnakeEnd, validSnakePath, DEFAULT_SNAKE_PATH } from '../rules/snake-path';
-import { workshopLevel } from '../rules/workshop-level';
-import { frostLevel } from '../rules/frost-level';
 import { WhaleScene2D } from '../rendering/WhaleScene2D';
 import { extraArt, enemyArt, drawExtraTile, drawItem } from '../rendering/expansion';
 import { placeGlassPipe, upgradeGlassPipes, glassCells, editGlassEnd, DEFAULT_GLASS_PATH, isGlass } from '../rules/glass';
@@ -57,7 +59,7 @@ import { drawDust } from '../rendering/dust';
 import { drawTerrain, isCoral, loadSlopeIcons } from '../rendering/terrain';
 import { drawEnvironmentWind, tornadoPlanes } from '../rendering/wind';
 import { drawClearFlag } from '../rendering/conditions';
-import { courseBounds,findEndZone,editorCourseWidth } from '../rules/course-bounds';
+import { courseBounds } from '../rules/course-bounds';
 import { drawCourseEdge } from '../rendering/course-bounds';
 import { drawCoinPops } from '../rendering/brick-reactions';
 import { drawGoal,drawGoalLock } from '../rendering/goal';
@@ -65,7 +67,7 @@ import { PALETTE_CATEGORIES, categoryOf, categoryTools, categoryPages } from '..
 import { WhaleBrowserAudio } from '../audio/BrowserAudio';
 import { WhaleAudio } from '../audio/WhaleAudio';
 import { gameSession } from '../../session/SessionPause';
-import { classicLevel, nextClassic } from '../rules/classic';
+import { classicLevel, courseComplete, transferCourse, classicStageName } from '../rules/classic';
 import { placeBoss } from '../rules/fortress';
 import { drawFortressTile, drawFortress } from '../rendering/fortress';
 import { backdropGround, setCell } from '../rules/terrain';
@@ -75,6 +77,12 @@ const COPY = '经典闯关首领吊桥鲸鱼铃铛熔岩月夜地窟龟堡蓄力
 const TILE_ART: Partial<Record<Tile, number>> = { '#': 0, B: 1, '=': 3, '^': 4, E: 6 };
 const CLASSIC_COPY='高级条件玩法主题海岸地下森林雪地沙漠城堡无收集金币击败敌人指定形态目标数量敌人形态管道规则旧图返程受困失败轮廓生成范围预览定位错误宽度深度高度长度沿路速度运动速度生成间隔范围数量上限弹丸安装方向巨大翅膀降落伞启动方式踩踏颜色绿红蓝黄掉落光滑惯性连接编号上一页下一页属性输入值批量无效当前规则校验通过数量必须新动作蓄力蹲跳翻滚远跳高旋转猫爪扑击建造冲刺普通火炮射器树半实体 规则基础扩展工具兼容计分计时解冻永久冻结封冻掉落无连击累计保留金币冰晶试验普通滑面抗性 沙漠金字塔流沙仙人球雪球叠层头部身体陷入过深跳跃高度减半吞没持续移动可以减慢下陷 顺时针°管口朝旋转后空间不足请先移开障碍管道方向已旋转 场景高度上限行先清除裁掉区域中的元素保持原有关卡已扩展最小行程加速带绿色蛇形砖木箱炸弹小怪投锤海獭光滑冰面开关路线长度格缩短刹车倍沿往返工坊冰花冰力冰弹冻住冻结碎裂跳跃火焰岩浆等待间隔秒融化准备进入下一关……速度平台横向纵向经典闯关完成首领吊桥鲸鱼铃铛熔岩月夜城堡地窟龟堡';
 class WhaleMaker {
+    private editRevision=0;
+    private editorIndexCache:{level:Level;revision:number;index:EditorIndex}|undefined;
+    private editorIndex():EditorIndex {
+        const cached=this.editorIndexCache;if(cached?.level===this.level&&cached.revision===this.editRevision)return cached.index;
+        const index=indexEditorLevel(this.level);this.editorIndexCache={level:this.level,revision:this.editRevision,index};return index;
+    }
     editAreaId='main';
     areaRoot:Level|undefined;
     private editorContexts=new WeakMap<Level,{root:Level;id:string}>();
@@ -98,6 +106,14 @@ class WhaleMaker {
     system!: GuiSystem;
     level = modernLevel(classicLevel());
     campaignActive=true;
+    activePackId='classic';
+    activeCourse=0;
+    activeCourseId='1-1';
+    readonly packLibrary=new MapPackLibrary();
+    private documentIdentity:DocumentIdentity={kind:'course',pack:'classic',course:'1-1'};
+    private readonly packSave=new SingleSlotGameSave<CompatibleDocumentSave>({gameId:'whale-maker-packs',name:'鲸屿制造文档',validateData:validDocumentSave});
+    jumpButton!:GuiButton;
+    packPanel!:MapPackPanel;
     state = create(this.level);
     controls=defaultSettings();
     private readonly controlSave=new SingleSlotGameSave<CoopSettings>({gameId:'whale-maker-controls',name:'鲸屿制造控制设置',validateData:validSettings});
@@ -217,7 +233,7 @@ class WhaleMaker {
     }
     async init() {
         const audioLoad=this.audioBackend.load(this.abort.signal);
-        const controlLoad=this.controlSave.load();
+        const savedLoad=Promise.allSettled([this.controlSave.load(),this.packSave.load(),this.saves.load()]);
         const {images,frames,sourceSizes}=await loadArtwork();
         const {characters,world,expansion,coins,tokens,shell,checkpoint,...extraImages}=images;
         this.characters=characters!;this.terrain=world!;this.expansion=expansion!;this.coins=coins!;
@@ -234,19 +250,22 @@ class WhaleMaker {
         {const rim=this.frames.gadgets![0]!,shaft=this.frames.gadgets![1]!;this.frames.gadgets!.push([rim[0]!,rim[1]!,rim[2]!,rim[3]!*.45],[shaft[0]!+shaft[2]!*.04,shaft[1]!+shaft[3]!*.26,shaft[2]!*.92,shaft[3]!*.46]);}
         for(const [u,v,w,h]of this.frames.environment!.slice(4,8))this.frames.environment!.push([u!+w!*.035,v!+h!*.12,w!*.93,h!*.84]);
         for(const [u,v,w]of this.frames.backdrops!.slice())this.frames.backdrops!.push([u!,v!+8/this.extraImages.backdrops!.naturalHeight,w!,2/this.extraImages.backdrops!.naturalHeight]);
-        const [, ,settings]=await Promise.all([this.engine.init(),audioLoad,controlLoad]);
-        if (this.disposed) {
-            this.engine.destroy();
-            return;
-        }
-        if(settings)this.controls=settings;
+        const [,,loads]=await Promise.all([this.engine.init(),audioLoad,savedLoad]);
+        if(this.disposed){this.engine.destroy();return;}
+        const [controls,savedDocument,legacy]=loads;
+        if(controls.status==='fulfilled'&&controls.value)this.controls=controls.value;
+        if(savedDocument.status==='fulfilled'){
+            const raw=savedDocument.value;
+            try{if(raw||legacy.status==='fulfilled'&&legacy.value)this.commitDocument(prepareDocument(raw,this.documentIdentity,legacy.status==='fulfilled'?legacy.value:null),false);}
+            catch(error){this.notice='恢复失败，已保留原存档：'+String(error);}
+        }else this.notice='读取失败，可点击读取重试：'+String(savedDocument.reason);
         this.syncTeam();
         this.scene = new WhaleScene2D(this.engine, { characters: this.characters, world: this.terrain, expansion: this.expansion, coins: this.coins, tokens: this.tokens, shell: this.shell, checkpoint: this.checkpointArt, ...this.extraImages }, this.frames,
             { x: VIEW.x, y: VIEW.y, width: VIEW.w, height: VIEW.h }, sourceSizes);
         this.world.addSystem(this.scene);
         this.world.addEntity(new Entity('Whale interface').addComponent(this.ui));
         // Gameplay owns arrows and Space even after a GUI button receives focus.
-        this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'load', font: { chars: [...new Set(COPY + CLASSIC_COPY + COOP_CHARS + '等待复活已泡泡碰触救援队友救出了全队倒下了生命用尽' + P2_NAMES.join('') + P2_DEMOS.join('') + P2_HELP.join('') + '龟壳帽尖刺骨头漂浮水面岩浆五秒自动复原顶起炮台改变起点落定盔保留'+ '水中持续主区域副区穿戴装备炮箱蓄力松开发射旋桨上升三次落地恢复俯冲安静行走伪装跳跃攻击暴露鲸弹推进结束方向升降红脉冲箱向下从方撞击发动生命珍珠耐久获得条用尽重新开始计时奖励时间到抵达参数范围不存在嵌套新增最多八个尺寸清除空副区域仅能删除还没有放置元素的副区创建并进入区域出口全部本金残余上升风力触发预警秒数复位环绕半径检查点形态旗杆高度顶端有限循环跟随人物自动镜头模式滚屏液体最低最高行' + P1_EDITOR_CHARS + P1_NAMES.join('') + P1_DEMOS.join('') + P1_HELP.join('') + '技造尚未满足普通形态规则不能与检查点组合未知受困开始结束伸展回缩' + CONTENT_NAMES.join('') + '透明管道出口被挡住了正在内穿梭穿出末端延长转弯撤去末段管线格双向超出地图或发生重叠已更新入口朝上可放食人花‹›−有无反转方向配置选中机关场景翻页已经戴着铁盆挡住了头顶伤害戴好了可抵挡来自一次被地面敌人震飞P开关启动秒路径变化时间结束P门需要先踩下开关请给两扇门设置相同连接编号游泳机关试验海岸' + NAMES.join('') + Object.values(PLAYER_FORMS).map(form=>form.label+form.hudLabel).join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
+        this.system = new GuiSystem(this.engine, { navigationMap: new InputMap({}), loadOp: 'load', font: { chars: [...new Set(COPY + CLASSIC_COPY + MAP_PACK_CHARS + COOP_CHARS + '等待复活已泡泡碰触救援队友救出了全队倒下了生命用尽' + P2_NAMES.join('') + P2_DEMOS.join('') + P2_HELP.join('') + '龟壳帽尖刺骨头漂浮水面岩浆五秒自动复原顶起炮台改变起点落定盔保留'+ '水中持续主区域副区穿戴装备炮箱蓄力松开发射旋桨上升三次落地恢复俯冲安静行走伪装跳跃攻击暴露鲸弹推进结束方向升降红脉冲箱向下从方撞击发动生命珍珠耐久获得条用尽重新开始计时奖励时间到抵达参数范围不存在嵌套新增最多八个尺寸清除空副区域仅能删除还没有放置元素的副区创建并进入区域出口全部本金残余上升风力触发预警秒数复位环绕半径检查点形态旗杆高度顶端有限循环跟随人物自动镜头模式滚屏液体最低最高行' + P1_EDITOR_CHARS + P1_NAMES.join('') + P1_DEMOS.join('') + P1_HELP.join('') + '技造尚未满足普通形态规则不能与检查点组合未知受困开始结束伸展回缩' + CONTENT_NAMES.join('') + '透明管道出口被挡住了正在内穿梭穿出末端延长转弯撤去末段管线格双向超出地图或发生重叠已更新入口朝上可放食人花‹›−有无反转方向配置选中机关场景翻页已经戴着铁盆挡住了头顶伤害戴好了可抵挡来自一次被地面敌人震飞P开关启动秒路径变化时间结束P门需要先踩下开关请给两扇门设置相同连接编号游泳机关试验海岸' + NAMES.join('') + Object.values(PLAYER_FORMS).map(form=>form.label+form.hudLabel).join('') + Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join(''))].join(''), fontFamily: 'Microsoft YaHei, sans-serif', fontSize: 28, atlasSize: 2048 } });
         this.system.priority = 1000;
         this.world.addSystem(this.system);
         const render = new RenderIntegration(this.engine, { label: 'WhaleMaker.Scene2D+HUD' });
@@ -264,9 +283,9 @@ class WhaleMaker {
         this.mode = this.button('编辑器  E', 24, 70, 136, () => this.toggle());
         this.pause = this.button('暂停 P', 170, 70, 100, () => { this.paused = !this.paused; this.clearControls(); });
         this.button('重新出发 R', 280, 70, 132, () => this.restart());
-        this.button('鲸鱼娘 · 冰火试验', 422, 70, 180, () => {this.editAreaId='main';this.areaRoot=undefined;this.campaignActive=false;this.level=modernLevel(frostLevel());this.state=create(this.level);this.camera=0;this.cameraY=4;this.editCamera=0;this.editY=4;this.selection.clear();this.history=[];this.redo=[];});
-        this.button('切换示范关卡', 612, 70, 154, () => { this.editAreaId='main';this.areaRoot=undefined;this.selectedLevel=(this.selectedLevel+1)%12;this.campaignActive=this.selectedLevel>=5&&this.selectedLevel<9;this.level=this.selectedLevel===11?p0Level():this.selectedLevel===10?desertLevel():this.selectedLevel===9?workshopLevel():this.campaignActive?classicLevel(this.selectedLevel-5):demo(this.selectedLevel);this.level=modernLevel(this.level); this.state = create(this.level); this.camera=0;this.cameraY=4;this.editCamera = 0; this.editY = 2; this.selection.clear(); this.history = []; this.redo = []; });
-        this.button('1-1 → 1-4',1138,70,118,()=>this.startClassic());
+        this.jumpButton=this.button('鲸鱼娘 · 冰火试验', 422, 70, 180, () => {if(this.editing)this.configureCourseTarget();else this.launchPack('whale',5);});
+        this.button('地图包 / 选关', 612, 70, 154, () => this.showMapPacks());
+        this.button('重开地图包',1138,70,118,()=>this.launchPack(this.activePackId,0));
         this.button('保存', 776, 70, 82, () => this.save());
         this.button('读取', 868, 70, 82, () => this.read());
         this.button('导出', 960, 70, 82, () => this.export());
@@ -276,10 +295,10 @@ class WhaleMaker {
         this.banner.setStyle({ backgroundColor: '#102e48ee', color: '#fff0c4', radius: 20, padding: 24 });
         this.buildEditor();this.p1Editor=new P1Editor(this);
         this.scoreBanner=this.label('',1060,150,186,30);this.fontSizes.set(this.scoreBanner,14);
-        const p0=this.button('P0 冰晶试验',210,744,172,()=>{this.editAreaId='main';this.areaRoot=undefined;this.campaignActive=false;this.level=p0Level();this.state=create(this.level);this.camera=this.editCamera=0;this.cameraY=4;this.editY=4;this.selection.clear();this.history=[];this.redo=[];this.paused=false;this.accumulator=0;this.clearControls();this.audio.reset(this.state);});
+        const p0=this.button('P0 冰晶试验',210,744,172,()=>this.launchPack('trials',0));
         const p0Layout=p0.layout.bind(p0);p0.layout=r=>{p0Layout(r);p0.setVisible(!this.editing);};
-        const p1=this.button('P1 试验工坊',394,744,162,()=>{this.p1DemoIndex=(this.p1DemoIndex+1)%P1_DEMOS.length;this.editAreaId='main';this.areaRoot=undefined;this.campaignActive=false;this.level=p1Level(this.p1DemoIndex);this.state=create(this.level);this.state.notice=P1_HELP[this.p1DemoIndex]!;this.selection.clear();this.history=[];this.redo=[];this.editCamera=this.camera=0;this.editY=this.cameraY=10;this.paused=false;this.clearControls();this.audio.reset(this.state);});const p1Layout=p1.layout.bind(p1);p1.layout=r=>{p1Layout(r);p1.setVisible(!this.editing);};
-        const p2=this.button('P2 试验关',570,744,172,()=>{this.editAreaId='main';this.areaRoot=undefined;this.p2DemoIndex=(this.p2DemoIndex+1)%P2_DEMOS.length;this.campaignActive=false;this.level=p2Level(this.p2DemoIndex);this.state=create(this.level);this.state.notice=P2_HELP[this.p2DemoIndex]!;this.selection.clear();this.history=[];this.redo=[];this.editCamera=this.camera=0;this.editY=this.cameraY=10;this.paused=false;this.clearControls();this.audio.reset(this.state);});const p2Layout=p2.layout.bind(p2);p2.layout=r=>{p2Layout(r);p2.setVisible(!this.editing);};
+        const p1=this.button('P1 试验工坊',394,744,162,()=>{this.p1DemoIndex=(this.p1DemoIndex+1)%P1_DEMOS.length;this.launchPack('trials',1+this.p1DemoIndex);this.state.notice=P1_HELP[this.p1DemoIndex]!;});const p1Layout=p1.layout.bind(p1);p1.layout=r=>{p1Layout(r);p1.setVisible(!this.editing);};
+        const p2=this.button('P2 试验关',570,744,172,()=>{this.p2DemoIndex=(this.p2DemoIndex+1)%P2_DEMOS.length;this.launchPack('trials',1+P1_DEMOS.length+this.p2DemoIndex);this.state.notice=P2_HELP[this.p2DemoIndex]!;});const p2Layout=p2.layout.bind(p2);p2.layout=r=>{p2Layout(r);p2.setVisible(!this.editing);};
         this.p2Hud=this.label('',500,47,574,19);this.fontSizes.set(this.p2Hud,12);
         const touchKeys: [
             string,
@@ -298,6 +317,7 @@ class WhaleMaker {
         this.ui.add(this.mainUi);
         this.mainUi.layout=area=>{Object.assign(this.mainUi.rect,area);for(const node of this.mainUi.children)node.layout(area);};
         this.settingsPanel=new CoopSettingsPanel(this,settings=>this.applyControls(settings));
+        this.packPanel=new MapPackPanel(this,this.packLibrary,(pack,index,edit)=>this.launchPack(pack,index,edit),()=>{this.clearControls();this.reconcileCourse();},{save:()=>this.savePacks(),export:pack=>this.exportPack(pack),import:()=>this.importPack()});
         const opt = { signal: this.abort.signal };
         const unlockAudio=()=>{if(!document.hidden&&!gameSession.paused){this.background=false;this.audio.unlock();}};
         this.canvas.addEventListener('pointerdown',unlockAudio,{...opt,capture:true});
@@ -314,12 +334,12 @@ class WhaleMaker {
             this.paint(e); }, opt);
         window.addEventListener('pointerup', () => this.endPointer(), opt);
         window.addEventListener('pointercancel', () => { this.pointer = false; this.drag = null; this.touch = {}; }, opt);
-        this.canvas.addEventListener('wheel', e => { if (this.editing) {
+        this.canvas.addEventListener('wheel', e => { if (this.editing&&!this.packPanel.open&&!this.settingsPanel.open) {
             e.preventDefault();
             if (e.shiftKey)
                 this.editY = Math.max(0, Math.min(Math.max(0, this.level.height - EDIT_VIEW.h / 36), this.editY + Math.sign(e.deltaY)));
             else
-                this.editCamera = Math.max(0, Math.min(Math.max(0, editorCourseWidth(this.level) - EDIT_VIEW.w / 36), this.editCamera + e.deltaY * .025 + e.deltaX * .025));
+                this.editCamera = Math.max(0, Math.min(Math.max(0, Math.max(this.level.width,this.editorIndex().endZone?.right??0) - EDIT_VIEW.w / 36), this.editCamera + e.deltaY * .025 + e.deltaX * .025));
         } }, { ...opt, passive: false });
         this.resize = new ResizeObserver(() => this.engine.resizeToDisplaySize());
         this.resize.observe(this.canvas);
@@ -329,7 +349,70 @@ class WhaleMaker {
         this.engine.run();
         document.body.dataset.renderStatus = 'passed';
     }
-    startClassic(index=0){this.editAreaId='main';this.areaRoot=undefined;this.level=modernLevel(classicLevel(index));this.state=create(this.level);this.campaignActive=true;this.selectedLevel=5+index;this.camera=this.editCamera=0;this.cameraY=4;this.editY=2;this.selection.clear();this.history=[];this.redo=[];this.editing=false;this.paused=false;this.accumulator=0;this.clearControls();this.audio.reset(this.state);}
+    private stashCourse(force=false):void {
+        if(this.packPanel?.open)return;
+        if((this.editing||force)&&this.documentIdentity.kind==='course'&&this.packLibrary.get(this.activePackId).courses.some(course=>course.id===this.activeCourseId))
+            this.packLibrary.update(this.activePackId,this.activeCourseId,this.packLevel());
+    }
+    private reconcileCourse():void {
+        const pack=this.packLibrary.list().find(pack=>pack.id===this.activePackId)??this.packLibrary.list()[0]!,index=pack.courses.findIndex(course=>course.id===this.activeCourseId);
+        if(this.documentIdentity.kind==='standalone'){this.activePackId=pack.id;this.activeCourse=Math.max(0,index);this.activeCourseId=pack.courses[this.activeCourse]!.id;return;}
+        if(index>=0){
+            this.activeCourse=index;
+            if(this.editing){
+                const root=this.packLibrary.level(pack.id,this.activeCourseId);
+                if(this.editAreaId!=='main'&&root.areas?.[this.editAreaId]){this.areaRoot=root;this.level=structuredClone(inheritArea(root,this.editAreaId));}
+                else{this.editAreaId='main';this.areaRoot=undefined;this.level=root;}
+            }
+            return;
+        }
+        this.editing=false;this.launchPack(pack.id,Math.min(this.activeCourse,pack.courses.length-1),true);
+    }
+    showMapPacks():void {
+        this.stashCourse();this.clearControls();this.pointer=false;this.drag=null;
+        this.reconcileCourse();this.mainUi.setVisible(false);this.packPanel.show(this.activePackId,this.activeCourse,this.editing);
+    }
+    launchPack(pack:string,index=0,edit=false):void {
+        this.stashCourse();
+        const document=this.packLibrary.get(pack),course=document.courses[index];if(!course)throw Error('关卡不存在');
+        const level=course.make();
+        this.packPanel?.close();this.mainUi.setVisible(true);
+        this.activePackId=pack;this.activeCourse=index;this.activeCourseId=course.id;this.documentIdentity={kind:'course',pack,course:course.id};
+        this.editAreaId='main';this.areaRoot=undefined;this.level=level;this.state=create(level);
+        this.campaignActive=document.sequential&&!edit;this.selectedLevel=pack==='classic'?5+index:this.selectedLevel;
+        const camera=centeredCamera(level,this.state.player,VIEW.w/S,VIEW.h/S);
+        this.camera=this.editCamera=camera.x;this.cameraY=camera.y;this.editY=2;
+        this.selection.clear();this.history=[];this.redo=[];this.clipboard=null;this.pastePending=false;this.pathDrag=null;
+        this.editing=edit;this.paused=false;this.accumulator=0;this.clearControls();this.syncTeam();this.audio.reset(this.state);
+    }
+    private nextDestination():CourseDestination|null {
+        if(this.state.level.nextCourse)return this.state.level.nextCourse;
+        if(this.state.startLevel.nextCourse)return this.state.startLevel.nextCourse;
+        if(!this.campaignActive)return null;
+        const pack=this.packLibrary.get(this.activePackId),index=pack.courses.findIndex(course=>course.id===this.activeCourseId);
+        return pack.courses[index+1]?{pack:pack.id,course:pack.courses[index+1]!.id}:null;
+    }
+    private travelCourse(destination:CourseDestination):void {
+        const level=this.packLibrary.level(destination.pack,destination.course),pack=this.packLibrary.get(destination.pack);
+        this.state=transferCourse(this.state,level);this.level=structuredClone(this.state.startLevel);
+        this.documentIdentity={kind:'course',pack:pack.id,course:destination.course};this.activePackId=pack.id;this.activeCourseId=destination.course;this.activeCourse=pack.courses.findIndex(course=>course.id===destination.course);
+        this.campaignActive=pack.sequential;this.editAreaId='main';this.areaRoot=undefined;
+        this.accumulator=0;this.clearControls();this.audio.reset(this.state);
+    }
+    configureCourseTarget():void {
+        const ids=[...this.selection].filter(id=>COURSE_PORTALS.has(this.level.cells[id]!));
+        const target=ids.length?this.level.properties?.[ids[0]!]?.destination:this.level.nextCourse;
+        this.stashCourse();this.clearControls();this.mainUi.setVisible(false);
+        const pack=target?.pack??this.activePackId,document=this.packLibrary.get(pack);
+        const index=target?Math.max(0,document.courses.findIndex(course=>course.id===target.course)):this.activeCourse;
+        this.packPanel.show(pack,index,false,destination=>{
+            this.record();
+            if(ids.length)for(const id of ids){const props=(this.level.properties??={})[id]??={};if(destination){props.destination={...destination};delete props.area;}else delete props.destination;}
+            else if(destination)this.level.nextCourse={...destination};else delete this.level.nextCourse;
+            this.stashCourse();this.notice=destination?'跳关 → '+this.packLibrary.get(destination.pack).title+' / '+destination.course:'已清除跳关';
+        });
+    }
+    startClassic(index=0):void {this.launchPack('classic',index);}
     restart() {
         if (this.editing) { this.editCamera = 0; this.editY = Math.max(0,this.level.height-EDIT_VIEW.h/36); return; }
         if (this.state.phase === 'dead') respawn(this.state);
@@ -357,6 +440,7 @@ class WhaleMaker {
         if(changed&&!this.editing){this.state.phase='playing';this.restart();}
     }
     key(e: KeyboardEvent, down: boolean) {
+        if(this.packPanel?.open){if(down)this.packPanel.key(e);return;}
         if(this.settingsPanel?.open){if(down)this.settingsPanel.key(e);return;}
         if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyZ', 'KeyX'].includes(e.code)||!this.editing&&this.controls.players.slice(0,this.controls.count).some(p=>p.keys.includes(e.code)))
         e.preventDefault(); if (down) {
@@ -409,7 +493,11 @@ class WhaleMaker {
         else if(pressed('b5'))this.restart();
     }
     tick(dt: number) {
-        const pads=gamepadFrames(),settingsOpen=this.settingsPanel.open;
+        if(this.editing){
+            const portal=[...this.selection].find(id=>COURSE_PORTALS.has(this.level.cells[id]!)),target=portal===undefined?this.level.nextCourse:this.level.properties?.[portal]?.destination;
+            this.jumpButton.setText((portal===undefined?'设置终点后续关':'设置出口跳关')+(target?' → '+target.course:''));
+        }else this.jumpButton.setText('鲸鱼娘 · 冰火试验');
+        const pads=gamepadFrames(),settingsOpen=this.settingsPanel.open||this.packPanel.open;
         this.mainUi.setVisible(!settingsOpen);
         this.audio.update(this.state,{paused:this.paused||settingsOpen,editing:this.editing,hidden:document.hidden||this.background,sessionPaused:gameSession.paused},dt);
         if(settingsOpen){this.lastPadCommands=pads.find(p=>p.index===this.controls.players[0]!.device);this.settingsPanel.update(pads);return;}
@@ -419,7 +507,7 @@ class WhaleMaker {
         if (this.editing) {
         this.editTime += dt;
         const dx=Number(this.keys.has('ArrowRight'))-Number(this.keys.has('ArrowLeft')),dy=Number(this.keys.has('ArrowDown'))-Number(this.keys.has('ArrowUp'));
-        this.editCamera = Math.max(0,Math.min(Math.max(0,editorCourseWidth(this.level)-EDIT_VIEW.w/36),this.editCamera+dx*dt*15));
+        this.editCamera = Math.max(0,Math.min(Math.max(0,Math.max(this.level.width,this.editorIndex().endZone?.right??0)-EDIT_VIEW.w/36),this.editCamera+dx*dt*15));
         this.editY = Math.max(0,Math.min(Math.max(0,this.level.height-EDIT_VIEW.h/36),this.editY+dy*dt*15));
         return;
     } if (this.paused)
@@ -440,13 +528,16 @@ class WhaleMaker {
         this.actionEdges.forEach(edges=>edges.clear());
         this.accumulator -= 1 / 120;
     }
-        if(this.campaignActive){const next=nextClassic(this.state);if(next){this.state=next;this.level=structuredClone(next.startLevel);this.selectedLevel=4+next.startLevel.classicStage!;this.camera=0;this.cameraY=4;this.accumulator=0;this.clearControls();this.audio.reset(this.state);}}
+        if(this.state.courseDestination&&this.state.pipe&&this.state.pipe.age>=.45){
+            const destination=this.state.courseDestination;this.state.courseDestination=null;
+            try{this.travelCourse(destination);}catch(error){cancelCourseTravel(this.state);this.state.notice=String(error);}
+        }else if(courseComplete(this.state)){const destination=this.nextDestination();if(destination)try{this.travelCourse(destination);}catch(error){cancelCourseTravel(this.state);this.state.notice=String(error);}}
         const camera=this.state.coop?coopCamera(this.state):cameraFor(this.state,centeredCamera(this.state.level,this.state.player,VIEW.w/S,VIEW.h/S),VIEW.w/S,VIEW.h/S);
         this.camera=camera.x;this.cameraY=camera.y;
     }
     toggle() { this.campaignActive=false;if (this.editing) {
         try {
-            validate(this.packLevel());
+            validate(this.packLevel());this.stashCourse();
         }
         catch (e) {
             this.notice = String(e);
@@ -457,7 +548,8 @@ class WhaleMaker {
     }
     else {
         upgradeGlassPipes(this.level);
-        this.editCamera = Math.min(Math.max(0,editorCourseWidth(this.level)-EDIT_VIEW.w/36),this.camera);
+        this.editRevision++;
+        this.editCamera = Math.min(Math.max(0,Math.max(this.level.width,this.editorIndex().endZone?.right??0)-EDIT_VIEW.w/36),this.camera);
         this.editY = Math.min(Math.max(0,this.level.height-EDIT_VIEW.h/36),this.cameraY);
     } this.editing = !this.editing;this.audio.reset(this.state,true); this.paused = false; this.accumulator = 0; this.clearControls(); this.notice = ''; }
     point(e: PointerEvent) { const r = this.canvas.getBoundingClientRect(), scale = Math.min(r.width / W, r.height / H); return { x: (e.clientX - r.left - (r.width - W * scale) / 2) / scale, y: (e.clientY - r.top - (r.height - H * scale) / 2) / scale }; }
@@ -468,7 +560,7 @@ class WhaleMaker {
         return x >= 0 && x < this.level.width && y >= 0 && y < this.level.height ? [x,y] : null;
     }
     down(e: PointerEvent) {
-        if(this.settingsPanel.open)return;
+        if(this.settingsPanel.open||this.packPanel.open)return;
         if (!this.editing) return;
         const cell = this.cellPoint(e); if (!cell) return;
         const [x,y] = cell, id = y*this.level.width+x;
@@ -502,6 +594,8 @@ class WhaleMaker {
         if(this.pathDrag){const d=this.pathDrag,draft=structuredClone(d.original);if(movePathNode(draft,d.id,d.index,[x-d.id%this.level.width,y-Math.floor(d.id/this.level.width)]))this.level=draft;return;}
         if (id === this.lastCell || (this.editorTool === 'paint' && (this.selected === 'P'||this.selected==='glass-pipe') && !this.erase && this.lastCell !== -1)) return;
         this.lastCell = id;
+        // A drag is one undo entry but may span many rendered frames.
+        this.editRevision++;
         this.audio.edit();
         if (e.shiftKey || this.setSpawn) { this.setSpawn = false; this.level.spawn = [x,y]; this.notice = '起点已设置'; return; }
         if (this.erase || this.editorTool === 'erase' || this.selected === '.') {
@@ -595,7 +689,7 @@ class WhaleMaker {
         } else if(tile==='.') {
             const eraser=this.label('×',x+width/2-18,y+4,36,38);eraser.setTextAlign('center');this.fontSizes.set(eraser,30);eraser.pointerFilter='ignore';nodes.push(eraser);
         } else {
-            const icon=new GuiImage({source:image,uv:uv as [number,number,number,number],pointerFilter:'ignore'});
+            const icon=new GuiImage({source:image,uv:uv as [number,number,number,number],tint:tile==='poison-pearl'?'#bf40e6':'#ffffff',pointerFilter:'ignore'});
             this.ui.add(this.rect(icon,{x:x+(width-iw)/2,y:y+4+(38-ih)/2,width:iw,height:ih})); nodes.push(icon); if(tile==='o') this.coinIcons.push(icon);
         }
         const caption=this.label(text,x+2,y+43,width-4,21); caption.pointerFilter='ignore'; caption.setTextAlign('center'); this.fontSizes.set(caption,11); nodes.push(caption);
@@ -657,8 +751,9 @@ class WhaleMaker {
         // Every control belongs to one visibility group. Showing the page chrome
         // must not briefly unhide every icon on the other pages each frame.
         const palette=new Set(this.paletteNodes.flatMap(p=>p.nodes)),contents=new Set(this.contentPages.flatMap(p=>p.nodes));
-        this.editorChrome=this.editorNodes.filter(n=>!palette.has(n)&&n!==this.contentHint);
-        this.contentChrome=this.contentNodes.filter(n=>!contents.has(n));
+        const managed=new Set([...this.contentNodes,...this.propertyNodes.map(p=>p.node),...this.backdropNodes,...this.selectionHints,this.contentHint,this.inspector]);
+        this.editorChrome=this.editorNodes.filter(n=>!palette.has(n)&&!managed.has(n));
+        this.contentChrome=this.contentNodes.filter(n=>!contents.has(n)&&n!==this.contentHint&&n!==this.inspector);
     }
     setMapHeight(height:number){const next=resizeLevelHeight(this.level,Math.max(10,Math.min(256,height)));if(!next){this.notice='先清除裁掉区域中的元素';return;}if(next.height===this.level.height)return;this.record();this.level=next;this.editY=Math.max(0,Math.min(this.editY,Math.max(0,next.height-EDIT_VIEW.h/36)));this.notice=`场景高度 ${next.height} 行 · 0–${next.height-1}`;}
     propertyIds(){return [...this.selection].filter(id=>['door','p-door','locked-door','P','glass-pipe','firebar','plant','stone','cannon','cactus','bridge','bridge-bell','turtle-boss','moving-platform','fire-jumper','ice','ice-solid','snake-block',...EXTRA_ENEMIES,'T','J','C','E',...P1_TOOLS,...P2_TOOLS].includes(this.level.cells[id]!));}
@@ -679,7 +774,7 @@ class WhaleMaker {
     testState(){const state=create(this.packLevel());if(this.editAreaId!=='main')changeArea(state,this.editAreaId,create);return state;}
     editorSnapshot(){const l=structuredClone(this.level);this.editorContexts.set(l,{root:this.packLevel(),id:this.editAreaId});return l;}
     restoreEditor(l:Level){const c=this.editorContexts.get(l);this.editAreaId=c?.id??'main';this.areaRoot=c?.root;this.level=l;this.selection.clear();}
-    record() { this.campaignActive=false;this.history.push(this.editorSnapshot()); if (this.history.length > 60)
+    record() { this.editRevision++;this.campaignActive=false;this.history.push(this.editorSnapshot()); if (this.history.length > 60)
         this.history.shift(); this.redo = []; }
     undo() { const l = this.history.pop(); if (l) {
         this.redo.push(this.editorSnapshot());
@@ -689,15 +784,51 @@ class WhaleMaker {
         this.history.push(this.editorSnapshot());
         this.restoreEditor(l);
     } }
-    save() { try {
-        const l = validate(this.packLevel());
-        void this.saves.saveNow(l).then(() => { this.notice = '关卡已保存'; }).catch(e => { this.notice = '保存失败：' + String(e); });
+    savePacks():void {void this.save();}
+    private commitDocument(prepared:ReturnType<typeof prepareDocument>,edit:boolean):void {
+        const level=prepared.level,state=create(level);
+        if(this.controls.count>1)configureCoop(state,this.controls.count,VIEW.w/S,VIEW.h/S);
+        this.packPanel?.close();
+        this.packLibrary.adopt(prepared.library);this.documentIdentity=prepared.active;
+        const pack=prepared.active.kind==='course'?this.packLibrary.get(prepared.active.pack):this.packLibrary.list()[0]!;
+        const courseId=prepared.active.kind==='course'?prepared.active.course:null;
+        this.activePackId=pack.id;this.activeCourse=courseId?pack.courses.findIndex(course=>course.id===courseId):0;
+        this.activeCourseId=pack.courses[this.activeCourse]!.id;
+        this.editAreaId='main';this.areaRoot=undefined;this.level=level;this.state=state;this.editing=edit;this.campaignActive=prepared.active.kind==='course'&&pack.sequential&&!edit;
+        this.selection.clear();this.history=[];this.redo=[];this.pathDrag=null;this.editorIndexCache=undefined;
+        this.editCamera=this.camera=Math.max(0,level.spawn[0]-7);this.editY=this.cameraY=Math.max(0,level.spawn[1]-8);
+        this.accumulator=0;this.clearControls();this.audio.reset(state);
     }
-    catch (e) {
-        this.notice = '保存失败：' + String(e);
-    } }
-    read() { void this.saves.load().then(value => { if (this.disposed)
-        return; const l = validate(value);upgradeGlassPipes(l); this.record();this.editAreaId='main';this.areaRoot=undefined; this.level = l; this.state = create(l); this.editCamera = 0; this.editY = 0; this.selection.clear(); this.notice = '关卡已读取'; }).catch(e => { this.notice = '读取失败：' + String(e); }); }
+    private packMessage(message:string):void {this.notice=message;if(this.packPanel.open)this.packPanel.message(message);}
+    exportPack(id:string):void {
+        try{this.stashCourse();const pack=this.packLibrary.editable(id);this.packLibrary.check(pack);
+            const url=URL.createObjectURL(new Blob([JSON.stringify(pack)],{type:'application/json'})),a=document.createElement('a');
+            a.href=url;a.download=id+'.whale-pack.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);this.notice='地图包已导出';
+        }catch(error){this.notice=String(error);}
+    }
+    importPack():void {
+        const input=document.createElement('input');input.type='file';input.accept='.json,application/json';
+        input.onchange=()=>{const file=input.files?.[0];if(!file)return;if(file.size>32000000){this.notice='地图包文件太大';return;}
+            void file.text().then(text=>{if(this.disposed)return;this.stashCourse();const pack=this.packLibrary.import(JSON.parse(text));
+                this.editing=false;this.launchPack(pack.id,0,true);this.showMapPacks();this.notice='地图包已导入';
+            }).catch(error=>{this.notice=String(error);});};input.click();
+    }
+    async save():Promise<void> {
+        try{
+            this.stashCourse(true);const data=saveDocument(this.packLibrary,this.documentIdentity,this.packLevel());
+            const checked=new MapPackLibrary();checked.restore(data.library);
+            if(JSON.stringify(data).length>4_500_000)throw Error('文档超过本地存档容量，请先导出地图包');
+            await this.packSave.saveNow(data);this.packMessage('文档及地图包已保存');
+        }catch(error){this.packMessage('保存失败，可导出文档：'+String(error));}
+    }
+    async read():Promise<void> {
+        try{
+            const raw=await this.packSave.load();
+            const legacy=(!raw||!isDocumentSave(raw)&&raw.packs.length===0)?await this.saves.load():null;
+            if(this.disposed)return;if(!raw&&!legacy){this.notice='还没有保存的文档';return;}
+            const prepared=prepareDocument(raw,this.documentIdentity,legacy);this.commitDocument(prepared,true);this.notice='文档已读取';
+        }catch(error){this.notice='读取失败，当前文档已保留：'+String(error);}
+    }
     export() { try {
         const data = JSON.stringify(validate(this.packLevel()), null, 2), url = URL.createObjectURL(new Blob([data], { type: 'application/json' })), a = document.createElement('a');
         a.href = url;
@@ -714,7 +845,7 @@ class WhaleMaker {
         this.notice = '关卡文件太大';
         return;
     } void file.text().then(text => { if (this.disposed)
-        return; const level = validate(JSON.parse(text));upgradeGlassPipes(level); this.record();this.editAreaId='main';this.areaRoot=undefined; this.level = level; this.state = create(level); this.editCamera = 0; this.editY = 0; this.selection.clear(); this.notice = '关卡已导入'; }).catch(e => { this.notice = String(e); }); }; input.click(); }
+        return; const level = validate(JSON.parse(text));upgradeGlassPipes(level); this.record();this.editAreaId='main';this.areaRoot=undefined; this.level = level; this.state = create(level);this.documentIdentity={kind:'standalone'}; this.editCamera = 0; this.editY = 0; this.selection.clear(); this.notice = '关卡已导入'; }).catch(e => { this.notice = String(e); }); }; input.click(); }
     coin(x: number, feet: number, size: number, time: number, offset=0, opacity=1) {
         this.scene.actor('tokens',coinFrame(time,offset),x,feet,size,false,0,0,opacity);
     }
@@ -756,7 +887,7 @@ class WhaleMaker {
         Object.assign(this.scene.board,{x:v.x,y:v.y,width:v.w,height:v.h});
         this.scene.begin();
         this.scene.fill({ x: v.x, y: v.y, width: v.w, height: v.h }, !this.state.level.classicStage&&this.state.player.x>220&&!!this.state.level.warps?.some(w=>w.to[0]>=221)&&!this.editing ? [.12, .25, .36, 1] : [180 / 255, 232 / 255, 228 / 255, 1]);
-        const s = this.state, l = this.editing ? {...this.level,endZone:findEndZone(this.level)} : s.level;
+        const s = this.state, l = this.editing ? {...this.level,endZone:this.editorIndex().endZone} : s.level;
         const shaking=!this.editing&&!s.coop?s.shake:0;
         const cam=(this.editing?this.editCamera:this.camera)+Math.sin(s.time*91)*shaking*.18,cy=(this.editing?this.editY:this.cameraY)+Math.cos(s.time*109)*shaking*.1;
         const coinTime = this.editing ? this.editTime : s.time + (s.victory?.age ?? (s.phase==='dead'?s.deathAge:0));
@@ -770,7 +901,7 @@ class WhaleMaker {
         if(coinRoom)this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.06,.14,.24,1]);
         else if(!bonusRoom&&backdrop==='desert')drawDesertBackground(this.scene,cam,cy,z,v,backdropGround(l));
         else if(!bonusRoom&&backdrop==='night'){
-            const height=13*z,im=this.extraImages['night-coast']!,uv=this.frames['night-coast']![0]!,width=Math.max(v.w,height*uv[2]!*im.naturalWidth/(uv[3]!*im.naturalHeight)),ground=l.classicStage===4?15:backdropGround(l);
+            const height=13*z,im=this.extraImages['night-coast']!,uv=this.frames['night-coast']![0]!,width=Math.max(v.w,height*uv[2]!*im.naturalWidth/(uv[3]!*im.naturalHeight)),ground=l.classicStage&&l.classicStage%4===0?15:backdropGround(l);
             this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.025,.07,.18,1]);
             this.scene.sprite('night-coast',0,v.x+(v.w-width)/2+Math.sin(cam*.01)*(width-v.w)/2,v.y+(ground-cy)*z-height,width,height);
         }else if(!bonusRoom&&backdrop!=='coast'){
@@ -784,8 +915,8 @@ class WhaleMaker {
                 this.scene.sprite('backdrops',frame,x,v.y+(ground-cy)*z-height,width,height,flip);
             }
         }
-        if(l.classicStage===2)this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.01,.03,.10,.5]);
-        if (!bonusRoom&&!coinRoom&&backdrop!=='night'&&backdrop!=='desert'&&l.classicStage!==2) for (let i = 0; i < 4; i++)
+        if(l.classicStage===2||l.theme==='underground')this.scene.fill({x:v.x,y:v.y,width:v.w,height:v.h},[.01,.03,.10,.5]);
+        if (!bonusRoom&&!coinRoom&&backdrop!=='night'&&backdrop!=='desert'&&l.classicStage!==2&&l.theme!=='underground'&&l.liquid?.kind!=='water') for (let i = 0; i < 4; i++)
             this.scene.sprite('world', 14, v.x + ((i * 760 - cam * 9) % 3000 + 3000) % 3000 - 200, v.y + 25 + (i % 3) * 45, 160, 100);
         for(let y=Math.max(0,Math.floor(cy)-2);y<Math.min(l.height,cy+v.h/z+2);y++)for(let x=Math.max(0,Math.floor(cam)-3);x<Math.min(l.width,cam+v.w/z+3);x++)if(l.cells[y*l.width+x]==='smile-cloud')this.scene.sprite('world',14,v.x+(x-cam-.9)*z,v.y+(y-cy-.4)*z,2.8*z,1.7*z);
         if (this.editing) for (let i = 0; i < 42; i++) {
@@ -795,14 +926,15 @@ class WhaleMaker {
         if (!this.editing) for (const r of s.rewards) {
             if(r.kind==='giant-pearl')this.scene.actor('pearls',r.age<.4?2+Math.min(7,Math.floor(r.age/.4*8)):1,v.x+(r.x+r.w/2-cam)*z,v.y+((r.age<.4?r.originY:r.y+r.h)-cy)*z,2*z,false,1);
             else if(r.kind==='coin') this.coin(v.x+(r.x+r.w/2-cam)*z,v.y+(r.y+r.h-cy)*z,40*z/S,coinTime);
+            else if(r.kind==='poison-pearl')this.scene.actor('pearls',0,v.x+(r.x+r.w/2-cam)*z,v.y+(r.y+r.h-cy)*z,44*z/S,false,0,0,1,[.75,.25,.9,1]);
             else {const art=extraArt(r.kind,coinTime);if(art)this.scene.actor(art.atlas,art.frame,v.x+(r.x+r.w/2-cam)*z,v.y+(r.y+r.h-cy)*z,44*z/S);else this.scene.actor('characters',r.kind==='growth'?12:r.kind==='fire'?13:r.kind==='turtle'?9:8,v.x+(r.x+r.w/2-cam)*z,v.y+(r.y+r.h-cy)*z,(r.kind==='turtle'?58:44)*z/S);}
         }
         if(!this.editing)drawSinkingEnemies(this.scene,s,cam,cy,z,v);
         if(!this.editing)for(const e of s.enemies)if(e.alive&&!e.frozen&&e.kind==='plant'&&e.plantMouth)drawPipePlant(this.scene,e,v.x+(e.plantMouth[0]-cam)*z,v.y+(e.plantMouth[1]-cy)*z,z,s.time);
         const pipeLayerStart=this.scene.draws.length,pipeDraws:typeof this.scene.draws=[];
         drawTerrain(this.scene,l,cam,cy,z,v,bonusRoom);
-        for (let x = Math.max(0,Math.floor(cam)-10); x < Math.min(l.width, cam + v.w/z + 10); x++)
-            for (let y = 0; y < Math.min(l.height, Math.ceil(cy + v.h/z+12)); y++) {
+        const drawCells=editorVisibleCells(l,this.editing?this.editorIndex():{pipes:[],extended:[]},cam,cy,v.w/z,v.h/z,!this.editing);
+        for(const id of drawCells){const x=id%l.width,y=Math.floor(id/l.width);
                 if (bonusRoom && x < 221) continue;
                 const t = l.cells[y * l.width + x]!;
                 // Empty cells have no draw work; coral already belongs to the
@@ -811,6 +943,7 @@ class WhaleMaker {
                 const px = v.x + (x - cam) * z;
                 const bump = !this.editing ? s.bumps.find(b => b.x === x && b.y === y) : undefined;
                 const py = v.y + (y - cy + (bump ? blockOffset(bump.age)*(bump.down?-1:1) : 0)) * z;
+                if(t==='o'&&l.liquid?.kind==='water'&&y>=(l.liquidSurface??l.liquid.low))drawExtraTile(this.scene,s,l,'water',x,y,px,py,z,coinTime,this.editing);
                 const art = TILE_ART[t];
                 if(t==='snake-block')continue;
                 if(t==='cactus'){if(this.editing)drawCactus(this.scene,{...s.player,h:l.properties?.[y*l.width+x]?.height??3,vx:-.6},px+z/2,py+z,z,coinTime);continue;}
@@ -854,7 +987,7 @@ class WhaleMaker {
                 if (t === 'E') {this.scene.actor('expansion', 15, px + (l.finish==='castle'?.5:4) * z, py + z, 3.5 * z);if(l.finish==='castle')drawGoalLock(this.scene,s,px,py,z,this.editing);}
                 if(this.editing&&t==='P'&&l.properties?.[y*l.width+x]?.plant){const pipe=pipeShape(l,y*l.width+x)!;drawPipePlant(this.scene,{...s.player,kind:'plant',alive:true,held:false,cooldown:0,w:pipe.normal[0]?1.15:.8,h:pipe.normal[0]?.8:1.15,plantDirection:pipe.normal},v.x+(pipe.mouth[0]-cam)*z,v.y+(pipe.mouth[1]-cy)*z,z,0);}else if(this.editing&&t==='glass-pipe'&&l.properties?.[y*l.width+x]?.plant)this.scene.actor('creatures',0,px+z,py+z*.05,60*z/S);
             }
-        if(this.editing)l.cells.forEach((t,id)=>{if(t==='snake-block'){const x=id%l.width,y=Math.floor(id/l.width);drawWorkshopTile(this.scene,l,t,x,y,v.x+(x-cam)*z,v.y+(y-cy)*z,z,coinTime,true);}});
+        if(this.editing)for(const id of this.editorIndex().snakeAnchors){const t=l.cells[id]!,x=id%l.width,y=Math.floor(id/l.width);drawWorkshopTile(this.scene,l,t,x,y,v.x+(x-cam)*z,v.y+(y-cy)*z,z,coinTime,true);}
         const glassStart=this.scene.draws.length;drawGlassRoutes(this.scene,l,cam,cy,z,v);pipeDraws.push(...this.scene.draws.splice(glassStart));
         this.scene.draws.splice(pipeLayerStart,0,...pipeDraws);
         for (const warp of l.warps ?? []) if (tile(l, warp.from[0], warp.from[1]) === 'P') {
@@ -882,6 +1015,7 @@ class WhaleMaker {
             for(const c of s.turrets)drawCannon(this.scene,c,v.x+(c.x-cam)*z,v.y+(c.y-cy)*z,z,s.player.x<c.x);
             drawDust(this.scene,s.dust,cam,cy,z,v);
             for (const [index, e] of s.enemies.entries()) if (e.alive && !(e.held&&s.pipe?.glass&&s.pipe.path) && (!bonusRoom || e.x >= 221)) {
+                if(e.lakitu&&e.kind==='turtle')this.scene.sprite('world',14,v.x+(e.x-.3-cam)*z,v.y+(e.y+.45-cy)*z,1.4*z,.65*z);
                 drawModifiers(this.scene,e,v.x+(e.x+e.w/2-cam)*z,v.y+(e.y+e.h-cy)*z,z,s.time);
                 if(drawP2Enemy(this.scene,e,v.x+(e.x+e.w/2-cam)*z,v.y+(e.y+e.h-cy)*z,z,s.time))continue;
                 if(drawP1Enemy(this.scene,e,v.x+(e.x+e.w/2-cam)*z,v.y+(e.y+e.h-cy)*z,z,s.time))continue;
@@ -962,7 +1096,7 @@ class WhaleMaker {
         this.banner.setVisible(!this.editing && (winFinished || (s.phase === 'dead' && s.deathAge > .9)));
         const bannerAge = s.phase === 'dead' ? s.deathAge - .9 : (s.victory?.age ?? 0) - 1.5;
         this.rect(this.banner, { x: 360, y: 340 + 24 * Math.max(0,1-bannerAge/.25), width: 560, height: 100 });
-        this.banner.setText(s.phase==='dead'&&s.coop?(s.gameOver?'生命用尽 · R 重新开始':s.timeRemaining===0&&s.level.progress?.timeLimit?'时间到 · R 全队重试':'全队倒下了 · R 从检查点重试'):s.phase === 'won' ? (this.campaignActive?(l.classicStage===4?'1-1 → 1-4 闯关完成！  E 制造关卡':'准备进入下一关……'):'抵达星海！  R 重新出发 / E 制造关卡') : '任务失败  ·  R 从检查点重试');
+        this.banner.setText(s.phase==='dead'&&s.coop?(s.gameOver?'生命用尽 · R 重新开始':s.timeRemaining===0&&s.level.progress?.timeLimit?'时间到 · R 全队重试':'全队倒下了 · R 从检查点重试'):s.phase === 'won' ? (this.campaignActive?(this.nextDestination()?'准备进入下一关……':this.packLibrary.get(this.activePackId).title+'全部完成！  E 制造关卡'):'抵达星海！  R 重新出发 / E 制造关卡') : '任务失败  ·  R 从检查点重试');
         this.mode.setText(this.editing ? '试玩  E' : '编辑器  E');
         this.pause.setText(this.paused ? '继续 P' : '暂停 P');
         this.pause.setVisible(!this.editing);
@@ -977,9 +1111,10 @@ class WhaleMaker {
         const content=questionIds.every(id=>(l.contents?.[id]??(l.cells[id]==='cannon'?'cannonball':l.cells[id]==='ice'?'empty':'auto'))===firstContent)?firstContent:null;
         const propertyId=this.propertyIds()[0],propertyKind=propertyId===undefined?'':l.cells[propertyId]!,props=propertyId===undefined?{}:l.properties?.[propertyId]??{};
         this.inspector.setText(questionIds.length?`${NAMES[TOOLS.indexOf(l.cells[first!]!)]??'方块'} × ${questionIds.length} · ${elementOrigin(l.cells[first!]!)}`:propertyId!==undefined?`${NAMES[TOOLS.indexOf(propertyKind as Tile)]??'机关设置'} · ${elementOrigin(propertyKind as Tile)}`:`${NAMES[TOOLS.indexOf(this.selected)]??'元素'} · ${elementOrigin(this.selected)}`);
+        this.inspector.setVisible(this.editing);
         this.contentHint.setText(questionIds.length?`道具/敌人 ${this.contentPage+1}/${Math.ceil(CONTENTS.length/8)}`:propertyId!==undefined?'配置选中机关':'点击元素配置内容');
         this.propertyLabels.link!.setText(`连接编号 ${props.link??1}`);this.propertyLabels.length!.setText(`${propertyKind==='moving-platform'?'平台长度':'火滚长度'} ${props.length??4}`);this.propertyLabels.speed!.setText(propertyKind==='moving-platform'?`移动速度 ${props.speed??2} 格/s`:`转速 ${props.speed??1.5} rad/s`);this.propertyLabels.plant!.setText(propertyKind==='plant'?(props.mode==='pipe'?'食人花：伸缩':'食人花：固定'):(props.plant?'管内食人花：有':'管内食人花：无'));
-        this.propertyLabels.height!.setText(propertyKind==='cactus'?`仙人球 ${props.height??3} 层`:`高度 ${props.height??2} 格`);this.contentHint.setVisible(this.editing&&(questionIds.length>0||propertyId!==undefined)&&propertyKind!=='cannon'&&propertyKind!=='cactus'&&propertyKind!=='ice'&&propertyKind!=='ice-solid');
+        this.propertyLabels.height!.setText(propertyKind==='cactus'?`仙人球 ${props.height??3} 层`:`高度 ${props.height??2} 格`);const advancedPanel=this.p1Editor.update(),basicEditing=this.editing&&!advancedPanel;this.contentHint.setVisible(basicEditing&&(questionIds.length>0||propertyId!==undefined)&&propertyKind!=='cannon'&&propertyKind!=='cactus'&&propertyKind!=='ice'&&propertyKind!=='ice-solid');
         this.fontSizes.set(this.inspector,12);
         this.propertyLabels.drop!.setText(`掉落：${props.drop==='coin'?'Token金币':props.drop==='key'?'钥匙':'无'}`);
         this.ruleButton.setText(`规则：${rulesFor(l).rewards==='score'?'计分':'旧关金币'} · ${rulesFor(l).freezing==='timed'?'计时解冻':'永久冻结'}`);
@@ -989,13 +1124,12 @@ class WhaleMaker {
         this.propertyLabels.direction!.setText(`石头方向 ${props.direction==='left'?'←':props.direction==='right'?'→':'↓'} · 2×2`);
         this.propertyLabels.pipe!.setText(`管线 ${props.path?.slice(1).reduce((sum,p,n)=>sum+Math.abs(p[0]-props.path![n]![0])+Math.abs(p[1]-props.path![n]![1]),0)??0} 格 · 双向`);this.propertyLabels.glassPlant!.setText(props.plant?'入口食人花：有':'入口食人花：无');
         this.propertyLabels.pipeRotation!.setText(`管口朝${['上','右','下','左'][(props.rotation??0)/90]} · ${props.rotation??0}°`);
-        this.propertyNodes.forEach(({node,kinds})=>node.setVisible(this.editing&&(!questionIds.length||propertyKind==='cannon'||propertyKind==='ice'||propertyKind==='ice-solid')&&kinds.includes(propertyKind)));
-        this.contentChrome.forEach(n=>n.setVisible(this.editing&&questionIds.length>0));
-        this.contentPages.forEach(p=>p.nodes.forEach(n=>n.setVisible(this.editing&&questionIds.length>0&&p.page===this.contentPage)));
+        this.propertyNodes.forEach(({node,kinds})=>node.setVisible(basicEditing&&(!questionIds.length||propertyKind==='cannon'||propertyKind==='ice'||propertyKind==='ice-solid')&&kinds.includes(propertyKind)));
+        this.contentChrome.forEach(n=>n.setVisible(basicEditing&&questionIds.length>0));
+        this.contentPages.forEach(p=>p.nodes.forEach(n=>n.setVisible(basicEditing&&questionIds.length>0&&p.page===this.contentPage)));
         this.contentButtons.forEach((b,i)=>this.highlight(b,CONTENTS[i]===content));
-        this.selectionHints.forEach(n=>n.setVisible(this.editing&&propertyId!==undefined));
-        this.backdropNodes.forEach(n=>n.setVisible(this.editing&&!questionIds.length&&propertyId===undefined));
-        const advancedPanel=this.p1Editor.update();if(advancedPanel){this.contentNodes.forEach(n=>n.setVisible(false));this.propertyNodes.forEach(({node})=>node.setVisible(false));this.backdropNodes.forEach(n=>n.setVisible(false));this.selectionHints.forEach(n=>n.setVisible(false));this.contentHint.setVisible(false);}
+        this.selectionHints.forEach(n=>n.setVisible(basicEditing&&propertyId!==undefined));
+        this.backdropNodes.forEach(n=>n.setVisible(basicEditing&&!questionIds.length&&propertyId===undefined));
         this.backdropButtons.forEach(({button,value})=>this.highlight(button,(l.backdrop??'coast')===value));
         this.rect(this.hint,{x:24,y:this.editing?758:112,width:1230,height:30});
         const lastScore=s.scorePops.findLast(pop=>pop.oneUp)??s.scorePops.at(-1),clear=conditionProgress(s),hasCondition=!!s.level.condition;
@@ -1004,14 +1138,14 @@ class WhaleMaker {
         if(this.scoreBanner.style.color!==clearColor||this.scoreBanner.style.backgroundColor!==clearBackground)this.scoreBanner.setStyle({color:clearColor,backgroundColor:clearBackground,radius:8});
         this.scoreBanner.setVisible(!this.editing&&(!!lastScore||hasCondition));this.scoreBanner.setText([hasCondition?`${clear.failed?'条件失败':clear.done?'条件达成':'通关条件'} · ${clear.text}`:'',lastScore?`${lastScore.chain>1?'连击 ×'+lastScore.chain+'  ':''}${lastScore.oneUp?'1UP':'+'+lastScore.points}`:''].filter(Boolean).join('  |  '));
         this.status.setText(this.editing ? `LEVEL LAB  /  ${l.name}  /  ${Math.floor(cam)} m` : `得分 ${s.score}  金币 ${s.coins.toString().padStart(3, '0')}    ${PLAYER_FORMS[s.power].hudLabel}    ${s.level.progress?.timeLimit?'剩余 '+Math.ceil(s.timeRemaining)+'s':Math.floor(s.time)+'s'}  ${s.pTime>0?'P '+Math.ceil(s.pTime)+'s  ':''}${s.starTime>0?'★ '+Math.ceil(s.starTime)+'s  ':''}${s.redOn?'红 ': '蓝 '}${s.boneTime>0?'骨头 '+Math.ceil(s.boneTime)+'s  ':s.riding?.kind==='bone-shell'?'骨头龟壳  ':''}${s.shellHelmet==='shell-helmet'?'龟壳帽  ':s.shellHelmet==='spike-shell-helmet'?'尖刺龟壳帽  ':s.helmet?'铁盆  ':''}${s.keys.length?'钥匙 '+s.keys.length+'  ':''}${s.phase === 'won' ? '抵达星海！' : s.phase === 'dead' ? '按 R 重试' : this.paused ? '暂停' : l.name}`);
-        const entry=[...this.selection].map(id=>l.properties?.[id]).find(p=>p?.area);const wear=s.wearable;const recoveryText=s.phase==='playing'?s.coop?.recovery.flatMap((r,i)=>r?[`P${i+1} ${r.kind==='bubble'?'泡泡待救':'等待复活'}`]:[]).join(' · '):'';this.p2Hud.setVisible(this.editing||!!(s.coop||wear||s.level.progress?.lives||s.rootLevel?.areas||s.level.areas));this.p2Hud.setText(this.editing?`${this.editAreaId==='main'?'主区域':this.editAreaId} · ${l.width} × ${l.height}${entry?' → '+entry.area+' ('+(entry.targetX??2)+', '+(entry.targetY??2)+')':''}`:[s.coop?`协作 ${s.coop.players.length} 人 · 到达 ${s.coop.arrivals.filter(Boolean).length}/${s.coop.players.length}`:'',recoveryText,s.level.progress?.lives?'生命 '+s.lives:'',wear?P2_NAMES[P2_TOOLS.indexOf(wear.kind)]+(wear.kind==='propeller-box'||wear.kind==='pow-box'?' '+wear.uses+' 次':wear.kind==='cannon-box'?' 蓄力 '+Math.round(wear.charge*100)+'%':wear.kind==='bullet-mask'&&wear.active?s.swimming?' 水中持续':' '+Math.ceil(wear.flight)+'s':wear.kind==='goomba-mask'?wear.exposed>0?' 已暴露':' 伪装中':''):'',s.currentArea!=='main'?'副区 '+s.level.name:s.level.areas?'主区域':''].filter(Boolean).join(' · '));
+        const entry=[...this.selection].map(id=>l.properties?.[id]).find(p=>p?.area);const wear=s.wearable;const recoveryText=s.phase==='playing'?s.coop?.recovery.flatMap((r,i)=>r?[`P${i+1} ${r.kind==='bubble'?'泡泡待救':'等待复活'}`]:[]).join(' · '):'';this.p2Hud.setVisible(this.editing||!!(s.coop||wear||s.level.progress?.lives||s.rootLevel?.areas||s.level.areas));this.p2Hud.setText(this.editing?`${this.editAreaId==='main'?'主区域':this.editAreaId} · ${l.width} × ${l.height}${entry?' → '+entry.area+' ('+(entry.targetX??2)+', '+(entry.targetY??2)+')':''}`:[l.classicStage?'初代 '+classicStageName(l.classicStage-1):'',s.coop?`协作 ${s.coop.players.length} 人 · 到达 ${s.coop.arrivals.filter(Boolean).length}/${s.coop.players.length}`:'',recoveryText,s.level.progress?.lives?'生命 '+s.lives:'',wear?P2_NAMES[P2_TOOLS.indexOf(wear.kind)]+(wear.kind==='propeller-box'||wear.kind==='pow-box'?' '+wear.uses+' 次':wear.kind==='cannon-box'?' 蓄力 '+Math.round(wear.charge*100)+'%':wear.kind==='bullet-mask'&&wear.active?s.swimming?' 水中持续':' '+Math.ceil(wear.flight)+'s':wear.kind==='goomba-mask'?wear.exposed>0?' 已暴露':' 伪装中':''):'',s.currentArea!=='main'?'副区 '+s.level.name:s.level.areas?'主区域':''].filter(Boolean).join(' · '));
         this.hint.setText(this.notice || (this.editing ? '元素翻页 · 单选拖拽 · 框选组合 · 点击配置机关 · 方向键平移 / Shift 滚轮垂直 · Ctrl C / V 复制粘贴 · E 试玩' : (s.coop?'全员抵达终点即可通关 · 在设置中配置每位玩家的键盘和手柄  |  ':`${this.controls.players[0]!.keys.map(keyLabel).slice(0,2).join(' / ')} 移动 · ${keyLabel(this.controls.players[0]!.keys[4]!)} 跳跃 · ${keyLabel(this.controls.players[0]!.keys[6]!)} 抱物 · ${keyLabel(this.controls.players[0]!.keys[7]!)} 发射 / 投掷  |  `) + s.notice));
     }
     destroy() { if (this.disposed)
         return; this.disposed = true;this.removeAudioSession?.();this.audio.dispose(); this.abort.abort(); this.resize?.disconnect(); this.engine.stop(); this.world.destroy(); this.engine.destroy(); }
 }
 const game = new WhaleMaker(document.getElementById('whale-board') as HTMLCanvasElement);
-const disposeGamepad = installGamepad('whale-maker',()=>!game.editing||!!game.settingsPanel?.open);
+const disposeGamepad = installGamepad('whale-maker',()=>!game.editing||!!game.settingsPanel?.open||!!game.packPanel?.open);
 window.addEventListener('pagehide', e => { if (!e.persisted) {
     disposeGamepad();
     game.destroy();

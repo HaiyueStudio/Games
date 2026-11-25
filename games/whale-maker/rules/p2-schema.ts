@@ -23,7 +23,7 @@ export function validP2Property(key:string,v:unknown):boolean {
     if(key==='area')return typeof v==='string'&&/^[a-zA-Z0-9_-]{1,24}$/.test(v);
     if(key==='goalBonus')return v==='score'||v==='life';
     if(key==='checkpointPower')return isPlayerPower(v);
-    const max=key==='goalHeight'?24:key==='charges'?9:key==='durability'?20:key==='targetY'?255:key==='targetX'?239:key==='period'||key==='recovery'?60:32;
+    const max=key==='goalHeight'?24:key==='charges'?9:key==='durability'?20:key==='targetY'?255:key==='targetX'?511:key==='period'||key==='recovery'?60:32;
     return typeof v==='number'&&Number.isFinite(v)&&v>=(['checkpointPower','delay','targetX','targetY'].includes(key)?0:.1)&&v<=max&&(!['charges','durability','checkpointPower','goalHeight','targetX','targetY'].includes(key)||Number.isInteger(v));
 }
 export function p2Issues(l:Level,main:Level=l):{message:string;cell?:number}[]{
@@ -37,6 +37,6 @@ export function p2Issues(l:Level,main:Level=l):{message:string;cell?:number}[]{
     l.cells.forEach((t,id)=>{const p=l.properties?.[id],x=id%l.width,y=Math.floor(id/l.width);
         if(isP2Boss(t)){const size=t==='cat-boss'?3:2;if(x+size>l.width||y+size>l.height)out.push({message:'首领尺寸超出区域',cell:id});}
         if(['beat-block','fall-block','icicle','tornado','camera-stop'].includes(t)){const w=t==='icicle'?1:p?.width??(t==='tornado'?2:t==='camera-stop'?4:1),h=t==='icicle'?p?.height??2:t==='tornado'?p?.height??5:t==='camera-stop'?p?.depth??4:1;if(x+w>l.width||y+h>l.height)out.push({message:'机关尺寸超出区域',cell:id});}
-        if(p?.area){const target=p.area==='main'?main:l.areas?.[p.area];if(!target)out.push({message:`目标区域不存在（${x},${y}）`,cell:id});else if((p.targetX??2)>=target.width||(p.targetY??2)>=target.height)out.push({message:`出口坐标超出目标区域（${x},${y}）`,cell:id});}
+        if(p?.area){const target=p.area==='main'?main:l.areas&&Object.hasOwn(l.areas,p.area)?l.areas[p.area]:undefined;if(!target)out.push({message:`目标区域不存在（${x},${y}）`,cell:id});else if((p.targetX??2)>=target.width||(p.targetY??2)>=target.height)out.push({message:`出口坐标超出目标区域（${x},${y}）`,cell:id});}
     });return out;
 }

@@ -6,6 +6,7 @@ import {grantPower} from './power';
 import {emit} from './events';
 import {isRecovering} from './coop-state';
 import {chargeLife} from './p2-progress';
+import {cancelCourseTravel} from './course-travel';
 
 export const SHOT_DURATION=.24,EAT_DURATION=.56,CHEER_DURATION=.8;
 function cancelPlayerActions(s:State):void {
@@ -19,6 +20,7 @@ export function killPlayer(s:State,cause:'crush'|'fall'|'contact'|'timeout'='cru
     const coop=s.coop;
     if(s.phase!=='playing'||isRecovering(s)||coop?.arrivals[coop.active]&&cause!=='timeout'||s.boneTime>0&&!(coop&&cause==='timeout'))return;
     s.clearRun.damaged=true;
+    if(!coop||coop.traveler===coop.active)cancelCourseTravel(s);
     dropHelmet(s);cancelPlayerActions(s);releaseHeld(s);
     s.boneTime=0;s.starTime=s.invincible=0;s.power=0;s.motion='none';s.charge=s.runCharge=s.stun=0;
     s.boomerangs=[];s.wearable=null;if(!coop)s.cannonShots=[];s.vehicle=null;
@@ -27,10 +29,6 @@ export function killPlayer(s:State,cause:'crush'|'fall'|'contact'|'timeout'='cru
     if(coop){
         chargeLife(s);
         coop.recovery[coop.active]={kind:'waiting',remaining:.75};
-        if(coop.traveler===coop.active){
-            coop.traveler=-1;
-            for(const actor of coop.players){actor.pipe=actor.door=null;}
-        }
         s.pipe=s.door=null;
         if(cause!=='timeout'&&!s.gameOver&&coop.recovery.some(r=>!r)){
             s.player.vy=0;s.notice=`P${coop.active+1} 等待复活`;emit(s,'hurt');return;

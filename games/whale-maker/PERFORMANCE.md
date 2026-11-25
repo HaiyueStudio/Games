@@ -59,3 +59,18 @@ node games/whale-maker/verify-performance-browser.mjs v29-after artifacts/whale-
 ```
 
 本轮记录位于 `artifacts/whale-v29-world-before.json`、`artifacts/whale-v29-world-after.json`、`artifacts/whale-v29-after.json`、`artifacts/whale-maker-world/` 和 `artifacts/whale-maker-performance/v29-*.json`。
+
+## 2026-11-25：大地图编辑与地图包
+
+512×256 编辑器的终点、蛇形砖和扩展元素索引按编辑版本缓存；框选／粘贴在一次操作内共享索引。绘制只检查视口附近格子，同时保留上方长管道、伸入视口的大型对象。每次连续落笔都会更新版本，撤销、导入和切区使用独立关卡引用。GUI 性能验证改为递归观察所有后代，覆盖高级属性及地图包面板。
+
+| 测量项目 | 修复前 | 修复后 |
+| --- | ---: | ---: |
+| 512×256 空地图中 16×16 框选 | 335.76 ms | 12.76 ms |
+| 同尺寸编辑器稳态每帧格子读取 | 270,855 | 2,350 |
+| 普通／高级面板每帧无效显隐 | 4／22 次 | 0／0 次 |
+| 初代地图包加两份二代副本存档 | 约 679 万字符 | 201,392 字符 |
+
+框选耗时为相同 Node v24.19.0 复现脚本的三轮中位数，本轮同时运行全仓检查；时间可能随系统负载变化。浏览器为 Chrome 157。读取数、显隐计数和序列化大小不依赖计时。四种稳态界面均为零额外显隐，原有绘制基准也没有重复样式或脏标记。
+
+内置经典关卡按需展开；保存使用 RLE 与未修改蓝图引用。持续刷怪在共享模拟帧末摊销回收死亡实体，死亡残留保持少于 64 个。完整变更、兼容迁移与复验命令见 [本轮技术债修复](TECH_DEBT_AUDIT.md)。原始数据为 `artifacts/whale-debt-editor-after.json`、`artifacts/whale-debt-fixed/metrics.json` 和 `artifacts/whale-maker-performance/debt-fixed.json`。

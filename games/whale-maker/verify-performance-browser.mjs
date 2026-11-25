@@ -10,7 +10,7 @@ const result=await runChromeWebGpuFixture({root,fixture:'games/whale-maker/index
  assert.equal(await evaluate('document.body?.dataset.renderStatus'),'passed');
  const stats=await evaluate(`(()=>{
  const g=window.__whaleMaker;g.engine.stop();g.paused=true;g.state.time=12;g.state.invincible=100;g.editTime=12;
- const nodes=g.ui.root.children,counts={visibility:0,style:0,dirty:0};
+ const walk=n=>[n,...n.children.flatMap(walk)];const nodes=g.ui.root.children.flatMap(walk),counts={visibility:0,style:0,dirty:0};
  for(const n of nodes){const visible=n.setVisible,style=n.setStyle,dirty=n.markDirty;n.setVisible=function(v){if(v!==this.visible)counts.visibility++;return visible.call(this,v);};n.setStyle=function(v){counts.style++;return style.call(this,v);};n.markDirty=function(...args){counts.dirty++;return dirty.apply(this,args);};}
  const bench=()=>{for(let n=0;n<5;n++)g.draw();counts.visibility=counts.style=counts.dirty=0;const samples=[];for(let k=0;k<5;k++){const start=performance.now();for(let n=0;n<20;n++)g.draw();samples.push((performance.now()-start)/20);}samples.sort((a,b)=>a-b);return {medianMs:samples[2],counts:{...counts},draws:g.scene.draws.length};};
  const play=bench();g.editing=true;const editor=bench();g.contentPage=2;g.paletteCategory=1;g.palettePage=1;g.selection=new Set([g.level.cells.findIndex(t=>t==='?')]);const inspector=bench();

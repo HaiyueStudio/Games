@@ -3,22 +3,162 @@
     {
       "map": "1-1",
       "sha256": "72fe351ee37d381be7d3e720b34833fa14654fda6a06c332e8542c5dd561c32c",
-      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-1.js"
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/1-1.js"
     },
     {
       "map": "1-2",
       "sha256": "b7355fa28881b028cdff220bd4419cb364920434b3292bbd049965f55ec5201f",
-      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-2.js"
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/1-2.js"
     },
     {
       "map": "1-3",
       "sha256": "e1b07a76659a129ead253fd966c3099124f4866bb3489b2d2a3d3686aad45b57",
-      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-3.js"
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/1-3.js"
     },
     {
       "map": "1-4",
       "sha256": "344a6bdf54630a4b07d2ebab0b5b8943a7ffaf28b29ec46cd16903b722f067ab",
-      "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/maps/1-4.js"
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/1-4.js"
+    },
+    {
+      "map": "2-1",
+      "sha256": "26e7c9da95d846bdc3eb8d016ccc4047770fad98a7f8ecce4f15ae9836a37d65",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/2-1.js"
+    },
+    {
+      "map": "2-2",
+      "sha256": "93ab814581aeb42534acc3d96f66cefc541060f234fb4a9b8bb6bb887a43d281",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/2-2.js"
+    },
+    {
+      "map": "2-3",
+      "sha256": "8ce445dcf95f4bacbe0fa6e687ba589b07ae122b1a82b0e8fb3a34c911c34094",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/2-3.js"
+    },
+    {
+      "map": "2-4",
+      "sha256": "17bb23f23098b846dd4ce4946f996ded2bd65219453ea5f6d514c8b50933970c",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/2-4.js"
+    },
+    {
+      "map": "3-1",
+      "sha256": "ed6a62389371902569c6a9df3f6b35512e039e3dbb5baad71d6557c1c7ebba7b",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/3-1.js"
+    },
+    {
+      "map": "3-2",
+      "sha256": "4745aec9f8770f19cb40412abc680e8d9144a24e45324fa7f993d87564224917",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/3-2.js"
+    },
+    {
+      "map": "3-3",
+      "sha256": "82c7123df9c9eb59c5d31a0593538d6e843d0fad3607d9ec07b6660f68b693f1",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/3-3.js"
+    },
+    {
+      "map": "3-4",
+      "sha256": "62d36dfb504855bf8441689ca0bd22671d6556354e0d3a2eea912068b8ce03e3",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/3-4.js"
+    },
+    {
+      "map": "4-1",
+      "sha256": "4048456b7ff7198834dc247517d021752734c9ee5911226ae3efd574684ce384",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/4-1.js"
+    },
+    {
+      "map": "4-2",
+      "sha256": "10baebbf7218910ddc59693177e0c7080de0cac94703113d4ff2b05457944856",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/4-2.js"
+    },
+    {
+      "map": "4-3",
+      "sha256": "59bd708ff312c545aeb22940898916416ff3903582ab1f91a766d4a9a43b0ead",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/4-3.js"
+    },
+    {
+      "map": "4-4",
+      "sha256": "032549a39ac9ea0de1994e450ed72c7e493a69507435cba4c60a5f7279bdd4ae",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/4-4.js"
+    },
+    {
+      "map": "5-1",
+      "sha256": "7e5543c1984b0e2f9817db333c7fb62bd4fded4eb4080185e5fe93685dcf18be",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/5-1.js"
+    },
+    {
+      "map": "5-2",
+      "sha256": "fbdccade105e202fb140f649a4d59db53fcc89eb4e0620a83af3a6fe67c092af",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/5-2.js"
+    },
+    {
+      "map": "5-3",
+      "sha256": "be65b518786586fad046673caaae61adc0562615cd3cf9c7f3789136b077cfb4",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/5-3.js"
+    },
+    {
+      "map": "5-4",
+      "sha256": "86948a8c149411b45075c019f9a474c65cda662c5af8385470f4d40d77b31c03",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/5-4.js"
+    },
+    {
+      "map": "6-1",
+      "sha256": "231f9b2deacf485a8f13671e0a36261c42580c0ec88b71751697f5fc6d41a151",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/6-1.js"
+    },
+    {
+      "map": "6-2",
+      "sha256": "5259e5da226c5f167bd21f22f0dd24026d37bbe8d55d01dbb5704940238cfa0a",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/6-2.js"
+    },
+    {
+      "map": "6-3",
+      "sha256": "5cc101888848238c795d8af241d5d5d25837ad2563d953af1d79ec93a211eee2",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/6-3.js"
+    },
+    {
+      "map": "6-4",
+      "sha256": "e8fb5bbc8c0d68cc878943455a3fae235da77fdf222c35d8d7c19305bf268ab0",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/6-4.js"
+    },
+    {
+      "map": "7-1",
+      "sha256": "512eaadb8051ecff5c02cef72d3cf8cf4e51cb61fa3b878eda98e52ab6c2d20e",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/7-1.js"
+    },
+    {
+      "map": "7-2",
+      "sha256": "f52f9d953b924b78942804a508895cca508213ada0be95a8543ca331a67334c9",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/7-2.js"
+    },
+    {
+      "map": "7-3",
+      "sha256": "6931b0957b589efeb1df01e7810849dfc1209119c810afcf3216a9faa4a43c35",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/7-3.js"
+    },
+    {
+      "map": "7-4",
+      "sha256": "d54f526c9f1402243ad16d9b500d7359fbb550b7823ab1711d1f20f6efb46ded",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/7-4.js"
+    },
+    {
+      "map": "8-1",
+      "sha256": "f0d6dda71b50e9f853b9ab2c72806e75dcc6f99be5d27b863eef5101ef785c84",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/8-1.js"
+    },
+    {
+      "map": "8-2",
+      "sha256": "42cb41c3f95d159dc1679402c2411650670e153aa68e9f8f045298375f813b99",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/8-2.js"
+    },
+    {
+      "map": "8-3",
+      "sha256": "bfaa11432d4a802a935f21267bd1f71e153c6807dfecd157458f6d11a2eaa991",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/8-3.js"
+    },
+    {
+      "map": "8-4",
+      "sha256": "8ca12dd80a36d6fe908580881c76a733a86d13dbc2aefecc594890e283aa239c",
+      "url": "https://raw.githubusercontent.com/DevJogger/html-mario/gh-pages/settings/maps/8-4.js"
     }
   ],
   "mapReference": "https://www.nesmaps.com/maps/SuperMarioBrothers/SuperMarioBrothers.html",
@@ -27,7 +167,7 @@
     "sha256": "0d0bb92b0e20caf3e5d422e62e583055893770202a8d8fb2dd92554677688562"
   },
   "mapUnitsPerTile": 8,
-  "retrieved": "2026-10-28",
+  "retrieved": "2026-11-25",
   "goalDimensions": {
     "flagPoleMapUnits": 72,
     "url": "https://github.com/DevJogger/html-mario/blob/gh-pages/settings/objects.js#L887",
@@ -35,5 +175,7 @@
     "nesPixels": 144,
     "sha256": "b74f8019b493cc5605ab1c42e046f6a65c6ec078a50d79c1e6398125859e4326",
     "tiles": 9
-  }
+  },
+  "levelCount": 32,
+  "conversion": "32 stages, same-course subareas, 4-4/7-4 route gates, finite 8-4 pipe rooms"
 }

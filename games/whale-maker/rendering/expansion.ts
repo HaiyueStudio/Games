@@ -13,6 +13,7 @@ const MECHANISM_ART:Record<string,number>={'toggle-switch':0,'red-block':2,'blue
 export function extraArt(t:string,time=0):{atlas:string;frame:number}|null {
     if(t==='shell-helmet'||t==='spike-shell-helmet'||t==='bone-shell')return {atlas:'shell-equipment',frame:t==='shell-helmet'?0:t==='spike-shell-helmet'?1:2};
     const p2=p2Art(t,time);if(p2)return p2;const p1=p1Art(t,time);if(p1)return p1;
+    if(t==='poison-pearl')return {atlas:'pearls',frame:0};
     if(t==='coin')return {atlas:'tokens',frame:coinFrame(time)};
     if(t==='ice-solid')return {atlas:'devices',frame:11};
     if(t==='quicksand'||t==='cactus'||t==='snowball')return {atlas:'desert-icons',frame:t==='quicksand'?0:t==='cactus'?1:2};
@@ -76,6 +77,7 @@ export function drawInactivePDoor(scene:WhaleScene2D,centerX:number,feetY:number
     stroke([[-.19,-.48],[-.19,-1.12],[.09,-1.12],[.23,-1.02],[.23,-.84],[.09,-.75],[-.19,-.75]],.12,.075,.06);
 }
 export function drawExtraTile(scene:WhaleScene2D,s:State,l:Level,t:Tile,x:number,y:number,px:number,py:number,z:number,time:number,editing:boolean):boolean {
+    if(t==='poison-pearl'){scene.actor('pearls',0,px+z/2,py+z,44*z/48,false,0,0,1,[.75,.25,.9,1]);return true;}
     if(t==='hidden-block'){if(editing){scene.sprite('world',1,px,py,z,z,false,0,.4);scene.fill({x:px+z*.15,y:py+z*.15,width:z*.7,height:2},[1,1,1,.8]);}return true;}
     if(t==='stone-body')return true;
     if(t==='stone'){if(editing){const size=l.properties?.[y*l.width+x]?.large?4:2;if(l.properties?.[y*l.width+x]?.winged)scene.centeredActor('p1-icons',24,px+size*z/2,py+size*z*.45,z*size*1.35,24);scene.sprite('adventure',3,px-.1*z,py-.2*z,(size+.2)*z,(size+.2)*z);}return true;}
@@ -86,7 +88,7 @@ export function drawExtraTile(scene:WhaleScene2D,s:State,l:Level,t:Tile,x:number
         // retain the shape of the caustics and bubbles at any pool depth.
         const mirrorY=y%2!==0;
         scene.sprite('environment',16+Math.floor(time*6)%4,px,py,z,z,(x%2!==0)!==mirrorY,mirrorY?Math.PI:0);
-        if(tile(l,x,y-1)!=='water')scene.sprite('environment',Math.floor(time*8)%4,px,py-z*.08,z,z*.4);
+        if(tile(l,x,y-1)!=='water'&&!(l.liquid?.kind==='water'&&y>(l.liquidSurface??l.liquid.low)))scene.sprite('environment',Math.floor(time*8)%4,px,py-z*.08,z,z*.4);
         return true;
     }
     if(t==='glass-pipe'){if(l.properties?.[y*l.width+x]?.path)return true;let h=1;while(tile(l,x,y+h)==='glass-left-shaft')h++;scene.sprite('gadgets',17,px+.12*z,py+.5*z,1.76*z,(h-.5)*z,false,0,.6);scene.sprite('gadgets',16,px,py,2*z,z*.78,false,0,.75);return true;}

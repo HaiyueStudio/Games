@@ -9,7 +9,7 @@ import {cellAt as tile} from './terrain';
 
 
 export interface TurtleBoss extends Body { home:number;health:number;age:number;cycle:number;fireAt:number;fired:boolean;jumpAt:number;hurt:number;facing:number;phase:'walk'|'breath'|'fall'|'gone';link:number;brain?:import('./p2').P2BossBrain }
-export interface MovingPlatform extends Body { axis:'x'|'y';start:number;end:number;direction:number;speed:number;loop:boolean }
+export interface MovingPlatform extends Body { axis:'x'|'y';start:number;end:number;direction:number;speed:number;loop:boolean;mode?:'fall'|'balance';link?:number;falling?:boolean }
 export interface FortressState { bosses:TurtleBoss[];bossFire:(Body&{age:number})[];platforms:MovingPlatform[];bridgeAnchors:{x:number;y:number}[];bridgeCollapse:{cells:number[];age:number;removed:number;link:number}|null;bridgeDebris:(Body&{age:number})[];releasedBells:Record<string,true> }
 
 export function bossCells(l:Level,id:number):number[]{
@@ -28,17 +28,33 @@ export function initFortress(l:Level):FortressState {
         if(t==='turtle-boss'){bosses.push({x,y,w:2,h:2,vx:0,vy:0,home:x,health:5,age:0,cycle:0,fireAt:2.2,fired:false,jumpAt:3.4,hurt:0,facing:-1,phase:'walk',link:p?.link??1});for(const n of bossCells(l,id))l.cells[n]='.';}
         if(t==='moving-platform'){
             const axis=p?.axis??'x',start=p?.range?.[0]??(axis==='x'?x-3:y-3),end=p?.range?.[1]??(axis==='x'?x+3:y+3);
-            platforms.push({x,y,w:p?.length??3,h:.25,vx:0,vy:0,axis,start,end,direction:(p?.speed??2)<0?-1:1,speed:Math.abs(p?.speed??2),loop:p?.loop??false});l.cells[id]='.';
+            platforms.push({x,y,w:p?.length??3,h:.25,vx:0,vy:0,axis,start,end,direction:(p?.speed??2)<0?-1:1,speed:Math.abs(p?.speed??2),loop:p?.loop??false,...(p?.platformMode?{mode:p.platformMode}:{}),...(p?.link?{link:p.link}:{})});l.cells[id]='.';
         }
     });
     return {bosses,platforms,bridgeAnchors,bossFire:[],bridgeCollapse:null,bridgeDebris:[],releasedBells:{}};
 }
 
 export function advancePlatforms(s:State,dt:number,svc:Services):void {
+    const bodies=[...playerBodies(s),...s.enemies.filter(e=>e.alive&&!e.held),...s.items.filter(item=>item.alive&&!item.held)];
+    const weights=new Map(s.platforms.map(p=>[p,bodies.filter(b=>b.vy>=0&&Math.abs(b.y+b.h-p.y)<.045&&b.x<p.x+p.w&&b.x+b.w>p.x).length]));
+    const balanceSteps=new Map<MovingPlatform,number>();
+    for(const platform of s.platforms)if(platform.mode==='balance'&&!balanceSteps.has(platform)){
+        const partner=s.platforms.find(p=>p!==platform&&p.mode==='balance'&&p.link===platform.link);
+        if(!partner)continue;
+        const direction=Math.sign(weights.get(platform)!-weights.get(partner)!);
+        const distance=Math.min(platform.speed*dt,direction>0?platform.end-platform.y:platform.y-platform.start,
+            direction>0?partner.y-partner.start:partner.end-partner.y);
+        balanceSteps.set(platform,direction*Math.max(0,distance));balanceSteps.set(partner,-direction*Math.max(0,distance));
+    }
     for(const platform of s.platforms){
         const old={...platform},key=platform.axis;
         let next=platform[key]+platform.direction*platform.speed*dt;
-        if(next>platform.end||next<platform.start){if(platform.loop)next=platform.direction>0?platform.start:platform.end;else{next=Math.max(platform.start,Math.min(platform.end,next));platform.direction*=-1;}}
+        if(platform.mode==='balance')next=platform[key]+(balanceSteps.get(platform)??0);
+        else if(platform.mode==='fall'){
+            platform.falling||=weights.get(platform)!>0;
+            platform.vy=platform.falling?Math.min(12,platform.vy+8*dt):0;
+            next=platform[key]+platform.vy*dt;
+        }else if(next>platform.end||next<platform.start){if(platform.loop)next=platform.direction>0?platform.start:platform.end;else{next=Math.max(platform.start,Math.min(platform.end,next));platform.direction*=-1;}}
         platform[key]=next;const dx=platform.x-old.x,dy=platform.y-old.y;
         platform.vx=dx/dt;platform.vy=dy/dt;
         if(Math.abs(dx)+Math.abs(dy)>1)continue; // Elevator recycling never teleports riders.
@@ -46,6 +62,7 @@ export function advancePlatforms(s:State,dt:number,svc:Services):void {
             const vx=b.vx,vy=b.vy;b.vx=dx/dt;b.vy=dy/dt;asPlayerBody(s,b,player=>svc.move(s,b,dt,player&&!!s.coop));b.vx=vx;b.vy=vy;
         }
     }
+    s.platforms=s.platforms.filter(p=>p.mode!=='fall'||p.y<s.level.height+3);
 }
 export function damageBoss(s:State,b:TurtleBoss,attack='fire'):void {
     if(b.brain){hitP2Boss(s,b,attack);return;}

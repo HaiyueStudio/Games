@@ -24,6 +24,12 @@ export function drawFortressTile(scene:WhaleScene2D,s:State,l:Level,t:Tile,x:num
 }
 export function drawFortress(scene:WhaleScene2D,s:State,cam:number,cy:number,z:number,v:{x:number;y:number}):void {
     for(const a of s.bridgeAnchors)scene.actor('reef-bridge',1,v.x+(a.x-cam)*z,v.y+(a.y-cy)*z,z*.95);
+    for(const p of s.platforms)if(p.mode==='balance'){
+        const center=p.x+p.w/2,top=Math.min(p.start,p.y);
+        scene.fill({x:v.x+(center-cam)*z-1,y:v.y+(top-cy)*z,width:2,height:Math.max(1,(p.y-top)*z)},[.79,.69,.42,1]);
+        const partner=s.platforms.find(other=>other.mode==='balance'&&other.link===p.link&&other.x>p.x);
+        if(partner)scene.fill({x:v.x+(center-cam)*z,y:v.y+(top-cy)*z,width:(partner.x+partner.w/2-center)*z,height:2},[.79,.69,.42,1]);
+    }
     for(const p of s.platforms)for(let n=0;n<p.w;n++)scene.sprite('reef-bridge',0,v.x+(p.x+n-cam)*z,v.y+(p.y-cy)*z,Math.min(1,p.w-n)*z,.3*z,n%2===1);
     for(const d of s.bridgeDebris)scene.sprite('reef-bridge',0,v.x+(d.x-cam)*z,v.y+(d.y-cy)*z,z,.3*z,false,d.age*2,Math.min(1,(1.5-d.age)*2));
     for(const b of s.bosses){

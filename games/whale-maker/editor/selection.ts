@@ -1,5 +1,6 @@
+import {indexEditorLevel,type EditorIndex} from './query';
 import {P2_TOOLS} from '../rules/p2-schema';
-import { elementBounds, elementFits, SIZED_OBJECTS } from './p1-geometry';
+import { elementFits } from './p1-geometry';
 import { P1_TOOLS, PATH_TILES } from '../rules/p1-schema';
 import { tile, type Level, type Tile, type BlockContent } from '../rules/model';
 import type { ElementProperties } from '../rules/catalog';
@@ -8,7 +9,7 @@ import { stoneCells } from '../rules/adventure';
 import { isGlass, glassAt, glassCells } from '../rules/glass';
 import { bossCells } from '../rules/fortress';
 import { setCell } from '../rules/terrain';
-import { initialSnake, validSnakePath } from '../rules/snake-path';
+import { validSnakePath } from '../rules/snake-path';
 import { isPipe, pipeAt } from '../rules/pipes';
 import { cactusCells } from '../rules/desert';
 
@@ -17,13 +18,13 @@ export interface CellStamp { dx: number; dy: number; tile: Tile; content?: Block
 export interface Stamp { cells: CellStamp[]; width: number; height: number;origin?:[number,number] }
 
 /** Pipes are one editor object even though collision uses individual cells. */
-export function objectCells(level: Level, x: number, y: number): number[] {
-    for(let id=0;id<level.cells.length;id++)if((level.cells[id]==='snake-block'||level.cells[id]==='snake-fast')&&initialSnake(level,id).some(b=>x>=Math.floor(b.x)&&x<Math.ceil(b.x+1)&&y>=Math.floor(b.y)&&y<Math.ceil(b.y+1)))return [id];
+export function objectCells(level: Level, x: number, y: number,index:EditorIndex=indexEditorLevel(level)): number[] {
+    const snake=index.snakes.get(y*level.width+x);if(snake!==undefined)return [snake];
     // A pearl is anchored at its lower-left cell, like other floor items.
     // Include its visible upper half when clicking, moving or copying it.
     for(const ay of [y,y+1])for(const ax of [x,x-1])if(tile(level,ax,ay)==='giant-pearl'&&ax>=0&&ax+1<level.width&&ay>0&&ay<level.height){const anchor=ay*level.width+ax;return [anchor-level.width,anchor-level.width+1,anchor,anchor+1];}
     const t = tile(level, x, y);
-    if(t==='.')for(let id=0;id<level.cells.length;id++)if(SIZED_OBJECTS.has(level.cells[id]!)){const b=elementBounds(level.cells[id]!,id%level.width,Math.floor(id/level.width),level.properties?.[id],level.theme);if(x>=Math.floor(b.x)&&x<Math.ceil(b.x+b.w)&&y>=Math.floor(b.y)&&y<Math.ceil(b.y+b.h))return [id];}
+    if(t==='.'){const owner=index.sized.get(y*level.width+x);if(owner!==undefined)return [owner];}
     if (t === '.') return [];
     if(t==='gentle-up'||t==='gentle-down')return [y*level.width+x,y*level.width+x+1];
     if(t==='gentle-up-body'||t==='gentle-down-body')return [y*level.width+x-1,y*level.width+x];
@@ -46,10 +47,10 @@ export function objectCells(level: Level, x: number, y: number): number[] {
 }
 
 export function selectBox(level: Level, a: [number, number], b: [number, number]): Set<number> {
-    const cells = new Set<number>();
+    const cells = new Set<number>(),index=indexEditorLevel(level);
     for (let y = Math.max(0, Math.min(a[1], b[1])); y <= Math.min(level.height - 1, Math.max(a[1], b[1])); y++)
         for (let x = Math.max(0, Math.min(a[0], b[0])); x <= Math.min(level.width - 1, Math.max(a[0], b[0])); x++)
-            for (const id of objectCells(level, x, y)) cells.add(id);
+            for (const id of objectCells(level, x, y,index)) cells.add(id);
     return cells;
 }
 
@@ -71,9 +72,9 @@ export function pasteStamp(level: Level, stamp: Stamp, x: number, y: number): Se
     if (x < 0 || y < 0 || x + stamp.width > level.width || y + stamp.height > level.height) return null;
     if(stamp.cells.some(c=>([...P1_TOOLS,...P2_TOOLS] as readonly string[]).includes(c.tile)&&!elementFits(level,c.tile,x+c.dx,y+c.dy,c.properties)))return null;
     if(stamp.cells.some(c=>PATH_TILES.has(c.tile)&&c.properties?.path&&!validSnakePath(level,(y+c.dy)*level.width+x+c.dx,c.properties.path)))return null;
-    const targets = new Set<number>();
+    const targets = new Set<number>(),index=indexEditorLevel(level);
     if(goals.length)for(let id=0;id<level.cells.length;id++)if(level.cells[id]==='E')targets.add(id);
-    for (const c of stamp.cells) for (const id of objectCells(level, x + c.dx, y + c.dy)) targets.add(id);
+    for (const c of stamp.cells) for (const id of objectCells(level, x + c.dx, y + c.dy,index)) targets.add(id);
     clearCells(level, targets);
     const result = new Set<number>();
     for (const c of stamp.cells) {

@@ -116,9 +116,9 @@ export function treeContact(s:State,i:Input,jump:boolean,dt:number):boolean {
 }
 export function warpBoxes(s:State,_i:Input):void {
     if(s.door||s.pipe||s.doorWait>0||s.areaCooldown>0)return;
-    const p=s.player,id=touchingWarps(s).find(n=>!s.usedWarps[n]&&!s.level.properties?.[n]?.area);if(id===undefined)return;const t=s.level.cells[id];
+    const p=s.player,id=touchingWarps(s).find(n=>!s.usedWarps[n]&&!s.level.properties?.[n]?.area&&!s.level.properties?.[n]?.destination);if(id===undefined)return;const t=s.level.cells[id];
     if(t!=='warp-box'&&t!=='locked-warp'||s.usedWarps[id])return;
-    const link=s.level.properties?.[id]?.link??1,exit=s.level.cells.findIndex((c,n)=>n!==id&&(c==='warp-box'||c==='locked-warp')&&(s.level.properties?.[n]?.link??1)===link&&!s.usedWarps[n]&&!s.level.properties?.[n]?.area);if(exit<0)return;
+    const link=s.level.properties?.[id]?.link??1,exit=s.level.cells.findIndex((c,n)=>n!==id&&(c==='warp-box'||c==='locked-warp')&&(s.level.properties?.[n]?.link??1)===link&&!s.usedWarps[n]&&!s.level.properties?.[n]?.area&&!s.level.properties?.[n]?.destination);if(exit<0)return;
     if(t==='locked-warp'){if(!s.keys.length){s.notice='上锁传送箱需要一把钥匙';return;}s.keys.shift();}
     s.usedWarps[id]=s.usedWarps[exit]=true;s.door={age:0,from:[p.x,p.y],to:[exit%s.level.width+.5-p.w/2,Math.floor(exit/s.level.width)+1-p.h-(s.vehicle?s.vehicle.h-.35:0)],source:id,target:exit};emit(s,'door',p.x);
 }
